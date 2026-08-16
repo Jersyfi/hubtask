@@ -43,6 +43,7 @@ func TestTheLogCarriesTheTraceAndTheRequest(t *testing.T) {
 		TraceID: traceID, SpanID: spanID, TraceFlags: trace.FlagsSampled,
 	}))
 	ctx = ContextWithRequestID(ctx, "01936f2a-7c1e-7000-8000-00000000000a")
+	ctx = ContextWithTenant(ctx, "01936f2a-7c1e-7000-8000-00000000000b")
 
 	entry := logAndParse(t, env.Config{}, func(l *slog.Logger) {
 		l.InfoContext(ctx, "something happened")
@@ -52,6 +53,7 @@ func TestTheLogCarriesTheTraceAndTheRequest(t *testing.T) {
 		"trace_id":   "4bf92f3577b34da6a3ce929d0e0e4736",
 		"span_id":    "00f067aa0ba902b7",
 		"request_id": "01936f2a-7c1e-7000-8000-00000000000a",
+		"tenant_id":  "01936f2a-7c1e-7000-8000-00000000000b",
 	} {
 		if got, _ := entry[field].(string); got != want {
 			t.Errorf("%s = %q, want %q", field, got, want)
@@ -66,7 +68,7 @@ func TestTheCorrelationFieldsAreAbsentOutsideARequest(t *testing.T) {
 		l.Info("starting")
 	})
 
-	for _, field := range []string{"trace_id", "span_id", "request_id"} {
+	for _, field := range []string{"trace_id", "span_id", "request_id", "tenant_id"} {
 		if _, ok := entry[field]; ok {
 			t.Errorf("%s appears although there is no request", field)
 		}

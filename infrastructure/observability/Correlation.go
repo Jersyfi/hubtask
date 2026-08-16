@@ -14,7 +14,10 @@ import (
 // other package can collide with it - and so the only way in is ContextWithRequestID.
 type contextKey int
 
-const requestIDKey contextKey = iota
+const (
+	requestIDKey contextKey = iota
+	tenantIDKey
+)
 
 // ContextWithRequestID carries the request ID through the call chain. It is what a user quotes
 // in a support request: the one handle that connects a response to a log entry
@@ -26,6 +29,22 @@ func ContextWithRequestID(ctx context.Context, id string) context.Context {
 // RequestIDFromContext returns the request ID, or the empty string outside a request.
 func RequestIDFromContext(ctx context.Context) string {
 	id, _ := ctx.Value(requestIDKey).(string)
+	return id
+}
+
+// ContextWithTenant carries the tenant for the signals. tenant_id is a mandatory log field
+// (§3.1) and the one metric label an operator may switch on (§3.2) - it is an identifier of an
+// installation, not user content, and it is the first thing a support question needs.
+//
+// The authenticating middleware sets it from A-06 onwards; until then it is set by whatever
+// establishes the tenant, and absent everywhere else.
+func ContextWithTenant(ctx context.Context, tenantID string) context.Context {
+	return context.WithValue(ctx, tenantIDKey, tenantID)
+}
+
+// TenantFromContext returns the tenant, or the empty string outside a tenant scope.
+func TenantFromContext(ctx context.Context) string {
+	id, _ := ctx.Value(tenantIDKey).(string)
 	return id
 }
 
@@ -61,6 +80,9 @@ func (h correlatingHandler) Handle(ctx context.Context, record slog.Record) erro
 	}
 	if id := RequestIDFromContext(ctx); id != "" {
 		record.AddAttrs(slog.String("request_id", id))
+	}
+	if id := TenantFromContext(ctx); id != "" {
+		record.AddAttrs(slog.String("tenant_id", id))
 	}
 	return h.inner.Handle(ctx, record)
 }
