@@ -53,6 +53,12 @@
   "dependency.timeout": "{dependency} did not answer in time. Please try again in a moment.",
   "dependency.circuit_open": "{dependency} is unreachable at the moment. Hubtask has stopped calling it and will try again shortly.",
   "dependency.saturated": "{dependency} is busy. Please try again in a moment.",
+  "dependency.target_malformed": "{target} is not a valid address.",
+  "dependency.target_scheme": "Hubtask only calls http and https addresses. {target} is neither.",
+  "dependency.target_credentials": "The address for {target} must not contain a user name or a password. Use a header instead.",
+  "dependency.target_not_allowed": "{host} is not on the list of addresses this installation may call.",
+  "dependency.target_blocked": "{target} points into a private or reserved network. Hubtask does not call addresses inside its own infrastructure.",
+  "dependency.target_unresolvable": "The address {host} could not be resolved at the moment.",
 
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }
