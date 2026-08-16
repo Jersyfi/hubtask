@@ -187,3 +187,120 @@ func TestTheDurationBucketsStraddleTheTargets(t *testing.T) {
 		}
 	}
 }
+
+// allowedLabels is the label set of the metric catalogue (observability-reliability.md §4).
+// Explicit rather than derived: adding a label is a cardinality decision, and this list is where
+// it gets made rather than noticed six months later in a Prometheus that will not start.
+var allowedLabels = map[string]bool{
+	// hubtask_http_requests_total, hubtask_http_request_duration_seconds
+	"route": true, "method": true, "status_class": true, "le": true,
+	// hubtask_usecase_total
+	"use_case": true, "result": true,
+	// hubtask_inflight_requests
+	"role": true,
+	// hubtask_dependency_up, hubtask_degraded_mode
+	"dependency": true, "feature": true,
+	// hubtask_panics_recovered_total, hubtask_config_invalid_total
+	"component": true, "key": true,
+	// hubtask_build_info
+	"version": true, "commit": true, "go_version": true,
+	// Only with HUBTASK_METRICS_TENANT_LABEL, and covered by its own test.
+	"tenant_id": true,
+	// The exporter's own marker on a counter series.
+	"otel_scope_name": true, "otel_scope_version": true, "otel_scope_schema_url": true,
+}
+
+// exerciseEveryInstrument drives every instrument the adapter owns, so the scrape below sees the
+// whole label surface rather than the part a test happened to touch.
+func exerciseEveryInstrument(m *Metrics) {
+	ctx := context.Background()
+	m.HTTPRequest(ctx, "/items/{id}", http.MethodGet, 200, 0.01)
+	m.HTTPRequest(ctx, "/items/{id}", http.MethodDelete, 500, 1.5)
+	m.InflightDelta(ctx, "api", 1)
+	m.InflightDelta(ctx, "api", -1)
+	m.UseCase(ctx, "CreateContainer", "ok", "01936f2a-7c1e-7000-8000-00000000000a")
+	m.UseCase(ctx, "MoveItem", "conflict", "")
+	m.DependencyUp(ctx, "postgres", true)
+	m.DependencyUp(ctx, "object_storage", false)
+	m.DegradedMode(ctx, "media", true)
+	m.PanicRecovered(ctx, "rest.request")
+	m.ConfigInvalid(ctx, "HUBTASK_DB_MAX_CONNS")
+}
+
+// The gate for label cardinality: no label may appear that the catalogue does not list. A test
+// on values alone would pass a brand new label whose values happen to look harmless today.
+func TestNoLabelAppearsThatTheCatalogueDoesNotList(t *testing.T) {
+	m := newTestMetrics(t, env.Config{Metrics: env.MetricsConfig{TenantLabel: true}})
+	exerciseEveryInstrument(m)
+
+	found := labelsIn(scrape(t, m))
+	if len(found) < len(allowedLabels)/2 {
+		// A test that reads no labels passes for the wrong reason. The scrape has to have been
+		// parsed, or the check above is vacuous.
+		t.Fatalf("only %d labels were read from the scrape - the parser no longer matches", len(found))
+	}
+	for _, label := range found {
+		if !allowedLabels[label] {
+			t.Errorf("the label %q is not in the catalogue (observability-reliability.md §4)", label)
+		}
+	}
+}
+
+// The same scrape from the other side: every label value has to be a bounded token. An unbounded
+// value is the failure that only shows up in production, months later, as a Prometheus that will
+// not start.
+func TestEveryLabelValueIsABoundedToken(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+	exerciseEveryInstrument(m)
+
+	// Anything that looks like an identifier, a path with a resolved segment, or free text.
+	unbounded := regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}|[0-9a-f]{32}|\s{2,}`)
+
+	for _, line := range strings.Split(scrape(t, m), "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		labels, _, found := strings.Cut(line, "}")
+		if !found {
+			continue
+		}
+		if _, values, ok := strings.Cut(labels, "{"); ok {
+			if match := unbounded.FindString(values); match != "" {
+				t.Errorf("an unbounded label value %q in: %s", match, line)
+			}
+			for _, pair := range strings.Split(values, `",`) {
+				if len(pair) > 120 {
+					t.Errorf("a label value far too long to be a token: %s", pair)
+				}
+			}
+		}
+	}
+}
+
+// labelsIn collects the label names of a scrape.
+func labelsIn(body string) []string {
+	var names []string
+	seen := map[string]bool{}
+	for _, line := range strings.Split(body, "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		inner, _, found := strings.Cut(line, "}")
+		if !found {
+			continue
+		}
+		_, inner, found = strings.Cut(inner, "{")
+		if !found {
+			continue
+		}
+		for _, pair := range strings.Split(inner, ",") {
+			name, _, ok := strings.Cut(pair, "=")
+			name = strings.TrimSpace(name)
+			if ok && name != "" && !seen[name] {
+				seen[name] = true
+				names = append(names, name)
+			}
+		}
+	}
+	return names
+}
