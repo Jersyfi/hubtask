@@ -37,6 +37,11 @@ import (
 // defaultOpsPort mirrors the default of HUBTASK_OPS_ADDR in infrastructure/environment.
 const defaultOpsPort = 9090
 
+// healthSampleInterval is how often the deep report is produced for the metrics. Not
+// configurable: it is a sampling rate for a handful of gauges, and every dependency probe is
+// already bounded by its own timeout.
+const healthSampleInterval = 30 * time.Second
+
 // Set at build time via ldflags.
 var (
 	version   = "0.0.0-dev"
@@ -132,6 +137,7 @@ func run() error {
 	defer pool.Close()
 
 	registry.Register(postgres.NewProbe(pool))
+	registry.SetSignals(metrics)
 
 	// The panic metric is the one an alert watches, and its target value is 0 permanently
 	// (ADR-0016). The recovered value itself is deliberately not logged here: a panic value can
@@ -185,6 +191,23 @@ func run() error {
 	// TODO(0.1.0): start the worker, scheduler and automation loops depending on the role.
 
 	registry.MarkStarted()
+
+	// hubtask_dependency_up is described as "self-diagnosis as a time series" (§4), and a series
+	// needs a regular sample. Nothing scrapes /meta/health, and /readyz only touches the
+	// mandatory dependencies - so the full report is produced on a timer and mirrored into the
+	// gauges from there.
+	concurrency.Go(ctx, "health.sampler", func(ctx context.Context) {
+		ticker := time.NewTicker(healthSampleInterval)
+		defer ticker.Stop()
+		for {
+			registry.Report(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	})
 
 	select {
 	case err := <-errCh:

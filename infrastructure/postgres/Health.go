@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,6 +26,9 @@ const probeTimeout = 2 * time.Second
 // unready (engineering-guidelines.md §5).
 type Probe struct {
 	pool *pgxpool.Pool
+	// The readiness probe, the health report and the sampler all call Check, and they call it
+	// concurrently - the state below is shared, so it is guarded.
+	mu sync.Mutex
 	// since records when the current status began, so the report can say how long a disruption
 	// has been going on rather than only that there is one.
 	since  time.Time
@@ -56,15 +60,18 @@ func (p *Probe) Check(ctx context.Context) health.Result {
 		// report is served over HTTP (T-18, security.md §9).
 		errorCode = "postgres.unreachable"
 	}
+	p.mu.Lock()
 	if status != p.status {
 		p.status, p.since = status, time.Now()
 	}
+	since := p.since
+	p.mu.Unlock()
 
 	result := health.Result{
 		Status:    status,
 		Latency:   latency,
 		ErrorCode: errorCode,
-		Since:     p.since,
+		Since:     since,
 	}
 	if status != health.StatusOK {
 		// Everything is affected. PostgreSQL is not a feature that can degrade - it is the
