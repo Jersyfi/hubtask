@@ -209,8 +209,14 @@ func validateLogging(cfg env.Config) []error {
 
 func validateDatabase(db env.DatabaseConfig) []error {
 	var errs []error
-	if db.MaxConns < 1 {
-		errs = append(errs, configError("config.db_pool_invalid", "HUBTASK_DB_MAX_CONNS"))
+	// The upper bound matters as much as the lower one: the value reaches the driver as an
+	// int32, and an unbounded number parsed from the environment would wrap.
+	if db.MaxConns < 1 || db.MaxConns > env.MaxPoolConns {
+		errs = append(errs, configError("config.db_pool_invalid", "HUBTASK_DB_MAX_CONNS").
+			WithParams(map[string]string{
+				"variable": "HUBTASK_DB_MAX_CONNS",
+				"maximum":  strconv.Itoa(env.MaxPoolConns),
+			}))
 	}
 	if db.MinConns < 0 || db.MinConns > db.MaxConns {
 		errs = append(errs, configError("config.db_pool_invalid", "HUBTASK_DB_MIN_CONNS"))

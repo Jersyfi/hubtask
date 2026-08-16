@@ -34,8 +34,12 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool,
 			WithCause(fmt.Errorf("parsing HUBTASK_DB_DSN: %w", err))
 	}
 
-	poolCfg.MaxConns = int32(cfg.Database.MaxConns) //nolint:gosec // G115: validated as 1..n at startup
-	poolCfg.MinConns = int32(cfg.Database.MinConns) //nolint:gosec // G115: validated as 0..MaxConns at startup
+	// The bounds are checked here rather than trusted from the configuration. They are checked
+	// there too, but this conversion narrows to int32, and a value that arrived from the
+	// environment through strconv.Atoi would wrap rather than fail - a pool size of -2147483648
+	// is not a configuration error anybody would recognise in a log.
+	poolCfg.MaxConns = boundedPoolSize(cfg.Database.MaxConns, 1)
+	poolCfg.MinConns = boundedPoolSize(cfg.Database.MinConns, 0)
 	poolCfg.MaxConnLifetime = cfg.Database.MaxConnLifetime
 	poolCfg.MaxConnIdleTime = cfg.Database.MaxConnIdleTime
 	poolCfg.ConnConfig.ConnectTimeout = cfg.Database.ConnectTimeout
@@ -73,6 +77,19 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool,
 	}
 
 	return pool, nil
+}
+
+// boundedPoolSize narrows a configured pool size to int32 within provable bounds. The comparison
+// is against constants on purpose: that is what makes the range visible to a reader, to gosec,
+// and to CodeQL, none of which can follow the validation in another package.
+func boundedPoolSize(value, lower int) int32 {
+	if value < lower {
+		value = lower
+	}
+	if value > env.MaxPoolConns {
+		value = env.MaxPoolConns
+	}
+	return int32(value)
 }
 
 // PoolStats is what the health report and the metrics need, without handing either of them the
