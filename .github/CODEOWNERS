@@ -1,0 +1,11 @@
+# Default: everything goes to the owners.
+*                                   @Jersyfi
+
+# Areas where a change is particularly expensive to correct.
+/docs/adr/                          @Jersyfi
+/api/openapi.yaml                   @Jersyfi
+/db/migrations/                     @Jersyfi
+/.github/workflows/                 @Jersyfi
+/core/domain/                       @Jersyfi
+/LICENSE                            @Jersyfi
+/CLAUDE.md                          @Jersyfi

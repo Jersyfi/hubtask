@@ -1,0 +1,14 @@
+apiVersion: v2
+name: hubtask
+description: Task management with five levels, multi-tenant, offline-capable
+type: application
+# version = the chart version, appVersion = the application version; both are set in the
+# release from the git tag (docs/architecture/versioning-release.md).
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.28.0-0"
+home: https://github.com/Jersyfi/hubtask
+sources:
+  - https://github.com/Jersyfi/hubtask
+maintainers:
+  - name: Jersyfi

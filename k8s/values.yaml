@@ -1,0 +1,95 @@
+# Role separation in the cluster (ADR-0014): one image, several deployments.
+image:
+  repository: ghcr.io/Jersyfi/hubtask
+  tag: ""            # empty = appVersion from Chart.yaml
+  pullPolicy: IfNotPresent
+
+# Each role as its own deployment: an automation storm must not starve the
+# interactive path (bulkhead, ADR-0016).
+roles:
+  api:
+    enabled: true
+    replicas: 2
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits:   { memory: 1Gi }
+    autoscaling:
+      enabled: false
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+  worker:
+    enabled: true
+    replicas: 2
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits:   { memory: 1Gi }
+  scheduler:
+    enabled: true
+    replicas: 2        # two instances, but only one active (advisory lock leader)
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits:   { memory: 512Mi }
+  automation:
+    enabled: true
+    replicas: 2
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits:   { memory: 1Gi }
+
+config:
+  tenancyMode: multi
+  baseUrl: ""
+  logFormat: json
+  metricsTenantLabel: false   # cardinality in provider operation (ADR-0016)
+  aiEnabled: false            # opt-in per tenant (ADR-0018)
+
+# Secrets come from an existing secret, not from values.yaml.
+existingSecret: ""            # expects the keys: db-dsn, secret-key, smtp-password
+database:
+  createSecret: false
+
+migration:
+  # A dedicated job before the rollout, with an advisory lock against parallel runs.
+  enabled: true
+  backoffLimit: 3
+
+serviceAccount:
+  create: true
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  seccompProfile: { type: RuntimeDefault }
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: ["ALL"] }
+
+# Zero downtime: no pod disappears before a new one is ready.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+updateStrategy:
+  maxUnavailable: 0
+  maxSurge: 1
+
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  tls: { enabled: true }
+
+networkPolicy:
+  enabled: true
+  # Egress deliberately restricted: webhook and backup targets only through an allowlist
+  # (ADR-0015, ADR-0019).
+  allowedEgressCIDRs: []
+
+serviceMonitor:
+  enabled: false     # for prometheus-operator
+
+storage:
+  kind: s3           # s3 | local
+  existingSecret: ""

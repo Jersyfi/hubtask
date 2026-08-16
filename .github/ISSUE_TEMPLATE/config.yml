@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/Jersyfi/hubtask/security/advisories/new
+    about: Confidentially through GitHub Security Advisories, not through issues.
+  - name: Question or idea
+    url: https://github.com/Jersyfi/hubtask/discussions
+    about: Discussions rather than issues for open questions.

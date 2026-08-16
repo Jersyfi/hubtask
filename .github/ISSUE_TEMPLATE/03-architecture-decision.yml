@@ -1,0 +1,31 @@
+name: Architecture decision (ADR)
+description: Propose a decision that deviates from or extends the existing architecture.
+title: "[ADR] "
+labels: ["adr", "discussion"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Which problem is occurring? Why is the existing decision not enough?
+    validations:
+      required: true
+  - type: input
+    id: affected
+    attributes:
+      label: Existing ADRs affected
+      placeholder: "ADR-0006, ADR-0021"
+  - type: textarea
+    id: options
+    attributes:
+      label: Options considered
+      description: At least two, each with its downsides.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal and consequences
+      description: The negative ones too — each with a countermeasure.
+    validations:
+      required: true

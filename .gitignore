@@ -1,0 +1,27 @@
+# Build
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Dependencies
+/vendor/
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+*.key
+!deploy/docker/.env.example
+
+# Tools
+/.tools/
+coverage.*
+/tmp/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+.DS_Store

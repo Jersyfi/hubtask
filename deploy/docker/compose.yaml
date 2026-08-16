@@ -1,0 +1,68 @@
+# Self-Hosting-Referenz: zwei Container, voller Funktionsumfang.
+# Start:  cp .env.example .env  &&  docker compose up -d
+name: hubtask
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hubtask}
+      POSTGRES_USER: ${POSTGRES_USER:-hubtask}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hubtask}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not published externally: the database is not a public interface.
+
+  migrate:
+    image: ${HUBTASK_IMAGE:-ghcr.io/Jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
+    entrypoint: ["/usr/local/bin/hubtask-migrate", "up"]
+    environment:
+      HUBTASK_DB_DSN: postgres://${POSTGRES_USER:-hubtask}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"          # the migration runs once, not continuously (ADR-0016)
+
+  app:
+    image: ${HUBTASK_IMAGE:-ghcr.io/Jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      HUBTASK_ROLES: api,worker,scheduler,automation
+      HUBTASK_DB_DSN: postgres://${POSTGRES_USER:-hubtask}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
+      HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:-http://localhost:8080}
+      HUBTASK_TENANCY_MODE: single
+      HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY muss gesetzt sein}
+      HUBTASK_LOG_FORMAT: json
+      # Backup target: the default is a local volume. Further targets are configured in the
+      # application, not here (see docs/architecture/backup-restore.md).
+      HUBTASK_BACKUP_LOCAL_PATH: /var/lib/hubtask/backups
+    volumes:
+      - media:/var/lib/hubtask/media
+      - backups:/var/lib/hubtask/backups
+    ports:
+      - "${HUBTASK_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/hubtask", "healthcheck"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+
+volumes:
+  db-data:
+  media:
+  backups:

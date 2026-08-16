@@ -1,0 +1,65 @@
+# Claude Code as the assignee: responds to @claude in issues, comments and reviews.
+# The scope is deliberately narrow: Claude works only on branches and opens pull requests.
+# There is no path on which AI writes directly to main or triggers a release.
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [assigned, labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  claude:
+    # Only on explicit request and only for authorised people.
+    if: |
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && github.event.label.name == 'claude:auftrag')
+      ) && (
+        github.event.sender.type != 'Bot'
+      ) && (
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.issue.author_association)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write          # create and push a branch
+      pull-requests: write     # open and comment on a PR
+      issues: write            # reply in the issue
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: "1.23"
+          cache: true
+
+      # Tools up front, so that Claude can actually run `make verify`.
+      - run: make tools
+
+      - name: Commission Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # CLAUDE.md is read automatically; only the execution rights go here.
+          allowed_tools: >-
+            Bash(make *),Bash(go *),Bash(git *),
+            Bash(.tools/*),Edit,Replace,Read,Glob,Grep
+          # A hard boundary: what is not listed here, Claude cannot run.
+          disallowed_tools: >-
+            Bash(curl *),Bash(wget *),Bash(docker *),Bash(gh release *),Bash(gh secret *)
+          claude_env: |
+            HUBTASK_ENV=ci

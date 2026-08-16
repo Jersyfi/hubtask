@@ -1,0 +1,158 @@
+# Automation & Integration
+
+Two equally capable ways to automate every feature:
+
+1. **Externally** — n8n, Zapier, Make, your own scripts: the complete REST API plus webhook subscriptions plus trigger polling.
+2. **Internally** — the built-in rule engine: trigger → conditions → actions, with access to
+   **every** business use case as well as outbound webhooks and HTTP calls.
+
+Both use the same use case catalogue and the same event types. There is no feature available only
+internally or only externally.
+
+---
+
+## 1. The rule model
+
+```mermaid
+graph LR
+  T[Trigger] --> C[Conditions<br/>CEL]
+  C -->|true| A1[Action 1]
+  A1 --> A2[Action 2]
+  A2 --> A3[…]
+  C -->|false| X[End, run = SKIPPED]
+```
+
+```json
+{
+  "id": "018f...",
+  "name": "Escalate overdue approvals",
+  "scope": { "container_id": "018f...", "include_descendants": true },
+  "enabled": true,
+  "run_as": "service-account:automation-default",
+  "trigger": { "kind": "EVENT", "event_type": "de.hubtask.work.item.overdue.v1" },
+  "conditions": [
+    { "expr": "item.labels.exists(l, l == 'label:approval') && item.type == 'TASK'" },
+    { "expr": "now.hour >= 8 && now.hour < 18" }
+  ],
+  "actions": [
+    { "kind": "ADD_LABEL", "params": { "label": "label:escalated" } },
+    { "kind": "ASSIGN", "params": { "strategy": "ROUND_ROBIN", "group": "group:leads" } },
+    { "kind": "ADD_COMMENT", "params": { "body_code": "automation.escalated" } },
+    { "kind": "SEND_WEBHOOK", "params": { "subscription_id": "018f..." } },
+    { "kind": "HTTP_REQUEST", "params": { "method": "POST", "url": "https://…", "body_template": "…" } }
+  ],
+  "throttle": { "max_runs_per_hour": 100, "dedupe_key_expr": "item.id" },
+  "on_error": "CONTINUE"
+}
+```
+
+### 1.1 Triggers
+
+| Kind | Example | Note |
+|---|---|---|
+| `EVENT` | Any domain event (`item.created`, `item.moved`, `comment.created`, …) | Field filters possible through `changed_fields` |
+| `SCHEDULE` | Cron or RRULE, with a time zone | e.g. "weekly report Mondays at 08:00" |
+| `RELATIVE_DATE` | "24 h before the due date", "3 days after creation" | Internally produces occurrence jobs |
+| `INBOUND_WEBHOOK` | A dedicated, token-protected URL per rule | The payload is available as `payload` in CEL |
+| `MANUAL` | A button, or a call through the API or an MCP tool | For "on demand" flows |
+| `JUMBLE_ENTRY` | A new arrival in the jumble | The basis for automatic conversion |
+
+### 1.2 Conditions
+
+**CEL (Common Expression Language)** — declarative, sandboxed, terminating, readable.
+Not arbitrary code, not a scripting engine ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)).
+Available variables: `event`, `item`, `parent`, `collection`, `hub`, `actor`, `now`, `payload`,
+`tenant.settings`. Library functions for date arithmetic, sets, and strings.
+Limits: a maximum expression length, the evaluator's cost limit, and a 50 ms timeout per
+expression.
+
+### 1.3 Actions
+
+Every action is an adapter over a use case — the list grows automatically with the catalogue:
+
+| Group | Actions |
+|---|---|
+| Items | `CREATE_ITEM`, `UPDATE_FIELDS`, `SET_DUE_DATE`, `SHIFT_DUE_DATE` (`+P3D`), `COMPLETE`, `REOPEN`, `MOVE_TO_BUCKET`, `MOVE_TO_PARENT`, `REORDER`, `DUPLICATE`, `ARCHIVE`, `TRASH`, `RESTORE`, `SET_COVER`, `SET_CUSTOM_FIELD` |
+| Assignment | `ASSIGN` (`FIXED`/`RANDOM`/`ROUND_ROBIN`/`LEAST_LOADED`), `UNASSIGN`, `ADD_MEMBER`, `REMOVE_MEMBER` |
+| Structure | `ADD_LABEL`, `REMOVE_LABEL`, `CREATE_BUCKET`, `CREATE_COLLECTION` |
+| Content | `ADD_COMMENT`, `ADD_ATTACHMENT_FROM_URL` |
+| Templates | `INSTANTIATE_TEMPLATE` |
+| Series | `SET_RECURRENCE`, `SKIP_OCCURRENCE` |
+| Jumble | `CONVERT_JUMBLE_ENTRY`, `DISMISS_JUMBLE_ENTRY` |
+| Notification | `NOTIFY_ACCOUNT`, `NOTIFY_GROUP`, `SEND_EMAIL` |
+| Outbound | `SEND_WEBHOOK`, `HTTP_REQUEST` (method, headers, body template, optional signature) |
+| Flow | `WAIT` (a delay as a job), `BRANCH` (a nested condition), `STOP` |
+| AI (optional) | `AI_SUGGEST_FIELDS`, `AI_SUMMARIZE`, `AI_CLASSIFY` — the result as a suggestion or applied directly, configured explicitly |
+
+Templating in action parameters uses the same CEL environment (`"Reminder: " + item.title`), plus
+message codes for localised text.
+
+### 1.4 Recurring tasks
+
+These belong to scheduling (a `RecurrenceRule` on the item) rather than to the rule engine — which
+keeps series usable without automation permissions. The rule engine can additionally create and
+change series (`SET_RECURRENCE`).
+
+---
+
+## 2. Execution, security, observability
+
+| Aspect | Implementation |
+|---|---|
+| Triggering | Outbox dispatcher → automation engine (in-process or its own deployment) |
+| Delivery guarantee | At least once; actions use an `Idempotency-Key` derived from `(rule_id, event_id, action_index)` |
+| Permissions | The rule runs as the `run_as` account; it can never do more than that account may |
+| Loop protection | `causation_depth` in the event; abort at depth 5 by default, run status `ABORTED_LOOP` |
+| Throttling | Per rule and per tenant; the dedupe key prevents a storm during mass changes |
+| Error handling | `on_error ∈ {STOP, CONTINUE, RETRY}`; retry with exponential backoff; after n failures the rule is disabled automatically and a notification is sent |
+| Dry run | `POST /automation/rules:test` with a sample event → which conditions match, which actions *would* run; no side effects |
+| Log | A `RuleRun` with timestamps, condition results, action results, and errors; retrievable, filterable, replayable |
+| SSRF protection | Outbound calls go through `GuardedClient`: DNS resolution checked, private and link-local networks blocked (with a configurable allowlist for self-hosting), a redirect limit, a timeout, and a response size limit |
+| Secrets | Header values and tokens for HTTP actions are stored encrypted and masked in logs and API responses |
+
+---
+
+## 3. External automation
+
+### 3.1 Webhook subscriptions (push)
+
+* `POST /api/v1/integrations/webhooks` with `target_url`, `event_types[]`, an optional CEL filter, and a scope.
+* Payload: **CloudEvents 1.0** (structured JSON), identical to the internal event.
+* Signature: `X-Hubtask-Signature: t=<ts>,v1=<hmac-sha256(secret, ts + "." + body)>`, with replay protection through a time window.
+* Headers: `X-Hubtask-Event-Id` (for deduplication), `X-Hubtask-Event-Type`, `X-Hubtask-Delivery-Attempt`.
+* Retries: 8 attempts with backoff up to 24 h; after that, dead letter, visible under
+  `/integrations/webhooks/{id}/deliveries` and replayable manually.
+* Auto-disable after sustained unreachability, plus a notification to the owner.
+* Zapier-compatible self-management: `subscribe`/`unsubscribe` through the API (the REST hooks pattern).
+
+### 3.2 Trigger polling (pull)
+
+For platforms without a stable public URL:
+`GET /api/v1/integrations/triggers/{eventType}?since=<cursor>&limit=100` returns events in
+ascending order with a stable cursor — deduplicable through `event_id`.
+
+### 3.3 Recommendations for n8n/Zapier/Make
+
+| Need | Endpoint |
+|---|---|
+| Trigger "new task" | A webhook subscription on `item.created`, or polling |
+| Action "create task" | `POST /items` with an `Idempotency-Key` |
+| Action "set field" | `PATCH /items/{id}` with `If-Match` |
+| Search | `POST /items:query` |
+| Bulk import | `POST /items:bulk` |
+| Auth phase 1 | A personal access token (header `Authorization: Bearer hbt_pat_…`) |
+| Auth phase 2 | OAuth2 authorization code + PKCE (a prerequisite for the Zapier marketplace) |
+
+Additionally planned (milestone 0.7+): an official **n8n community node** and a **Zapier app**, both
+generated from OpenAPI plus the capability manifest, so that they stay complete automatically.
+
+---
+
+## 4. Why automation is its own service
+
+Automation is the most load-intensive and riskiest part (third-party HTTP targets, long runtimes,
+rule storms). It is therefore cut as its own bounded context and deployable as its own role, while
+in self-hosting it runs inside the main process
+([ADR-0002](../adr/ADR-0002-modular-monolith.md), [ADR-0014](../adr/ADR-0014-single-image-multi-role.md)).
+The benefits: isolation from load spikes, independent scaling, a separate failure domain — with no
+extra effort for private users.

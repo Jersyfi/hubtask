@@ -1,0 +1,61 @@
+# Architecture review by Claude on every pull request.
+#
+# Deliberately NOT a substitute for the deterministic gates: tests, linters, govulncheck and the
+# cross-tenant suite decide green or red. Claude checks what a linter cannot
+# see - agreement with the ADRs and the subject documents. The result is a
+# comment, not a blocking status.
+name: Claude architecture review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Request the review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_tools: "Read,Glob,Grep,Bash(git diff *),Bash(git log *)"
+          direct_prompt: |
+            Check this pull request against the project's architecture rules.
+            Read CLAUDE.md first, then the subject documents under docs/architecture/
+            touched by the diff, and the ADRs they link to.
+
+            Check exclusively these points and report only genuine findings:
+
+            1. Layer boundaries: does core/domain or core/port import anything outwards
+               or any third-party library?
+            2. Authorisation: does it happen in the application layer - not in an adapter,
+               not in a repository?
+            3. Tenant boundary: does every query go through the transaction wrapper?
+               Is a new repository method missing its cross-tenant negative test?
+            4. Determinism: time.Now, math/rand, or UUID generation in domain/application?
+            5. Concurrency: a bare `go` statement outside core/shared/concurrency?
+            6. Outbound calls: bypassing GuardedClient? A call without a timeout?
+            7. Data protection and audit: user content in logs, metrics, traces, or audit
+               entries? A new personal data field with no entry in the data catalogue?
+            8. Contract: a hand-written change to generated code? An API change without
+               openapi.yaml being adjusted first?
+            9. Offline sync: a new field on WorkItem with no merge rule defined?
+            10. i18n: display text in the backend instead of a message code?
+
+            Format: a short list. Per finding, the file, the line, the rule or ADR number
+            affected, and a concrete correction. No style or taste questions, no summary
+            of the diff, no praise. If there is nothing to report, answer with exactly one
+            line: "No architecture findings."
+            Answer in English.

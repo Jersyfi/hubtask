@@ -1,0 +1,100 @@
+name: Implementation task
+description: An actionable task for Claude Code or a human.
+title: "[Task] "
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A task is ready to implement when it meets the Definition of Ready
+        (`docs/architecture/engineering-guidelines.md` §2). The more precisely it is
+        located, the fewer follow-up questions.
+
+  - type: input
+    id: milestone
+    attributes:
+      label: Milestone
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be possible afterwards? From the point of view of the user or the calling system.
+    validations:
+      required: true
+
+  - type: input
+    id: usecases
+    attributes:
+      label: Use cases from the catalogue
+      description: Names from `docs/architecture/domain-model.md` §5.
+      placeholder: "CreateContainer, RenameContainer"
+    validations:
+      required: true
+
+  - type: input
+    id: context
+    attributes:
+      label: Bounded context and aggregate
+      placeholder: "Work Management / Container"
+    validations:
+      required: true
+
+  - type: textarea
+    id: documents
+    attributes:
+      label: Governing documents and ADRs
+      description: What Claude should read before starting.
+      value: |
+        - docs/architecture/domain-model.md
+        - docs/architecture/api-guidelines.md
+        - docs/adr/ADR-...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Formulated so they can be checked, including error cases.
+      value: |
+        - [ ]
+        - [ ] A cross-tenant negative test for every new repository method
+        - [ ] `make verify` green, no diff after `make generate`
+    validations:
+      required: true
+
+  - type: textarea
+    id: crosscutting
+    attributes:
+      label: Cross-cutting impact
+      value: |
+        - API change: yes/no — which operations
+        - Migration: yes/no — the expand/contract steps
+        - Domain events: which ones
+        - Permissions: which role, which scope
+        - Audit obligation: yes/no — which action
+        - Personal data: new fields, purpose, retention, deletion path
+        - Offline sync: the merge rule per new field (LWW / OR-set / fractional index / server-side)
+        - i18n: the message codes needed
+    validations:
+      required: true
+
+  - type: textarea
+    id: outofscope
+    attributes:
+      label: Explicitly not part of this task
+      placeholder: "e.g. the kanban view, automation triggers, the frontend"
+
+  - type: checkboxes
+    id: readiness
+    attributes:
+      label: Definition of Ready
+      options:
+        - label: No contradiction with an existing ADR (otherwise draft an ADR first)
+          required: true
+        - label: The scope can be finished in one pull request
+          required: true

@@ -1,0 +1,39 @@
+name: Bug
+description: Report incorrect behaviour.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Steps, request/response, and the `request_id` from the error response.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.3.1 (from /meta/capabilities)"
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options: ["Local (Compose)", "Integration", "Production", "Third-party self-hosting"]
+  - type: markdown
+    attributes:
+      value: |
+        **Do not report security vulnerabilities here** — use `SECURITY.md` for those.
+        Do not include real user data or tokens.

@@ -1,0 +1,78 @@
+# Linter selection from docs/architecture/engineering-guidelines.md §7.
+# The layer boundaries are enforced by depguard here AND by test/architecture - twice, because a
+# linter can be reconfigured, whereas a test turns visibly red.
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - revive
+    - gosec        # SG-2
+    - depguard     # layer boundaries
+    - noctx        # no HTTP call without a context (ADR-0016)
+    - bodyclose
+    - contextcheck
+    - errorlint
+    - copyloopvar
+    - misspell
+    - nolintlint
+
+linters-settings:
+  depguard:
+    rules:
+      core:
+        # The core knows only itself and the standard library (ADR-0001).
+        files:
+          - "**/core/domain/**"
+          - "**/core/port/**"
+        allow:
+          - $gostd
+          - github.com/Jersyfi/hubtask/core
+        deny:
+          - pkg: github.com/Jersyfi/hubtask/infrastructure
+            desc: "the core must not point outwards (ADR-0001)"
+          - pkg: github.com/Jersyfi/hubtask/presentation
+            desc: "the core must not point outwards (ADR-0001)"
+      application:
+        files:
+          - "**/core/application/**"
+        deny:
+          - pkg: github.com/Jersyfi/hubtask/infrastructure
+            desc: "the application layer speaks only through ports (ADR-0001)"
+          - pkg: github.com/Jersyfi/hubtask/presentation
+            desc: "the application layer knows no adapters (ADR-0001)"
+          - pkg: github.com/jackc/pgx
+            desc: "no database driver in the application layer"
+      all:
+        files: ["$all"]
+        deny:
+          - pkg: math/rand
+            desc: "use crypto/rand or the RandomSource port (security.md §8)"
+          - pkg: io/ioutil
+            desc: "deprecated"
+
+  errcheck:
+    check-type-assertions: true
+
+  gosec:
+    excludes:
+      - G104   # covered by errcheck
+
+  revive:
+    rules:
+      - name: exported
+        disabled: true   # comment requirements are handled by review, not by a linter
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters: [gosec, errcheck]
+  max-issues-per-linter: 0
+  max-same-issues: 0

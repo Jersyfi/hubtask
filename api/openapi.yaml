@@ -1,0 +1,1745 @@
+openapi: 3.1.0
+info:
+  title: Hubtask API
+  version: 0.1.0
+  summary: Task management with Hub / Collection / Task / Work Package / Activity
+  description: |
+    The skeleton of the API contract (API first). This file is the single source of truth:
+    server interfaces and client SDKs are generated from it (`make generate`).
+
+    For the conventions see docs/architecture/api-guidelines.md:
+      * one major path `/api/v1`, additive changes without a version bump
+      * errors per RFC 9457 with a stable `code`
+      * cursor pagination, `Idempotency-Key`, `ETag`/`If-Match`
+      * actions as a suffix (`POST /items/{id}:complete`)
+      * no display text, only codes and parameters
+
+    Not yet elaborated (deliberately open, to be added in phase 0/1): templates, views, jumble,
+    reminders, recurrence, automation, webhooks, media, admin/tenants, search, SSE.
+  license:
+    name: BUSL-1.1
+servers:
+  - url: https://{host}/api/v1
+    variables:
+      host:
+        default: localhost:8080
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: meta
+  - name: containers
+  - name: items
+  - name: structure
+  - name: comments
+  - name: audit
+  - name: backup
+  - name: retention
+  - name: sync
+
+paths:
+  /meta/capabilities:
+    get:
+      tags: [meta]
+      operationId: getCapabilities
+      summary: Self-description of the installation
+      description: |
+        Item types, capability profiles, field types, enum values, limits, supported locales,
+        layout hints, automation triggers and actions, and event types.
+        Clients configure themselves from this instead of hard-coding values.
+      security: []
+      responses:
+        "200":
+          description: The manifest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Capabilities"
+
+  /meta/health:
+    get:
+      tags: [meta]
+      operationId: getHealthReport
+      summary: Deep self-diagnosis of the installation
+      description: |
+        The state of every dependency, the active feature restrictions, the backlogs, and the
+        configuration warnings. Deliberately answers `200` even when `status` is `degraded` -
+        the HTTP status describes whether the endpoint is reachable, the `status` field
+        describes the system. Requires `admin:read`; the unauthenticated probes `/healthz`,
+        `/startupz` and `/readyz` live outside `/api/v1` and return only status codes.
+      responses:
+        "200":
+          description: The diagnostic report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthReport"
+        "403":
+          $ref: "#/components/responses/Problem"
+
+
+  /audit:
+    get:
+      tags: [audit]
+      operationId: listAuditEntries
+      summary: Query audit entries
+      description: |
+        Requires the `audit:read` scope and the ADMIN/OWNER role. The access is itself audited.
+        Filtering by period, action, actor, target, and outcome; cursor pagination.
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: action, in: query, schema: { type: string }, description: "A prefix filter, e.g. auth. or membership.role_changed" }
+        - { name: actor_id, in: query, schema: { type: string, format: uuid } }
+        - { name: outcome, in: query, schema: { type: string, enum: [SUCCESS, DENIED, FAILED] } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 500 } }
+      responses:
+        "200":
+          description: The matches
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AuditEntry" }
+                  next_cursor: { type: [string, "null"] }
+        "403": { $ref: "#/components/responses/Problem" }
+
+  /audit:verify:
+    post:
+      tags: [audit]
+      operationId: verifyAuditChain
+      summary: Verify the integrity of the audit chain
+      description: Checks the hash chain and the absence of gaps over a period.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to]
+              properties:
+                from: { type: string, format: date-time }
+                to: { type: string, format: date-time }
+      responses:
+        "200":
+          description: The verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid: { type: boolean }
+                  checked: { type: integer }
+                  first_broken_seq: { type: [integer, "null"] }
+                  gaps: { type: array, items: { type: integer } }
+                  sealed_until: { type: [string, "null"], format: date-time }
+        "403": { $ref: "#/components/responses/Problem" }
+
+  /backup-targets:
+    get:
+      tags: [backup]
+      operationId: listBackupTargets
+      summary: List the backup targets
+      responses:
+        "200":
+          description: The targets
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BackupTarget" }
+        "403": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [backup]
+      operationId: createBackupTarget
+      summary: Create a backup target
+      description: |
+        Requires instance administrator rights (tenant-owned targets only when enabled).
+        Credentials are stored encrypted and never returned. An unencrypted backup and the
+        FTP protocol both require `insecure_acknowledged: true`.
+        Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupTargetCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupTarget" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+
+  /backup-targets/{targetId}:test:
+    post:
+      tags: [backup]
+      operationId: testBackupTarget
+      summary: Test the connection to the target
+      description: A write/read/delete probe. Runs through the GuardedClient (SSRF protection).
+      parameters:
+        - { name: targetId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  latency_ms: { type: number }
+                  writable: { type: boolean }
+                  free_bytes: { type: [integer, "null"] }
+                  error_code: { type: [string, "null"] }
+        "403": { $ref: "#/components/responses/Problem" }
+
+  /backup-targets/{targetId}/backups:
+    get:
+      tags: [backup]
+      operationId: listBackupsAtTarget
+      summary: List the backups present at the target
+      description: |
+        Reads the manifests **at the target**, not from the database. That means the listing
+        works even after a total loss, as long as the target credentials are known.
+      parameters:
+        - { name: targetId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: tenant_id, in: query, schema: { type: string, format: uuid } }
+        - { name: refresh, in: query, schema: { type: boolean, default: false }, description: Bypass the cache and read again }
+      responses:
+        "200":
+          description: The archives at the target
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BackupArchive" }
+        "403": { $ref: "#/components/responses/Problem" }
+
+  /backup-schedules:
+    post:
+      tags: [backup]
+      operationId: createBackupSchedule
+      summary: Create a backup schedule
+      description: RRULE-based (RFC 5545), with generational retention and a `min_keep` floor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupSchedule" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupSchedule" }
+        "400": { $ref: "#/components/responses/Problem" }
+
+  /backups:
+    post:
+      tags: [backup]
+      operationId: startBackup
+      summary: Start a backup immediately
+      responses:
+        "202":
+          description: The job was accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+        "403": { $ref: "#/components/responses/Problem" }
+
+  /backups/{backupId}:verify:
+    post:
+      tags: [backup]
+      operationId: verifyBackup
+      summary: Verify an archive at the target
+      description: Check the checksums and decryptability without restoring.
+      parameters:
+        - { name: backupId, in: path, required: true, schema: { type: string } }
+      responses:
+        "202":
+          description: The job was accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+
+  /restores:
+    post:
+      tags: [backup]
+      operationId: startRestore
+      summary: Start a restore
+      description: |
+        A dry run (`dry_run: true`) with a report by default. Destructive modes
+        (`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the
+        tenant name typed into `confirmation`. A restore fires no automation, sends no
+        notifications, and restores no tokens.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RestoreRequest" }
+      responses:
+        "202":
+          description: The job was accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+
+  /retention-policies:
+    get:
+      tags: [retention]
+      operationId: listRetentionPolicies
+      summary: List the retention rules
+      parameters:
+        - { name: container_id, in: query, schema: { type: string, format: uuid } }
+        - { name: effective, in: query, schema: { type: boolean, default: false }, description: Only the rules actually in force, including inheritance }
+      responses:
+        "200":
+          description: The rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RetentionPolicy" }
+    post:
+      tags: [retention]
+      operationId: createRetentionPolicy
+      summary: Create a retention rule
+      description: |
+        New rules start in notify-only mode if their first run would affect more than 5% of
+        the holdings. Extending beyond the data kind's upper bound requires a
+        `justification`. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RetentionPolicy" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RetentionPolicy" }
+        "400": { $ref: "#/components/responses/Problem" }
+
+  /retention-policies/{policyId}:preview:
+    post:
+      tags: [retention]
+      operationId: previewRetentionPolicy
+      summary: Determine the effect of a rule without executing it
+      parameters:
+        - { name: policyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matched: { type: integer }
+                  blocked:
+                    type: object
+                    additionalProperties: { type: integer }
+                    description: "The reasons for blocking, e.g. legal_hold, restriction, tombstone_window"
+                  share_of_scope: { type: number, description: The share of the holdings (0..1) }
+                  samples:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, format: uuid }
+                        title: { type: string }
+                        effective_at: { type: string, format: date-time }
+
+  /items/{itemId}:retain:
+    post:
+      tags: [retention]
+      operationId: retainItem
+      summary: Take an object out of the running retention period
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The updated item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkItem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /sync:pull:
+    post:
+      tags: [sync]
+      operationId: syncPull
+      summary: Fetch the changes since the cursor
+      description: |
+        Returns upserts, tombstones, and revocations in a stable order. The cursor is opaque.
+        If it is older than the minimum tombstone period, the server answers
+        `sync.cursor_too_old`; the client must then resynchronise completely.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SyncPullRequest" }
+      responses:
+        "200":
+          description: The changes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncPullResponse" }
+        "409":
+          $ref: "#/components/responses/Problem"
+
+  /sync:push:
+    post:
+      tags: [sync]
+      operationId: syncPush
+      summary: Transmit local mutations
+      description: |
+        Idempotent through `op_id`. Merging happens per field; set fields as OR-sets and
+        positions as fractional indices. Partial success is the normal case: rejected
+        mutations do not block the others.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SyncPushRequest" }
+      responses:
+        "200":
+          description: The result per mutation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncPushResponse" }
+        "400": { $ref: "#/components/responses/Problem" }
+
+  /sync/devices:
+    get:
+      tags: [sync]
+      operationId: listSyncDevices
+      summary: List your own devices
+      responses:
+        "200":
+          description: The devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SyncDevice" }
+
+  /containers:
+    get:
+      tags: [containers]
+      operationId: listContainers
+      parameters:
+        - $ref: "#/components/parameters/ContainerTypeFilter"
+        - $ref: "#/components/parameters/ParentId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/IncludeArchived"
+      responses:
+        "200":
+          description: A page of containers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Container"
+                  page:
+                    $ref: "#/components/schemas/PageInfo"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [containers]
+      operationId: createContainer
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContainerCreate"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    get:
+      tags: [containers]
+      operationId: getContainer
+      responses:
+        "200":
+          description: The container
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [containers]
+      operationId: updateContainer
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/ContainerUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [containers]
+      operationId: trashContainer
+      description: A soft delete; the entire subtree moves to the trash for 30 days.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Moved to the trash
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items:
+    post:
+      tags: [items]
+      operationId: createWorkItem
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkItemCreate"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [items]
+      operationId: getWorkItem
+      parameters:
+        - name: expand
+          in: query
+          description: "Include relations, e.g. children:1, labels, assignee, cover"
+          schema:
+            type: array
+            items: { type: string }
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: The item
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [items]
+      operationId: updateWorkItem
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/WorkItemUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: trashWorkItem
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Moved to the trash
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items:query:
+    post:
+      tags: [items]
+      operationId: queryItems
+      summary: The generic query - the basis for list, kanban, and timeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemQuery"
+      responses:
+        "200":
+          description: The result, optionally grouped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemQueryResult"
+        "422":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:complete:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: completeWorkItem
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cascade_children:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: Completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:move:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: moveWorkItem
+      description: Moves the item and its subtree; checks the capability profile and reference resolution.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_parent_id:
+                  type: [string, "null"]
+                  format: uuid
+                target_collection_id:
+                  type: string
+                  format: uuid
+                target_bucket_id:
+                  type: [string, "null"]
+                  format: uuid
+                before_item_id:
+                  type: [string, "null"]
+                  format: uuid
+      responses:
+        "200":
+          description: Moved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveResult"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items:bulk:
+    post:
+      tags: [items]
+      operationId: bulkItems
+      description: Up to 500 operations; `atomic=true` enforces all-or-nothing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operations]
+              properties:
+                atomic:
+                  type: boolean
+                  default: false
+                operations:
+                  type: array
+                  maxItems: 500
+                  items:
+                    $ref: "#/components/schemas/BulkOperation"
+      responses:
+        "200":
+          description: The result per operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BulkResult"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/comments:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [comments]
+      operationId: listComments
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The comments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Comment"
+                  page:
+                    $ref: "#/components/schemas/PageInfo"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [comments]
+      operationId: addComment
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  maxLength: 20000
+                parent_comment_id:
+                  type: [string, "null"]
+                  format: uuid
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}/buckets:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    get:
+      tags: [structure]
+      operationId: listBuckets
+      responses:
+        "200":
+          description: The collection's buckets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bucket"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [structure]
+      operationId: createBucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BucketCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}/labels:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    get:
+      tags: [structure]
+      operationId: listLabels
+      responses:
+        "200":
+          description: The collection's labels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Label"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: "An OIDC access token, hbt_pat_…, or a service account token"
+
+  parameters:
+    ContainerId:
+      name: containerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ParentId:
+      name: parent_id
+      in: query
+      schema: { type: string, format: uuid }
+    ContainerTypeFilter:
+      name: type
+      in: query
+      schema:
+        $ref: "#/components/schemas/ContainerType"
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+    PageSize:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    IncludeArchived:
+      name: include_archived
+      in: query
+      schema: { type: boolean, default: false }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: A UUID; identical requests return the same result for 24 h.
+      schema: { type: string, format: uuid }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: The ETag of the state last read (optimistic locking).
+      schema: { type: string }
+
+  responses:
+    Problem:
+      description: An error per RFC 9457
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  schemas:
+    Problem:
+      type: object
+      required: [status, code]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        code:
+          type: string
+          description: A stable, machine-readable error code (part of the contract).
+          examples: [capability_not_supported, version_conflict, rate_limited]
+        detail_code:
+          type: string
+          description: The message code for localisation in the client.
+        params:
+          type: object
+          additionalProperties: true
+        field_errors:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+              code: { type: string }
+              params:
+                type: object
+                additionalProperties: true
+        request_id: { type: string }
+        docs: { type: string, format: uri }
+
+    PageInfo:
+      type: object
+      properties:
+        next_cursor: { type: [string, "null"] }
+        has_more: { type: boolean }
+
+    ContainerType:
+      type: string
+      enum: [HUB, COLLECTION]
+
+    ItemType:
+      type: string
+      description: Extensible; /meta/capabilities returns the valid values.
+      enum: [TASK, WORK_PACKAGE, ACTIVITY]
+
+    Container:
+      type: object
+      required: [id, type, name, version]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/ContainerType" }
+        parent_id: { type: [string, "null"], format: uuid }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"] }
+        icon: { type: [string, "null"] }
+        color_token: { type: [string, "null"] }
+        order_key: { type: string }
+        policies:
+          type: object
+          additionalProperties: true
+        archived_at: { type: [string, "null"], format: date-time }
+        deleted_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    ContainerCreate:
+      type: object
+      required: [type, name]
+      properties:
+        type: { $ref: "#/components/schemas/ContainerType" }
+        parent_id: { type: [string, "null"], format: uuid }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"] }
+        icon: { type: [string, "null"] }
+        color_token: { type: [string, "null"] }
+
+    ContainerUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"] }
+        icon: { type: [string, "null"] }
+        color_token: { type: [string, "null"] }
+        policies:
+          type: object
+          additionalProperties: true
+
+    Completion:
+      type: object
+      properties:
+        is_completed: { type: boolean }
+        completed_at: { type: [string, "null"], format: date-time }
+        completed_by: { type: [string, "null"], format: uuid }
+
+    Cover:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [COLOR, IMAGE]
+        color_token: { type: [string, "null"] }
+        media_id: { type: [string, "null"], format: uuid }
+
+    WorkItem:
+      type: object
+      required: [id, type, collection_id, title, completion, version]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/ItemType" }
+        collection_id: { type: string, format: uuid }
+        parent_id: { type: [string, "null"], format: uuid }
+        path: { type: string }
+        depth: { type: integer }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        notes: { type: [string, "null"] }
+        completion: { $ref: "#/components/schemas/Completion" }
+        bucket_id: { type: [string, "null"], format: uuid }
+        order_key: { type: string }
+        start_at: { type: [string, "null"], format: date-time }
+        due_at: { type: [string, "null"], format: date-time }
+        due_date_only: { type: boolean, default: false }
+        due_time_zone: { type: [string, "null"], description: An IANA time zone }
+        label_ids:
+          type: array
+          items: { type: string, format: uuid }
+        member_ids:
+          type: array
+          items: { type: string, format: uuid }
+        assignee_id: { type: [string, "null"], format: uuid }
+        cover: { $ref: "#/components/schemas/Cover" }
+        custom_fields:
+          type: object
+          additionalProperties: true
+        recurrence_rule_id: { type: [string, "null"], format: uuid }
+        content_language: { type: [string, "null"], description: BCP-47 }
+        archived_at: { type: [string, "null"], format: date-time }
+        deleted_at: { type: [string, "null"], format: date-time }
+        retention:
+          oneOf:
+            - $ref: "#/components/schemas/RetentionState"
+            - type: "null"
+          description: Set for as long as a retention rule applies to this object.
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        hlc: { type: string, description: The hybrid logical clock of the last change; the basis of offline merging. }
+        version: { type: integer }
+        children:
+          type: array
+          description: Only with expand=children:N
+          items: { $ref: "#/components/schemas/WorkItem" }
+
+    WorkItemCreate:
+      type: object
+      required: [type, title]
+      properties:
+        type: { $ref: "#/components/schemas/ItemType" }
+        collection_id: { type: string, format: uuid }
+        parent_id: { type: [string, "null"], format: uuid }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        notes: { type: [string, "null"] }
+        bucket_id: { type: [string, "null"], format: uuid }
+        before_item_id: { type: [string, "null"], format: uuid }
+        due_at: { type: [string, "null"], format: date-time }
+        due_date_only: { type: boolean, default: false }
+        due_time_zone: { type: [string, "null"] }
+        label_ids:
+          type: array
+          items: { type: string, format: uuid }
+        member_ids:
+          type: array
+          items: { type: string, format: uuid }
+        assignee_id: { type: [string, "null"], format: uuid }
+        auto_assign: { type: boolean, default: false }
+        cover: { $ref: "#/components/schemas/Cover" }
+        custom_fields:
+          type: object
+          additionalProperties: true
+
+    WorkItemUpdate:
+      type: object
+      description: JSON Merge Patch; null deletes a field.
+      properties:
+        title: { type: string, minLength: 1, maxLength: 500 }
+        notes: { type: [string, "null"] }
+        bucket_id: { type: [string, "null"], format: uuid }
+        due_at: { type: [string, "null"], format: date-time }
+        due_date_only: { type: boolean }
+        due_time_zone: { type: [string, "null"] }
+        assignee_id: { type: [string, "null"], format: uuid }
+        cover: { $ref: "#/components/schemas/Cover" }
+        custom_fields:
+          type: object
+          additionalProperties: true
+
+    MoveResult:
+      type: object
+      properties:
+        item: { $ref: "#/components/schemas/WorkItem" }
+        dropped_references:
+          type: array
+          description: Labels/buckets/members that could not be resolved when changing collection.
+          items:
+            type: object
+            properties:
+              kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
+              id: { type: string }
+              code: { type: string }
+
+    FilterNode:
+      type: object
+      description: Either a leaf (field/op/value) or a combination (op/nodes).
+      properties:
+        op:
+          type: string
+          enum: [AND, OR, NOT, EQ, NEQ, IN, NOT_IN, LT, LTE, GT, GTE, BETWEEN, IS_NULL, CONTAINS, CONTAINS_ANY, CONTAINS_ALL, STARTS_WITH, MATCHES]
+        field: { type: string }
+        value: {}
+        nodes:
+          type: array
+          items: { $ref: "#/components/schemas/FilterNode" }
+
+    ItemQuery:
+      type: object
+      properties:
+        scope:
+          type: object
+          properties:
+            container_id: { type: string, format: uuid }
+            item_id: { type: string, format: uuid }
+            include_descendants: { type: boolean, default: true }
+        filter: { $ref: "#/components/schemas/FilterNode" }
+        sort:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              dir: { type: string, enum: [ASC, DESC], default: ASC }
+              nulls: { type: string, enum: [FIRST, LAST], default: LAST }
+        group_by:
+          type: object
+          properties:
+            field: { type: string }
+            limit_per_group: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        expand:
+          type: array
+          items: { type: string }
+        page:
+          type: object
+          properties:
+            cursor: { type: [string, "null"] }
+            size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        include_archived: { type: boolean, default: false }
+        include_trashed: { type: boolean, default: false }
+        count: { type: string, enum: [none, estimated, exact], default: none }
+
+    ItemQueryResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/WorkItem" }
+        groups:
+          type: array
+          description: Only with group_by; each group has its own cursor.
+          items:
+            type: object
+            properties:
+              key: { type: [string, "null"] }
+              count: { type: [integer, "null"] }
+              data:
+                type: array
+                items: { $ref: "#/components/schemas/WorkItem" }
+              page: { $ref: "#/components/schemas/PageInfo" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+        total: { type: [integer, "null"] }
+
+    BulkOperation:
+      type: object
+      required: [op]
+      properties:
+        op:
+          type: string
+          enum: [CREATE_ITEM, UPDATE_ITEM, COMPLETE_ITEM, REOPEN_ITEM, MOVE_ITEM, TRASH_ITEM, ADD_LABEL, REMOVE_LABEL, ASSIGN]
+        item_id: { type: string, format: uuid }
+        payload:
+          type: object
+          additionalProperties: true
+
+    BulkResult:
+      type: object
+      properties:
+        index: { type: integer }
+        status: { type: integer }
+        item: { $ref: "#/components/schemas/WorkItem" }
+        problem: { $ref: "#/components/schemas/Problem" }
+
+    Bucket:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        collection_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        order_key: { type: string }
+        wip_limit: { type: [integer, "null"] }
+        is_done_bucket: { type: boolean, default: false }
+        color_token: { type: [string, "null"] }
+
+    BucketCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        before_bucket_id: { type: [string, "null"], format: uuid }
+        wip_limit: { type: [integer, "null"] }
+        is_done_bucket: { type: boolean, default: false }
+        color_token: { type: [string, "null"] }
+
+    Label:
+      type: object
+      required: [id, name, color_token]
+      properties:
+        id: { type: string, format: uuid }
+        collection_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        color_token: { type: string }
+        description: { type: [string, "null"] }
+
+    Comment:
+      type: object
+      required: [id, item_id, author_id, body, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        item_id: { type: string, format: uuid }
+        author_id: { type: string, format: uuid }
+        parent_comment_id: { type: [string, "null"], format: uuid }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+        edited_at: { type: [string, "null"], format: date-time }
+        deleted_at: { type: [string, "null"], format: date-time }
+
+
+    AuditEntry:
+      type: object
+      required: [id, occurred_at, action, outcome, actor]
+      description: |
+        Deliberately contains no user content (titles, notes, comments), so that the audit
+        stays unaffected by deletion obligations on content.
+      properties:
+        id: { type: string, format: uuid }
+        seq: { type: integer }
+        occurred_at: { type: string, format: date-time }
+        action: { type: string, example: membership.role_changed }
+        outcome: { type: string, enum: [SUCCESS, DENIED, FAILED] }
+        severity: { type: string, enum: [INFO, NOTICE, WARNING, CRITICAL] }
+        actor:
+          type: object
+          properties:
+            type: { type: string, enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM] }
+            id: { type: [string, "null"], format: uuid }
+            label: { type: [string, "null"] }
+            on_behalf_of: { type: [string, "null"], format: uuid, description: The run_as principal for automation and agents }
+        target:
+          type: object
+          properties:
+            type: { type: [string, "null"] }
+            id: { type: [string, "null"], format: uuid }
+            label: { type: [string, "null"] }
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              from: {}
+              to: {}
+        context:
+          type: object
+          properties:
+            request_id: { type: string }
+            trace_id: { type: string }
+            ip_prefix: { type: [string, "null"] }
+            channel: { type: string, enum: [REST, MCP, AUTOMATION, SYSTEM, SYNC] }
+        legal_basis: { type: [string, "null"] }
+        hash: { type: string }
+
+    BackupTargetKind:
+      type: string
+      enum: [LOCAL, S3, SFTP, FTPS, FTP, WEBDAV, SMB, AZURE_BLOB, GCS, RCLONE, HTTP_PUT]
+
+    BackupTarget:
+      type: object
+      required: [id, name, kind, encryption_mode]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { $ref: "#/components/schemas/BackupTargetKind" }
+        scope: { type: string, enum: [INSTANCE, TENANT] }
+        config:
+          type: object
+          additionalProperties: true
+          description: Endpoint, bucket, path, region - without credentials.
+        encryption_mode: { type: string, enum: [AES256_GCM, NONE] }
+        encryption_key_id: { type: [string, "null"] }
+        region_note: { type: [string, "null"], description: Data residency; relevant for third-country targets }
+        enabled: { type: boolean }
+        last_test_at: { type: [string, "null"], format: date-time }
+        last_test_ok: { type: [boolean, "null"] }
+        warnings:
+          type: array
+          items: { type: string }
+          description: "e.g. backup.target_unencrypted, backup.target_plaintext_protocol"
+
+    BackupTargetCreate:
+      type: object
+      required: [name, kind, config]
+      properties:
+        name: { type: string }
+        kind: { $ref: "#/components/schemas/BackupTargetKind" }
+        config: { type: object, additionalProperties: true }
+        credentials:
+          type: object
+          additionalProperties: true
+          description: Only on create/update; stored encrypted and never returned.
+        encryption_mode: { type: string, enum: [AES256_GCM, NONE], default: AES256_GCM }
+        encryption_passphrase:
+          type: [string, "null"]
+          description: |
+            Not stored. Without this value the archive is irrecoverably unreadable - the
+            caller must keep it safe.
+        insecure_acknowledged:
+          type: boolean
+          default: false
+          description: "Mandatory for `FTP` or unencrypted storage (encryption_mode NONE)."
+
+    BackupArchive:
+      type: object
+      description: Read from the manifest at the target, not from the database.
+      properties:
+        archive_id: { type: string }
+        path: { type: string }
+        created_at: { type: string, format: date-time }
+        mode: { type: string, enum: [FULL, INCREMENTAL] }
+        parent_archive_id: { type: [string, "null"] }
+        scope:
+          type: object
+          properties:
+            kind: { type: string, enum: [INSTANCE, TENANT, HUB, COLLECTION] }
+            id: { type: [string, "null"], format: uuid }
+            label: { type: [string, "null"] }
+        size_bytes: { type: integer }
+        item_count: { type: integer }
+        media_count: { type: integer }
+        schema_version: { type: string }
+        product_version: { type: string }
+        encrypted: { type: boolean }
+        encryption_key_id: { type: [string, "null"] }
+        checksum_status: { type: string, enum: [UNVERIFIED, OK, MISMATCH] }
+        expires_at: { type: [string, "null"], format: date-time }
+
+    BackupSchedule:
+      type: object
+      required: [target_id, scope, rrule]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        target_id: { type: string, format: uuid }
+        scope:
+          type: object
+          properties:
+            kind: { type: string, enum: [INSTANCE, TENANT, HUB, COLLECTION] }
+            id: { type: [string, "null"], format: uuid }
+        rrule: { type: string, example: "FREQ=DAILY;BYHOUR=3;BYMINUTE=0" }
+        timezone: { type: string, default: UTC }
+        mode: { type: string, enum: [FULL, INCREMENTAL], default: INCREMENTAL }
+        full_rrule: { type: [string, "null"], example: "FREQ=WEEKLY;BYDAY=SU" }
+        include_media: { type: boolean, default: true }
+        include_audit: { type: boolean, default: true }
+        retention: { $ref: "#/components/schemas/BackupRetention" }
+        notify_on:
+          type: array
+          items: { type: string, enum: [FAILURE, SUCCESS, FIRST_SUCCESS_AFTER_FAILURE] }
+        enabled: { type: boolean, default: true }
+        next_run_at: { type: [string, "null"], format: date-time, readOnly: true }
+
+    BackupRetention:
+      type: object
+      description: The generation principle. `min_keep` prevents no backup being left at all.
+      properties:
+        keep_last: { type: integer, default: 7 }
+        keep_daily: { type: integer, default: 14 }
+        keep_weekly: { type: integer, default: 8 }
+        keep_monthly: { type: integer, default: 12 }
+        keep_yearly: { type: integer, default: 3 }
+        min_keep: { type: integer, default: 3, minimum: 1 }
+
+    RestoreRequest:
+      type: object
+      required: [target_id, archive_id, mode]
+      properties:
+        target_id: { type: string, format: uuid }
+        archive_id: { type: string }
+        mode: { type: string, enum: [INSPECT, SELECTIVE, MERGE, REPLACE_TENANT, NEW_TENANT, INSTANCE] }
+        target_tenant_id: { type: [string, "null"], format: uuid }
+        conflict_rule: { type: string, enum: [SKIP, OVERWRITE, DUPLICATE], default: SKIP }
+        selection:
+          type: object
+          description: The selection for SELECTIVE - container and/or item IDs.
+          properties:
+            container_ids: { type: array, items: { type: string, format: uuid } }
+            item_ids: { type: array, items: { type: string, format: uuid } }
+        decryption_passphrase: { type: [string, "null"] }
+        dry_run: { type: boolean, default: true }
+        create_safety_backup: { type: boolean, default: true }
+        confirmation:
+          type: [string, "null"]
+          description: For destructive modes, the exact tenant name.
+
+    RetentionPolicy:
+      type: object
+      required: [scope, data_kind, retain_days, action]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        scope:
+          type: object
+          properties:
+            kind: { type: string, enum: [TENANT, HUB, COLLECTION] }
+            id: { type: [string, "null"], format: uuid }
+        data_kind:
+          type: string
+          description: For the catalogue see data-retention.md; extensible through /meta/capabilities.
+          example: COMPLETED_ITEM
+        condition: { type: [string, "null"], description: An optional CEL expression }
+        retain_days: { type: integer, minimum: 0 }
+        action: { type: string, enum: [ARCHIVE, TRASH, ANONYMIZE, HARD_DELETE, EXPORT_THEN_DELETE, NOTIFY_ONLY] }
+        then_after_days: { type: [integer, "null"] }
+        then_action: { type: [string, "null"], enum: [ARCHIVE, TRASH, ANONYMIZE, HARD_DELETE, EXPORT_THEN_DELETE, null] }
+        grace_days: { type: integer, default: 14 }
+        notify:
+          type: object
+          properties:
+            before_days: { type: integer, default: 7 }
+            recipients:
+              type: array
+              items: { type: string, enum: [ITEM_MEMBERS, COLLECTION_ADMINS, TENANT_ADMINS] }
+        justification: { type: [string, "null"], description: Mandatory when the upper bound is exceeded }
+        enabled: { type: boolean, default: true }
+        export_target_id: { type: [string, "null"], format: uuid }
+
+    RetentionState:
+      type: object
+      description: Visible on the object for as long as a retention rule applies.
+      properties:
+        action: { type: string }
+        effective_at: { type: string, format: date-time }
+        policy_id: { type: string, format: uuid }
+        can_retain: { type: boolean }
+        blocked_by: { type: [string, "null"], enum: [legal_hold, restriction, null] }
+
+    SyncPullRequest:
+      type: object
+      required: [device_id]
+      properties:
+        device_id: { type: string, format: uuid }
+        cursor: { type: [string, "null"], description: Opaque; NULL means an initial synchronisation. }
+        scopes:
+          type: array
+          items:
+            type: object
+            properties:
+              container_id: { type: string, format: uuid }
+              depth: { type: string, enum: [SELF, CHILDREN, SUBTREE], default: SUBTREE }
+        limit: { type: integer, default: 500, maximum: 2000 }
+
+    SyncChange:
+      type: object
+      required: [op, entity, entity_id]
+      properties:
+        op: { type: string, enum: [UPSERT, DELETE, ACCESS_REVOKED] }
+        entity: { type: string, example: work_item }
+        entity_id: { type: string, format: uuid }
+        container_id: { type: [string, "null"], format: uuid }
+        hlc: { type: string }
+        payload:
+          type: [object, "null"]
+          additionalProperties: true
+          description: The complete object for UPSERT; NULL for DELETE and ACCESS_REVOKED.
+
+    SyncPullResponse:
+      type: object
+      required: [changes, cursor, has_more]
+      properties:
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/SyncChange" }
+        cursor: { type: string }
+        has_more: { type: boolean }
+        server_time: { type: string, format: date-time }
+        tombstone_window_days: { type: integer, description: The maximum offline window before a forced resynchronisation }
+
+    SyncMutation:
+      type: object
+      required: [op_id, kind]
+      properties:
+        op_id: { type: string, format: uuid, description: The idempotency key, valid for 30 days }
+        kind: { type: string, enum: [ITEM_CREATE, ITEM_PATCH, ITEM_DELETE, SET_ADD, SET_REMOVE, MOVE, COMMENT_ADD] }
+        item_id: { type: string, format: uuid, description: Assigned by the client (UUIDv7), including on CREATE }
+        base_version: { type: [integer, "null"] }
+        fields:
+          type: object
+          description: Per-field changes, each field with its own HLC.
+          additionalProperties:
+            type: object
+            properties:
+              value: {}
+              hlc: { type: string }
+        set: { type: [string, "null"], enum: [labels, members, watchers, null] }
+        element: { type: [string, "null"], format: uuid }
+        hlc: { type: [string, "null"] }
+        payload: { type: [object, "null"], additionalProperties: true }
+
+    SyncPushRequest:
+      type: object
+      required: [device_id, mutations]
+      properties:
+        device_id: { type: string, format: uuid }
+        mutations:
+          type: array
+          maxItems: 500
+          items: { $ref: "#/components/schemas/SyncMutation" }
+
+    SyncMutationResult:
+      type: object
+      required: [op_id, result]
+      properties:
+        op_id: { type: string, format: uuid }
+        result: { type: string, enum: [APPLIED, MERGED, REJECTED, CONFLICT] }
+        entity_id: { type: [string, "null"], format: uuid }
+        server_state: { type: [object, "null"], additionalProperties: true }
+        conflict:
+          type: [object, "null"]
+          description: Both versions on CONFLICT; the displaced one is preserved as a system comment.
+          properties:
+            field: { type: string }
+            mine: {}
+            theirs: {}
+            preserved_comment_id: { type: [string, "null"], format: uuid }
+        error:
+          type: [object, "null"]
+          properties:
+            code: { type: string, example: sync.gone }
+            message_code: { type: string }
+
+    SyncPushResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/SyncMutationResult" }
+        cursor: { type: [string, "null"], description: The cursor after application, saving a pull. }
+        server_time: { type: string, format: date-time }
+
+    SyncDevice:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        platform: { type: [string, "null"] }
+        display_name: { type: [string, "null"] }
+        last_seen_at: { type: [string, "null"], format: date-time }
+        last_cursor: { type: [string, "null"] }
+        blocked: { type: boolean }
+
+    JobRef:
+      type: object
+      required: [job_id, status]
+      properties:
+        job_id: { type: string, format: uuid }
+        status: { type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED] }
+        progress: { type: [number, "null"] }
+        result_url: { type: [string, "null"] }
+
+    HealthStatus:
+      type: string
+      enum: [ok, degraded, down, disabled]
+
+    DependencyHealth:
+      type: object
+      required: [name, required, status]
+      properties:
+        name: { type: string, example: object_storage }
+        required:
+          type: boolean
+          description: A mandatory dependency; only PostgreSQL is mandatory.
+        status: { $ref: "#/components/schemas/HealthStatus" }
+        latency_ms: { type: [number, "null"] }
+        since:
+          type: [string, "null"]
+          format: date-time
+          description: The time of the last state change.
+        last_error_code:
+          type: [string, "null"]
+          description: A stable error code, not free text and not a third-party message.
+        circuit_state:
+          type: [string, "null"]
+          enum: [closed, half_open, open, null]
+        impact:
+          type: array
+          description: The features affected during a disruption.
+          items: { type: string }
+
+    DegradedFeature:
+      type: object
+      required: [feature, reason_code, since]
+      properties:
+        feature: { type: string, example: media }
+        reason_code: { type: string, example: dependency.unavailable }
+        since: { type: string, format: date-time }
+
+    HealthWarning:
+      type: object
+      required: [code, severity]
+      properties:
+        code:
+          type: string
+          description: A message code, translatable on the client side.
+          example: config.backup_not_configured
+        severity: { type: string, enum: [info, warn, critical] }
+        params:
+          type: object
+          additionalProperties: true
+
+    HealthReport:
+      type: object
+      required: [status, version, dependencies]
+      description: |
+        Machine-readable self-diagnosis. `warnings` names what the installation is missing,
+        without an error having occurred (a missing backup, missing SMTP with reminders
+        enabled, expiring keys).
+      properties:
+        status: { $ref: "#/components/schemas/HealthStatus" }
+        version: { type: string }
+        role:
+          type: array
+          items: { type: string, enum: [api, worker, scheduler, automation] }
+        migration:
+          type: object
+          properties:
+            applied: { type: integer }
+            expected: { type: integer }
+            status: { type: string, enum: [ok, behind, ahead] }
+        dependencies:
+          type: array
+          items: { $ref: "#/components/schemas/DependencyHealth" }
+        degraded_features:
+          type: array
+          items: { $ref: "#/components/schemas/DegradedFeature" }
+        backlogs:
+          type: object
+          properties:
+            outbox_pending: { type: integer }
+            outbox_lag_seconds: { type: number }
+            job_queue_depth: { type: integer }
+            dead_letter_total: { type: integer }
+            webhook_retry_backlog: { type: integer }
+        warnings:
+          type: array
+          items: { $ref: "#/components/schemas/HealthWarning" }
+
+    Capabilities:
+      type: object
+      description: Self-description; clients configure themselves from this.
+      properties:
+        product_version: { type: string }
+        api_version: { type: string }
+        tenancy_mode: { type: string, enum: [single, multi] }
+        item_types:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { $ref: "#/components/schemas/ItemType" }
+              capabilities:
+                type: array
+                items: { type: string }
+              allowed_child_types:
+                type: array
+                items: { $ref: "#/components/schemas/ItemType" }
+              max_depth: { type: integer }
+        view_layouts:
+          type: array
+          items: { type: string }
+        query_fields:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              operators:
+                type: array
+                items: { type: string }
+        supported_locales:
+          type: array
+          items:
+            type: object
+            properties:
+              locale: { type: string }
+              direction: { type: string, enum: [ltr, rtl] }
+              week_start: { type: string }
+        automation:
+          type: object
+          properties:
+            triggers:
+              type: array
+              items: { type: string }
+            actions:
+              type: array
+              items: { type: string }
+        event_types:
+          type: array
+          items: { type: string }
+        limits:
+          type: object
+          additionalProperties: true
+        features:
+          type: object
+          additionalProperties: { type: boolean }

@@ -1,0 +1,9 @@
+.git
+.github
+.tools
+bin
+dist
+docs
+test/golden-archives
+*.md
+!locales/**
