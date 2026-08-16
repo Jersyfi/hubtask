@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
       -trimpath -ldflags "-s -w" -o /out/hubtask-migrate ./cmd/migrate
 
 # Time zone data and root certificates from a package image, not hand-assembled.
-FROM alpine:3.20 AS certs
+FROM alpine:3.24 AS certs
 RUN apk add --no-cache ca-certificates tzdata
 
 FROM gcr.io/distroless/static-debian12:nonroot
