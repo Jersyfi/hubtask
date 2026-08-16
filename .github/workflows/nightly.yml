@@ -34,6 +34,9 @@ jobs:
           cache: true
       - run: make tools
       - run: make gate-fuzz
+      # Re-run on the nightly hardware as well: RT-2 and RT-3 are timing-sensitive, and a
+      # second run under different load is how a flake announces itself before it fails a
+      # pull request.
       - run: make gate-resilience
       - run: make gate-load
 

@@ -304,6 +304,20 @@ expect_gate_failure "domain imports the application layer" gate-architecture cor
 
 import _ "github.com/Jersyfi/hubtask/core/application/usecase"'
 
+expect_gate_failure "outbound call without the guard" gate-architecture infrastructure \
+'package selftest
+
+import "net/http"
+
+func Selftest() *http.Client { return http.DefaultClient }'
+
+expect_gate_failure "a second HTTP client" gate-architecture infrastructure \
+'package selftest
+
+import "net/http"
+
+func Selftest() *http.Client { return &http.Client{} }'
+
 header "Formatting and generation (make gate-quick)"
 
 expect_gate_failure "unformatted source" gate-quick infrastructure \

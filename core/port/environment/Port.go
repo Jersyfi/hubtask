@@ -72,6 +72,7 @@ type Config struct {
 	Mail      MailConfig
 	RateLimit RateLimitConfig
 	Request   RequestConfig
+	Outbound  OutboundConfig
 	Locale    LocaleConfig
 	Metrics   MetricsConfig
 	Tracing   TracingConfig
@@ -152,6 +153,36 @@ type RequestConfig struct {
 	// Timeout is the server-side deadline every handler inherits. No call without a deadline
 	// (ADR-0016).
 	Timeout time.Duration
+}
+
+// MaxOutboundRedirects bounds the configured redirect budget. A chain longer than this is not a
+// site that moved, it is a chain being used to walk a request somewhere it may not go (T-07).
+const MaxOutboundRedirects = 10
+
+// OutboundConfig bounds every call Hubtask makes to the outside world: webhooks, automation
+// actions, AI providers, OIDC discovery (security.md §T-07). The values reach
+// infrastructure/httpclient.GuardedClient, which is the only way out of the process.
+type OutboundConfig struct {
+	// Timeout bounds one outbound call end to end, redirects included.
+	Timeout time.Duration
+	// ConnectTimeout bounds the connection attempt on its own, so that a target that accepts
+	// nothing fails fast instead of consuming the whole budget.
+	ConnectTimeout time.Duration
+	// MaxResponseBytes caps what is read from a response. Without it, a hostile or broken
+	// target can hand back a stream until the process runs out of memory (T-17).
+	MaxResponseBytes int64
+	// MaxRedirects is how many hops are followed. Every hop is checked again from scratch -
+	// a redirect to a private address is the classic way around an allowlist.
+	MaxRedirects int
+	// AllowedHosts is the egress allowlist. Empty means "every public address"; in provider
+	// operation an allowlist is mandatory (T-07), which is why an empty one raises a warning
+	// there.
+	AllowedHosts []string
+	// AllowPrivateNetworks opens outbound calls to RFC 1918, loopback, and link-local
+	// addresses. Off by default and off in provider operation: it is the switch that turns a
+	// webhook into a port scanner of the host network. A self-hoster with an internal target
+	// on the same LAN is the one legitimate reason to turn it on, and it warns when set.
+	AllowPrivateNetworks bool
 }
 
 // MetricsConfig covers what a metric may say about a tenant.
