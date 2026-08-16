@@ -38,8 +38,8 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool,
 	// there too, but this conversion narrows to int32, and a value that arrived from the
 	// environment through strconv.Atoi would wrap rather than fail - a pool size of -2147483648
 	// is not a configuration error anybody would recognise in a log.
-	poolCfg.MaxConns = boundedPoolSize(cfg.Database.MaxConns, 1)
-	poolCfg.MinConns = boundedPoolSize(cfg.Database.MinConns, 0)
+	poolCfg.MaxConns = boundedPoolSize(cfg.Database.MaxConns)
+	poolCfg.MinConns = boundedPoolSize(cfg.Database.MinConns)
 	poolCfg.MaxConnLifetime = cfg.Database.MaxConnLifetime
 	poolCfg.MaxConnIdleTime = cfg.Database.MaxConnIdleTime
 	poolCfg.ConnConfig.ConnectTimeout = cfg.Database.ConnectTimeout
@@ -79,15 +79,18 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool,
 	return pool, nil
 }
 
-// boundedPoolSize narrows a configured pool size to int32 within provable bounds. The comparison
-// is against constants on purpose: that is what makes the range visible to a reader, to gosec,
-// and to CodeQL, none of which can follow the validation in another package.
-func boundedPoolSize(value, lower int) int32 {
-	if value < lower {
-		value = lower
+// boundedPoolSize narrows a configured pool size to int32 within provable bounds.
+//
+// Both comparisons are against constants, and both return early. That is not style: a bounds
+// check against a variable proves nothing to a reader who has not read the caller, and nothing
+// to CodeQL either - it only recognises comparisons with constant values, which is how the first
+// attempt at this function ended up with an alert of its own.
+func boundedPoolSize(value int) int32 {
+	if value < 0 {
+		return 0
 	}
 	if value > env.MaxPoolConns {
-		value = env.MaxPoolConns
+		return env.MaxPoolConns
 	}
 	return int32(value)
 }
