@@ -59,6 +59,8 @@
   "dependency.target_not_allowed": "{host} is not on the list of addresses this installation may call.",
   "dependency.target_blocked": "{target} points into a private or reserved network. Hubtask does not call addresses inside its own infrastructure.",
   "dependency.target_unresolvable": "The address {host} could not be resolved at the moment.",
+  "dependency.too_many_redirects": "The address redirected more than {limit} times. Hubtask stopped following it.",
+  "dependency.response_too_large": "The answer was larger than the permitted {limit_bytes} bytes.",
 
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }
