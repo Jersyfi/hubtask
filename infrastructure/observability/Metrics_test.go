@@ -28,7 +28,7 @@ func newTestMetrics(t *testing.T, cfg env.Config) *Metrics {
 func scrape(t *testing.T, m *Metrics) string {
 	t.Helper()
 	rec := httptest.NewRecorder()
-	m.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	m.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("scrape returned %d", rec.Code)
 	}
