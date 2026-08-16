@@ -178,6 +178,11 @@ func TestTheDefaultsAreTheDocumentedOnes(t *testing.T) {
 		{"storage kind", cfg.Storage.Kind, env.StorageLocal},
 		{"body limit", cfg.Request.MaxBodyBytes, int64(1 << 20)},
 		{"request timeout", cfg.Request.Timeout, 30 * time.Second},
+		{"outbound timeout", cfg.Outbound.Timeout, 10 * time.Second},
+		{"outbound connect timeout", cfg.Outbound.ConnectTimeout, 5 * time.Second},
+		{"outbound response limit", cfg.Outbound.MaxResponseBytes, int64(1 << 20)},
+		{"outbound redirects", cfg.Outbound.MaxRedirects, 3},
+		{"private networks", cfg.Outbound.AllowPrivateNetworks, false},
 		{"anonymous rate limit", cfg.RateLimit.AnonymousPerMinute, 60},
 		{"auth rate limit", cfg.RateLimit.AuthPerMinute, 10},
 		{"default locale", cfg.Locale.DefaultLocale, "en"},
@@ -264,6 +269,12 @@ func TestInvalidValuesAreRejectedByCode(t *testing.T) {
 		{"HUBTASK_DEFAULT_TIMEZONE", "+02:00", "config.timezone_unknown"},
 		{"HUBTASK_REQUEST_TIMEOUT", "30", "config.duration_invalid"},
 		{"HUBTASK_DB_STATEMENT_TIMEOUT", "soon", "config.duration_invalid"},
+		{"HUBTASK_HTTP_TIMEOUT", "10", "config.duration_invalid"},
+		{"HUBTASK_HTTP_MAX_RESPONSE_BYTES", "0", "config.limit_invalid"},
+		{"HUBTASK_HTTP_MAX_REDIRECTS", "-1", "config.redirects_invalid"},
+		{"HUBTASK_HTTP_MAX_REDIRECTS", "50", "config.redirects_invalid"},
+		{"HUBTASK_HTTP_ALLOWED_HOSTS", "https://hooks.example.org", "config.allowed_host_invalid"},
+		{"HUBTASK_HTTP_ALLOWED_HOSTS", "hooks.example.org/path", "config.allowed_host_invalid"},
 	}
 
 	for _, tc := range cases {
@@ -403,6 +414,7 @@ func TestWarningsReportWhatTheOperatorIsMissing(t *testing.T) {
 		"config.backup_not_configured", // the release criterion nobody notices missing
 		"config.base_url_missing",      // links in emails would be wrong
 		"config.oidc_missing_in_multi_tenancy",
+		"config.egress_allowlist_missing", // mandatory in provider operation (T-07)
 		"config.smtp_without_tls",
 	} {
 		if !hasWarning(warnings, want) {
@@ -501,5 +513,75 @@ func TestAnAbsurdPoolSizeIsRejected(t *testing.T) {
 
 			assertCode(t, err, "config.db_pool_invalid")
 		})
+	}
+}
+
+// A host name is case-insensitive, and an allowlist that misses "API.Example.COM" is one that
+// fails open at the worst moment.
+func TestTheEgressAllowlistIsNormalised(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_HTTP_ALLOWED_HOSTS", " Hooks.Example.ORG , api.partner.test ,, ")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	want := []string{"hooks.example.org", "api.partner.test"}
+	if len(cfg.Outbound.AllowedHosts) != len(want) {
+		t.Fatalf("allowed hosts = %v, want %v", cfg.Outbound.AllowedHosts, want)
+	}
+	for i, host := range want {
+		if cfg.Outbound.AllowedHosts[i] != host {
+			t.Errorf("allowed hosts = %v, want %v", cfg.Outbound.AllowedHosts, want)
+			break
+		}
+	}
+}
+
+// Following nothing is the strictest setting, not a mistake.
+func TestZeroRedirectsIsAValidSetting(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_HTTP_MAX_REDIRECTS", "0")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("zero redirects was rejected: %v", err)
+	}
+	if cfg.Outbound.MaxRedirects != 0 {
+		t.Errorf("redirects = %d, want 0", cfg.Outbound.MaxRedirects)
+	}
+}
+
+// The switch that turns a webhook into a port scanner of the host network says so in
+// /meta/health, rather than only in whoever set it remembering that they did.
+func TestOpeningPrivateNetworksWarns(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS", "true")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if !cfg.Outbound.AllowPrivateNetworks {
+		t.Fatal("the setting did not reach the configuration")
+	}
+	if !hasWarning(New("v", "c").Warnings(cfg), "config.egress_private_networks_allowed") {
+		t.Error("opening private networks produces no warning")
+	}
+}
+
+// Self-hosting is the one profile where an empty allowlist is the sensible default: a private
+// installation calls whatever webhook its owner sets up, and there is no operator to maintain
+// a list.
+func TestAnEmptyAllowlistOnlyWarnsInProviderOperation(t *testing.T) {
+	withRequiredSecrets(t)
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if hasWarning(New("v", "c").Warnings(cfg), "config.egress_allowlist_missing") {
+		t.Error("self-hosting warned about a missing allowlist")
 	}
 }

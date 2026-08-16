@@ -85,6 +85,14 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			MaxUploadBytes: int64(getInt("HUBTASK_MAX_UPLOAD_BYTES", 1<<26)), // 64 MiB
 			Timeout:        getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
 		},
+		Outbound: env.OutboundConfig{
+			Timeout:              getDuration("HUBTASK_HTTP_TIMEOUT", 10*time.Second),
+			ConnectTimeout:       getDuration("HUBTASK_HTTP_CONNECT_TIMEOUT", 5*time.Second),
+			MaxResponseBytes:     int64(getInt("HUBTASK_HTTP_MAX_RESPONSE_BYTES", 1<<20)), // 1 MiB
+			MaxRedirects:         getInt("HUBTASK_HTTP_MAX_REDIRECTS", 3),
+			AllowedHosts:         getList("HUBTASK_HTTP_ALLOWED_HOSTS"),
+			AllowPrivateNetworks: getBool("HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS", false),
+		},
 		Metrics: env.MetricsConfig{
 			TenantLabel: getBool("HUBTASK_METRICS_TENANT_LABEL", false),
 		},
@@ -141,6 +149,15 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 	if cfg.Tenancy == env.TenancyMulti && os.Getenv("HUBTASK_OIDC_ISSUER") == "" {
 		w = append(w, env.Warning{Code: "config.oidc_missing_in_multi_tenancy", Severity: "warn"})
 	}
+	// In provider operation an egress allowlist is mandatory (security.md §T-07). It cannot be
+	// an error - an installation that refuses to start because a list is empty is worse than
+	// one that says so - but it belongs in /meta/health where the operator will see it.
+	if cfg.Tenancy == env.TenancyMulti && len(cfg.Outbound.AllowedHosts) == 0 {
+		w = append(w, env.Warning{Code: "config.egress_allowlist_missing", Severity: "warn"})
+	}
+	if cfg.Outbound.AllowPrivateNetworks {
+		w = append(w, env.Warning{Code: "config.egress_private_networks_allowed", Severity: "warn"})
+	}
 	if cfg.Mail.Security == env.MailSecurityNone && cfg.Mail.Host != "" {
 		w = append(w, env.Warning{
 			Code:     "config.smtp_without_tls",
@@ -195,6 +212,7 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateMail(cfg.Mail)...)
 	errs = append(errs, validateRateLimit(cfg.RateLimit)...)
 	errs = append(errs, validateRequest(cfg.Request)...)
+	errs = append(errs, validateOutbound(cfg.Outbound)...)
 	errs = append(errs, validateLocale(cfg.Locale)...)
 	errs = append(errs, validateTracing(cfg.Tracing)...)
 
@@ -324,6 +342,42 @@ func validateRequest(r env.RequestConfig) []error {
 	return errs
 }
 
+func validateOutbound(o env.OutboundConfig) []error {
+	var errs []error
+	for variable, d := range map[string]time.Duration{
+		"HUBTASK_HTTP_TIMEOUT":         o.Timeout,
+		"HUBTASK_HTTP_CONNECT_TIMEOUT": o.ConnectTimeout,
+	} {
+		if d <= 0 {
+			errs = append(errs, configError("config.duration_invalid", variable))
+		}
+	}
+	if o.MaxResponseBytes < 1 {
+		errs = append(errs, configError("config.limit_invalid", "HUBTASK_HTTP_MAX_RESPONSE_BYTES"))
+	}
+	// Zero is a valid answer here - "follow nothing" is the strictest setting, not a mistake.
+	// The upper bound is the interesting one: a long chain is not a site that moved.
+	if o.MaxRedirects < 0 || o.MaxRedirects > env.MaxOutboundRedirects {
+		errs = append(errs, configError("config.redirects_invalid", "HUBTASK_HTTP_MAX_REDIRECTS").
+			WithParams(map[string]string{
+				"variable": "HUBTASK_HTTP_MAX_REDIRECTS",
+				"maximum":  strconv.Itoa(env.MaxOutboundRedirects),
+			}))
+	}
+	for _, host := range o.AllowedHosts {
+		// A scheme or a path in the allowlist means somebody expected URL matching. Silently
+		// ignoring it would leave the operator believing a target is allowed when it is not.
+		if strings.ContainsAny(host, "/:") {
+			errs = append(errs, configError("config.allowed_host_invalid", "HUBTASK_HTTP_ALLOWED_HOSTS").
+				WithParams(map[string]string{
+					"variable": "HUBTASK_HTTP_ALLOWED_HOSTS",
+					"value":    host,
+				}))
+		}
+	}
+	return errs
+}
+
 func validateTracing(t env.TracingConfig) []error {
 	var errs []error
 	if t.SampleRatio < 0 || t.SampleRatio > 1 {
@@ -427,6 +481,24 @@ func getInt(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+// getList reads a comma-separated list. Entries are trimmed and lower-cased, because a host name
+// is case-insensitive and an allowlist that misses "API.Example.COM" is an allowlist that fails
+// open at the worst moment. Empty entries are dropped rather than kept as "": a trailing comma
+// is a typo, and an empty host would match nothing anyway.
+func getList(key string) []string {
+	raw, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		if trimmed := strings.ToLower(strings.TrimSpace(part)); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func getBool(key string, fallback bool) bool {
