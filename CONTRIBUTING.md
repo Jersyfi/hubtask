@@ -33,6 +33,13 @@ Refs #42
 
 Scopes correspond to the bounded contexts in `docs/architecture/arc42.md` §5.
 
+## One pull request, one issue
+
+Every task in `docs/backlog/` has an issue (label `task`). Your pull request closes it by naming it
+in the `Closes #` line of the template — otherwise the work is merged and the issue stays open,
+which makes the board lie about what is done. A question that blocks the task belongs in the issue
+rather than in the pull request: the issue outlives the branch.
+
 ## One pull request, several commits
 
 A task is one pull request — but not one commit. Split the work into steps of roughly one commit
