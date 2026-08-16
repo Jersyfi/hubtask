@@ -18,6 +18,12 @@ jobs:
     if: github.event.pull_request.draft == false && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # AI comments, gates decide (ci-cd.md §5): a failure here must never turn the pipeline red.
+    #
+    # Open point: claude-code-action fetches an OIDC token and therefore needs `id-token: write`,
+    # which ci-cd.md §4 reserves for the release job. Until that is decided the step runs and
+    # fails, without consequence - it produces no review.
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write

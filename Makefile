@@ -123,7 +123,9 @@ gate-quick:
 		fi
 
 ## gate-unit: Domain and application tests with coverage thresholds
+# The race detector needs cgo, so this one target overrides the CGO_ENABLED=0 of the build.
 .PHONY: gate-unit
+gate-unit: export CGO_ENABLED = 1
 gate-unit:
 	$(call go_test,,./core/... ./presentation/...,-race -covermode=atomic -coverprofile=coverage.out)
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85

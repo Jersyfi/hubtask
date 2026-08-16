@@ -89,9 +89,12 @@ jobs:
       - run: make gate-selftest
 
   integration:
-    name: Integration (PostgreSQL, MinIO)
+    name: Integration (PostgreSQL)
     needs: quick
     runs-on: ubuntu-latest
+    # Object storage is deliberately not a service container: the storage and backup tests start
+    # their own target through Testcontainers (engineering-guidelines.md §1), which also covers
+    # the targets a service container cannot provide (SFTP, WebDAV, SMB).
     services:
       postgres:
         image: postgres:16-alpine
@@ -102,12 +105,6 @@ jobs:
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 10
         ports: ["5432:5432"]
-      minio:
-        image: bitnami/minio:latest
-        env:
-          MINIO_ROOT_USER: hubtask
-          MINIO_ROOT_PASSWORD: hubtask-dev-secret
-        ports: ["9000:9000"]
     env:
       HUBTASK_DB_DSN: postgres://postgres:hubtask@localhost:5432/hubtask_test?sslmode=disable
     steps:
@@ -139,6 +136,8 @@ jobs:
       HUBTASK_DB_DSN: postgres://postgres:hubtask@localhost:5432/hubtask_test?sslmode=disable
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0           # SG-7 scans the history, so the history has to be here
       - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -164,12 +163,6 @@ jobs:
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 10
         ports: ["5432:5432"]
-      minio:
-        image: bitnami/minio:latest
-        env:
-          MINIO_ROOT_USER: hubtask
-          MINIO_ROOT_PASSWORD: hubtask-dev-secret
-        ports: ["9000:9000"]
     env:
       HUBTASK_DB_DSN: postgres://postgres:hubtask@localhost:5432/hubtask_test?sslmode=disable
     steps:
@@ -179,6 +172,8 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
       - run: make tools
+      # The backup targets come from Testcontainers, not from a service container - see the
+      # integration job.
       - run: make gate-data
 
   docs:
