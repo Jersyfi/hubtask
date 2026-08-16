@@ -488,3 +488,18 @@ func hasWarning(warnings []env.Warning, code string) bool {
 	}
 	return false
 }
+
+// CodeQL found this one: the pool size reaches the driver as an int32, and a value parsed from
+// the environment without an upper bound would wrap rather than fail.
+func TestAnAbsurdPoolSizeIsRejected(t *testing.T) {
+	for _, value := range []string{"2147483648", "99999999999", "1001"} {
+		t.Run(value, func(t *testing.T) {
+			withRequiredSecrets(t)
+			t.Setenv("HUBTASK_DB_MAX_CONNS", value)
+
+			_, err := load(t)
+
+			assertCode(t, err, "config.db_pool_invalid")
+		})
+	}
+}

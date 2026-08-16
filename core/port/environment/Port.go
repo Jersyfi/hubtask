@@ -80,6 +80,11 @@ type Config struct {
 	ShutdownGraceSeconds int
 }
 
+// MaxPoolConns bounds the configured pool size. Not a tuning limit but a safety one: the value
+// reaches the driver as an int32, and PostgreSQL's own max_connections is three digits on any
+// ordinary installation. A four-digit pool per process is a typo, not a plan.
+const MaxPoolConns = 1000
+
 // DatabaseConfig is the connection pool. PostgreSQL is the only mandatory dependency (ADR-0003);
 // everything else may fail without stopping the write path.
 type DatabaseConfig struct {

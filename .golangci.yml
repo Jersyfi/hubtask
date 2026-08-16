@@ -8,6 +8,13 @@ version: "2"
 
 run:
   tests: true
+  # Without these, every file behind a build tag is invisible to the linter - which is most of
+  # the test suite, and the part that talks to a real database.
+  build-tags:
+    - integration
+    - contract
+    - resilience
+    - load
 
 linters:
   default: none
@@ -126,6 +133,11 @@ linters:
             - $all
             - "!**/infrastructure/postgres/**"
             - "!**/cmd/migrate/**"
+            # The integration suite is the deliberate exception: it connects as the raw
+            # application role, without the wrapper, because that is how it proves the database
+            # enforces the boundary. Restricting it would mean testing the wrapper with the
+            # wrapper.
+            - "!**/test/integration/**"
           deny:
             - pkg: github.com/jackc/pgx
               desc: "the driver belongs to infrastructure/postgres - go through the transaction wrapper (ADR-0010)"

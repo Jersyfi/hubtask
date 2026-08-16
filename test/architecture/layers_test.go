@@ -162,6 +162,10 @@ func TestDriverStaysInThePostgresAdapter(t *testing.T) {
 	allowed := []string{
 		filepath.Clean("../../infrastructure/postgres"),
 		filepath.Clean("../../cmd/migrate"),
+		// The integration suite connects as the raw application role, without the wrapper -
+		// that is how it proves the database enforces the boundary rather than the code.
+		// Testing the wrapper through the wrapper would prove nothing.
+		filepath.Clean("../../test/integration"),
 	}
 
 	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd", "../../test"},
