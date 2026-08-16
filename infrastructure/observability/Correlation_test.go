@@ -12,6 +12,8 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
+
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
 
@@ -42,8 +44,8 @@ func TestTheLogCarriesTheTraceAndTheRequest(t *testing.T) {
 	ctx := trace.ContextWithSpanContext(context.Background(), trace.NewSpanContext(trace.SpanContextConfig{
 		TraceID: traceID, SpanID: spanID, TraceFlags: trace.FlagsSampled,
 	}))
-	ctx = ContextWithRequestID(ctx, "01936f2a-7c1e-7000-8000-00000000000a")
-	ctx = ContextWithTenant(ctx, "01936f2a-7c1e-7000-8000-00000000000b")
+	ctx = correlation.ContextWithRequestID(ctx, "01936f2a-7c1e-7000-8000-00000000000a")
+	ctx = correlation.ContextWithTenant(ctx, "01936f2a-7c1e-7000-8000-00000000000b")
 
 	entry := logAndParse(t, env.Config{}, func(l *slog.Logger) {
 		l.InfoContext(ctx, "something happened")
@@ -97,7 +99,7 @@ func TestTheLogCarriesTheServiceIdentity(t *testing.T) {
 // check that matters is the reverse of the usual one: the redaction must still bite when the
 // correlating handler is in front of it.
 func TestRedactionStillAppliesUnderneathTheCorrelation(t *testing.T) {
-	ctx := ContextWithRequestID(context.Background(), "req-1")
+	ctx := correlation.ContextWithRequestID(context.Background(), "req-1")
 
 	entry := logAndParse(t, env.Config{}, func(l *slog.Logger) {
 		l.InfoContext(ctx, "connection failed",

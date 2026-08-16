@@ -157,11 +157,20 @@ func run() error {
 
 	var api *http.Server
 	if cfg.HasRole(envport.RoleAPI) {
-		// TODO(0.1.0): mount the generated router from openapi.yaml, plus middleware for
-		// auth, tenant context, locale, rate limit, idempotency, request ID.
+		// TODO(0.1.0): mount the generated router from openapi.yaml into this mux, plus
+		// middleware for auth, tenant context, locale, rate limit and idempotency.
+		//
+		// The observability middleware is already in place around it: from the first request
+		// there is a RED metric, a span, and a request ID, and A-06 only adds routes inside.
+		apiRoutes := http.NewServeMux()
 		api = &http.Server{
-			Addr:              cfg.HTTPAddr,
-			Handler:           http.NotFoundHandler(),
+			Addr: cfg.HTTPAddr,
+			Handler: rest.Observed{
+				Router:  apiRoutes,
+				Metrics: metrics,
+				Tracer:  tracing.Tracer("rest"),
+				Role:    string(envport.RoleAPI),
+			},
 			ReadHeaderTimeout: 5 * time.Second,
 			IdleTimeout:       60 * time.Second,
 		}

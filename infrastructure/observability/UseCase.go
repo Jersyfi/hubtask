@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
 // Result classes of hubtask_usecase_total (observability-reliability.md §4). Five values, so the
@@ -58,7 +59,7 @@ func (o *Observer) UseCase(ctx context.Context, name string, fn func(context.Con
 	}
 	span.SetAttributes(attribute.String("hubtask.result", result))
 
-	o.metrics.UseCase(ctx, name, result, TenantFromContext(ctx))
+	o.metrics.UseCase(ctx, name, result, correlation.TenantFrom(ctx))
 	return err
 }
 
