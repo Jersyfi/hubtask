@@ -47,16 +47,58 @@ that instead of breaking the rule.
 
 1. **Understand**: read the task, read the documents it names, locate the use case in the
    catalogue in `domain-model.md`. If something contradicts the documentation, ask — do not guess.
-2. **Plan**: a short plan naming the affected files, before you write anything. If more than
-   about 8 files are involved, split the task into steps and finish them one at a time.
+2. **Plan in steps**: split the task into steps of roughly one commit each, and record that split
+   in a **draft pull request** before you write code (§ "Steps and commits" below).
 3. **Specification first**: for API changes `api/openapi.yaml`, for data model changes a migration
    in `db/migrations/` and queries in `db/queries/`, then `make generate`.
 4. **Implement from the inside out**: domain → application → ports → adapters → presentation.
+   One step, one commit, pushed immediately.
 5. **Test**: domain logic with table tests and no infrastructure. Repositories with Testcontainers.
    A cross-tenant negative test for every new repository method — otherwise gate SG-3 fails.
-6. **Check**: `make verify` must be green locally before you open a PR.
-7. **Finish**: Conventional Commit, fill in the PR template completely, work through the
-   Definition of Done in `docs/architecture/engineering-guidelines.md` §3.
+6. **Check**: `make verify` must be green locally before the pull request leaves draft.
+7. **Finish**: take the pull request out of draft, fill in the template completely, work through
+   the Definition of Done in `docs/architecture/engineering-guidelines.md` §3.
+
+## Steps and commits
+
+One task is one pull request, but **not** one commit. A reviewer reads a chain of small steps far
+better than a single large diff, and a step that is committed and pushed survives a session that
+dies halfway through — the work is then in git rather than in a lost context.
+
+**Before the first line of code:** open the branch and a **draft pull request** whose body carries
+the step list as a checklist. That list is the record of the split; it lives where the work lives.
+
+```markdown
+## Steps
+- [x] 1. Error categories and the typed domain errors (`core/domain/model/shared/Errors.go`)
+- [ ] 2. RFC 9457 mapping in the REST layer
+- [ ] 3. Configuration surface for the database pool
+```
+
+**Per step:** one commit with a Conventional Commit title, a `Task: A-xx` trailer, and the tick in
+the checklist. Push right away — an unpushed commit protects nobody.
+
+Rules for a good step:
+
+* It builds. `make gate-quick` is green at **every** commit; `make verify` is green at the last.
+* It is one concern. Two concerns in one commit means two commits, even if they are three lines each.
+* Tests travel with the code they test, never as a trailing "add tests" commit.
+* More than about 8 files, or a title needing the word "and", means the step is too big.
+* No `wip`, `fixup`, or `address review` commits. While the pull request is a draft you may rewrite
+  history freely; once it is in review, only new commits.
+
+Squash merge collapses the chain into one commit on `main` (`versioning-release.md` §3) — the steps
+stay visible in the pull request, which is where they are read.
+
+**Resuming after an interruption** — a new session picks the thread up like this:
+
+```bash
+git log --oneline main..HEAD      # what already landed
+gh pr view --json body            # which boxes are still open
+make verify                       # where it stands
+```
+
+Continue at the first unticked box. Do not start over, and do not rewrite what is already pushed.
 
 ## Definition of Done (short form — the long form governs)
 
