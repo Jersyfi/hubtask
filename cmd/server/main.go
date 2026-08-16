@@ -100,6 +100,24 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
+	// Tracing exists even when it is switched off: the W3C propagator is installed either way,
+	// so an incoming traceparent still reaches the log and still travels onwards (§3.3). Off is
+	// the documented self-hosting default (§13).
+	startupCtx, cancelStartup := context.WithTimeout(ctx, 10*time.Second)
+	tracing, err := observability.NewTracing(startupCtx, cfg)
+	cancelStartup()
+	if err != nil {
+		return fmt.Errorf("tracing: %w", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := tracing.Shutdown(shutdownCtx); err != nil {
+			slog.Warn("flushing the traces failed", slog.String("error", err.Error()))
+		}
+	}()
+	slog.Info("tracing configured", slog.Bool("enabled", tracing.Enabled))
+
 	// PostgreSQL is the only mandatory dependency (ADR-0003). Failing to reach it here stops
 	// the process: a pod that starts without its database only moves the error to the first
 	// request (ADR-0015).
