@@ -13,7 +13,7 @@ was decided is recorded in [ADR-0013](./adr/ADR-0013-licensing.md) (licence),
 ## 1. Local working environment
 
 ```bash
-# Prerequisites: Go 1.23+, Docker or Podman, make, git
+# Prerequisites: Go 1.25+, Docker or Podman, make, git
 make tools          # golangci-lint, oapi-codegen, sqlc, goose, govulncheck into .tools/
 make db-up          # PostgreSQL for development
 make migrate

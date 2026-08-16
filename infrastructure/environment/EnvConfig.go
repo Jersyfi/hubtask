@@ -135,7 +135,9 @@ func getInt(key string, fallback int) int {
 // getSecret supports KEY and KEY_FILE (Docker and Kubernetes secrets).
 func getSecret(key string) (secret.Secret, error) {
 	if path, ok := os.LookupEnv(key + "_FILE"); ok && path != "" {
-		b, err := os.ReadFile(path)
+		// The path comes from the process environment, which only the operator controls -
+		// that is the whole point of the _FILE convention (Docker and Kubernetes secrets).
+		b, err := os.ReadFile(path) //nolint:gosec // G304: the operator names the secret file
 		if err != nil {
 			return secret.Secret{}, fmt.Errorf("%s_FILE is not readable: %w", key, err)
 		}

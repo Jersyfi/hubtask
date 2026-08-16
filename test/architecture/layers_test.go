@@ -20,16 +20,18 @@ import (
 
 const module = "github.com/Jersyfi/hubtask"
 
-// TestCoreStaysClean checks rule 1 from CLAUDE.md (ADR-0001): core/domain and core/port must
-// point neither outwards nor at third-party libraries.
+// TestCoreStaysClean checks rule 1 from CLAUDE.md (ADR-0001): the core must point neither
+// outwards nor at third-party libraries. core/shared is included - the promise in go.mod covers
+// the whole core.
 func TestCoreStaysClean(t *testing.T) {
 	forbiddenPrefixes := []string{
 		module + "/infrastructure",
 		module + "/presentation",
 		module + "/cmd",
+		module + "/core/application", // dependencies point inwards; the domain is innermost
 	}
 
-	forEachGoFile(t, []string{"../../core/domain", "../../core/port"}, func(path string, f *ast.File, fset *token.FileSet) {
+	forEachGoFile(t, []string{"../../core/domain", "../../core/port", "../../core/shared"}, func(path string, f *ast.File, fset *token.FileSet) {
 		for _, imp := range f.Imports {
 			importPath := strings.Trim(imp.Path.Value, `"`)
 
@@ -106,6 +108,77 @@ func TestNoDirectTimeSource(t *testing.T) {
 				}
 				return true
 			})
+		})
+}
+
+// TestCoreStaysTechnologyFree keeps transport and persistence out of the core (ADR-0001). The
+// same boundary is configured for depguard; it is checked here as well because a linter can be
+// reconfigured in a pull request, whereas a red test is visible in the review.
+func TestCoreStaysTechnologyFree(t *testing.T) {
+	// The domain must not serialise itself either: DTOs belong to the application layer
+	// (project-structure.md §3).
+	roots := map[string][]string{
+		"../../core/domain":      {"net/http", "database/sql", "encoding/json"},
+		"../../core/port":        {"net/http", "database/sql"},
+		"../../core/shared":      {"net/http", "database/sql"},
+		"../../core/application": {"net/http", "database/sql"},
+	}
+
+	for root, forbidden := range roots {
+		forEachGoFile(t, []string{root}, func(path string, f *ast.File, fset *token.FileSet) {
+			for _, imp := range f.Imports {
+				importPath := strings.Trim(imp.Path.Value, `"`)
+				for _, bad := range forbidden {
+					if importPath == bad {
+						t.Errorf("%s: %s belongs behind a port, not in the core (ADR-0001)", rel(path), bad)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestAdaptersDoNotCallUseCases checks the dependency rule from project-structure.md §2: an
+// outbound adapter implements ports, it does not drive the application layer. Repository
+// interfaces (core/application/repository) are fine - those are exactly what it implements.
+func TestAdaptersDoNotCallUseCases(t *testing.T) {
+	forEachGoFile(t, []string{"../../infrastructure"}, func(path string, f *ast.File, fset *token.FileSet) {
+		for _, imp := range f.Imports {
+			importPath := strings.Trim(imp.Path.Value, `"`)
+			if strings.HasPrefix(importPath, module+"/core/application/service") {
+				t.Errorf("%s: adapter calls a use case: %s (project-structure.md §2)", rel(path), importPath)
+			}
+			if strings.HasPrefix(importPath, module+"/presentation") {
+				t.Errorf("%s: adapters do not know each other: %s (project-structure.md §2)", rel(path), importPath)
+			}
+		}
+	})
+}
+
+// TestDriverStaysInThePostgresAdapter checks rule 3 from CLAUDE.md: every query goes through the
+// transaction wrapper, which is the only place that sets `SET LOCAL app.tenant_id` (ADR-0010).
+// Anything holding the driver itself can bypass that wrapper - so nothing else may hold it.
+func TestDriverStaysInThePostgresAdapter(t *testing.T) {
+	allowed := []string{
+		filepath.Clean("../../infrastructure/postgres"),
+		filepath.Clean("../../cmd/migrate"),
+	}
+
+	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd", "../../test"},
+		func(path string, f *ast.File, fset *token.FileSet) {
+			dir := filepath.Clean(filepath.Dir(path))
+			for _, a := range allowed {
+				if strings.HasPrefix(dir, a) {
+					return
+				}
+			}
+			for _, imp := range f.Imports {
+				importPath := strings.Trim(imp.Path.Value, `"`)
+				if strings.HasPrefix(importPath, "github.com/jackc/pgx") {
+					t.Errorf("%s: the driver belongs to infrastructure/postgres - go through the transaction wrapper (ADR-0010)",
+						rel(path))
+				}
+			}
 		})
 }
 

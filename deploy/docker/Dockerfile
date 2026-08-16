@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.10
 # One image, several roles (ADR-0014). The role is set at runtime through HUBTASK_ROLES.
 
-FROM golang:1.23-alpine AS build
+FROM golang:1.25-alpine AS build
 WORKDIR /src
 ENV CGO_ENABLED=0
 # Dependencies first - their own layer, so that code changes do not discard the cache.

@@ -82,7 +82,7 @@ helm upgrade --install hubtask ./k8s -f ./k8s/values.yaml
 
 | Area | Choice |
 |---|---|
-| Language | Go (≥ 1.23), `net/http`, `log/slog` |
+| Language | Go (≥ 1.25), `net/http`, `log/slog` |
 | Database | PostgreSQL 16+ (`pgx/v5`, `sqlc`, `goose`) |
 | API | OpenAPI 3.1 spec-first (`oapi-codegen`), RFC 9457, cursor pagination |
 | Events | Transactional outbox, CloudEvents 1.0, optionally NATS JetStream |

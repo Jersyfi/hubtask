@@ -15,8 +15,10 @@ func TestSecretMasksOnEveryPath(t *testing.T) {
 	s := New("super-secret-1234")
 
 	cases := map[string]string{
-		"%v":     fmt.Sprintf("%v", s),
-		"%s":     fmt.Sprintf("%s", s),
+		"%v": fmt.Sprintf("%v", s),
+		// The %s path is exactly what is under test here, so the simplification staticcheck
+		// suggests (calling String directly) would remove the test.
+		"%s":     fmt.Sprintf("%s", s), //nolint:staticcheck // S1025: the verb is the subject of the test
 		"%+v":    fmt.Sprintf("%+v", s),
 		"%#v":    fmt.Sprintf("%#v", s),
 		"struct": fmt.Sprintf("%+v", struct{ Key Secret }{s}),

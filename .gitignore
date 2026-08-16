@@ -19,6 +19,9 @@
 /.tools/
 coverage.*
 /tmp/
+# scripts/gate-selftest.sh writes its violating packages here and removes them again; the entry
+# is the safety net for a hard abort.
+**/gate_selftest/
 
 # Editor
 .idea/
