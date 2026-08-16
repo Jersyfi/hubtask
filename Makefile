@@ -131,15 +131,24 @@ gate-unit:
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/application/... MIN=75
 
+# The threshold applies per package, not as an average over the tree. An average lets a new,
+# entirely untested package hide behind well-covered neighbours - which is exactly what
+# gate-selftest caught once core/domain held its first real package.
 .PHONY: coverage-check
 coverage-check:
 	@pkgs="$$($(GO) list $(PKG) 2>/dev/null)"; \
 	if [ -z "$$pkgs" ]; then echo "coverage $(PKG): no packages yet - skipped"; exit 0; fi; \
-	profile="coverage.$$(echo '$(PKG)' | tr -c 'a-zA-Z0-9' '-').out"; \
-	$(GO) test -covermode=atomic -coverprofile="$$profile" $$pkgs || exit 1; \
-	pct=$$($(GO) tool cover -func="$$profile" | tail -1 | awk '{print $$3}' | tr -d '%'); \
-	rm -f "$$profile"; \
-	awk -v p="$${pct:-0}" -v m="$(MIN)" 'BEGIN{ if (p+0 < m+0) { printf("Coverage %s%% below the %s%% threshold for $(PKG)\n", p, m); exit 1 } else printf("Coverage %s%% >= %s%% for $(PKG)\n", p, m) }'
+	out="$$($(GO) test -covermode=atomic -cover $$pkgs 2>&1)" || { echo "$$out"; exit 1; }; \
+	echo "$$out" | awk -v min="$(MIN)" ' \
+		/\[no test files\]/ { printf("  %s: no test file at all\n", $$2); failed=1; next } \
+		/coverage:/ { \
+			for (i = 1; i <= NF; i++) if ($$i == "coverage:") { value = $$(i + 1); break } \
+			if (value ~ /statements/ || value ~ /\[/) next; \
+			gsub(/%/, "", value); \
+			if (value + 0 < min + 0) { printf("  %s: %s%% below the %s%% threshold\n", $$2, value, min); failed=1 } \
+			else printf("  %s: %s%%\n", $$2, value) \
+		} \
+		END { if (failed) { print "coverage $(PKG): below the threshold"; exit 1 } }'
 
 ## gate-integration: Tests against a real PostgreSQL (Testcontainers)
 .PHONY: gate-integration
