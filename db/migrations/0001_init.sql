@@ -1,12 +1,42 @@
--- Hubtask - the reference schema.
--- Was the target state while the model was designed; since db/migrations/0001_init.sql exists,
--- the migrations are the source and this file is the readable reference of the same state.
+-- Hubtask, initial schema. Generated once from db/schema.sql, which was the reference while the
+-- model was being designed; from here on the migrations are the source and schema.sql is
+-- regenerated from them (project-structure.md §1).
+--
+-- Migrations are forward-only and safe for rolling updates (CLAUDE.md rule 12, ADR-0003).
+-- There is no Down for this one: rolling back the initial schema would delete every tenant's
+-- data, and the answer to a bad deploy is a restore, not a down migration.
+--
+-- The two roles carry the tenant boundary (multi-tenancy.md §2.1):
+--   hubtask_migrator  owns the objects and runs the migrations
+--   hubtask_app       the application role - no BYPASSRLS, no SUPERUSER, not an owner
+-- Both are created without LOGIN. The operator grants login and a password separately, so that
+-- no credential is ever written into a migration.
+
+-- +goose Up
+
+-- +goose StatementBegin
+DO $roles$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hubtask_migrator') THEN
+    CREATE ROLE hubtask_migrator NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hubtask_app') THEN
+    CREATE ROLE hubtask_app NOLOGIN;
+  END IF;
+EXCEPTION
+  -- A managed PostgreSQL may forbid CREATE ROLE. In that case the operator creates the two
+  -- roles beforehand; the grants below then still apply, and the migration fails loudly if
+  -- they are missing rather than silently skipping the tenant boundary.
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'roles must be created by the operator: %', SQLERRM;
+END $roles$;
+-- +goose StatementEnd
+-- Hubtask - the reference schema (the target state of the first migrations)
 -- Creates the core tables including tenant isolation through row level security.
 -- Conventions: UUIDv7 (generated in the application), timestamptz in UTC, tenant_id in every
 -- business table, soft delete through deleted_at, optimistic locking through version.
 -- See docs/architecture/{domain-model,multi-tenancy}.md
 
-BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS unaccent;
@@ -19,13 +49,17 @@ CREATE EXTENSION IF NOT EXISTS unaccent;
 -- ---------------------------------------------------------------------------
 
 -- unaccent() is only STABLE and therefore not indexable -> an IMMUTABLE wrapper
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION imm_unaccent(text) RETURNS text
   LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS
 $$ SELECT public.unaccent('public.unaccent'::regdictionary, $1) $$;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION current_tenant_id() RETURNS uuid
   LANGUAGE sql STABLE AS
 $$ SELECT nullif(current_setting('app.tenant_id', true), '')::uuid $$;
+-- +goose StatementEnd
 
 -- ============================ Identity & Access ============================
 
@@ -608,12 +642,14 @@ CREATE INDEX audit_actor_idx      ON audit_log (tenant_id, actor_id, occurred_at
 CREATE INDEX audit_target_idx     ON audit_log (tenant_id, target_id, occurred_at DESC);
 
 -- Immutability, level 2 (level 1 = the absent GRANTs, level 3 = the hash chain).
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION audit_log_immutable() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
   RAISE EXCEPTION 'audit_log is append-only (attempted %)', TG_OP
     USING ERRCODE = 'insufficient_privilege';
 END $$;
+-- +goose StatementEnd
 
 CREATE TRIGGER audit_log_no_update BEFORE UPDATE ON audit_log
   FOR EACH ROW EXECUTE FUNCTION audit_log_immutable();
@@ -931,6 +967,7 @@ CREATE TABLE set_element (
 
 -- ============================ Row Level Security ===========================
 -- For every tenant-scoped table: a policy on current_tenant_id().
+-- +goose StatementBegin
 DO $$
 DECLARE t text;
 BEGIN
@@ -955,6 +992,7 @@ BEGIN
     $f$, t);
   END LOOP;
 END $$;
+-- +goose StatementEnd
 
 -- tenant itself: access only to its own row (the admin role deliberately does not bypass this;
 -- tenant administration runs through the control plane role).
@@ -964,8 +1002,7 @@ CREATE POLICY tenant_self ON tenant
   USING (id = current_tenant_id())
   WITH CHECK (id = current_tenant_id());
 
--- audit_log: RLS on the partitioned table. A partition addressed directly is NOT covered by
--- the parent policy - see the partition block further down.
+-- audit_log: RLS applies to the partitioned table and is inherited by every partition.
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON audit_log
@@ -981,12 +1018,39 @@ CREATE POLICY tenant_isolation ON privacy_incident
   WITH CHECK (tenant_id = current_tenant_id());
 
 
--- change_log: RLS on the partitioned table; the partitions carry the policy themselves.
+-- change_log: RLS on the partitioned table.
 ALTER TABLE change_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE change_log FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON change_log
   USING (tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());
+
+-- A policy on the parent is NOT inherited when a partition is addressed directly: PostgreSQL
+-- applies the policies of the relation named in the query. Measured on PostgreSQL 16 - through
+-- audit_log one tenant's row, through audit_log_2026_08 both. So every partition carries the
+-- policy itself, and every partition created later has to do the same (the retention job in
+-- A-08 and the maintenance role that creates partitions).
+-- +goose StatementBegin
+DO $partitions$
+DECLARE p record;
+BEGIN
+  FOR p IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_inherits i ON i.inhrelid = c.oid
+    JOIN pg_class parent ON parent.oid = i.inhparent
+    WHERE parent.relname IN ('audit_log', 'change_log')
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', p.relname);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', p.relname);
+    EXECUTE format($p$
+      CREATE POLICY tenant_isolation ON %I
+        USING (tenant_id = current_tenant_id())
+        WITH CHECK (tenant_id = current_tenant_id())
+    $p$, p.relname);
+  END LOOP;
+END $partitions$;
+-- +goose StatementEnd
 
 -- backup_target can be instance-wide (tenant_id IS NULL) and is then visible only to
 -- the instance administration - not to tenant users.
@@ -1007,50 +1071,32 @@ CREATE POLICY tenant_isolation ON item_capability_profile
 -- job is partly tenant-less (system jobs) and is read only by worker roles:
 -- deliberately without RLS, with access restricted through role privileges.
 
--- A policy on the parent is NOT inherited when a partition is addressed directly: PostgreSQL
--- applies the policies of the relation named in the query. Measured on PostgreSQL 16 - through
--- audit_log one tenant's row, through audit_log_2026_08 both. Every partition created later
--- (retention and maintenance jobs) has to carry the policy as well.
-DO $partitions$
-DECLARE p record;
-BEGIN
-  FOR p IN
-    SELECT c.relname
-    FROM pg_class c
-    JOIN pg_inherits i ON i.inhrelid = c.oid
-    JOIN pg_class parent ON parent.oid = i.inhparent
-    WHERE parent.relname IN ('audit_log', 'change_log')
-  LOOP
-    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', p.relname);
-    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', p.relname);
-    EXECUTE format($p$
-      CREATE POLICY tenant_isolation ON %I
-        USING (tenant_id = current_tenant_id())
-        WITH CHECK (tenant_id = current_tenant_id())
-    $p$, p.relname);
-  END LOOP;
-END $partitions$;
 
 -- ======================= Grants for the application role ====================
 -- hubtask_app works through the tables, never around them: no ownership, no BYPASSRLS, and
--- therefore subject to every policy above.
+-- therefore subject to every policy above. The audit exception follows below and must stay
+-- after this block, because a blanket grant would otherwise undo it.
 GRANT USAGE ON SCHEMA public TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hubtask_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hubtask_app;
 GRANT EXECUTE ON FUNCTION current_tenant_id() TO hubtask_app;
 GRANT EXECUTE ON FUNCTION imm_unaccent(text) TO hubtask_app;
+
+-- Tables a later migration adds - partitions above all - are covered without a follow-up grant,
+-- as long as the migrator creates them.
 ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hubtask_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO hubtask_app;
-
 -- ===================== Grants: immutability, level 1 ========================
 -- The application role may only create and read audit entries.
 -- Checked by gate SG-4 / test AT-1.
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM hubtask_app;
 GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
 
--- The same for the partitions: a partition addressed directly is a table of its own.
+-- The same for the partitions: the REVOKE above covers the parent, and a partition addressed
+-- directly is a table of its own.
+-- +goose StatementBegin
 DO $audit_partitions$
 DECLARE p record;
 BEGIN
@@ -1064,5 +1110,25 @@ BEGIN
     EXECUTE format('REVOKE UPDATE, DELETE, TRUNCATE ON %I FROM hubtask_app', p.relname);
   END LOOP;
 END $audit_partitions$;
+-- +goose StatementEnd
 
-COMMIT;
+-- The migration ledger is not application data. Without this, the app role could rewrite the
+-- record of which migrations ran - the blanket grant above reaches it too.
+-- +goose StatementBegin
+DO $ledger$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'goose_db_version') THEN
+    REVOKE ALL ON goose_db_version FROM hubtask_app;
+  END IF;
+END $ledger$;
+-- +goose StatementEnd
+
+
+-- +goose Down
+-- +goose StatementBegin
+DO $forward_only$
+BEGIN
+  RAISE EXCEPTION 'migrations are forward-only (CLAUDE.md rule 12); recovery is a restore, not a down migration'
+    USING ERRCODE = 'feature_not_supported';
+END $forward_only$;
+-- +goose StatementEnd
