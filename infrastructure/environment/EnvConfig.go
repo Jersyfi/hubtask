@@ -68,7 +68,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		Mail: env.MailConfig{
 			Host:     get("HUBTASK_SMTP_HOST", ""),
 			Port:     getInt("HUBTASK_SMTP_PORT", 587),
-			Username: get("HUBTASK_SMTP_USERNAME", ""),
+			Username: get("HUBTASK_SMTP_USER", ""),
 			From:     get("HUBTASK_SMTP_FROM", ""),
 			Security: env.MailSecurity(strings.ToLower(get("HUBTASK_SMTP_SECURITY", string(env.MailSecurityStartTLS)))),
 			Timeout:  getDuration("HUBTASK_SMTP_TIMEOUT", 10*time.Second),

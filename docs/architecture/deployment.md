@@ -116,6 +116,50 @@ There is **no default value for a secret**. If one is missing, the process does 
 why. An automatically generated key would be worse than a startup error: after a restart, every
 piece of data encrypted with it would be unreadable.
 
+A configuration error names its variable through a message code (`config.db_dsn_missing`), and all
+problems are reported at once — an operator setting up an installation wants the whole list, not
+one problem per restart.
+
+### 6.1 Reference
+
+Required, no default:
+
+| Variable | Meaning |
+|---|---|
+| `HUBTASK_DB_DSN` | PostgreSQL connection |
+| `HUBTASK_SECRET_KEY` | Master key for envelope encryption, at least 32 characters |
+
+Everything else has a self-hosting default:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `HUBTASK_ROLES` | `api,worker,scheduler,automation` | Which roles this process starts (ADR-0014) |
+| `HUBTASK_HTTP_ADDR` / `HUBTASK_OPS_ADDR` | `:8080` / `:9090` | Public and operations port |
+| `HUBTASK_BASE_URL` | — | Absolute URL of the installation; without it links in emails and feeds are wrong (warning) |
+| `HUBTASK_TENANCY_MODE` | `single` | `single` for self-hosting, `multi` for provider operation (ADR-0010) |
+| `HUBTASK_LOG_FORMAT` / `HUBTASK_LOG_LEVEL` | `json` / `info` | `json` or `text`; `debug`, `info`, `warn`, `error` |
+| `HUBTASK_SHUTDOWN_GRACE_SECONDS` | `30` | Deadline for in-flight requests after `SIGTERM` |
+| `HUBTASK_DB_MAX_CONNS` / `HUBTASK_DB_MIN_CONNS` | `10` / `2` | Pool size **per process**; several roles mean several pools |
+| `HUBTASK_DB_CONNECT_TIMEOUT` | `5s` | Connection deadline |
+| `HUBTASK_DB_STATEMENT_TIMEOUT` | `5s` | Query budget on the interactive path |
+| `HUBTASK_DB_WORKER_STATEMENT_TIMEOUT` | `60s` | Query budget for background work |
+| `HUBTASK_DB_MAX_CONN_LIFETIME` / `HUBTASK_DB_MAX_CONN_IDLE_TIME` | `1h` / `30m` | Bounds reuse, so a failover reaches the pool |
+| `HUBTASK_STORAGE_KIND` | `local` | `local` or `s3` |
+| `HUBTASK_STORAGE_LOCAL_PATH` | `/var/lib/hubtask/media` | Media directory for `local` |
+| `HUBTASK_S3_ENDPOINT`, `_REGION`, `_BUCKET`, `_ACCESS_KEY`, `_SECRET_KEY`, `_USE_PATH_STYLE` | — / `us-east-1` / — / — / — / `true` | S3 or an S3-compatible service; with `kind=s3` the bucket and both keys are mandatory |
+| `HUBTASK_SMTP_HOST`, `_PORT`, `_USER`, `_PASSWORD`, `_FROM`, `_SECURITY`, `_TIMEOUT` | — / `587` / — / — / — / `starttls` / `10s` | Without a host, email degrades (warning). With one, `_FROM` is mandatory |
+| `HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE` | `60` | Per IP, unauthenticated |
+| `HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE` | `600` | Per token |
+| `HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE` | `3000` | Per tenant |
+| `HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE` | `10` | Login, password reset, invitation |
+| `HUBTASK_RATE_LIMIT_BURST` | `20` | How much of a budget may be spent at once |
+| `HUBTASK_MAX_BODY_BYTES` / `HUBTASK_MAX_UPLOAD_BYTES` | `1 MiB` / `64 MiB` | Request and upload limit (T-17) |
+| `HUBTASK_REQUEST_TIMEOUT` | `30s` | Server-side deadline every handler inherits |
+| `HUBTASK_DEFAULT_LOCALE` | `en` | BCP 47; the last link in the chain request → account → tenant → installation |
+| `HUBTASK_DEFAULT_TIMEZONE` | `UTC` | IANA name, never a fixed offset — an offset cannot represent daylight saving |
+
+Durations are Go syntax (`30s`, `5m`, `1h30m`). A bare number is rejected rather than guessed at.
+
 ---
 
 ## 7. What happens during a release
