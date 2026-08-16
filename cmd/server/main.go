@@ -82,6 +82,18 @@ func run() error {
 		slog.String("tenancy", string(cfg.Tenancy)),
 	)
 
+	metrics, err := observability.NewMetrics(cfg)
+	if err != nil {
+		return fmt.Errorf("metrics: %w", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := metrics.Shutdown(shutdownCtx); err != nil {
+			slog.Warn("flushing the metrics failed", slog.String("error", err.Error()))
+		}
+	}()
+
 	registry := healthadapter.NewRegistry(version, roles)
 	registry.SetWarnings(toPortWarnings(envadapter.New(version, commit).Warnings(cfg)))
 
@@ -103,14 +115,17 @@ func run() error {
 
 	registry.Register(postgres.NewProbe(pool))
 
+	// The panic metric is the one an alert watches, and its target value is 0 permanently
+	// (ADR-0016). The recovered value itself is deliberately not logged here: a panic value can
+	// carry anything, user content included (rule 10) - SafeGo logs it with the redacting
+	// logger, and this only counts.
 	concurrency.SetPanicObserver(func(component string, _ any) {
-		// TODO(0.1.0): increment hubtask_panics_recovered_total{component}.
-		_ = component
+		metrics.PanicRecovered(context.Background(), component)
 	})
 
 	ops := &http.Server{
 		Addr:              cfg.OpsAddr,
-		Handler:           rest.OpsController{Health: registry}.Routes(),
+		Handler:           rest.OpsController{Health: registry, Metrics: metrics.Handler()}.Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

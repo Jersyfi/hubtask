@@ -85,6 +85,14 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			MaxUploadBytes: int64(getInt("HUBTASK_MAX_UPLOAD_BYTES", 1<<26)), // 64 MiB
 			Timeout:        getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
 		},
+		Metrics: env.MetricsConfig{
+			TenantLabel: getBool("HUBTASK_METRICS_TENANT_LABEL", false),
+		},
+		Tracing: env.TracingConfig{
+			Enabled:     getBool("HUBTASK_TRACING_ENABLED", false),
+			Endpoint:    get("HUBTASK_TRACING_ENDPOINT", ""),
+			SampleRatio: getFloat("HUBTASK_TRACING_SAMPLE_RATIO", 0.05),
+		},
 		Locale: env.LocaleConfig{
 			DefaultLocale:   get("HUBTASK_DEFAULT_LOCALE", "en"),
 			DefaultTimeZone: get("HUBTASK_DEFAULT_TIMEZONE", "UTC"),
@@ -188,6 +196,7 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateRateLimit(cfg.RateLimit)...)
 	errs = append(errs, validateRequest(cfg.Request)...)
 	errs = append(errs, validateLocale(cfg.Locale)...)
+	errs = append(errs, validateTracing(cfg.Tracing)...)
 
 	return errors.Join(errs...)
 }
@@ -315,6 +324,19 @@ func validateRequest(r env.RequestConfig) []error {
 	return errs
 }
 
+func validateTracing(t env.TracingConfig) []error {
+	var errs []error
+	if t.SampleRatio < 0 || t.SampleRatio > 1 {
+		errs = append(errs, configError("config.sample_ratio_invalid", "HUBTASK_TRACING_SAMPLE_RATIO"))
+	}
+	// Enabled without a destination is the mistake that looks like it works: spans are built,
+	// cost time, and go nowhere.
+	if t.Enabled && t.Endpoint == "" {
+		errs = append(errs, configError("config.tracing_endpoint_missing", "HUBTASK_TRACING_ENDPOINT"))
+	}
+	return errs
+}
+
 func validateLocale(l env.LocaleConfig) []error {
 	var errs []error
 	if !looksLikeBCP47(l.DefaultLocale) {
@@ -412,6 +434,16 @@ func getBool(key string, fallback bool) bool {
 		if b, err := strconv.ParseBool(v); err == nil {
 			return b
 		}
+	}
+	return fallback
+}
+
+func getFloat(key string, fallback float64) float64 {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+		return -1 // invalid, and validate turns that into a startup error
 	}
 	return fallback
 }

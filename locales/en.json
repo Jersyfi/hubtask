@@ -34,6 +34,8 @@
   "config.smtp_port_invalid": "{variable} must be a port between 1 and 65535.",
   "config.smtp_from_missing": "{variable} is not set, although an SMTP server is configured.",
   "config.smtp_security_invalid": "{variable} must be one of starttls, tls, none.",
+  "config.sample_ratio_invalid": "{variable} must be between 0 and 1.",
+  "config.tracing_endpoint_missing": "{variable} is not set, although tracing is enabled. Spans would be built and discarded.",
   "config.locale_invalid": "{variable} must be a BCP 47 language tag such as en, de-AT or pt-BR.",
   "config.timezone_unknown": "{variable} must be an IANA time zone such as Europe/Berlin. {value} is not one.",
 
