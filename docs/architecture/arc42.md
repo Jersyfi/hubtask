@@ -614,8 +614,25 @@ explicitly enabled. Every request carries a `request_id`, which appears in error
 
 ### 8.11 Error handling
 Domain errors are typed values (`ErrItemTypeNotAllowedHere`), not strings; the application layer
-maps them to error categories (`VALIDATION`, `NOT_FOUND`, `CONFLICT`, `FORBIDDEN`, `RATE_LIMITED`,
-`INTERNAL`); the adapter maps the category to an HTTP status plus problem details.
+maps them to error categories; the adapter maps the category to an HTTP status plus problem
+details. The categories and the statuses they produce (the codes are in
+[api-guidelines.md](./api-guidelines.md) §6):
+
+| Category | Status | Meaning |
+|---|---|---|
+| `VALIDATION` | 422, or 400 for `malformed_request` | Input the domain rejects |
+| `UNAUTHENTICATED` | 401 | Missing, expired, or unreadable credential |
+| `FORBIDDEN` | 403 | Authenticated, but not permitted |
+| `NOT_FOUND` | 404 | Does not exist, or may not be known to exist |
+| `CONFLICT` | 409 | Clash with the current state, including a stale version |
+| `GONE` | 410 | Existed and was permanently deleted — the distinction from `NOT_FOUND` is what a synchronising client needs |
+| `RATE_LIMITED` | 429 | A limit reached |
+| `UNAVAILABLE` | 503 | A dependency unreachable or deliberately degraded — "later", not "wrong" |
+| `INTERNAL` | 500 | A defect. Anything unclassified lands here, and nothing of it reaches the client beyond the code and the `request_id` |
+
+An error carries a stable `code`, an optional `detail_code`, and parameters — never a sentence
+(ADR-0011). The technical cause travels with the error for the log and is dropped at the adapter
+boundary: an unknown error may contain a connection string ([security.md](./security.md) §9).
 
 ### 8.11.1 Resilience and controlled degradation
 Binding patterns: timeouts and context deadlines everywhere (no call without a timeout, enforced by

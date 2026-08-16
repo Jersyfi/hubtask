@@ -29,6 +29,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
+	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
 
@@ -48,6 +49,12 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(selfCheck())
 	}
+
+	// The bootstrap logger exists before the configuration does, because the first thing that
+	// can fail is reading the configuration - and that error is logged (T-18).
+	slog.SetDefault(observability.NewLogger(
+		envport.Config{Version: version, LogFormat: "json", LogLevel: "info"}, os.Stdout))
+
 	if err := run(); err != nil {
 		slog.Error("startup failed", slog.String("error", err.Error()))
 		os.Exit(1)
@@ -59,7 +66,8 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
-	setupLogging(cfg)
+	// From here on everything goes through the redacting logger (T-18).
+	slog.SetDefault(observability.NewLogger(cfg, os.Stdout))
 
 	roles := make([]string, 0, len(cfg.Roles))
 	for _, r := range cfg.Roles {
@@ -156,28 +164,6 @@ func run() error {
 
 	slog.Info("stopped")
 	return shutdownErr
-}
-
-func setupLogging(cfg envport.Config) {
-	level := slog.LevelInfo
-	switch cfg.LogLevel {
-	case "debug":
-		level = slog.LevelDebug
-	case "warn":
-		level = slog.LevelWarn
-	case "error":
-		level = slog.LevelError
-	}
-	opts := &slog.HandlerOptions{Level: level}
-
-	var h slog.Handler = slog.NewJSONHandler(os.Stdout, opts)
-	if cfg.LogFormat == "text" {
-		h = slog.NewTextHandler(os.Stdout, opts)
-	}
-	slog.SetDefault(slog.New(h).With(
-		slog.String("service", "hubtask"),
-		slog.String("version", cfg.Version),
-	))
 }
 
 func toPortWarnings(in []envport.Warning) []healthport.Warning {

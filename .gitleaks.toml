@@ -1,0 +1,19 @@
+# Secret scanning, gate SG-7 (security.md §4, threat T-13).
+#
+# The default rule set stays in force; this file only records exceptions, and each one names what
+# it is and why it is not a secret. An allowlist entry is a claim someone has to be able to check
+# in review - so it is a value, never a path or a file pattern. Allowlisting "every test file"
+# would be the end of the gate, because a leaked credential pasted into a test is a leaked
+# credential.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known test fixtures that look like credentials"
+regexes = [
+  # A configuration fixture from infrastructure/environment/EnvConfig_test.go. It was a literal
+  # until commit da70edc replaced it with an assembled value; the scan reads the history, so the
+  # entry stays for as long as the commit does.
+  '''0123456789abcdef0123456789abcdef''',
+]

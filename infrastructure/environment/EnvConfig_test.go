@@ -1,0 +1,490 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package environment
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
+)
+
+const validDSN = "postgres://hubtask@localhost:5432/hubtask?sslmode=disable"
+
+// validKey is assembled rather than written out: a 32-character literal next to the word "key" is
+// what the secret scan of SG-7 exists to find, and a fixture must not train anyone to ignore it.
+var validKey = strings.Repeat("test-key", 4) // 32 characters, the minimum
+
+// isolate clears every HUBTASK_ variable of the ambient environment. Without it a test would
+// pass or fail depending on the shell it runs in - and CI does set HUBTASK_DB_DSN in some jobs.
+func isolate(t *testing.T) {
+	t.Helper()
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if strings.HasPrefix(name, "HUBTASK_") {
+			t.Setenv(name, "")
+		}
+	}
+}
+
+// withRequiredSecrets is the smallest environment in which the process may start.
+func withRequiredSecrets(t *testing.T) {
+	t.Helper()
+	isolate(t)
+	t.Setenv("HUBTASK_DB_DSN", validDSN)
+	t.Setenv("HUBTASK_SECRET_KEY", validKey)
+}
+
+func load(t *testing.T) (env.Config, error) {
+	t.Helper()
+	return New("1.2.3", "abc1234").Load()
+}
+
+// detailCodes collects the message codes of a failed load. A configuration error names its
+// variable through a code, so a test can assert on it without matching on prose.
+func detailCodes(t *testing.T, err error) []string {
+	t.Helper()
+	if err == nil {
+		return nil
+	}
+	var joined interface{ Unwrap() []error }
+	if !errors.As(err, &joined) {
+		var single *shared.Error
+		if errors.As(err, &single) {
+			return []string{single.DetailCode}
+		}
+		t.Fatalf("the error is not a configuration error: %v", err)
+	}
+	var codes []string
+	for _, e := range joined.Unwrap() {
+		var domainErr *shared.Error
+		if !errors.As(e, &domainErr) {
+			t.Errorf("a configuration error is untyped: %v", e)
+			continue
+		}
+		if domainErr.Category != shared.CategoryValidation || domainErr.Code != "config_invalid" {
+			t.Errorf("classification = %s/%s, want VALIDATION/config_invalid",
+				domainErr.Category, domainErr.Code)
+		}
+		codes = append(codes, domainErr.DetailCode)
+	}
+	return codes
+}
+
+func assertCode(t *testing.T, err error, want string) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("the configuration was accepted, expected %s", want)
+	}
+	codes := detailCodes(t, err)
+	for _, got := range codes {
+		if got == want {
+			return
+		}
+	}
+	t.Errorf("codes = %v, want %s", codes, want)
+}
+
+// The acceptance criterion of A-02: a missing required secret prevents startup.
+func TestAMissingSecretPreventsStartup(t *testing.T) {
+	cases := []struct {
+		name    string
+		set     map[string]string
+		wantErr string
+	}{
+		{"no DSN", map[string]string{"HUBTASK_SECRET_KEY": validKey}, "config.db_dsn_missing"},
+		{"no key", map[string]string{"HUBTASK_DB_DSN": validDSN}, "config.secret_key_missing"},
+		{"neither", map[string]string{}, "config.db_dsn_missing"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isolate(t)
+			for k, v := range tc.set {
+				t.Setenv(k, v)
+			}
+
+			_, err := load(t)
+
+			assertCode(t, err, tc.wantErr)
+		})
+	}
+}
+
+// A key that is present but too short is worse than a missing one: it looks configured.
+func TestATooShortSecretKeyIsRejectedWithoutRevealingIt(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_SECRET_KEY", "too-short")
+
+	_, err := load(t)
+
+	assertCode(t, err, "config.secret_key_too_short")
+	// T-18: the value must not appear in the error, which ends up in the startup log.
+	if strings.Contains(err.Error(), "too-short") {
+		t.Errorf("the error reveals the key: %v", err)
+	}
+	if !strings.Contains(err.Error(), "minimum=32") {
+		t.Errorf("the error does not say what the minimum is: %v", err)
+	}
+}
+
+// T-18 again, from the other side: a complete, valid configuration whose load fails for an
+// unrelated reason must not carry any secret value into the message either.
+func TestAConfigurationErrorNeverCarriesASecretValue(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_SMTP_HOST", "smtp.example.org")
+	t.Setenv("HUBTASK_SMTP_PASSWORD", "hunter2")
+	t.Setenv("HUBTASK_SMTP_FROM", "") // the error this test provokes
+	t.Setenv("HUBTASK_S3_ACCESS_KEY", "AKIAEXAMPLE")
+
+	_, err := load(t)
+
+	assertCode(t, err, "config.smtp_from_missing")
+	for _, forbidden := range []string{"hunter2", "AKIAEXAMPLE", validKey, validDSN} {
+		if strings.Contains(err.Error(), forbidden) {
+			t.Errorf("the error reveals %q: %v", forbidden, err)
+		}
+	}
+}
+
+func TestTheDefaultsAreTheDocumentedOnes(t *testing.T) {
+	withRequiredSecrets(t)
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("the minimal configuration was rejected: %v", err)
+	}
+
+	checks := []struct {
+		name string
+		got  any
+		want any
+	}{
+		{"HTTP address", cfg.HTTPAddr, ":8080"},
+		{"ops address", cfg.OpsAddr, ":9090"},
+		{"log format", cfg.LogFormat, "json"},
+		{"tenancy", cfg.Tenancy, env.TenancySingle},
+		{"shutdown grace", cfg.ShutdownGraceSeconds, 30},
+		{"pool size", cfg.Database.MaxConns, 10},
+		{"statement timeout", cfg.Database.StatementTimeout, 5 * time.Second},
+		{"worker statement timeout", cfg.Database.WorkerStatementTimeout, 60 * time.Second},
+		{"storage kind", cfg.Storage.Kind, env.StorageLocal},
+		{"body limit", cfg.Request.MaxBodyBytes, int64(1 << 20)},
+		{"request timeout", cfg.Request.Timeout, 30 * time.Second},
+		{"anonymous rate limit", cfg.RateLimit.AnonymousPerMinute, 60},
+		{"auth rate limit", cfg.RateLimit.AuthPerMinute, 10},
+		{"default locale", cfg.Locale.DefaultLocale, "en"},
+		{"default time zone", cfg.Locale.DefaultTimeZone, "UTC"},
+		{"version", cfg.Version, "1.2.3"},
+	}
+	for _, c := range checks {
+		if c.got != c.want {
+			t.Errorf("%s = %v, want %v", c.name, c.got, c.want)
+		}
+	}
+	if len(cfg.Roles) != 4 {
+		t.Errorf("roles = %v, want all four", cfg.Roles)
+	}
+}
+
+// The interactive path gets a short query budget, background work a long one
+// (engineering-guidelines.md §4).
+func TestTheStatementTimeoutDependsOnTheRole(t *testing.T) {
+	withRequiredSecrets(t)
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if got := cfg.StatementTimeoutFor(env.RoleAPI); got != 5*time.Second {
+		t.Errorf("API budget = %s, want 5s", got)
+	}
+	for _, role := range []env.Role{env.RoleWorker, env.RoleScheduler, env.RoleAutomation} {
+		if got := cfg.StatementTimeoutFor(role); got != 60*time.Second {
+			t.Errorf("%s budget = %s, want 60s", role, got)
+		}
+	}
+}
+
+func TestSecretsCanComeFromAFile(t *testing.T) {
+	isolate(t)
+	dir := t.TempDir()
+	dsnFile := filepath.Join(dir, "dsn")
+	// A trailing newline is what every editor and every kubectl create secret produces.
+	if err := os.WriteFile(dsnFile, []byte(validDSN+"\n"), 0o600); err != nil {
+		t.Fatalf("writing the fixture failed: %v", err)
+	}
+	t.Setenv("HUBTASK_DB_DSN_FILE", dsnFile)
+	t.Setenv("HUBTASK_SECRET_KEY", validKey)
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.Database.DSN.Reveal() != validDSN {
+		t.Errorf("the DSN was not read from the file, or the newline stayed: %q",
+			cfg.Database.DSN.Reveal())
+	}
+}
+
+func TestAnUnreadableSecretFileIsAStartupError(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_SECRET_KEY_FILE", filepath.Join(t.TempDir(), "does-not-exist"))
+
+	_, err := load(t)
+
+	assertCode(t, err, "config.secret_file_unreadable")
+}
+
+func TestInvalidValuesAreRejectedByCode(t *testing.T) {
+	cases := []struct {
+		variable string
+		value    string
+		want     string
+	}{
+		{"HUBTASK_TENANCY_MODE", "somewhat", "config.tenancy_invalid"},
+		{"HUBTASK_LOG_FORMAT", "xml", "config.log_format_invalid"},
+		{"HUBTASK_LOG_LEVEL", "chatty", "config.log_level_invalid"},
+		{"HUBTASK_SHUTDOWN_GRACE_SECONDS", "0", "config.shutdown_grace_invalid"},
+		{"HUBTASK_DB_MAX_CONNS", "0", "config.db_pool_invalid"},
+		{"HUBTASK_DB_MIN_CONNS", "99", "config.db_pool_invalid"},
+		{"HUBTASK_STORAGE_KIND", "dropbox", "config.storage_kind_invalid"},
+		{"HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE", "0", "config.rate_limit_invalid"},
+		{"HUBTASK_MAX_BODY_BYTES", "0", "config.limit_invalid"},
+		{"HUBTASK_DEFAULT_LOCALE", "not a locale", "config.locale_invalid"},
+		{"HUBTASK_DEFAULT_TIMEZONE", "Mars/Olympus_Mons", "config.timezone_unknown"},
+		{"HUBTASK_DEFAULT_TIMEZONE", "+02:00", "config.timezone_unknown"},
+		{"HUBTASK_REQUEST_TIMEOUT", "30", "config.duration_invalid"},
+		{"HUBTASK_DB_STATEMENT_TIMEOUT", "soon", "config.duration_invalid"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.variable+"="+tc.value, func(t *testing.T) {
+			withRequiredSecrets(t)
+			t.Setenv(tc.variable, tc.value)
+
+			_, err := load(t)
+
+			assertCode(t, err, tc.want)
+		})
+	}
+}
+
+// A duration is Go syntax. A bare number is refused rather than guessed at: "30" as nanoseconds
+// is a trap, and silently reading it as seconds is a different trap.
+func TestDurationsAcceptGoSyntax(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_REQUEST_TIMEOUT", "1m30s")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.Request.Timeout != 90*time.Second {
+		t.Errorf("timeout = %s, want 1m30s", cfg.Request.Timeout)
+	}
+}
+
+func TestAnUnknownRoleIsRejected(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_ROLES", "api,frontend")
+
+	_, err := load(t)
+
+	assertCode(t, err, "config.role_unknown")
+	if !strings.Contains(err.Error(), "value=frontend") {
+		t.Errorf("the error does not name the unknown role: %v", err)
+	}
+}
+
+func TestRolesAreNormalised(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_ROLES", " API , worker ")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if !cfg.HasRole(env.RoleAPI) || !cfg.HasRole(env.RoleWorker) {
+		t.Errorf("roles = %v", cfg.Roles)
+	}
+	if cfg.HasRole(env.RoleScheduler) {
+		t.Errorf("roles = %v, scheduler was not configured", cfg.Roles)
+	}
+}
+
+// Half-configured object storage fails at startup, not at the first upload.
+func TestS3WithoutCredentialsIsAStartupError(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_STORAGE_KIND", "s3")
+
+	_, err := load(t)
+
+	codes := detailCodes(t, err)
+	var incomplete int
+	for _, c := range codes {
+		if c == "config.s3_incomplete" {
+			incomplete++
+		}
+	}
+	if incomplete != 3 {
+		t.Errorf("codes = %v, want bucket, access key and secret key reported", codes)
+	}
+}
+
+func TestS3WithCredentialsIsAccepted(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_STORAGE_KIND", "s3")
+	t.Setenv("HUBTASK_S3_BUCKET", "hubtask-media")
+	t.Setenv("HUBTASK_S3_ACCESS_KEY", "AKIAEXAMPLE")
+	t.Setenv("HUBTASK_S3_SECRET_KEY", "s3cr3t")
+	t.Setenv("HUBTASK_S3_USE_PATH_STYLE", "false")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("the S3 configuration was rejected: %v", err)
+	}
+
+	if cfg.Storage.Bucket != "hubtask-media" || cfg.Storage.UsePathStyle {
+		t.Errorf("storage = %+v", cfg.Storage)
+	}
+}
+
+// Without SMTP nothing breaks: notifications are caught up later (ADR-0016). It is a warning,
+// not an error.
+func TestNoSMTPIsAWarningNotAnError(t *testing.T) {
+	withRequiredSecrets(t)
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if !hasWarning(New("v", "c").Warnings(cfg), "config.smtp_missing") {
+		t.Error("a missing SMTP configuration produces no warning")
+	}
+}
+
+func TestConfiguredSMTPMustBeComplete(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_SMTP_HOST", "smtp.example.org")
+	t.Setenv("HUBTASK_SMTP_PORT", "70000")
+
+	_, err := load(t)
+
+	assertCode(t, err, "config.smtp_port_invalid")
+	assertCode(t, err, "config.smtp_from_missing")
+}
+
+func TestWarningsReportWhatTheOperatorIsMissing(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_TENANCY_MODE", "multi")
+	t.Setenv("HUBTASK_SMTP_HOST", "smtp.example.org")
+	t.Setenv("HUBTASK_SMTP_FROM", "hubtask@example.org")
+	t.Setenv("HUBTASK_SMTP_SECURITY", "none")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	warnings := New("v", "c").Warnings(cfg)
+
+	for _, want := range []string{
+		"config.backup_not_configured", // the release criterion nobody notices missing
+		"config.base_url_missing",      // links in emails would be wrong
+		"config.oidc_missing_in_multi_tenancy",
+		"config.smtp_without_tls",
+	} {
+		if !hasWarning(warnings, want) {
+			t.Errorf("the warning %s is missing from %v", want, warnings)
+		}
+	}
+	if hasWarning(warnings, "config.smtp_missing") {
+		t.Error("SMTP is configured, so the warning must not appear")
+	}
+}
+
+// A warning is machine readable: a code plus parameters, never a sentence (ADR-0011).
+func TestWarningsCarryCodesNotProse(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_SMTP_HOST", "smtp.example.org")
+	t.Setenv("HUBTASK_SMTP_FROM", "hubtask@example.org")
+	t.Setenv("HUBTASK_SMTP_SECURITY", "none")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	for _, w := range New("v", "c").Warnings(cfg) {
+		if strings.Contains(w.Code, " ") {
+			t.Errorf("the warning code reads like prose: %q", w.Code)
+		}
+		switch w.Severity {
+		case "info", "warn", "critical":
+		default:
+			t.Errorf("severity = %q for %s", w.Severity, w.Code)
+		}
+		if w.Code == "config.smtp_without_tls" && w.Params["host"] != "smtp.example.org" {
+			t.Errorf("the parameters of %s are missing the host: %v", w.Code, w.Params)
+		}
+	}
+}
+
+// Every problem at once, not one per restart: an operator setting up an installation wants the
+// whole list.
+func TestAllProblemsAreReportedTogether(t *testing.T) {
+	isolate(t)
+	t.Setenv("HUBTASK_TENANCY_MODE", "somewhat")
+	t.Setenv("HUBTASK_LOG_FORMAT", "xml")
+
+	_, err := load(t)
+
+	codes := detailCodes(t, err)
+	if len(codes) < 4 {
+		t.Errorf("codes = %v, want DSN, key, tenancy and log format at once", codes)
+	}
+}
+
+// %+v over the config struct is the classic way a secret reaches a log (T-18).
+func TestFormattingTheWholeConfigRevealsNoSecret(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_SMTP_HOST", "smtp.example.org")
+	t.Setenv("HUBTASK_SMTP_FROM", "hubtask@example.org")
+	t.Setenv("HUBTASK_SMTP_PASSWORD", "hunter2")
+	t.Setenv("HUBTASK_S3_ACCESS_KEY", "AKIAEXAMPLE")
+	t.Setenv("HUBTASK_S3_SECRET_KEY", "s3cr3t")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	for _, format := range []string{"%v", "%+v", "%#v", "%s"} {
+		rendered := fmt.Sprintf(format, cfg)
+		for _, forbidden := range []string{validKey, "hunter2", "AKIAEXAMPLE", "s3cr3t", validDSN} {
+			if strings.Contains(rendered, forbidden) {
+				t.Errorf("%s reveals %q", format, forbidden)
+			}
+		}
+	}
+}
+
+func hasWarning(warnings []env.Warning, code string) bool {
+	for _, w := range warnings {
+		if w.Code == code {
+			return true
+		}
+	}
+	return false
+}
