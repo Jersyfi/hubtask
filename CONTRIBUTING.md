@@ -33,6 +33,24 @@ Refs #42
 
 Scopes correspond to the bounded contexts in `docs/architecture/arc42.md` §5.
 
+## One pull request, several commits
+
+A task is one pull request — but not one commit. Split the work into steps of roughly one commit
+each and record the split as a checklist in the pull request body, before you start. Open the pull
+request as a **draft** at that point; it takes the checklist and marks the work as running.
+
+Per step: one commit, pushed straight away, and its box ticked. `make gate-quick` stays green at
+every commit and `make verify` at the last one; only then does the pull request leave draft.
+
+A step is one concern. Tests travel with the code they test, not in a trailing "add tests" commit.
+No `wip` or `fixup` commits: while the pull request is a draft you may rewrite history, once it is
+in review only new commits. The squash merge collapses the chain into a single commit on `main`
+(`docs/architecture/versioning-release.md` §3), so the steps are read in the pull request.
+
+Two reasons this matters more than tidiness: a reviewer follows five small steps and rarely follows
+one large diff, and pushed work survives an interrupted session — including one where an AI
+assistant loses its context mid-task.
+
 ## What makes a pull request acceptable
 
 The template lists the Definition of Done. Two items are missed most often:
