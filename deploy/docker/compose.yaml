@@ -1,4 +1,4 @@
-# Self-Hosting-Referenz: zwei Container, voller Funktionsumfang.
+# Self-hosting reference: two containers, the full feature set.
 # Start:  cp .env.example .env  &&  docker compose up -d
 name: hubtask
 
@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-hubtask}
       POSTGRES_USER: ${POSTGRES_USER:-hubtask}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -37,7 +37,7 @@ services:
       HUBTASK_DB_DSN: postgres://${POSTGRES_USER:-hubtask}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
       HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:-http://localhost:8080}
       HUBTASK_TENANCY_MODE: single
-      HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY muss gesetzt sein}
+      HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}
       HUBTASK_LOG_FORMAT: json
       # Backup target: the default is a local volume. Further targets are configured in the
       # application, not here (see docs/architecture/backup-restore.md).
