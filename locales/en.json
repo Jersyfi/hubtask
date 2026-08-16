@@ -34,6 +34,8 @@
   "config.smtp_port_invalid": "{variable} must be a port between 1 and 65535.",
   "config.smtp_from_missing": "{variable} is not set, although an SMTP server is configured.",
   "config.smtp_security_invalid": "{variable} must be one of starttls, tls, none.",
+  "config.sample_ratio_invalid": "{variable} must be between 0 and 1.",
+  "config.tracing_endpoint_missing": "{variable} is not set, although tracing is enabled. Spans would be built and discarded.",
   "config.locale_invalid": "{variable} must be a BCP 47 language tag such as en, de-AT or pt-BR.",
   "config.timezone_unknown": "{variable} must be an IANA time zone such as Europe/Berlin. {value} is not one.",
 
@@ -41,5 +43,7 @@
   "config.smtp_missing": "No SMTP server is configured. Notifications by email are unavailable.",
   "config.base_url_missing": "HUBTASK_BASE_URL is not set. Links in emails and feeds will be wrong.",
   "config.oidc_missing_in_multi_tenancy": "Multi-tenant operation without an OIDC issuer. Only personal access tokens will work.",
-  "config.smtp_without_tls": "SMTP to {host} is configured without TLS. Credentials travel unencrypted."
+  "config.smtp_without_tls": "SMTP to {host} is configured without TLS. Credentials travel unencrypted.",
+
+  "dependency.unavailable": "A service this feature needs cannot be reached at the moment. Everything else keeps working."
 }

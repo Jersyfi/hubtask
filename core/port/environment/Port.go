@@ -73,6 +73,8 @@ type Config struct {
 	RateLimit RateLimitConfig
 	Request   RequestConfig
 	Locale    LocaleConfig
+	Metrics   MetricsConfig
+	Tracing   TracingConfig
 
 	SecretKey secret.Secret
 
@@ -150,6 +152,24 @@ type RequestConfig struct {
 	// Timeout is the server-side deadline every handler inherits. No call without a deadline
 	// (ADR-0016).
 	Timeout time.Duration
+}
+
+// MetricsConfig covers what a metric may say about a tenant.
+type MetricsConfig struct {
+	// TenantLabel adds tenant_id to the per-use-case series. Off by default: in provider
+	// operation it multiplies every series by the number of tenants
+	// (observability-reliability.md §3.2).
+	TenantLabel bool
+}
+
+// TracingConfig is the trace exporter. Off by default - a self-hosted installation on a
+// Raspberry Pi has no collector to send to, and traces that go nowhere still cost.
+type TracingConfig struct {
+	Enabled  bool
+	Endpoint string
+	// SampleRatio is the share of ordinary traces kept, between 0 and 1. Errors and slow
+	// requests are kept regardless (§3.3).
+	SampleRatio float64
 }
 
 // LocaleConfig is the installation-wide fallback, the last link in the resolution chain

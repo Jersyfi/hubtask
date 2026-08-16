@@ -37,6 +37,11 @@ import (
 // defaultOpsPort mirrors the default of HUBTASK_OPS_ADDR in infrastructure/environment.
 const defaultOpsPort = 9090
 
+// healthSampleInterval is how often the deep report is produced for the metrics. Not
+// configurable: it is a sampling rate for a handful of gauges, and every dependency probe is
+// already bounded by its own timeout.
+const healthSampleInterval = 30 * time.Second
+
 // Set at build time via ldflags.
 var (
 	version   = "0.0.0-dev"
@@ -82,11 +87,41 @@ func run() error {
 		slog.String("tenancy", string(cfg.Tenancy)),
 	)
 
+	metrics, err := observability.NewMetrics(cfg)
+	if err != nil {
+		return fmt.Errorf("metrics: %w", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := metrics.Shutdown(shutdownCtx); err != nil {
+			slog.Warn("flushing the metrics failed", slog.String("error", err.Error()))
+		}
+	}()
+
 	registry := healthadapter.NewRegistry(version, roles)
 	registry.SetWarnings(toPortWarnings(envadapter.New(version, commit).Warnings(cfg)))
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
+
+	// Tracing exists even when it is switched off: the W3C propagator is installed either way,
+	// so an incoming traceparent still reaches the log and still travels onwards (§3.3). Off is
+	// the documented self-hosting default (§13).
+	startupCtx, cancelStartup := context.WithTimeout(ctx, 10*time.Second)
+	tracing, err := observability.NewTracing(startupCtx, cfg)
+	cancelStartup()
+	if err != nil {
+		return fmt.Errorf("tracing: %w", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := tracing.Shutdown(shutdownCtx); err != nil {
+			slog.Warn("flushing the traces failed", slog.String("error", err.Error()))
+		}
+	}()
+	slog.Info("tracing configured", slog.Bool("enabled", tracing.Enabled))
 
 	// PostgreSQL is the only mandatory dependency (ADR-0003). Failing to reach it here stops
 	// the process: a pod that starts without its database only moves the error to the first
@@ -102,15 +137,19 @@ func run() error {
 	defer pool.Close()
 
 	registry.Register(postgres.NewProbe(pool))
+	registry.SetSignals(metrics)
 
+	// The panic metric is the one an alert watches, and its target value is 0 permanently
+	// (ADR-0016). The recovered value itself is deliberately not logged here: a panic value can
+	// carry anything, user content included (rule 10) - SafeGo logs it with the redacting
+	// logger, and this only counts.
 	concurrency.SetPanicObserver(func(component string, _ any) {
-		// TODO(0.1.0): increment hubtask_panics_recovered_total{component}.
-		_ = component
+		metrics.PanicRecovered(context.Background(), component)
 	})
 
 	ops := &http.Server{
 		Addr:              cfg.OpsAddr,
-		Handler:           rest.OpsController{Health: registry}.Routes(),
+		Handler:           rest.OpsController{Health: registry, Metrics: metrics.Handler()}.Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -124,11 +163,20 @@ func run() error {
 
 	var api *http.Server
 	if cfg.HasRole(envport.RoleAPI) {
-		// TODO(0.1.0): mount the generated router from openapi.yaml, plus middleware for
-		// auth, tenant context, locale, rate limit, idempotency, request ID.
+		// TODO(0.1.0): mount the generated router from openapi.yaml into this mux, plus
+		// middleware for auth, tenant context, locale, rate limit and idempotency.
+		//
+		// The observability middleware is already in place around it: from the first request
+		// there is a RED metric, a span, and a request ID, and A-06 only adds routes inside.
+		apiRoutes := http.NewServeMux()
 		api = &http.Server{
-			Addr:              cfg.HTTPAddr,
-			Handler:           http.NotFoundHandler(),
+			Addr: cfg.HTTPAddr,
+			Handler: rest.Observed{
+				Router:  apiRoutes,
+				Metrics: metrics,
+				Tracer:  tracing.Tracer("rest"),
+				Role:    string(envport.RoleAPI),
+			},
 			ReadHeaderTimeout: 5 * time.Second,
 			IdleTimeout:       60 * time.Second,
 		}
@@ -143,6 +191,23 @@ func run() error {
 	// TODO(0.1.0): start the worker, scheduler and automation loops depending on the role.
 
 	registry.MarkStarted()
+
+	// hubtask_dependency_up is described as "self-diagnosis as a time series" (§4), and a series
+	// needs a regular sample. Nothing scrapes /meta/health, and /readyz only touches the
+	// mandatory dependencies - so the full report is produced on a timer and mirrored into the
+	// gauges from there.
+	concurrency.Go(ctx, "health.sampler", func(ctx context.Context) {
+		ticker := time.NewTicker(healthSampleInterval)
+		defer ticker.Stop()
+		for {
+			registry.Report(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	})
 
 	select {
 	case err := <-errCh:

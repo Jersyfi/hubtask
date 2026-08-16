@@ -46,19 +46,32 @@ func Go(ctx context.Context, component string, fn func(context.Context)) {
 
 // Recover is the reusable guard for request handlers and job execution.
 // Usage: defer concurrency.Recover(ctx, "rest.handler")
+//
+// It has to be the deferred function itself - `defer Recover(...)`, never a call from inside
+// another deferred closure - because recover() only works one frame deep. A caller that needs
+// to do something afterwards (write a 500, finish a span) recovers itself and calls Report.
 func Recover(ctx context.Context, component string) {
 	r := recover()
 	if r == nil {
 		return
 	}
+	Report(ctx, component, r)
+}
+
+// Report counts and logs an already recovered panic. It is the half of Recover that a caller
+// needs when the panic is not the end of the story: an HTTP middleware still owes the client a
+// response, and it cannot write one from a frame that Recover has swallowed.
+//
+// Both paths go through here, so hubtask_panics_recovered_total has exactly one source.
+func Report(ctx context.Context, component string, recovered any) {
 	mu.RLock()
 	obs := observer
 	mu.RUnlock()
-	obs(component, r)
+	obs(component, recovered)
 
 	slog.ErrorContext(ctx, "panic recovered",
 		slog.String("component", component),
-		slog.String("panic", fmt.Sprint(r)),
+		slog.String("panic", fmt.Sprint(recovered)),
 		slog.String("stack", string(debug.Stack())),
 	)
 }

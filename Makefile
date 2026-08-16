@@ -122,12 +122,16 @@ gate-quick:
 			exit 1; \
 		fi
 
-## gate-unit: Domain and application tests with coverage thresholds
+## gate-unit: Domain, application, adapter and presentation tests with coverage thresholds
 # The race detector needs cgo, so this one target overrides the CGO_ENABLED=0 of the build.
+#
+# infrastructure is in the list because its adapters carry rules no other gate checks - metric
+# label cardinality, log redaction, the tenant wrapper. Anything needing a container lives behind
+# the `integration` build tag in test/integration and stays out of this target.
 .PHONY: gate-unit
 gate-unit: export CGO_ENABLED = 1
 gate-unit:
-	$(call go_test,,./core/... ./presentation/...,-race -covermode=atomic -coverprofile=coverage.out)
+	$(call go_test,,./core/... ./infrastructure/... ./presentation/...,-race -covermode=atomic -coverprofile=coverage.out)
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/application/... MIN=75
 

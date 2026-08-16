@@ -28,7 +28,9 @@ func TestEveryCategoryIsValidAndCarriesASentinel(t *testing.T) {
 		{CategoryInternal, ErrInternal, "internal"},
 	}
 
+	covered := map[Category]bool{}
 	for _, tc := range cases {
+		covered[tc.category] = true
 		t.Run(string(tc.category), func(t *testing.T) {
 			if !tc.category.Valid() {
 				t.Errorf("category %s is not recognised as valid", tc.category)
@@ -41,11 +43,41 @@ func TestEveryCategoryIsValidAndCarriesASentinel(t *testing.T) {
 			}
 		})
 	}
+
+	// "Every category has a test" has to stay true when a tenth one is added, so the list above
+	// is checked against the set rather than trusted. Categories is also what the observability
+	// layer derives its `result` label from (observability-reliability.md §4.1) - a category
+	// missing from it would be invisible in the metrics.
+	for _, category := range Categories() {
+		if !covered[category] {
+			t.Errorf("the category %s has no case in this test", category)
+		}
+	}
+	if len(cases) != len(Categories()) {
+		t.Errorf("%d cases for %d categories", len(cases), len(Categories()))
+	}
 }
 
 func TestUnknownCategoryIsNotValid(t *testing.T) {
 	if Category("SOMETHING_ELSE").Valid() {
 		t.Error("an invented category must not pass as valid")
+	}
+	if Category("").Valid() {
+		t.Error("the empty category must not pass as valid")
+	}
+}
+
+// Categories hands out a copy: a caller that sorts or truncates the result must not be able to
+// change what Valid accepts.
+func TestCategoriesCannotBeModifiedByACaller(t *testing.T) {
+	first := Categories()
+	first[0] = "MADE_UP"
+
+	if got := Categories()[0]; got == "MADE_UP" {
+		t.Error("a caller modified the category set")
+	}
+	if !CategoryValidation.Valid() {
+		t.Error("a caller broke the validity check")
 	}
 }
 

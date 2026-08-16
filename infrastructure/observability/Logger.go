@@ -25,7 +25,9 @@ const Redacted = "[REDACTED]"
 
 // NewLogger builds the process logger from the configuration.
 //
-// Trace correlation (trace_id, span_id) is added in task A-04, once OpenTelemetry exists.
+// The handler chain is correlation → redaction → sink. Correlation goes outermost so that the
+// trace_id and request_id it adds pass the redaction like any other attribute; a handler writing
+// straight to the sink would be a hole in T-18.
 func NewLogger(cfg env.Config, w io.Writer) *slog.Logger {
 	opts := &slog.HandlerOptions{Level: parseLevel(cfg.LogLevel)}
 
@@ -36,10 +38,26 @@ func NewLogger(cfg env.Config, w io.Writer) *slog.Logger {
 		handler = slog.NewJSONHandler(w, opts)
 	}
 
-	return slog.New(NewRedactingHandler(handler)).With(
+	// service, role and version are the constant part of the mandatory field set of
+	// observability-reliability.md §3.1; the rest arrives per record from the context.
+	logger := slog.New(NewCorrelatingHandler(NewRedactingHandler(handler))).With(
 		slog.String("service", "hubtask"),
 		slog.String("version", cfg.Version),
 	)
+	if role := joinRoles(cfg.Roles); role != "" {
+		logger = logger.With(slog.String("role", role))
+	}
+	return logger
+}
+
+// joinRoles renders the role set as one field. One process can serve several roles (ADR-0014),
+// and a log query filtering on "role contains worker" wants a single value to match against.
+func joinRoles(roles []env.Role) string {
+	parts := make([]string, 0, len(roles))
+	for _, r := range roles {
+		parts = append(parts, string(r))
+	}
+	return strings.Join(parts, ",")
 }
 
 func parseLevel(level string) slog.Level {
