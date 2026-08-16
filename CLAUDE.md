@@ -79,6 +79,7 @@ make verify             # all fast gates — the local equivalent of the PR chec
 make gate-unit          # tests only
 make gate-architecture  # layer boundaries, goroutine ban, parity checks
 make gate-security      # SG-1..SG-12
+make gate-selftest      # proves the gates catch a deliberate violation of every rule
 make generate           # generate code from openapi.yaml and db/queries
 make db-up              # start a local PostgreSQL
 make migrate            # apply the migrations

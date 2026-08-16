@@ -1,22 +1,26 @@
 # Linter selection from docs/architecture/engineering-guidelines.md §7.
 # The layer boundaries are enforced by depguard here AND by test/architecture - twice, because a
 # linter can be reconfigured, whereas a test turns visibly red.
+#
+# Configuration format v2 (golangci-lint v2.x). `make gate-selftest` proves that every rule
+# configured here actually fails a build.
+version: "2"
+
 run:
-  timeout: 5m
   tests: true
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
     - govet
-    - staticcheck
+    - staticcheck   # gosimple and stylecheck were merged into staticcheck in v2
     - unused
     - ineffassign
     - revive
-    - gosec        # SG-2
-    - depguard     # layer boundaries
-    - noctx        # no HTTP call without a context (ADR-0016)
+    - gosec         # SG-2
+    - depguard      # layer boundaries
+    - noctx         # no HTTP call without a context (ADR-0016)
     - bodyclose
     - contextcheck
     - errorlint
@@ -24,55 +28,166 @@ linters:
     - misspell
     - nolintlint
 
-linters-settings:
-  depguard:
+  settings:
+    depguard:
+      # The rules mirror docs/architecture/project-structure.md §2. Every rule is scoped by file
+      # path: a rule applies to a file when one of its `files` patterns matches.
+      rules:
+        # ------------------------------------------------------------------ core
+        # The core knows only itself and the standard library (ADR-0001). This covers
+        # core/shared as well - the go.mod comment promises the whole core stays free of
+        # third-party dependencies.
+        core:
+          files:
+            - "**/core/domain/**"
+            - "**/core/port/**"
+            - "**/core/shared/**"
+          allow:
+            - $gostd
+            - github.com/Jersyfi/hubtask/core
+          deny:
+            - pkg: github.com/Jersyfi/hubtask/infrastructure
+              desc: "the core must not point outwards (ADR-0001)"
+            - pkg: github.com/Jersyfi/hubtask/presentation
+              desc: "the core must not point outwards (ADR-0001)"
+            - pkg: github.com/Jersyfi/hubtask/cmd
+              desc: "the core must not point outwards (ADR-0001)"
+            - pkg: net/http
+              desc: "no transport technology in the core - that is what ports are for (ADR-0001)"
+            - pkg: database/sql
+              desc: "no persistence technology in the core - that is what ports are for (ADR-0001)"
+
+        # The domain must not know the application layer, and it must not serialise itself:
+        # domain objects do not leave the core (project-structure.md §3).
+        core-domain:
+          files:
+            - "**/core/domain/**"
+          deny:
+            - pkg: github.com/Jersyfi/hubtask/core/application
+              desc: "dependencies point inwards - the domain is the innermost layer (ADR-0001)"
+            - pkg: encoding/json
+              desc: "no serialisation in the domain - DTOs belong to the application layer (project-structure.md §3)"
+
+        # ----------------------------------------------------------- application
+        # Deny-only rather than an allowlist: the application layer stays technology-free, but
+        # its future need for a pure helper library should not require a config change first.
+        application:
+          files:
+            - "**/core/application/**"
+          deny:
+            - pkg: github.com/Jersyfi/hubtask/infrastructure
+              desc: "the application layer speaks only through ports (ADR-0001)"
+            - pkg: github.com/Jersyfi/hubtask/presentation
+              desc: "the application layer knows no adapters (ADR-0001)"
+            - pkg: github.com/Jersyfi/hubtask/cmd
+              desc: "the application layer knows no composition root (ADR-0001)"
+            - pkg: net/http
+              desc: "no transport technology in the application layer (ADR-0001)"
+            - pkg: database/sql
+              desc: "no persistence technology in the application layer (ADR-0001)"
+
+        # -------------------------------------------------------- infrastructure
+        infrastructure:
+          files:
+            - "**/infrastructure/**"
+          deny:
+            - pkg: github.com/Jersyfi/hubtask/core/application/service
+              desc: "an outbound adapter must not call use cases (project-structure.md §2)"
+            - pkg: github.com/Jersyfi/hubtask/presentation
+              desc: "adapters do not know each other (project-structure.md §2)"
+            - pkg: github.com/Jersyfi/hubtask/cmd
+              desc: "only the composition root wires things together (project-structure.md §2)"
+
+        # ----------------------------------------------------------- presentation
+        presentation:
+          files:
+            - "**/presentation/**"
+          deny:
+            - pkg: github.com/Jersyfi/hubtask/infrastructure
+              desc: "inbound adapters reach the outbound side through the application layer only (project-structure.md §2)"
+            - pkg: github.com/Jersyfi/hubtask/cmd
+              desc: "only the composition root wires things together (project-structure.md §2)"
+
+        # ------------------------------------------------------- the whole module
+        everywhere:
+          files:
+            - $all
+          deny:
+            - pkg: math/rand
+              desc: "use crypto/rand or the RandomSource port (security.md §8)"
+            - pkg: io/ioutil
+              desc: "deprecated"
+
+        # Rule 3 from CLAUDE.md: every query goes through the transaction wrapper, which is the
+        # only place that sets `SET LOCAL app.tenant_id`. The driver therefore stays inside the
+        # PostgreSQL adapter - and out of its tests, so that nothing bypasses the wrapper.
+        database-driver:
+          files:
+            - $all
+            - "!**/infrastructure/postgres/**"
+            - "!**/cmd/migrate/**"
+          deny:
+            - pkg: github.com/jackc/pgx
+              desc: "the driver belongs to infrastructure/postgres - go through the transaction wrapper (ADR-0010)"
+
+    errcheck:
+      check-type-assertions: true
+
+    gosec:
+      excludes:
+        - G104   # covered by errcheck
+
+    revive:
+      # Naming a rule here switches revive to exactly this list, so the list is explicit.
+      # `exported` is deliberately absent: comment requirements are handled by review.
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: empty-block
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: var-declaration
+        - name: var-naming
+
+    nolintlint:
+      # A suppression is a decision, and a decision carries a reason. Both settings make that
+      # reviewable: which linter is being silenced, and why.
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+  exclusions:
+    # No preset exclusions: what is excluded is written down here, not inherited silently.
+    generated: lax
     rules:
-      core:
-        # The core knows only itself and the standard library (ADR-0001).
-        files:
-          - "**/core/domain/**"
-          - "**/core/port/**"
-        allow:
-          - $gostd
-          - github.com/Jersyfi/hubtask/core
-        deny:
-          - pkg: github.com/Jersyfi/hubtask/infrastructure
-            desc: "the core must not point outwards (ADR-0001)"
-          - pkg: github.com/Jersyfi/hubtask/presentation
-            desc: "the core must not point outwards (ADR-0001)"
-      application:
-        files:
-          - "**/core/application/**"
-        deny:
-          - pkg: github.com/Jersyfi/hubtask/infrastructure
-            desc: "the application layer speaks only through ports (ADR-0001)"
-          - pkg: github.com/Jersyfi/hubtask/presentation
-            desc: "the application layer knows no adapters (ADR-0001)"
-          - pkg: github.com/jackc/pgx
-            desc: "no database driver in the application layer"
-      all:
-        files: ["$all"]
-        deny:
-          - pkg: math/rand
-            desc: "use crypto/rand or the RandomSource port (security.md §8)"
-          - pkg: io/ioutil
-            desc: "deprecated"
+      - path: _test\.go
+        linters: [gosec, errcheck]
 
-  errcheck:
-    check-type-assertions: true
-
-  gosec:
-    excludes:
-      - G104   # covered by errcheck
-
-  revive:
-    rules:
-      - name: exported
-        disabled: true   # comment requirements are handled by review, not by a linter
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/Jersyfi/hubtask
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters: [gosec, errcheck]
   max-issues-per-linter: 0
   max-same-issues: 0
+  # Report every finding on a line, not just the first one: otherwise a layer violation can hide
+  # behind an unrelated style finding that happens to sit on the same import.
+  uniq-by-line: false

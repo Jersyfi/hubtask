@@ -16,9 +16,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -29,6 +31,9 @@ import (
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
+
+// defaultOpsPort mirrors the default of HUBTASK_OPS_ADDR in infrastructure/environment.
+const defaultOpsPort = 9090
 
 // Set at build time via ldflags.
 var (
@@ -184,13 +189,30 @@ func toPortWarnings(in []envport.Warning) []healthport.Warning {
 }
 
 // selfCheck queries the process's own liveness endpoint (container health check).
+//
+// The target is always loopback: only the port is taken from the environment, and it goes
+// through strconv, so nothing from the environment can reach the URL as text. That is also why
+// this call does not use GuardedClient - its SSRF protection blocks loopback by design.
+//
+//nolint:gosec // G704: the host is the constant 127.0.0.1; the environment contributes a port number only
 func selfCheck() int {
-	addr := os.Getenv("HUBTASK_OPS_ADDR")
-	if addr == "" {
-		addr = ":9090"
+	port := defaultOpsPort
+	if _, p, err := net.SplitHostPort(os.Getenv("HUBTASK_OPS_ADDR")); err == nil {
+		if n, cerr := strconv.Atoi(p); cerr == nil && n > 0 && n <= 65535 {
+			port = n
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("http://127.0.0.1:%d/healthz", port), nil)
+	if err != nil {
+		return 1
 	}
 	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get("http://127.0.0.1" + addr + "/healthz")
+	resp, err := client.Do(req)
 	if err != nil {
 		return 1
 	}

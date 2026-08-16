@@ -125,7 +125,9 @@ decision [ADR-0015](../adr/ADR-0015-security-baseline.md).
 | Purpose | Tool |
 |---|---|
 | Build / task runner | `make` (+ `go tool`), reproducible builds |
-| Lint | `golangci-lint` (errcheck, govet, staticcheck, revive, depguard, gosec) |
+| Go | The toolchain is pinned to a patched release in `go.mod`; an unpatched standard library is a `govulncheck` finding |
+| Lint | `golangci-lint` (errcheck, govet, staticcheck, revive, depguard, gosec); every tool version pinned in the `Makefile` |
+| Gate self-test | `make gate-selftest` - one deliberate violation per rule, each expected to fail the build |
 | Code generation | `oapi-codegen` (API), `sqlc` (database), a custom generator for the MCP manifest |
 | Migrations | `goose` |
 | Tests | `testing`, `testcontainers-go`, `k6` |

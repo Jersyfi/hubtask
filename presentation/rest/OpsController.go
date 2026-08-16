@@ -9,7 +9,6 @@ package rest
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -65,11 +64,4 @@ func writeText(w http.ResponseWriter, code int, body string) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(code)
 	_, _ = w.Write([]byte(body))
-}
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
 }
