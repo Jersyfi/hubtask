@@ -38,10 +38,10 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 	}
 }
 
-// messageCode matches a string literal that looks like a message code of the configuration or
-// the error model. Narrow on purpose: only the two prefixes that exist today, so that an
-// example in a test comment does not turn into a false alarm.
-var messageCode = regexp.MustCompile(`"((?:config|errors)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
+// messageCode matches a string literal that looks like a message code of the configuration, the
+// error model, or the health report's degradation reasons. Narrow on purpose: only the prefixes
+// that exist today, so that an example in a test comment does not turn into a false alarm.
+var messageCode = regexp.MustCompile(`"((?:config|errors|dependency)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
 
 // TestEveryUsedMessageCodeIsInTheCatalogue reads the source rather than a registry: a code is
 // used where it is written, and a registry would only be a second place to forget.
