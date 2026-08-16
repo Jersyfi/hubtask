@@ -48,5 +48,7 @@
   "dependency.unavailable": "A service this feature needs cannot be reached at the moment. Everything else keeps working.",
   "dependency.timeout": "{dependency} did not answer in time. Please try again in a moment.",
   "dependency.circuit_open": "{dependency} is unreachable at the moment. Hubtask has stopped calling it and will try again shortly.",
-  "dependency.saturated": "{dependency} is busy. Please try again in a moment."
+  "dependency.saturated": "{dependency} is busy. Please try again in a moment.",
+
+  "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }
