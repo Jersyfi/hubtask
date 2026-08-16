@@ -30,6 +30,7 @@ import (
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
 
@@ -84,15 +85,23 @@ func run() error {
 	registry := healthadapter.NewRegistry(version, roles)
 	registry.SetWarnings(toPortWarnings(envadapter.New(version, commit).Warnings(cfg)))
 
-	// TODO(0.1.0): register real probes once the adapters exist.
-	// PostgreSQL is the only mandatory dependency; everything else is optional and may
-	// only lead to reduced functionality when it fails (ADR-0016).
-	registry.Register(healthadapter.StaticProbe{
-		ProbeName: "postgres", IsRequired: true, Fixed: healthport.StatusOK,
-	})
-
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
+
+	// PostgreSQL is the only mandatory dependency (ADR-0003). Failing to reach it here stops
+	// the process: a pod that starts without its database only moves the error to the first
+	// request (ADR-0015).
+	//
+	// The pool belongs to the role that opens it, because the query budget differs - the API
+	// gets seconds, background work gets a minute. A process in several roles runs the strictest
+	// of them for now; A-08 gives the worker loops their own pool.
+	pool, err := postgres.NewPool(ctx, cfg, primaryRole(cfg))
+	if err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+	defer pool.Close()
+
+	registry.Register(postgres.NewProbe(pool))
 
 	concurrency.SetPanicObserver(func(component string, _ any) {
 		// TODO(0.1.0): increment hubtask_panics_recovered_total{component}.
@@ -164,6 +173,16 @@ func run() error {
 
 	slog.Info("stopped")
 	return shutdownErr
+}
+
+// primaryRole picks the role whose query budget the pool runs under. The API is the strictest,
+// so a process serving the API uses that budget for everything it does - being cut off early is
+// the safer mistake on a shared pool.
+func primaryRole(cfg envport.Config) envport.Role {
+	if cfg.HasRole(envport.RoleAPI) {
+		return envport.RoleAPI
+	}
+	return cfg.Roles[0]
 }
 
 func toPortWarnings(in []envport.Warning) []healthport.Warning {
