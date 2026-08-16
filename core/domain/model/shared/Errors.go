@@ -52,18 +52,24 @@ const (
 	CategoryInternal Category = "INTERNAL"
 )
 
+// categories is the closed set, in the order of the constants above. Everything that needs to
+// know "which categories exist" reads it here - a second list somewhere else is a second list to
+// forget, and the one that gets forgotten is always the newest category.
+var categories = [...]Category{
+	CategoryValidation, CategoryNotFound, CategoryConflict, CategoryForbidden,
+	CategoryUnauthenticated, CategoryGone, CategoryRateLimited, CategoryUnavailable,
+	CategoryInternal,
+}
+
+// Categories returns every defined category. An adapter uses it to prove it handles all of them -
+// the observability layer derives its `result` label from this set, so a new category shows up in
+// the metrics by itself instead of being silently folded into INTERNAL
+// (observability-reliability.md §4.1).
+func Categories() []Category { return slices.Clone(categories[:]) }
+
 // Valid reports whether the category is one of the defined ones. An adapter uses this to decide
 // on a status; an unknown category must be treated as INTERNAL rather than silently passed on.
-func (c Category) Valid() bool {
-	switch c {
-	case CategoryValidation, CategoryNotFound, CategoryConflict, CategoryForbidden,
-		CategoryUnauthenticated, CategoryGone, CategoryRateLimited, CategoryUnavailable,
-		CategoryInternal:
-		return true
-	default:
-		return false
-	}
-}
+func (c Category) Valid() bool { return slices.Contains(categories[:], c) }
 
 // Error is the error type of the domain and the application layer.
 //

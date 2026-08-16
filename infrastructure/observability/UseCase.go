@@ -5,6 +5,7 @@ package observability
 
 import (
 	"context"
+	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -14,15 +15,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// Result classes of hubtask_usecase_total (observability-reliability.md §4). Five values, so the
-// series count per use case is five and not "however many error codes exist this month".
-const (
-	ResultOK         = "ok"
-	ResultValidation = "validation"
-	ResultConflict   = "conflict"
-	ResultForbidden  = "forbidden"
-	ResultInternal   = "internal"
-)
+// ResultOK is the `result` value of a use case that succeeded. Every other value is an error
+// category of the domain error model, lower-cased - see ResultClass.
+const ResultOK = "ok"
 
 // Observer gives one use case execution its metric and its span - the two signals the Definition
 // of Done requires of every use case, and what gate RT-12 checks for (ADR-0016 §6).
@@ -63,30 +58,24 @@ func (o *Observer) UseCase(ctx context.Context, name string, fn func(context.Con
 	return err
 }
 
-// ResultClass reduces an error to one of the five classes of §4.
+// ResultClass is the `result` label of hubtask_usecase_total: ok, or the error category in lower
+// case (observability-reliability.md §4.1).
 //
-// The domain has nine categories and the catalogue lists five values, so the collapse happens
-// here rather than by inventing labels: everything the caller got wrong that is not a conflict
-// or a permission counts as validation, and everything the server owes counts as internal. The
-// finer picture is in the HTTP metrics, which keep the status class, and in the audit trail.
+// It derives rather than translates, and that is the whole design. A mapping table would be a
+// second classification of the same failure, and the two would disagree the moment the domain
+// grows a tenth category - which would then be folded into `internal` by a `default` branch and
+// vanish. Deriving means a new category appears in the metrics by itself.
+//
+// The coarse view an alert wants is a query, not a label: `result=~"internal|unavailable"`.
+// Folding rate_limited into internal here would save that regular expression and cost the
+// distinction between a defect and a limit doing its job - which is the one an alert must not
+// get wrong (§1, "alert on symptoms").
+//
+// AsError normalises anything unclassified to INTERNAL, so the result is total: every error
+// produces exactly one of the values the domain defines.
 func ResultClass(err error) string {
 	if err == nil {
 		return ResultOK
 	}
-	domainErr := shared.AsError(err)
-	if domainErr == nil {
-		return ResultInternal
-	}
-	switch domainErr.Category {
-	case shared.CategoryValidation, shared.CategoryNotFound, shared.CategoryGone:
-		return ResultValidation
-	case shared.CategoryConflict:
-		return ResultConflict
-	case shared.CategoryForbidden, shared.CategoryUnauthenticated:
-		return ResultForbidden
-	case shared.CategoryRateLimited, shared.CategoryUnavailable, shared.CategoryInternal:
-		return ResultInternal
-	default:
-		return ResultInternal
-	}
+	return strings.ToLower(string(shared.AsError(err).Category))
 }

@@ -196,8 +196,9 @@ func (m *Metrics) InflightDelta(ctx context.Context, role string, delta int64) {
 	m.inflightRequests.Add(ctx, delta, metric.WithAttributes(attribute.String("role", role)))
 }
 
-// UseCase records the outcome of a use case. The result is the coarse class, not the message:
-// ok, validation, conflict, forbidden, internal (§4).
+// UseCase records the outcome of a use case. The result is the error category, not the message:
+// ok, or one of the domain's categories in lower case (§4.1) - see ResultClass, which is the only
+// thing that should be producing this value.
 func (m *Metrics) UseCase(ctx context.Context, useCase, result string, tenant string) {
 	attrs := []attribute.KeyValue{
 		attribute.String("use_case", useCase),

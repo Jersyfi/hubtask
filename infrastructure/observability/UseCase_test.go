@@ -6,6 +6,7 @@ package observability
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -60,26 +61,33 @@ func TestTheErrorPathIsCountedToo(t *testing.T) {
 	}
 }
 
-func TestTheResultClassCoversEveryCategory(t *testing.T) {
+// Every category keeps its own value. The two rows that matter are rate_limited and unavailable:
+// counted as `internal` they would report a defect that did not happen, and an alert on "our
+// fault" would page on a system doing exactly what it was configured to do (§1, §4.1).
+func TestEveryCategoryKeepsItsOwnResult(t *testing.T) {
 	cases := []struct {
 		name string
 		err  error
 		want string
 	}{
-		{name: "no error", err: nil, want: ResultOK},
-		{name: "validation", err: shared.ErrValidation, want: ResultValidation},
-		{name: "not found", err: shared.ErrNotFound, want: ResultValidation},
-		{name: "gone", err: shared.ErrGone, want: ResultValidation},
-		{name: "conflict", err: shared.ErrConflict, want: ResultConflict},
-		{name: "version conflict", err: shared.ErrVersionConflict, want: ResultConflict},
-		{name: "forbidden", err: shared.ErrForbidden, want: ResultForbidden},
-		{name: "unauthenticated", err: shared.ErrUnauthenticated, want: ResultForbidden},
-		{name: "rate limited", err: shared.ErrRateLimited, want: ResultInternal},
-		{name: "unavailable", err: shared.ErrUnavailable, want: ResultInternal},
-		{name: "internal", err: shared.ErrInternal, want: ResultInternal},
+		{name: "no error", err: nil, want: "ok"},
+		{name: "validation", err: shared.ErrValidation, want: "validation"},
+		{name: "a malformed request is still validation", err: shared.ErrMalformedRequest, want: "validation"},
+		{name: "not found", err: shared.ErrNotFound, want: "not_found"},
+		{name: "gone", err: shared.ErrGone, want: "gone"},
+		{name: "conflict", err: shared.ErrConflict, want: "conflict"},
+		{name: "a version conflict is still a conflict", err: shared.ErrVersionConflict, want: "conflict"},
+		{name: "forbidden", err: shared.ErrForbidden, want: "forbidden"},
+		{name: "unauthenticated", err: shared.ErrUnauthenticated, want: "unauthenticated"},
+		{name: "rate limited", err: shared.ErrRateLimited, want: "rate_limited"},
+		{name: "unavailable", err: shared.ErrUnavailable, want: "unavailable"},
+		{name: "internal", err: shared.ErrInternal, want: "internal"},
 		// Anything that is not a domain error is ours by definition: an error nobody typed is
 		// an error nobody expected.
-		{name: "a foreign error", err: errors.New("boom"), want: ResultInternal},
+		{name: "a foreign error", err: errors.New("boom"), want: "internal"},
+		// A category nobody defined must not travel to the metrics as itself - AsError
+		// normalises it, which is what keeps the label set closed.
+		{name: "an invented category", err: shared.New("MADE_UP", "whatever"), want: "internal"},
 	}
 
 	for _, tc := range cases {
@@ -91,22 +99,47 @@ func TestTheResultClassCoversEveryCategory(t *testing.T) {
 	}
 }
 
-// The result label may only ever hold the five values of §4 - otherwise the series count per use
-// case grows with the error catalogue.
-func TestTheResultLabelStaysWithinTheFiveClasses(t *testing.T) {
-	allowed := map[string]bool{
-		ResultOK: true, ResultValidation: true, ResultConflict: true,
-		ResultForbidden: true, ResultInternal: true,
+// The label set is closed and it is the domain that closes it. This walks every category the
+// domain defines, so a tenth one added later cannot quietly disappear into `internal` - it turns
+// up here as a value the catalogue does not list yet.
+func TestTheResultSetIsExactlyTheDomainCategories(t *testing.T) {
+	// The values documented in observability-reliability.md §4.1. The list is here so that the
+	// document and the code have to be changed together.
+	documented := map[string]bool{
+		"ok": true, "validation": true, "not_found": true, "conflict": true,
+		"forbidden": true, "unauthenticated": true, "gone": true,
+		"rate_limited": true, "unavailable": true, "internal": true,
 	}
 
-	for _, err := range []error{
-		nil, shared.ErrValidation, shared.ErrMalformedRequest, shared.ErrUnauthenticated,
-		shared.ErrForbidden, shared.ErrNotFound, shared.ErrConflict, shared.ErrVersionConflict,
-		shared.ErrGone, shared.ErrRateLimited, shared.ErrUnavailable, shared.ErrInternal,
-		errors.New("boom"),
-	} {
-		if got := ResultClass(err); !allowed[got] {
-			t.Errorf("%v produced the unlisted result class %q", err, got)
+	produced := map[string]bool{ResultOK: true}
+	for _, category := range shared.Categories() {
+		produced[ResultClass(shared.New(category, "any"))] = true
+	}
+
+	for value := range produced {
+		if !documented[value] {
+			t.Errorf("the result value %q is produced but not documented in §4.1", value)
+		}
+	}
+	for value := range documented {
+		if !produced[value] {
+			t.Errorf("the result value %q is documented in §4.1 but nothing produces it", value)
+		}
+	}
+}
+
+// A label value has to be a metric token, whatever the domain calls its categories: lower case,
+// no spaces, nothing that would need quoting in a PromQL matcher.
+func TestEveryResultValueIsAMetricToken(t *testing.T) {
+	token := regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+	values := []string{ResultOK}
+	for _, category := range shared.Categories() {
+		values = append(values, ResultClass(shared.New(category, "any")))
+	}
+	for _, value := range values {
+		if !token.MatchString(value) {
+			t.Errorf("the result value %q is not a metric token", value)
 		}
 	}
 }
