@@ -6,9 +6,17 @@
 // The core never reads from os.Getenv itself. All values come from HUBTASK_* variables
 // (12-factor) and are loaded and validated in the adapter. If a required secret is missing,
 // the process does not start - fail closed rather than a silent default (ADR-0015).
+//
+// Every variable has a safe default for self-hosting (arc42 §7.4). The exceptions are the two
+// secrets: a generated default would be worse than a startup error, because it would render all
+// data unreadable after a restart.
 package environment
 
-import "github.com/Jersyfi/hubtask/core/shared/secret"
+import (
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/shared/secret"
+)
 
 // Role denotes a process role. One image, several roles (ADR-0014).
 type Role string
@@ -28,6 +36,24 @@ const (
 	TenancyMulti  TenancyMode = "multi"
 )
 
+// StorageKind selects the object storage adapter. Local storage is the self-hosting default;
+// a Raspberry Pi has a disk, not a bucket.
+type StorageKind string
+
+const (
+	StorageLocal StorageKind = "local"
+	StorageS3    StorageKind = "s3"
+)
+
+// MailSecurity is how the SMTP connection is protected.
+type MailSecurity string
+
+const (
+	MailSecurityStartTLS MailSecurity = "starttls"
+	MailSecurityTLS      MailSecurity = "tls"
+	MailSecurityNone     MailSecurity = "none" // only sensible for a relay on localhost
+)
+
 // Config is the complete configuration state of the process.
 type Config struct {
 	Version   string
@@ -41,11 +67,94 @@ type Config struct {
 
 	Tenancy TenancyMode
 
-	DatabaseDSN secret.Secret
-	SecretKey   secret.Secret
+	Database  DatabaseConfig
+	Storage   StorageConfig
+	Mail      MailConfig
+	RateLimit RateLimitConfig
+	Request   RequestConfig
+	Locale    LocaleConfig
+
+	SecretKey secret.Secret
 
 	// ShutdownGraceSeconds is the deadline for in-flight requests after SIGTERM.
 	ShutdownGraceSeconds int
+}
+
+// DatabaseConfig is the connection pool. PostgreSQL is the only mandatory dependency (ADR-0003);
+// everything else may fail without stopping the write path.
+type DatabaseConfig struct {
+	DSN secret.Secret
+	// MaxConns is per process, not per cluster. Several roles in one image means several pools,
+	// so the sum is what reaches PostgreSQL.
+	MaxConns int
+	MinConns int
+	// MaxConnLifetime bounds how long a connection is reused, so that a failover reaches the
+	// pool instead of pinning it to a former primary.
+	MaxConnLifetime time.Duration
+	MaxConnIdleTime time.Duration
+	ConnectTimeout  time.Duration
+	// StatementTimeout is short on the interactive path and longer for background work
+	// (engineering-guidelines.md §4) - the protection against a runaway query.
+	StatementTimeout       time.Duration
+	WorkerStatementTimeout time.Duration
+}
+
+// StorageConfig is the object storage for media. Optional: without it only media is restricted,
+// nothing else (ADR-0016).
+type StorageConfig struct {
+	Kind StorageKind
+	// LocalPath is used for StorageLocal.
+	LocalPath string
+	// The remaining fields apply to StorageS3, including S3-compatible services (MinIO, Garage).
+	Endpoint     string
+	Region       string
+	Bucket       string
+	AccessKey    secret.Secret
+	SecretKey    secret.Secret
+	UsePathStyle bool
+}
+
+// MailConfig is outbound SMTP. Optional; without it notifications are only caught up later.
+type MailConfig struct {
+	Host     string
+	Port     int
+	Username string
+	Password secret.Secret
+	From     string
+	Security MailSecurity
+	Timeout  time.Duration
+}
+
+// RateLimitConfig holds the levels from security.md §9: per IP for anonymous traffic, per token,
+// per tenant, and a stricter limit for the paths worth attacking.
+type RateLimitConfig struct {
+	AnonymousPerMinute int
+	TokenPerMinute     int
+	TenantPerMinute    int
+	// AuthPerMinute covers login, password reset, and invitation - the endpoints where guessing
+	// pays off.
+	AuthPerMinute int
+	// Burst is how much of the budget may be spent at once.
+	Burst int
+}
+
+// RequestConfig bounds a single request (security.md §9, threat T-17).
+type RequestConfig struct {
+	MaxBodyBytes   int64
+	MaxUploadBytes int64
+	// Timeout is the server-side deadline every handler inherits. No call without a deadline
+	// (ADR-0016).
+	Timeout time.Duration
+}
+
+// LocaleConfig is the installation-wide fallback, the last link in the resolution chain
+// request → account → tenant → installation (i18n-l10n.md §2).
+type LocaleConfig struct {
+	// DefaultLocale is BCP 47: de, de-AT, pt-BR, zh-Hans.
+	DefaultLocale string
+	// DefaultTimeZone is an IANA name (Europe/Berlin), never a fixed UTC offset - an offset
+	// cannot represent daylight saving.
+	DefaultTimeZone string
 }
 
 func (c Config) HasRole(r Role) bool {
@@ -55,6 +164,15 @@ func (c Config) HasRole(r Role) bool {
 		}
 	}
 	return false
+}
+
+// StatementTimeoutFor returns the query budget of a role. The interactive path gets the short
+// one; anything running in the background gets the long one.
+func (c Config) StatementTimeoutFor(r Role) time.Duration {
+	if r == RoleAPI {
+		return c.Database.StatementTimeout
+	}
+	return c.Database.WorkerStatementTimeout
 }
 
 // Port loads and validates the configuration.
