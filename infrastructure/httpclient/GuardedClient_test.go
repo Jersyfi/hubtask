@@ -12,6 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	port "github.com/Jersyfi/hubtask/core/port/httpclient"
@@ -363,4 +369,72 @@ func readAll(r *http.Request) ([]byte, error) {
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(r.Body)
 	return buf.Bytes(), err
+}
+
+// A webhook recipient that understands W3C trace context should be able to join the trace, and
+// two Hubtask installations calling each other should produce one trace rather than two (§3.3).
+func TestTheTraceContextTravelsWithTheCall(t *testing.T) {
+	var seen string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Get("traceparent")
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	// The process installs the propagator at startup, whether tracing exports anything or not
+	// (observability.NewTracing). A unit test builds no process, so it installs it here.
+	previous := otel.GetTextMapPropagator()
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	t.Cleanup(func() { otel.SetTextMapPropagator(previous) })
+
+	provider := sdktrace.NewTracerProvider()
+	defer func() { _ = provider.Shutdown(context.Background()) }()
+	client := openClient(t, env.OutboundConfig{}).WithTracer(provider.Tracer("test"))
+
+	ctx, span := provider.Tracer("test").Start(context.Background(), "caller")
+	defer span.End()
+
+	if _, err := client.Do(ctx, port.Request{URL: server.URL, TargetClass: "webhook"}); err != nil {
+		t.Fatalf("the call failed: %v", err)
+	}
+
+	if seen == "" {
+		t.Fatal("the target received no traceparent header")
+	}
+	if traceID := span.SpanContext().TraceID().String(); !strings.Contains(seen, traceID) {
+		t.Errorf("traceparent = %q, want the caller's trace %s", seen, traceID)
+	}
+}
+
+// A URL can carry a token in its query string, and a span is stored and read by more people
+// than a log line (security.md §12).
+func TestTheSpanCarriesNoURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	defer func() { _ = provider.Shutdown(context.Background()) }()
+
+	client := openClient(t, env.OutboundConfig{}).WithTracer(provider.Tracer("test"))
+	if _, err := client.Do(context.Background(), port.Request{
+		URL: server.URL + "/deliver?token=hunter2", TargetClass: "webhook",
+	}); err != nil {
+		t.Fatalf("the call failed: %v", err)
+	}
+
+	spans := recorder.Ended()
+	if len(spans) != 1 {
+		t.Fatalf("spans = %d, want exactly one client span", len(spans))
+	}
+	for _, attr := range spans[0].Attributes() {
+		if strings.Contains(attr.Value.AsString(), "hunter2") {
+			t.Errorf("the span attribute %s carries the query string: %s", attr.Key, attr.Value.AsString())
+		}
+	}
+	if spans[0].SpanKind() != trace.SpanKindClient {
+		t.Errorf("span kind = %v, want client", spans[0].SpanKind())
+	}
 }

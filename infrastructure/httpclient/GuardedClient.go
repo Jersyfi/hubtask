@@ -14,6 +14,13 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
+
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	port "github.com/Jersyfi/hubtask/core/port/httpclient"
@@ -38,6 +45,9 @@ type GuardedClient struct {
 	observe func(ctx context.Context, targetClass string, seconds float64)
 	// now is the clock, for the duration measurement.
 	now func() time.Time
+	// tracer produces the client span. Never nil: with tracing off it is the no-op tracer,
+	// which still carries the incoming span context onwards.
+	tracer trace.Tracer
 }
 
 // NewGuardedClient builds the client from the outbound configuration.
@@ -47,6 +57,7 @@ func NewGuardedClient(cfg env.OutboundConfig, guard *Guard) *GuardedClient {
 		cfg:     cfg,
 		observe: func(context.Context, string, float64) {},
 		now:     time.Now,
+		tracer:  noop.NewTracerProvider().Tracer(""),
 	}
 
 	dialer := &net.Dialer{
@@ -88,6 +99,16 @@ func (c *GuardedClient) WithObserver(observe func(ctx context.Context, targetCla
 	return &copied
 }
 
+// WithTracer returns a copy that opens a client span per call. The composition root passes the
+// tracer of the observability adapter.
+func (c *GuardedClient) WithTracer(tracer trace.Tracer) *GuardedClient {
+	copied := *c
+	if tracer != nil {
+		copied.tracer = tracer
+	}
+	return &copied
+}
+
 // Do makes the call. It returns an error when the call could not be made or could not be
 // completed; an answered request with a 500 is not an error here, because whether that is a
 // failure depends on what was being asked (see port.Response).
@@ -123,6 +144,17 @@ func (c *GuardedClient) send(ctx context.Context, req port.Request, url, class s
 		method = http.MethodGet
 	}
 
+	// The span carries the method, the class and the host - never the URL. A query string can
+	// hold a token, and a span is stored and read by more people than a log line
+	// (security.md §12: traces with masked attributes).
+	ctx, span := c.tracer.Start(ctx, "HTTP "+method,
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("http.request.method", method),
+			attribute.String("hubtask.target_class", class),
+		))
+	defer span.End()
+
 	var body io.Reader
 	if len(req.Body) > 0 {
 		body = bytes.NewReader(req.Body)
@@ -139,24 +171,35 @@ func (c *GuardedClient) send(ctx context.Context, req port.Request, url, class s
 			httpReq.Header.Add(name, value)
 		}
 	}
+	span.SetAttributes(attribute.String("server.address", httpReq.URL.Hostname()))
+	// The traceparent travels with the call, so that a webhook recipient that understands W3C
+	// trace context can join the same trace - and so that our own installations calling each
+	// other produce one trace rather than two (§3.3).
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(httpReq.Header))
 
 	httpResp, err := c.client.Do(httpReq)
 	if err != nil {
-		return port.Response{}, transportError(class, err)
+		failed := transportError(class, err)
+		span.SetStatus(codes.Error, shared.AsError(failed).Code)
+		return port.Response{}, failed
 	}
 	defer func() { _ = httpResp.Body.Close() }()
 
 	// One byte more than the limit, so that "exactly at the limit" and "too much" can be told
 	// apart. Without the extra byte a response of precisely the limit would be reported as
 	// truncated for ever.
+	span.SetAttributes(attribute.Int("http.response.status_code", httpResp.StatusCode))
 	payload, err := io.ReadAll(io.LimitReader(httpResp.Body, c.cfg.MaxResponseBytes+1))
 	if err != nil {
-		return port.Response{}, transportError(class, err)
+		failed := transportError(class, err)
+		span.SetStatus(codes.Error, shared.AsError(failed).Code)
+		return port.Response{}, failed
 	}
 	if int64(len(payload)) > c.cfg.MaxResponseBytes {
 		// Truncating and carrying on would hand the caller half a JSON document. A target that
 		// answers with more than the limit is misconfigured, and it will be next time too
 		// (T-17).
+		span.SetStatus(codes.Error, "response_too_large")
 		return port.Response{}, shared.ErrValidation.
 			WithDetail("dependency.response_too_large").
 			WithParams(map[string]string{"limit_bytes": fmt.Sprint(c.cfg.MaxResponseBytes)})
