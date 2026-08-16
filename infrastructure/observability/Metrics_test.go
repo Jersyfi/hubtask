@@ -202,6 +202,8 @@ var allowedLabels = map[string]bool{
 	"dependency": true, "feature": true,
 	// hubtask_panics_recovered_total, hubtask_config_invalid_total
 	"component": true, "key": true,
+	// hubtask_outbound_http_duration_seconds, hubtask_rate_limited_total
+	"target_class": true, "scope": true,
 	// hubtask_build_info
 	"version": true, "commit": true, "go_version": true,
 	// Only with HUBTASK_METRICS_TENANT_LABEL, and covered by its own test.
@@ -225,6 +227,9 @@ func exerciseEveryInstrument(m *Metrics) {
 	m.DegradedMode(ctx, "media", true)
 	m.PanicRecovered(ctx, "rest.request")
 	m.ConfigInvalid(ctx, "HUBTASK_DB_MAX_CONNS")
+	m.CircuitBreakerState(ctx, "object_storage", 2)
+	m.OutboundHTTP(ctx, "webhook", 0.42)
+	m.RateLimited(ctx, "load_shed")
 }
 
 // The gate for label cardinality: no label may appear that the catalogue does not list. A test
@@ -303,4 +308,61 @@ func labelsIn(body string) []string {
 		}
 	}
 	return names
+}
+
+// The breaker gauge is what a dashboard reads to show a dependency as cut off, and its values
+// are a contract: 0 closed, 1 half-open, 2 open (§4).
+func TestTheBreakerGaugeReportsTheState(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+	ctx := context.Background()
+
+	m.CircuitBreakerState(ctx, "object_storage", 2)
+	m.CircuitBreakerState(ctx, "smtp", 0)
+
+	body := scrape(t, m)
+	if !strings.Contains(body, `hubtask_circuit_breaker_state{dependency="object_storage"`) {
+		t.Errorf("the breaker state of the object storage is missing:\n%s", body)
+	}
+	for _, want := range []string{`dependency="object_storage"} 2`, `dependency="smtp"} 0`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("%s is missing from the scrape:\n%s", want, body)
+		}
+	}
+}
+
+// A webhook target is chosen by a tenant. A label per URL would grow a series per customer
+// integration, so the histogram takes a class and nothing else (rule 10).
+func TestTheOutboundHistogramLabelsTheClassNotTheTarget(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+
+	m.OutboundHTTP(context.Background(), "webhook", 0.42)
+
+	body := scrape(t, m)
+	if !strings.Contains(body, `hubtask_outbound_http_duration_seconds_bucket{target_class="webhook"`) {
+		t.Errorf("the outbound histogram is missing:\n%s", body)
+	}
+	// A third-party system that answers in five seconds is unpleasant but real; the inbound
+	// scale would put everything slow into one bucket.
+	for _, bound := range []string{`le="5"`, `le="30"`} {
+		if !strings.Contains(body, bound) {
+			t.Errorf("the bucket %s is missing:\n%s", bound, body)
+		}
+	}
+}
+
+func TestRateLimitedCountsByScope(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+	ctx := context.Background()
+
+	m.RateLimited(ctx, "load_shed")
+	m.RateLimited(ctx, "load_shed")
+	m.RateLimited(ctx, "bulkhead:automation")
+
+	body := scrape(t, m)
+	if !strings.Contains(body, `hubtask_rate_limited_total{scope="load_shed"} 2`) {
+		t.Errorf("the shed calls were not counted:\n%s", body)
+	}
+	if !strings.Contains(body, `scope="bulkhead:automation"`) {
+		t.Errorf("the full compartment was not counted:\n%s", body)
+	}
 }

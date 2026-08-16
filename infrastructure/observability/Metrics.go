@@ -38,6 +38,9 @@ type Metrics struct {
 	dependencyUp      metric.Int64Gauge
 	degradedMode      metric.Int64Gauge
 	configInvalid     metric.Int64Counter
+	breakerState      metric.Int64Gauge
+	outboundDuration  metric.Float64Histogram
+	rateLimited       metric.Int64Counter
 	tenantLabelActive bool
 }
 
@@ -135,6 +138,28 @@ func (m *Metrics) instruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("config counter: %w", err)
 	}
+	if m.breakerState, err = meter.Int64Gauge(
+		namespace+"_circuit_breaker_state",
+		metric.WithDescription("0 closed, 1 half-open, 2 open, per guarded dependency."),
+	); err != nil {
+		return fmt.Errorf("breaker gauge: %w", err)
+	}
+	if m.outboundDuration, err = meter.Float64Histogram(
+		namespace+"_outbound_http_duration_seconds",
+		metric.WithDescription("Duration of outbound HTTP calls by target class."),
+		metric.WithUnit("s"),
+		// Wider than the inbound buckets: a third-party system that answers in five seconds is
+		// unpleasant but real, and the inbound scale would put everything slow in one bucket.
+		metric.WithExplicitBucketBoundaries(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30),
+	); err != nil {
+		return fmt.Errorf("outbound histogram: %w", err)
+	}
+	if m.rateLimited, err = meter.Int64Counter(
+		namespace+"_rate_limited_total",
+		metric.WithDescription("Calls turned away by a limit: a rate limit, a bulkhead, or load shedding."),
+	); err != nil {
+		return fmt.Errorf("rate limit counter: %w", err)
+	}
 	return nil
 }
 
@@ -230,6 +255,32 @@ func (m *Metrics) DegradedMode(ctx context.Context, feature string, degraded boo
 		value = 1
 	}
 	m.degradedMode.Record(ctx, value, metric.WithAttributes(attribute.String("feature", feature)))
+}
+
+// CircuitBreakerState publishes the state of one breaker: 0 closed, 1 half-open, 2 open. The
+// values come from resilience.BreakerState.Level(), which owns them - the gauge only reports
+// what it is handed, so that the dashboard's contract has a single source (§4).
+//
+// The composition root passes this as the breaker's OnStateChange hook. It takes the level
+// rather than the state type, so that the metrics adapter does not have to know the resilience
+// adapter: adapters do not know each other (project-structure.md §2).
+func (m *Metrics) CircuitBreakerState(ctx context.Context, dependency string, level int64) {
+	m.breakerState.Record(ctx, level, metric.WithAttributes(attribute.String("dependency", dependency)))
+}
+
+// OutboundHTTP records the duration of one outbound call. targetClass is a class, never a host:
+// a webhook target is chosen by a tenant, and a label per URL would grow a series per customer
+// integration (§3.2, rule 10).
+func (m *Metrics) OutboundHTTP(ctx context.Context, targetClass string, seconds float64) {
+	m.outboundDuration.Record(ctx, seconds,
+		metric.WithAttributes(attribute.String("target_class", targetClass)))
+}
+
+// RateLimited counts a call turned away by a limit. scope says which limit: ip, token, tenant
+// for the rate limiter, load_shed for the shedder, bulkhead:<compartment> for a full
+// compartment. The set is written by hand and stays small - that is what keeps it a label.
+func (m *Metrics) RateLimited(ctx context.Context, scope string) {
+	m.rateLimited.Add(ctx, 1, metric.WithAttributes(attribute.String("scope", scope)))
 }
 
 // ConfigInvalid counts a rejected configuration variable - misconfiguration as a signal rather
