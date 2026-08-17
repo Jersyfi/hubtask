@@ -52,16 +52,24 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 // error model, the health report's degradation reasons, or the load shedder's capacity refusals.
 // Narrow on purpose: only the prefixes that exist today, so that an example in a test comment
 // does not turn into a false alarm.
-var messageCode = regexp.MustCompile(`"((?:route|request|access|idempotency|config|errors|dependency|capacity)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
+var messageCode = regexp.MustCompile(`"((?:route|request|access|idempotency|config|errors|dependency|capacity|containers)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
 
 // TestEveryUsedMessageCodeIsInTheCatalogue reads the source rather than a registry: a code is
 // used where it is written, and a registry would only be a second place to forget.
+//
+// Test files are left out. A code in a fixture is an example of the shape, not an answer any
+// client will ever receive - Problem_test.go names `containers.not_found` to prove that a detail
+// code reaches the wire, and demanding a catalogue entry for it would put invented sentences into
+// the source language.
 func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 	messages := loadCatalogue(t)
 	used := map[string][]string{}
 
 	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"},
 		func(path string, _ *ast.File, _ *token.FileSet) {
+			if strings.HasSuffix(path, "_test.go") {
+				return
+			}
 			source, err := os.ReadFile(path)
 			if err != nil {
 				t.Errorf("%s is not readable: %v", rel(path), err)
