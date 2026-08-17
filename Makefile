@@ -21,6 +21,13 @@ OAPI_CODEGEN_VERSION  := v2.8.0
 SQLC_VERSION          := v1.31.1
 GOOSE_VERSION         := v3.27.3
 GOVULNCHECK_VERSION   := v1.7.0
+# helm is installed the same way as every other tool - through the module proxy, with the Go
+# checksum database vouching for it. A tarball from a release page would be a second trust
+# anchor for no reason (ADR-0015).
+HELM_VERSION          := v3.16.4
+# The chart declares kubeVersion >= 1.28. helm renders against a much older version unless it is
+# told otherwise, so the gate says which cluster it is rendering for.
+KUBE_VERSION          := 1.30.0
 
 export CGO_ENABLED := 0
 
@@ -64,6 +71,7 @@ tools:
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install helm.sh/helm/v3/cmd/helm@$(HELM_VERSION)
 
 ## fmt: Format the source
 .PHONY: fmt
@@ -104,7 +112,7 @@ run:
 
 ## verify: Run every PR gate locally (mirrors ci.yml)
 .PHONY: verify
-verify: gate-quick gate-unit gate-architecture gate-security
+verify: gate-quick gate-unit gate-architecture gate-security gate-chart
 	@echo "All locally runnable gates are green."
 
 ## gate-quick: Format, lint, generation without a diff
@@ -190,6 +198,27 @@ gate-data:
 .PHONY: gate-resilience
 gate-resilience:
 	$(call go_test,resilience,./test/resilience/...,)
+
+## gate-chart: helm lint and template, with every optional object switched on
+.PHONY: gate-chart
+gate-chart:
+	$(call require_tool,helm)
+	@# The secret is a name, not a value: the chart refuses to render without one, because a
+	@# secret in values.yaml would end up in the release history (deployment.md §6).
+	$(TOOLS_DIR)/helm lint k8s --set existingSecret=hubtask-secrets
+	$(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets > /dev/null
+	@# Again with everything the defaults leave off. An optional object nobody renders is an
+	@# object that breaks in the one installation that needs it.
+	$(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets \
+		--set ingress.enabled=true --set ingress.host=hubtask.example.com \
+		--set serviceMonitor.enabled=true \
+		--set roles.api.autoscaling.enabled=true \
+		--set smtp.existingSecretKey=smtp-password \
+		--set storage.existingSecret=hubtask-storage --set storage.bucket=hubtask-media \
+		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} > /dev/null
+	@echo "chart: lint and template green"
 
 ## gate-docs: Check cross references and the ADR index
 .PHONY: gate-docs
