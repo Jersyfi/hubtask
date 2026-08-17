@@ -79,6 +79,7 @@
   "containers.hub_has_no_parent": "A hub is the top level and sits in nothing.",
   "containers.collection_needs_parent": "A collection has to sit in a hub.",
   "containers.parent_type_invalid": "A {type} cannot sit in a {parent_type}.",
+  "containers.parent_not_found": "That hub does not exist.",
   "containers.parent_archived": "That hub is archived. Unarchive it before adding anything to it.",
   "containers.parent_trashed": "That hub is in the trash.",
   "containers.identity_incomplete": "This installation is misconfigured and could not create that entry.",
