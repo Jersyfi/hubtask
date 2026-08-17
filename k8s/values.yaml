@@ -1,6 +1,6 @@
 # Role separation in the cluster (ADR-0014): one image, several deployments.
 image:
-  repository: ghcr.io/Jersyfi/hubtask
+  repository: ghcr.io/jersyfi/hubtask
   tag: ""            # empty = appVersion from Chart.yaml
   pullPolicy: IfNotPresent
 

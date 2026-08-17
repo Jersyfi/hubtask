@@ -12,7 +12,7 @@ LDFLAGS     := -s -w \
 	-X main.buildDate=$(BUILD_DATE)
 GO          ?= go
 TOOLS_DIR   := .tools
-IMAGE       ?= ghcr.io/Jersyfi/hubtask
+IMAGE       ?= ghcr.io/jersyfi/hubtask
 
 # Every tool is pinned. An unpinned tool version turns a gate into a moving target and is a
 # supply chain decision made by whoever runs make (ADR-0015).
@@ -219,6 +219,11 @@ gate-chart:
 		--set storage.existingSecret=hubtask-storage --set storage.bucket=hubtask-media \
 		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} > /dev/null
 	@echo "chart: lint and template green"
+
+## gate-compose: Start the self-hosting reference stack from a real image and wait for /readyz
+.PHONY: gate-compose
+gate-compose: docker-build
+	scripts/compose-smoke.sh $(VERSION)
 
 ## gate-docs: Check cross references and the ADR index
 .PHONY: gate-docs

@@ -31,6 +31,10 @@ reference: the database is not published externally, the application runs with `
 `no-new-privileges`, there are volumes for media and backups, and the migration is a separate
 service gated on `service_completed_successfully`.
 
+The operations port is published on loopback only (`127.0.0.1:9090`). It carries the metrics and
+the health report — `curl localhost:9090/readyz` after an update, and a Prometheus on the same
+host — and neither belongs on the network (observability-reliability.md §3.2).
+
 Updating:
 
 ```bash

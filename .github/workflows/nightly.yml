@@ -52,10 +52,13 @@ jobs:
         with:
           go-version: "1.25"
       - run: make tools && .tools/govulncheck ./...
+      - name: The image name in lower case
+        # A Docker reference must be lower case; github.repository keeps the owner's spelling.
+        run: echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - name: Image scan
         uses: aquasecurity/trivy-action@915b19bbe9aaa9da7dc2b31ae82f8bfda8b7f3ab # 0.29.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}:latest
+          image-ref: ghcr.io/${{ env.IMAGE_NAME }}:latest
           format: sarif
           output: trivy.sarif
           severity: CRITICAL,HIGH
