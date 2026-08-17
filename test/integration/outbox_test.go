@@ -9,11 +9,16 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
+	"github.com/Jersyfi/hubtask/core/port/queue"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -65,7 +70,7 @@ func TestAnEventIsWrittenIntoTheOutbox(t *testing.T) {
 	envelope := announcement(t, tenantA, container)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewOutbox().Append(ctx, envelope)
+		return postgres.NewOutbox(jobQueue(t)).Append(ctx, envelope)
 	}); err != nil {
 		t.Fatalf("writing the event: %v", err)
 	}
@@ -96,7 +101,7 @@ func TestAnEventCannotBeWrittenIntoAnotherTenantsStream(t *testing.T) {
 	envelope := announcement(t, tenantA, containerIn(tenantA, authorA, freshID(t), freshName(t), "a0"))
 
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return postgres.NewOutbox().Append(ctx, envelope)
+		return postgres.NewOutbox(jobQueue(t)).Append(ctx, envelope)
 	}); err != nil {
 		t.Fatalf("writing the event: %v", err)
 	}
@@ -208,5 +213,202 @@ func TestAChangeWithoutAClockIsRefused(t *testing.T) {
 	})
 	if err == nil || shared.AsError(err).DetailCode != "sync.change_without_clock" {
 		t.Fatalf("error %v, want the change to be refused", err)
+	}
+}
+
+// dispatchOnce runs one dispatcher round for the tenant, the way the worker does: inside one
+// transaction, opened for the tenant the job names.
+func dispatchOnce(ctx context.Context, t *testing.T, tenant shared.ID, subscribers ...eventbusport.Subscriber) {
+	t.Helper()
+	dispatcher := eventbus.Dispatcher{
+		Events:      postgres.NewOutbox(jobQueue(t)),
+		Consumed:    postgres.NewConsumption(clockadapter.System{}),
+		Subscribers: subscribers,
+		Clock:       clockadapter.System{},
+		Batch:       50,
+		MinInterval: time.Second,
+		MaxInterval: 15 * time.Second,
+	}
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		_, err := dispatcher.Run(ctx, queue.Job{
+			ID: freshID(t), TenantID: tenant, Kind: queue.KindOutboxDispatch,
+			Attempts: 1, MaxAttempts: 8, Lease: time.Now().Add(time.Minute),
+		})
+		return err
+	}); err != nil {
+		t.Fatalf("dispatching for %s: %v", tenant, err)
+	}
+}
+
+// counter is a subscriber that reacts to one event and counts how often it did. Anything else in
+// the tenant's outbox is somebody else's test and is not this one's business.
+type counter struct {
+	watching  shared.ID
+	reactions int
+}
+
+func (c *counter) Name() string          { return "test.counter" }
+func (c *counter) Wants(event.Type) bool { return true }
+
+func (c *counter) Deliver(_ context.Context, envelope event.Envelope) error {
+	if envelope.ID == c.watching {
+		c.reactions++
+	}
+	return nil
+}
+
+// Test RT-4: an event delivered twice has no duplicate effect.
+//
+// The duplicate is produced the way a real one arises - the delivery was recorded and then lost,
+// here by putting the row back to undelivered - and the subscriber reacts once, because the claim
+// on the consumption record is what a consumer asks before it acts (ADR-0007).
+func TestRT4ADuplicateDeliveryHasNoDuplicateEffect(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	container := containerIn(tenantA, authorA, freshID(t), freshName(t), "a0")
+	envelope := announcement(t, tenantA, container)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return postgres.NewOutbox(jobQueue(t)).Append(ctx, envelope)
+	}); err != nil {
+		t.Fatalf("writing the event: %v", err)
+	}
+
+	subscriber := &counter{watching: envelope.ID}
+	dispatchOnce(ctx, t, tenantA, subscriber)
+	if subscriber.reactions != 1 {
+		t.Fatalf("the subscriber reacted %d times to the first delivery, want once", subscriber.reactions)
+	}
+
+	// The delivery is lost after the fact: the dispatcher died between handing the event over and
+	// committing that it had. At-least-once means this event comes round again.
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx,
+		`UPDATE outbox_event SET dispatched_at = NULL WHERE id = $1`, envelope.ID.String()); err != nil {
+		t.Fatalf("undoing the delivery: %v", err)
+	}
+
+	dispatchOnce(ctx, t, tenantA, subscriber)
+	if subscriber.reactions != 1 {
+		t.Errorf("the subscriber reacted %d times in total, want once - a duplicate delivery had a duplicate effect", subscriber.reactions)
+	}
+
+	// And the second round still marks it: the outbox is not where the duplicate is corrected, so
+	// an event nobody needs to react to again is still delivered rather than kept forever.
+	var pending bool
+	if err := admin.QueryRow(ctx,
+		`SELECT dispatched_at IS NULL FROM outbox_event WHERE id = $1`, envelope.ID.String()).Scan(&pending); err != nil {
+		t.Fatalf("reading the event: %v", err)
+	}
+	if pending {
+		t.Error("the event is still pending after a second round")
+	}
+}
+
+// The cross-tenant negative test for Claim: a dispatcher opened for one tenant cannot see another
+// tenant's events, however it asks.
+func TestADispatcherCannotClaimAnotherTenantsEvents(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	container := containerIn(tenantA, authorA, freshID(t), freshName(t), "a0")
+	envelope := announcement(t, tenantA, container)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return postgres.NewOutbox(jobQueue(t)).Append(ctx, envelope)
+	}); err != nil {
+		t.Fatalf("writing the event: %v", err)
+	}
+
+	var inB []event.Envelope
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		inB, err = postgres.NewOutbox(jobQueue(t)).Claim(ctx, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("claiming in tenant B: %v", err)
+	}
+	for _, claimed := range inB {
+		if claimed.ID == envelope.ID {
+			t.Fatal("a dispatcher in tenant B claimed tenant A's event")
+		}
+	}
+
+	// And it is claimable where it belongs, so the test above is not passing for want of an event.
+	var found bool
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		claimed, err := postgres.NewOutbox(jobQueue(t)).Claim(ctx, 100)
+		for _, c := range claimed {
+			found = found || c.ID == envelope.ID
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("claiming in tenant A: %v", err)
+	}
+	if !found {
+		t.Error("the event was not claimable in its own tenant")
+	}
+}
+
+// The cross-tenant negative test for MarkDispatched: naming another tenant's event identifiers
+// marks nothing, so no tenant can make another tenant's events disappear from its dispatcher.
+func TestMarkingAnotherTenantsEventLeavesItPending(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	container := containerIn(tenantA, authorA, freshID(t), freshName(t), "a0")
+	envelope := announcement(t, tenantA, container)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return postgres.NewOutbox(jobQueue(t)).Append(ctx, envelope)
+	}); err != nil {
+		t.Fatalf("writing the event: %v", err)
+	}
+
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return postgres.NewOutbox(jobQueue(t)).MarkDispatched(ctx, []shared.ID{envelope.ID}, created)
+	}); err != nil {
+		t.Fatalf("marking from tenant B: %v", err)
+	}
+
+	admin := adminPool(ctx, t)
+	var pending bool
+	if err := admin.QueryRow(ctx,
+		`SELECT dispatched_at IS NULL FROM outbox_event WHERE id = $1`, envelope.ID.String()).Scan(&pending); err != nil {
+		t.Fatalf("reading the event: %v", err)
+	}
+	if !pending {
+		t.Error("tenant B marked tenant A's event as delivered")
+	}
+}
+
+// The cross-tenant negative test for the consumption record: it is per tenant, so one tenant's
+// consumer cannot silence another tenant's - and within a tenant, the second claim is refused,
+// which is the whole mechanism.
+func TestConsumptionIsRecordedPerTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	consumption := postgres.NewConsumption(clockadapter.System{})
+	eventID := freshID(t)
+
+	claimIn := func(tenant shared.ID) bool {
+		t.Helper()
+		var first bool
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			first, err = consumption.Claim(ctx, "test.consumer", eventID)
+			return err
+		}); err != nil {
+			t.Fatalf("claiming in %s: %v", tenant, err)
+		}
+		return first
+	}
+
+	if !claimIn(tenantA) {
+		t.Error("the first claim in tenant A was refused")
+	}
+	if claimIn(tenantA) {
+		t.Error("the same event was claimed twice in one tenant - a duplicate would have an effect")
+	}
+	if !claimIn(tenantB) {
+		t.Error("tenant A's consumption silenced tenant B's consumer")
 	}
 }
