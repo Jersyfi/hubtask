@@ -39,6 +39,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
+	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
 
@@ -219,7 +220,19 @@ func run() error {
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 		}
-		apiRoutes := controller.Routes()
+		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is
+		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and
+		// it still travels through the whole middleware chain, which is what makes an agent's call
+		// authenticated, rate limited and observed exactly like a person's (ai-first.md §1.1).
+		apiRoutes := rest.Mounted{
+			Router: controller.Routes(),
+			Path:   mcp.Path,
+			Mount: mcp.Server{
+				Catalogue: useCases,
+				Name:      "hubtask",
+				Version:   version,
+			},
+		}
 
 		authenticate := identity.AuthenticateToken{
 			Tokens:     postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
