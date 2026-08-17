@@ -25,6 +25,7 @@ GOVULNCHECK_VERSION   := v1.7.0
 # checksum database vouching for it. A tarball from a release page would be a second trust
 # anchor for no reason (ADR-0015).
 HELM_VERSION          := v3.16.4
+GO_LICENSES_VERSION   := v1.6.0
 # The chart declares kubeVersion >= 1.28. helm renders against a much older version unless it is
 # told otherwise, so the gate says which cluster it is rendering for.
 KUBE_VERSION          := 1.30.0
@@ -72,6 +73,7 @@ tools:
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install helm.sh/helm/v3/cmd/helm@$(HELM_VERSION)
+	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
 
 ## fmt: Format the source
 .PHONY: fmt
@@ -112,7 +114,7 @@ run:
 
 ## verify: Run every PR gate locally (mirrors ci.yml)
 .PHONY: verify
-verify: gate-quick gate-unit gate-architecture gate-security gate-chart
+verify: gate-quick gate-unit gate-architecture gate-security gate-chart gate-licenses gate-docs
 	@echo "All locally runnable gates are green."
 
 ## gate-quick: Format, lint, generation without a diff
@@ -199,6 +201,40 @@ gate-data:
 gate-resilience:
 	$(call go_test,resilience,./test/resilience/...,)
 
+## gate-licenses: Refuse a dependency whose licence would make relicensing impossible
+.PHONY: gate-licenses
+gate-licenses:
+	$(call require_tool,go-licenses)
+	@# forbidden is AGPL and friends, restricted is the GPL/LGPL family. Either one would make the
+	@# conversion to Apache-2.0 and the commercial licence impossible (ADR-0013), which is why this
+	@# is a gate and not a review note. The warnings about packages containing non-Go code are the
+	@# tool saying it cannot follow a .s file - not a finding.
+	@output="$$($(TOOLS_DIR)/go-licenses check ./... --disallowed_types=forbidden,restricted 2>&1)"; \
+		status=$$?; \
+		echo "$$output" | grep -vE "contains non-Go code|^/|^W[0-9]" || true; \
+		if [ $$status -ne 0 ]; then \
+			echo "a dependency carries a licence that would make relicensing impossible (ADR-0013)"; \
+			exit 1; \
+		fi; \
+		echo "licences: no forbidden or restricted dependency"
+	@# And the list that ships with the release is the list of what is actually linked. The
+	@# comparison is against the state before generating, like in gate-quick, so a work tree with
+	@# other uncommitted changes can still run the gate.
+	@before="$$(git status --porcelain THIRD-PARTY-LICENSES.md)"; \
+		$(MAKE) --no-print-directory licenses >/dev/null; \
+		after="$$(git status --porcelain THIRD-PARTY-LICENSES.md)"; \
+		if [ "$$before" != "$$after" ]; then \
+			echo "THIRD-PARTY-LICENSES.md is out of date - run 'make licenses' and commit it"; \
+			exit 1; \
+		fi
+
+## licenses: Regenerate THIRD-PARTY-LICENSES.md
+.PHONY: licenses
+licenses:
+	$(call require_tool,go-licenses)
+	$(TOOLS_DIR)/go-licenses report ./... --template tools/licenses.md.tpl 2>/dev/null > THIRD-PARTY-LICENSES.md
+	@echo "THIRD-PARTY-LICENSES.md written"
+
 ## gate-chart: helm lint and template, with every optional object switched on
 .PHONY: gate-chart
 gate-chart:
@@ -228,8 +264,7 @@ gate-compose: docker-build
 ## gate-docs: Check cross references and the ADR index
 .PHONY: gate-docs
 gate-docs:
-	@if [ -d tools/checkdocs ]; then $(GO) run ./tools/checkdocs; \
-		else echo "skipped: tools/checkdocs arrives with task A-10"; fi
+	$(GO) run ./tools/checkdocs
 
 ## gate-selftest: Prove that every configured rule actually fails a build
 .PHONY: gate-selftest
