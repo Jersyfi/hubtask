@@ -19,15 +19,20 @@ import (
 
 // ActorKind is the actor type the audit trail records (audit.md §2). Anonymous is the one value
 // that never reaches an audit entry: an unauthenticated request performs no auditable action.
-type ActorKind string
+//
+// An alias rather than a type of its own: an event, an audit entry and a request context have to
+// spell the five kinds identically, so there is one definition of them, in the domain
+// (core/domain/model/shared/Actor.go). The names are re-exported here because this is where
+// application code reaches for them.
+type ActorKind = shared.ActorKind
 
 const (
-	ActorAnonymous      ActorKind = "ANONYMOUS"
-	ActorUser           ActorKind = "USER"
-	ActorServiceAccount ActorKind = "SERVICE_ACCOUNT"
-	ActorAutomation     ActorKind = "AUTOMATION"
-	ActorAIAgent        ActorKind = "AI_AGENT"
-	ActorSystem         ActorKind = "SYSTEM"
+	ActorAnonymous      = shared.ActorAnonymous
+	ActorUser           = shared.ActorUser
+	ActorServiceAccount = shared.ActorServiceAccount
+	ActorAutomation     = shared.ActorAutomation
+	ActorAIAgent        = shared.ActorAIAgent
+	ActorSystem         = shared.ActorSystem
 )
 
 // ActorContext is the request as the application layer sees it.

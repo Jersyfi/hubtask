@@ -15,16 +15,11 @@ import (
 // (automation.md §2, run status ABORTED_LOOP).
 const MaxCausationDepth = 5
 
-// ActorKind names who caused an event, in the same vocabulary the audit trail uses (audit.md §2).
-// It is a string rather than the application layer's type, because the domain must not depend on
-// the layer above it.
-type ActorKind string
-
-// Actor is who caused the event. The label is deliberately absent: an event is delivered to
-// external systems, and a name is personal data those systems do not need in order to react
-// (ADR-0018).
+// Actor is who caused the event, in the vocabulary of audit.md §2. The label is deliberately
+// absent: an event is delivered to external systems, and a name is personal data those systems do
+// not need in order to react (ADR-0018).
 type Actor struct {
-	Kind ActorKind
+	Kind shared.ActorKind
 	ID   shared.ID
 	// OnBehalfOf is the principal an automation or an agent runs as (`run_as`). Empty for a
 	// person acting for themselves.
