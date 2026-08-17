@@ -62,7 +62,12 @@ CREATE POLICY tenant_isolation ON work_item
   around it, and it is read-only by construction: every `WITH CHECK` would compare against a
   tenant it deliberately does not have. `GET /meta/capabilities` uses it to answer an
   unauthenticated caller.
-* System jobs (retention, outbox dispatch) loop per tenant rather than running globally.
+* System jobs (retention, outbox dispatch) loop per tenant rather than running globally. The outbox
+  dispatcher is therefore one job per tenant, woken by the same transaction that wrote the event
+  and rescheduled by each round rather than completed ([ADR-0007](../adr/ADR-0007-events-outbox-cloudevents.md),
+  `infrastructure/eventbus/OutboxBus.go`). The queue itself is the one table without a policy — a
+  worker has to be able to claim a job before it can know whose it is — and the job names its
+  tenant, so the transaction that runs it is as bounded as a request.
 
 ### 2.2 Defence in depth
 
