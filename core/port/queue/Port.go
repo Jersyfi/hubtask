@@ -74,6 +74,13 @@ type Job struct {
 	// differently on a retry - a gentler timeout, a smaller batch - reads it here.
 	Attempts    int
 	MaxAttempts int
+	// Lease is when this claim expires, and it is also the token that proves the claim. Every
+	// statement that ends the attempt names it, so a worker that fell so far behind that somebody
+	// else took the job over changes nothing and rolls back instead of applying its work twice.
+	//
+	// It is on the job rather than kept by the runner because the fence is only worth anything if
+	// it cannot be forgotten: there is no way to call Complete without it.
+	Lease time.Time
 }
 
 // LastAttempt reports whether a failure now is final. The runner asks it to decide between a
@@ -117,7 +124,7 @@ type Lease struct {
 
 // Failure is a job that did not work out.
 type Failure struct {
-	JobID shared.ID
+	Job Job
 	// Code is why, machine readable: a detail code, never a sentence (rule 8) and never anything
 	// the failing operation was working on (rule 10). It is what an operator sees on a dead
 	// letter, so it has to be enough to act on and nothing more.
@@ -149,12 +156,13 @@ type Queue interface {
 	// each other (ADR-0008).
 	Claim(ctx context.Context, lease Lease) ([]Job, error)
 
-	// Complete finishes a job for good. Called in the same transaction as the handler's effect.
-	Complete(ctx context.Context, jobID shared.ID) error
+	// Complete finishes a job for good. Called in the same transaction as the handler's effect,
+	// and refused when the job's lease no longer holds.
+	Complete(ctx context.Context, job Job) error
 
 	// Repeat returns a job to the queue for another round at runAt, with its attempt count
 	// cleared: a poller's next round is not a retry of the last one.
-	Repeat(ctx context.Context, jobID shared.ID, runAt time.Time) error
+	Repeat(ctx context.Context, job Job, runAt time.Time) error
 
 	// Fail records an attempt that did not work: back to the queue when there is a retry left,
 	// to the dead letter when there is not. It runs in a transaction of its own, because the
