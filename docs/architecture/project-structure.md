@@ -145,7 +145,7 @@ hubtask/
 │   ├── resilience/                 # RT-1…RT-12 (dependency failure, process death, overload, chaos)
 │   └── fixtures/
 ├── docs/                           # arc42, ADRs, roadmap (this repository)
-├── tools/                          # generate.go, lint configuration
+├── tools/                          # checkdocs/ (make gate-docs), licenses.md.tpl (make licenses)
 ├── .github/workflows/              # CI/CD (ADR-0022, docs/architecture/ci-cd.md)
 ├── go.mod                          # module github.com/Jersyfi/hubtask
 ├── Makefile
