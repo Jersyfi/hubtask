@@ -1,0 +1,24 @@
+{{/*
+For a cluster running the Prometheus operator. Off by default, because the object's kind does not
+exist without it and a chart that assumes a CRD fails to install where it is missing.
+
+It selects the headless service, which spans every role: the queue depth, the outbox lag and the
+dead letter counters live in the worker and the scheduler, not in the API (ADR-0008).
+*/}}
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "hubtask.fullname" . }}
+  labels: {{- include "hubtask.labels" (dict "root" .) | nindent 4 }}
+  {{- with .Values.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels: {{- include "hubtask.selectorLabels" (dict "root" .) | nindent 6 }}
+  endpoints:
+    - port: ops
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+{{- end }}

@@ -340,6 +340,30 @@ func TestAContradictoryConfigurationDoesNotStart(t *testing.T) {
 	}
 }
 
+// A shutdown stops the claiming, not the work. The job that was already claimed runs to its own
+// deadline and is completed, because the alternative is a transaction rolled back at the moment a
+// pod is replaced - work that is not lost, but is done twice for no reason (deployment.md §5).
+func TestAClaimedJobIsFinishedEvenWhenTheLoopIsShuttingDown(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	jobs := newQueue()
+	var ran bool
+	handler := handlerFunc(func(jobCtx context.Context, _ queue.Job) (queue.Result, error) {
+		ran = jobCtx.Err() == nil
+		return queue.Result{}, nil
+	})
+
+	runner(jobs, &unitOfWork{}, handler, nil).execute(ctx, job(1))
+
+	if !ran {
+		t.Error("the handler was handed a context that had already ended")
+	}
+	if len(jobs.completed) != 1 {
+		t.Errorf("completed = %v, want the claimed job to have been finished", jobs.completed)
+	}
+}
+
 // The loop ends when its context does. A worker that kept claiming through a shutdown would take
 // work it cannot finish before the grace period runs out.
 func TestTheLoopStopsWithItsContext(t *testing.T) {

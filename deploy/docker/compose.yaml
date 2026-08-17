@@ -20,7 +20,7 @@ services:
     # Not published externally: the database is not a public interface.
 
   migrate:
-    image: ${HUBTASK_IMAGE:-ghcr.io/Jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
+    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
     entrypoint: ["/usr/local/bin/hubtask-migrate", "up"]
     environment:
       HUBTASK_DB_DSN: postgres://${POSTGRES_USER:-hubtask}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
@@ -30,7 +30,7 @@ services:
     restart: "no"          # the migration runs once, not continuously (ADR-0016)
 
   app:
-    image: ${HUBTASK_IMAGE:-ghcr.io/Jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
+    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
     restart: unless-stopped
     environment:
       HUBTASK_ROLES: api,worker,scheduler,automation
@@ -47,6 +47,11 @@ services:
       - backups:/var/lib/hubtask/backups
     ports:
       - "${HUBTASK_PORT:-8080}:8080"
+      # The operations port on loopback only. It carries the metrics and the health report, which
+      # say what runs, how much of it and how slowly - not something to publish
+      # (observability-reliability.md §3.2). Bound here so that `curl localhost:9090/readyz` and a
+      # Prometheus on the same host work without opening anything to the network.
+      - "127.0.0.1:${HUBTASK_OPS_PORT:-9090}:9090"
     depends_on:
       db:
         condition: service_healthy

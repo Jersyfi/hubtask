@@ -26,6 +26,13 @@ jobs:
         with:
           go-version: "1.25"
 
+      - name: The image name in lower case
+        # A Docker reference must be lower case, and github.repository keeps the owner's spelling.
+        # The push failed on that with an error about the repository name, not about the case.
+        run: |
+          echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+          echo "OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
       - name: Run the gates again
         run: make tools && make verify
 
@@ -49,8 +56,8 @@ jobs:
           provenance: mode=max
           sbom: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            ghcr.io/${{ env.IMAGE_NAME }}:latest
           build-args: |
             VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}
@@ -58,25 +65,25 @@ jobs:
       - name: Produce the SBOM (CycloneDX)
         uses: anchore/sbom-action@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0 # v0.17.4
         with:
-          image: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          image: ghcr.io/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           format: cyclonedx-json
           output-file: sbom.cdx.json
 
       - uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
       - name: Sign the image (keyless)
-        run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+        run: cosign sign --yes ghcr.io/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
 
       - name: Provenance-Attestation
         uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6f3abbf17002c # v1.4.3
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ghcr.io/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
       - name: Package the Helm chart
         run: |
           helm package k8s --version "${GITHUB_REF_NAME#v}" --app-version "${GITHUB_REF_NAME#v}" -d dist/
-          helm push dist/*.tgz "oci://ghcr.io/${{ github.repository_owner }}/charts"
+          helm push dist/*.tgz "oci://ghcr.io/${{ env.OWNER }}/charts"
 
       - name: GitHub Release
         uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8

@@ -229,3 +229,37 @@ func TestTheMigrationRunsAgainstAnExistingDatabase(t *testing.T) {
 		t.Errorf("%d tables lost their row level security in the second run", unprotected)
 	}
 }
+
+// The migrator the image ships is a different program from the goose binary this harness uses to
+// prepare the database, and it is the one a self-hoster and every Kubernetes rollout run. It has
+// to agree with the harness about what "migrated" means - and it has to be safe to run against a
+// database that is already there, because a pre-upgrade hook runs on every deploy.
+func TestTheShippedMigratorAppliesNothingToAMigratedDatabase(t *testing.T) {
+	ctx := context.Background()
+	db := testDatabase(t)
+	admin := adminPool(ctx, t)
+
+	var before int64
+	if err := admin.QueryRow(ctx, `SELECT max(version_id) FROM goose_db_version`).Scan(&before); err != nil {
+		t.Fatalf("reading the ledger: %v", err)
+	}
+
+	root, err := repositoryRoot()
+	if err != nil {
+		t.Fatalf("repository root: %v", err)
+	}
+	cmd := exec.CommandContext(ctx, "go", "run", "./cmd/migrate", "up")
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "HUBTASK_DB_DSN="+db.adminDSN)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("the shipped migrator failed: %v: %s", err, out)
+	}
+
+	var after int64
+	if err := admin.QueryRow(ctx, `SELECT max(version_id) FROM goose_db_version`).Scan(&after); err != nil {
+		t.Fatalf("reading the ledger: %v", err)
+	}
+	if after != before {
+		t.Errorf("the migrator moved the schema from %d to %d against an already migrated database", before, after)
+	}
+}

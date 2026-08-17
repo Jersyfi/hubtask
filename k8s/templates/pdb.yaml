@@ -1,0 +1,26 @@
+{{/*
+A PodDisruptionBudget per role.
+
+It is what stops a node drain from taking the last API pod while the rollout is still waiting for
+its replacement to be ready. One per role rather than one for everything: a budget that counted
+scheduler pods towards the API's availability would be satisfied by pods that serve no requests.
+
+The scheduler gets one too, and it means something different there: two replicas of which one
+leads, so the budget keeps the standby alive rather than the leader (ADR-0008).
+*/}}
+{{- if .Values.podDisruptionBudget.enabled }}
+{{- range $role, $spec := .Values.roles }}
+{{- if and $spec.enabled (gt (int $spec.replicas) 1) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "hubtask.fullname" $ }}-{{ $role }}
+  labels: {{- include "hubtask.labels" (dict "root" $ "role" $role) | nindent 4 }}
+spec:
+  minAvailable: {{ $.Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels: {{- include "hubtask.selectorLabels" (dict "root" $ "role" $role) | nindent 6 }}
+{{- end }}
+{{- end }}
+{{- end }}

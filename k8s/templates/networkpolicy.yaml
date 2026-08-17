@@ -1,0 +1,64 @@
+{{/*
+What may reach these pods, and what they may reach.
+
+Ingress is the two ports that exist, and only those: the interactive port for whatever fronts the
+API, the operations port for the scraper. Everything else about a pod - the database connection,
+the internal state - is not reachable from the network at all.
+
+Egress is where this policy earns its place. Hubtask calls addresses tenants choose: webhook
+targets, backup targets, OIDC issuers, AI providers. The application refuses private ranges by
+itself (T-07, infrastructure/httpclient), and this is the second line under it - a defence that
+holds even if that code is wrong. The link-local range is excluded by name, because 169.254.169.254
+is a cloud provider's credential endpoint and an SSRF that reaches it is not a bug but a breach.
+
+An operator with a stricter idea names allowedEgressCIDRs, and then those are the only destinations
+left besides DNS.
+*/}}
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "hubtask.fullname" . }}
+  labels: {{- include "hubtask.labels" (dict "root" .) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "hubtask.selectorLabels" (dict "root" .) | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        {{- with .Values.networkPolicy.ingressFrom }}
+        {{- toYaml . | nindent 8 }}
+        {{- else }}
+        # Empty means "from anywhere the cluster allows". Narrowing it needs to know where the
+        # ingress controller and the scraper live, which is the operator's knowledge, not a
+        # default (see values.yaml).
+        []
+        {{- end }}
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 9090
+          protocol: TCP
+  egress:
+    # DNS first, or nothing else resolves - including the database host name.
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    {{- if .Values.networkPolicy.allowedEgressCIDRs }}
+    - to:
+        {{- range .Values.networkPolicy.allowedEgressCIDRs }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+        {{- end }}
+    {{- else }}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              # The cloud metadata endpoint and the rest of link-local. Reaching it from a request
+              # a tenant influenced is the classic way credentials leave a cluster.
+              - 169.254.0.0/16
+    {{- end }}
+{{- end }}

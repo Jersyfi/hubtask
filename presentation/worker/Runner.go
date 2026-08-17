@@ -150,7 +150,11 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 	}
 
 	started := r.Clock.Now()
-	jobCtx, cancel := context.WithTimeout(ctx, r.JobTimeout)
+	// The job's deadline is its own, not the loop's. A shutdown stops the claiming, and what has
+	// already been claimed is finished rather than cut in half - which is what the pod's grace
+	// period is sized for (deployment.md §5). The deadline still bounds it, so a handler that
+	// ignores its context cannot hold the shutdown open indefinitely.
+	jobCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), r.JobTimeout)
 	defer cancel()
 
 	err := r.UnitOfWork.Within(jobCtx, scopeOf(job), func(txCtx context.Context) error {

@@ -41,6 +41,11 @@ type Scheduler struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	Signals    SchedulerSignals
+	// Kinds are the job kinds this installation knows. They are published at zero when the queue
+	// holds none of them, because a gauge that has never been written has no series - and an
+	// alert on a backlog that never appears is an alert that reads "no data" and is believed
+	// (observability-reliability.md §4, alert A-06). The same reasoning seeds the panic counter.
+	Kinds []queue.Kind
 
 	// TickInterval is how often the leader looks at the clock. It is also how quickly a standby
 	// notices that the leader is gone, because a standby tries the lock on every tick of its own.
@@ -140,8 +145,17 @@ func (s Scheduler) sampleQueueDepth(ctx context.Context) {
 		return
 	}
 
+	measured := map[queue.Kind]bool{}
 	for _, depth := range depths {
+		measured[depth.Kind] = true
 		s.Signals.QueueDepth(ctx, depth.Kind.String(), int64(depth.Pending))
+	}
+	// A kind with nothing waiting is not absent from the queue - it is empty, and that is the
+	// state an operator most wants to be able to see.
+	for _, kind := range s.Kinds {
+		if !measured[kind] {
+			s.Signals.QueueDepth(ctx, kind.String(), 0)
+		}
 	}
 }
 
