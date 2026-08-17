@@ -79,7 +79,8 @@ generate:
 	$(GO) generate ./...
 	$(call require_tool,oapi-codegen)
 	$(TOOLS_DIR)/oapi-codegen --config api/oapi-codegen.yaml api/openapi.yaml
-	@# sqlc gets wired in here with the first query file
+	$(call require_tool,sqlc)
+	$(TOOLS_DIR)/sqlc -f db/sqlc.yaml generate
 
 ## build: Build the server, the migrator and the CLI
 # cmd/migrate arrives with A-03 and cmd/hubctl later; until then their directories are empty and
