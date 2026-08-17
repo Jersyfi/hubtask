@@ -348,6 +348,14 @@ func Selftest(n int) int {
 	return -n
 }'
 
+header "Licence headers (make gate-architecture)"
+
+expect_gate_failure "a source file without its licence header" gate-architecture core/domain \
+'package selftest
+
+// Selftest is a file nobody gave a licence.
+func Selftest() {}'
+
 header "Documentation (make gate-docs)"
 
 # The documentation gate does not take a Go package, so it gets a probe of its own: a document
