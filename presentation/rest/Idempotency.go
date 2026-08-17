@@ -84,6 +84,13 @@ func (i Idempotent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = io.NopCloser(bytes.NewReader(body))
 
 	_, endpoint := i.Routes.Handler(r)
+	if endpoint == "" {
+		// The route matched nothing, so there is no operation to make idempotent. Reserving a key
+		// against an empty endpoint would leave a record for a request that never ran, and the
+		// client's next attempt at a real route would collide with it. The router answers the 404.
+		i.Next.ServeHTTP(w, r)
+		return
+	}
 	record := repository.Key{Key: key, Endpoint: endpoint}
 
 	attempt, err := i.Guard.Begin(r.Context(), actor, record, requestHash(r.Method, endpoint, body))

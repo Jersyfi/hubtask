@@ -270,3 +270,22 @@ func TestAnOversizedAnswerIsNotStored(t *testing.T) {
 		t.Errorf("stored status %d", g.gotStatus)
 	}
 }
+
+// A key sent to a path that matches no route must not reserve anything: the record would name an
+// empty operation, and the client's next attempt at a real route would collide with it.
+func TestAKeyOnAnUnknownRouteReservesNothing(t *testing.T) {
+	g := &guard{}
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, APIBasePath+"/nothing-here",
+		strings.NewReader("{}"))
+	r.Header.Set(IdempotencyKeyHeader, idempotencyKey)
+	actor := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenantID}
+
+	response := serveIdempotent(t, g, r.WithContext(appshared.ContextWithActor(r.Context(), actor)), created)
+
+	if g.beginCalls != 0 {
+		t.Error("a key was reserved against an unknown route")
+	}
+	if response.Code != http.StatusNotFound {
+		t.Errorf("status %d, want the router's 404", response.Code)
+	}
+}

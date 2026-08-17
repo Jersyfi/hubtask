@@ -68,6 +68,13 @@ func (s Secured) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	header.Set("Permissions-Policy", permissionsPolicy)
 	header.Set("Server", serverName)
 
+	// Vary goes on before the allowlist is consulted, not after. An answer that differs by origin
+	// differs whether or not this particular origin was allowed, and a cache told only about the
+	// allowed case would happily serve a refusal to somebody on the list.
+	if len(s.CORS.AllowedOrigins) > 0 && !s.CORS.AllowsAnyOrigin() {
+		header.Add("Vary", "Origin")
+	}
+
 	origin := r.Header.Get("Origin")
 	allowed := origin != "" && s.originAllowed(origin)
 	if allowed {
@@ -99,9 +106,9 @@ func (s Secured) writeCORSHeaders(header http.Header, origin string) {
 	} else {
 		// The origin is echoed rather than the list returned, which is what the specification
 		// requires for more than one allowed origin - and it is why Vary matters: a cache that
-		// ignored it would hand one origin's answer to another.
+		// ignored it would hand one origin's answer to another. It is set by the caller, before
+		// the allowlist decides anything.
 		header.Set("Access-Control-Allow-Origin", origin)
-		header.Add("Vary", "Origin")
 	}
 	header.Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
 	header.Set("Access-Control-Expose-Headers", corsExposedHeaders)

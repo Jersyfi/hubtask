@@ -177,3 +177,33 @@ func TestTheWildcardAllowsEveryOrigin(t *testing.T) {
 		t.Errorf("Access-Control-Allow-Origin = %q", got)
 	}
 }
+
+// Vary belongs on the answer whether or not this particular origin was allowed: a cache told only
+// about the allowed case would serve a refusal to somebody on the list.
+func TestVaryIsSetEvenForAnOriginThatIsNotAllowed(t *testing.T) {
+	allowlist := env.CORSConfig{AllowedOrigins: []string{"https://app.example.com"}}
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/meta/capabilities", nil)
+	request.Header.Set("Origin", "https://evil.test")
+
+	response := secured(t, allowlist, request)
+
+	if got := response.Header().Get("Vary"); got != "Origin" {
+		t.Errorf("Vary = %q for a refused origin", got)
+	}
+	if got := response.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Errorf("Access-Control-Allow-Origin = %q", got)
+	}
+}
+
+// The wildcard answer does not vary by origin, so it must not claim to.
+func TestTheWildcardDoesNotVaryByOrigin(t *testing.T) {
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/meta/capabilities", nil)
+	request.Header.Set("Origin", "https://anything.test")
+
+	response := secured(t, env.CORSConfig{AllowedOrigins: []string{env.CORSWildcard}}, request)
+
+	if got := response.Header().Get("Vary"); got != "" {
+		t.Errorf("Vary = %q with the wildcard", got)
+	}
+}
