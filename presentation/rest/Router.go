@@ -158,3 +158,40 @@ func actionSegment(path string) string {
 	}
 	return path[:slash+1] + last[:colon] + "/" + last[colon:]
 }
+
+// Mounted serves one path that the specification does not describe, and leaves everything else to
+// the router that it does.
+//
+// There is exactly one such path today: /mcp. MCP is not REST - it is JSON-RPC over one endpoint
+// (ai-first.md §1.1) - so it has no place in api/openapi.yaml, and registering it on the Mux
+// would put a route into the contract test that the contract does not contain. Mounting it here
+// keeps both true: the specification still describes every REST route, and the MCP endpoint still
+// travels through the same middleware, so it is authenticated, rate limited and observed like
+// everything else.
+type Mounted struct {
+	// Router is the specification's routes.
+	Router Router
+	// Path is the mounted path, matched exactly.
+	Path string
+	// Mount answers it.
+	Mount http.Handler
+}
+
+var _ Router = Mounted{}
+
+// Handler resolves the request, returning the mounted path as its own route template so that a
+// metric label and a span name exist for it too (observability-reliability.md §3.2).
+func (m Mounted) Handler(r *http.Request) (http.Handler, string) {
+	if r.URL.Path == m.Path {
+		return m.Mount, m.Path
+	}
+	return m.Router.Handler(r)
+}
+
+func (m Mounted) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == m.Path {
+		m.Mount.ServeHTTP(w, r)
+		return
+	}
+	m.Router.ServeHTTP(w, r)
+}

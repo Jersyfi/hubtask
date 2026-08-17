@@ -11,6 +11,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -78,4 +80,26 @@ func ResultClass(err error) string {
 		return ResultOK
 	}
 	return strings.ToLower(string(shared.AsError(err).Category))
+}
+
+// Registry returns the middleware the use case catalogue is built with.
+//
+// This is what makes gate RT-12 structural rather than a rule people remember: the composition
+// root passes it to usecase.NewRegistry, every entry's handler is wrapped on the way in, and
+// there is then no path to a use case that produces neither a metric nor a span - whether the
+// call arrived through REST, through MCP, or from an automation rule.
+func (o *Observer) Registry() usecase.Middleware {
+	return func(descriptor usecase.Descriptor, next usecase.Handler) usecase.Handler {
+		return usecase.HandlerFunc(func(
+			ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+		) (usecase.Output, error) {
+			var out usecase.Output
+			err := o.UseCase(ctx, descriptor.Name, func(ctx context.Context) error {
+				var err error
+				out, err = next.Invoke(ctx, actor, in)
+				return err
+			})
+			return out, err
+		})
+	}
 }

@@ -64,6 +64,9 @@ func (pending) ListContainers(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// CreateContainer is overridden by RestController. It stays here because the compile-time
+// assertion above is on `pending` itself: the set has to be complete, and an operation that lands
+// is one this file no longer answers rather than one it stops declaring.
 func (pending) CreateContainer(w http.ResponseWriter, r *http.Request, _ openapi.CreateContainerParams) {
 	notAvailable(w, r)
 }

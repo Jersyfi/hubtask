@@ -68,13 +68,17 @@ expression.
 
 ### 1.3 Actions
 
-Every action is an adapter over a use case — the list grows automatically with the catalogue:
+Every action is an adapter over a use case — the list grows automatically with the catalogue. The
+kind is the use case name in `SCREAMING_SNAKE_CASE`, derived rather than declared
+(`core/application/usecase.Descriptor`), so `CreateContainer` is `CREATE_CONTAINER` and a new use
+case becomes an action without anybody editing a list. The groups below are the shape of the
+catalogue, not a second register of it:
 
 | Group | Actions |
 |---|---|
 | Items | `CREATE_ITEM`, `UPDATE_FIELDS`, `SET_DUE_DATE`, `SHIFT_DUE_DATE` (`+P3D`), `COMPLETE`, `REOPEN`, `MOVE_TO_BUCKET`, `MOVE_TO_PARENT`, `REORDER`, `DUPLICATE`, `ARCHIVE`, `TRASH`, `RESTORE`, `SET_COVER`, `SET_CUSTOM_FIELD` |
 | Assignment | `ASSIGN` (`FIXED`/`RANDOM`/`ROUND_ROBIN`/`LEAST_LOADED`), `UNASSIGN`, `ADD_MEMBER`, `REMOVE_MEMBER` |
-| Structure | `ADD_LABEL`, `REMOVE_LABEL`, `CREATE_BUCKET`, `CREATE_COLLECTION` |
+| Structure | `ADD_LABEL`, `REMOVE_LABEL`, `CREATE_BUCKET`, `CREATE_CONTAINER` (hub or collection, per the `type` parameter) |
 | Content | `ADD_COMMENT`, `ADD_ATTACHMENT_FROM_URL` |
 | Templates | `INSTANTIATE_TEMPLATE` |
 | Series | `SET_RECURRENCE`, `SKIP_OCCURRENCE` |

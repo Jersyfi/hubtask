@@ -16,4 +16,8 @@ regexes = [
   # until commit da70edc replaced it with an assembled value; the scan reads the history, so the
   # entry stays for as long as the commit does.
   '''0123456789abcdef0123456789abcdef''',
+  # The digits of a rank key, core/domain/service/Ordering.go. Base 62 in ASCII order is what
+  # makes two keys comparable as strings; to an entropy check it reads like a generated token,
+  # because it contains every character one would be built from.
+  '''0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz''',
 ]

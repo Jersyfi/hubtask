@@ -52,6 +52,8 @@
   "config.egress_private_networks_allowed": "Outbound calls to private networks are allowed. A webhook target can reach services inside your network.",
   "config.smtp_without_tls": "SMTP to {host} is configured without TLS. Credentials travel unencrypted.",
 
+  "request.body_malformed": "The request body is not valid JSON.",
+  "request.body_missing": "This operation needs a request body.",
   "request.body_too_large": "The request body may be at most {limit_bytes} bytes.",
   "access.credential_required": "This operation needs you to be signed in.",
   "access.insufficient_scope": "The token used is not allowed to do this. It would need the scope {scope}.",
@@ -64,12 +66,62 @@
   "access.token_revoked": "That access token has been revoked.",
   "access.token_tenant_missing": "An access token has to belong to a workspace.",
   "access.token_secret_short": "An access token needs its full length. Create a new one.",
+  "access.not_permitted": "Your role in this workspace does not allow that ({permission}).",
   "access.account_not_active": "This account cannot be used at the moment. Its status is {status}.",
 
   "idempotency.key_malformed": "The Idempotency-Key header has to be a UUID.",
   "idempotency.key_reused": "This Idempotency-Key was already used for a different request. Use a new one.",
   "idempotency.in_progress": "An identical request is still running. Try again in a moment.",
   "idempotency.body_unreadable": "The request body could not be read to the end.",
+
+  "containers.type_unknown": "{value} is not a kind of container. Use HUB or COLLECTION.",
+  "containers.name_empty": "A hub or collection needs a name.",
+  "containers.name_too_long": "The name may be at most {maximum} characters long.",
+  "containers.name_malformed": "The name has to fit on one line.",
+  "containers.hub_has_no_parent": "A hub is the top level and sits in nothing.",
+  "containers.collection_needs_parent": "A collection has to sit in a hub.",
+  "containers.parent_type_invalid": "A {type} cannot sit in a {parent_type}.",
+  "containers.not_found": "That hub or collection does not exist.",
+  "containers.name_taken": "A hub or collection called {name} already exists here.",
+  "containers.parent_not_found": "That hub does not exist.",
+  "containers.parent_archived": "That hub is archived. Unarchive it before adding anything to it.",
+  "containers.parent_trashed": "That hub is in the trash.",
+  "containers.identity_incomplete": "This installation is misconfigured and could not create that entry.",
+
+  "events.payload_unserialisable": "This installation could not announce that change.",
+  "events.envelope_incomplete": "This installation could not announce that change.",
+  "events.type_unknown": "This installation could not announce that change.",
+  "events.causation_too_deep": "This change was triggered by a chain of automations that goes too deep. Hubtask stopped it after {maximum} steps.",
+
+  "shared.id_malformed": "{value} is not a valid identifier.",
+
+  "usecase.input_invalid": "The request contains invalid values.",
+  "usecase.field_required": "This field is required.",
+  "usecase.field_unknown": "This field does not exist on this operation.",
+  "usecase.field_type_invalid": "This field has the wrong type.",
+  "usecase.field_not_in_enum": "This field accepts one of: {allowed}.",
+  "usecase.unknown": "This installation knows no operation called {use_case}.",
+  "usecase.registration_incomplete": "This installation is misconfigured: the operation {use_case} is registered without {missing}.",
+  "usecase.duplicate_registration": "This installation is misconfigured: the operation {use_case} is registered twice.",
+
+  "automation.run_as_missing": "This rule has no account to run as. Set one before enabling it.",
+  "automation.action_unknown": "This installation has no automation action called {action}.",
+
+  "audit.tenant_mismatch": "This installation could not record that action and therefore did not carry it out.",
+  "audit.entry_incomplete": "This installation could not record that action and therefore did not carry it out.",
+  "audit.entry_unserialisable": "This installation could not record that action and therefore did not carry it out.",
+  "audit.actor_kind_invalid": "This installation could not record that action and therefore did not carry it out.",
+
+  "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
+  "sync.change_without_clock": "This installation could not record that change for offline devices.",
+  "sync.hlc_malformed": "{value} is not a valid change timestamp.",
+  "sync.hlc_incomplete": "This installation could not stamp that change.",
+  "sync.hlc_device_malformed": "This installation could not stamp that change.",
+  "sync.hlc_counter_exhausted": "This installation could not stamp that change.",
+
+  "ordering.bounds_invalid": "This installation could not work out where to put that entry.",
+  "ordering.key_malformed": "This installation could not work out where to put that entry.",
+  "ordering.space_exhausted": "There is no room left above the first entry in this list. Sort it once, then try again.",
 
   "rest.use_case_not_wired": "This installation is misconfigured and cannot answer that request.",
 

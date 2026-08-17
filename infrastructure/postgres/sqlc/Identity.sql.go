@@ -20,6 +20,7 @@ SELECT
   t.expires_at,
   t.revoked_at,
   t.last_used_at,
+  a.display_name AS account_display_name,
   a.kind     AS account_kind,
   a.status   AS account_status,
   a.locale   AS account_locale,
@@ -34,19 +35,20 @@ WHERE t.token_hash = $1
 `
 
 type FindAccessTokenByHashRow struct {
-	ID              pgtype.UUID
-	TenantID        pgtype.UUID
-	AccountID       pgtype.UUID
-	Scopes          []string
-	ExpiresAt       pgtype.Timestamptz
-	RevokedAt       pgtype.Timestamptz
-	LastUsedAt      pgtype.Timestamptz
-	AccountKind     AccountKind
-	AccountStatus   AccountStatus
-	AccountLocale   *string
-	AccountTimeZone *string
-	DefaultLocale   string
-	DefaultTimeZone string
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	AccountID          pgtype.UUID
+	Scopes             []string
+	ExpiresAt          pgtype.Timestamptz
+	RevokedAt          pgtype.Timestamptz
+	LastUsedAt         pgtype.Timestamptz
+	AccountDisplayName string
+	AccountKind        AccountKind
+	AccountStatus      AccountStatus
+	AccountLocale      *string
+	AccountTimeZone    *string
+	DefaultLocale      string
+	DefaultTimeZone    string
 }
 
 func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (FindAccessTokenByHashRow, error) {
@@ -60,6 +62,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.LastUsedAt,
+		&i.AccountDisplayName,
 		&i.AccountKind,
 		&i.AccountStatus,
 		&i.AccountLocale,
@@ -68,6 +71,58 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 		&i.DefaultTimeZone,
 	)
 	return i, err
+}
+
+const membershipsAlongPath = `-- name: MembershipsAlongPath :many
+SELECT m.scope_type, m.scope_id, m.role
+FROM membership m
+WHERE (
+    m.account_id = $1
+    OR m.group_id IN (
+      SELECT group_id FROM account_group_member WHERE account_id = $1
+    )
+  )
+  AND (m.scope_type = 'TENANT' OR m.scope_id = ANY($2::uuid[]))
+`
+
+type MembershipsAlongPathParams struct {
+	AccountID pgtype.UUID
+	ScopeIds  []pgtype.UUID
+}
+
+type MembershipsAlongPathRow struct {
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	Role      MembershipRole
+}
+
+// What the account holds that could apply to this path, directly or through one of its groups.
+//
+// Bounded by the path rather than reading everything the account holds: a permission check runs
+// on every write, and an account in a large tenant may hold hundreds of memberships. It may be
+// generous - a tenant-wide membership always applies, and the resolution ignores whatever is not
+// on the path - but it must not be unbounded.
+//
+// Whether the right is held directly or through a group is not distinguished in the result. The
+// question is what the account may do, and a right held through a group is not a lesser right.
+func (q *Queries) MembershipsAlongPath(ctx context.Context, arg MembershipsAlongPathParams) ([]MembershipsAlongPathRow, error) {
+	rows, err := q.db.Query(ctx, membershipsAlongPath, arg.AccountID, arg.ScopeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MembershipsAlongPathRow{}
+	for rows.Next() {
+		var i MembershipsAlongPathRow
+		if err := rows.Scan(&i.ScopeType, &i.ScopeID, &i.Role); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const touchAccessToken = `-- name: TouchAccessToken :exec

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
@@ -159,4 +161,65 @@ func TestAPanicInsideAUseCaseStillEndsTheSpan(t *testing.T) {
 			panic("boom")
 		})
 	}()
+}
+
+// Gate RT-12 is not a rule anybody has to remember: a catalogue built with this middleware has no
+// entry that can run without producing its metric and its span.
+func TestEveryCatalogueEntryIsObserved(t *testing.T) {
+	observer := newTestObserver(t, env.Config{})
+
+	ran := false
+	registry, err := usecase.NewRegistry(observer.Registry(), usecase.Descriptor{
+		Name:    "CreateContainer",
+		Summary: "Creates a hub or a collection.",
+		Handler: usecase.HandlerFunc(func(
+			context.Context, appshared.ActorContext, usecase.Input,
+		) (usecase.Output, error) {
+			ran = true
+			return usecase.Output{"id": "0192f000-0000-7000-8000-00000000000b"}, nil
+		}),
+	})
+	if err != nil {
+		t.Fatalf("the catalogue was refused: %v", err)
+	}
+
+	out, err := registry.Invoke(context.Background(), "CreateContainer", appshared.ActorContext{}, nil)
+	if err != nil {
+		t.Fatalf("the invocation failed: %v", err)
+	}
+	if !ran || out["id"] == nil {
+		t.Errorf("the middleware swallowed the call or its result: %v", out)
+	}
+
+	body := scrape(t, observer.metrics)
+	if !strings.Contains(body, `hubtask_usecase_total{result="ok",use_case="CreateContainer"} 1`) {
+		t.Errorf("a catalogue entry ran without producing its metric:\n%s", body)
+	}
+}
+
+// And the failing path counts too, with the category of the error rather than a generic failure.
+func TestAFailingCatalogueEntryIsCountedWithItsCategory(t *testing.T) {
+	observer := newTestObserver(t, env.Config{})
+
+	registry, err := usecase.NewRegistry(observer.Registry(), usecase.Descriptor{
+		Name:    "CreateContainer",
+		Summary: "Creates a hub or a collection.",
+		Handler: usecase.HandlerFunc(func(
+			context.Context, appshared.ActorContext, usecase.Input,
+		) (usecase.Output, error) {
+			return nil, shared.ErrForbidden.WithDetail("access.not_permitted")
+		}),
+	})
+	if err != nil {
+		t.Fatalf("the catalogue was refused: %v", err)
+	}
+
+	if _, err := registry.Invoke(context.Background(), "CreateContainer", appshared.ActorContext{}, nil); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("error %v, want the refusal to reach the caller", err)
+	}
+
+	body := scrape(t, observer.metrics)
+	if !strings.Contains(body, `hubtask_usecase_total{result="forbidden",use_case="CreateContainer"} 1`) {
+		t.Errorf("the refusal was not counted as such:\n%s", body)
+	}
 }
