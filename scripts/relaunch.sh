@@ -68,7 +68,13 @@ if [[ $SKIP_HISTORY -eq 0 && "$NEW_OWNER" != "$OLD_OWNER" ]]; then
   echo "== Rewriting owner $OLD_OWNER -> $NEW_OWNER =="
   # -I skips binary files; the module path lives in imports, so this must be exact.
   grep -rlI --exclude-dir=.git "$OLD_OWNER" . | while IFS= read -r f; do
-    sed -i '' "s|${OLD_OWNER}|${NEW_OWNER}|g" "$f"
+    # In-place editing is the one sed option that is not portable: BSD sed (macOS) requires an
+    # argument after -i, GNU sed (Linux, Git Bash) requires that there is none. Writing beside the
+    # file and copying the content back behaves the same everywhere - and copying rather than
+    # moving keeps the original mode, which matters for the executable bit on the scripts.
+    sed "s|${OLD_OWNER}|${NEW_OWNER}|g" "$f" > "$f.relaunch.tmp" \
+      && cat "$f.relaunch.tmp" > "$f" \
+      && rm -f "$f.relaunch.tmp"
     echo "  $f"
   done
   echo

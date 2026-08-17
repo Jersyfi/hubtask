@@ -17,7 +17,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-LINT=".tools/golangci-lint"
+# The .exe suffix comes from the toolchain, not from guessing: under MSYS uname says MINGW64
+# while go is a native Windows binary. Empty on Linux and macOS.
+LINT=".tools/golangci-lint$(go env GOEXE)"
 SCRATCH="gate_selftest"    # a package directory of this name is created and deleted per check
 FAILURES=0
 CHECKS=0
