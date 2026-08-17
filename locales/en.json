@@ -82,6 +82,10 @@
   "containers.parent_trashed": "That hub is in the trash.",
   "containers.identity_incomplete": "This installation is misconfigured and could not create that entry.",
 
+  "events.envelope_incomplete": "This installation could not announce that change.",
+  "events.type_unknown": "This installation could not announce that change.",
+  "events.causation_too_deep": "This change was triggered by a chain of automations that goes too deep. Hubtask stopped it after {maximum} steps.",
+
   "ordering.bounds_invalid": "This installation could not work out where to put that entry.",
   "ordering.key_malformed": "This installation could not work out where to put that entry.",
   "ordering.space_exhausted": "There is no room left above the first entry in this list. Sort it once, then try again.",
