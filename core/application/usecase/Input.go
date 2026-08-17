@@ -93,6 +93,27 @@ func (in Input) Int(field string) int {
 	return 0
 }
 
+// String returns a field of the result. Outputs are produced by a use case rather than by a
+// client, so an absent field is the zero value rather than an error: what is not there was not
+// set, and every channel maps the result the same way.
+func (out Output) String(field string) string {
+	value, _ := out[field].(string)
+	return value
+}
+
+// Int returns a numeric field of the result.
+func (out Output) Int(field string) int {
+	switch value := out[field].(type) {
+	case int:
+		return value
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	}
+	return 0
+}
+
 // validate checks an input against the declared fields.
 //
 // An unknown field is refused rather than ignored. A client that misspells `parent_id` and gets a

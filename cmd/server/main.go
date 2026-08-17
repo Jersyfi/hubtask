@@ -24,9 +24,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
+	"github.com/Jersyfi/hubtask/core/application/service/work"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
@@ -166,14 +169,51 @@ func run() error {
 		}
 	})
 
+	// The catalogue is built once for the process, not once per channel. Every entry is wrapped
+	// with the observer on the way in, so no use case can run without its metric and its span
+	// (gate RT-12), and REST, MCP and automation then execute the same handlers (arc42 §4).
+	unitOfWork := postgres.NewUnitOfWork(pool)
+	ids := clockadapter.NewUUIDv7(clockadapter.System{})
+	// The device identifier of this process. Two replicas are two devices, which is what breaks a
+	// tie between two changes stamped in the same millisecond (offline-sync.md §4.1).
+	hybrid, err := clockadapter.NewHybridClock(clockadapter.System{}, "server-"+ids.NewID().String())
+	if err != nil {
+		return fmt.Errorf("clock: %w", err)
+	}
+	auditSink := postgres.NewAuditSink(ids)
+
+	useCases, err := usecase.NewRegistry(
+		observability.NewObserver(metrics, tracing).Registry(),
+		work.CreateContainer{
+			Containers: postgres.NewContainerRepository(),
+			Authorizer: access.Service{
+				Memberships: postgres.NewMembershipRepository(),
+				UnitOfWork:  unitOfWork,
+				Audit:       auditSink,
+				Clock:       clockadapter.System{},
+			},
+			Events:     postgres.NewOutbox(),
+			Changes:    postgres.NewChangeLog(),
+			Audit:      auditSink,
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{},
+			IDs:        ids,
+			HLC:        hybrid,
+		}.Descriptor(),
+	)
+	if err != nil {
+		// A use case registered without its audit declaration or its handler stops the process
+		// rather than being discovered later by whoever needed the audit entry (ADR-0015).
+		return fmt.Errorf("use case catalogue: %w", err)
+	}
+
 	var api *http.Server
 	if cfg.HasRole(envport.RoleAPI) {
 		// The routes come from api/openapi.yaml through the generated registration list; nothing
 		// here names a path (ADR-0004). Operations without a use case yet answer 404 - the route
 		// exists because the contract declares it, not because it works.
-		unitOfWork := postgres.NewUnitOfWork(pool)
-
 		controller := rest.NewRestController()
+		controller.UseCases = useCases
 		controller.Capabilities = meta.GetCapabilities{
 			Profiles:   postgres.NewCapabilityProfileRepository(),
 			UnitOfWork: unitOfWork,

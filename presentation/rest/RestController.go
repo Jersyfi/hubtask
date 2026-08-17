@@ -4,9 +4,23 @@
 package rest
 
 import (
+	"context"
+
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
+
+// UseCaseRegistry is the catalogue as this layer needs it: run the operation named, with the
+// actor of the request and the input the body carried.
+//
+// An interface rather than *usecase.Registry so that a controller test needs no wiring, and
+// because this is the whole of what the REST layer is allowed to do with the catalogue - it
+// executes entries, it does not add any.
+type UseCaseRegistry interface {
+	Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error)
+}
 
 // RestController implements the server interface generated from api/openapi.yaml.
 //
@@ -22,6 +36,11 @@ type RestController struct {
 	// Capabilities answers /meta/capabilities. One field per use case as they land; nil means the
 	// operation falls back to the pending answer rather than panicking.
 	Capabilities CapabilityReader
+
+	// UseCases is the catalogue every business operation goes through. One field rather than one
+	// per use case: the operations that arrive from here on are entries in it, not new
+	// dependencies of this controller (arc42 §4).
+	UseCases UseCaseRegistry
 }
 
 func NewRestController() *RestController { return &RestController{} }

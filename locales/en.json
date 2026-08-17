@@ -52,6 +52,8 @@
   "config.egress_private_networks_allowed": "Outbound calls to private networks are allowed. A webhook target can reach services inside your network.",
   "config.smtp_without_tls": "SMTP to {host} is configured without TLS. Credentials travel unencrypted.",
 
+  "request.body_malformed": "The request body is not valid JSON.",
+  "request.body_missing": "This operation needs a request body.",
   "request.body_too_large": "The request body may be at most {limit_bytes} bytes.",
   "access.credential_required": "This operation needs you to be signed in.",
   "access.insufficient_scope": "The token used is not allowed to do this. It would need the scope {scope}.",
