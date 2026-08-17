@@ -182,6 +182,9 @@ func run() error {
 		return fmt.Errorf("clock: %w", err)
 	}
 	auditSink := postgres.NewAuditSink(ids)
+	// The queue is wired into the write path before any worker exists: an event carries its own
+	// wake-up, so the dispatcher finds work whether or not this process is the one that runs it.
+	jobs := postgres.NewQueue(ids, clockadapter.System{})
 
 	useCases, err := usecase.NewRegistry(
 		observability.NewObserver(metrics, tracing).Registry(),
@@ -193,7 +196,7 @@ func run() error {
 				Audit:       auditSink,
 				Clock:       clockadapter.System{},
 			},
-			Events:     postgres.NewOutbox(),
+			Events:     postgres.NewOutbox(jobs),
 			Changes:    postgres.NewChangeLog(),
 			Audit:      auditSink,
 			UnitOfWork: unitOfWork,

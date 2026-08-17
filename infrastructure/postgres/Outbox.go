@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/eventbus"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
@@ -26,9 +27,17 @@ import (
 // unreachable webhook target cannot fail a user's request - but the two halves are one adapter
 // because they are one table, and a claim that disagreed with the insert about what a row means
 // would be a bug nobody could see from either side alone.
-type Outbox struct{}
+type Outbox struct {
+	// jobs is the wake-up. ADR-0007 lists an adaptive poll plus a notification as the way a
+	// dispatcher hears about a new event; the queue is that notification here, and it is a row
+	// rather than a LISTEN because it survives a dispatcher that is not running yet.
+	//
+	// It is written in the same transaction as the event, so the two cannot come apart: an event
+	// without a dispatch job would wait for the poll of a job that does not exist.
+	jobs queue.Queue
+}
 
-func NewOutbox() Outbox { return Outbox{} }
+func NewOutbox(jobs queue.Queue) Outbox { return Outbox{jobs: jobs} }
 
 var (
 	_ outbox.Events  = Outbox{}
@@ -90,6 +99,20 @@ func (o Outbox) Append(ctx context.Context, envelope event.Envelope) error {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the outbox event: %w", err))
+	}
+
+	// And the wake-up, in the same transaction. The dedupe key is the tenant, so a request that
+	// writes twenty events leaves one dispatch job; a tenant whose dispatcher is asleep has its
+	// next round pulled forward instead of a second job appearing.
+	if err := o.jobs.Enqueue(ctx, queue.Request{
+		Kind:      queue.KindOutboxDispatch,
+		TenantID:  envelope.TenantID,
+		DedupeKey: envelope.TenantID.String(),
+	}); err != nil {
+		// The event and its wake-up stand or fall together. An event whose dispatcher was never
+		// told is one that waits for whoever writes the next event in that tenant - which for a
+		// quiet tenant can be a long time, and nothing would say why.
+		return err
 	}
 	return nil
 }
