@@ -204,6 +204,9 @@ var allowedLabels = map[string]bool{
 	"component": true, "key": true,
 	// hubtask_outbound_http_duration_seconds, hubtask_rate_limited_total
 	"target_class": true, "scope": true,
+	// hubtask_job_duration_seconds, hubtask_job_failures_total, hubtask_job_dead_letter_total,
+	// hubtask_job_queue_depth
+	"job_type": true, "attempt_class": true,
 	// hubtask_build_info
 	"version": true, "commit": true, "go_version": true,
 	// Only with HUBTASK_METRICS_TENANT_LABEL, and covered by its own test.
@@ -230,6 +233,12 @@ func exerciseEveryInstrument(m *Metrics) {
 	m.CircuitBreakerState(ctx, "object_storage", 2)
 	m.OutboundHTTP(ctx, "webhook", 0.42)
 	m.RateLimited(ctx, "load_shed")
+	m.JobFinished(ctx, "outbox.dispatch", 0.03)
+	m.JobFailed(ctx, "outbox.dispatch", "retry")
+	m.JobDeadLettered(ctx, "outbox.dispatch")
+	m.QueueDepth(ctx, "outbox.dispatch", 12)
+	m.OutboxLag(ctx, 1.5)
+	m.SchedulerTickLag(ctx, 2)
 }
 
 // The gate for label cardinality: no label may appear that the catalogue does not list. A test
@@ -364,5 +373,48 @@ func TestRateLimitedCountsByScope(t *testing.T) {
 	}
 	if !strings.Contains(body, `scope="bulkhead:automation"`) {
 		t.Errorf("the full compartment was not counted:\n%s", body)
+	}
+}
+
+// The signals of A-08. The names are the ones the alert catalogue and the dashboards use, so they
+// are asserted as strings rather than derived - a renamed metric is a silent dashboard, and a
+// silent dashboard is discovered during the incident it was meant to explain.
+func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+	ctx := context.Background()
+
+	m.JobFinished(ctx, "outbox.dispatch", 0.25)
+	m.JobFailed(ctx, "outbox.dispatch", "retry")
+	m.JobFailed(ctx, "reminder.fire", "final")
+	m.JobDeadLettered(ctx, "reminder.fire")
+	m.QueueDepth(ctx, "outbox.dispatch", 12)
+	m.OutboxLag(ctx, 1.5)
+	m.SchedulerTickLag(ctx, 4)
+
+	body := scrape(t, m)
+	for _, want := range []string{
+		`hubtask_job_failures_total{attempt_class="retry",job_type="outbox.dispatch"} 1`,
+		`hubtask_job_failures_total{attempt_class="final",job_type="reminder.fire"} 1`,
+		`hubtask_job_dead_letter_total{job_type="reminder.fire"} 1`,
+		`hubtask_job_queue_depth{job_type="outbox.dispatch"} 12`,
+		`hubtask_scheduler_tick_lag_seconds 4`,
+		`hubtask_job_duration_seconds_sum{job_type="outbox.dispatch"} 0.25`,
+		`hubtask_outbox_lag_seconds_sum 1.5`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the scrape does not contain %s", want)
+		}
+	}
+}
+
+// SLO-4 is a P99 under thirty seconds, so the histogram needs a boundary there. Without one the
+// percentile is interpolated across whatever bucket happens to span it, and the answer to "are we
+// meeting the objective" is a guess.
+func TestTheOutboxLagBucketsStraddleTheObjective(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+	m.OutboxLag(context.Background(), 1)
+
+	if !strings.Contains(scrape(t, m), `hubtask_outbox_lag_seconds_bucket{le="30"}`) {
+		t.Error("the outbox lag histogram has no boundary at the SLO-4 target of 30 seconds")
 	}
 }

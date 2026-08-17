@@ -41,6 +41,12 @@ type Metrics struct {
 	breakerState      metric.Int64Gauge
 	outboundDuration  metric.Float64Histogram
 	rateLimited       metric.Int64Counter
+	jobDuration       metric.Float64Histogram
+	jobFailures       metric.Int64Counter
+	jobDeadLetters    metric.Int64Counter
+	jobQueueDepth     metric.Int64Gauge
+	outboxLag         metric.Float64Histogram
+	schedulerTickLag  metric.Int64Gauge
 	tenantLabelActive bool
 }
 
@@ -159,6 +165,59 @@ func (m *Metrics) instruments(meter metric.Meter) error {
 		metric.WithDescription("Calls turned away by a limit: a rate limit, a bulkhead, or load shedding."),
 	); err != nil {
 		return fmt.Errorf("rate limit counter: %w", err)
+	}
+	return m.queueInstruments(meter)
+}
+
+// queueInstruments are the signals of the work that happens outside a request (ADR-0008,
+// ADR-0007). They are separate from the block above only for length; the rules are the same, and
+// the label is always the job kind - a closed set written by hand, never an identifier (§3.2).
+func (m *Metrics) queueInstruments(meter metric.Meter) error {
+	var err error
+	if m.jobDuration, err = meter.Float64Histogram(
+		namespace+"_job_duration_seconds",
+		metric.WithDescription("How long a job took, by kind."),
+		metric.WithUnit("s"),
+		// Wider than a request: a job may legitimately take a minute, and the inbound scale would
+		// put everything that matters into its last bucket.
+		metric.WithExplicitBucketBoundaries(0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30, 60, 300),
+	); err != nil {
+		return fmt.Errorf("job duration histogram: %w", err)
+	}
+	if m.jobFailures, err = meter.Int64Counter(
+		namespace+"_job_failures_total",
+		metric.WithDescription("Failed job attempts, by kind and by whether another attempt follows."),
+	); err != nil {
+		return fmt.Errorf("job failure counter: %w", err)
+	}
+	if m.jobDeadLetters, err = meter.Int64Counter(
+		namespace+"_job_dead_letter_total",
+		metric.WithDescription("Jobs that used up their attempts. Every one of these needs a person."),
+	); err != nil {
+		return fmt.Errorf("dead letter counter: %w", err)
+	}
+	if m.jobQueueDepth, err = meter.Int64Gauge(
+		namespace+"_job_queue_depth",
+		metric.WithDescription("Jobs waiting and due, by kind. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("queue depth gauge: %w", err)
+	}
+	if m.outboxLag, err = meter.Float64Histogram(
+		namespace+"_outbox_lag_seconds",
+		metric.WithDescription("Age of an event when it reached its consumers. SLO-4."),
+		metric.WithUnit("s"),
+		// The target is a P99 under thirty seconds, so the buckets are dense below it and coarse
+		// above: past a minute the question is no longer how late but why.
+		metric.WithExplicitBucketBoundaries(0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60, 300),
+	); err != nil {
+		return fmt.Errorf("outbox lag histogram: %w", err)
+	}
+	if m.schedulerTickLag, err = meter.Int64Gauge(
+		namespace+"_scheduler_tick_lag_seconds",
+		metric.WithDescription("How late the scheduler's last tick was against when it was due."),
+		metric.WithUnit("s"),
+	); err != nil {
+		return fmt.Errorf("tick lag gauge: %w", err)
 	}
 	return nil
 }
@@ -281,6 +340,46 @@ func (m *Metrics) OutboundHTTP(ctx context.Context, targetClass string, seconds 
 // compartment. The set is written by hand and stays small - that is what keeps it a label.
 func (m *Metrics) RateLimited(ctx context.Context, scope string) {
 	m.rateLimited.Add(ctx, 1, metric.WithAttributes(attribute.String("scope", scope)))
+}
+
+// JobFinished records a job that ran to the end. kind is the job kind, which is a closed set in
+// core/port/queue - never a tenant, never an identifier.
+func (m *Metrics) JobFinished(ctx context.Context, kind string, seconds float64) {
+	m.jobDuration.Record(ctx, seconds, metric.WithAttributes(attribute.String("job_type", kind)))
+}
+
+// JobFailed records one failed attempt. attemptClass is retry or final, which is the distinction
+// an alert needs: retries are the system working, and a final failure is a person's problem.
+func (m *Metrics) JobFailed(ctx context.Context, kind, attemptClass string) {
+	m.jobFailures.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("job_type", kind),
+		attribute.String("attempt_class", attemptClass),
+	))
+}
+
+// JobDeadLettered counts a job that used up its attempts (alert A-07).
+func (m *Metrics) JobDeadLettered(ctx context.Context, kind string) {
+	m.jobDeadLetters.Add(ctx, 1, metric.WithAttributes(attribute.String("job_type", kind)))
+}
+
+// QueueDepth publishes the backlog of one kind. Only the scheduler leader reports it: the number
+// describes the installation, and one written by every replica would be summed across instances
+// and read as several times the truth.
+func (m *Metrics) QueueDepth(ctx context.Context, kind string, pending int64) {
+	m.jobQueueDepth.Record(ctx, pending, metric.WithAttributes(attribute.String("job_type", kind)))
+}
+
+// OutboxLag records the age of an event at delivery, which is what SLO-4 promises and what alert
+// A-05 watches. Deliberately without a tenant label even when the tenant label is enabled: it is a
+// histogram, and one per tenant multiplies buckets rather than series.
+func (m *Metrics) OutboxLag(ctx context.Context, seconds float64) {
+	m.outboxLag.Record(ctx, seconds)
+}
+
+// SchedulerTickLag publishes how late the last tick was. Seconds as a whole number: the gauge
+// exists to show drift, and a schedule that is off by less than a second is not drifting.
+func (m *Metrics) SchedulerTickLag(ctx context.Context, seconds float64) {
+	m.schedulerTickLag.Record(ctx, int64(seconds))
 }
 
 // ConfigInvalid counts a rejected configuration variable - misconfiguration as a signal rather
