@@ -1,0 +1,24 @@
+# Generation of the REST server from openapi.yaml (ADR-0004).
+#
+# The specification is the source, this file only says what is made of it. Paths are relative to
+# the repository root, because that is where `make generate` runs.
+#
+# What is deliberately not generated:
+#   * client code - the SDKs are generated per release into their own repositories, not into the
+#     server binary (api-guidelines.md §8)
+#   * a strict server - the strict wrapper decides on status codes and serialisation, and this API
+#     answers errors as RFC 9457 problems with a request ID, which is a decision the REST adapter
+#     makes rather than inherits (api-guidelines.md §6)
+#   * the embedded specification - the contract test reads api/openapi.yaml from disk, so a copy
+#     compiled into the binary would only be a second thing to drift
+package: openapi
+output: presentation/openapi/Api.gen.go
+
+generate:
+  models: true
+  std-http-server: true
+
+output-options:
+  # Route templates and operation identifiers are what the metrics, the traces and the contract
+  # test are keyed on. Keeping the specification's own names means no translation table.
+  skip-prune: false

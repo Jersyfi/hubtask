@@ -72,10 +72,14 @@ fmt:
 	@test -x $(TOOLS_DIR)/golangci-lint && $(TOOLS_DIR)/golangci-lint fmt ./... || true
 
 ## generate: Generate code from openapi.yaml and db/queries
+# The specification is the source, the code is the result (ADR-0004, CLAUDE.md rule 11). Running
+# this target must never be a judgement call, which is why gate-quick runs it and fails on a diff.
 .PHONY: generate
 generate:
 	$(GO) generate ./...
-	@# oapi-codegen and sqlc get wired in here from 0.1.0 onwards
+	$(call require_tool,oapi-codegen)
+	$(TOOLS_DIR)/oapi-codegen --config api/oapi-codegen.yaml api/openapi.yaml
+	@# sqlc gets wired in here with the first query file
 
 ## build: Build the server, the migrator and the CLI
 # cmd/migrate arrives with A-03 and cmd/hubctl later; until then their directories are empty and
