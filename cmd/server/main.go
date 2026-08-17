@@ -323,6 +323,11 @@ func run() error {
 		})
 	}
 
+	// The loops this process runs, so that the shutdown can wait for them. Without that the grace
+	// period would protect the request path only, and a pod being replaced would cut a job in
+	// half and leave its lease to expire (deployment.md §5).
+	var background []<-chan struct{}
+
 	// The queue channel. It is wired whatever the roles are, because the pieces are the same;
 	// what the roles decide is which loops run (ADR-0014).
 	backgroundWork := postgres.NewUnitOfWork(backgroundPool)
@@ -361,7 +366,7 @@ func run() error {
 			Lease:        cfg.Queue.Lease(),
 			NextAttempt:  backoff.Delay,
 		}
-		concurrency.Go(ctx, "worker.runner", runner.Run)
+		background = append(background, start(ctx, "worker.runner", runner.Run))
 	}
 
 	if cfg.HasRole(envport.RoleScheduler) {
@@ -375,7 +380,7 @@ func run() error {
 			Signals:      metrics,
 			TickInterval: cfg.Queue.SchedulerTick,
 		}
-		concurrency.Go(ctx, "worker.scheduler", scheduler.Run)
+		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))
 	}
 
 	// TODO(0.1.0): start the automation loop for the automation role.
@@ -426,8 +431,31 @@ func run() error {
 		shutdownErr = errors.Join(shutdownErr, err)
 	}
 
+	// The background loops stopped claiming when the context ended; what they had already claimed
+	// runs to its own deadline. Waiting for it here is what makes terminationGracePeriodSeconds
+	// mean something for jobs rather than only for requests.
+	for _, done := range background {
+		select {
+		case <-done:
+		case <-shutdownCtx.Done():
+			slog.Warn("a background loop did not finish within the grace period")
+		}
+	}
+
 	slog.Info("stopped")
 	return shutdownErr
+}
+
+// start runs a loop and hands back the channel that closes when it has finished. concurrency.Go
+// is the only place a goroutine may be created (rule 5); what it does not offer is a way to wait
+// for one, and a shutdown that cannot wait is a shutdown that only looks graceful.
+func start(ctx context.Context, name string, loop func(context.Context)) <-chan struct{} {
+	done := make(chan struct{})
+	concurrency.Go(ctx, name, func(ctx context.Context) {
+		defer close(done)
+		loop(ctx)
+	})
+	return done
 }
 
 // runsBackgroundWork reports whether this process runs a loop of its own rather than only serving
