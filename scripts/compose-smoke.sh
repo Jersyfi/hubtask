@@ -34,10 +34,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Drawn rather than written down. A literal here would be a credential in the repository even
+# though it protects nothing - and the secret scanner is right not to know the difference (SG-7).
 cat > "$ENV_FILE" <<ENV
 # Throwaway values for a stack that exists for the length of this script.
-POSTGRES_PASSWORD=compose-smoke-not-a-secret
-HUBTASK_SECRET_KEY=compose-smoke-key-long-enough-for-32
+POSTGRES_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
+HUBTASK_SECRET_KEY=$(head -c 32 /dev/urandom | base64)
 HUBTASK_IMAGE=$IMAGE
 HUBTASK_VERSION=$TAG
 HUBTASK_PORT=$HTTP_PORT
