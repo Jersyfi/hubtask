@@ -1,7 +1,16 @@
 # Every CI gate is a make target: the pipeline invokes nothing but make.
 # This keeps each gate reproducible locally (see ADR-0022, docs/architecture/ci-cd.md).
 
+# The recipes are bash, on every platform - but only Unix keeps bash at /bin/bash. On Windows it
+# comes with Git Bash or MSYS2 and is found on PATH, so it is resolved rather than hard-coded.
+# Without this, a native Windows make falls back to cmd.exe and every recipe below is a syntax
+# error. OS=Windows_NT is set by Windows itself and survives into Git Bash.
+ifeq ($(OS),Windows_NT)
+SHELL       := bash.exe
+else
 SHELL       := /bin/bash
+endif
+
 MODULE      := $(shell head -1 go.mod | cut -d' ' -f2)
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "0.0.0-dev")
 COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -13,6 +22,14 @@ LDFLAGS     := -s -w \
 GO          ?= go
 TOOLS_DIR   := .tools
 IMAGE       ?= ghcr.io/Jersyfi/hubtask
+
+# Executables carry .exe on Windows. `go env GOEXE` is the authority: under MSYS, uname reports
+# MINGW64 while the Go toolchain is a native Windows binary, so anything derived from uname gets
+# this wrong. Empty on Linux and macOS, which makes every use below a no-op there.
+GOEXE       := $(shell $(GO) env GOEXE 2>/dev/null)
+LINT        := $(TOOLS_DIR)/golangci-lint$(GOEXE)
+GOOSE       := $(TOOLS_DIR)/goose$(GOEXE)
+GOVULNCHECK := $(TOOLS_DIR)/govulncheck$(GOEXE)
 
 # Every tool is pinned. An unpinned tool version turns a gate into a moving target and is a
 # supply chain decision made by whoever runs make (ADR-0015).
@@ -48,9 +65,10 @@ define go_test
 endef
 
 # require_tool fails loudly instead of quietly skipping: a gate that silently does nothing is
-# worse than no gate at all.
+# worse than no gate at all. It takes the full path, so the caller passes $(LINT) and friends and
+# the .exe suffix is handled in one place.
 define require_tool
-	@test -x $(TOOLS_DIR)/$(1) || { echo "$(1) is missing - run 'make tools'"; exit 1; }
+	@test -x $(1) || { echo "$(1) is missing - run 'make tools'"; exit 1; }
 endef
 
 # ---------------------------------------------------------------- Development
@@ -59,17 +77,24 @@ endef
 .PHONY: tools
 tools:
 	@mkdir -p $(TOOLS_DIR)
-	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
-	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@$(OAPI_CODEGEN_VERSION)
-	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
-	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION)
-	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+	@# Go insists on an absolute GOBIN, in its own notation. Under MSYS (Git Bash, MSYS2) `pwd`
+	@# prints /c/... which a native Windows Go reads as a relative path and silently installs
+	@# somewhere else; `pwd -W` prints C:/... and does not exist elsewhere, hence the fallback.
+	@bin="$$(cd $(TOOLS_DIR) && { pwd -W 2>/dev/null || pwd; })"; \
+		for tool in \
+			github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) \
+			github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@$(OAPI_CODEGEN_VERSION) \
+			github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION) \
+			github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION) \
+			golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION); do \
+			( set -x; GOBIN="$$bin" $(GO) install "$$tool" ) || exit 1; \
+		done
 
 ## fmt: Format the source
 .PHONY: fmt
 fmt:
 	$(GO) fmt ./...
-	@test -x $(TOOLS_DIR)/golangci-lint && $(TOOLS_DIR)/golangci-lint fmt ./... || true
+	@test -x $(LINT) && $(LINT) fmt ./... || true
 
 ## generate: Generate code from openapi.yaml and db/queries
 .PHONY: generate
@@ -87,7 +112,7 @@ build:
 		if [ -z "$$(ls cmd/$$cmd/*.go 2>/dev/null)" ]; then \
 			echo "skipped: cmd/$$cmd has no sources yet"; continue; \
 		fi; \
-		( set -x; $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/$$out ./cmd/$$cmd ) || exit 1; \
+		( set -x; $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/$$out$(GOEXE) ./cmd/$$cmd ) || exit 1; \
 	done
 
 ## run: Start the server locally
@@ -105,12 +130,12 @@ verify: gate-quick gate-unit gate-architecture gate-security
 ## gate-quick: Format, lint, generation without a diff
 .PHONY: gate-quick
 gate-quick:
-	$(call require_tool,golangci-lint)
+	$(call require_tool,$(LINT))
 	@test -z "$$(gofmt -l . | grep -v '^vendor/')" || { echo "gofmt violations:"; gofmt -l .; exit 1; }
-	@diff=$$($(TOOLS_DIR)/golangci-lint fmt --diff ./... 2>&1); \
+	@diff=$$($(LINT) fmt --diff ./... 2>&1); \
 		test -z "$$diff" || { echo "formatting violations - run 'make fmt':"; echo "$$diff"; exit 1; }
 	$(GO) vet ./...
-	$(TOOLS_DIR)/golangci-lint run ./...
+	$(LINT) run ./...
 	@# The comparison is against the state before generating, not against HEAD: a work tree with
 	@# uncommitted changes must still be able to run the gate.
 	@before="$$(git status --porcelain)"; \
@@ -172,8 +197,8 @@ gate-architecture:
 ## gate-security: SG-1..SG-12
 .PHONY: gate-security
 gate-security:
-	$(call require_tool,govulncheck)
-	$(TOOLS_DIR)/govulncheck ./...
+	$(call require_tool,$(GOVULNCHECK))
+	$(GOVULNCHECK) ./...
 	$(call go_test,,./test/security/...,)
 
 ## gate-data: Migrations, retention, backup round trip, sync
@@ -195,7 +220,7 @@ gate-docs:
 ## gate-selftest: Prove that every configured rule actually fails a build
 .PHONY: gate-selftest
 gate-selftest:
-	$(call require_tool,golangci-lint)
+	$(call require_tool,$(LINT))
 	@scripts/gate-selftest.sh
 
 # ------------------------------------------------------------- Database / ops
@@ -208,9 +233,9 @@ db-up:
 ## migrate: Apply the migrations
 .PHONY: migrate
 migrate:
-	$(call require_tool,goose)
+	$(call require_tool,$(GOOSE))
 	@test -n "$$(ls db/migrations/*.sql 2>/dev/null)" || { echo "skipped: no migrations yet"; exit 0; }; \
-		$(TOOLS_DIR)/goose -dir db/migrations postgres "$$HUBTASK_DB_DSN" up
+		$(GOOSE) -dir db/migrations postgres "$$HUBTASK_DB_DSN" up
 
 ## docker-build: Build the container image
 .PHONY: docker-build
