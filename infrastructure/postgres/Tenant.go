@@ -69,6 +69,11 @@ func (u *UnitOfWork) run(
 		// An installation scope has no tenant, so every WITH CHECK would compare against NULL
 		// and every write would be refused by the database anyway. Refusing here makes it a
 		// programming error with a name rather than a confusing policy violation at run time.
+		//
+		// A system scope passes: it sets the same empty tenant context but is allowed to write,
+		// because the one table it exists for has no policy at all (job). For every other table
+		// the database gives it the same refusal this branch describes - the difference is who
+		// says no, and for the job table nobody has to.
 		return shared.ErrInternal.WithDetail("postgres.installation_scope_is_read_only")
 	}
 

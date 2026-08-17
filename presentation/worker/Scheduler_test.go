@@ -1,0 +1,239 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package worker
+
+import (
+	"context"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
+)
+
+// lock stands in for the advisory lock: one holder at a time, and a holder that can be cut off
+// without being asked - which is what a lost connection does to a leader.
+type lock struct {
+	mu     sync.Mutex
+	holder string
+}
+
+func (l *lock) take(name string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.holder != "" {
+		return l.holder == name
+	}
+	l.holder = name
+	return true
+}
+
+func (l *lock) held(name string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.holder == name
+}
+
+func (l *lock) cut() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.holder = ""
+}
+
+// leadership is one instance's view of that lock.
+type leadership struct {
+	lock     *lock
+	name     string
+	released bool
+}
+
+func (l *leadership) Acquire(context.Context) (bool, error) { return l.lock.take(l.name), nil }
+func (l *leadership) Confirm(context.Context) (bool, error) { return l.lock.held(l.name), nil }
+
+func (l *leadership) Release(context.Context) error {
+	l.released = true
+	if l.lock.held(l.name) {
+		l.lock.cut()
+	}
+	return nil
+}
+
+type schedulerSignals struct {
+	depths map[string]int64
+	lags   []float64
+}
+
+func newSchedulerSignals() *schedulerSignals {
+	return &schedulerSignals{depths: map[string]int64{}}
+}
+
+func (s *schedulerSignals) QueueDepth(_ context.Context, kind string, pending int64) {
+	s.depths[kind] = pending
+}
+
+func (s *schedulerSignals) SchedulerTickLag(_ context.Context, seconds float64) {
+	s.lags = append(s.lags, seconds)
+}
+
+type depthQueue struct {
+	queueDouble
+	depths []queue.Depth
+}
+
+func (d *depthQueue) Depth(context.Context) ([]queue.Depth, error) { return d.depths, nil }
+
+func scheduler(l *leadership, jobs queue.Queue, signals SchedulerSignals) Scheduler {
+	return Scheduler{
+		Leadership:   l,
+		Queue:        jobs,
+		UnitOfWork:   &unitOfWork{},
+		Clock:        clock.Fixed(now),
+		Signals:      signals,
+		TickInterval: 10 * time.Second,
+	}
+}
+
+// The acceptance criterion of A-08: two instances, one active. Both tick, and the work happens
+// once - the second one is a standby that costs nothing but a lock attempt.
+func TestOfTwoSchedulersOnlyOneActs(t *testing.T) {
+	contested := &lock{}
+	jobs := &depthQueue{depths: []queue.Depth{{Kind: queue.KindOutboxDispatch, Pending: 4}}}
+
+	firstSignals, secondSignals := newSchedulerSignals(), newSchedulerSignals()
+	first := scheduler(&leadership{lock: contested, name: "a"}, jobs, firstSignals)
+	second := scheduler(&leadership{lock: contested, name: "b"}, jobs, secondSignals)
+
+	leadingFirst := first.tick(t.Context(), false, now)
+	leadingSecond := second.tick(t.Context(), false, now)
+
+	if !leadingFirst {
+		t.Error("the first scheduler did not become the leader although the lock was free")
+	}
+	if leadingSecond {
+		t.Error("both schedulers are leading")
+	}
+	if len(firstSignals.depths) == 0 {
+		t.Error("the leader did no work")
+	}
+	if len(secondSignals.depths) != 0 {
+		t.Error("the standby did work")
+	}
+}
+
+// A leader whose connection is cut has lost the lock without being told. It has to notice on its
+// next tick and stand by, because another instance has taken over by then - a former leader that
+// keeps acting is the double execution the lock exists to prevent.
+func TestALeaderThatLostItsLockStandsBy(t *testing.T) {
+	contested := &lock{}
+	held := &leadership{lock: contested, name: "a"}
+	signals := newSchedulerSignals()
+	leader := scheduler(held, &depthQueue{depths: []queue.Depth{{Kind: queue.KindOutboxDispatch, Pending: 1}}}, signals)
+
+	if leading := leader.tick(t.Context(), false, now); !leading {
+		t.Fatal("the scheduler did not take the free lock")
+	}
+
+	// The connection carrying the lock goes away, and somebody else takes it.
+	contested.cut()
+	other := &leadership{lock: contested, name: "b"}
+	if taken, _ := other.Acquire(t.Context()); !taken {
+		t.Fatal("the standby could not take the free lock")
+	}
+
+	signals.depths = map[string]int64{}
+	if leading := leader.tick(t.Context(), true, now); leading {
+		t.Error("the former leader believes it is still leading")
+	}
+	if len(signals.depths) != 0 {
+		t.Error("the former leader did work after losing the lock")
+	}
+}
+
+// The backlog per kind is a property of the installation, so exactly one process reports it - a
+// gauge written by every replica would be summed across instances and read as N times the truth.
+func TestTheLeaderPublishesTheBacklogPerKind(t *testing.T) {
+	signals := newSchedulerSignals()
+	jobs := &depthQueue{depths: []queue.Depth{
+		{Kind: queue.KindOutboxDispatch, Pending: 7},
+		{Kind: queue.Kind("reminder.fire"), Pending: 2},
+	}}
+
+	scheduler(&leadership{lock: &lock{}, name: "a"}, jobs, signals).tick(t.Context(), false, now)
+
+	if signals.depths[queue.KindOutboxDispatch.String()] != 7 {
+		t.Errorf("outbox depth = %d, want 7", signals.depths[queue.KindOutboxDispatch.String()])
+	}
+	if signals.depths["reminder.fire"] != 2 {
+		t.Errorf("reminder depth = %d, want 2", signals.depths["reminder.fire"])
+	}
+}
+
+// The lag is measured against when the tick was due. A tick that ran late and then on time again
+// would otherwise look punctual, and drift is exactly what this gauge exists to show.
+func TestTheTickLagIsMeasuredAgainstWhenItWasDue(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+
+	leader.tick(t.Context(), false, now.Add(-4*time.Second))
+	// A tick that is early - a clock that jumped - reports no lag rather than a negative one.
+	leader.tick(t.Context(), true, now.Add(time.Second))
+
+	want := []float64{4, 0}
+	if len(signals.lags) != len(want) {
+		t.Fatalf("%d lag readings, want %d", len(signals.lags), len(want))
+	}
+	for i, seconds := range signals.lags {
+		if seconds != want[i] {
+			t.Errorf("lag %d = %v, want %v", i+1, seconds, want[i])
+		}
+	}
+}
+
+// Leadership is given up on the way out, so that a standby takes over at once instead of waiting
+// for a socket to time out (observability-reliability.md §9).
+func TestLeadershipIsReleasedWhenTheLoopEnds(t *testing.T) {
+	held := &leadership{lock: &lock{}, name: "a"}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	done := make(chan struct{})
+	concurrency.Go(ctx, "test.scheduler.loop", func(context.Context) {
+		scheduler(held, &depthQueue{}, newSchedulerSignals()).Run(ctx)
+		close(done)
+	})
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the scheduler is still running after its context ended")
+	}
+	if !held.released {
+		t.Error("the scheduler kept leadership after shutting down")
+	}
+}
+
+func TestAContradictorySchedulerDoesNotStart(t *testing.T) {
+	valid := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+
+	cases := []struct {
+		name string
+		with func(Scheduler) Scheduler
+		want string
+	}{
+		{"without its ports", func(s Scheduler) Scheduler { s.Leadership = nil; return s }, "queue.scheduler_incomplete"},
+		{"without a tick", func(s Scheduler) Scheduler { s.TickInterval = 0; return s }, "queue.tick_interval_invalid"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := c.with(valid).validate()
+			if err == nil || shared.AsError(err).DetailCode != c.want {
+				t.Errorf("error %v, want %s", err, c.want)
+			}
+		})
+	}
+}

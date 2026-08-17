@@ -89,6 +89,8 @@
   "containers.identity_incomplete": "This installation is misconfigured and could not create that entry.",
 
   "events.payload_unserialisable": "This installation could not announce that change.",
+  "events.payload_unreadable": "This installation could not read a recorded change and has not delivered it yet.",
+  "events.consumer_unnamed": "This installation is misconfigured: a subscriber without a name cannot be told what it has already seen.",
   "events.envelope_incomplete": "This installation could not announce that change.",
   "events.type_unknown": "This installation could not announce that change.",
   "events.causation_too_deep": "This change was triggered by a chain of automations that goes too deep. Hubtask stopped it after {maximum} steps.",

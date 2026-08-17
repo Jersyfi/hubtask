@@ -162,6 +162,14 @@ Everything else has a self-hosting default:
 | `HUBTASK_HTTP_MAX_REDIRECTS` | `3` | Hops followed, each re-checked from scratch; `0` follows none, `10` is the maximum |
 | `HUBTASK_HTTP_ALLOWED_HOSTS` | — | Egress allowlist, comma-separated host names. Empty means every public address; in multi-tenant operation an empty list warns (T-07) |
 | `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` | `false` | Allows outbound calls into RFC 1918, loopback and link-local. Warns when set — it turns a webhook into a port scanner of the host network |
+| `HUBTASK_QUEUE_POLL_INTERVAL` | `2s` | Wait after a round that found no job. It is the floor under how late a job scheduled without a wake-up can start |
+| `HUBTASK_QUEUE_BATCH_SIZE` | `10` | Jobs claimed per round. A full batch is followed by the next round without waiting |
+| `HUBTASK_JOB_TIMEOUT` | `60s` | Deadline for one job. The claim's lease is this plus 30s, derived rather than configured: a lease that expires while its job runs is a job two workers are doing |
+| `HUBTASK_JOB_MAX_ATTEMPTS` | `8` | Attempts before a job goes to the dead letter with the code of its last failure (alert A-07) |
+| `HUBTASK_JOB_RETRY_BASE` / `HUBTASK_JOB_RETRY_MAX` | `5s` / `15m` | Exponential backoff with full jitter between attempts |
+| `HUBTASK_SCHEDULER_TICK_INTERVAL` | `10s` | How often the scheduler leader acts, and therefore how quickly a standby notices the leader is gone (ADR-0008) |
+| `HUBTASK_OUTBOX_BATCH_SIZE` | `100` | Events delivered per dispatch round |
+| `HUBTASK_OUTBOX_MIN_INTERVAL` / `HUBTASK_OUTBOX_MAX_INTERVAL` | `1s` / `15s` | The dispatcher's adaptive poll: the first after a round that delivered something, the second for a quiet tenant. The maximum is the worst case for SLO-4 and stays well under its 30 seconds |
 | `HUBTASK_DEFAULT_LOCALE` | `en` | BCP 47; the last link in the chain request → account → tenant → installation |
 | `HUBTASK_DEFAULT_TIMEZONE` | `UTC` | IANA name, never a fixed offset — an offset cannot represent daylight saving |
 

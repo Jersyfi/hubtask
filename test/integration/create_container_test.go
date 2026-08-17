@@ -48,7 +48,7 @@ func catalogueFor(t *testing.T) *usecase.Registry {
 			Audit:       sink,
 			Clock:       fixed,
 		},
-		Events:     postgres.NewOutbox(),
+		Events:     postgres.NewOutbox(jobQueue(t)),
 		Changes:    postgres.NewChangeLog(),
 		Audit:      sink,
 		UnitOfWork: unitOfWork,

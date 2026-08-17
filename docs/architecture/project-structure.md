@@ -88,6 +88,7 @@ hubtask/
 │   ├── sse/                        # StreamController.go
 │   ├── calendar/                   # IcsController.go, CalDavController.go
 │   ├── intake/                     # MailIntake.go, WebhookIntake.go
+│   ├── worker/                     # Runner.go, Scheduler.go — the queue as an inbound channel
 │   ├── admin/                      # AdminController.go (tenants, quotas, metering)
 │   └── openapi/                    # generated server types (never edit by hand)
 │
@@ -205,6 +206,11 @@ process without a code change:
 | `worker` | Outbox dispatcher, webhook delivery, mail, media GC, indexing | Database queue |
 | `scheduler` | Reminders, occurrences, retention | Database queue + advisory lock |
 | `automation` | The rule engine | Consumes events, calls use cases directly (in-process) or over HTTP when deployed separately |
+
+The loops that make `worker` and `scheduler` real live in `presentation/worker/`, beside `rest` and
+`mcp` rather than in `infrastructure/`. A job arriving and a handler running differs from a request
+arriving and a handler running in who asked, not in what the layer does with it — so the queue is
+an inbound adapter, and like every inbound adapter it reaches the outbound side through ports only.
 
 A later genuine service split means only this: its own `cmd/automation/main.go`, and swapping the
 in-process use case call for an HTTP/Connect client behind the same interface.

@@ -38,6 +38,16 @@ type Scope struct {
 	// policy comparing against it is false. A row owned by any tenant is therefore invisible -
 	// which is more than a tenant scope guarantees, not less.
 	Installation bool
+	// System is background work that has no tenant yet: a worker reading the job queue does not
+	// know whose job the next one is until it has claimed it.
+	//
+	// It sets the same empty tenant context as an installation scope and is subject to the same
+	// row level security, so every table with a tenant column stays invisible and unwritable
+	// under it. The one table it can reach is the one the schema deliberately left without a
+	// policy - `job`, which is partly tenant-less and readable by worker roles only
+	// (db/migrations/0001_init.sql). It is read-write for that table's sake and for no other:
+	// a write to a tenant's data under this scope is refused by the database, not by a review.
+	System bool
 }
 
 // InstallationScope reads what belongs to no tenant. Read-only by construction: the adapter
@@ -45,8 +55,12 @@ type Scope struct {
 // this scope deliberately does not have.
 func InstallationScope() Scope { return Scope{Installation: true} }
 
+// SystemScope is the scope of the queue: no tenant, and write access to the one table that has
+// none either. Everything it touches beyond that is refused by row level security.
+func SystemScope() Scope { return Scope{System: true} }
+
 // IsValid reports whether the scope can bound a transaction at all.
-func (s Scope) IsValid() bool { return s.Installation || !s.TenantID.IsZero() }
+func (s Scope) IsValid() bool { return s.Installation || s.System || !s.TenantID.IsZero() }
 
 // UnitOfWork runs work inside one transaction, bound to one tenant.
 //
