@@ -104,6 +104,9 @@
   "usecase.registration_incomplete": "This installation is misconfigured: the operation {use_case} is registered without {missing}.",
   "usecase.duplicate_registration": "This installation is misconfigured: the operation {use_case} is registered twice.",
 
+  "automation.run_as_missing": "This rule has no account to run as. Set one before enabling it.",
+  "automation.action_unknown": "This installation has no automation action called {action}.",
+
   "audit.tenant_mismatch": "This installation could not record that action and therefore did not carry it out.",
   "audit.entry_incomplete": "This installation could not record that action and therefore did not carry it out.",
   "audit.entry_unserialisable": "This installation could not record that action and therefore did not carry it out.",
