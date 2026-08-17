@@ -66,6 +66,11 @@
   "access.token_secret_short": "An access token needs its full length. Create a new one.",
   "access.account_not_active": "This account cannot be used at the moment. Its status is {status}.",
 
+  "idempotency.key_malformed": "The Idempotency-Key header has to be a UUID.",
+  "idempotency.key_reused": "This Idempotency-Key was already used for a different request. Use a new one.",
+  "idempotency.in_progress": "An identical request is still running. Try again in a moment.",
+  "idempotency.body_unreadable": "The request body could not be read to the end.",
+
   "route.unknown": "There is nothing at this address.",
   "route.operation_not_available": "This installation does not offer that operation yet.",
 

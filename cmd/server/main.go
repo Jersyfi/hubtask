@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
@@ -169,9 +170,6 @@ func run() error {
 		// The routes come from api/openapi.yaml through the generated registration list; nothing
 		// here names a path (ADR-0004). Operations without a use case yet answer 404 - the route
 		// exists because the contract declares it, not because it works.
-		//
-		// TODO(0.1.0): the rate limiter and the idempotency store wrap this in the steps that
-		// follow.
 		apiRoutes := rest.NewRestController().Routes()
 
 		unitOfWork := postgres.NewUnitOfWork(pool)
@@ -217,7 +215,11 @@ func run() error {
 										Level:   "tenant",
 										Bucket: rest.TenantBucket(
 											cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-										Next: apiRoutes,
+										Next: rest.Idempotent{
+											Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+											Routes: apiRoutes,
+											Next:   apiRoutes,
+										},
 									},
 								},
 							},
