@@ -181,10 +181,16 @@ func run() error {
 			Clock:      clockadapter.System{},
 		}
 
+		// One limiter, two levels: per credential or client address before authentication, per
+		// tenant after it. The first needs no database - it keys on a fingerprint of the
+		// presented string - so a flood of invalid tokens costs no lookups.
+		limiter := rest.NewRateLimiter()
+
 		// The chain, from the outside in. Observed stays outermost: a panic anywhere below it
 		// still becomes a problem document, and every answer carries a request ID and a metric -
-		// including the ones no handler produced. Authentication sits inside the bounds, so a
-		// body that is too large is refused before a credential is looked up.
+		// including the ones no handler produced. Authentication sits inside the bounds and
+		// inside the first limit, so neither an oversized body nor a flood reaches a database
+		// lookup.
 		api = &http.Server{
 			Addr: cfg.HTTPAddr,
 			Handler: rest.Observed{
@@ -193,13 +199,27 @@ func run() error {
 					Entry: rest.Secured{CORS: cfg.CORS, Next: rest.Bounded{
 						MaxBodyBytes: cfg.Request.MaxBodyBytes,
 						Timeout:      cfg.Request.Timeout,
-						Next: rest.Localised{
-							Locale: cfg.Locale,
-							Next: rest.Authenticated{
-								Routes:        apiRoutes,
-								Authenticator: authenticate,
-								Locale:        cfg.Locale,
-								Next:          apiRoutes,
+						Next: rest.Limited{
+							Limiter: limiter,
+							Level:   "credential",
+							Bucket: rest.CredentialBucket(
+								cfg.RateLimit.AnonymousPerMinute,
+								cfg.RateLimit.TokenPerMinute,
+								cfg.RateLimit.Burst),
+							Next: rest.Localised{
+								Locale: cfg.Locale,
+								Next: rest.Authenticated{
+									Routes:        apiRoutes,
+									Authenticator: authenticate,
+									Locale:        cfg.Locale,
+									Next: rest.Limited{
+										Limiter: limiter,
+										Level:   "tenant",
+										Bucket: rest.TenantBucket(
+											cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+										Next: apiRoutes,
+									},
+								},
 							},
 						},
 					}},
