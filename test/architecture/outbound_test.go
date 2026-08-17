@@ -86,6 +86,20 @@ func TestTheOutboundExceptionsStillExist(t *testing.T) {
 	}
 }
 
+// TestTheOutboundExceptionsAreActuallyReachable guards the lookup itself rather than the list.
+// The exception above is keyed on the forward-slash form, while WalkDir hands out whatever the
+// platform uses - backslashes on Windows. When rel does not normalise that, the lookup misses,
+// the exception is not honoured, and the gate reports a rule violation that is not one. It did,
+// until this test existed.
+func TestTheOutboundExceptionsAreActuallyReachable(t *testing.T) {
+	for file := range outboundExceptions {
+		native := filepath.Join("../..", file)
+		if got := rel(native); got != file {
+			t.Errorf("rel(%q) = %q, want %q - the exception would never be found", native, got, file)
+		}
+	}
+}
+
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil

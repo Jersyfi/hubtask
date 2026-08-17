@@ -212,7 +212,13 @@ func forEachGoFile(t *testing.T, roots []string, fn func(string, *ast.File, *tok
 	}
 }
 
+// rel turns a path as WalkDir hands it out into the repository-relative, forward-slash form the
+// rest of this package speaks: "cmd/server/main.go".
+//
+// ToSlash is not cosmetic. On Windows filepath.Clean returns `..\..\cmd\server\main.go`, so the
+// TrimPrefix below never matches and the separators stay backslashes - which silently breaks
+// every lookup keyed on the forward-slash form (outboundExceptions) and leaves the gate failing
+// on Windows for a rule that is not broken.
 func rel(p string) string {
-	c := filepath.Clean(p)
-	return strings.TrimPrefix(c, "../../")
+	return strings.TrimPrefix(filepath.ToSlash(filepath.Clean(p)), "../../")
 }
