@@ -232,7 +232,11 @@ gate-licenses:
 .PHONY: licenses
 licenses:
 	$(call require_tool,go-licenses)
-	$(TOOLS_DIR)/go-licenses report ./... --template tools/licenses.md.tpl 2>/dev/null > THIRD-PARTY-LICENSES.md
+	@# For linux/amd64, not for whoever runs make. The list is of what ships, and what ships is a
+	@# linux image (ADR-0014) - on macOS the report is one dependency shorter, because
+	@# prometheus/procfs is only linked there. A generated file that differs by developer is a
+	@# generated file nobody can check.
+	GOOS=linux GOARCH=amd64 $(TOOLS_DIR)/go-licenses report ./... --template tools/licenses.md.tpl 2>/dev/null > THIRD-PARTY-LICENSES.md
 	@echo "THIRD-PARTY-LICENSES.md written"
 
 ## gate-chart: helm lint and template, with every optional object switched on

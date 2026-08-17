@@ -32,6 +32,7 @@ This file is generated - run `make licenses` rather than editing it.
 | [github.com/prometheus/client_model/go](https://github.com/prometheus/client_model/blob/v0.6.2/LICENSE) | Apache-2.0 |
 | [github.com/prometheus/common](https://github.com/prometheus/common/blob/v0.70.1/LICENSE) | Apache-2.0 |
 | [github.com/prometheus/otlptranslator](https://github.com/prometheus/otlptranslator/blob/v1.0.0/LICENSE) | Apache-2.0 |
+| [github.com/prometheus/procfs](https://github.com/prometheus/procfs/blob/v0.21.1/LICENSE) | Apache-2.0 |
 | [github.com/sethvargo/go-retry](https://github.com/sethvargo/go-retry/blob/v0.4.0/LICENSE) | Apache-2.0 |
 | [go.opentelemetry.io/auto/sdk](https://github.com/open-telemetry/opentelemetry-go-instrumentation/blob/sdk/v1.2.1/sdk/LICENSE) | Apache-2.0 |
 | [go.opentelemetry.io/otel](https://github.com/open-telemetry/opentelemetry-go/blob/v1.45.0/LICENSE) | Apache-2.0 |
