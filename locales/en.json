@@ -86,6 +86,9 @@
   "events.type_unknown": "This installation could not announce that change.",
   "events.causation_too_deep": "This change was triggered by a chain of automations that goes too deep. Hubtask stopped it after {maximum} steps.",
 
+  "audit.entry_incomplete": "This installation could not record that action and therefore did not carry it out.",
+  "audit.actor_kind_invalid": "This installation could not record that action and therefore did not carry it out.",
+
   "sync.hlc_malformed": "{value} is not a valid change timestamp.",
   "sync.hlc_incomplete": "This installation could not stamp that change.",
   "sync.hlc_device_malformed": "This installation could not stamp that change.",
