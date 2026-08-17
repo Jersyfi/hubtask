@@ -11,6 +11,7 @@
   "errors.gone": "This entry has been permanently deleted.",
   "errors.rate_limited": "Too many requests. Please try again in a moment.",
   "errors.method_not_allowed": "This address does not support that operation.",
+  "errors.payload_too_large": "The request is larger than this installation accepts.",
   "errors.dependency_unavailable": "A required service is temporarily unavailable.",
   "errors.internal": "Something went wrong on our side. Reference: {request_id}",
   "errors.config_invalid": "The installation is misconfigured.",
@@ -50,6 +51,10 @@
   "config.egress_allowlist_missing": "No egress allowlist is configured. In multi-tenant operation, outbound calls should be restricted to known hosts.",
   "config.egress_private_networks_allowed": "Outbound calls to private networks are allowed. A webhook target can reach services inside your network.",
   "config.smtp_without_tls": "SMTP to {host} is configured without TLS. Credentials travel unencrypted.",
+
+  "request.body_too_large": "The request body may be at most {limit_bytes} bytes.",
+  "access.credential_required": "This operation needs you to be signed in.",
+  "access.insufficient_scope": "The token used is not allowed to do this. It would need the scope {scope}.",
 
   "route.unknown": "There is nothing at this address.",
   "route.operation_not_available": "This installation does not offer that operation yet.",

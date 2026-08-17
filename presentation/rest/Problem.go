@@ -6,6 +6,7 @@ package rest
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -67,6 +68,10 @@ const codeMalformedRequest = "malformed_request"
 // statuses, and this is the router answering for itself. Adding a code is additive and therefore
 // not a breaking change (api-guidelines.md §8).
 const codeMethodNotAllowed = "method_not_allowed"
+
+// codePayloadTooLarge is the second of them, and it is there for the same reason: the body is
+// refused before any use case reads it (security.md §9, request sizes).
+const codePayloadTooLarge = "payload_too_large"
 
 // ProblemFrom maps any error to problem details. An error that is not a domain error becomes
 // INTERNAL, and nothing of its text reaches the response - it may contain a connection string,
@@ -137,6 +142,21 @@ func WriteMethodNotAllowed(w http.ResponseWriter, requestID string) {
 		Code:      codeMethodNotAllowed,
 		RequestID: requestID,
 		Docs:      docsBaseURL + codeMethodNotAllowed,
+	})
+}
+
+// WriteTooLarge refuses a body over the configured limit. The limit is named in the parameters,
+// because a client that does not know it can only guess at a smaller request.
+func WriteTooLarge(w http.ResponseWriter, limit int64, requestID string) {
+	writeProblem(w, Problem{
+		Type:       docsBaseURL + codePayloadTooLarge,
+		Title:      codePayloadTooLarge,
+		Status:     http.StatusRequestEntityTooLarge,
+		Code:       codePayloadTooLarge,
+		DetailCode: "request.body_too_large",
+		Params:     map[string]string{"limit_bytes": strconv.FormatInt(limit, 10)},
+		RequestID:  requestID,
+		Docs:       docsBaseURL + codePayloadTooLarge,
 	})
 }
 

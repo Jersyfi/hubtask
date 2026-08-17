@@ -179,7 +179,14 @@ func run() error {
 			Handler: rest.Observed{
 				Router: rest.Chain{
 					Routes: apiRoutes,
-					Entry:  rest.Secured{CORS: cfg.CORS, Next: apiRoutes},
+					Entry: rest.Secured{CORS: cfg.CORS, Next: rest.Bounded{
+						MaxBodyBytes: cfg.Request.MaxBodyBytes,
+						Timeout:      cfg.Request.Timeout,
+						Next: rest.Localised{
+							Locale: cfg.Locale,
+							Next:   apiRoutes,
+						},
+					}},
 				},
 				Metrics: metrics,
 				Tracer:  tracing.Tracer("rest"),
