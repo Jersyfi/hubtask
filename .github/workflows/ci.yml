@@ -83,6 +83,9 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      # goose, because the RT tests that need a database migrate their own container the way
+      # production does - a schema loaded any other way would be a schema nobody deploys.
+      - run: make tools
       # The RT series is a PR gate wherever it can be (observability-reliability.md §12); the
       # three that need hours of load - RT-6, RT-8, RT-11 - live in the load suite and stay
       # nightly.
