@@ -170,10 +170,17 @@ func run() error {
 		// TODO(0.1.0): the remaining middleware - auth, tenant context, locale, rate limit and
 		// idempotency - wraps this in the steps that follow.
 		apiRoutes := rest.NewRestController().Routes()
+
+		// The chain, from the outside in. Observed stays outermost: a panic anywhere below it
+		// still becomes a problem document, and every answer carries a request ID and a metric -
+		// including the ones no handler produced.
 		api = &http.Server{
 			Addr: cfg.HTTPAddr,
 			Handler: rest.Observed{
-				Router:  apiRoutes,
+				Router: rest.Chain{
+					Routes: apiRoutes,
+					Entry:  rest.Secured{CORS: cfg.CORS, Next: apiRoutes},
+				},
 				Metrics: metrics,
 				Tracer:  tracing.Tracer("rest"),
 				Role:    string(envport.RoleAPI),

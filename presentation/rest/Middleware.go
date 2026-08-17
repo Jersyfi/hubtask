@@ -43,6 +43,23 @@ type Router interface {
 	Handler(r *http.Request) (http.Handler, string)
 }
 
+// Chain is a Router whose requests travel through middleware before they reach the router.
+//
+// It exists because the two ends want different things: the observability wrapper needs the route
+// template, which only the router knows and only before dispatch, while auth, limits and
+// idempotency need to run between the two. Chain keeps the question and the answer apart -
+// Routes is asked for the template, Handler is what actually serves.
+type Chain struct {
+	// Routes resolves the route template. It is the router at the end of the chain.
+	Routes Router
+	// Entry is the outermost middleware; serving starts there and ends at Routes.
+	Entry http.Handler
+}
+
+func (c Chain) Handler(r *http.Request) (http.Handler, string) { return c.Routes.Handler(r) }
+
+func (c Chain) ServeHTTP(w http.ResponseWriter, r *http.Request) { c.Entry.ServeHTTP(w, r) }
+
 // MetricRecorder is the slice of the metrics adapter this middleware uses. An interface rather
 // than the adapter, so the presentation layer keeps pointing inwards (project-structure.md §2).
 type MetricRecorder interface {

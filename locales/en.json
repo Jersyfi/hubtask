@@ -41,6 +41,7 @@
   "config.redirects_invalid": "{variable} must be between 0 and {maximum}. A longer chain is not a site that moved.",
   "config.allowed_host_invalid": "{variable} takes host names, not URLs. {value} contains a scheme or a path.",
   "config.timezone_unknown": "{variable} must be an IANA time zone such as Europe/Berlin. {value} is not one.",
+  "config.cors_origin_invalid": "{variable} takes complete origins such as https://app.example.com. {value} is not one.",
 
   "config.backup_not_configured": "No backup target is configured. A restore drill is a release criterion.",
   "config.smtp_missing": "No SMTP server is configured. Notifications by email are unavailable.",

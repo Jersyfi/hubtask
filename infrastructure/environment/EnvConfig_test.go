@@ -585,3 +585,72 @@ func TestAnEmptyAllowlistOnlyWarnsInProviderOperation(t *testing.T) {
 		t.Error("self-hosting warned about a missing allowlist")
 	}
 }
+
+// The browser side stays closed unless somebody opens it (security.md §9).
+func TestCrossOriginIsEmptyByDefault(t *testing.T) {
+	withRequiredSecrets(t)
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.CORS.AllowedOrigins) != 0 {
+		t.Errorf("allowed origins = %v by default", cfg.CORS.AllowedOrigins)
+	}
+}
+
+// A browser compares the Origin header byte for byte. An entry that cannot match one is a
+// configuration mistake worth failing on, not one to discover when the frontend stays blocked.
+func TestAnOriginWithoutASchemeIsRefused(t *testing.T) {
+	cases := map[string]string{
+		"a bare host":        "app.example.com",
+		"a trailing slash":   "https://app.example.com/",
+		"a path":             "https://app.example.com/api",
+		"an unknown scheme":  "ftp://app.example.com",
+		"the wildcard mixed": "https://app.example.com,*",
+	}
+
+	for name, origins := range cases {
+		t.Run(name, func(t *testing.T) {
+			withRequiredSecrets(t)
+			t.Setenv("HUBTASK_CORS_ALLOWED_ORIGINS", origins)
+
+			if _, err := load(t); err == nil {
+				t.Fatal("the configuration was accepted")
+			} else if !strings.Contains(err.Error(), "config.cors_origin_invalid") {
+				t.Errorf("error = %v", err)
+			}
+		})
+	}
+}
+
+func TestACompleteOriginIsAccepted(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_CORS_ALLOWED_ORIGINS", "https://app.example.com, http://localhost:5173")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	want := []string{"https://app.example.com", "http://localhost:5173"}
+	for i, origin := range want {
+		if i >= len(cfg.CORS.AllowedOrigins) || cfg.CORS.AllowedOrigins[i] != origin {
+			t.Fatalf("allowed origins = %v, want %v", cfg.CORS.AllowedOrigins, want)
+		}
+	}
+}
+
+// "*" is a legitimate self-hosting choice for a read-only public API, and it is safe only
+// because this API never answers with credentials.
+func TestTheWildcardIsAcceptedOnItsOwn(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_CORS_ALLOWED_ORIGINS", "*")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if !cfg.CORS.AllowsAnyOrigin() {
+		t.Errorf("allowed origins = %v", cfg.CORS.AllowedOrigins)
+	}
+}
