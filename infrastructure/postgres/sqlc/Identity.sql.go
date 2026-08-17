@@ -20,6 +20,7 @@ SELECT
   t.expires_at,
   t.revoked_at,
   t.last_used_at,
+  a.display_name AS account_display_name,
   a.kind     AS account_kind,
   a.status   AS account_status,
   a.locale   AS account_locale,
@@ -34,19 +35,20 @@ WHERE t.token_hash = $1
 `
 
 type FindAccessTokenByHashRow struct {
-	ID              pgtype.UUID
-	TenantID        pgtype.UUID
-	AccountID       pgtype.UUID
-	Scopes          []string
-	ExpiresAt       pgtype.Timestamptz
-	RevokedAt       pgtype.Timestamptz
-	LastUsedAt      pgtype.Timestamptz
-	AccountKind     AccountKind
-	AccountStatus   AccountStatus
-	AccountLocale   *string
-	AccountTimeZone *string
-	DefaultLocale   string
-	DefaultTimeZone string
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	AccountID          pgtype.UUID
+	Scopes             []string
+	ExpiresAt          pgtype.Timestamptz
+	RevokedAt          pgtype.Timestamptz
+	LastUsedAt         pgtype.Timestamptz
+	AccountDisplayName string
+	AccountKind        AccountKind
+	AccountStatus      AccountStatus
+	AccountLocale      *string
+	AccountTimeZone    *string
+	DefaultLocale      string
+	DefaultTimeZone    string
 }
 
 func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (FindAccessTokenByHashRow, error) {
@@ -60,6 +62,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.LastUsedAt,
+		&i.AccountDisplayName,
 		&i.AccountKind,
 		&i.AccountStatus,
 		&i.AccountLocale,

@@ -99,11 +99,12 @@ func (a AuthenticateToken) Execute(
 		}
 
 		actor = appshared.ActorContext{
-			Kind:      actorKind(credential.Account.Kind),
-			TenantID:  credential.Token.TenantID,
-			AccountID: credential.Account.ID,
-			TokenID:   credential.Token.ID,
-			Scopes:    credential.Token.Scopes,
+			Kind:        actorKind(credential.Account.Kind),
+			TenantID:    credential.Token.TenantID,
+			AccountID:   credential.Account.ID,
+			AccountName: credential.Account.DisplayName,
+			TokenID:     credential.Token.ID,
+			Scopes:      credential.Token.Scopes,
 			Locale: firstNonEmpty(
 				cmd.RequestedLocale, credential.Account.Locale,
 				credential.TenantLocale, cmd.FallbackLocale),

@@ -7,6 +7,7 @@ SELECT
   t.expires_at,
   t.revoked_at,
   t.last_used_at,
+  a.display_name AS account_display_name,
   a.kind     AS account_kind,
   a.status   AS account_status,
   a.locale   AS account_locale,

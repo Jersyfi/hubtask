@@ -79,6 +79,7 @@ func mintCredential(t *testing.T) (string, repository.Credential) {
 		},
 		Account: identity.Account{
 			ID: account, Kind: identity.AccountUser, Status: identity.AccountActive,
+			DisplayName: "Anna Beispiel",
 		},
 		TenantLocale:   "de",
 		TenantTimeZone: "Europe/Berlin",
@@ -326,4 +327,19 @@ func withToken(base repository.Credential, apply func(*identity.AccessToken)) *t
 func withAccount(base repository.Credential, apply func(*identity.Account)) *tokens {
 	apply(&base.Account)
 	return &tokens{credential: base}
+}
+
+// The label the audit trail records travels with the actor, because the trail denormalises it: an
+// entry pointing only at a foreign key becomes unreadable once the account is deleted (test AT-7).
+func TestTheActorCarriesTheAccountLabel(t *testing.T) {
+	raw, credential := mintCredential(t)
+
+	actor, err := handlerFor(&tokens{credential: credential}, &unitOfWork{}).Execute(t.Context(),
+		AuthenticateTokenCommand{Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC"})
+	if err != nil {
+		t.Fatalf("authentication failed: %v", err)
+	}
+	if actor.AccountName != "Anna Beispiel" {
+		t.Errorf("the actor carries %q as its label", actor.AccountName)
+	}
 }

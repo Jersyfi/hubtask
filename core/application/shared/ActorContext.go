@@ -47,6 +47,11 @@ type ActorContext struct {
 	TenantID shared.ID
 	// AccountID is the acting account. Empty for the system itself.
 	AccountID shared.ID
+	// AccountName is the label the audit trail records next to the identifier. It travels with
+	// the actor because the trail denormalises it: an entry that only points at a foreign key
+	// becomes unreadable once the account is deleted (audit.md §2, test AT-7). It is personal
+	// data and goes nowhere else - not into a log, a metric, a span, or an event.
+	AccountName string
 	// TokenID identifies the credential used, for the audit trail and for revocation. Empty on an
 	// interactive session.
 	TokenID shared.ID

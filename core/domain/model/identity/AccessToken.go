@@ -74,9 +74,14 @@ func (t AccessToken) NeedsTouch(now time.Time, interval time.Duration) bool {
 // Account is as much of the acting account as authentication needs: whether it may act at all,
 // what kind of actor it is, and how it prefers to be spoken to.
 type Account struct {
-	ID     shared.ID
-	Kind   AccountKind
-	Status AccountStatus
+	ID   shared.ID
+	Kind AccountKind
+	// DisplayName is what the audit trail records alongside the identifier. Denormalised into
+	// every entry it appears in, because an entry that only points at a foreign key becomes
+	// unreadable once the account is deleted, and a trail that loses its meaning through a
+	// deletion does not do its job (audit.md §2, test AT-7).
+	DisplayName string
+	Status      AccountStatus
 	// Locale and TimeZone are the account's own preference, the second link of the resolution
 	// chain request → account → tenant → installation (i18n-l10n.md §2). Either may be empty.
 	Locale   string
