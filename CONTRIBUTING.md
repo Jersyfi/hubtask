@@ -33,6 +33,29 @@ Refs #42
 
 Scopes correspond to the bounded contexts in `docs/architecture/arc42.md` §5.
 
+## Running the gates on Windows
+
+The gates assume a POSIX shell and CI runs them on Linux. Two things a stock Windows machine does
+not have:
+
+* **`make` itself** — `winget install ezwinports.make`, and invoke it from Git Bash: the Makefile
+  sets `SHELL := /bin/bash`, and `scripts/gate-selftest.sh` is a bash script.
+* **A C compiler** — the race detector needs cgo, which is why `gate-unit` is the one target that
+  overrides `CGO_ENABLED=1`. Without a toolchain that target cannot run as written. Run the same
+  packages without the detector and leave `-race` to CI:
+
+  ```bash
+  go test ./core/... ./infrastructure/... ./presentation/...
+  ```
+
+`gate-quick`, `gate-architecture` and `gate-security` run on Windows unchanged. Line endings are
+pinned to LF by `.gitattributes`; a clone made before that file existed still has a CRLF work tree,
+and `gofmt -l .` then flags every file in the repository. On a clean tree, `git rm --cached -r .`
+followed by `git reset --hard` refreshes it.
+
+What you cannot run locally, CI runs on the pull request — say which gate you skipped rather than
+ticking "`make verify` green locally" for one you did not.
+
 ## One pull request, one issue
 
 Every task in `docs/backlog/` has an issue (label `task`). Your pull request closes it by naming it
