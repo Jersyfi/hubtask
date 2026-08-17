@@ -50,6 +50,29 @@ output of `helm get values`.
 * Egress excludes link-local even when an operator names no allowlist: `169.254.169.254` is where
   a cloud provider keeps credentials.
 
+## Checking a rolling update (RT-8)
+
+`helm lint` and the Compose smoke test are automated (`make gate-chart`, `make gate-compose`); a
+rolling update under load is not, because it needs a cluster. It stays a manual check before a
+release, and observability-reliability.md §12 keeps it in the nightly column rather than the
+per-pull-request one.
+
+```bash
+# 1. A load generator against the API, for the length of the rollout.
+# 2. The rollout itself:
+helm upgrade hubtask oci://ghcr.io/jersyfi/charts/hubtask --version <new> --reuse-values
+kubectl rollout status deployment/hubtask-api --timeout=10m
+
+# 3. What it must show afterwards: no 5xx, and no restart that was not a rollout.
+kubectl exec deploy/hubtask-api -- wget -qO- localhost:9090/metrics \
+  | grep 'hubtask_http_requests_total{.*status_class="5xx"'
+kubectl get pods -l app.kubernetes.io/instance=hubtask
+```
+
+The three things that make it pass are in the chart already: `maxUnavailable: 0` with a readiness
+gate, a `PodDisruptionBudget`, and a grace period longer than the longest job. What it proves is
+that the migration of that release really was expand/contract-safe (deployment.md §5).
+
 ## Checking a change
 
 ```bash
