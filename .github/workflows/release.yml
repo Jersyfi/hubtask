@@ -80,10 +80,15 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
+      - name: The third-party licences of this release
+        # Regenerated rather than taken from the repository: what ships has to be the list of what
+        # this build actually links (ADR-0013, licensing-editions.md §3).
+        run: make licenses
+
       - name: Package the Helm chart
         run: |
-          helm package k8s --version "${GITHUB_REF_NAME#v}" --app-version "${GITHUB_REF_NAME#v}" -d dist/
-          helm push dist/*.tgz "oci://ghcr.io/${{ env.OWNER }}/charts"
+          .tools/helm package k8s --version "${GITHUB_REF_NAME#v}" --app-version "${GITHUB_REF_NAME#v}" -d dist/
+          .tools/helm push dist/*.tgz "oci://ghcr.io/${{ env.OWNER }}/charts"
 
       - name: GitHub Release
         uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
@@ -92,3 +97,4 @@ jobs:
           files: |
             sbom.cdx.json
             dist/*.tgz
+            THIRD-PARTY-LICENSES.md
