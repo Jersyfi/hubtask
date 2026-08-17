@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -37,11 +38,56 @@ type schema struct {
 }
 
 // specification is the part of the document this validator needs.
+//
+// A path holds more than its methods - `parameters` sits alongside them and is a list, not an
+// operation - so the entries stay raw nodes and only the known methods are decoded.
 type specification struct {
+	Paths      map[string]map[string]yaml.Node `yaml:"paths"`
 	Components struct {
 		Schemas map[string]*schema `yaml:"schemas"`
 	} `yaml:"components"`
 }
+
+// httpMethods are the keys of a path item that are operations (OpenAPI 3.1 §4.8.9).
+var httpMethods = []string{"get", "put", "post", "delete", "options", "head", "patch", "trace"}
+
+// operation is one method of one path. Security is a pointer so that "declared as empty" can be
+// told apart from "not declared": an empty list makes the operation public, an absent one leaves
+// the document-wide requirement in force (OpenAPI 3.1 §4.8.2).
+type operation struct {
+	OperationID string `yaml:"operationId"`
+	Security    *[]any `yaml:"security"`
+}
+
+// route is a method and a path as the router registers them, which is also the form the metric
+// labels and the public-route list use.
+func (o *operation) route(method, path, basePath string) string {
+	return strings.ToUpper(method) + " " + basePath + path
+}
+
+// Routes returns every operation the specification declares, as route templates.
+func (s *specification) Routes(basePath string) (map[string]*operation, error) {
+	routes := map[string]*operation{}
+	for path, item := range s.Paths {
+		for method, node := range item {
+			if !slices.Contains(httpMethods, strings.ToLower(method)) {
+				continue
+			}
+			var op operation
+			if err := node.Decode(&op); err != nil {
+				return nil, fmt.Errorf("%s %s: %w", method, path, err)
+			}
+			if op.OperationID == "" {
+				return nil, fmt.Errorf("%s %s declares no operationId", method, path)
+			}
+			routes[op.route(method, path, basePath)] = &op
+		}
+	}
+	return routes, nil
+}
+
+// IsPublic reports an operation the specification exempts from authentication.
+func (o *operation) IsPublic() bool { return o.Security != nil && len(*o.Security) == 0 }
 
 func loadSpec() (*specification, error) {
 	raw, err := os.ReadFile(specPath)
@@ -139,8 +185,17 @@ func (s *specification) checkObject(path string, node *schema, value map[string]
 		}
 	}
 
-	// Free-form maps (params) are declared with additionalProperties and have no property list.
+	// Free-form maps (params, limits) are declared with `additionalProperties: true` and have no
+	// property list: anything goes, and there is nothing left to check.
 	if node.AdditionalProperties == true && len(node.Properties) == 0 {
+		return problems
+	}
+	// A typed map (features) declares additionalProperties as a schema. Every value is checked
+	// against it, and no name is a surprise - the names are the point of such a map.
+	if declared := additionalSchema(node); declared != nil && len(node.Properties) == 0 {
+		for name, field := range value {
+			problems = append(problems, s.check(path+"."+name, declared, field)...)
+		}
 		return problems
 	}
 
@@ -155,6 +210,25 @@ func (s *specification) checkObject(path string, node *schema, value map[string]
 		problems = append(problems, s.check(path+"."+name, declared, field)...)
 	}
 	return problems
+}
+
+// additionalSchema reads `additionalProperties` when it is a schema rather than a boolean. The
+// document is decoded into `any`, so the node arrives as a map and is re-decoded here - narrower
+// than teaching the schema type to be either, and it keeps the unmarshalling in one shape.
+func additionalSchema(node *schema) *schema {
+	raw, ok := node.AdditionalProperties.(map[string]any)
+	if !ok {
+		return nil
+	}
+	encoded, err := yaml.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var declared schema
+	if err := yaml.Unmarshal(encoded, &declared); err != nil {
+		return nil
+	}
+	return &declared
 }
 
 // typesOf normalises `type: string` and `type: [string, "null"]` to one list.
