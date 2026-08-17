@@ -73,6 +73,43 @@ jobs:
       # use case parity across REST/MCP/automation, observability and audit completeness.
       - run: make gate-architecture
 
+  platforms:
+    name: Toolchain (${{ matrix.os }})
+    needs: quick
+    # Contributors work on Windows, macOS and Linux, and every gate is a make target - which makes
+    # the Makefile and the scripts as much a cross-platform artefact as the Go code, and one that
+    # nothing else here exercises. Every other job runs on ubuntu, so a Windows-only or macOS-only
+    # break is invisible until somebody hits it by hand: that is exactly how a `filepath.Clean`
+    # that keeps backslashes, and a work tree checked out as CRLF, both reached main.
+    #
+    # Linux is deliberately absent - the jobs above already are the Linux run.
+    strategy:
+      # Both platforms report. Learning that Windows is red is not a reason to stop finding out
+      # about macOS.
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # The recipes are bash everywhere; on the Windows runner this is Git Bash.
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - name: Report the toolchain
+        # In the log before anything can fail: which make, which bash, which shell utilities. A
+        # platform break is usually a version difference, and this is the line that names it.
+        run: make --version | head -1; bash --version | head -1; go env GOEXE GOOS
+      - run: make tools
+      - run: make gate-quick
+      - run: make gate-architecture
+      # Carries the race detector, so it also proves cgo is wired up on this platform.
+      - run: make gate-unit
+
   resilience:
     name: Resilience RT-1..RT-12
     needs: quick
