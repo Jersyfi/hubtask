@@ -33,28 +33,35 @@ Refs #42
 
 Scopes correspond to the bounded contexts in `docs/architecture/arc42.md` §5.
 
-## Running the gates on Windows
+## Linux, macOS, Windows
 
-The gates assume a POSIX shell and CI runs them on Linux. Two things a stock Windows machine does
-not have:
+Develop on whichever of the three you like. Every gate is a make target and the recipes are bash,
+so what a platform needs is bash, GNU make, and the Go toolchain. The `Toolchain (…)` job in CI runs
+`make tools`, `gate-quick`, `gate-architecture` and `gate-unit` on macOS and Windows on every pull
+request, which is what keeps this true rather than merely intended.
 
-* **`make` itself** — `winget install ezwinports.make`, and invoke it from Git Bash: the Makefile
-  sets `SHELL := /bin/bash`, and `scripts/gate-selftest.sh` is a bash script.
-* **A C compiler** — the race detector needs cgo, which is why `gate-unit` is the one target that
-  overrides `CGO_ENABLED=1`. Without a toolchain that target cannot run as written. Run the same
-  packages without the detector and leave `-race` to CI:
+**Linux** — nothing to arrange. This is what the other CI jobs run.
 
-  ```bash
-  go test ./core/... ./infrastructure/... ./presentation/...
-  ```
+**macOS** — the `make` from the Xcode command line tools is enough (`xcode-select --install`), as is
+its bash 3.2; nothing here needs bash 4. The container suites want a Docker endpoint: Docker Desktop
+works as is, and for Colima or Podman set `DOCKER_HOST` so Testcontainers finds the socket.
 
-`gate-quick`, `gate-architecture` and `gate-security` run on Windows unchanged. Line endings are
-pinned to LF by `.gitattributes`; a clone made before that file existed still has a CRLF work tree,
-and `gofmt -l .` then flags every file in the repository. On a clean tree, `git rm --cached -r .`
-followed by `git reset --hard` refreshes it.
+**Windows** — install make (`winget install ezwinports.make`) and run it **from Git Bash**, not from
+cmd or PowerShell. The Makefile looks bash up on PATH rather than at `/bin/bash`, and both scripts
+under `scripts/` are bash. For `gate-unit` you also need a C compiler, because the race detector
+needs cgo — `winget install BrechtSanders.WinLibs.POSIX.UCRT` provides one. Without it, run the same
+packages without the detector and leave `-race` to CI:
 
-What you cannot run locally, CI runs on the pull request — say which gate you skipped rather than
-ticking "`make verify` green locally" for one you did not.
+```bash
+go test ./core/... ./infrastructure/... ./presentation/...
+```
+
+**Everywhere** — line endings are pinned to LF by `.gitattributes`. A clone made before that file
+existed still has a CRLF work tree, and `gofmt -l .` then flags every file in the repository; on a
+clean tree, `git rm --cached -r .` followed by `git reset --hard` refreshes it.
+
+What you genuinely cannot run locally, CI runs on the pull request — say which gate you skipped
+rather than ticking "`make verify` green locally" for one you did not.
 
 ## One pull request, one issue
 
