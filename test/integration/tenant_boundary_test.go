@@ -146,6 +146,10 @@ func TestAPartitionCannotBeUsedToReadAnotherTenant(t *testing.T) {
 
 	// And the policy is not simply denying everything: the tenant's own row is visible, through
 	// the parent and through the partition that holds it.
+	//
+	// Counted by the fixture's own action rather than as a total. The package shares one database
+	// and other tests append to this tenant's trail; an exact total would make this assertion
+	// depend on how many of them ran first, which is not what it is about.
 	for _, relation := range []string{"audit_log", "audit_log_2026_08"} {
 		t.Run(relation+" own rows", func(t *testing.T) {
 			var own int
@@ -154,7 +158,8 @@ func TestAPartitionCannotBeUsedToReadAnotherTenant(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				return tx.QueryRow(ctx, `SELECT count(*) FROM `+relation).Scan(&own)
+				return tx.QueryRow(ctx,
+					`SELECT count(*) FROM `+relation+` WHERE action = 'seeded'`).Scan(&own)
 			})
 			if err != nil {
 				t.Fatalf("query: %v", err)
@@ -222,7 +227,10 @@ func TestAForeignTenantSeesNothingOfAnother(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				return tx.QueryRow(ctx, `SELECT count(*) FROM audit_log`).Scan(&count)
+				// The fixture's own row, for the reason given above: the total belongs to
+				// whichever tests ran first, the isolation does not.
+				return tx.QueryRow(ctx,
+					`SELECT count(*) FROM audit_log WHERE action = 'seeded'`).Scan(&count)
 			})
 			if err != nil {
 				t.Fatalf("query: %v", err)
@@ -345,6 +353,9 @@ func TestTheApplicationRoleCannotTouchTheMigrationLedger(t *testing.T) {
 	}
 }
 
+// seedAuditRows puts one recognisable entry into each tenant's trail. Recognisable rather than
+// only counted: other tests in this package write real entries for the same tenants, so the
+// fixture asks for its own row by action instead of assuming it is the only one.
 func seedAuditRows(ctx context.Context, t *testing.T) {
 	t.Helper()
 	admin := adminPool(ctx, t)
@@ -358,7 +369,7 @@ func seedAuditRows(ctx context.Context, t *testing.T) {
 		INSERT INTO audit_log (id, tenant_id, seq, occurred_at, action, outcome, actor_type, hash)
 		SELECT gen_random_uuid(), t.id, 1, now(), 'seeded', 'SUCCESS', 'SYSTEM', '\x00'
 		FROM (VALUES ($1::uuid), ($2::uuid)) AS t(id)
-		WHERE NOT EXISTS (SELECT 1 FROM audit_log WHERE tenant_id = t.id)`,
+		WHERE NOT EXISTS (SELECT 1 FROM audit_log WHERE tenant_id = t.id AND action = 'seeded')`,
 		tenantA.String(), tenantB.String()); err != nil {
 		t.Fatalf("seeding audit rows: %v", err)
 	}
