@@ -117,7 +117,7 @@ not from constants.
 A single use case, but complete: the `Container` domain model with invariants I-C1…I-C3, the
 repository, the `AuthorizationService`, the use case registry with registration for REST **and** MCP
 **and** as an automation action, the domain event
-`de.hubtask.workmanagement.container.created.v1` through the outbox, an audit entry, a metric, a
+`de.hubtask.work.container.created.v1` through the outbox, an audit entry, a metric, a
 trace span, a change log entry for the sync, and message codes.
 
 **Acceptance:** the parity test (REST/MCP/automation) green; a cross-tenant negative test per

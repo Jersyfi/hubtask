@@ -92,7 +92,8 @@ hubtask/
 │   └── openapi/                    # generated server types (never edit by hand)
 │
 ├── infrastructure/                 # outbound adapters
-│   ├── postgres/                   # repositories, sqlc output, Outbox.go, Queue.go, Tenant.go (RLS)
+│   ├── postgres/                   # repositories, sqlc output, Outbox.go, ChangeLog.go, AuditSink.go,
+│   │                               # Queue.go, Tenant.go (RLS)
 │   ├── storage/                    # S3Storage.go, LocalStorage.go
 │   ├── mail/                       # SmtpSender.go, ImapPoller.go
 │   ├── httpclient/                 # GuardedClient.go (SSRF, timeouts, retry)
@@ -108,7 +109,8 @@ hubtask/
 │   ├── backupstorage/              # LocalTarget.go, S3Target.go, SftpTarget.go, FtpTarget.go,
 │   │                               # WebdavTarget.go, SmbTarget.go, RcloneTarget.go, HttpPutTarget.go
 │   ├── archive/                    # Writer.go, Reader.go, Manifest.go, Encryption.go, Migrate.go
-│   ├── audit/                      # PostgresAuditSink.go, HashChain.go, SiemExporter.go
+│   ├── audit/                      # HashChain.go, SiemExporter.go (the sink itself is in
+│   │                               # postgres/, where rule 3 keeps the driver)
 │   └── automation/                 # CelEvaluator.go, ActionDispatcher.go
 │
 ├── api/

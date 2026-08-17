@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://docs.hubtask.dev/events/de.hubtask.work.container.created.v1.json",
   "title": "de.hubtask.work.container.created.v1",
-  "description": "A hub or a collection was created. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
+  "description": "A hub or a collection was created. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
   "type": "object",
   "required": [
     "specversion",
@@ -20,7 +20,7 @@
   ],
   "additionalProperties": true,
   "properties": {
-    "specversion": { "const": "1.0" },
+    "specversion": { "type": "string", "enum": ["1.0"] },
     "id": {
       "type": "string",
       "format": "uuid",
@@ -30,14 +30,13 @@
       "type": "string",
       "description": "The installation and the bounded context that produced the event."
     },
-    "type": { "const": "de.hubtask.work.container.created.v1" },
+    "type": { "type": "string", "enum": ["de.hubtask.work.container.created.v1"] },
     "subject": {
       "type": "string",
-      "pattern": "^container/[0-9a-f-]{36}$",
       "description": "What the event is about, so that a consumer can filter without parsing the payload."
     },
     "time": { "type": "string", "format": "date-time" },
-    "datacontenttype": { "const": "application/json" },
+    "datacontenttype": { "type": "string", "enum": ["application/json"] },
 
     "tenantid": { "type": "string", "format": "uuid" },
     "actortype": {
@@ -66,8 +65,6 @@
     },
     "causationdepth": {
       "type": "integer",
-      "minimum": 0,
-      "maximum": 5,
       "description": "Distance from the original action. The rule engine stops at 5 and marks the run ABORTED_LOOP (automation.md §2)."
     },
 
@@ -84,7 +81,7 @@
           "format": "uuid",
           "description": "The hub a collection sits in; null for a hub (invariant I-C1)."
         },
-        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "name": { "type": "string" },
         "description": { "type": "string" },
         "icon": { "type": "string" },
         "color_token": {
@@ -97,7 +94,7 @@
         },
         "created_at": { "type": "string", "format": "date-time" },
         "created_by": { "type": "string", "format": "uuid" },
-        "version": { "type": "integer", "minimum": 1 }
+        "version": { "type": "integer" }
       }
     }
   }

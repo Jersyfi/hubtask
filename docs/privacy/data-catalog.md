@@ -73,6 +73,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Webhook subscriptions (target URL, secret) | `webhook_subscription` | `SECRET` (the secret) + `NON_PERSONAL` | Integration | Until deleted | `CASCADE` |
 | Delivery logs (status, truncated body) | `webhook_delivery` | `PERSONAL_TECHNICAL` | Proof of delivery | 30 days | `RETENTION` |
 | Domain events (references, metadata) | `outbox_event` | `PERSONAL_TECHNICAL` | Integration | 7 days after delivery | `RETENTION` |
+| Change log (state deltas incl. field snapshots) | `change_log` | `PERSONAL_CONTENT` (the payload mirrors the row) | Offline synchronisation | The maximum offline window, 90 days by default (offline-sync.md §7) | `RETENTION` (a purge before it elapses would let a device recreate deleted objects) |
 | Calendar feeds (token, scope) | `calendar_feed` | `SECRET` + `PERSONAL_CONTENT` (titles in the ICS) | Calendar integration | Until revoked | `CASCADE` |
 | AI usage metadata (provider, model, purpose, scope, timestamp) | `audit_log` | `PERSONAL_TECHNICAL` | Transparency, evidence of third-country transfer | The audit period | `IMMUTABLE` |
 | Content transmitted to AI | **not stored** (transmitted to the provider) | `PERSONAL_CONTENT` | AI suggestions | Not stored in the system; at the provider per their agreement | — |
