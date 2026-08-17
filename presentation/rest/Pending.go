@@ -1,0 +1,157 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package rest
+
+import (
+	"net/http"
+
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	"github.com/Jersyfi/hubtask/presentation/openapi"
+)
+
+// pending answers every operation the specification declares and this installation does not serve
+// yet. RestController embeds it and overrides one method per use case that lands, so this file is
+// the visible remainder of the milestone: what is still missing is a list, not a guess.
+//
+// The routes are registered all the same. That is what lets the contract test compare the router
+// against api/openapi.yaml as a whole (ADR-0004), and it keeps the metric labels bounded to the
+// route templates the specification defines rather than to whatever a client asks for
+// (observability-reliability.md §3.2).
+type pending struct{}
+
+var _ openapi.ServerInterface = pending{}
+
+// notAvailable is the answer: 404 with the detail code saying which kind of 404 it is.
+//
+// Not 501. The status mapping in api-guidelines.md §6 knows no 501, and an adapter does not get
+// to invent a contract status - a client that reads `not_found` treats the resource as absent,
+// which is exactly what it is on this installation. The detail code separates "not built yet"
+// from "no such object" for anyone debugging.
+func notAvailable(w http.ResponseWriter, r *http.Request) {
+	WriteProblem(w, shared.ErrNotFound.WithDetail("route.operation_not_available"),
+		correlation.RequestIDFrom(r.Context()))
+}
+
+func (pending) ListAuditEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListAuditEntriesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) VerifyAuditChain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListBackupTargets(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreateBackupTarget(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListBackupsAtTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListBackupsAtTargetParams) {
+	notAvailable(w, r)
+}
+
+func (pending) TestBackupTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) StartBackup(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) VerifyBackup(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) ListContainers(w http.ResponseWriter, r *http.Request, _ openapi.ListContainersParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateContainer(w http.ResponseWriter, r *http.Request, _ openapi.CreateContainerParams) {
+	notAvailable(w, r)
+}
+
+func (pending) TrashContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.TrashContainerParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.UpdateContainerParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListBuckets(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateBucket(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListLabels(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.CreateWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) TrashWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.TrashWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.GetWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.UpdateWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListComments(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ListCommentsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) AddComment(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AddCommentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CompleteWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CompleteWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) MoveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) RetainItem(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) BulkItems(w http.ResponseWriter, r *http.Request, _ openapi.BulkItemsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) QueryItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetCapabilities(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetHealthReport(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) StartRestore(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListRetentionPolicies(w http.ResponseWriter, r *http.Request, _ openapi.ListRetentionPoliciesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateRetentionPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListSyncDevices(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SyncPull(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SyncPush(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

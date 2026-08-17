@@ -163,12 +163,13 @@ func run() error {
 
 	var api *http.Server
 	if cfg.HasRole(envport.RoleAPI) {
-		// TODO(0.1.0): mount the generated router from openapi.yaml into this mux, plus
-		// middleware for auth, tenant context, locale, rate limit and idempotency.
+		// The routes come from api/openapi.yaml through the generated registration list; nothing
+		// here names a path (ADR-0004). Operations without a use case yet answer 404 - the route
+		// exists because the contract declares it, not because it works.
 		//
-		// The observability middleware is already in place around it: from the first request
-		// there is a RED metric, a span, and a request ID, and A-06 only adds routes inside.
-		apiRoutes := http.NewServeMux()
+		// TODO(0.1.0): the remaining middleware - auth, tenant context, locale, rate limit and
+		// idempotency - wraps this in the steps that follow.
+		apiRoutes := rest.NewRestController().Routes()
 		api = &http.Server{
 			Addr: cfg.HTTPAddr,
 			Handler: rest.Observed{

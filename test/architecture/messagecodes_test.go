@@ -36,13 +36,23 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 			t.Errorf("the message code %s is missing from locales/en.json", key)
 		}
 	}
+
+	// The contract codes with no domain error behind them: the router answers for itself when a
+	// request reaches no route at all (presentation/rest/Router.go). They are part of the same
+	// contract and need the same catalogue entry.
+	for _, code := range []string{"method_not_allowed"} {
+		key := "errors." + code
+		if _, ok := messages[key]; !ok {
+			t.Errorf("the message code %s is missing from locales/en.json", key)
+		}
+	}
 }
 
 // messageCode matches a string literal that looks like a message code of the configuration, the
 // error model, the health report's degradation reasons, or the load shedder's capacity refusals.
 // Narrow on purpose: only the prefixes that exist today, so that an example in a test comment
 // does not turn into a false alarm.
-var messageCode = regexp.MustCompile(`"((?:config|errors|dependency|capacity)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
+var messageCode = regexp.MustCompile(`"((?:route|config|errors|dependency|capacity)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
 
 // TestEveryUsedMessageCodeIsInTheCatalogue reads the source rather than a registry: a code is
 // used where it is written, and a registry would only be a second place to forget.
