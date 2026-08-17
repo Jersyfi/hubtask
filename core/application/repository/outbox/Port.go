@@ -52,4 +52,3 @@ type Pending interface {
 	// dispatcher decides between running again immediately and going back to sleep.
 	CountPending(ctx context.Context) (int, error)
 }
-

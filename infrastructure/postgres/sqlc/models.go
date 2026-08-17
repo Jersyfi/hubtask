@@ -696,6 +696,13 @@ type DeletionJournal struct {
 	Reason    string
 }
 
+type EventConsumption struct {
+	TenantID   pgtype.UUID
+	Consumer   string
+	EventID    pgtype.UUID
+	ConsumedAt pgtype.Timestamptz
+}
+
 type IdempotencyKey struct {
 	TenantID     pgtype.UUID
 	Key          string

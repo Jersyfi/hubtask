@@ -539,6 +539,17 @@ CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
 CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)
   WHERE dedupe_key IS NOT NULL AND state IN ('PENDING','RUNNING');
 
+-- What a subscriber has already seen. The outbox delivers at-least-once, so a consumer asks here
+-- before it reacts; the insert is the question (ADR-0007, db/migrations/0003).
+CREATE TABLE event_consumption (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  consumer    text NOT NULL,
+  event_id    uuid NOT NULL,
+  consumed_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, consumer, event_id)
+);
+CREATE INDEX event_consumption_gc_idx ON event_consumption (consumed_at);
+
 CREATE TABLE idempotency_key (
   tenant_id     uuid NOT NULL,
   key           text NOT NULL,
@@ -940,7 +951,7 @@ BEGIN
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
     'automation_rule','rule_run','webhook_subscription','webhook_delivery','calendar_feed',
-    'outbox_event','idempotency_key','usage_record',
+    'outbox_event','event_consumption','idempotency_key','usage_record',
     'audit_anchor','retention_policy','data_subject_request','consent_record',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element'
