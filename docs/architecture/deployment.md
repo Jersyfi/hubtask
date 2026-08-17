@@ -155,6 +155,8 @@ Everything else has a self-hosting default:
 | `HUBTASK_RATE_LIMIT_BURST` | `20` | How much of a budget may be spent at once |
 | `HUBTASK_MAX_BODY_BYTES` / `HUBTASK_MAX_UPLOAD_BYTES` | `1 MiB` / `64 MiB` | Request and upload limit (T-17) |
 | `HUBTASK_REQUEST_TIMEOUT` | `30s` | Server-side deadline every handler inherits |
+| `HUBTASK_CORS_ALLOWED_ORIGINS` | — | Complete origins (`https://app.example.com`), comma-separated. Empty closes the browser side entirely; a bare host name or a trailing slash fails startup rather than silently matching nothing. `*` is allowed on its own and stays safe because credentials are never sent (security.md §9) |
+| `HUBTASK_CORS_MAX_AGE` | `10m` | How long a browser may cache the preflight answer |
 | `HUBTASK_HTTP_TIMEOUT` / `HUBTASK_HTTP_CONNECT_TIMEOUT` | `10s` / `5s` | Budget for one outbound call, and for its connection attempt (T-07) |
 | `HUBTASK_HTTP_MAX_RESPONSE_BYTES` | `1 MiB` | Cap on what is read from an outbound response (T-17) |
 | `HUBTASK_HTTP_MAX_REDIRECTS` | `3` | Hops followed, each re-checked from scratch; `0` follows none, `10` is the maximum |

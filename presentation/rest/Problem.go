@@ -6,6 +6,7 @@ package rest
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -60,6 +61,17 @@ var statusByCategory = map[shared.Category]int{
 // malformed_request is the one validation code that is a 400 rather than a 422: the request could
 // not be read at all, so no field can be named (api-guidelines.md §6).
 const codeMalformedRequest = "malformed_request"
+
+// codeMethodNotAllowed is the one contract code with no domain error behind it. The request
+// matched a route but not one of its methods, so no use case is ever entered - which is also why
+// 405 is absent from the mapping in api-guidelines.md §6: that table maps domain categories to
+// statuses, and this is the router answering for itself. Adding a code is additive and therefore
+// not a breaking change (api-guidelines.md §8).
+const codeMethodNotAllowed = "method_not_allowed"
+
+// codePayloadTooLarge is the second of them, and it is there for the same reason: the body is
+// refused before any use case reads it (security.md §9, request sizes).
+const codePayloadTooLarge = "payload_too_large"
 
 // ProblemFrom maps any error to problem details. An error that is not a domain error becomes
 // INTERNAL, and nothing of its text reaches the response - it may contain a connection string,
@@ -117,8 +129,38 @@ func ProblemFrom(err error, requestID string) Problem {
 // WriteProblem sends the error as RFC 9457. It never fails visibly: at that point the status is
 // already written, and a broken response body is a log entry, not a second error.
 func WriteProblem(w http.ResponseWriter, err error, requestID string) {
-	problem := ProblemFrom(err, requestID)
+	writeProblem(w, ProblemFrom(err, requestID))
+}
 
+// WriteMethodNotAllowed answers a request that reached a route but not one of its methods. The
+// caller sets the Allow header first - without it a 405 tells a client nothing it can act on.
+func WriteMethodNotAllowed(w http.ResponseWriter, requestID string) {
+	writeProblem(w, Problem{
+		Type:      docsBaseURL + codeMethodNotAllowed,
+		Title:     codeMethodNotAllowed,
+		Status:    http.StatusMethodNotAllowed,
+		Code:      codeMethodNotAllowed,
+		RequestID: requestID,
+		Docs:      docsBaseURL + codeMethodNotAllowed,
+	})
+}
+
+// WriteTooLarge refuses a body over the configured limit. The limit is named in the parameters,
+// because a client that does not know it can only guess at a smaller request.
+func WriteTooLarge(w http.ResponseWriter, limit int64, requestID string) {
+	writeProblem(w, Problem{
+		Type:       docsBaseURL + codePayloadTooLarge,
+		Title:      codePayloadTooLarge,
+		Status:     http.StatusRequestEntityTooLarge,
+		Code:       codePayloadTooLarge,
+		DetailCode: "request.body_too_large",
+		Params:     map[string]string{"limit_bytes": strconv.FormatInt(limit, 10)},
+		RequestID:  requestID,
+		Docs:       docsBaseURL + codePayloadTooLarge,
+	})
+}
+
+func writeProblem(w http.ResponseWriter, problem Problem) {
 	w.Header().Set("Content-Type", ProblemContentType)
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(problem.Status)

@@ -57,6 +57,11 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool,
 	// holding connections.
 	poolCfg.ConnConfig.RuntimeParams["application_name"] = "hubtask/" + string(role)
 
+	// The schema's own enum types are registered per connection, before the connection is handed
+	// to anybody. Doing it here rather than at the first failing query means a database whose
+	// types cannot be read fails at startup, like every other unmet dependency (ADR-0015).
+	poolCfg.AfterConnect = RegisterSchemaTypes
+
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, shared.ErrUnavailable.

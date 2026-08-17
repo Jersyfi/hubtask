@@ -85,6 +85,10 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			MaxUploadBytes: int64(getInt("HUBTASK_MAX_UPLOAD_BYTES", 1<<26)), // 64 MiB
 			Timeout:        getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
 		},
+		CORS: env.CORSConfig{
+			AllowedOrigins: getList("HUBTASK_CORS_ALLOWED_ORIGINS"),
+			MaxAge:         getDuration("HUBTASK_CORS_MAX_AGE", 10*time.Minute),
+		},
 		Outbound: env.OutboundConfig{
 			Timeout:              getDuration("HUBTASK_HTTP_TIMEOUT", 10*time.Second),
 			ConnectTimeout:       getDuration("HUBTASK_HTTP_CONNECT_TIMEOUT", 5*time.Second),
@@ -212,6 +216,7 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateMail(cfg.Mail)...)
 	errs = append(errs, validateRateLimit(cfg.RateLimit)...)
 	errs = append(errs, validateRequest(cfg.Request)...)
+	errs = append(errs, validateCORS(cfg.CORS)...)
 	errs = append(errs, validateOutbound(cfg.Outbound)...)
 	errs = append(errs, validateLocale(cfg.Locale)...)
 	errs = append(errs, validateTracing(cfg.Tracing)...)
@@ -376,6 +381,43 @@ func validateOutbound(o env.OutboundConfig) []error {
 		}
 	}
 	return errs
+}
+
+// validateCORS insists on complete origins. A browser sends `Origin: https://app.example.com`
+// and compares byte for byte; a host name without a scheme, or one with a trailing slash, matches
+// nothing - and an allowlist that silently matches nothing is worse than none, because the
+// operator believes the frontend is allowed.
+func validateCORS(c env.CORSConfig) []error {
+	var errs []error
+
+	if c.MaxAge < 0 {
+		errs = append(errs, configError("config.duration_invalid", "HUBTASK_CORS_MAX_AGE"))
+	}
+	if c.AllowsAnyOrigin() {
+		return errs
+	}
+	for _, origin := range c.AllowedOrigins {
+		if origin == env.CORSWildcard {
+			// "*" alongside named origins is a contradiction: either every origin is allowed or
+			// a list of them is.
+			errs = append(errs, corsOriginError(origin))
+			continue
+		}
+		scheme, rest, found := strings.Cut(origin, "://")
+		if !found || (scheme != "http" && scheme != "https") ||
+			rest == "" || strings.ContainsAny(rest, "/?#") {
+			errs = append(errs, corsOriginError(origin))
+		}
+	}
+	return errs
+}
+
+func corsOriginError(origin string) error {
+	return configError("config.cors_origin_invalid", "HUBTASK_CORS_ALLOWED_ORIGINS").
+		WithParams(map[string]string{
+			"variable": "HUBTASK_CORS_ALLOWED_ORIGINS",
+			"value":    origin,
+		})
 }
 
 func validateTracing(t env.TracingConfig) []error {

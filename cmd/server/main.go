@@ -24,13 +24,18 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
+	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
 
@@ -163,16 +168,72 @@ func run() error {
 
 	var api *http.Server
 	if cfg.HasRole(envport.RoleAPI) {
-		// TODO(0.1.0): mount the generated router from openapi.yaml into this mux, plus
-		// middleware for auth, tenant context, locale, rate limit and idempotency.
-		//
-		// The observability middleware is already in place around it: from the first request
-		// there is a RED metric, a span, and a request ID, and A-06 only adds routes inside.
-		apiRoutes := http.NewServeMux()
+		// The routes come from api/openapi.yaml through the generated registration list; nothing
+		// here names a path (ADR-0004). Operations without a use case yet answer 404 - the route
+		// exists because the contract declares it, not because it works.
+		unitOfWork := postgres.NewUnitOfWork(pool)
+
+		controller := rest.NewRestController()
+		controller.Capabilities = meta.GetCapabilities{
+			Profiles:   postgres.NewCapabilityProfileRepository(),
+			UnitOfWork: unitOfWork,
+			Config:     cfg,
+		}
+		apiRoutes := controller.Routes()
+
+		authenticate := identity.AuthenticateToken{
+			Tokens:     postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{},
+		}
+
+		// One limiter, two levels: per credential or client address before authentication, per
+		// tenant after it. The first needs no database - it keys on a fingerprint of the
+		// presented string - so a flood of invalid tokens costs no lookups.
+		limiter := rest.NewRateLimiter()
+
+		// The chain, from the outside in. Observed stays outermost: a panic anywhere below it
+		// still becomes a problem document, and every answer carries a request ID and a metric -
+		// including the ones no handler produced. Authentication sits inside the bounds and
+		// inside the first limit, so neither an oversized body nor a flood reaches a database
+		// lookup.
 		api = &http.Server{
 			Addr: cfg.HTTPAddr,
 			Handler: rest.Observed{
-				Router:  apiRoutes,
+				Router: rest.Chain{
+					Routes: apiRoutes,
+					Entry: rest.Secured{CORS: cfg.CORS, Next: rest.Bounded{
+						MaxBodyBytes: cfg.Request.MaxBodyBytes,
+						Timeout:      cfg.Request.Timeout,
+						Next: rest.Limited{
+							Limiter: limiter,
+							Level:   "credential",
+							Bucket: rest.CredentialBucket(
+								cfg.RateLimit.AnonymousPerMinute,
+								cfg.RateLimit.TokenPerMinute,
+								cfg.RateLimit.Burst),
+							Next: rest.Localised{
+								Locale: cfg.Locale,
+								Next: rest.Authenticated{
+									Routes:        apiRoutes,
+									Authenticator: authenticate,
+									Locale:        cfg.Locale,
+									Next: rest.Limited{
+										Limiter: limiter,
+										Level:   "tenant",
+										Bucket: rest.TenantBucket(
+											cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+										Next: rest.Idempotent{
+											Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+											Routes: apiRoutes,
+											Next:   apiRoutes,
+										},
+									},
+								},
+							},
+						},
+					}},
+				},
 				Metrics: metrics,
 				Tracer:  tracing.Tracer("rest"),
 				Role:    string(envport.RoleAPI),

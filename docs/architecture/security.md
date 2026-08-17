@@ -108,6 +108,18 @@ New bounded contexts get a short STRIDE analysis at design time; the result is a
 | Access token | JWT or opaque, 15 min, `tenant_id`, `sub`, `scopes`, `jti`; verifiable without a database round trip |
 | Refresh token | 30 days, rotating; reuse invalidates the entire family and raises an alert |
 | PAT (`hbt_pat_…`) | Visible only at creation, stored hashed (SHA-256 + pepper), a mandatory expiry date (max. 1 year), scopes, last use visible; the prefix enables secret scanning at GitHub/GitLab |
+
+The concrete form of a personal access token is
+`hbt_pat_<32 hex digits of the tenant>_<43 characters, base64url, 32 random bytes>` — a scanning
+pattern of `hbt_pat_[0-9a-f]{32}_[A-Za-z0-9_-]{43}`. The tenant travels inside the credential
+because the lookup needs it before it can happen: `access_token` is behind row level security like
+every other table, so a query for the hash returns nothing until a tenant context is set, and for a
+non-interactive credential the only honest source of that context is the credential itself
+(multi-tenancy.md §3). Naming the wrong tenant gains nothing — the hash covers the whole string,
+tenant half included, and is unique across the installation. The stored hash is
+HMAC-SHA-256 keyed on a pepper derived from `HUBTASK_SECRET_KEY` with a purpose label, so a hash
+from here cannot be replayed as a signed cursor or a feed token.
+
 | Service accounts | No login, tokens only, bound to a tenant, with their own role |
 | MFA | TOTP from milestone `0.6.0`; enforceable per tenant for the `OWNER`/`ADMIN` roles; single-use recovery codes |
 | Session management | The user sees active sessions and can sign out individually or globally |

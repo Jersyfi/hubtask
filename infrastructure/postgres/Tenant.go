@@ -65,6 +65,12 @@ func (u *UnitOfWork) run(
 		// error (multi-tenancy.md §2.2).
 		return shared.ErrInternal.WithDetail("postgres.scope_missing")
 	}
+	if scope.Installation && access != pgx.ReadOnly {
+		// An installation scope has no tenant, so every WITH CHECK would compare against NULL
+		// and every write would be refused by the database anyway. Refusing here makes it a
+		// programming error with a name rather than a confusing policy violation at run time.
+		return shared.ErrInternal.WithDetail("postgres.installation_scope_is_read_only")
+	}
 
 	// A transaction already running joins rather than nesting: a second transaction on a second
 	// connection would not see the first one's writes, and the two would wait for each other.
@@ -136,6 +142,10 @@ const rollbackTimeout = 5 * time.Second
 //
 // set_config with is_local = true is the parameterised form of SET LOCAL; SET LOCAL itself takes
 // no placeholders.
+// An installation scope sets the tenant to the empty string rather than skipping the call.
+// current_tenant_id() reads that as NULL, so every policy comparing against it is false and only
+// the rows that belong to no tenant remain visible. Skipping the call instead would leave
+// whatever the connection last carried, which is the one outcome this port exists to prevent.
 func applyScope(ctx context.Context, tx pgx.Tx, scope persistence.Scope) error {
 	if _, err := tx.Exec(ctx, `SELECT set_config('app.tenant_id', $1, true)`, scope.TenantID.String()); err != nil {
 		return shared.ErrUnavailable.

@@ -10,6 +10,8 @@
   "errors.version_conflict": "Someone else changed this entry in the meantime.",
   "errors.gone": "This entry has been permanently deleted.",
   "errors.rate_limited": "Too many requests. Please try again in a moment.",
+  "errors.method_not_allowed": "This address does not support that operation.",
+  "errors.payload_too_large": "The request is larger than this installation accepts.",
   "errors.dependency_unavailable": "A required service is temporarily unavailable.",
   "errors.internal": "Something went wrong on our side. Reference: {request_id}",
   "errors.config_invalid": "The installation is misconfigured.",
@@ -40,6 +42,7 @@
   "config.redirects_invalid": "{variable} must be between 0 and {maximum}. A longer chain is not a site that moved.",
   "config.allowed_host_invalid": "{variable} takes host names, not URLs. {value} contains a scheme or a path.",
   "config.timezone_unknown": "{variable} must be an IANA time zone such as Europe/Berlin. {value} is not one.",
+  "config.cors_origin_invalid": "{variable} takes complete origins such as https://app.example.com. {value} is not one.",
 
   "config.backup_not_configured": "No backup target is configured. A restore drill is a release criterion.",
   "config.smtp_missing": "No SMTP server is configured. Notifications by email are unavailable.",
@@ -48,6 +51,30 @@
   "config.egress_allowlist_missing": "No egress allowlist is configured. In multi-tenant operation, outbound calls should be restricted to known hosts.",
   "config.egress_private_networks_allowed": "Outbound calls to private networks are allowed. A webhook target can reach services inside your network.",
   "config.smtp_without_tls": "SMTP to {host} is configured without TLS. Credentials travel unencrypted.",
+
+  "request.body_too_large": "The request body may be at most {limit_bytes} bytes.",
+  "access.credential_required": "This operation needs you to be signed in.",
+  "access.insufficient_scope": "The token used is not allowed to do this. It would need the scope {scope}.",
+  "access.scheme_unsupported": "This API expects a bearer token in the Authorization header.",
+  "access.tenant_mismatch": "The token belongs to a different workspace than the one requested.",
+  "access.rate_limit_exceeded": "Too many requests for this {level}. Please slow down.",
+  "access.token_malformed": "That is not a valid access token.",
+  "access.token_unknown": "That access token is not known here.",
+  "access.token_expired": "That access token has expired. Create a new one.",
+  "access.token_revoked": "That access token has been revoked.",
+  "access.token_tenant_missing": "An access token has to belong to a workspace.",
+  "access.token_secret_short": "An access token needs its full length. Create a new one.",
+  "access.account_not_active": "This account cannot be used at the moment. Its status is {status}.",
+
+  "idempotency.key_malformed": "The Idempotency-Key header has to be a UUID.",
+  "idempotency.key_reused": "This Idempotency-Key was already used for a different request. Use a new one.",
+  "idempotency.in_progress": "An identical request is still running. Try again in a moment.",
+  "idempotency.body_unreadable": "The request body could not be read to the end.",
+
+  "rest.use_case_not_wired": "This installation is misconfigured and cannot answer that request.",
+
+  "route.unknown": "There is nothing at this address.",
+  "route.operation_not_available": "This installation does not offer that operation yet.",
 
   "dependency.unavailable": "A service this feature needs cannot be reached at the moment. Everything else keeps working.",
   "dependency.timeout": "{dependency} did not answer in time. Please try again in a moment.",

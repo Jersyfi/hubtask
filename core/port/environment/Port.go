@@ -72,6 +72,7 @@ type Config struct {
 	Mail      MailConfig
 	RateLimit RateLimitConfig
 	Request   RequestConfig
+	CORS      CORSConfig
 	Outbound  OutboundConfig
 	Locale    LocaleConfig
 	Metrics   MetricsConfig
@@ -154,6 +155,26 @@ type RequestConfig struct {
 	// (ADR-0016).
 	Timeout time.Duration
 }
+
+// CORSConfig is the browser side of the API. Empty by default: a self-hosted installation serves
+// its own frontend from its own origin and needs no cross-origin access at all, and an allowlist
+// that starts empty is one nobody has to remember to close (security.md §9).
+type CORSConfig struct {
+	// AllowedOrigins are complete origins (scheme, host, optional port), compared exactly. A
+	// single "*" allows every origin - permitted, because a read-only public API is a legitimate
+	// self-hosting choice, and safe here because this API never answers with credentials.
+	AllowedOrigins []string
+	// MaxAge is how long a browser may cache the preflight answer.
+	MaxAge time.Duration
+}
+
+// AllowsAnyOrigin reports the wildcard case.
+func (c CORSConfig) AllowsAnyOrigin() bool {
+	return len(c.AllowedOrigins) == 1 && c.AllowedOrigins[0] == CORSWildcard
+}
+
+// CORSWildcard is the one value that stands for every origin.
+const CORSWildcard = "*"
 
 // MaxOutboundRedirects bounds the configured redirect budget. A chain longer than this is not a
 // site that moved, it is a chain being used to walk a request somewhere it may not go (T-07).

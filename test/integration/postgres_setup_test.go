@@ -21,6 +21,8 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // appPassword is the login the tests grant the application role. The migration creates the role
@@ -155,26 +157,36 @@ func repositoryRoot() (string, error) {
 	}
 }
 
-// appPool connects as the application role, the way the server does.
-func appPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
+// openPool builds a pool the way the server does. The configuration NewPool applies is the
+// server's business, but the type registration is not optional: without it a query returning
+// item_type[] fails to scan, so a test opening a raw pgxpool.New would be testing a connection
+// the server never uses.
+func openPool(ctx context.Context, t *testing.T, dsn, role string) *pgxpool.Pool {
 	t.Helper()
-	pool, err := pgxpool.New(ctx, testDatabase(t).appDSN)
+	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		t.Fatalf("application pool: %v", err)
+		t.Fatalf("%s pool configuration: %v", role, err)
+	}
+	cfg.AfterConnect = postgres.RegisterSchemaTypes
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		t.Fatalf("%s pool: %v", role, err)
 	}
 	t.Cleanup(pool.Close)
 	return pool
 }
 
+// appPool connects as the application role, the way the server does.
+func appPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	return openPool(ctx, t, testDatabase(t).appDSN, "application")
+}
+
 // adminPool connects as the superuser, for fixtures and for catalogue queries.
 func adminPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	pool, err := pgxpool.New(ctx, testDatabase(t).adminDSN)
-	if err != nil {
-		t.Fatalf("admin pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	return pool
+	return openPool(ctx, t, testDatabase(t).adminDSN, "admin")
 }
 
 // A migration has to survive being applied to a database that already has it. goose keeps the
