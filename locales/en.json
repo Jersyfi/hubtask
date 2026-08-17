@@ -79,11 +79,14 @@
   "containers.hub_has_no_parent": "A hub is the top level and sits in nothing.",
   "containers.collection_needs_parent": "A collection has to sit in a hub.",
   "containers.parent_type_invalid": "A {type} cannot sit in a {parent_type}.",
+  "containers.not_found": "That hub or collection does not exist.",
+  "containers.name_taken": "A hub or collection called {name} already exists here.",
   "containers.parent_not_found": "That hub does not exist.",
   "containers.parent_archived": "That hub is archived. Unarchive it before adding anything to it.",
   "containers.parent_trashed": "That hub is in the trash.",
   "containers.identity_incomplete": "This installation is misconfigured and could not create that entry.",
 
+  "events.payload_unserialisable": "This installation could not announce that change.",
   "events.envelope_incomplete": "This installation could not announce that change.",
   "events.type_unknown": "This installation could not announce that change.",
   "events.causation_too_deep": "This change was triggered by a chain of automations that goes too deep. Hubtask stopped it after {maximum} steps.",
@@ -99,9 +102,13 @@
   "usecase.registration_incomplete": "This installation is misconfigured: the operation {use_case} is registered without {missing}.",
   "usecase.duplicate_registration": "This installation is misconfigured: the operation {use_case} is registered twice.",
 
+  "audit.tenant_mismatch": "This installation could not record that action and therefore did not carry it out.",
   "audit.entry_incomplete": "This installation could not record that action and therefore did not carry it out.",
+  "audit.entry_unserialisable": "This installation could not record that action and therefore did not carry it out.",
   "audit.actor_kind_invalid": "This installation could not record that action and therefore did not carry it out.",
 
+  "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
+  "sync.change_without_clock": "This installation could not record that change for offline devices.",
   "sync.hlc_malformed": "{value} is not a valid change timestamp.",
   "sync.hlc_incomplete": "This installation could not stamp that change.",
   "sync.hlc_device_malformed": "This installation could not stamp that change.",
