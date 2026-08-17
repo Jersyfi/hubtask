@@ -49,3 +49,19 @@ type AccessTokens interface {
 	// owner can see a token nobody uses without every request costing a write.
 	TouchLastUsed(ctx context.Context, tokenID shared.ID, at time.Time) error
 }
+
+// Memberships answers what an account holds.
+type Memberships interface {
+	// Along returns the memberships that apply anywhere on the path, held by the account itself
+	// or through one of its groups.
+	//
+	// The path is passed in rather than the whole set being read, because an account in a large
+	// tenant may hold hundreds of memberships and a permission check runs on every write. The
+	// query may be generous - the resolution ignores what is not on the path - but it must not be
+	// unbounded.
+	//
+	// A group membership comes back as a membership of the account. Whether a right is held
+	// directly or through a group is not a distinction the decision makes, and resolving it in
+	// the query costs a join that the index already serves.
+	Along(ctx context.Context, accountID shared.ID, path []identity.Scope) ([]identity.Membership, error)
+}
