@@ -1,0 +1,41 @@
+{{/*
+The route in, when there is one. Off by default: an installation reached from inside the cluster,
+or through a gateway the operator manages elsewhere, should not have an object here it did not ask
+for.
+
+Only the interactive port is routed. The operations port carries metrics and the health report, and
+neither belongs on the public internet (observability-reliability.md §3.2).
+*/}}
+{{- if .Values.ingress.enabled }}
+{{- if not .Values.ingress.host }}
+{{- fail "ingress.enabled needs ingress.host: a route without a host name matches every request that reaches the controller." }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "hubtask.fullname" . }}
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "api") | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts: [{{ .Values.ingress.host | quote }}]
+      secretName: {{ .Values.ingress.tls.secretName | default (printf "%s-tls" (include "hubtask.fullname" .)) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "hubtask.fullname" . }}-api
+                port:
+                  name: http
+{{- end }}

@@ -1,0 +1,32 @@
+{{/*
+Autoscaling for the roles that ask for it, which today means the API.
+
+Off by default, and deliberately so: an installation with a database that has not been sized for it
+scales its way into connection exhaustion rather than out of a load problem - every replica opens
+its own pool (deployment.md §6). The worker scales the same way on paper, but its backlog is a
+better signal than its CPU, and that metric needs an adapter this chart does not assume.
+*/}}
+{{- range $role, $spec := .Values.roles }}
+{{- if and $spec.enabled $spec.autoscaling $spec.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "hubtask.fullname" $ }}-{{ $role }}
+  labels: {{- include "hubtask.labels" (dict "root" $ "role" $role) | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "hubtask.fullname" $ }}-{{ $role }}
+  minReplicas: {{ $spec.autoscaling.minReplicas }}
+  maxReplicas: {{ $spec.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $spec.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}

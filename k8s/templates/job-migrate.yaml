@@ -1,0 +1,54 @@
+{{/*
+The migration, as a hook before the rollout (deployment.md §2.2).
+
+It runs before the new pods start and it runs once: migrations are expand/contract-safe
+(CLAUDE.md rule 12), so the old version keeps working against the new schema while the rollout
+proceeds. Doing it the other way round - migrating from inside the application at startup - would
+have as many migrators as replicas and no order between them.
+
+The job is idempotent and takes an advisory lock of its own (cmd/migrate), so a retry after a
+failed hook, or a second cluster operation started by mistake, waits rather than corrupts.
+*/}}
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "hubtask.fullname" . }}-migrate
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "migrate") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    # Before everything else the hook phase does; there is nothing else today, and the weight says
+    # what the order has to be when there is.
+    "helm.sh/hook-weight": "-5"
+    # The failed job is kept: a migration that did not work is the one thing an operator needs the
+    # logs of. before-hook-creation clears the previous one at the next attempt.
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  template:
+    metadata:
+      labels: {{- include "hubtask.labels" (dict "root" . "role" "migrate") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "hubtask.serviceAccountName" . }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "hubtask.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/usr/local/bin/hubtask-migrate", "up"]
+          env:
+            - name: HUBTASK_DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "hubtask.secretName" . }}
+                  key: db-dsn
+          resources: {{- toYaml .Values.migration.resources | nindent 12 }}
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}
