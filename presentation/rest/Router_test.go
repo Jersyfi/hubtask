@@ -207,7 +207,7 @@ func TestTheControllerRegistersTheSpecificationsRoutes(t *testing.T) {
 func TestAPendingOperationAnswersAProblem(t *testing.T) {
 	response := httptest.NewRecorder()
 	NewRestController().Routes().ServeHTTP(response,
-		httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/meta/capabilities", nil))
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/containers", nil))
 
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("status %d, want 404", response.Code)

@@ -23,15 +23,30 @@ import (
 // Scope is who the work is done for and by. It comes from authentication, never from a request
 // body (multi-tenancy.md §2.2).
 type Scope struct {
-	// TenantID is mandatory. A unit of work without it is refused by the adapter.
+	// TenantID is mandatory unless Installation is set. A unit of work without either is refused
+	// by the adapter.
 	TenantID shared.ID
 	// ActorID is the account acting. Empty when the system itself acts - a scheduled job
 	// looping over tenants has a tenant but no user.
 	ActorID shared.ID
+	// Installation marks a read of the rows that belong to no tenant: the system-defined
+	// capability profiles, which every tenant may read and none may write
+	// (db/schema.sql, item_capability_profile).
+	//
+	// It is not a way around the boundary but the strictest position inside it. The adapter still
+	// sets the tenant context, to the empty value, so `current_tenant_id()` is NULL and every
+	// policy comparing against it is false. A row owned by any tenant is therefore invisible -
+	// which is more than a tenant scope guarantees, not less.
+	Installation bool
 }
 
+// InstallationScope reads what belongs to no tenant. Read-only by construction: the adapter
+// refuses a read-write transaction under it, because every WITH CHECK compares against a tenant
+// this scope deliberately does not have.
+func InstallationScope() Scope { return Scope{Installation: true} }
+
 // IsValid reports whether the scope can bound a transaction at all.
-func (s Scope) IsValid() bool { return !s.TenantID.IsZero() }
+func (s Scope) IsValid() bool { return s.Installation || !s.TenantID.IsZero() }
 
 // UnitOfWork runs work inside one transaction, bound to one tenant.
 //

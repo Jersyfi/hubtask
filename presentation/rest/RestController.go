@@ -4,6 +4,7 @@
 package rest
 
 import (
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -17,9 +18,18 @@ import (
 // exists because the specification declares it, the implementation arrives with its own task.
 type RestController struct {
 	pending
+
+	// Capabilities answers /meta/capabilities. One field per use case as they land; nil means the
+	// operation falls back to the pending answer rather than panicking.
+	Capabilities CapabilityReader
 }
 
 func NewRestController() *RestController { return &RestController{} }
+
+// errNotWired is a defect in the composition root, not a request the client got wrong: the route
+// is registered and its use case is missing. It answers 500 with nothing in it but the code and
+// the request ID, like every other internal error (security.md §9).
+var errNotWired = shared.ErrInternal.WithDetail("rest.use_case_not_wired")
 
 // Routes builds the router from the generated registration list. Nothing here names a path: the
 // paths come from the specification through the generated code, which is what keeps the router

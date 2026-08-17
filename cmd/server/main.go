@@ -26,6 +26,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
@@ -170,9 +171,16 @@ func run() error {
 		// The routes come from api/openapi.yaml through the generated registration list; nothing
 		// here names a path (ADR-0004). Operations without a use case yet answer 404 - the route
 		// exists because the contract declares it, not because it works.
-		apiRoutes := rest.NewRestController().Routes()
-
 		unitOfWork := postgres.NewUnitOfWork(pool)
+
+		controller := rest.NewRestController()
+		controller.Capabilities = meta.GetCapabilities{
+			Profiles:   postgres.NewCapabilityProfileRepository(),
+			UnitOfWork: unitOfWork,
+			Config:     cfg,
+		}
+		apiRoutes := controller.Routes()
+
 		authenticate := identity.AuthenticateToken{
 			Tokens:     postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
 			UnitOfWork: unitOfWork,
