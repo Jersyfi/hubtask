@@ -55,6 +55,13 @@
   "request.body_too_large": "The request body may be at most {limit_bytes} bytes.",
   "access.credential_required": "This operation needs you to be signed in.",
   "access.insufficient_scope": "The token used is not allowed to do this. It would need the scope {scope}.",
+  "access.token_malformed": "That is not a valid access token.",
+  "access.token_unknown": "That access token is not known here.",
+  "access.token_expired": "That access token has expired. Create a new one.",
+  "access.token_revoked": "That access token has been revoked.",
+  "access.token_tenant_missing": "An access token has to belong to a workspace.",
+  "access.token_secret_short": "An access token needs its full length. Create a new one.",
+  "access.account_not_active": "This account cannot be used at the moment. Its status is {status}.",
 
   "route.unknown": "There is nothing at this address.",
   "route.operation_not_available": "This installation does not offer that operation yet.",
