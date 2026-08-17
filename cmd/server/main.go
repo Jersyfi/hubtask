@@ -346,6 +346,14 @@ func run() error {
 		Lag:         metrics.OutboxLag,
 	}
 
+	// The kinds this build knows. The scheduler publishes a zero for each of them, so that the
+	// backlog gauge exists before there is a backlog.
+	handlers := map[queueport.Kind]queueport.Handler{queueport.KindOutboxDispatch: dispatcher}
+	kinds := make([]queueport.Kind, 0, len(handlers))
+	for kind := range handlers {
+		kinds = append(kinds, kind)
+	}
+
 	if cfg.HasRole(envport.RoleWorker) {
 		// The backoff policy is the resilience adapter's, handed to the runner as a function: the
 		// presentation layer decides when to retry, not how far apart (project-structure.md §2).
@@ -357,7 +365,7 @@ func run() error {
 		runner := worker.Runner{
 			Queue:        jobs,
 			UnitOfWork:   backgroundWork,
-			Handlers:     map[queueport.Kind]queueport.Handler{queueport.KindOutboxDispatch: dispatcher},
+			Handlers:     handlers,
 			Clock:        clockadapter.System{},
 			Signals:      metrics,
 			Batch:        cfg.Queue.BatchSize,
@@ -378,6 +386,7 @@ func run() error {
 			UnitOfWork:   backgroundWork,
 			Clock:        clockadapter.System{},
 			Signals:      metrics,
+			Kinds:        kinds,
 			TickInterval: cfg.Queue.SchedulerTick,
 		}
 		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))

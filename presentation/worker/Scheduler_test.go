@@ -93,7 +93,25 @@ func scheduler(l *leadership, jobs queue.Queue, signals SchedulerSignals) Schedu
 		UnitOfWork:   &unitOfWork{},
 		Clock:        clock.Fixed(now),
 		Signals:      signals,
+		Kinds:        []queue.Kind{queue.KindOutboxDispatch},
 		TickInterval: 10 * time.Second,
+	}
+}
+
+// A kind with nothing waiting still gets a reading. A gauge that has never been written has no
+// series at all, and an alert on a backlog that never appeared reads "no data" - which everybody
+// takes for a broken dashboard rather than for an empty queue.
+func TestAKindWithAnEmptyQueueIsStillReported(t *testing.T) {
+	signals := newSchedulerSignals()
+
+	scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals).tick(t.Context(), false, now)
+
+	depth, reported := signals.depths[queue.KindOutboxDispatch.String()]
+	if !reported {
+		t.Fatal("an empty queue produced no reading at all")
+	}
+	if depth != 0 {
+		t.Errorf("depth = %d for an empty queue, want 0", depth)
 	}
 }
 

@@ -20,4 +20,9 @@ regexes = [
   # makes two keys comparable as strings; to an entropy check it reads like a generated token,
   # because it contains every character one would be built from.
   '''0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz''',
+  # Throwaway values from scripts/compose-smoke.sh, which starts the reference stack for the
+  # length of one CI job. They were literals until the script was changed to draw both from
+  # /dev/urandom; the scan reads the history, so the entries stay for as long as the commits do.
+  '''compose-smoke-key-long-enough-for-32''',
+  '''compose-smoke-not-a-secret''',
 ]
