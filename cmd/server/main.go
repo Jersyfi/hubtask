@@ -32,15 +32,19 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
+	queueport "github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
+	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
+	"github.com/Jersyfi/hubtask/presentation/worker"
 )
 
 // defaultOpsPort mirrors the default of HUBTASK_OPS_ADDR in infrastructure/environment.
@@ -137,13 +141,27 @@ func run() error {
 	// request (ADR-0015).
 	//
 	// The pool belongs to the role that opens it, because the query budget differs - the API
-	// gets seconds, background work gets a minute. A process in several roles runs the strictest
-	// of them for now; A-08 gives the worker loops their own pool.
+	// gets seconds, background work gets a minute. A process in several roles opens a second pool
+	// below for the background ones, so that a runaway job cannot take the connections the
+	// interactive path needs (bulkheads, observability-reliability.md §6).
 	pool, err := postgres.NewPool(ctx, cfg, primaryRole(cfg))
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
 	defer pool.Close()
+
+	// The background roles get a pool of their own whenever this process also serves the API.
+	// Their budget is the long one, and their saturation is theirs alone: a worker holding ten
+	// connections for a minute each is normal, and the same behaviour on the API pool is an
+	// outage.
+	backgroundPool := pool
+	if cfg.HasRole(envport.RoleAPI) && runsBackgroundWork(cfg) {
+		backgroundPool, err = postgres.NewPool(ctx, cfg, envport.RoleWorker)
+		if err != nil {
+			return fmt.Errorf("database (background): %w", err)
+		}
+		defer backgroundPool.Close()
+	}
 
 	registry.Register(postgres.NewProbe(pool))
 	registry.SetSignals(metrics)
@@ -305,7 +323,62 @@ func run() error {
 		})
 	}
 
-	// TODO(0.1.0): start the worker, scheduler and automation loops depending on the role.
+	// The queue channel. It is wired whatever the roles are, because the pieces are the same;
+	// what the roles decide is which loops run (ADR-0014).
+	backgroundWork := postgres.NewUnitOfWork(backgroundPool)
+	dispatcher := eventbus.Dispatcher{
+		Events:   postgres.NewOutbox(jobs),
+		Consumed: postgres.NewConsumption(clockadapter.System{}),
+		// No consumers yet: automation, webhooks, the live stream and the search index register
+		// here as they arrive. Until then a round still marks its events as delivered - "nobody
+		// subscribes" is an answer, and an outbox that only grows would raise the backlog alert
+		// for a system that is working.
+		Subscribers: nil,
+		Clock:       clockadapter.System{},
+		Batch:       cfg.Queue.OutboxBatch,
+		MinInterval: cfg.Queue.OutboxMinInterval,
+		MaxInterval: cfg.Queue.OutboxMaxInterval,
+		Lag:         metrics.OutboxLag,
+	}
+
+	if cfg.HasRole(envport.RoleWorker) {
+		// The backoff policy is the resilience adapter's, handed to the runner as a function: the
+		// presentation layer decides when to retry, not how far apart (project-structure.md §2).
+		backoff := resilience.Backoff{
+			Attempts: cfg.Queue.MaxAttempts,
+			Base:     cfg.Queue.RetryBase,
+			Max:      cfg.Queue.RetryMax,
+		}
+		runner := worker.Runner{
+			Queue:        jobs,
+			UnitOfWork:   backgroundWork,
+			Handlers:     map[queueport.Kind]queueport.Handler{queueport.KindOutboxDispatch: dispatcher},
+			Clock:        clockadapter.System{},
+			Signals:      metrics,
+			Batch:        cfg.Queue.BatchSize,
+			PollInterval: cfg.Queue.PollInterval,
+			JobTimeout:   cfg.Queue.JobTimeout,
+			Lease:        cfg.Queue.Lease(),
+			NextAttempt:  backoff.Delay,
+		}
+		concurrency.Go(ctx, "worker.runner", runner.Run)
+	}
+
+	if cfg.HasRole(envport.RoleScheduler) {
+		// The leader holds one connection of the background pool for as long as it leads, which is
+		// why that pool is never sized at one.
+		scheduler := worker.Scheduler{
+			Leadership:   postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
+			Queue:        jobs,
+			UnitOfWork:   backgroundWork,
+			Clock:        clockadapter.System{},
+			Signals:      metrics,
+			TickInterval: cfg.Queue.SchedulerTick,
+		}
+		concurrency.Go(ctx, "worker.scheduler", scheduler.Run)
+	}
+
+	// TODO(0.1.0): start the automation loop for the automation role.
 
 	registry.MarkStarted()
 
@@ -355,6 +428,12 @@ func run() error {
 
 	slog.Info("stopped")
 	return shutdownErr
+}
+
+// runsBackgroundWork reports whether this process runs a loop of its own rather than only serving
+// requests.
+func runsBackgroundWork(cfg envport.Config) bool {
+	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler)
 }
 
 // primaryRole picks the role whose query budget the pool runs under. The API is the strictest,

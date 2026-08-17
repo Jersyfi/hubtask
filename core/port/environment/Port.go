@@ -74,6 +74,7 @@ type Config struct {
 	Request   RequestConfig
 	CORS      CORSConfig
 	Outbound  OutboundConfig
+	Queue     QueueConfig
 	Locale    LocaleConfig
 	Metrics   MetricsConfig
 	Tracing   TracingConfig
@@ -107,6 +108,48 @@ type DatabaseConfig struct {
 	StatementTimeout       time.Duration
 	WorkerStatementTimeout time.Duration
 }
+
+// QueueConfig is the background work of the worker and scheduler roles (ADR-0008).
+//
+// The defaults are the self-hosting ones: a single process running every role, where the queue
+// should be quiet enough not to be noticed. A provider deployment with its own worker pods raises
+// the batch and lowers the poll interval, which are the two knobs that matter.
+type QueueConfig struct {
+	// PollInterval is the wait after a round that found nothing. It bounds how long a job that
+	// was scheduled without a wake-up has to wait, so it is also the floor under a reminder's
+	// punctuality (SLO-5).
+	PollInterval time.Duration
+	// BatchSize is how many jobs one round claims.
+	BatchSize int
+	// JobTimeout bounds one job. Every handler inherits it as a context deadline - no call
+	// without one (ADR-0016).
+	JobTimeout time.Duration
+	// MaxAttempts is how often a job is tried before it goes to the dead letter.
+	MaxAttempts int
+	// RetryBase and RetryMax are the exponential backoff between attempts, with full jitter.
+	RetryBase time.Duration
+	RetryMax  time.Duration
+	// SchedulerTick is how often the scheduler leader looks at the clock, and therefore also how
+	// quickly a standby notices that the leader is gone.
+	SchedulerTick time.Duration
+	// OutboxBatch is how many events one dispatch round delivers.
+	OutboxBatch int
+	// OutboxMinInterval and OutboxMaxInterval are the adaptive poll of the dispatcher: the first
+	// after a round that delivered something, the second for a tenant that had nothing. The
+	// maximum is the worst case for SLO-4, so it stays well under thirty seconds.
+	OutboxMinInterval time.Duration
+	OutboxMaxInterval time.Duration
+}
+
+// LeaseMargin is how much longer a claim holds than the job it covers.
+//
+// Derived rather than configured, because the two values only make sense together: a lease that
+// expires while its job is still running is a job two workers are doing, and that is not a
+// trade-off an operator should be able to make by setting one variable and not the other.
+const LeaseMargin = 30 * time.Second
+
+// Lease is how long a claimed job stays claimed.
+func (q QueueConfig) Lease() time.Duration { return q.JobTimeout + LeaseMargin }
 
 // StorageConfig is the object storage for media. Optional: without it only media is restricted,
 // nothing else (ADR-0016).

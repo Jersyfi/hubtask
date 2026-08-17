@@ -97,6 +97,18 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			AllowedHosts:         getList("HUBTASK_HTTP_ALLOWED_HOSTS"),
 			AllowPrivateNetworks: getBool("HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS", false),
 		},
+		Queue: env.QueueConfig{
+			PollInterval:      getDuration("HUBTASK_QUEUE_POLL_INTERVAL", 2*time.Second),
+			BatchSize:         getInt("HUBTASK_QUEUE_BATCH_SIZE", 10),
+			JobTimeout:        getDuration("HUBTASK_JOB_TIMEOUT", 60*time.Second),
+			MaxAttempts:       getInt("HUBTASK_JOB_MAX_ATTEMPTS", 8),
+			RetryBase:         getDuration("HUBTASK_JOB_RETRY_BASE", 5*time.Second),
+			RetryMax:          getDuration("HUBTASK_JOB_RETRY_MAX", 15*time.Minute),
+			SchedulerTick:     getDuration("HUBTASK_SCHEDULER_TICK_INTERVAL", 10*time.Second),
+			OutboxBatch:       getInt("HUBTASK_OUTBOX_BATCH_SIZE", 100),
+			OutboxMinInterval: getDuration("HUBTASK_OUTBOX_MIN_INTERVAL", time.Second),
+			OutboxMaxInterval: getDuration("HUBTASK_OUTBOX_MAX_INTERVAL", 15*time.Second),
+		},
 		Metrics: env.MetricsConfig{
 			TenantLabel: getBool("HUBTASK_METRICS_TENANT_LABEL", false),
 		},
@@ -220,6 +232,7 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateOutbound(cfg.Outbound)...)
 	errs = append(errs, validateLocale(cfg.Locale)...)
 	errs = append(errs, validateTracing(cfg.Tracing)...)
+	errs = append(errs, validateQueue(cfg.Queue)...)
 
 	return errors.Join(errs...)
 }
@@ -263,6 +276,41 @@ func validateDatabase(db env.DatabaseConfig) []error {
 		if d <= 0 {
 			errs = append(errs, configError("config.duration_invalid", variable))
 		}
+	}
+	return errs
+}
+
+func validateQueue(q env.QueueConfig) []error {
+	var errs []error
+	for variable, count := range map[string]int{
+		"HUBTASK_QUEUE_BATCH_SIZE":  q.BatchSize,
+		"HUBTASK_JOB_MAX_ATTEMPTS":  q.MaxAttempts,
+		"HUBTASK_OUTBOX_BATCH_SIZE": q.OutboxBatch,
+	} {
+		if count < 1 {
+			errs = append(errs, configError("config.limit_invalid", variable))
+		}
+	}
+	for variable, d := range map[string]time.Duration{
+		"HUBTASK_QUEUE_POLL_INTERVAL":     q.PollInterval,
+		"HUBTASK_JOB_TIMEOUT":             q.JobTimeout,
+		"HUBTASK_JOB_RETRY_BASE":          q.RetryBase,
+		"HUBTASK_JOB_RETRY_MAX":           q.RetryMax,
+		"HUBTASK_SCHEDULER_TICK_INTERVAL": q.SchedulerTick,
+		"HUBTASK_OUTBOX_MIN_INTERVAL":     q.OutboxMinInterval,
+		"HUBTASK_OUTBOX_MAX_INTERVAL":     q.OutboxMaxInterval,
+	} {
+		if d <= 0 {
+			errs = append(errs, configError("config.duration_invalid", variable))
+		}
+	}
+	// A maximum below the base would make the backoff shrink with every attempt, which is the
+	// opposite of what a backoff is for.
+	if q.RetryMax > 0 && q.RetryBase > 0 && q.RetryMax < q.RetryBase {
+		errs = append(errs, configError("config.duration_invalid", "HUBTASK_JOB_RETRY_MAX"))
+	}
+	if q.OutboxMaxInterval > 0 && q.OutboxMinInterval > 0 && q.OutboxMaxInterval < q.OutboxMinInterval {
+		errs = append(errs, configError("config.duration_invalid", "HUBTASK_OUTBOX_MAX_INTERVAL"))
 	}
 	return errs
 }
