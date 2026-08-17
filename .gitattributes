@@ -1,0 +1,24 @@
+# Line endings are decided here rather than by whatever each contributor's Git happens to be
+# configured with.
+#
+# Git for Windows installs with core.autocrlf=true, which checks the whole tree out as CRLF.
+# `gofmt -l .` - the first thing `make gate-quick` runs - then reports every .go file in the
+# repository as unformatted, including files that have been green in CI for months. The gate can
+# never pass on Windows, so it hides the failures that are real, and a gate contributors learn to
+# ignore has stopped being a gate.
+
+# Normalise every text file in the repository and check it out as LF on every platform. Git
+# detects binary content on its own and leaves it untouched.
+* text=auto eol=lf
+
+# Spelled out for the types where LF is not a preference but a requirement: gofmt writes and
+# expects LF, a CR breaks the shebang of a script run inside a container, and goose reads the
+# migration files.
+*.go  text eol=lf
+*.sh  text eol=lf
+*.sql text eol=lf
+
+# The exception. There is no Windows script in the tree today; the entry exists so that adding
+# one does not quietly produce a file its own interpreter mishandles.
+*.bat text eol=crlf
+*.cmd text eol=crlf
