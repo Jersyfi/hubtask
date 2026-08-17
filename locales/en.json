@@ -55,6 +55,8 @@
   "request.body_too_large": "The request body may be at most {limit_bytes} bytes.",
   "access.credential_required": "This operation needs you to be signed in.",
   "access.insufficient_scope": "The token used is not allowed to do this. It would need the scope {scope}.",
+  "access.scheme_unsupported": "This API expects a bearer token in the Authorization header.",
+  "access.tenant_mismatch": "The token belongs to a different workspace than the one requested.",
   "access.token_malformed": "That is not a valid access token.",
   "access.token_unknown": "That access token is not known here.",
   "access.token_expired": "That access token has expired. Create a new one.",

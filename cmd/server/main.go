@@ -24,13 +24,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
 
@@ -167,13 +170,21 @@ func run() error {
 		// here names a path (ADR-0004). Operations without a use case yet answer 404 - the route
 		// exists because the contract declares it, not because it works.
 		//
-		// TODO(0.1.0): the remaining middleware - auth, tenant context, locale, rate limit and
-		// idempotency - wraps this in the steps that follow.
+		// TODO(0.1.0): the rate limiter and the idempotency store wrap this in the steps that
+		// follow.
 		apiRoutes := rest.NewRestController().Routes()
+
+		unitOfWork := postgres.NewUnitOfWork(pool)
+		authenticate := identity.AuthenticateToken{
+			Tokens:     postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{},
+		}
 
 		// The chain, from the outside in. Observed stays outermost: a panic anywhere below it
 		// still becomes a problem document, and every answer carries a request ID and a metric -
-		// including the ones no handler produced.
+		// including the ones no handler produced. Authentication sits inside the bounds, so a
+		// body that is too large is refused before a credential is looked up.
 		api = &http.Server{
 			Addr: cfg.HTTPAddr,
 			Handler: rest.Observed{
@@ -184,7 +195,12 @@ func run() error {
 						Timeout:      cfg.Request.Timeout,
 						Next: rest.Localised{
 							Locale: cfg.Locale,
-							Next:   apiRoutes,
+							Next: rest.Authenticated{
+								Routes:        apiRoutes,
+								Authenticator: authenticate,
+								Locale:        cfg.Locale,
+								Next:          apiRoutes,
+							},
 						},
 					}},
 				},

@@ -66,11 +66,38 @@ type Localised struct {
 }
 
 func (l Localised) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	locale := preferredLocale(r.Header.Get("Accept-Language"), l.Locale.DefaultLocale)
-	actor := appshared.Anonymous(locale, l.Locale.DefaultTimeZone)
+	// Empty when the client stated no usable preference. The distinction matters one middleware
+	// later: an account's own language wins over the installation default, but not over a
+	// language the client asked for.
+	requested := preferredLocale(r.Header.Get("Accept-Language"), "")
 
-	ctx := appshared.ContextWithActor(r.Context(), actor)
+	actor := appshared.Anonymous(
+		firstNonEmpty(requested, l.Locale.DefaultLocale), l.Locale.DefaultTimeZone)
+
+	ctx := context.WithValue(r.Context(), requestedLocaleKey, requested)
+	ctx = appshared.ContextWithActor(ctx, actor)
 	l.Next.ServeHTTP(w, r.WithContext(ctx))
+}
+
+type contextKey struct{ name string }
+
+// requestedLocaleKey carries what the client asked for, as opposed to what was resolved. It stays
+// inside this package: the resolved value lives on the actor, and that is what the application
+// layer reads.
+var requestedLocaleKey = contextKey{"rest.requested_locale"}
+
+func requestedLocaleFrom(ctx context.Context) string {
+	locale, _ := ctx.Value(requestedLocaleKey).(string)
+	return locale
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // maxAcceptLanguageLength bounds what is parsed. The header comes from outside, it ends up in a
