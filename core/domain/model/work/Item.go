@@ -257,5 +257,30 @@ func (i WorkItem) IsTrashed() bool { return i.DeletedAt != nil }
 // the two cannot drift: whoever builds a path and whoever reads it share this line.
 func (i WorkItem) ChildPath(child shared.ID) string { return i.Path + child.String() + PathSeparator }
 
+// Contains reports whether other sits inside this item's subtree, this item itself included.
+//
+// A prefix test on the materialised path, which is what the trailing separator on every path exists for: a
+// path is `/a/b/` rather than `/a/b`, so `/ab/` cannot be read as being inside `/a/`. Without the separator
+// this test would be quietly wrong for exactly the identifiers that share a prefix (I-W2).
+//
+// It is the whole of the cycle check. An item may not move under something inside its own subtree, and
+// "inside its own subtree" is a string comparison rather than a walk - which is what makes the check cheap
+// enough to run on every move rather than a thing that gets skipped for performance.
+func (i WorkItem) Contains(other WorkItem) bool {
+	return strings.HasPrefix(other.Path, i.Path)
+}
+
+// SubtreePathUnder is where this item's path lands when it moves under a parent whose path is parentPath.
+// The empty parentPath is the top level of a collection.
+//
+// Kept beside Path and ChildPath so that the three cannot drift: whoever moves a subtree and whoever built
+// its paths in the first place read the same lines.
+func (i WorkItem) SubtreePathUnder(parentPath string) string {
+	if parentPath == "" {
+		parentPath = PathSeparator
+	}
+	return parentPath + i.ID.String() + PathSeparator
+}
+
 // RootPath is the path of an item directly under the collection: the top of a subtree.
 func RootPath(id shared.ID) string { return PathSeparator + id.String() + PathSeparator }

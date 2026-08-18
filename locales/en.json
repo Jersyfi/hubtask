@@ -110,6 +110,8 @@
   "items.collection_trashed": "That collection is in the trash.",
   "items.collection_not_found": "That collection does not exist.",
   "items.collection_or_parent_required": "Say which collection the entry belongs to, or which entry it sits in.",
+  "items.parent_is_self": "An entry cannot be moved into itself.",
+  "items.parent_in_own_subtree": "An entry cannot be moved into something that sits inside it.",
   "items.parent_not_in_collection": "That entry is in another collection.",
   "items.not_found": "That entry does not exist.",
   "items.profiles_incoherent": "This installation is misconfigured and could not create that entry.",

@@ -184,6 +184,51 @@ func (h Hierarchy) Place(parent *work.WorkItem, childType work.ItemType) (Placem
 	}, nil
 }
 
+// Move re-answers where an item may sit, for an item that already exists.
+//
+// It is Place plus the one question a create never has to ask: an item cannot move into its own subtree.
+// That is invariant I-W2's second half, and the reason it is checked here rather than trusted is that a
+// cycle is not a wrong answer, it is an unrecoverable one - a subtree that contains its own ancestor has no
+// path, no depth, and no query that terminates.
+//
+// Everything Place refuses, this refuses too, and for the same reasons: the type must be permitted under
+// the new parent, the depth budget must hold, and a trashed or archived parent is a conflict. Re-checking
+// rather than assuming is the point - the profiles may have been narrowed since the item was created, and a
+// move is the moment that becomes visible.
+func (h Hierarchy) Move(item work.WorkItem, parent *work.WorkItem) (Placement, error) {
+	if parent != nil {
+		if item.ID == parent.ID {
+			return Placement{}, shared.ErrValidation.
+				WithDetail("items.parent_is_self").
+				WithParams(map[string]string{"item_id": item.ID.String()}).
+				WithFields(shared.FieldError{Path: "/target_parent_id", Code: "items.parent_is_self"})
+		}
+		if item.Contains(*parent) {
+			// The move would put the item under one of its own descendants. Refused before anything else
+			// is considered, because every other answer about the result would be about a tree that cannot
+			// exist.
+			return Placement{}, shared.ErrValidation.
+				WithDetail("items.parent_in_own_subtree").
+				WithParams(map[string]string{
+					"item_id": item.ID.String(), "parent_id": parent.ID.String(),
+				}).
+				WithFields(shared.FieldError{
+					Path: "/target_parent_id", Code: "items.parent_in_own_subtree",
+				})
+		}
+	}
+	return h.Place(parent, item.Type)
+}
+
+// ParentPath is the path an item placed here sits under: the separator alone at the top of a collection.
+// It is what a subtree rewrite needs in order to work out every descendant's new path.
+func (p Placement) ParentPath() string {
+	if p.parentPath == "" {
+		return work.PathSeparator
+	}
+	return p.parentPath
+}
+
 func depthExceeded(childType work.ItemType, maximum int) error {
 	return shared.ErrValidation.
 		WithDetail("items.depth_exceeded").
