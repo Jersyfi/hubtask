@@ -26,6 +26,14 @@ GOVULNCHECK_VERSION   := v1.7.0
 # anchor for no reason (ADR-0015).
 HELM_VERSION          := v3.16.4
 GO_LICENSES_VERSION   := v1.6.0
+# promtool cannot be installed with `go install`: the Prometheus module carries replace
+# directives, which the tool refuses. So it comes as the project's own release archive, pinned by
+# version *and* by checksum - a download without one is a supply chain decision made by whoever
+# happens to be on the network (ADR-0015).
+PROMTOOL_VERSION      := 3.6.0
+PROMTOOL_SHA256_darwin_arm64 := ad132f6b1651a2bdaa8464fb122898747ac406defc03e33a118afddd23138b65
+PROMTOOL_SHA256_linux_amd64  := 2002ef4a55a64161affccd2786c7081d4e3b3a8d08786a98b3bb110971414916
+PROMTOOL_SHA256_linux_arm64  := f7e66b9d47e86988fe8e7cb5a5b326cab6c56f5a74ba7133b899ef1daedaf633
 # The chart declares kubeVersion >= 1.28. helm renders against a much older version unless it is
 # told otherwise, so the gate says which cluster it is rendering for.
 KUBE_VERSION          := 1.30.0
@@ -74,6 +82,41 @@ tools:
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install helm.sh/helm/v3/cmd/helm@$(HELM_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
+	@$(MAKE) --no-print-directory tools-promtool
+
+# promtool, verified against the checksum above before anything is unpacked. Separated from the
+# `go install` block only because its acquisition differs, not its status: it is as pinned as the
+# rest.
+.PHONY: tools-promtool
+tools-promtool:
+	@mkdir -p $(TOOLS_DIR)
+	@if [ -x "$(TOOLS_DIR)/promtool" ]; then exit 0; fi; \
+	os="$$(uname -s | tr '[:upper:]' '[:lower:]')"; \
+	arch="$$(uname -m)"; \
+	case "$$arch" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; esac; \
+	expected="$$($(MAKE) --no-print-directory -s print-promtool-sha OS=$$os ARCH=$$arch)"; \
+	if [ -z "$$expected" ]; then \
+		echo "no pinned promtool checksum for $$os/$$arch - add one to the Makefile"; exit 1; \
+	fi; \
+	work="$$(mktemp -d)"; \
+	archive="$$work/promtool.tar.gz"; \
+	url="https://github.com/prometheus/prometheus/releases/download/v$(PROMTOOL_VERSION)/prometheus-$(PROMTOOL_VERSION).$$os-$$arch.tar.gz"; \
+	echo "downloading promtool $(PROMTOOL_VERSION) for $$os/$$arch"; \
+	curl -fsSL "$$url" -o "$$archive"; \
+	actual="$$(shasum -a 256 "$$archive" | cut -d' ' -f1)"; \
+	if [ "$$actual" != "$$expected" ]; then \
+		echo "promtool checksum mismatch: expected $$expected, got $$actual"; exit 1; \
+	fi; \
+	tar -xzf "$$archive" -C "$$work"; \
+	cp "$$work/prometheus-$(PROMTOOL_VERSION).$$os-$$arch/promtool" $(TOOLS_DIR)/promtool; \
+	chmod +x $(TOOLS_DIR)/promtool; \
+	rm -rf "$$work"
+
+# print-promtool-sha exists so the recipe above can look a checksum up by platform; make cannot
+# index a variable by a shell value any other way.
+.PHONY: print-promtool-sha
+print-promtool-sha:
+	@echo "$(PROMTOOL_SHA256_$(OS)_$(ARCH))"
 
 ## fmt: Format the source
 .PHONY: fmt
@@ -114,7 +157,7 @@ run:
 
 ## verify: Run every PR gate locally (mirrors ci.yml)
 .PHONY: verify
-verify: gate-quick gate-unit gate-architecture gate-security gate-chart gate-licenses gate-docs
+verify: gate-quick gate-unit gate-architecture gate-security gate-chart gate-licenses gate-docs gate-observability
 	@echo "All locally runnable gates are green."
 
 ## gate-quick: Format, lint, generation without a diff
@@ -264,6 +307,15 @@ gate-chart:
 .PHONY: gate-compose
 gate-compose: docker-build
 	scripts/compose-smoke.sh $(VERSION)
+
+## gate-observability: The shipped alert rules, checked by Prometheus itself
+.PHONY: gate-observability
+gate-observability:
+	$(call require_tool,promtool)
+	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules.yaml
+	@# The structural half - every alert has a runbook, every runbook an alert - is a Go test, so
+	@# that it runs in `make verify` without needing a downloaded tool (test/observability).
+	$(call go_test,,./test/observability/...,)
 
 ## gate-docs: Check cross references and the ADR index
 .PHONY: gate-docs

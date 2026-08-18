@@ -1,0 +1,329 @@
+{
+  "uid": "hubtask-overview",
+  "title": "Hubtask \u2014 Overview",
+  "description": "RED per route, saturation and the version situation (observability-reliability.md \u00a711). Shipped as an example: an operator imports it, points it at their Prometheus, and edits freely - nothing in the application reads this file.",
+  "tags": [
+    "hubtask"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus"
+        },
+        "query": "label_values(hubtask_build_info, job)",
+        "current": {
+          "text": "hubtask",
+          "value": "hubtask"
+        },
+        "label": "Prometheus job"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Ready",
+      "description": "0 means the mandatory dependency is down - the same condition alert A-03 pages on.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "min(hubtask_dependency_up{dependency=\"postgres\"})",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Panics recovered",
+      "description": "Target value: permanently 0 (ADR-0016). Anything else is a program defect (alert A-04).",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(hubtask_panics_recovered_total)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Requests / s",
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(hubtask_http_requests_total[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "5xx share",
+      "description": "SLO-1 promises >= 99.9% without a 5xx over 30 days.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.001
+              },
+              {
+                "color": "red",
+                "value": 0.01
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(hubtask_http_requests_total{status_class=\"5xx\"}[5m])) / clamp_min(sum(rate(hubtask_http_requests_total[5m])), 0.001)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Rate and errors, by route",
+      "description": "The R and E of RED.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (route) (rate(hubtask_http_requests_total[5m]))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (route) (rate(hubtask_http_requests_total{status_class=\"5xx\"}[5m]))",
+          "legendFormat": "5xx {{route}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency P95, by route",
+      "description": "SLO-2 reads < 200 ms, SLO-3 < 300 ms. The buckets straddle both.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(hubtask_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Use case outcomes",
+      "description": "The result label is the domain's own error category (\u00a74.1). internal and unavailable are our fault; validation, not_found, conflict and forbidden are the API working.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(hubtask_usecase_total[5m]))",
+          "legendFormat": "{{result}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Saturation: in flight and rate limited",
+      "description": "Load shedding engaging shows here before latency tips over.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (role) (hubtask_inflight_requests)",
+          "legendFormat": "in flight {{role}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (scope) (rate(hubtask_rate_limited_total[5m]))",
+          "legendFormat": "limited {{scope}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Versions in the cluster",
+      "description": "More than one line for longer than a rollout takes is alert A-13: the deployment is stuck between versions.",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (version) (hubtask_build_info)",
+          "legendFormat": "{{version}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

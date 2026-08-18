@@ -391,6 +391,34 @@ expect_docs_failure "a citation of an ADR nobody wrote" \
 
 The reasoning is in ADR-0099.'
 
+header "Observability artefacts (make gate-observability)"
+
+# An alert without a runbook is the one mistake §11 names explicitly, so it is the one the gate
+# has to be shown catching. The probe adds a sixth alert pointing at a runbook nobody wrote.
+CHECKS=$((CHECKS + 1))
+RULES="deploy/observability/alerts/prometheus-rules.yaml"
+cp "$RULES" "$RULES.selftest-backup"
+cat >> "$RULES" <<'PROBE'
+
+      - alert: HubtaskSelftestProbe
+        expr: vector(1)
+        labels:
+          severity: ticket
+          alert_id: A-99
+        annotations:
+          summary: "A probe that ships without a runbook"
+          runbook: RB-A99-nobody-wrote-this.md
+PROBE
+if make --no-print-directory gate-observability >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-observability stayed green
+' "an alert without a runbook"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-observability
+' "an alert without a runbook"
+fi
+mv "$RULES.selftest-backup" "$RULES"
+
 header "Licences (make gate-licenses)"
 
 # The licence gate cannot be shown a GPL dependency without adding one, so it is shown the other

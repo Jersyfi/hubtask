@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# The self-hosting alert set (observability-reliability.md §10).
+#
+# Five rules, not eighteen. The catalogue's full set is written for provider operation with an
+# on-call rota and an error budget; a self-hosted installation has one person, who is asleep, and
+# an alert that fires for a symptom nobody will act on trains that person to ignore the next one.
+# What is left is the set where doing nothing loses data or leaves the installation broken:
+# A-03 (nobody is serving), A-04 (a defect), A-05 (events are stuck), A-07 (work was finally
+# given up on), A-12 (the backup is not happening).
+#
+# Every rule carries a `runbook` annotation naming a file under deploy/observability/runbooks/.
+# That is not decoration: §11 says an alert without a runbook does not ship, and the gate in
+# test/observability enforces it in both directions.
+#
+# The thresholds are starting values. An operator raises them in their own copy - which is why
+# this file is a shipped example, not something the application reads.
+groups:
+  - name: hubtask-selfhosting
+    interval: 30s
+    rules:
+      - alert: HubtaskNotReady
+        # A-03. Readiness is per instance; a single-process installation has one, so "more than
+        # 30% of instances" reduces to "it". The condition deliberately reads the scrape rather
+        # than /readyz: an instance that answers nothing at all is the case this must also catch,
+        # and `up == 0` is the only signal that survives the process being gone.
+        expr: |
+          up{job="hubtask"} == 0
+          or hubtask_dependency_up{dependency="postgres"} == 0
+        for: 5m
+        labels:
+          severity: page
+          alert_id: A-03
+        annotations:
+          summary: "Hubtask is not ready to serve"
+          description: "The process is unreachable or its mandatory dependency is down."
+          runbook: RB-A03-not-ready.md
+
+      - alert: HubtaskPanicRecovered
+        # A-04. The target value is permanently zero (ADR-0016): every panic is a program defect,
+        # and the counter is seeded at zero so this expression has a series to read from the
+        # first scrape.
+        expr: increase(hubtask_panics_recovered_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: page
+          alert_id: A-04
+        annotations:
+          summary: "A panic was recovered in {{ $labels.component }}"
+          description: "hubtask_panics_recovered_total must stay at zero; a rise is a defect, not load."
+          runbook: RB-A04-panic.md
+
+      - alert: HubtaskOutboxLagging
+        # A-05. SLO-4 promises a P99 under 30 seconds; the alert waits for a minute of it, so a
+        # burst of writes does not page anybody. Events being stuck means automation, webhooks
+        # and the search index are all silently behind.
+        expr: histogram_quantile(0.99, sum(rate(hubtask_outbox_lag_seconds_bucket[10m])) by (le)) > 60
+        for: 10m
+        labels:
+          severity: page
+          alert_id: A-05
+        annotations:
+          summary: "Events are reaching their consumers late"
+          description: "Outbox lag P99 is above 60s - the dispatcher is behind or not running."
+          runbook: RB-A05-outbox-lag.md
+
+      - alert: HubtaskDeadLetter
+        # A-07. A dead letter is work the system finally gave up on after exhausting its retries.
+        # Nothing else will pick it up; it needs a person, which is the definition of an alert.
+        expr: increase(hubtask_job_dead_letter_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: ticket
+          alert_id: A-07
+        annotations:
+          summary: "A {{ $labels.job_type }} job was given up on"
+          description: "The job used up its attempts. The row carries the code of the last failure."
+          runbook: RB-A07-dead-letter.md
+
+      - alert: HubtaskBackupStale
+        # A-12. The one alert that fires for something that has *not* happened, which is why it
+        # is written as an absence: no successful backup in 24 hours. Without a backup metric the
+        # series is missing entirely, and `absent()` is what turns "nobody configured a backup"
+        # into an alert rather than into silence.
+        expr: |
+          absent(hubtask_backup_last_success_timestamp_seconds)
+          or (time() - max(hubtask_backup_last_success_timestamp_seconds)) > 86400
+        for: 30m
+        labels:
+          severity: page
+          alert_id: A-12
+        annotations:
+          summary: "No successful backup in the last 24 hours"
+          description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
+          runbook: RB-A12-backup-stale.md
