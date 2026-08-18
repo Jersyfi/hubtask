@@ -109,7 +109,12 @@ func (h CreateWorkItem) Execute(
 
 	var created domain.WorkItem
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		item, err := h.build(ctx, actor, cmd, collectionID)
+		// One reading of the clock for the whole write. Two would let the row say it was created
+		// at one moment and the event say another, and the difference would show up as an item
+		// whose `created_at` is not the `time` of the event announcing it.
+		now := h.Clock.Now()
+
+		item, err := h.build(ctx, actor, cmd, collectionID, now)
 		if err != nil {
 			return err
 		}
@@ -117,7 +122,6 @@ func (h CreateWorkItem) Execute(
 			return err
 		}
 
-		now := h.Clock.Now()
 		// One snapshot, two recipients - the event outwards as a public contract, the change log
 		// to synchronising clients (offline-sync.md §10). They describe the same state, and
 		// building it twice is how the two come to disagree.
@@ -204,7 +208,8 @@ func (h CreateWorkItem) scopeOf(
 // build reads the state the placement depends on and turns the command into an item. It runs
 // inside the write transaction, so what it checked is still true when the row is written.
 func (h CreateWorkItem) build(
-	ctx context.Context, actor appshared.ActorContext, cmd CreateWorkItemCommand, collectionID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, cmd CreateWorkItemCommand,
+	collectionID shared.ID, now time.Time,
 ) (domain.WorkItem, error) {
 	collection, err := h.findCollection(ctx, collectionID)
 	if err != nil {
@@ -251,7 +256,7 @@ func (h CreateWorkItem) build(
 		Depth:        placement.Depth,
 		OrderKey:     orderKey,
 		CreatedBy:    actor.AccountID,
-		Now:          h.Clock.Now(),
+		Now:          now,
 	})
 }
 

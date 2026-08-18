@@ -96,7 +96,7 @@ func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
 		in["member_ids"] = uuidList(*body.MemberIds)
 	}
 	if body.DueAt != nil {
-		in["due_at"] = body.DueAt.String()
+		in["due_at"] = body.DueAt.Format(time.RFC3339)
 	}
 	if body.DueDateOnly != nil {
 		in["due_date_only"] = *body.DueDateOnly
