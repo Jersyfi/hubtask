@@ -277,13 +277,19 @@ without Prometheus.
 
 Shipped under `deploy/observability/`:
 
-* `dashboards/overview.json` — RED per route, SLO burn, saturation, version situation
-* `dashboards/pipeline.json` — outbox, jobs, automation, webhooks, reminders
-* `dashboards/tenant.json` — quotas, top tenants (only with the tenant label enabled)
-* `alerts/prometheus-rules.yaml` — the alert catalogue as rules
-* `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up
+* `dashboards/overview.json` — RED per route, SLO burn, saturation, version situation *(shipped)*
+* `dashboards/pipeline.json` — outbox, jobs, automation, webhooks, reminders *(shipped; automation,
+  webhooks and reminders join it as those features arrive)*
+* `dashboards/tenant.json` — quotas, top tenants (only with the tenant label enabled) *(with
+  multi-tenant operation, `0.6.0`)*
+* `alerts/prometheus-rules.yaml` — the alert catalogue as rules *(shipped: the reduced
+  self-hosting set A-03, A-04, A-05, A-07, A-12; the full catalogue with provider operation)*
+* `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up *(shipped, one per shipped alert)*
 
-Any alert without a runbook does not ship.
+Any alert without a runbook does not ship. That is `make gate-observability`, which checks it in
+both directions — an alert whose runbook is missing, and a runbook no alert points at — and
+`promtool check rules` for the expressions themselves. `make gate-selftest` proves it catches an
+alert added without one.
 
 ---
 

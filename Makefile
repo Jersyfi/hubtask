@@ -157,7 +157,7 @@ run:
 
 ## verify: Run every PR gate locally (mirrors ci.yml)
 .PHONY: verify
-verify: gate-quick gate-unit gate-architecture gate-security gate-chart gate-licenses gate-docs
+verify: gate-quick gate-unit gate-architecture gate-security gate-chart gate-licenses gate-docs gate-observability
 	@echo "All locally runnable gates are green."
 
 ## gate-quick: Format, lint, generation without a diff

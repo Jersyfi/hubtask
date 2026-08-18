@@ -10,6 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"go.opentelemetry.io/otel/codes"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -221,5 +225,80 @@ func TestAFailingCatalogueEntryIsCountedWithItsCategory(t *testing.T) {
 	body := scrape(t, observer.metrics)
 	if !strings.Contains(body, `hubtask_usecase_total{result="forbidden",use_case="CreateContainer"} 1`) {
 		t.Errorf("the refusal was not counted as such:\n%s", body)
+	}
+}
+
+// The queue's counterpart to the use case span. A job that produced none is a job nobody can
+// follow through the pipeline dashboard, and the run that most needs following is the one at three
+// in the morning.
+func TestAJobRunProducesASpanCarryingItsKind(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	observer := &Observer{
+		metrics: newTestMetrics(t, env.Config{}),
+		tracer:  sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)).Tracer("test"),
+	}
+
+	err := observer.Job(context.Background(), "outbox.dispatch", func(context.Context) error {
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("the job reported an error: %v", err)
+	}
+
+	spans := recorder.Ended()
+	if len(spans) != 1 {
+		t.Fatalf("%d spans, want one", len(spans))
+	}
+	span := spans[0]
+	if span.Name() != "job.outbox.dispatch" {
+		t.Errorf("span name %q, want the kind - never the job identifier", span.Name())
+	}
+
+	attributes := map[string]string{}
+	for _, kv := range span.Attributes() {
+		attributes[string(kv.Key)] = kv.Value.AsString()
+	}
+	if attributes["hubtask.job_kind"] != "outbox.dispatch" {
+		t.Errorf("job_kind = %q", attributes["hubtask.job_kind"])
+	}
+	if attributes["hubtask.result"] != ResultOK {
+		t.Errorf("result = %q, want %q", attributes["hubtask.result"], ResultOK)
+	}
+}
+
+// A failed job's span says so, and says it with the error's code rather than its message: a
+// message can quote what the job was working on, and a span leaves the process (rule 10).
+func TestAFailedJobSpanCarriesTheCodeAndNoMessage(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	observer := &Observer{
+		metrics: newTestMetrics(t, env.Config{}),
+		tracer:  sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)).Tracer("test"),
+	}
+
+	failure := shared.ErrUnavailable.WithDetail("dependency.unavailable")
+	if err := observer.Job(context.Background(), "outbox.dispatch", func(context.Context) error {
+		return failure
+	}); err == nil {
+		t.Fatal("the failure did not reach the caller")
+	}
+
+	span := recorder.Ended()[0]
+	if span.Status().Code != codes.Error {
+		t.Errorf("status %v, want an error status", span.Status().Code)
+	}
+	if span.Status().Description != "" {
+		t.Errorf("the span carries a description (%q) - a message can contain user content",
+			span.Status().Description)
+	}
+
+	attributes := map[string]string{}
+	for _, kv := range span.Attributes() {
+		attributes[string(kv.Key)] = kv.Value.AsString()
+	}
+	if attributes["hubtask.error_code"] != failure.Code {
+		t.Errorf("error_code = %q, want %q", attributes["hubtask.error_code"], failure.Code)
+	}
+	if attributes["hubtask.result"] != "unavailable" {
+		t.Errorf("result = %q, want the domain's category", attributes["hubtask.result"])
 	}
 }

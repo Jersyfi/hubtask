@@ -385,3 +385,55 @@ func TestTheLoopStopsWithItsContext(t *testing.T) {
 		t.Fatal("the loop is still running after its context ended")
 	}
 }
+
+// A job run is observed, and the observation wraps the transaction rather than sitting beside it:
+// what a run cost includes what it took to record that the run happened (gate RT-12, extended to
+// job handlers).
+func TestAJobRunIsObservedAroundItsTransaction(t *testing.T) {
+	work := &unitOfWork{}
+	jobs := newQueue()
+
+	var observedKind string
+	var transactionsWhenObserved int
+	handler := handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+		return queue.Result{}, nil
+	})
+
+	r := runner(jobs, work, handler, nil)
+	r.Observe = func(ctx context.Context, kind string, fn func(context.Context) error) error {
+		observedKind = kind
+		transactionsWhenObserved = len(work.scopes)
+		return fn(ctx)
+	}
+	r.execute(t.Context(), job(1))
+
+	if observedKind != queue.KindOutboxDispatch.String() {
+		t.Errorf("observed kind %q, want %q", observedKind, queue.KindOutboxDispatch)
+	}
+	if transactionsWhenObserved != 0 {
+		t.Error("the observation started inside the transaction rather than around it")
+	}
+	if len(jobs.completed) != 1 {
+		t.Error("the observed job was not completed")
+	}
+}
+
+// The failure reaches the observer too - a span that ended without its error is a span that says
+// the job was fine.
+func TestAFailingJobIsObservedAsFailing(t *testing.T) {
+	handler := handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+		return queue.Result{}, shared.ErrUnavailable.WithDetail("dependency.unavailable")
+	})
+
+	var observed error
+	r := runner(newQueue(), &unitOfWork{}, handler, nil)
+	r.Observe = func(ctx context.Context, _ string, fn func(context.Context) error) error {
+		observed = fn(ctx)
+		return observed
+	}
+	r.execute(t.Context(), job(1))
+
+	if observed == nil {
+		t.Error("the observer saw a successful run of a job that failed")
+	}
+}

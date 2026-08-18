@@ -70,6 +70,11 @@ type Runner struct {
 	// is injected rather than computed here because the policy belongs to the resilience adapter
 	// and this layer does not know it (observability-reliability.md §6).
 	NextAttempt func(attempt int) time.Duration
+	// Observe wraps one job run in its trace span. Injected as a function for the same reason as
+	// NextAttempt: this layer knows no adapter, and a tracer is one. Nil leaves the run
+	// untraced - which is what a test wants and what a process without tracing configured gets
+	// anyway, since the no-op tracer costs nothing.
+	Observe func(ctx context.Context, kind string, fn func(context.Context) error) error
 }
 
 // bookkeepingTimeout bounds the statements that are not the job itself: claiming a batch, and
@@ -157,17 +162,21 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 	jobCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), r.JobTimeout)
 	defer cancel()
 
-	err := r.UnitOfWork.Within(jobCtx, scopeOf(job), func(txCtx context.Context) error {
-		result, err := run(txCtx, handler, job)
-		if err != nil {
-			return err
-		}
-		if result.Repeat {
-			// A poller: the same row goes back to the queue for its next round rather than
-			// finishing, so the deduplication of a pending job keeps it a single row.
-			return r.Queue.Repeat(txCtx, job, r.Clock.Now().Add(result.RepeatAfter))
-		}
-		return r.Queue.Complete(txCtx, job)
+	// The span covers the transaction, not just the handler: what the run cost includes what it
+	// took to record that the run happened.
+	err := r.observe(jobCtx, job.Kind.String(), func(obsCtx context.Context) error {
+		return r.UnitOfWork.Within(obsCtx, scopeOf(job), func(txCtx context.Context) error {
+			result, err := run(txCtx, handler, job)
+			if err != nil {
+				return err
+			}
+			if result.Repeat {
+				// A poller: the same row goes back to the queue for its next round rather than
+				// finishing, so the deduplication of a pending job keeps it a single row.
+				return r.Queue.Repeat(txCtx, job, r.Clock.Now().Add(result.RepeatAfter))
+			}
+			return r.Queue.Complete(txCtx, job)
+		})
 	})
 	if err != nil {
 		r.fail(ctx, job, shared.AsError(err).DetailCode)
@@ -226,6 +235,14 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string) {
 			slog.String("job_id", job.ID.String()),
 			slog.String("error", shared.AsError(err).Code))
 	}
+}
+
+// observe applies the injected span wrapper, or runs fn plainly when there is none.
+func (r Runner) observe(ctx context.Context, kind string, fn func(context.Context) error) error {
+	if r.Observe == nil {
+		return fn(ctx)
+	}
+	return r.Observe(ctx, kind, fn)
 }
 
 // run is the panic guard around a handler. A panic in a job must not take the process with it

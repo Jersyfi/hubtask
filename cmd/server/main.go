@@ -204,8 +204,12 @@ func run() error {
 	// wake-up, so the dispatcher finds work whether or not this process is the one that runs it.
 	jobs := postgres.NewQueue(ids, clockadapter.System{})
 
+	// One observer for both channels: a use case gets its span through the registry middleware, a
+	// job through the runner's hook. Two constructions would be two tracers with the same name.
+	observer := observability.NewObserver(metrics, tracing)
+
 	useCases, err := usecase.NewRegistry(
-		observability.NewObserver(metrics, tracing).Registry(),
+		observer.Registry(),
 		work.CreateContainer{
 			Containers: postgres.NewContainerRepository(),
 			Authorizer: access.Service{
@@ -373,6 +377,7 @@ func run() error {
 			JobTimeout:   cfg.Queue.JobTimeout,
 			Lease:        cfg.Queue.Lease(),
 			NextAttempt:  backoff.Delay,
+			Observe:      observer.Job,
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
 	}

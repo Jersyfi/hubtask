@@ -103,3 +103,38 @@ func (o *Observer) Registry() usecase.Middleware {
 		})
 	}
 }
+
+// Job runs one job execution as an observed unit (ADR-0008, §3.3).
+//
+// It is the queue's counterpart to UseCase, and it exists for the same reason: a job that produced
+// no span is a job nobody can follow through the pipeline dashboard, and the failure that most
+// needs following is the one that happened at three in the morning.
+//
+// What it does not do yet is continue the trace of whatever caused the job. §3.3 wants the
+// traceparent persisted in the event and the job row, so that a chain of HTTP request -> event ->
+// automation rule -> webhook is one trace; that needs a column and belongs with the dispatcher
+// work in 0.5.0. Until then a job span is its own root, which is enough to see what a job did and
+// how long it took, and not enough to see what asked for it.
+func (o *Observer) Job(ctx context.Context, kind string, fn func(context.Context) error) error {
+	// The span is named after the kind rather than the job: a name per job identifier would be a
+	// new operation in every tracing backend for every row (§3.2 applies to span names too).
+	ctx, span := o.tracer.Start(ctx, "job."+kind)
+	defer span.End()
+
+	span.SetAttributes(attribute.String("hubtask.job_kind", kind))
+	if tenant := correlation.TenantFrom(ctx); tenant != "" {
+		span.SetAttributes(attribute.String("hubtask.tenant_id", tenant))
+	}
+
+	err := fn(ctx)
+	if err != nil {
+		// As above: no description on the status. A message can quote what the job was working
+		// on, and a span leaves the process (rule 10).
+		span.SetStatus(codes.Error, "")
+		if domainErr := shared.AsError(err); domainErr != nil {
+			span.SetAttributes(attribute.String("hubtask.error_code", domainErr.Code))
+		}
+	}
+	span.SetAttributes(attribute.String("hubtask.result", ResultClass(err)))
+	return err
+}
