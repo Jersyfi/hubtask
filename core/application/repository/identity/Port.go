@@ -110,6 +110,11 @@ type Groups interface {
 	// somebody twice is what a retry looks like, and it is not an error.
 	AddMember(ctx context.Context, groupID shared.ID, accountID shared.ID) error
 	RemoveMember(ctx context.Context, groupID shared.ID, accountID shared.ID) error
+
+	// Members is who is in it. Read only where a replacement needs to know what to remove - a
+	// permission check never asks, because a group membership reaches it as a membership of the
+	// account (see Memberships.Along).
+	Members(ctx context.Context, groupID shared.ID) ([]shared.ID, error)
 }
 
 // MembershipGrants is the write half of Memberships. Separate interface, same table: reading is

@@ -13,9 +13,9 @@ import (
 // both has two subjects and no answer to whose right it is when one of them is removed.
 func TestAGrantHasExactlyOneSubject(t *testing.T) {
 	account := shared.ID("01936f2a-7c1e-7000-8000-0000000000a1")
-	group := shared.ID("01936f2a-7c1e-7000-8000-0000000000g1")
+	group := shared.ID("01936f2a-7c1e-7000-8000-0000000000c1")
 	tenant := shared.ID("01936f2a-7c1e-7000-8000-00000000000a")
-	id := shared.ID("01936f2a-7c1e-7000-8000-0000000000m1")
+	id := shared.ID("01936f2a-7c1e-7000-8000-0000000000d1")
 
 	cases := []struct {
 		name    string
@@ -48,7 +48,7 @@ func TestAGrantHasExactlyOneSubject(t *testing.T) {
 // A scope carries the identifier its level needs: the tenant scope none, every other level the
 // container or item it applies to. A hub scope without a hub would grant a role over nothing.
 func TestAScopeCarriesWhatItsLevelNeeds(t *testing.T) {
-	hub := shared.ID("01936f2a-7c1e-7000-8000-0000000000h1")
+	hub := shared.ID("01936f2a-7c1e-7000-8000-0000000000b1")
 
 	cases := []struct {
 		name  string
@@ -75,7 +75,7 @@ func TestAScopeCarriesWhatItsLevelNeeds(t *testing.T) {
 
 func TestAGrantRefusesARoleNobodyDefined(t *testing.T) {
 	_, err := NewGrant(
-		shared.ID("01936f2a-7c1e-7000-8000-0000000000m1"),
+		shared.ID("01936f2a-7c1e-7000-8000-0000000000d1"),
 		shared.ID("01936f2a-7c1e-7000-8000-00000000000a"),
 		shared.ID("01936f2a-7c1e-7000-8000-0000000000a1"), "",
 		TenantScope(), Role("SUPERUSER"))

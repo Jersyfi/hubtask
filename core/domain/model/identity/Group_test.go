@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	groupID  = shared.ID("01936f2a-7c1e-7000-8000-0000000000g1")
+	groupID  = shared.ID("01936f2a-7c1e-7000-8000-0000000000c1")
 	tenantID = shared.ID("01936f2a-7c1e-7000-8000-00000000000a")
 )
 
