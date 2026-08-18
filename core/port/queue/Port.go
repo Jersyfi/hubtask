@@ -37,6 +37,12 @@ const (
 	// tenant, which is what "system jobs loop per tenant rather than running globally"
 	// (multi-tenancy.md §2.1) looks like once it is a queue.
 	KindOutboxDispatch Kind = "outbox.dispatch"
+
+	// KindInvitationEmail tells somebody they have been invited. Queued in the transaction that
+	// created the account, so the message and the seat exist together or neither does - and
+	// delivered by a worker, so an unreachable mail server never fails the request that invited
+	// them (observability-reliability.md §7).
+	KindInvitationEmail Kind = "notification.invitation"
 )
 
 func (k Kind) String() string { return string(k) }

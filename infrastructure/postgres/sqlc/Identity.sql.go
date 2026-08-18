@@ -11,6 +11,37 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addGroupMember = `-- name: AddGroupMember :exec
+INSERT INTO account_group_member (tenant_id, group_id, account_id)
+VALUES (current_tenant_id(), $1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type AddGroupMemberParams struct {
+	GroupID   pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+func (q *Queries) AddGroupMember(ctx context.Context, arg AddGroupMemberParams) error {
+	_, err := q.db.Exec(ctx, addGroupMember, arg.GroupID, arg.AccountID)
+	return err
+}
+
+const deleteGroup = `-- name: DeleteGroup :execrows
+DELETE FROM account_group WHERE id = $1
+`
+
+// The memberships the group granted go with it, and so do its member links - both by cascade
+// (db/migrations/0001_init.sql), which is one statement that cannot half-run rather than three
+// that can.
+func (q *Queries) DeleteGroup(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteGroup, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findAccessTokenByHash = `-- name: FindAccessTokenByHash :one
 SELECT
   t.id,
@@ -73,6 +104,240 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 	return i, err
 }
 
+const findAccount = `-- name: FindAccount :one
+
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+FROM account
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type FindAccountRow struct {
+	ID          pgtype.UUID
+	Kind        AccountKind
+	Email       *string
+	DisplayName string
+	Status      AccountStatus
+	Locale      *string
+	TimeZone    *string
+	WeekStart   *string
+}
+
+// ============================== Accounts ==============================
+// The tenant is never a parameter in this file: row level security bounds every statement to the
+// tenant of the running transaction, which is what makes an account of another tenant not found
+// rather than forbidden (ADR-0010, multi-tenancy.md §2).
+func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountRow, error) {
+	row := q.db.QueryRow(ctx, findAccount, id)
+	var i FindAccountRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Email,
+		&i.DisplayName,
+		&i.Status,
+		&i.Locale,
+		&i.TimeZone,
+		&i.WeekStart,
+	)
+	return i, err
+}
+
+const findAccountByEmail = `-- name: FindAccountByEmail :one
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+FROM account
+WHERE lower(email) = lower($1) AND deleted_at IS NULL
+`
+
+type FindAccountByEmailRow struct {
+	ID          pgtype.UUID
+	Kind        AccountKind
+	Email       *string
+	DisplayName string
+	Status      AccountStatus
+	Locale      *string
+	TimeZone    *string
+	WeekStart   *string
+}
+
+// Compared lower case, the way the uniqueness index does - two spellings of one address are two
+// accounts for one person otherwise (account_email_uq).
+func (q *Queries) FindAccountByEmail(ctx context.Context, email string) (FindAccountByEmailRow, error) {
+	row := q.db.QueryRow(ctx, findAccountByEmail, email)
+	var i FindAccountByEmailRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Email,
+		&i.DisplayName,
+		&i.Status,
+		&i.Locale,
+		&i.TimeZone,
+		&i.WeekStart,
+	)
+	return i, err
+}
+
+const findGroup = `-- name: FindGroup :one
+
+SELECT id, name, description, version FROM account_group WHERE id = $1
+`
+
+type FindGroupRow struct {
+	ID          pgtype.UUID
+	Name        string
+	Description *string
+	Version     int32
+}
+
+// =============================== Groups ===============================
+func (q *Queries) FindGroup(ctx context.Context, id pgtype.UUID) (FindGroupRow, error) {
+	row := q.db.QueryRow(ctx, findGroup, id)
+	var i FindGroupRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Version,
+	)
+	return i, err
+}
+
+const findMembership = `-- name: FindMembership :one
+SELECT id, account_id, group_id, scope_type, scope_id, role
+FROM membership WHERE id = $1
+`
+
+type FindMembershipRow struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+	GroupID   pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	Role      MembershipRole
+}
+
+func (q *Queries) FindMembership(ctx context.Context, id pgtype.UUID) (FindMembershipRow, error) {
+	row := q.db.QueryRow(ctx, findMembership, id)
+	var i FindMembershipRow
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.GroupID,
+		&i.ScopeType,
+		&i.ScopeID,
+		&i.Role,
+	)
+	return i, err
+}
+
+const grantMembership = `-- name: GrantMembership :exec
+
+INSERT INTO membership (id, tenant_id, account_id, group_id, scope_type, scope_id, role)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6
+)
+ON CONFLICT DO NOTHING
+`
+
+type GrantMembershipParams struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+	GroupID   pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	Role      MembershipRole
+}
+
+// ============================ Memberships =============================
+// Idempotent by the same index that keeps a subject from holding one role twice at one scope: a
+// retried request is not a second grant.
+func (q *Queries) GrantMembership(ctx context.Context, arg GrantMembershipParams) error {
+	_, err := q.db.Exec(ctx, grantMembership,
+		arg.ID,
+		arg.AccountID,
+		arg.GroupID,
+		arg.ScopeType,
+		arg.ScopeID,
+		arg.Role,
+	)
+	return err
+}
+
+const groupMembers = `-- name: GroupMembers :many
+SELECT account_id FROM account_group_member WHERE group_id = $1
+`
+
+func (q *Queries) GroupMembers(ctx context.Context, groupID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, groupMembers, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const insertAccount = `-- name: InsertAccount :exec
+INSERT INTO account (id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6, $7,
+  $8
+)
+`
+
+type InsertAccountParams struct {
+	ID          pgtype.UUID
+	Kind        AccountKind
+	Email       *string
+	DisplayName string
+	Status      AccountStatus
+	Locale      *string
+	TimeZone    *string
+	WeekStart   *string
+}
+
+func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) error {
+	_, err := q.db.Exec(ctx, insertAccount,
+		arg.ID,
+		arg.Kind,
+		arg.Email,
+		arg.DisplayName,
+		arg.Status,
+		arg.Locale,
+		arg.TimeZone,
+		arg.WeekStart,
+	)
+	return err
+}
+
+const insertGroup = `-- name: InsertGroup :exec
+INSERT INTO account_group (id, tenant_id, name, description, version)
+VALUES ($1, current_tenant_id(), $2, $3, 1)
+`
+
+type InsertGroupParams struct {
+	ID          pgtype.UUID
+	Name        string
+	Description *string
+}
+
+func (q *Queries) InsertGroup(ctx context.Context, arg InsertGroupParams) error {
+	_, err := q.db.Exec(ctx, insertGroup, arg.ID, arg.Name, arg.Description)
+	return err
+}
+
 const membershipsAlongPath = `-- name: MembershipsAlongPath :many
 SELECT m.scope_type, m.scope_id, m.role
 FROM membership m
@@ -125,6 +390,33 @@ func (q *Queries) MembershipsAlongPath(ctx context.Context, arg MembershipsAlong
 	return items, nil
 }
 
+const removeGroupMember = `-- name: RemoveGroupMember :exec
+DELETE FROM account_group_member
+WHERE group_id = $1 AND account_id = $2
+`
+
+type RemoveGroupMemberParams struct {
+	GroupID   pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+func (q *Queries) RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberParams) error {
+	_, err := q.db.Exec(ctx, removeGroupMember, arg.GroupID, arg.AccountID)
+	return err
+}
+
+const revokeMembership = `-- name: RevokeMembership :execrows
+DELETE FROM membership WHERE id = $1
+`
+
+func (q *Queries) RevokeMembership(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeMembership, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const touchAccessToken = `-- name: TouchAccessToken :exec
 UPDATE access_token SET last_used_at = $2 WHERE id = $1
 `
@@ -137,4 +429,67 @@ type TouchAccessTokenParams struct {
 func (q *Queries) TouchAccessToken(ctx context.Context, arg TouchAccessTokenParams) error {
 	_, err := q.db.Exec(ctx, touchAccessToken, arg.ID, arg.LastUsedAt)
 	return err
+}
+
+const updateAccountPreferences = `-- name: UpdateAccountPreferences :execrows
+UPDATE account SET
+  locale     = $1,
+  time_zone  = $2,
+  week_start = $3,
+  updated_at = $4
+WHERE id = $5 AND deleted_at IS NULL
+`
+
+type UpdateAccountPreferencesParams struct {
+	Locale    *string
+	TimeZone  *string
+	WeekStart *string
+	UpdatedAt pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// Three columns and no others. An update that could write any column is one that can write the
+// status by accident, and the status is what decides whether an account may act at all.
+func (q *Queries) UpdateAccountPreferences(ctx context.Context, arg UpdateAccountPreferencesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateAccountPreferences,
+		arg.Locale,
+		arg.TimeZone,
+		arg.WeekStart,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateGroup = `-- name: UpdateGroup :execrows
+UPDATE account_group SET
+  name        = $1,
+  description = $2,
+  version     = version + 1
+WHERE id = $3 AND version = $4
+`
+
+type UpdateGroupParams struct {
+	Name            string
+	Description     *string
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Optimistic locking in the WHERE clause: the update matches nothing when somebody else has moved
+// the row on, and the caller learns that rather than overwriting them (api-guidelines.md).
+func (q *Queries) UpdateGroup(ctx context.Context, arg UpdateGroupParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateGroup,
+		arg.Name,
+		arg.Description,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

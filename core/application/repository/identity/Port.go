@@ -65,3 +65,75 @@ type Memberships interface {
 	// the query costs a join that the index already serves.
 	Along(ctx context.Context, accountID shared.ID, path []identity.Scope) ([]identity.Membership, error)
 }
+
+// Accounts is the store of people and service accounts.
+//
+// The write side is small on purpose: 0.2.0 invites an account and changes its preferences.
+// Accepting an invitation, changing an email address and disabling an account belong to the
+// sign-in flow and arrive with it (security.md §5).
+type Accounts interface {
+	// Find returns the account, or an error wrapping shared.ErrNotFound. The tenant is the
+	// transaction's; an account of another tenant is not found rather than forbidden, because
+	// anything else confirms that it exists (multi-tenancy.md §2).
+	Find(ctx context.Context, accountID shared.ID) (identity.Account, error)
+
+	// FindByEmail is how an invitation notices that the person is already here. The address is
+	// compared the way it is stored, lower case.
+	FindByEmail(ctx context.Context, email string) (identity.Account, error)
+
+	// Insert writes a new account. It fails with a conflict when the address is taken, because
+	// the uniqueness is the database's to enforce and racing callers must not both win.
+	Insert(ctx context.Context, account identity.Account) error
+
+	// UpdatePreferences writes the three preference columns and nothing else. A method per
+	// concern rather than a general update: an update that can write any column is one that can
+	// write the status by accident.
+	UpdatePreferences(ctx context.Context, account identity.Account, at time.Time) error
+}
+
+// Groups is the store of named sets of accounts.
+type Groups interface {
+	Find(ctx context.Context, groupID shared.ID) (identity.Group, error)
+
+	// Insert writes a new group, and conflicts when the name is taken within the tenant.
+	Insert(ctx context.Context, group identity.Group) error
+
+	// Update writes the name and description under optimistic locking: it takes the version the
+	// caller read and fails with a version conflict when the row has moved on since.
+	Update(ctx context.Context, group identity.Group, expectedVersion int) error
+
+	// Delete removes the group. Its memberships and its member links go with it, which is the
+	// database's cascade rather than three statements that could half-run.
+	Delete(ctx context.Context, groupID shared.ID) error
+
+	// AddMember and RemoveMember maintain who is in the group. Both are idempotent: adding
+	// somebody twice is what a retry looks like, and it is not an error.
+	AddMember(ctx context.Context, groupID shared.ID, accountID shared.ID) error
+	RemoveMember(ctx context.Context, groupID shared.ID, accountID shared.ID) error
+
+	// Members is who is in it. Read only where a replacement needs to know what to remove - a
+	// permission check never asks, because a group membership reaches it as a membership of the
+	// account (see Memberships.Along).
+	Members(ctx context.Context, groupID shared.ID) ([]shared.ID, error)
+}
+
+// MembershipGrants is the write half of Memberships. Separate interface, same table: reading is
+// on the hot path of every request and writing happens when an administrator acts, and a use case
+// that only grants should not be handed the ability to resolve.
+type MembershipGrants interface {
+	// Grant records the membership, or does nothing when the same grant already exists. The
+	// identifier is the caller's, so that the audit entry and the row agree.
+	//
+	// A grant names an account or a group, never both: that is the database's constraint, and
+	// the use case checks it before it gets there.
+	Grant(ctx context.Context, grant identity.Grant) error
+
+	// Revoke removes it and reports whether anything was there. The distinction is what lets the
+	// use case answer "not found" rather than pretending it removed something.
+	Revoke(ctx context.Context, membershipID shared.ID) (bool, error)
+
+	// Find returns one membership, for the use case that has to know what it is about to revoke -
+	// the audit entry names the scope and the role, and a trail that only records an identifier
+	// is unreadable a year later (audit.md §2).
+	Find(ctx context.Context, membershipID shared.ID) (identity.Grant, error)
+}

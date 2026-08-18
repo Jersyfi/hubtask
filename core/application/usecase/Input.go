@@ -5,6 +5,7 @@ package usecase
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -34,6 +35,11 @@ const (
 	KindID   Kind = "id"
 	KindBool Kind = "boolean"
 	KindInt  Kind = "integer"
+	// KindIDList is a set of identifiers - the members of a group, the items of a bulk operation.
+	// Its own kind for the same reason KindID is: every channel has to reject a malformed member
+	// of the list identically, and a JSON Schema, an OpenAPI array and a CEL list all express it
+	// without a translation table.
+	KindIDList Kind = "id_list"
 )
 
 // Field declares one input field of a use case.
@@ -57,6 +63,27 @@ func (in Input) String(field string) string {
 	return strings.TrimSpace(value)
 }
 
+// OptionalString distinguishes an absent field from an empty one, which String deliberately does
+// not.
+//
+// For most fields the distinction is noise - a description sent as "" means what an omitted one
+// means. For a preference it is the whole meaning: omitted is "leave my time zone alone", empty is
+// "clear it, the workspace default applies again". A client that had only String would have to
+// send every preference back to change one, and the day it got that wrong it would silently reset
+// somebody's locale.
+func (in Input) OptionalString(field string) *string {
+	raw, present := in[field]
+	if !present || raw == nil {
+		return nil
+	}
+	value, ok := raw.(string)
+	if !ok {
+		return nil
+	}
+	trimmed := strings.TrimSpace(value)
+	return &trimmed
+}
+
 // ID returns a declared identifier field, or the zero identifier when it is absent.
 func (in Input) ID(field string) (shared.ID, error) {
 	raw := in.String(field)
@@ -71,6 +98,60 @@ func (in Input) ID(field string) (shared.ID, error) {
 			WithFields(shared.FieldError{Path: "/" + field, Code: "shared.id_malformed"})
 	}
 	return id, nil
+}
+
+// IDList returns a declared list of identifiers, empty when absent. A malformed member fails the
+// whole list: half a set of members is not a smaller request, it is a different one.
+func (in Input) IDList(field string) ([]shared.ID, error) {
+	raw, present := in[field]
+	if !present || raw == nil {
+		return nil, nil
+	}
+
+	values, ok := raw.([]any)
+	if !ok {
+		// A single identifier where a list belongs is the mistake worth being generous about:
+		// every channel's caller writes it at least once.
+		if text, isString := raw.(string); isString {
+			values = []any{text}
+		} else {
+			return nil, shared.ErrValidation.
+				WithDetail("usecase.field_type_invalid").
+				WithFields(shared.FieldError{Path: "/" + field, Code: "usecase.field_type_invalid"})
+		}
+	}
+
+	ids := make([]shared.ID, 0, len(values))
+	for index, value := range values {
+		text, isString := value.(string)
+		if !isString {
+			return nil, shared.ErrValidation.
+				WithDetail("usecase.field_type_invalid").
+				WithFields(shared.FieldError{Path: fieldPath(field, index), Code: "usecase.field_type_invalid"})
+		}
+		id, err := shared.ParseID(strings.TrimSpace(text))
+		if err != nil {
+			return nil, shared.ErrValidation.
+				WithDetail("shared.id_malformed").
+				WithParams(map[string]string{"value": text}).
+				WithFields(shared.FieldError{Path: fieldPath(field, index), Code: "shared.id_malformed"})
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// Present reports whether the caller sent the field at all - the distinction OptionalString makes
+// for strings, for the fields where the value itself carries no "absent" spelling. An empty list
+// is a legitimate instruction (empty the group); a missing one is not an instruction.
+func (in Input) Present(field string) bool {
+	value, present := in[field]
+	return present && value != nil
+}
+
+// fieldPath is the JSON pointer of one element, for a field error a client can point at.
+func fieldPath(field string, index int) string {
+	return "/" + field + "/" + strconv.Itoa(index)
 }
 
 // Bool returns a declared boolean field, false when absent.

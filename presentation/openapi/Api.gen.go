@@ -15,6 +15,93 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AccountKind.
+const (
+	AccountKindSERVICEACCOUNT AccountKind = "SERVICE_ACCOUNT"
+	AccountKindUSER           AccountKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the AccountKind enum.
+func (e AccountKind) Valid() bool {
+	switch e {
+	case AccountKindSERVICEACCOUNT:
+		return true
+	case AccountKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountStatus.
+const (
+	ACTIVE   AccountStatus = "ACTIVE"
+	DISABLED AccountStatus = "DISABLED"
+	INVITED  AccountStatus = "INVITED"
+)
+
+// Valid indicates whether the value is a known member of the AccountStatus enum.
+func (e AccountStatus) Valid() bool {
+	switch e {
+	case ACTIVE:
+		return true
+	case DISABLED:
+		return true
+	case INVITED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountWeekStart.
+const (
+	AccountWeekStartLessThannil AccountWeekStart = "<nil>"
+	AccountWeekStartMONDAY      AccountWeekStart = "MONDAY"
+	AccountWeekStartSATURDAY    AccountWeekStart = "SATURDAY"
+	AccountWeekStartSUNDAY      AccountWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the AccountWeekStart enum.
+func (e AccountWeekStart) Valid() bool {
+	switch e {
+	case AccountWeekStartLessThannil:
+		return true
+	case AccountWeekStartMONDAY:
+		return true
+	case AccountWeekStartSATURDAY:
+		return true
+	case AccountWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountPreferencesWeekStart.
+const (
+	AccountPreferencesWeekStartLessThannil AccountPreferencesWeekStart = "<nil>"
+	AccountPreferencesWeekStartMONDAY      AccountPreferencesWeekStart = "MONDAY"
+	AccountPreferencesWeekStartSATURDAY    AccountPreferencesWeekStart = "SATURDAY"
+	AccountPreferencesWeekStartSUNDAY      AccountPreferencesWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the AccountPreferencesWeekStart enum.
+func (e AccountPreferencesWeekStart) Valid() bool {
+	switch e {
+	case AccountPreferencesWeekStartLessThannil:
+		return true
+	case AccountPreferencesWeekStartMONDAY:
+		return true
+	case AccountPreferencesWeekStartSATURDAY:
+		return true
+	case AccountPreferencesWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditEntryActorType.
 const (
 	AuditEntryActorTypeAIAGENT        AuditEntryActorType = "AI_AGENT"
@@ -735,24 +822,78 @@ func (e JobRefStatus) Valid() bool {
 	}
 }
 
+// Defines values for MembershipRole.
+const (
+	MembershipRoleADMIN       MembershipRole = "ADMIN"
+	MembershipRoleCONTRIBUTOR MembershipRole = "CONTRIBUTOR"
+	MembershipRoleGUEST       MembershipRole = "GUEST"
+	MembershipRoleMEMBER      MembershipRole = "MEMBER"
+	MembershipRoleOWNER       MembershipRole = "OWNER"
+	MembershipRoleVIEWER      MembershipRole = "VIEWER"
+)
+
+// Valid indicates whether the value is a known member of the MembershipRole enum.
+func (e MembershipRole) Valid() bool {
+	switch e {
+	case MembershipRoleADMIN:
+		return true
+	case MembershipRoleCONTRIBUTOR:
+		return true
+	case MembershipRoleGUEST:
+		return true
+	case MembershipRoleMEMBER:
+		return true
+	case MembershipRoleOWNER:
+		return true
+	case MembershipRoleVIEWER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MembershipScope.
+const (
+	MembershipScopeCOLLECTION MembershipScope = "COLLECTION"
+	MembershipScopeHUB        MembershipScope = "HUB"
+	MembershipScopeITEM       MembershipScope = "ITEM"
+	MembershipScopeTENANT     MembershipScope = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the MembershipScope enum.
+func (e MembershipScope) Valid() bool {
+	switch e {
+	case MembershipScopeCOLLECTION:
+		return true
+	case MembershipScopeHUB:
+		return true
+	case MembershipScopeITEM:
+		return true
+	case MembershipScopeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MoveResultDroppedReferencesKind.
 const (
-	BUCKET      MoveResultDroppedReferencesKind = "BUCKET"
-	CUSTOMFIELD MoveResultDroppedReferencesKind = "CUSTOM_FIELD"
-	LABEL       MoveResultDroppedReferencesKind = "LABEL"
-	MEMBER      MoveResultDroppedReferencesKind = "MEMBER"
+	MoveResultDroppedReferencesKindBUCKET      MoveResultDroppedReferencesKind = "BUCKET"
+	MoveResultDroppedReferencesKindCUSTOMFIELD MoveResultDroppedReferencesKind = "CUSTOM_FIELD"
+	MoveResultDroppedReferencesKindLABEL       MoveResultDroppedReferencesKind = "LABEL"
+	MoveResultDroppedReferencesKindMEMBER      MoveResultDroppedReferencesKind = "MEMBER"
 )
 
 // Valid indicates whether the value is a known member of the MoveResultDroppedReferencesKind enum.
 func (e MoveResultDroppedReferencesKind) Valid() bool {
 	switch e {
-	case BUCKET:
+	case MoveResultDroppedReferencesKindBUCKET:
 		return true
-	case CUSTOMFIELD:
+	case MoveResultDroppedReferencesKindCUSTOMFIELD:
 		return true
-	case LABEL:
+	case MoveResultDroppedReferencesKindLABEL:
 		return true
-	case MEMBER:
+	case MoveResultDroppedReferencesKindMEMBER:
 		return true
 	default:
 		return false
@@ -1076,6 +1217,44 @@ func (e ListAuditEntriesParamsOutcome) Valid() bool {
 		return false
 	}
 }
+
+// Account defines model for Account.
+type Account struct {
+	DisplayName string               `json:"display_name"`
+	Email       *openapi_types.Email `json:"email,omitempty"`
+	Id          openapi_types.UUID   `json:"id"`
+	Kind        AccountKind          `json:"kind"`
+	Locale      *string              `json:"locale,omitempty"`
+	Status      AccountStatus        `json:"status"`
+	TimeZone    *string              `json:"time_zone,omitempty"`
+	WeekStart   *AccountWeekStart    `json:"week_start,omitempty"`
+}
+
+// AccountKind defines model for Account.Kind.
+type AccountKind string
+
+// AccountStatus defines model for Account.Status.
+type AccountStatus string
+
+// AccountWeekStart defines model for Account.WeekStart.
+type AccountWeekStart string
+
+// AccountInvite defines model for AccountInvite.
+type AccountInvite struct {
+	DisplayName *string             `json:"display_name,omitempty"`
+	Email       openapi_types.Email `json:"email"`
+}
+
+// AccountPreferences Every field is optional, and an empty string clears the preference rather than setting it
+// to nothing — the workspace default applies again.
+type AccountPreferences struct {
+	Locale    *string                      `json:"locale,omitempty"`
+	TimeZone  *string                      `json:"time_zone,omitempty"`
+	WeekStart *AccountPreferencesWeekStart `json:"week_start,omitempty"`
+}
+
+// AccountPreferencesWeekStart defines model for AccountPreferences.WeekStart.
+type AccountPreferencesWeekStart string
 
 // AuditEntry Deliberately contains no user content (titles, notes, comments), so that the audit
 // stays unaffected by deletion obligations on content.
@@ -1436,6 +1615,32 @@ type FilterNode struct {
 // FilterNodeOp defines model for FilterNode.Op.
 type FilterNodeOp string
 
+// Group defines model for Group.
+type Group struct {
+	Description *string            `json:"description,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+	Name        string             `json:"name"`
+	Version     int                `json:"version"`
+}
+
+// GroupCreate defines model for GroupCreate.
+type GroupCreate struct {
+	Description *string `json:"description,omitempty"`
+
+	// Members Accounts to put in the group straight away.
+	Members *[]openapi_types.UUID `json:"members,omitempty"`
+	Name    string                `json:"name"`
+}
+
+// GroupUpdate defines model for GroupUpdate.
+type GroupUpdate struct {
+	Description *string `json:"description,omitempty"`
+
+	// Members The complete membership after the change; omitted leaves it as it is.
+	Members *[]openapi_types.UUID `json:"members,omitempty"`
+	Name    *string               `json:"name,omitempty"`
+}
+
 // HealthReport Machine-readable self-diagnosis. `warnings` names what the installation is missing,
 // without an error having occurred (a missing backup, missing SMTP with reminders
 // enabled, expiring keys).
@@ -1555,6 +1760,32 @@ type Label struct {
 	Id           openapi_types.UUID  `json:"id"`
 	Name         string              `json:"name"`
 }
+
+// Membership defines model for Membership.
+type Membership struct {
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+	GroupId   *openapi_types.UUID `json:"group_id,omitempty"`
+	Id        openapi_types.UUID  `json:"id"`
+	Role      MembershipRole      `json:"role"`
+	ScopeId   *openapi_types.UUID `json:"scope_id,omitempty"`
+	ScopeType MembershipScope     `json:"scope_type"`
+}
+
+// MembershipGrant Exactly one of `account_id` and `group_id`. Neither grants to nobody; both would leave no
+// answer to whose right it is when one of the two is removed.
+type MembershipGrant struct {
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+	GroupId   *openapi_types.UUID `json:"group_id,omitempty"`
+	Role      MembershipRole      `json:"role"`
+	ScopeId   *openapi_types.UUID `json:"scope_id,omitempty"`
+	ScopeType MembershipScope     `json:"scope_type"`
+}
+
+// MembershipRole defines model for MembershipRole.
+type MembershipRole string
+
+// MembershipScope defines model for MembershipScope.
+type MembershipScope string
 
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
@@ -1875,6 +2106,9 @@ type WorkItemUpdate struct {
 	Title        *string                 `json:"title,omitempty"`
 }
 
+// AccountId defines model for AccountId.
+type AccountId = openapi_types.UUID
+
 // ContainerId defines model for ContainerId.
 type ContainerId = openapi_types.UUID
 
@@ -1883,6 +2117,9 @@ type ContainerTypeFilter = ContainerType
 
 // Cursor defines model for Cursor.
 type Cursor = string
+
+// GroupId defines model for GroupId.
+type GroupId = openapi_types.UUID
 
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = openapi_types.UUID
@@ -1896,11 +2133,20 @@ type IncludeArchived = bool
 // ItemId defines model for ItemId.
 type ItemId = openapi_types.UUID
 
+// MembershipId defines model for MembershipId.
+type MembershipId = openapi_types.UUID
+
 // PageSize defines model for PageSize.
 type PageSize = int
 
 // ParentId defines model for ParentId.
 type ParentId = openapi_types.UUID
+
+// InviteAccountParams defines parameters for InviteAccount.
+type InviteAccountParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
 
 // ListAuditEntriesParams defines parameters for ListAuditEntries.
 type ListAuditEntriesParams struct {
@@ -1955,6 +2201,18 @@ type TrashContainerParams struct {
 
 // UpdateContainerParams defines parameters for UpdateContainer.
 type UpdateContainerParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// CreateGroupParams defines parameters for CreateGroup.
+type CreateGroupParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UpdateGroupParams defines parameters for UpdateGroup.
+type UpdateGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -2032,6 +2290,12 @@ type BulkItemsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// GrantMembershipParams defines parameters for GrantMembership.
+type GrantMembershipParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -2039,6 +2303,12 @@ type ListRetentionPoliciesParams struct {
 	// Effective Only the rules actually in force
 	Effective *bool `form:"effective,omitempty" json:"effective,omitempty"`
 }
+
+// UpdateAccountPreferencesJSONRequestBody defines body for UpdateAccountPreferences for application/json ContentType.
+type UpdateAccountPreferencesJSONRequestBody = AccountPreferences
+
+// InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
+type InviteAccountJSONRequestBody = AccountInvite
 
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
@@ -2057,6 +2327,12 @@ type UpdateContainerApplicationMergePatchPlusJSONRequestBody = ContainerUpdate
 
 // CreateBucketJSONRequestBody defines body for CreateBucket for application/json ContentType.
 type CreateBucketJSONRequestBody = BucketCreate
+
+// CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
+type CreateGroupJSONRequestBody = GroupCreate
+
+// UpdateGroupJSONRequestBody defines body for UpdateGroup for application/json ContentType.
+type UpdateGroupJSONRequestBody = GroupUpdate
 
 // CreateWorkItemJSONRequestBody defines body for CreateWorkItem for application/json ContentType.
 type CreateWorkItemJSONRequestBody = WorkItemCreate
@@ -2079,6 +2355,9 @@ type BulkItemsJSONRequestBody BulkItemsJSONBody
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
 
+// GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
+type GrantMembershipJSONRequestBody = MembershipGrant
+
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
 
@@ -2093,6 +2372,12 @@ type SyncPushJSONRequestBody = SyncPushRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// UpdateAccountPreferences Set how the product speaks to an account
+	// (PATCH /accounts/{accountId}/preferences)
+	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// InviteAccount Invite a person into this workspace
+	// (POST /accounts:invite)
+	InviteAccount(w http.ResponseWriter, r *http.Request, params InviteAccountParams)
 	// ListAuditEntries Query audit entries
 	// (GET /audit)
 	ListAuditEntries(w http.ResponseWriter, r *http.Request, params ListAuditEntriesParams)
@@ -2144,6 +2429,15 @@ type ServerInterface interface {
 
 	// (GET /containers/{containerId}/labels)
 	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+	// CreateGroup Create a group
+	// (POST /groups)
+	CreateGroup(w http.ResponseWriter, r *http.Request, params CreateGroupParams)
+	// DeleteGroup Delete a group
+	// (DELETE /groups/{groupId})
+	DeleteGroup(w http.ResponseWriter, r *http.Request, groupId GroupId)
+	// UpdateGroup Rename a group or change its description
+	// (PATCH /groups/{groupId})
+	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
 
 	// (POST /items)
 	CreateWorkItem(w http.ResponseWriter, r *http.Request, params CreateWorkItemParams)
@@ -2177,6 +2471,12 @@ type ServerInterface interface {
 	// QueryItems The generic query - the basis for list, kanban, and timeline
 	// (POST /items:query)
 	QueryItems(w http.ResponseWriter, r *http.Request)
+	// GrantMembership Grant a role at a scope
+	// (POST /memberships)
+	GrantMembership(w http.ResponseWriter, r *http.Request, params GrantMembershipParams)
+	// RevokeMembership Take a role away
+	// (DELETE /memberships/{membershipId})
+	RevokeMembership(w http.ResponseWriter, r *http.Request, membershipId MembershipId)
 	// GetCapabilities Self-description of the installation
 	// (GET /meta/capabilities)
 	GetCapabilities(w http.ResponseWriter, r *http.Request)
@@ -2214,6 +2514,73 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// UpdateAccountPreferences operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAccountPreferences(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InviteAccount operation middleware
+func (siw *ServerInterfaceWrapper) InviteAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params InviteAccountParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InviteAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ListAuditEntries operation middleware
 func (siw *ServerInterfaceWrapper) ListAuditEntries(w http.ResponseWriter, r *http.Request) {
@@ -2833,6 +3200,123 @@ func (siw *ServerInterfaceWrapper) ListLabels(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// CreateGroup operation middleware
+func (siw *ServerInterfaceWrapper) CreateGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateGroupParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateGroup(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteGroup operation middleware
+func (siw *ServerInterfaceWrapper) DeleteGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId GroupId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", r.PathValue("groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteGroup(w, r, groupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateGroup operation middleware
+func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId GroupId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", r.PathValue("groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateGroupParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateGroup(w, r, groupId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) CreateWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -3278,6 +3762,73 @@ func (siw *ServerInterfaceWrapper) QueryItems(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// GrantMembership operation middleware
+func (siw *ServerInterfaceWrapper) GrantMembership(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GrantMembershipParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GrantMembership(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeMembership operation middleware
+func (siw *ServerInterfaceWrapper) RevokeMembership(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "membershipId" -------------
+	var membershipId MembershipId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "membershipId", r.PathValue("membershipId"), &membershipId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "membershipId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeMembership(w, r, membershipId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetCapabilities operation middleware
 func (siw *ServerInterfaceWrapper) GetCapabilities(w http.ResponseWriter, r *http.Request) {
 
@@ -3587,6 +4138,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:pull", wrapper.SyncPull)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sync:push", wrapper.SyncPush)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invite", wrapper.InviteAccount)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/memberships", wrapper.GrantMembership)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/memberships/{membershipId}", wrapper.RevokeMembership)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/groups", wrapper.CreateGroup)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/groups/{groupId}", wrapper.DeleteGroup)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers", wrapper.ListContainers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers", wrapper.CreateContainer)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}", wrapper.TrashContainer)

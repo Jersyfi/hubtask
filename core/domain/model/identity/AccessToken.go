@@ -74,18 +74,27 @@ func (t AccessToken) NeedsTouch(now time.Time, interval time.Duration) bool {
 // Account is as much of the acting account as authentication needs: whether it may act at all,
 // what kind of actor it is, and how it prefers to be spoken to.
 type Account struct {
-	ID   shared.ID
-	Kind AccountKind
+	ID shared.ID
+	// TenantID is the workspace the account belongs to. An account exists in exactly one: two
+	// workspaces for one person are two accounts, which is what keeps a membership from ever
+	// having to name a tenant (multi-tenancy.md §2).
+	TenantID shared.ID
+	Kind     AccountKind
+	// Email is how a person is invited and how they are found again. Unique per tenant, and
+	// stored lower case because two spellings of one address are two accounts for one person.
+	Email string
 	// DisplayName is what the audit trail records alongside the identifier. Denormalised into
 	// every entry it appears in, because an entry that only points at a foreign key becomes
 	// unreadable once the account is deleted, and a trail that loses its meaning through a
 	// deletion does not do its job (audit.md §2, test AT-7).
 	DisplayName string
 	Status      AccountStatus
-	// Locale and TimeZone are the account's own preference, the second link of the resolution
-	// chain request → account → tenant → installation (i18n-l10n.md §2). Either may be empty.
-	Locale   string
-	TimeZone string
+	// Locale, TimeZone and WeekStart are the account's own preferences, the second link of the
+	// resolution chain request → account → tenant → installation (i18n-l10n.md §2). Any of them
+	// may be empty, which means the tenant's default applies.
+	Locale    string
+	TimeZone  string
+	WeekStart string
 }
 
 // Verify decides whether the account may act.
