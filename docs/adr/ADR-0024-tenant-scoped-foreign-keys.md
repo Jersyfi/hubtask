@@ -14,8 +14,9 @@ referential integrity in internal triggers that run as the table owner and are n
 level security. A foreign key therefore sees rows the querying tenant cannot, and this is not a
 configuration mistake — it is how the feature is specified.
 
-The schema has 36 single-column foreign keys between tenant-scoped tables and no composite ones,
-across 55 tables carrying `tenant_id`. Four consequences were measured against PostgreSQL 16.15
+The schema has 36 single-column foreign keys between tables carrying `tenant_id` and no composite
+ones, across 55 such tables. Thirty of them are between tables where the column is `NOT NULL`, and
+those are the ones this decision is about. Four consequences were measured against PostgreSQL 16.15
 with the application role (`hubtask_app`, no `BYPASSRLS`, not an owner):
 
 1. **A cross-tenant reference can be written.** An insert in tenant B naming tenant A's collection
@@ -39,8 +40,8 @@ the case ADR-0010 claims to have covered.
 
 ## Decision
 
-Every foreign key between two tenant-scoped tables becomes **composite**: the reference carries
-`tenant_id` and points at `(tenant_id, id)` of the referenced table.
+Every foreign key between two tables whose `tenant_id` is `NOT NULL` becomes **composite**: the
+reference carries `tenant_id` and points at `(tenant_id, id)` of the referenced table.
 
 ```sql
 ALTER TABLE work_item ADD CONSTRAINT work_item_collection_id_fkey
@@ -48,14 +49,18 @@ ALTER TABLE work_item ADD CONSTRAINT work_item_collection_id_fkey
   ON DELETE CASCADE;
 ```
 
+`NOT NULL` on both sides is the precondition rather than a detail, and it is what draws the line
+around the rule. Where a table's tenant is nullable by design, a composite key is not a weaker
+version of this decision — it is the wrong decision, for two reasons measured below.
+
 The rule is enforced structurally rather than remembered: a gate walks `pg_constraint` and fails
-the build on any single-column foreign key between two tables that carry `tenant_id`, with a
-documented exception list — the same shape as the existing gate that proves row level security is
+the build on any single-column foreign key between two tables whose `tenant_id` is `NOT NULL`, with
+a documented exception list — the same shape as the existing gate that proves row level security is
 active on every tenant table.
 
 Three details decide whether this works, and each was measured rather than assumed:
 
-* **The referenced table needs `UNIQUE (tenant_id, id)`.** Thirteen tables are referenced and need
+* **The referenced table needs `UNIQUE (tenant_id, id)`.** Eleven tables are referenced and need
   one. The primary key stays on `id` alone: identifiers are UUIDv7 and globally unique, queries
   look rows up by identifier, and moving the primary key to a composite would leave `WHERE id = $1`
   without a unique index.
@@ -63,7 +68,7 @@ Three details decide whether this works, and each was measured rather than assum
   is not checked at all — which is what a nullable reference needs. `MATCH FULL` would demand that
   every column of the key be null together, and `tenant_id` is never null, so every optional
   reference would break.
-* **`ON DELETE SET NULL` needs a column list.** Five of the 36 use it, and the naive composite form
+* **`ON DELETE SET NULL` needs a column list.** Three of the thirty use it, and the naive composite form
   would null `tenant_id` as well, which is `NOT NULL`. PostgreSQL 15 added
   `ON DELETE SET NULL (column)` for this. The trap is that the naive form is **accepted when it is
   declared** and fails only when it fires, with a not-null violation at delete time — so a review
@@ -94,8 +99,8 @@ existence oracle closes; ADR-0010's claim becomes true as written. The new index
 `(tenant_id, id)` — tenant first, which is the index layout ADR-0010's own countermeasures already
 ask for, so it is not dead weight.
 
-**Negative:** thirteen additional unique indexes cost storage and write time on the referenced
-tables; 36 constraints have to be swapped; every future table joins the rule, and the gate is what
+**Negative:** eleven additional unique indexes cost storage and write time on the referenced
+tables; 30 constraints have to be swapped; every future table joins the rule, and the gate is what
 tells its author so. `ON DELETE SET NULL (column)` requires PostgreSQL 15, which the support matrix
 already exceeds (16 and 17) — but it becomes a hard floor rather than a preference, and belongs in
 [support-matrix.md](../architecture/support-matrix.md).
@@ -107,7 +112,20 @@ writes references inside its own tenant — that is what makes the constraint ad
 installation whose data already violates it fails at `VALIDATE CONSTRAINT` rather than at deploy
 time, with the offending rows nameable by a query.
 
-**Not covered:** references to tables with no tenant (`job`, and the system rows of
-`item_capability_profile`, whose `tenant_id` is nullable by design). They stay single-column and
-are the gate's documented exceptions, for the reason the row level security gate already exempts
-them.
+**Not covered, and deliberately so:** the tables whose `tenant_id` is nullable — `job`,
+`item_capability_profile` (its system rows), `privacy_incident`, and the backup family
+(`backup_target`, `backup_schedule`, `backup_run`, `restore_run`), where `NULL` means
+installation-wide. Six foreign keys sit inside that family. They keep their single-column form,
+because a composite key there would be wrong twice over, both measured:
+
+* It would **forbid what is meant to work.** A tenant's `backup_run` legitimately names an
+  installation-wide `backup_target`, whose `tenant_id` is `NULL`. A composite key would look for
+  `(tenant, id)`, find `(NULL, id)`, and refuse the row.
+* It would **switch the check off where it still applies.** Under `MATCH SIMPLE` a row whose
+  `tenant_id` is `NULL` is not checked at all, so an installation-wide run could name a target that
+  does not exist — integrity that the single-column key provides today and the composite one would
+  quietly drop.
+
+Scoping those references to a tenant is therefore a different question, about a nullable tenant
+column rather than about foreign keys, and it is not answered here. The gate names them as
+exceptions so the omission is visible rather than assumed.
