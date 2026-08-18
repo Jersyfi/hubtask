@@ -57,6 +57,27 @@ func (in Input) String(field string) string {
 	return strings.TrimSpace(value)
 }
 
+// OptionalString distinguishes an absent field from an empty one, which String deliberately does
+// not.
+//
+// For most fields the distinction is noise - a description sent as "" means what an omitted one
+// means. For a preference it is the whole meaning: omitted is "leave my time zone alone", empty is
+// "clear it, the workspace default applies again". A client that had only String would have to
+// send every preference back to change one, and the day it got that wrong it would silently reset
+// somebody's locale.
+func (in Input) OptionalString(field string) *string {
+	raw, present := in[field]
+	if !present || raw == nil {
+		return nil
+	}
+	value, ok := raw.(string)
+	if !ok {
+		return nil
+	}
+	trimmed := strings.TrimSpace(value)
+	return &trimmed
+}
+
 // ID returns a declared identifier field, or the zero identifier when it is absent.
 func (in Input) ID(field string) (shared.ID, error) {
 	raw := in.String(field)
