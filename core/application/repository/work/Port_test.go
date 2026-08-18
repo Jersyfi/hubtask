@@ -40,3 +40,35 @@ func TestTheTwoEmptyAnswersAreDistinguishable(t *testing.T) {
 		t.Errorf("an empty level answered %q rather than nothing", key)
 	}
 }
+
+// The same for items. A separate double rather than one type implementing both ports: two
+// repositories that happened to share a fake would let a use case be wired to the wrong one and
+// still compile.
+type itemDouble struct{}
+
+func (itemDouble) Find(context.Context, shared.ID) (work.WorkItem, error) {
+	return work.WorkItem{}, shared.ErrNotFound
+}
+func (itemDouble) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
+	return "", nil
+}
+func (itemDouble) Insert(context.Context, work.WorkItem) error { return nil }
+
+var _ Items = itemDouble{}
+
+// The sibling level is decided by two identifiers, not one: the same parent in another collection
+// is not a sibling, and a port that took only the parent could not express the level directly
+// under a collection at all.
+func TestTheSiblingLevelOfAnItemNeedsBothIdentifiers(t *testing.T) {
+	if _, err := (itemDouble{}).Find(t.Context(), ""); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("a missing item is reported as %v", err)
+	}
+
+	key, err := (itemDouble{}).LastOrderKey(t.Context(), "collection", "")
+	if err != nil {
+		t.Fatalf("an empty level is reported as an error: %v", err)
+	}
+	if key != "" {
+		t.Errorf("an empty level answered %q rather than nothing", key)
+	}
+}

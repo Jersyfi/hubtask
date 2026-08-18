@@ -40,6 +40,12 @@ type profiles struct {
 
 func (p profiles) List(context.Context) ([]work.CapabilityProfile, error) { return p.list, p.err }
 
+// The manifest answers with the profiles in force, so the system defaults are not what it reads.
+// The method exists because the port declares it - the hierarchy needs it (ADR-0006).
+func (p profiles) ListSystem(context.Context) ([]work.CapabilityProfile, error) {
+	return p.list, p.err
+}
+
 func systemDefaults() []work.CapabilityProfile {
 	return []work.CapabilityProfile{
 		{

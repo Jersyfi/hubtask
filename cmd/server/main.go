@@ -220,6 +220,15 @@ func run() error {
 	groups := postgres.NewGroupRepository()
 	grants := postgres.NewMembershipGrantRepository()
 
+	// The work management use cases share theirs the same way. The capability profiles in
+	// particular: /meta/capabilities answers from the same reader that decides whether a
+	// placement is permitted, so what an installation advertises and what it accepts cannot
+	// drift apart (ADR-0006).
+	containers := postgres.NewContainerRepository()
+	profiles := postgres.NewCapabilityProfileRepository()
+	outbox := postgres.NewOutbox(jobs)
+	changes := postgres.NewChangeLog()
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -251,10 +260,23 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		work.CreateContainer{
-			Containers: postgres.NewContainerRepository(),
+			Containers: containers,
 			Authorizer: authorizer,
-			Events:     postgres.NewOutbox(jobs),
-			Changes:    postgres.NewChangeLog(),
+			Events:     outbox,
+			Changes:    changes,
+			Audit:      auditSink,
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{},
+			IDs:        ids,
+			HLC:        hybrid,
+		}.Descriptor(),
+		work.CreateWorkItem{
+			Items:      postgres.NewItemRepository(),
+			Containers: containers,
+			Profiles:   profiles,
+			Authorizer: authorizer,
+			Events:     outbox,
+			Changes:    changes,
 			Audit:      auditSink,
 			UnitOfWork: unitOfWork,
 			Clock:      clockadapter.System{},
@@ -276,7 +298,7 @@ func run() error {
 		controller := rest.NewRestController()
 		controller.UseCases = useCases
 		controller.Capabilities = meta.GetCapabilities{
-			Profiles:   postgres.NewCapabilityProfileRepository(),
+			Profiles:   profiles,
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 		}

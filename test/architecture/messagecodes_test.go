@@ -30,6 +30,7 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 		shared.ErrValidation, shared.ErrMalformedRequest, shared.ErrUnauthenticated,
 		shared.ErrForbidden, shared.ErrNotFound, shared.ErrConflict, shared.ErrVersionConflict,
 		shared.ErrGone, shared.ErrRateLimited, shared.ErrUnavailable, shared.ErrInternal,
+		shared.ErrCapabilityNotSupported,
 	} {
 		key := "errors." + err.Code
 		if _, ok := messages[key]; !ok {
@@ -52,7 +53,7 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 // error model, the health report's degradation reasons, or the load shedder's capacity refusals.
 // Narrow on purpose: only the prefixes that exist today, so that an example in a test comment
 // does not turn into a false alarm.
-var messageCode = regexp.MustCompile(`"((?:route|request|access|accounts|groups|memberships|idempotency|config|errors|dependency|capacity|containers|ordering|events|sync|audit|usecase|shared|automation)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
+var messageCode = regexp.MustCompile(`"((?:route|request|access|accounts|groups|memberships|idempotency|config|errors|dependency|capacity|containers|items|ordering|events|sync|audit|usecase|shared|automation)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
 
 // TestEveryUsedMessageCodeIsInTheCatalogue reads the source rather than a registry: a code is
 // used where it is written, and a registry would only be a second place to forget.

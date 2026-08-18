@@ -5,7 +5,11 @@
 // says what each kind of item can do.
 package work
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+)
 
 // ItemType is the level of an item. Extensible by design: a new type is a new profile row and an
 // adjustment to the permitted children, not a schema change and not an API change
@@ -64,4 +68,26 @@ func (p CapabilityProfile) Allows(capability Capability) bool {
 // type.
 func (p CapabilityProfile) AllowsChild(child ItemType) bool {
 	return slices.Contains(p.AllowedChildTypes, child)
+}
+
+// Require refuses a field whose capability this type does not carry.
+//
+// It is the gate ADR-0006 asks for, in the one place that can produce it consistently. The
+// refusal names the type and the capability rather than the field alone, because that is the
+// information a client needs in order to act: `notes` is not wrong, `notes on an ACTIVITY` is,
+// and the fix is to write to the work package above it instead.
+//
+// The field is a JSON pointer into the request, so a form can mark the input the caller filled
+// in rather than the request as a whole (api-guidelines.md §6).
+func (p CapabilityProfile) Require(capability Capability, field string) error {
+	if p.Allows(capability) {
+		return nil
+	}
+	return shared.ErrCapabilityNotSupported.
+		WithDetail("items.capability_not_supported").
+		WithParams(map[string]string{
+			"item_type":  string(p.Type),
+			"capability": string(capability),
+		}).
+		WithFields(shared.FieldError{Path: field, Code: "items.capability_not_supported"})
 }

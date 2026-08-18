@@ -71,6 +71,68 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 	return i, err
 }
 
+const findWorkItem = `-- name: FindWorkItem :one
+SELECT
+  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
+  is_completed, completed_at, completed_by, order_key,
+  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
+FROM work_item
+WHERE id = $1
+`
+
+type FindWorkItemRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	Type         ItemType
+	ParentID     pgtype.UUID
+	Path         string
+	Depth        int32
+	Title        string
+	Notes        *string
+	IsCompleted  bool
+	CompletedAt  pgtype.Timestamptz
+	CompletedBy  pgtype.UUID
+	OrderKey     string
+	ArchivedAt   pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	TrashBatchID pgtype.UUID
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+}
+
+// Trashed and archived items are returned rather than filtered out, for the reason FindContainer
+// returns them: the repository reports what is stored and judges none of it (I-W4).
+func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkItemRow, error) {
+	row := q.db.QueryRow(ctx, findWorkItem, id)
+	var i FindWorkItemRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.CollectionID,
+		&i.Type,
+		&i.ParentID,
+		&i.Path,
+		&i.Depth,
+		&i.Title,
+		&i.Notes,
+		&i.IsCompleted,
+		&i.CompletedAt,
+		&i.CompletedBy,
+		&i.OrderKey,
+		&i.ArchivedAt,
+		&i.DeletedAt,
+		&i.TrashBatchID,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const insertContainer = `-- name: InsertContainer :exec
 INSERT INTO container (
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
@@ -116,6 +178,58 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 	return err
 }
 
+const insertWorkItem = `-- name: InsertWorkItem :exec
+INSERT INTO work_item (
+  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
+  order_key, created_by, created_at, updated_at, version
+) VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6,
+  normalize($7::text, NFC),
+  $8, $9, $10,
+  $11, $11, 1
+)
+`
+
+type InsertWorkItemParams struct {
+	ID           pgtype.UUID
+	CollectionID pgtype.UUID
+	Type         ItemType
+	ParentID     pgtype.UUID
+	Path         string
+	Depth        int32
+	Title        string
+	Notes        *string
+	OrderKey     string
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+// The title is stored Unicode NFC normalised, in the database rather than in the application, for
+// the reason the container's name is: two spellings of the same word have to be one value to
+// every query that compares or searches them, and doing it here keeps a Unicode library out of
+// the domain (ADR-0001, I-W7).
+//
+// The fields this use case does not own are absent rather than defaulted: bucket, labels,
+// members, assignee, due date, cover, custom fields and the recurrence rule are written by the
+// use cases that own them, and their columns carry NULL until then.
+func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) error {
+	_, err := q.db.Exec(ctx, insertWorkItem,
+		arg.ID,
+		arg.CollectionID,
+		arg.Type,
+		arg.ParentID,
+		arg.Path,
+		arg.Depth,
+		arg.Title,
+		arg.Notes,
+		arg.OrderKey,
+		arg.CreatedBy,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const lastContainerOrderKey = `-- name: LastContainerOrderKey :one
 SELECT order_key
 FROM container
@@ -131,6 +245,32 @@ LIMIT 1
 // Trashed containers count. Their rank is still occupied - a restore has to land where it was.
 func (q *Queries) LastContainerOrderKey(ctx context.Context, parentID pgtype.UUID) (string, error) {
 	row := q.db.QueryRow(ctx, lastContainerOrderKey, parentID)
+	var order_key string
+	err := row.Scan(&order_key)
+	return order_key, err
+}
+
+const lastWorkItemOrderKey = `-- name: LastWorkItemOrderKey :one
+SELECT order_key
+FROM work_item
+WHERE collection_id = $1::uuid
+  AND parent_id IS NOT DISTINCT FROM $2::uuid
+ORDER BY order_key DESC
+LIMIT 1
+`
+
+type LastWorkItemOrderKeyParams struct {
+	CollectionID pgtype.UUID
+	ParentID     pgtype.UUID
+}
+
+// The highest rank among the siblings of a new item: same collection, same parent. A NULL parent
+// is the level directly under the collection, which is why the comparison is IS NOT DISTINCT FROM
+// rather than `=` - `NULL = NULL` is unknown, and the tasks would come back as no rows at all.
+//
+// Trashed items count. Their rank is still occupied; a restore has to land where it was.
+func (q *Queries) LastWorkItemOrderKey(ctx context.Context, arg LastWorkItemOrderKeyParams) (string, error) {
+	row := q.db.QueryRow(ctx, lastWorkItemOrderKey, arg.CollectionID, arg.ParentID)
 	var order_key string
 	err := row.Scan(&order_key)
 	return order_key, err
