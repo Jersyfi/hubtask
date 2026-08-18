@@ -29,9 +29,8 @@ import (
 
 // completionCatalogueFor wires both directions of completion the way the composition root does - one
 // dependency set, two entries.
-func completionCatalogueFor(t *testing.T) *usecase.Registry {
+func completionCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 	t.Helper()
-	ctx := context.Background()
 
 	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
 	fixed := portclock.Fixed(created)
@@ -93,7 +92,7 @@ func setCompletionPolicy(ctx context.Context, t *testing.T, collection shared.ID
 func subtree(ctx context.Context, t *testing.T, collection shared.ID) (task, pack, first, second string) {
 	t.Helper()
 
-	registry := itemCatalogueFor(t)
+	registry := itemCatalogueFor(ctx, t)
 	actor := itemWriter(tenantB, authorB)
 
 	create := func(in usecase.Input) string {
@@ -127,7 +126,7 @@ func TestTheRollUpReachesEveryLevelAgainstTheDatabase(t *testing.T) {
 	setCompletionPolicy(ctx, t, collection, domain.CompletionRollup)
 
 	task, pack, first, second := subtree(ctx, t, collection)
-	registry := completionCatalogueFor(t)
+	registry := completionCatalogueFor(ctx, t)
 	actor := itemWriter(tenantB, authorB)
 
 	// One of two activities: nothing above may move.
@@ -160,7 +159,7 @@ func TestWithoutTheRollupPolicyNothingAboveMoves(t *testing.T) {
 	// the empty `policies` column has to read as.
 
 	task, pack, first, second := subtree(ctx, t, collection)
-	registry := completionCatalogueFor(t)
+	registry := completionCatalogueFor(ctx, t)
 	actor := itemWriter(tenantB, authorB)
 
 	for _, activity := range []string{first, second} {
@@ -182,7 +181,7 @@ func TestReopeningRollsUpThroughTheDatabase(t *testing.T) {
 	setCompletionPolicy(ctx, t, collection, domain.CompletionRollup)
 
 	task, pack, first, second := subtree(ctx, t, collection)
-	registry := completionCatalogueFor(t)
+	registry := completionCatalogueFor(ctx, t)
 	actor := itemWriter(tenantB, authorB)
 
 	for _, activity := range []string{first, second} {
@@ -218,7 +217,7 @@ func TestCompletingTwiceLeavesTheVersionAlone(t *testing.T) {
 	setCompletionPolicy(ctx, t, collection, domain.CompletionRollup)
 
 	_, _, first, _ := subtree(ctx, t, collection)
-	registry := completionCatalogueFor(t)
+	registry := completionCatalogueFor(ctx, t)
 	actor := itemWriter(tenantB, authorB)
 
 	if _, err := registry.Invoke(ctx, "CompleteWorkItem", actor, usecase.Input{"item_id": first}); err != nil {
