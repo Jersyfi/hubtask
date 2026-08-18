@@ -208,16 +208,51 @@ func run() error {
 	// job through the runner's hook. Two constructions would be two tracers with the same name.
 	observer := observability.NewObserver(metrics, tracing)
 
+	// The identity use cases share their dependencies, so they are built once rather than seven
+	// times: the same authoriser, the same audit sink, the same clock.
+	authorizer := access.Service{
+		Memberships: postgres.NewMembershipRepository(),
+		UnitOfWork:  unitOfWork,
+		Audit:       auditSink,
+		Clock:       clockadapter.System{},
+	}
+	accounts := postgres.NewAccountRepository()
+	groups := postgres.NewGroupRepository()
+	grants := postgres.NewMembershipGrantRepository()
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
+		identity.InviteAccount{
+			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		identity.UpdateAccountPreferences{
+			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.GrantMembership{
+			Grants: grants, Accounts: accounts, Groups: groups, Authorizer: authorizer,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		identity.RevokeMembership{
+			Grants: grants, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.CreateGroup{
+			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		identity.UpdateGroup{
+			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.DeleteGroup{
+			Groups: groups, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		work.CreateContainer{
 			Containers: postgres.NewContainerRepository(),
-			Authorizer: access.Service{
-				Memberships: postgres.NewMembershipRepository(),
-				UnitOfWork:  unitOfWork,
-				Audit:       auditSink,
-				Clock:       clockadapter.System{},
-			},
+			Authorizer: authorizer,
 			Events:     postgres.NewOutbox(jobs),
 			Changes:    postgres.NewChangeLog(),
 			Audit:      auditSink,

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -36,7 +37,19 @@ import (
 func useCaseCatalogue(t *testing.T) *usecase.Registry {
 	t.Helper()
 
-	registry, err := usecase.NewRegistry(nil, work.CreateContainer{}.Descriptor())
+	// Every use case the composition root registers, in the same order. The list is here rather
+	// than derived, because deriving it would mean this gate could not notice a use case that was
+	// written and never registered - which is exactly what it is for.
+	registry, err := usecase.NewRegistry(nil,
+		work.CreateContainer{}.Descriptor(),
+		identity.InviteAccount{}.Descriptor(),
+		identity.UpdateAccountPreferences{}.Descriptor(),
+		identity.GrantMembership{}.Descriptor(),
+		identity.RevokeMembership{}.Descriptor(),
+		identity.CreateGroup{}.Descriptor(),
+		identity.UpdateGroup{}.Descriptor(),
+		identity.DeleteGroup{}.Descriptor(),
+	)
 	if err != nil {
 		t.Fatalf("the catalogue is not buildable: %v", err)
 	}
@@ -117,7 +130,11 @@ func operationOf(t *testing.T, template string) string {
 	if start < 0 {
 		return ""
 	}
-	item := spec[start+len(marker):]
+	// The leading newline is put back, because the marker above consumed it. Without it the
+	// method search below only ever finds a method that is *not* the first one in the path item -
+	// which is why this read worked for /containers, whose first method is `get`, and silently
+	// returned nothing for every path whose first method is the one being looked for.
+	item := "\n" + spec[start+len(marker):]
 	if end := strings.Index(item, "\n  /"); end >= 0 {
 		item = item[:end]
 	}
