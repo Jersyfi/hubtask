@@ -11,11 +11,13 @@ import (
 	"net/http/httptest"
 	"slices"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/otel/trace/noop"
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	catalogue "github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/presentation/rest"
@@ -246,4 +248,85 @@ func TestTheErrorModelMapsOntoTheDocumentedStatuses(t *testing.T) {
 			t.Errorf("%v: %s", err, problem)
 		}
 	}
+}
+
+// The completion actions answer with a WorkItem, and the state they answer with is the one a create never
+// produces: completed, with both fields of the completion answered (B-07).
+func TestTheCompletionResponsesMatchTheSchema(t *testing.T) {
+	spec := contractSpec(t)
+	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
+	completedAt := at.Add(time.Hour)
+	itemID := "0192f000-0000-7000-8000-00000000000e"
+
+	completed := catalogue.Output{
+		"id":            itemID,
+		"type":          "ACTIVITY",
+		"collection_id": "0192f000-0000-7000-8000-00000000000b",
+		"parent_id":     "0192f000-0000-7000-8000-00000000000f",
+		"path":          "/0192f000-0000-7000-8000-00000000000f/" + itemID + "/",
+		"depth":         2,
+		"title":         "Order the cable",
+		"completion": map[string]any{
+			"is_completed": true,
+			"completed_at": completedAt,
+			"completed_by": "0192f000-0000-7000-8000-00000000000d",
+		},
+		"order_key":  "a0",
+		"created_by": "0192f000-0000-7000-8000-00000000000d",
+		"created_at": at,
+		"updated_at": completedAt,
+		"version":    4,
+	}
+	reopened := catalogue.Output{}
+	for field, value := range completed {
+		reopened[field] = value
+	}
+	reopened["completion"] = map[string]any{
+		"is_completed": false, "completed_at": nil, "completed_by": nil,
+	}
+	reopened["version"] = 5
+
+	for name, c := range map[string]struct {
+		action string
+		out    catalogue.Output
+	}{
+		"complete": {"complete", completed},
+		"reopen":   {"reopen", reopened},
+	} {
+		t.Run(name, func(t *testing.T) {
+			controller := rest.NewRestController()
+			controller.UseCases = fixedCatalogue{out: c.out}
+
+			ctx := appshared.ContextWithActor(context.Background(), appshared.ActorContext{
+				Kind:      appshared.ActorUser,
+				TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+				AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+			})
+
+			response := httptest.NewRecorder()
+			controller.Routes().ServeHTTP(response, httptest.NewRequestWithContext(
+				ctx, http.MethodPost, rest.APIBasePath+"/items/"+itemID+":"+c.action, nil))
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", response.Code, response.Body)
+			}
+			problems, err := spec.validateAgainst("WorkItem", response.Body.Bytes())
+			if err != nil {
+				t.Fatalf("%v", err)
+			}
+			for _, problem := range problems {
+				t.Errorf("WorkItem: %s", problem)
+			}
+		})
+	}
+}
+
+// fixedCatalogue answers every invocation with one output. What a use case would decide is not this test's
+// subject - the shape of what the adapter writes is.
+type fixedCatalogue struct{ out catalogue.Output }
+
+func (c fixedCatalogue) Invoke(
+	context.Context, string, appshared.ActorContext, catalogue.Input,
+) (catalogue.Output, error) {
+	return c.out, nil
 }
