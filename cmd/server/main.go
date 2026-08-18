@@ -225,9 +225,18 @@ func run() error {
 	// placement is permitted, so what an installation advertises and what it accepts cannot
 	// drift apart (ADR-0006).
 	containers := postgres.NewContainerRepository()
+	items := postgres.NewItemRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
+
+	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
+	// reorder is a move that keeps its parent (work.PlacementWriter).
+	placement := work.PlacementWriter{
+		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
 
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
@@ -271,7 +280,7 @@ func run() error {
 			HLC:        hybrid,
 		}.Descriptor(),
 		work.CreateWorkItem{
-			Items:      postgres.NewItemRepository(),
+			Items:      items,
 			Containers: containers,
 			Profiles:   profiles,
 			Authorizer: authorizer,
@@ -283,6 +292,8 @@ func run() error {
 			IDs:        ids,
 			HLC:        hybrid,
 		}.Descriptor(),
+		work.MoveWorkItem{Placement: placement}.Descriptor(),
+		work.ReorderWorkItem{Placement: placement}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process

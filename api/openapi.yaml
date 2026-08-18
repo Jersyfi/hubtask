@@ -1435,17 +1435,25 @@ components:
 
     MoveResult:
       type: object
+      required: [item, dropped_references]
       properties:
         item: { $ref: "#/components/schemas/WorkItem" }
         dropped_references:
           type: array
-          description: Labels/buckets/members that could not be resolved when changing collection.
+          description: >
+            Labels, buckets, members or custom fields that could not be resolved in the destination
+            collection and were therefore removed (invariant I-W6: unresolvable references are reported
+            back, never silently dropped). Always present; empty when nothing was lost.
           items:
-            type: object
-            properties:
-              kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
-              id: { type: string }
-              code: { type: string }
+            $ref: "#/components/schemas/DroppedReference"
+
+    DroppedReference:
+      type: object
+      required: [kind, id, code]
+      properties:
+        kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
+        id: { type: string, description: The reference that could not be carried over. }
+        code: { type: string, description: A stable message code saying why. }
 
     FilterNode:
       type: object

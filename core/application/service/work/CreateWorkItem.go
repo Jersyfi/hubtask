@@ -193,16 +193,9 @@ func (h CreateWorkItem) scopeOf(
 		return "", nil, err
 	}
 
-	// The path runs from the tenant downwards: the hub the collection sits in, then the
-	// collection itself. A membership held at any of them counts, which is what "the effective
-	// permission is the highest role along the path" means.
-	path := []identity.Scope{identity.TenantScope()}
-	if !collection.ParentID.IsZero() {
-		path = append(path, identity.HubScope(collection.ParentID))
-	}
-	path = append(path, identity.CollectionScope(collection.ID))
-
-	return collection.ID, path, nil
+	// Built by containerPath, which the move use cases need for the same reason: two copies of this would
+	// eventually disagree about one level.
+	return collection.ID, containerPath(collection), nil
 }
 
 // build reads the state the placement depends on and turns the command into an item. It runs

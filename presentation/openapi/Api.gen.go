@@ -561,6 +561,30 @@ func (e DependencyHealthCircuitState) Valid() bool {
 	}
 }
 
+// Defines values for DroppedReferenceKind.
+const (
+	DroppedReferenceKindBUCKET      DroppedReferenceKind = "BUCKET"
+	DroppedReferenceKindCUSTOMFIELD DroppedReferenceKind = "CUSTOM_FIELD"
+	DroppedReferenceKindLABEL       DroppedReferenceKind = "LABEL"
+	DroppedReferenceKindMEMBER      DroppedReferenceKind = "MEMBER"
+)
+
+// Valid indicates whether the value is a known member of the DroppedReferenceKind enum.
+func (e DroppedReferenceKind) Valid() bool {
+	switch e {
+	case DroppedReferenceKindBUCKET:
+		return true
+	case DroppedReferenceKindCUSTOMFIELD:
+		return true
+	case DroppedReferenceKindLABEL:
+		return true
+	case DroppedReferenceKindMEMBER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterNodeOp.
 const (
 	AND         FilterNodeOp = "AND"
@@ -870,30 +894,6 @@ func (e MembershipScope) Valid() bool {
 	case MembershipScopeITEM:
 		return true
 	case MembershipScopeTENANT:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for MoveResultDroppedReferencesKind.
-const (
-	MoveResultDroppedReferencesKindBUCKET      MoveResultDroppedReferencesKind = "BUCKET"
-	MoveResultDroppedReferencesKindCUSTOMFIELD MoveResultDroppedReferencesKind = "CUSTOM_FIELD"
-	MoveResultDroppedReferencesKindLABEL       MoveResultDroppedReferencesKind = "LABEL"
-	MoveResultDroppedReferencesKindMEMBER      MoveResultDroppedReferencesKind = "MEMBER"
-)
-
-// Valid indicates whether the value is a known member of the MoveResultDroppedReferencesKind enum.
-func (e MoveResultDroppedReferencesKind) Valid() bool {
-	switch e {
-	case MoveResultDroppedReferencesKindBUCKET:
-		return true
-	case MoveResultDroppedReferencesKindCUSTOMFIELD:
-		return true
-	case MoveResultDroppedReferencesKindLABEL:
-		return true
-	case MoveResultDroppedReferencesKindMEMBER:
 		return true
 	default:
 		return false
@@ -1604,6 +1604,19 @@ type DependencyHealth struct {
 // DependencyHealthCircuitState defines model for DependencyHealth.CircuitState.
 type DependencyHealthCircuitState string
 
+// DroppedReference defines model for DroppedReference.
+type DroppedReference struct {
+	// Code A stable message code saying why.
+	Code string `json:"code"`
+
+	// Id The reference that could not be carried over.
+	Id   string               `json:"id"`
+	Kind DroppedReferenceKind `json:"kind"`
+}
+
+// DroppedReferenceKind defines model for DroppedReference.Kind.
+type DroppedReferenceKind string
+
 // FilterNode Either a leaf (field/op/value) or a combination (op/nodes).
 type FilterNode struct {
 	Field *string       `json:"field,omitempty"`
@@ -1789,17 +1802,10 @@ type MembershipScope string
 
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
-	// DroppedReferences Labels/buckets/members that could not be resolved when changing collection.
-	DroppedReferences *[]struct {
-		Code *string                          `json:"code,omitempty"`
-		Id   *string                          `json:"id,omitempty"`
-		Kind *MoveResultDroppedReferencesKind `json:"kind,omitempty"`
-	} `json:"dropped_references,omitempty"`
-	Item *WorkItem `json:"item,omitempty"`
+	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
+	DroppedReferences []DroppedReference `json:"dropped_references"`
+	Item              WorkItem           `json:"item"`
 }
-
-// MoveResultDroppedReferencesKind defines model for MoveResult.DroppedReferences.Kind.
-type MoveResultDroppedReferencesKind string
 
 // PageInfo defines model for PageInfo.
 type PageInfo struct {

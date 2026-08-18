@@ -93,19 +93,29 @@ func (s *sink) Append(_ context.Context, entry audit.Entry) error {
 type unitOfWork struct {
 	committed  bool
 	rolledBack bool
+	// writes and reads count the two kinds separately, so a test can say that a refusal never opened a write
+	// transaction and that a read never opened one at all.
+	writes int
+	reads  int
 }
 
-func (u *unitOfWork) Within(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+func (u *unitOfWork) Within(ctx context.Context, s persistence.Scope, fn func(context.Context) error) error {
+	u.writes++
+	return u.run(ctx, s, fn)
+}
+
+func (u *unitOfWork) WithinReadOnly(ctx context.Context, s persistence.Scope, fn func(context.Context) error) error {
+	u.reads++
+	return u.run(ctx, s, fn)
+}
+
+func (u *unitOfWork) run(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
 	if err := fn(ctx); err != nil {
 		u.rolledBack = true
 		return err
 	}
 	u.committed = true
 	return nil
-}
-
-func (u *unitOfWork) WithinReadOnly(ctx context.Context, s persistence.Scope, fn func(context.Context) error) error {
-	return u.Within(ctx, s, fn)
 }
 
 type authorizer struct {
