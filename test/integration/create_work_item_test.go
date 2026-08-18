@@ -44,8 +44,8 @@ func itemCatalogueFor(t *testing.T) *usecase.Registry {
 	sink := postgres.NewAuditSink(ids)
 
 	registry, err := usecase.NewRegistry(nil, work.CreateWorkItem{
-		Items:      postgres.NewItemRepository(),
-		Containers: postgres.NewContainerRepository(),
+		Items:      itemRepo(),
+		Containers: containerRepo(),
 		Profiles:   postgres.NewCapabilityProfileRepository(),
 		Authorizer: access.Service{
 			Memberships: postgres.NewMembershipRepository(),

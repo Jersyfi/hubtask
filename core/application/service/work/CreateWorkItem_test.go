@@ -8,6 +8,7 @@ import (
 	"errors"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -28,15 +29,30 @@ type items struct {
 	inserted  []domain.WorkItem
 	stored    map[shared.ID]domain.WorkItem
 	lastKey   string
+	page      repository.ItemPage
+	asked     repository.ItemQuery
+	findErr   error
+	listErr   error
 	insertErr error
 }
 
 func (i *items) Find(_ context.Context, id shared.ID) (domain.WorkItem, error) {
+	if i.findErr != nil {
+		return domain.WorkItem{}, i.findErr
+	}
 	item, found := i.stored[id]
 	if !found {
 		return domain.WorkItem{}, shared.ErrNotFound
 	}
 	return item, nil
+}
+
+func (i *items) List(_ context.Context, query repository.ItemQuery) (repository.ItemPage, error) {
+	i.asked = query
+	if i.listErr != nil {
+		return repository.ItemPage{}, i.listErr
+	}
+	return i.page, nil
 }
 
 func (i *items) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
