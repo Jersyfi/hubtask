@@ -14,6 +14,7 @@
   "errors.payload_too_large": "The request is larger than this installation accepts.",
   "errors.dependency_unavailable": "A required service is temporarily unavailable.",
   "errors.internal": "Something went wrong on our side. Reference: {request_id}",
+  "errors.capability_not_supported": "That kind of entry does not support this field.",
   "errors.config_invalid": "The installation is misconfigured.",
 
   "config.db_dsn_missing": "{variable} is not set. Hubtask needs a PostgreSQL connection.",
@@ -87,6 +88,8 @@
   "containers.parent_archived": "That hub is archived. Unarchive it before adding anything to it.",
   "containers.parent_trashed": "That hub is in the trash.",
   "containers.identity_incomplete": "This installation is misconfigured and could not create that entry.",
+
+  "items.capability_not_supported": "A {item_type} has no {capability}.",
   "accounts.email_empty": "An invitation needs an email address.",
   "accounts.email_malformed": "{value} does not look like an email address.",
   "accounts.email_too_long": "An email address may be at most {maximum} characters long.",

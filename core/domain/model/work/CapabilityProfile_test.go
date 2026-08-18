@@ -3,7 +3,12 @@
 
 package work
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+)
 
 // The matrix of domain-model.md §2, as far as the profile type is concerned: what a type allows
 // and what may sit under it.
@@ -55,5 +60,38 @@ func TestTheZeroProfileAllowsNothing(t *testing.T) {
 
 	if empty.Allows(CapabilityCompletion) || empty.AllowsChild(ItemTask) {
 		t.Error("the zero profile allows something")
+	}
+}
+
+// The rule of ADR-0006: a field whose capability is not in the profile is refused, not ignored.
+// The refusal carries its own code, because the client's fix is to change the type it writes to
+// rather than the value it sent.
+func TestACapabilityOutsideTheProfileIsRefusedRatherThanIgnored(t *testing.T) {
+	activity := CapabilityProfile{
+		Type:         ItemActivity,
+		Capabilities: []Capability{CapabilityCompletion, CapabilityDueDate},
+		MaxDepth:     1,
+	}
+
+	if err := activity.Require(CapabilityDueDate, "/due_at"); err != nil {
+		t.Errorf("a capability in the profile was refused: %v", err)
+	}
+
+	err := activity.Require(CapabilityNotes, "/notes")
+	if !errors.Is(err, shared.ErrCapabilityNotSupported) {
+		t.Fatalf("error = %v, want capability_not_supported", err)
+	}
+
+	refusal := shared.AsError(err)
+	if refusal.Params["item_type"] != string(ItemActivity) {
+		t.Errorf("item_type = %q", refusal.Params["item_type"])
+	}
+	if refusal.Params["capability"] != string(CapabilityNotes) {
+		t.Errorf("capability = %q", refusal.Params["capability"])
+	}
+	// Without the pointer the client knows a field was wrong and not which one - and a create
+	// request carries several capability-dependent fields at once.
+	if len(refusal.Fields) != 1 || refusal.Fields[0].Path != "/notes" {
+		t.Errorf("field errors = %v", refusal.Fields)
 	}
 }

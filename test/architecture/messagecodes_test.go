@@ -30,6 +30,7 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 		shared.ErrValidation, shared.ErrMalformedRequest, shared.ErrUnauthenticated,
 		shared.ErrForbidden, shared.ErrNotFound, shared.ErrConflict, shared.ErrVersionConflict,
 		shared.ErrGone, shared.ErrRateLimited, shared.ErrUnavailable, shared.ErrInternal,
+		shared.ErrCapabilityNotSupported,
 	} {
 		key := "errors." + err.Code
 		if _, ok := messages[key]; !ok {
