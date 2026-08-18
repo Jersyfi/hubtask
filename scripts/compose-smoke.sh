@@ -39,6 +39,7 @@ trap cleanup EXIT
 cat > "$ENV_FILE" <<ENV
 # Throwaway values for a stack that exists for the length of this script.
 POSTGRES_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
+HUBTASK_DB_APP_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
 HUBTASK_SECRET_KEY=$(head -c 32 /dev/urandom | base64)
 HUBTASK_IMAGE=$IMAGE
 HUBTASK_VERSION=$TAG
@@ -93,5 +94,23 @@ if [ "$failures" -ne 0 ]; then
 	docker compose --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 50
 	exit 1
 fi
+
+# The application's sessions run as the role row level security was built for - not as the owner,
+# not as anything that could step around the boundary (multi-tenancy.md §2.1, task A-11).
+contained="$(docker compose --env-file "$ENV_FILE" -p "$PROJECT" exec -T db \
+	psql -U hubtask -d hubtask -tA \
+	-c "SELECT rolcanlogin AND NOT rolsuper AND NOT rolbypassrls FROM pg_roles WHERE rolname='hubtask_app'")"
+if [ "$contained" != "t" ]; then
+	echo "FAILED: hubtask_app is missing, cannot log in, or can bypass row level security"
+	exit 1
+fi
+sessions="$(docker compose --env-file "$ENV_FILE" -p "$PROJECT" exec -T db \
+	psql -U hubtask -d hubtask -tA \
+	-c "SELECT count(*) FROM pg_stat_activity WHERE usename='hubtask_app'")"
+if [ "${sessions:-0}" -lt 1 ]; then
+	echo "FAILED: no session runs as hubtask_app - the application is connecting as somebody else"
+	exit 1
+fi
+echo "tenant boundary: the application connects as hubtask_app and cannot bypass RLS"
 
 echo "compose: the reference stack starts from $IMAGE:$TAG and is ready"

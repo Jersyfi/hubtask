@@ -23,7 +23,13 @@ services:
     image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
     entrypoint: ["/usr/local/bin/hubtask-migrate", "up"]
     environment:
+      # The owner's DSN: migrations create and alter objects. The application below deliberately
+      # does not get this one.
       HUBTASK_DB_DSN: postgres://${POSTGRES_USER:-hubtask}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
+      # The migrator is the operator that grants hubtask_app its login (multi-tenancy.md §2.1):
+      # the migration itself creates the role without one, because a credential has no business
+      # in a migration.
+      HUBTASK_DB_APP_PASSWORD: ${HUBTASK_DB_APP_PASSWORD:?HUBTASK_DB_APP_PASSWORD must be set}
     depends_on:
       db:
         condition: service_healthy
@@ -34,7 +40,9 @@ services:
     restart: unless-stopped
     environment:
       HUBTASK_ROLES: api,worker,scheduler,automation
-      HUBTASK_DB_DSN: postgres://${POSTGRES_USER:-hubtask}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
+      # The application role, not the owner: no SUPERUSER, no BYPASSRLS, not an owner - which is
+      # what makes row level security the last, unbypassable boundary here too (ADR-0010).
+      HUBTASK_DB_DSN: postgres://hubtask_app:${HUBTASK_DB_APP_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
       HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:-http://localhost:8080}
       HUBTASK_TENANCY_MODE: single
       HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}
