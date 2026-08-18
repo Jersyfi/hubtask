@@ -57,3 +57,48 @@ func (q *Queries) ListCapabilityProfiles(ctx context.Context) ([]ListCapabilityP
 	}
 	return items, nil
 }
+
+const listSystemCapabilityProfiles = `-- name: ListSystemCapabilityProfiles :many
+SELECT type, capabilities, allowed_child_types, max_depth
+FROM item_capability_profile
+WHERE tenant_id IS NULL
+ORDER BY type
+`
+
+type ListSystemCapabilityProfilesRow struct {
+	Type              ItemType
+	Capabilities      []string
+	AllowedChildTypes []ItemType
+	MaxDepth          int32
+}
+
+// The system defaults alone, whatever the caller's tenant has overridden.
+//
+// They bound what a narrowing may do, and one question can only be answered from them: which
+// types sit directly under a collection. Read off a narrowed set, a tenant that removed a task's
+// children would promote the work package to a top level it was never allowed to sit at
+// (domain-model.md §2).
+func (q *Queries) ListSystemCapabilityProfiles(ctx context.Context) ([]ListSystemCapabilityProfilesRow, error) {
+	rows, err := q.db.Query(ctx, listSystemCapabilityProfiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSystemCapabilityProfilesRow{}
+	for rows.Next() {
+		var i ListSystemCapabilityProfilesRow
+		if err := rows.Scan(
+			&i.Type,
+			&i.Capabilities,
+			&i.AllowedChildTypes,
+			&i.MaxDepth,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

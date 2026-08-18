@@ -37,3 +37,28 @@ type Containers interface {
 	// arriving in that gap both pass the check (multi-tenancy.md §2.1).
 	Insert(ctx context.Context, container work.Container) error
 }
+
+// Items stores work items: tasks, work packages, and activities.
+//
+// One repository for all three levels, because they are one aggregate (ADR-0006). A repository
+// per level would be three sets of the same five queries, and the cross-tenant test would have to
+// be written three times to prove the same thing.
+type Items interface {
+	// Find returns the item, or ErrNotFound if it does not exist *for this tenant*. Trashed and
+	// archived items come back as they are stored: whether one may take children is the domain's
+	// question, and hiding a trashed item here would turn "it is in the trash" into "it does not
+	// exist" (I-W4).
+	Find(ctx context.Context, id shared.ID) (work.WorkItem, error)
+
+	// LastOrderKey returns the highest rank among the siblings of a new item, or the empty string
+	// when there are none. The siblings are the items with the same parent inside the same
+	// collection; an empty parentID means those directly under the collection.
+	//
+	// Trashed items count, for the reason they count for containers: their rank is still
+	// occupied, a restore has to land where it was, and reusing the key would put two items in
+	// the same place.
+	LastOrderKey(ctx context.Context, collectionID, parentID shared.ID) (string, error)
+
+	// Insert writes a new item.
+	Insert(ctx context.Context, item work.WorkItem) error
+}

@@ -199,6 +199,12 @@ var (
 	ErrUnavailable      = New(CategoryUnavailable, "dependency_unavailable")
 	ErrMalformedRequest = New(CategoryValidation, "malformed_request")
 	ErrInternal         = New(CategoryInternal, "internal")
+	// ErrCapabilityNotSupported is a field set on an item type whose profile does not carry the
+	// capability (ADR-0006, domain-model.md §2). Its own code rather than a validation_failed,
+	// because the answer to it is different: the request is well formed and the field is real,
+	// and what a client has to change is the type it is writing to - which is worth telling it in
+	// the code rather than only in a field error.
+	ErrCapabilityNotSupported = New(CategoryValidation, "capability_not_supported")
 )
 
 // AsError classifies any error for an adapter. An error that is not of this type is a defect and

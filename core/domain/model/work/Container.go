@@ -234,3 +234,29 @@ func (c Container) EnsureAcceptsChildren(child ContainerType) error {
 	}
 	return nil
 }
+
+// EnsureAcceptsItems refuses a work item under a container that cannot hold one.
+//
+// Only a collection holds items: a hub holds collections, and that is the whole of the container
+// hierarchy (domain-model.md §1). The codes are the item's rather than the container's, because
+// the field the caller has to change is `collection_id` on the item it was creating - the
+// container itself is not at fault and needs no fixing.
+func (c Container) EnsureAcceptsItems() error {
+	if c.IsTrashed() {
+		return shared.ErrConflict.
+			WithDetail("items.collection_trashed").
+			WithParams(map[string]string{"collection_id": c.ID.String()})
+	}
+	if c.IsArchived() {
+		return shared.ErrConflict.
+			WithDetail("items.collection_archived").
+			WithParams(map[string]string{"collection_id": c.ID.String()})
+	}
+	if c.Type != ContainerCollection {
+		return shared.ErrValidation.
+			WithDetail("items.collection_required").
+			WithParams(map[string]string{"container_type": string(c.Type)}).
+			WithFields(shared.FieldError{Path: "/collection_id", Code: "items.collection_required"})
+	}
+	return nil
+}

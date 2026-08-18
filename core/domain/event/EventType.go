@@ -21,13 +21,18 @@ type Type string
 const (
 	// ContainerCreated announces a new hub or collection. Consumers: automation, webhooks, search.
 	ContainerCreated Type = "de.hubtask.work.container.created.v1"
+	// ItemCreated announces a new task, work package or activity. One type for all three levels,
+	// because they are one aggregate (ADR-0006): a subscriber filters on the payload's `type`
+	// rather than on three event names, and a fifth level reaches it without a new subscription.
+	// Consumers: automation, search, SSE.
+	ItemCreated Type = "de.hubtask.work.item.created.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
 // event schemas under api/events/ are reconciled against it by the contract test, so an event
 // without a schema, or a schema without an event, is a red build rather than a discovery made by
 // a subscriber.
-var types = [...]Type{ContainerCreated}
+var types = [...]Type{ContainerCreated, ItemCreated}
 
 // Types returns every defined event type.
 func Types() []Type { return types[:] }

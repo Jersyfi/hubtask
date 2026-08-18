@@ -126,6 +126,7 @@ func (pending) ListLabels(w http.ResponseWriter, r *http.Request, _ openapi.Cont
 	notAvailable(w, r)
 }
 
+// CreateWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CreateWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.CreateWorkItemParams) {
 	notAvailable(w, r)
 }

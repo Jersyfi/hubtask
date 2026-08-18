@@ -10,6 +10,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
 // CapabilityProfileRepository reads the profile in force per item type.
@@ -39,21 +40,51 @@ func (r CapabilityProfileRepository) List(ctx context.Context) ([]work.Capabilit
 
 	profiles := make([]work.CapabilityProfile, 0, len(rows))
 	for _, row := range rows {
-		capabilities := make([]work.Capability, 0, len(row.Capabilities))
-		for _, capability := range row.Capabilities {
-			capabilities = append(capabilities, work.Capability(capability))
-		}
-		children := make([]work.ItemType, 0, len(row.AllowedChildTypes))
-		for _, child := range row.AllowedChildTypes {
-			children = append(children, work.ItemType(child))
-		}
-
-		profiles = append(profiles, work.CapabilityProfile{
-			Type:              work.ItemType(row.Type),
-			Capabilities:      capabilities,
-			AllowedChildTypes: children,
-			MaxDepth:          int(row.MaxDepth),
-		})
+		profiles = append(profiles, profileFrom(
+			row.Type, row.Capabilities, row.AllowedChildTypes, row.MaxDepth))
 	}
 	return profiles, nil
+}
+
+// ListSystem returns the defaults, ignoring whatever this tenant has overridden. They bound what
+// a narrowing may do, and the hierarchy reads the topology off them for that reason.
+func (r CapabilityProfileRepository) ListSystem(ctx context.Context) ([]work.CapabilityProfile, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ListSystemCapabilityProfiles(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the system capability profiles: %w", err))
+	}
+
+	profiles := make([]work.CapabilityProfile, 0, len(rows))
+	for _, row := range rows {
+		profiles = append(profiles, profileFrom(
+			row.Type, row.Capabilities, row.AllowedChildTypes, row.MaxDepth))
+	}
+	return profiles, nil
+}
+
+func profileFrom(
+	itemType sqlc.ItemType, rawCapabilities []string, rawChildren []sqlc.ItemType, maxDepth int32,
+) work.CapabilityProfile {
+	capabilities := make([]work.Capability, 0, len(rawCapabilities))
+	for _, capability := range rawCapabilities {
+		capabilities = append(capabilities, work.Capability(capability))
+	}
+	children := make([]work.ItemType, 0, len(rawChildren))
+	for _, child := range rawChildren {
+		children = append(children, work.ItemType(child))
+	}
+
+	return work.CapabilityProfile{
+		Type:              work.ItemType(itemType),
+		Capabilities:      capabilities,
+		AllowedChildTypes: children,
+		MaxDepth:          int(maxDepth),
+	}
 }
