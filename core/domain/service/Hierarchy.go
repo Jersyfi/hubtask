@@ -42,27 +42,38 @@ func (p Placement) PathOf(id shared.ID) string {
 	return p.parentPath + id.String() + work.PathSeparator
 }
 
-// NewHierarchy indexes the profiles in force.
+// NewHierarchy indexes the profiles in force, with the system defaults as the topology.
+//
+// The two arguments are not the same list whenever a tenant has narrowed something, and the
+// distinction is load-bearing. What a type may do and how far it may nest comes from `inForce` -
+// the narrowed answer is the answer. Which types sit directly under a collection comes from
+// `system`, because it is derived from what accepts what, and a narrowing changes that in the
+// wrong direction: a tenant that removes a task's permitted children would, read off its own set,
+// leave nothing accepting a work package - and thereby promote the work package to a top level it
+// was never allowed to sit at. A narrowing that widens is not a narrowing (domain-model.md §2).
 //
 // A set in which every type is somebody's child has no root, so nothing could ever be created in
 // a collection. That is a misconfigured installation rather than a bad request, and it is refused
 // here - at the point where it is still one error, rather than at every create as a puzzle.
-func NewHierarchy(profiles []work.CapabilityProfile) (Hierarchy, error) {
+func NewHierarchy(inForce, system []work.CapabilityProfile) (Hierarchy, error) {
 	h := Hierarchy{
-		profiles: make(map[work.ItemType]work.CapabilityProfile, len(profiles)),
-		roots:    make(map[work.ItemType]bool, len(profiles)),
+		profiles: make(map[work.ItemType]work.CapabilityProfile, len(inForce)),
+		roots:    make(map[work.ItemType]bool, len(system)),
 	}
 
-	for _, profile := range profiles {
+	for _, profile := range inForce {
 		if _, duplicate := h.profiles[profile.Type]; duplicate {
 			return Hierarchy{}, shared.ErrInternal.
 				WithDetail("items.profiles_incoherent").
 				WithParams(map[string]string{"item_type": string(profile.Type)})
 		}
 		h.profiles[profile.Type] = profile
+	}
+
+	for _, profile := range system {
 		h.roots[profile.Type] = true
 	}
-	for _, profile := range profiles {
+	for _, profile := range system {
 		for _, child := range profile.AllowedChildTypes {
 			// A type that accepts itself does not thereby stop being a root: it is still what
 			// sits directly under the collection, and how far it may then nest is the depth
@@ -73,7 +84,7 @@ func NewHierarchy(profiles []work.CapabilityProfile) (Hierarchy, error) {
 		}
 	}
 
-	if len(profiles) > 0 && len(h.roots) == 0 {
+	if len(system) > 0 && len(h.roots) == 0 {
 		return Hierarchy{}, shared.ErrInternal.WithDetail("items.profiles_incoherent")
 	}
 	return h, nil

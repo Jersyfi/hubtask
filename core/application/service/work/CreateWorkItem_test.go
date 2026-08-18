@@ -57,12 +57,25 @@ func (i *items) Insert(_ context.Context, item domain.WorkItem) error {
 // prove the use case reads them rather than knowing them.
 type profiles struct {
 	rows []domain.CapabilityProfile
-	err  error
+	// system is the unnarrowed topology. Separate from rows, because the two differ exactly when
+	// a tenant has narrowed something - which is the case worth testing.
+	system []domain.CapabilityProfile
+	err    error
 }
 
 func (p *profiles) List(context.Context) ([]domain.CapabilityProfile, error) {
 	if p.err != nil {
 		return nil, p.err
+	}
+	return p.rows, nil
+}
+
+func (p *profiles) ListSystem(context.Context) ([]domain.CapabilityProfile, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	if p.system != nil {
+		return p.system, nil
 	}
 	return p.rows, nil
 }
@@ -559,7 +572,8 @@ func TestAParentInAnotherCollectionIsRefused(t *testing.T) {
 func TestTheRulesComeFromTheProfilesRatherThanFromTheCode(t *testing.T) {
 	h := newItemHarness()
 
-	// This workspace has narrowed the task profile: no notes, and no children.
+	// This workspace has narrowed the task profile: no notes, and no children. The system
+	// defaults are untouched, which is what a narrowing means.
 	h.profiles.rows = []domain.CapabilityProfile{
 		{
 			Type:         domain.ItemTask,
@@ -567,6 +581,7 @@ func TestTheRulesComeFromTheProfilesRatherThanFromTheCode(t *testing.T) {
 			MaxDepth:     1,
 		},
 	}
+	h.profiles.system = systemProfiles()
 
 	withNotes := taskCommand()
 	withNotes.Notes = "Something"
@@ -587,6 +602,39 @@ func TestTheRulesComeFromTheProfilesRatherThanFromTheCode(t *testing.T) {
 	// The plain case still works, so the narrowing refused what it should and nothing else.
 	if _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand()); err != nil {
 		t.Errorf("a plain task was refused: %v", err)
+	}
+}
+
+// A narrowing may never widen. A workspace that takes a task's children away leaves nothing in
+// its own profiles accepting a work package - and read off that set alone, "a type nothing
+// accepts sits at the top" would make the work package a top level type it was never allowed to
+// be. The topology therefore comes from the system defaults, which is why the use case reads both
+// lists (domain-model.md §2).
+func TestANarrowedWorkspaceCannotPromoteATypeToTheTopLevel(t *testing.T) {
+	h := newItemHarness()
+	h.profiles.system = systemProfiles()
+	h.profiles.rows = []domain.CapabilityProfile{
+		{
+			Type:         domain.ItemTask,
+			Capabilities: []domain.Capability{domain.CapabilityCompletion},
+			MaxDepth:     1,
+		},
+		{
+			Type:              domain.ItemWorkPackage,
+			Capabilities:      []domain.Capability{domain.CapabilityCompletion},
+			AllowedChildTypes: []domain.ItemType{domain.ItemActivity},
+			MaxDepth:          2,
+		},
+	}
+
+	_, err := h.handler.Execute(context.Background(), itemActor(), CreateWorkItemCommand{
+		Type: domain.ItemWorkPackage, CollectionID: collectionID, Title: "Dairy",
+	})
+	if got := shared.AsError(err).DetailCode; got != "items.parent_item_required" {
+		t.Fatalf("error = %v, want items.parent_item_required", err)
+	}
+	if len(h.items.inserted) != 0 {
+		t.Error("a work package was created at the top level of a workspace that narrowed nothing there")
 	}
 }
 

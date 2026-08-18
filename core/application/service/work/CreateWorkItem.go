@@ -255,14 +255,22 @@ func (h CreateWorkItem) build(
 	})
 }
 
-// hierarchy builds the rules in force from the profiles this tenant sees: the system defaults,
-// with its own overrides where it has them (ADR-0006).
+// hierarchy builds the rules in force: the profiles this tenant sees - the system defaults with
+// its own overrides where it has them - and the defaults themselves as the topology (ADR-0006).
+//
+// Both are needed rather than one. See NewHierarchy: read off a narrowed set alone, "which types
+// sit directly under a collection" comes out wrong, and a tenant that took a task's children away
+// would find work packages allowed at the top level.
 func (h CreateWorkItem) hierarchy(ctx context.Context) (service.Hierarchy, error) {
-	profiles, err := h.Profiles.List(ctx)
+	inForce, err := h.Profiles.List(ctx)
 	if err != nil {
 		return service.Hierarchy{}, err
 	}
-	return service.NewHierarchy(profiles)
+	system, err := h.Profiles.ListSystem(ctx)
+	if err != nil {
+		return service.Hierarchy{}, err
+	}
+	return service.NewHierarchy(inForce, system)
 }
 
 // parentOf reads the item the new one will sit under, or nil when it will sit under the

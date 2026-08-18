@@ -31,10 +31,13 @@ func systemProfiles() []work.CapabilityProfile {
 	}
 }
 
+// hierarchyOf builds a hierarchy from one set, used as both the profiles in force and the system
+// topology - the case of a tenant that has narrowed nothing. Where the two differ, the tests say
+// so explicitly.
 func hierarchyOf(t *testing.T, profiles []work.CapabilityProfile) Hierarchy {
 	t.Helper()
 
-	h, err := NewHierarchy(profiles)
+	h, err := NewHierarchy(profiles, profiles)
 	if err != nil {
 		t.Fatalf("the profiles are not usable: %v", err)
 	}
@@ -279,28 +282,70 @@ func TestTheRootTypesAreDerivedFromTheProfilesRatherThanNamed(t *testing.T) {
 // That is a misconfigured installation, and it is one error at startup rather than a puzzle at
 // every create.
 func TestAProfileSetWithoutARootIsRefused(t *testing.T) {
-	_, err := NewHierarchy([]work.CapabilityProfile{
+	circular := []work.CapabilityProfile{
 		{Type: work.ItemTask, AllowedChildTypes: []work.ItemType{work.ItemWorkPackage}, MaxDepth: 3},
 		{Type: work.ItemWorkPackage, AllowedChildTypes: []work.ItemType{work.ItemTask}, MaxDepth: 2},
-	})
-	if !errors.Is(err, shared.ErrInternal) {
+	}
+	if _, err := NewHierarchy(circular, circular); !errors.Is(err, shared.ErrInternal) {
 		t.Fatalf("error = %v, want an internal defect", err)
 	}
 
-	if _, err := NewHierarchy([]work.CapabilityProfile{
+	duplicated := []work.CapabilityProfile{
 		{Type: work.ItemTask, MaxDepth: 3},
 		{Type: work.ItemTask, MaxDepth: 2},
-	}); !errors.Is(err, shared.ErrInternal) {
+	}
+	if _, err := NewHierarchy(duplicated, systemProfiles()); !errors.Is(err, shared.ErrInternal) {
 		t.Errorf("a duplicated profile was accepted: %v", err)
 	}
 
 	// No profiles at all is not a broken set - it is an installation whose migrations have not
 	// run, and every Place then refuses with the type it was asked about.
-	empty, err := NewHierarchy(nil)
+	empty, err := NewHierarchy(nil, nil)
 	if err != nil {
 		t.Fatalf("an empty set was refused: %v", err)
 	}
 	if _, err := empty.Place(nil, work.ItemTask); shared.AsError(err).DetailCode != "items.type_unsupported" {
 		t.Errorf("error = %v, want items.type_unsupported", err)
+	}
+}
+
+// A tenant may narrow a profile and may never widen one, and the two are easier to confuse than
+// they look. Taking away a task's permitted children leaves nothing in that tenant's own set
+// accepting a work package - and read off that set alone, "a type nothing accepts is a root"
+// makes the work package a top level type it was never allowed to be. A narrowing that widens is
+// not a narrowing (domain-model.md §2).
+//
+// That is why the topology comes from the system defaults: they bound what narrowing can do.
+func TestANarrowedProfileCannotPromoteATypeToTheTopLevel(t *testing.T) {
+	narrowed := []work.CapabilityProfile{
+		// The tenant has taken the task's children away, and its depth with them.
+		{Type: work.ItemTask, MaxDepth: 1},
+		{Type: work.ItemWorkPackage, AllowedChildTypes: []work.ItemType{work.ItemActivity}, MaxDepth: 2},
+		{Type: work.ItemActivity, MaxDepth: 1},
+	}
+
+	h, err := NewHierarchy(narrowed, systemProfiles())
+	if err != nil {
+		t.Fatalf("the narrowed set is not usable: %v", err)
+	}
+
+	if h.IsRoot(work.ItemWorkPackage) {
+		t.Error("the narrowing promoted the work package to the top level")
+	}
+	if _, err := h.Place(nil, work.ItemWorkPackage); shared.AsError(err).DetailCode !=
+		"items.parent_item_required" {
+		t.Errorf("error = %v, want items.parent_item_required", err)
+	}
+
+	// And under the task it is refused too, by the narrowed profile this time - so the tenant got
+	// what it asked for: no work packages at all, rather than work packages in the wrong place.
+	if _, err := h.Place(taskItem(), work.ItemWorkPackage); shared.AsError(err).DetailCode !=
+		"items.parent_type_invalid" {
+		t.Errorf("error = %v, want items.parent_type_invalid", err)
+	}
+
+	// What the tenant did keep still works.
+	if _, err := h.Place(nil, work.ItemTask); err != nil {
+		t.Errorf("a task was refused in the tenant that kept it: %v", err)
 	}
 }

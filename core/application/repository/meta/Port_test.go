@@ -15,7 +15,8 @@ import (
 // use case tests depend on.
 type double struct{}
 
-func (double) List(context.Context) ([]work.CapabilityProfile, error) { return nil, nil }
+func (double) List(context.Context) ([]work.CapabilityProfile, error)       { return nil, nil }
+func (double) ListSystem(context.Context) ([]work.CapabilityProfile, error) { return nil, nil }
 
 var _ CapabilityProfiles = double{}
 

@@ -13,3 +13,15 @@ SELECT DISTINCT ON (type)
   max_depth
 FROM item_capability_profile
 ORDER BY type, (tenant_id IS NOT NULL) DESC;
+
+-- name: ListSystemCapabilityProfiles :many
+-- The system defaults alone, whatever the caller's tenant has overridden.
+--
+-- They bound what a narrowing may do, and one question can only be answered from them: which
+-- types sit directly under a collection. Read off a narrowed set, a tenant that removed a task's
+-- children would promote the work package to a top level it was never allowed to sit at
+-- (domain-model.md §2).
+SELECT type, capabilities, allowed_child_types, max_depth
+FROM item_capability_profile
+WHERE tenant_id IS NULL
+ORDER BY type;
