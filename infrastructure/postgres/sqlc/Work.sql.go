@@ -15,28 +15,30 @@ const findContainer = `-- name: FindContainer :one
 
 SELECT
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
+  coalesce(policies->>'completion_policy', '')::text AS completion_policy,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM container
 WHERE id = $1
 `
 
 type FindContainerRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	Type         ContainerType
-	ParentID     pgtype.UUID
-	Name         string
-	Description  *string
-	Icon         *string
-	ColorToken   *string
-	OrderKey     string
-	ArchivedAt   pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	TrashBatchID pgtype.UUID
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Version      int32
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	Type             ContainerType
+	ParentID         pgtype.UUID
+	Name             string
+	Description      *string
+	Icon             *string
+	ColorToken       *string
+	OrderKey         string
+	CompletionPolicy string
+	ArchivedAt       pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	TrashBatchID     pgtype.UUID
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	Version          int32
 }
 
 // The tenant is never a parameter here: it comes from the transaction's own context through
@@ -47,6 +49,12 @@ type FindContainerRow struct {
 // what is stored and judges none of it: whether a container may take children is a question the
 // domain answers, and a query that hid a trashed parent would turn "it is in the trash" into
 // "it does not exist" (I-C2, I-C3).
+//
+// One key of `policies` is read out, not the column: the completion policy has a reader (B-07) and the
+// other three keys do not, and selecting a value nothing consumes is a promise nothing keeps. `->>`
+// yields NULL for a collection that has never been configured, and coalesce turns that into the empty
+// string - which the domain reads as the default. Coalescing here rather than mapping a nil pointer in
+// the adapter keeps the generated field a plain string, and "unset" one concept instead of two.
 func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContainerRow, error) {
 	row := q.db.QueryRow(ctx, findContainer, id)
 	var i FindContainerRow
@@ -60,6 +68,7 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.Icon,
 		&i.ColorToken,
 		&i.OrderKey,
+		&i.CompletionPolicy,
 		&i.ArchivedAt,
 		&i.DeletedAt,
 		&i.TrashBatchID,
