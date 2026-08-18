@@ -275,3 +275,226 @@ func (q *Queries) LastWorkItemOrderKey(ctx context.Context, arg LastWorkItemOrde
 	err := row.Scan(&order_key)
 	return order_key, err
 }
+
+const listContainers = `-- name: ListContainers :many
+SELECT
+  id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
+  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
+FROM container
+WHERE parent_id IS NOT DISTINCT FROM $1::uuid
+  AND deleted_at IS NULL
+  AND ($2::container_type IS NULL OR type = $2::container_type)
+  AND ($3::boolean OR archived_at IS NULL)
+  AND (
+    $4::text IS NULL
+    OR (order_key COLLATE "C", id)
+       > ($4::text COLLATE "C", $5::uuid)
+  )
+ORDER BY order_key COLLATE "C", id
+LIMIT $6
+`
+
+type ListContainersParams struct {
+	ParentID        pgtype.UUID
+	Type            *ContainerType
+	IncludeArchived bool
+	CursorOrderKey  *string
+	CursorID        pgtype.UUID
+	PageSize        int32
+}
+
+type ListContainersRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	Type         ContainerType
+	ParentID     pgtype.UUID
+	Name         string
+	Description  *string
+	Icon         *string
+	ColorToken   *string
+	OrderKey     string
+	ArchivedAt   pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	TrashBatchID pgtype.UUID
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+}
+
+// One level of the container tree, in its manual order: the hubs when no parent is named, that
+// hub's collections when one is. IS NOT DISTINCT FROM is what makes the absent parent mean the hub
+// level rather than "no filter" - `parent_id = NULL` is unknown, and the hubs would come back as no
+// rows at all.
+//
+// The type filter composes with it rather than replacing it, which means the two impossible
+// combinations return an empty page: a collection always has a parent, and a hub never does. That is
+// the filters agreeing, not a special case worth coding.
+//
+// Trashed rows are never here - the trash is its own view (B-10). Archived ones are, when the caller
+// asks: an archived collection is still a collection, and hiding it would make it unreachable.
+//
+// The keyset is (order_key, id) rather than an offset, so a page boundary survives a concurrent
+// insert (api-guidelines.md §4). `id` is the tiebreak the guidelines require, and it is what makes
+// the boundary unambiguous should two siblings ever share a rank.
+//
+// COLLATE "C" on both the comparison and the order, for the reason migration 0007 gives: a rank key
+// is a fractional index whose scheme rests on byte order, and a database created en_US.utf8 on glibc
+// would order it differently from the domain that produced it.
+//
+// One row more than the page size is read, and the caller reports has_more from it: asking whether
+// there is a next page is otherwise a second query, and a COUNT over the level is the expensive
+// thing this endpoint exists to avoid.
+func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) ([]ListContainersRow, error) {
+	rows, err := q.db.Query(ctx, listContainers,
+		arg.ParentID,
+		arg.Type,
+		arg.IncludeArchived,
+		arg.CursorOrderKey,
+		arg.CursorID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListContainersRow{}
+	for rows.Next() {
+		var i ListContainersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Type,
+			&i.ParentID,
+			&i.Name,
+			&i.Description,
+			&i.Icon,
+			&i.ColorToken,
+			&i.OrderKey,
+			&i.ArchivedAt,
+			&i.DeletedAt,
+			&i.TrashBatchID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWorkItems = `-- name: ListWorkItems :many
+SELECT
+  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
+  is_completed, completed_at, completed_by, order_key,
+  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
+FROM work_item
+WHERE collection_id = $1::uuid
+  AND parent_id IS NOT DISTINCT FROM $2::uuid
+  AND deleted_at IS NULL
+  AND ($3::boolean OR archived_at IS NULL)
+  AND (
+    $4::text IS NULL
+    OR (order_key COLLATE "C", id)
+       > ($4::text COLLATE "C", $5::uuid)
+  )
+ORDER BY order_key COLLATE "C", id
+LIMIT $6
+`
+
+type ListWorkItemsParams struct {
+	CollectionID    pgtype.UUID
+	ParentID        pgtype.UUID
+	IncludeArchived bool
+	CursorOrderKey  *string
+	CursorID        pgtype.UUID
+	PageSize        int32
+}
+
+type ListWorkItemsRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	Type         ItemType
+	ParentID     pgtype.UUID
+	Path         string
+	Depth        int32
+	Title        string
+	Notes        *string
+	IsCompleted  bool
+	CompletedAt  pgtype.Timestamptz
+	CompletedBy  pgtype.UUID
+	OrderKey     string
+	ArchivedAt   pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	TrashBatchID pgtype.UUID
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+}
+
+// One level of one collection, in its manual order: the items directly in the collection when no
+// parent is named, that item's children when one is. Anchored to a collection because an unanchored
+// list of every item in a tenant is an unindexed scan, and every filter beyond one level is what
+// POST /items:query exists for (B-12).
+//
+// The collection is compared as well as the parent, even when the parent decides the level on its
+// own: it is the leading column of wi_level_order_idx, and a query that dropped it would fall back to
+// wi_parent_idx and scan the whole tenant's tasks for the parent-IS-NULL case.
+//
+// Everything else - the keyset, the collation, the row read beyond the page - is as ListContainers,
+// and for the same reasons.
+func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([]ListWorkItemsRow, error) {
+	rows, err := q.db.Query(ctx, listWorkItems,
+		arg.CollectionID,
+		arg.ParentID,
+		arg.IncludeArchived,
+		arg.CursorOrderKey,
+		arg.CursorID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWorkItemsRow{}
+	for rows.Next() {
+		var i ListWorkItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.Type,
+			&i.ParentID,
+			&i.Path,
+			&i.Depth,
+			&i.Title,
+			&i.Notes,
+			&i.IsCompleted,
+			&i.CompletedAt,
+			&i.CompletedBy,
+			&i.OrderKey,
+			&i.ArchivedAt,
+			&i.DeletedAt,
+			&i.TrashBatchID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
