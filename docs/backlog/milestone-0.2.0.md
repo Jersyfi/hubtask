@@ -267,10 +267,49 @@ pre-release tag).
 
 ---
 
+## B-15 — The support matrix, declared and enforced **[G]**
+
+*Can run in parallel. The strategic scope was decided by Jérôme on 2026-08-18 and is binding:
+the server is supported as a container only (Docker/Podman/Kubernetes on Linux, amd64 and arm64;
+Docker Desktop on macOS/Windows is best effort and documented as such); PostgreSQL 16 and 17 are
+the supported majors; a failed nightly run files an issue with the `claude:task` label so the fix
+arrives as a pull request.*
+
+Today the matrix is partly a claim: arm64 is cross-compiled but never executed, Podman is promised
+in deployment.md and never tested, the chart never meets a real API server before B-14, and the
+PostgreSQL floor is implicit. This task makes the matrix a document that cannot lie:
+
+* `docs/architecture/support-matrix.md` — one row per cell (runtime, architecture, PostgreSQL
+  major), each carrying its status and **the name of the CI job that proves it**. A checkdocs
+  extension reconciles rows and workflow jobs in both directions, so support can neither be
+  claimed without a gate nor removed silently — by anybody, community included.
+* The nightly matrix, all on free GitHub-hosted runners: the full test suite natively on arm64
+  (`ubuntu-24.04-arm`), `gate-integration` against PostgreSQL 16 **and** 17 (a matrix variable on
+  the existing Testcontainers image), the Compose smoke under **Podman**, and a `helm install
+  --wait` against a throwaway **kind** cluster.
+* Failure automation: a failed nightly job files exactly one issue per failure (deduplicated on
+  re-runs) with the log excerpt and the `claude:task` label; `.github/workflows/claude.yml` takes
+  it from there. Dependabot and community pull requests pass the same required checks — nothing
+  in the loop is manual except review and merge.
+* The `hubctl` rows (native macOS/Linux/Windows, amd64+arm64, smoke on real runners) join the
+  matrix with B-13 — the reconciliation gate is built so that adding them is adding rows and jobs,
+  not rebuilding anything.
+
+**Acceptance:** the matrix document exists and the reconciliation gate is in `gate-docs` and the
+selftest; every nightly cell has run green at least once; a deliberately broken nightly cell
+demonstrably produces exactly one labelled issue; deployment.md's "Docker/Podman" claim points at
+the matrix instead of standing alone.
+
+**Read:** `deployment.md` §2, `ci-cd.md`, ADR-0014, ADR-0022, `k8s/README.md`
+
+---
+
 ## The order at a glance
 
 ```
 B-01 ──────────────────────────────┬─ B-14
+                                   │
+B-15 ──────────────────────────────┤
                                    │
 B-02 ──────────────────────────────┤
                                    │
@@ -286,4 +325,5 @@ B-03 ─┬─ B-04 ─┬─ B-05            │
 **Definition of Done for the milestone:** the use case catalogue's work-management and structure
 sections are implemented for the 0.2.0 scope, every one through REST, MCP and automation with the
 full gate suite green; a person can run `hubctl` against the Compose stack and manage a hierarchy
-end to end; RT-8 has its first recorded result.
+end to end; RT-8 has its first recorded result; the support matrix is declared, enforced, and
+every nightly cell has run green.
