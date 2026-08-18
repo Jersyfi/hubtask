@@ -149,6 +149,7 @@
   "events.causation_too_deep": "This change was triggered by a chain of automations that goes too deep. Hubtask stopped it after {maximum} steps.",
 
   "shared.id_malformed": "{value} is not a valid identifier.",
+  "shared.cursor_invalid": "This page link is no longer usable. Please start the list again.",
 
   "usecase.input_invalid": "The request contains invalid values.",
   "usecase.field_required": "This field is required.",
