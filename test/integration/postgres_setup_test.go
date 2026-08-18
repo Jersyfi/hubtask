@@ -263,3 +263,48 @@ func TestTheShippedMigratorAppliesNothingToAMigratedDatabase(t *testing.T) {
 		t.Errorf("the migrator moved the schema from %d to %d against an already migrated database", before, after)
 	}
 }
+
+// The migrator's grant step: given the password, it gives hubtask_app its login - and nothing
+// else. The role must come out of it exactly as multi-tenancy.md §2.1 demands: able to log in,
+// and unable to bypass the boundary.
+//
+// The grant uses the password the harness already gave the role, so the shared container's other
+// tests keep their working DSN whatever order the suite runs in.
+func TestTheShippedMigratorGrantsTheApplicationRoleItsLogin(t *testing.T) {
+	ctx := context.Background()
+	db := testDatabase(t)
+
+	root, err := repositoryRoot()
+	if err != nil {
+		t.Fatalf("repository root: %v", err)
+	}
+	cmd := exec.CommandContext(ctx, "go", "run", "./cmd/migrate", "up")
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(),
+		"HUBTASK_DB_DSN="+db.adminDSN,
+		"HUBTASK_DB_APP_PASSWORD="+appPassword)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("the migrator with a grant failed: %v: %s", err, out)
+	}
+
+	admin := adminPool(ctx, t)
+	var canLogin, contained bool
+	if err := admin.QueryRow(ctx,
+		`SELECT rolcanlogin, NOT rolsuper AND NOT rolbypassrls
+		 FROM pg_roles WHERE rolname = 'hubtask_app'`).Scan(&canLogin, &contained); err != nil {
+		t.Fatalf("reading the role: %v", err)
+	}
+	if !canLogin {
+		t.Error("the grant did not produce a login")
+	}
+	if !contained {
+		t.Error("the grant handed the application role a way around row level security")
+	}
+
+	// And the login it granted is the one the application will use.
+	app := appPool(ctx, t)
+	var one int
+	if err := app.QueryRow(ctx, `SELECT 1`).Scan(&one); err != nil {
+		t.Errorf("connecting with the granted login failed: %v", err)
+	}
+}

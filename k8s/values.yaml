@@ -71,6 +71,10 @@ migration:
   # A dedicated job before the rollout, with an advisory lock against parallel runs.
   enabled: true
   backoffLimit: 3
+  # The key inside existingSecret holding the DSN the migration runs under. Point it at an owner
+  # role and give db-dsn the application role (hubtask_app, no BYPASSRLS) - migrations create
+  # objects, the application must not be able to (multi-tenancy.md §2.1).
+  dsnSecretKey: db-dsn
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits:   { memory: 256Mi }

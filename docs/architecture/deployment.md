@@ -31,6 +31,11 @@ reference: the database is not published externally, the application runs with `
 `no-new-privileges`, there are volumes for media and backups, and the migration is a separate
 service gated on `service_completed_successfully`.
 
+The application connects as `hubtask_app` — the role the migration creates without `SUPERUSER` or
+`BYPASSRLS` — never as the database owner, so row level security is the last boundary in
+self-hosting too. The migrator grants that role its login (`HUBTASK_DB_APP_PASSWORD`); the
+migration itself deliberately does not, because a credential has no business in a migration.
+
 The operations port is published on loopback only (`127.0.0.1:9090`). It carries the metrics and
 the health report — `curl localhost:9090/readyz` after an update, and a Prometheus on the same
 host — and neither belongs on the network (observability-reliability.md §3.2).
@@ -143,6 +148,7 @@ Everything else has a self-hosting default:
 | `HUBTASK_TENANCY_MODE` | `single` | `single` for self-hosting, `multi` for provider operation (ADR-0010) |
 | `HUBTASK_LOG_FORMAT` / `HUBTASK_LOG_LEVEL` | `json` / `info` | `json` or `text`; `debug`, `info`, `warn`, `error` |
 | `HUBTASK_SHUTDOWN_GRACE_SECONDS` | `30` | Deadline for in-flight requests after `SIGTERM` |
+| `HUBTASK_DB_APP_PASSWORD` (`_FILE`) | — | Read by `hubtask-migrate`, not the server: grants `hubtask_app` its login after the migrations, so the application never connects as the owner. URL-safe characters (it travels inside the DSN) |
 | `HUBTASK_DB_MAX_CONNS` / `HUBTASK_DB_MIN_CONNS` | `10` / `2` | Pool size **per process**; several roles mean several pools |
 | `HUBTASK_DB_CONNECT_TIMEOUT` | `5s` | Connection deadline |
 | `HUBTASK_DB_STATEMENT_TIMEOUT` | `5s` | Query budget on the interactive path |
