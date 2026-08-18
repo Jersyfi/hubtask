@@ -75,3 +75,26 @@ func ParseCompletionPolicy(value string) (CompletionPolicy, error) {
 // completion service asks of it, kept here so that adding a policy that also rolls up is a change to
 // this line rather than to every comparison against ROLLUP.
 func (p CompletionPolicy) RollsUp() bool { return p == CompletionRollup }
+
+// ChildCompletion summarises the children of one item: how many there are, and how many are done.
+//
+// A summary rather than the children themselves, and that is a deliberate shape. The roll-up asks one
+// question - "is anything still open down there" - and a repository can answer it with a count, where
+// handing up every child would mean reading a subtree to decide one boolean. It also keeps the decision
+// a pure function of two numbers, which is what makes every policy table-testable without a database.
+//
+// Trashed children are not counted at all: they are deletions waiting out their retention period, and a
+// work package whose last activity was deleted should not become done because of it. Archived children
+// are counted as they stand - archiving is a decision to keep something quietly, not to disown it.
+type ChildCompletion struct {
+	Total     int
+	Completed int
+}
+
+// AllCompleted reports whether nothing is left open. False for no children at all: "every child is
+// done" of an empty set is vacuously true, and completing a parent on that basis would complete it the
+// moment its last child was trashed.
+func (c ChildCompletion) AllCompleted() bool { return c.Total > 0 && c.Completed >= c.Total }
+
+// AnyOpen reports whether at least one child is still open.
+func (c ChildCompletion) AnyOpen() bool { return c.Total > c.Completed }
