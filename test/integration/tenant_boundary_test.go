@@ -8,6 +8,8 @@ package integration
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -377,3 +379,216 @@ func seedAuditRows(ctx context.Context, t *testing.T) {
 
 // errorsAs keeps the errors import out of every assertion above.
 func errorsAs(err error, target **shared.Error) bool { return errors.As(err, target) }
+
+// The gate of ADR-0024: a reference between two tenant tables carries the tenant.
+//
+// Row level security does not reach a foreign key - PostgreSQL checks referential integrity in
+// triggers that run as the table owner - so a single-column key lets a row in one tenant reference,
+// and a cascade delete, a row in another. The list comes from the catalogue rather than from a
+// constant here: a table added later with a single-column reference has to turn this red on its own.
+func TestEveryReferenceBetweenTenantTablesCarriesTheTenant(t *testing.T) {
+	ctx := context.Background()
+
+	findings, checked := unscopedReferences(ctx, t)
+	for _, finding := range findings {
+		t.Error(finding)
+	}
+	if checked < 25 {
+		t.Errorf("only %d references checked - the catalogue query is not seeing the schema", checked)
+	}
+}
+
+// And the other half of a gate: proof that it fails when the rule is broken. A gate nobody has seen
+// go red is a gate nobody knows is connected (the reasoning behind `make gate-selftest`, which
+// covers the Go rules the same way).
+func TestTheReferenceGateCatchesASingleColumnKey(t *testing.T) {
+	ctx := context.Background()
+	admin := adminPool(ctx, t)
+
+	// A table shaped like a real one: a NOT NULL tenant, and a reference that forgets it.
+	for _, statement := range []string{
+		`CREATE TABLE selftest_reference (
+		   id uuid PRIMARY KEY,
+		   tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+		   collection_id uuid NOT NULL REFERENCES container(id) ON DELETE CASCADE)`,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("building the deliberate violation: %v", err)
+		}
+	}
+	defer func() {
+		if _, err := admin.Exec(ctx, `DROP TABLE IF EXISTS selftest_reference`); err != nil {
+			t.Fatalf("removing the deliberate violation: %v", err)
+		}
+	}()
+
+	findings, _ := unscopedReferences(ctx, t)
+
+	var caught bool
+	for _, finding := range findings {
+		if strings.Contains(finding, "selftest_reference") {
+			caught = true
+		}
+	}
+	if !caught {
+		t.Errorf("the gate did not report a single-column reference it was shown: %v", findings)
+	}
+	if len(findings) != 1 {
+		t.Errorf("the gate reported %d findings, want only the deliberate one: %v",
+			len(findings), findings)
+	}
+}
+
+// unscopedReferences returns one finding per foreign key between two tables whose `tenant_id` is
+// NOT NULL that does not carry the tenant, and how many references it judged.
+func unscopedReferences(ctx context.Context, t *testing.T) (findings []string, checked int) {
+	t.Helper()
+
+	rows, err := adminPool(ctx, t).Query(ctx, `
+		WITH strict_tenant AS (
+		  SELECT c.oid, c.relname
+		  FROM pg_class c
+		  JOIN pg_namespace n ON n.oid = c.relnamespace
+		  JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'tenant_id'
+		       AND a.attnum > 0 AND a.attnotnull
+		  WHERE n.nspname = 'public' AND c.relkind IN ('r','p')
+		)
+		SELECT src.relname, tgt.relname, con.conname, array_length(con.conkey, 1),
+		       (SELECT a.attname FROM pg_attribute a
+		        WHERE a.attrelid = con.conrelid AND a.attnum = con.conkey[1])
+		FROM pg_constraint con
+		JOIN strict_tenant src ON src.oid = con.conrelid
+		JOIN strict_tenant tgt ON tgt.oid = con.confrelid
+		WHERE con.contype = 'f'
+		ORDER BY src.relname, con.conname`)
+	if err != nil {
+		t.Fatalf("catalogue query: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var src, tgt, name, firstColumn string
+		var columns int
+		if err := rows.Scan(&src, &tgt, &name, &columns, &firstColumn); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		checked++
+
+		switch {
+		case columns < 2:
+			findings = append(findings, fmt.Sprintf(
+				"%s references %s on one column (%s): a row in one tenant could reference, and a "+
+					"cascade could delete, a row in another (ADR-0024)", name, tgt, firstColumn))
+		case firstColumn != "tenant_id":
+			// The tenant has to be the first column, or the key scopes something else.
+			findings = append(findings, fmt.Sprintf(
+				"%s starts at %s rather than tenant_id", name, firstColumn))
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
+	}
+	return findings, checked
+}
+
+// The trap that makes the gate above insufficient on its own: a composite key whose delete rule
+// nulls every column of itself would null `tenant_id`, which is NOT NULL. PostgreSQL accepts that
+// form when it is declared and fails only when it fires, so nothing but a check like this one finds
+// it before a delete does (ADR-0024).
+func TestNoDeleteRuleWouldNullTheTenant(t *testing.T) {
+	ctx := context.Background()
+	admin := adminPool(ctx, t)
+
+	rows, err := admin.Query(ctx, `
+		SELECT con.conname, src.relname,
+		       (SELECT count(*) FROM unnest(con.confdelsetcols) AS c) AS set_columns
+		FROM pg_constraint con
+		JOIN pg_class src ON src.oid = con.conrelid
+		JOIN pg_namespace n ON n.oid = src.relnamespace
+		JOIN pg_attribute a ON a.attrelid = src.oid AND a.attname = 'tenant_id'
+		     AND a.attnum > 0 AND a.attnotnull
+		WHERE n.nspname = 'public' AND con.contype = 'f'
+		  AND con.confdeltype = 'n' AND array_length(con.conkey, 1) > 1
+		ORDER BY con.conname`)
+	if err != nil {
+		t.Fatalf("catalogue query: %v", err)
+	}
+	defer rows.Close()
+
+	found := 0
+	for rows.Next() {
+		var name, table string
+		var setColumns int
+		if err := rows.Scan(&name, &table, &setColumns); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		found++
+		// No column list means "null the whole key", and the whole key includes the tenant.
+		if setColumns == 0 {
+			t.Errorf("%s on %s is ON DELETE SET NULL without a column list: the delete would null "+
+				"tenant_id and fail at run time (ADR-0024)", name, table)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
+	}
+	if found == 0 {
+		t.Error("no composite SET NULL reference found at all - the query is not seeing the schema")
+	}
+}
+
+// The tables whose tenant is nullable are outside the rule, and that has to stay a decision rather
+// than an oversight. `NULL` means installation-wide there, so a composite key would both forbid a
+// tenant using an installation-wide row and - under MATCH SIMPLE, which skips the check when any
+// key column is NULL - switch the check off for the rows that keep a NULL tenant (ADR-0024).
+//
+// A new table with a nullable tenant turns this red, so somebody has to say which of the two it is.
+func TestTheTablesOutsideTheRuleAreTheDocumentedOnes(t *testing.T) {
+	ctx := context.Background()
+	admin := adminPool(ctx, t)
+
+	expected := map[string]string{
+		"job":                     "system jobs are partly tenant-less; restricted by privileges",
+		"item_capability_profile": "NULL is a system default every tenant may read and none may write",
+		"privacy_incident":        "an incident may span the installation rather than one tenant",
+		"backup_target":           "NULL is an installation-wide target (ADR-0019)",
+		"backup_schedule":         "schedules an installation-wide target",
+		"backup_run":              "records a run of an installation-wide target",
+		"restore_run":             "restores from an installation-wide target",
+	}
+
+	rows, err := admin.Query(ctx, `
+		SELECT c.relname
+		FROM pg_class c
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'tenant_id' AND a.attnum > 0
+		WHERE n.nspname = 'public' AND c.relkind IN ('r','p') AND NOT a.attnotnull
+		ORDER BY c.relname`)
+	if err != nil {
+		t.Fatalf("catalogue query: %v", err)
+	}
+	defer rows.Close()
+
+	seen := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		seen[name] = true
+		if _, documented := expected[name]; !documented {
+			t.Errorf("%s has a nullable tenant_id and is not in the documented list: decide whether "+
+				"the column should be NOT NULL and the references composite, or add it here with a "+
+				"reason (ADR-0024)", name)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
+	}
+	for name, reason := range expected {
+		if !seen[name] {
+			t.Errorf("%s is listed as having a nullable tenant_id (%s) and no longer has one - "+
+				"its references belong under the rule now", name, reason)
+		}
+	}
+}
