@@ -2278,6 +2278,12 @@ type MoveWorkItemJSONBody struct {
 	TargetParentId     *openapi_types.UUID `json:"target_parent_id,omitempty"`
 }
 
+// ReopenWorkItemParams defines parameters for ReopenWorkItem.
+type ReopenWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // BulkItemsJSONBody defines parameters for BulkItems.
 type BulkItemsJSONBody struct {
 	Atomic     *bool           `json:"atomic,omitempty"`
@@ -2462,6 +2468,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:move)
 	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId)
+
+	// (POST /items/{itemId}:reopen)
+	ReopenWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ReopenWorkItemParams)
 	// RetainItem Take an object out of the running retention period
 	// (POST /items/{itemId}:retain)
 	RetainItem(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
@@ -3681,6 +3690,56 @@ func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ReopenWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) ReopenWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReopenWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReopenWorkItem(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RetainItem operation middleware
 func (siw *ServerInterfaceWrapper) RetainItem(w http.ResponseWriter, r *http.Request) {
 
@@ -4156,6 +4215,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:move", wrapper.MoveWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.ListComments)

@@ -827,6 +827,34 @@ paths:
       responses:
         "200":
           description: Completed
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:reopen:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: reopenWorkItem
+      description: >
+        Marks a completed item open again. Idempotent: reopening an item that is already open
+        succeeds and changes nothing. Where the collection's completion policy rolls up, reopening an
+        item also reopens the completed items above it.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Reopened
+          headers:
+            ETag:
+              schema: { type: string }
           content:
             application/json:
               schema:

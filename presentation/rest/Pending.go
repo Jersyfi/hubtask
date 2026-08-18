@@ -155,6 +155,10 @@ func (pending) CompleteWorkItem(w http.ResponseWriter, r *http.Request, _ openap
 	notAvailable(w, r)
 }
 
+func (pending) ReopenWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ReopenWorkItemParams) {
+	notAvailable(w, r)
+}
+
 func (pending) MoveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
