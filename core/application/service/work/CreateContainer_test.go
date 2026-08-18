@@ -109,19 +109,31 @@ func (s *sink) Append(_ context.Context, entry audit.Entry) error {
 type unitOfWork struct {
 	committed  bool
 	rolledBack bool
+	// writes and reads count the two kinds separately. The read side must never open a write
+	// transaction - a read may be served by a replica, and one that asked for a writable transaction
+	// would pin every list in the product to the primary (multi-tenancy.md §7, B-04). A fake that
+	// could not tell the two apart could not say so.
+	writes int
+	reads  int
 }
 
-func (u *unitOfWork) Within(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+func (u *unitOfWork) Within(ctx context.Context, s persistence.Scope, fn func(context.Context) error) error {
+	u.writes++
+	return u.run(ctx, s, fn)
+}
+
+func (u *unitOfWork) WithinReadOnly(ctx context.Context, s persistence.Scope, fn func(context.Context) error) error {
+	u.reads++
+	return u.run(ctx, s, fn)
+}
+
+func (u *unitOfWork) run(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
 	if err := fn(ctx); err != nil {
 		u.rolledBack = true
 		return err
 	}
 	u.committed = true
 	return nil
-}
-
-func (u *unitOfWork) WithinReadOnly(ctx context.Context, s persistence.Scope, fn func(context.Context) error) error {
-	return u.Within(ctx, s, fn)
 }
 
 type authorizer struct {
