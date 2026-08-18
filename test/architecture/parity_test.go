@@ -42,6 +42,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 	// written and never registered - which is exactly what it is for.
 	registry, err := usecase.NewRegistry(nil,
 		work.CreateContainer{}.Descriptor(),
+		work.CreateWorkItem{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.GrantMembership{}.Descriptor(),
