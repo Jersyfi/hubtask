@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.item.created.v1.json",
-  "title": "de.hubtask.work.item.created.v1",
-  "description": "A task, a work package or an activity was created. One event for all three levels rather than one per level: they are one aggregate (ADR-0006), so a subscriber that wants only activities filters on `data.type`, and a level configured later reaches it without a new subscription. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
+  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.item.moved.v1.json",
+  "title": "de.hubtask.work.item.moved.v1",
+  "description": "An item sits somewhere else: under a different parent, in a different collection, or at a different rank among the same siblings. One event for all three, because domain-model.md §4 gives movement one event and names `orderKey` among its payload - a drag within a list and a drag between lists are the same gesture to a person and the same event to a rule. A consumer that cares only about reparenting compares `from_parent_id` with `to_parent_id`; one that cares only about order reads `order_key`. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
   "type": "object",
   "required": [
     "specversion",
@@ -38,7 +38,7 @@
     "type": {
       "type": "string",
       "enum": [
-        "de.hubtask.work.item.created.v1"
+        "de.hubtask.work.item.moved.v1"
       ]
     },
     "subject": {
@@ -95,19 +95,23 @@
     },
     "data": {
       "type": "object",
-      "description": "A snapshot of the item as it was created, in the field names of the API (schema WorkItem), so that a webhook payload and a REST response describe the same object in the same words.",
+      "description": "The item as it now stands, in the field names of the API (schema WorkItem), plus where it came from. The \"from\" half cannot be read off the snapshot, which is the new state; the \"to\" half is the snapshot, so it is not repeated except as to_parent_id, which domain-model.md §4 names.",
       "required": [
-        "id",
-        "type",
         "collection_id",
-        "parent_id",
-        "path",
-        "depth",
-        "title",
         "completion",
-        "order_key",
         "created_at",
         "created_by",
+        "depth",
+        "from_parent_id",
+        "from_path",
+        "id",
+        "order_key",
+        "parent_id",
+        "path",
+        "title",
+        "to_parent_id",
+        "type",
+        "updated_at",
         "version"
       ],
       "additionalProperties": true,
@@ -198,7 +202,51 @@
         "updated_at": {
           "type": "string",
           "format": "date-time",
-          "description": "When the item last changed. Equal to created_at on this event; the move event is about a change and a consumer ordering two of them needs it."
+          "description": "When the item last changed - the instant of this move."
+        },
+        "from_parent_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "description": "The item it sat under before, null if it sat directly in a collection. Equal to to_parent_id when the move was a reorder within one level."
+        },
+        "to_parent_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "description": "The item it sits under now, null for the top level of a collection. The same value as parent_id in the snapshot, and named here because domain-model.md §4 names it."
+        },
+        "from_path": {
+          "type": "string",
+          "description": "The materialised path before the move. Together with `path` it is the prefix swap a client applies to its own copy of the subtree: every descendant's new path is its old one with from_path replaced by path. That is why a moved subtree needs no event per descendant (I-W2)."
+        },
+        "from_collection_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "description": "The collection it was in before, set only when the move crossed collections. A device subscribed to one hub reads it to know the item has left its scope (offline-sync.md §3.1)."
+        },
+        "from_bucket_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "description": "Reserved, always null on this version: buckets arrive with B-09. In the documented payload, so a kanban consumer can be written against the final shape."
+        },
+        "to_bucket_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "description": "Reserved, always null on this version. See from_bucket_id."
         }
       }
     }

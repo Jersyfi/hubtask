@@ -281,3 +281,186 @@ func TestTheExtensionAttributesCarryTheChain(t *testing.T) {
 		t.Errorf("a person acting for themselves has a principal: %v", rendered["onbehalfof"])
 	}
 }
+
+// The move event, judged by the schema it is published under (B-08).
+func TestTheItemMovedEventMatchesItsSchema(t *testing.T) {
+	spec := loadEventSchema(t, event.ItemMoved)
+
+	oldTask := shared.MustParseID("0192f000-0000-7000-8000-000000000011")
+	newTask := shared.MustParseID("0192f000-0000-7000-8000-000000000014")
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000012")
+	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
+
+	item := work.WorkItem{
+		ID:           id,
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemWorkPackage,
+		ParentID:     newTask,
+		Path:         "/" + newTask.String() + "/" + id.String() + "/",
+		Depth:        2,
+		Title:        "Order the cable",
+		OrderKey:     "a1",
+		CreatedBy:    shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt:    at,
+		UpdatedAt:    at.Add(time.Hour),
+		Version:      2,
+	}
+	from := event.Movement{
+		FromParentID: oldTask,
+		FromPath:     "/" + oldTask.String() + "/" + id.String() + "/",
+	}
+
+	envelope, err := event.NewItemMoved(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e8"), item, from,
+		event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, item.UpdatedAt, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+	if err != nil {
+		t.Fatalf("rendering the event: %v", err)
+	}
+	problems, err := spec.validateAgainst("root", body)
+	if err != nil {
+		t.Fatalf("validating: %v", err)
+	}
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+
+	// The prefix swap is the whole reason a moved subtree needs no event per descendant: from_path and path
+	// together are what a client rewrites its own copy with.
+	var rendered map[string]any
+	if err := json.Unmarshal(body, &rendered); err != nil {
+		t.Fatalf("re-reading the event: %v", err)
+	}
+	data, _ := rendered["data"].(map[string]any)
+	if data["from_path"] != from.FromPath {
+		t.Errorf("from_path is %v, want %q", data["from_path"], from.FromPath)
+	}
+	if data["path"] != item.Path {
+		t.Errorf("path is %v, want %q", data["path"], item.Path)
+	}
+	// Not a collection change, so the field says so rather than repeating the collection.
+	if data["from_collection_id"] != nil {
+		t.Errorf("from_collection_id is %v on a move within one collection", data["from_collection_id"])
+	}
+}
+
+// A reorder is the same event with the same parent on both sides, which is what lets a rule that only cares
+// about reparenting tell the two apart without a second event type.
+func TestAReorderIsAMoveWithTheSameParent(t *testing.T) {
+	spec := loadEventSchema(t, event.ItemMoved)
+
+	task := shared.MustParseID("0192f000-0000-7000-8000-000000000011")
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000012")
+	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
+	path := "/" + task.String() + "/" + id.String() + "/"
+
+	item := work.WorkItem{
+		ID:           id,
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemWorkPackage,
+		ParentID:     task,
+		Path:         path,
+		Depth:        2,
+		Title:        "Order the cable",
+		OrderKey:     "a0V",
+		CreatedBy:    shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt:    at,
+		UpdatedAt:    at.Add(time.Hour),
+		Version:      3,
+	}
+
+	envelope, err := event.NewItemMoved(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e9"), item,
+		event.Movement{FromParentID: task, FromPath: path},
+		event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, item.UpdatedAt, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+	if err != nil {
+		t.Fatalf("rendering: %v", err)
+	}
+	problems, err := spec.validateAgainst("root", body)
+	if err != nil {
+		t.Fatalf("validating: %v", err)
+	}
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+
+	var rendered map[string]any
+	if err := json.Unmarshal(body, &rendered); err != nil {
+		t.Fatalf("re-reading: %v", err)
+	}
+	data, _ := rendered["data"].(map[string]any)
+	if data["from_parent_id"] != data["to_parent_id"] {
+		t.Errorf("a reorder announced a reparenting: %v -> %v", data["from_parent_id"], data["to_parent_id"])
+	}
+	if data["order_key"] != item.OrderKey {
+		t.Errorf("order_key is %v, want %q", data["order_key"], item.OrderKey)
+	}
+}
+
+// A move to the top level of a collection carries a null parent, and the schema has to accept it - a consumer
+// placing items in a tree reads the field rather than inferring it from the type.
+func TestAMoveToTheTopLevelCarriesANullParent(t *testing.T) {
+	spec := loadEventSchema(t, event.ItemMoved)
+
+	oldTask := shared.MustParseID("0192f000-0000-7000-8000-000000000011")
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000015")
+	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
+
+	item := work.WorkItem{
+		ID:           id,
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemTask,
+		Path:         work.RootPath(id),
+		Depth:        1,
+		Title:        "Weekly shop",
+		OrderKey:     "a0",
+		CreatedBy:    shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt:    at,
+		UpdatedAt:    at.Add(time.Hour),
+		Version:      2,
+	}
+
+	envelope, err := event.NewItemMoved(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000ea"), item,
+		event.Movement{
+			FromParentID: oldTask,
+			FromPath:     "/" + oldTask.String() + "/" + id.String() + "/",
+		},
+		event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, item.UpdatedAt, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+	if err != nil {
+		t.Fatalf("rendering: %v", err)
+	}
+	problems, err := spec.validateAgainst("root", body)
+	if err != nil {
+		t.Fatalf("validating: %v", err)
+	}
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+
+	var rendered map[string]any
+	if err := json.Unmarshal(body, &rendered); err != nil {
+		t.Fatalf("re-reading: %v", err)
+	}
+	data, _ := rendered["data"].(map[string]any)
+	if parent, present := data["to_parent_id"]; !present || parent != nil {
+		t.Errorf("to_parent_id is %v rather than null", data["to_parent_id"])
+	}
+}
