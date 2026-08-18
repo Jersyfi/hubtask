@@ -2272,10 +2272,27 @@ type CompleteWorkItemParams struct {
 
 // MoveWorkItemJSONBody defines parameters for MoveWorkItem.
 type MoveWorkItemJSONBody struct {
-	BeforeItemId       *openapi_types.UUID `json:"before_item_id,omitempty"`
-	TargetBucketId     *openapi_types.UUID `json:"target_bucket_id,omitempty"`
+	// BeforeItemId The sibling to place this item before at the destination. Null or omitted appends.
+	BeforeItemId   *openapi_types.UUID `json:"before_item_id,omitempty"`
+	TargetBucketId *openapi_types.UUID `json:"target_bucket_id,omitempty"`
+
+	// TargetCollectionId The destination collection. May be omitted when target_parent_id is given: an item's collection is the one its parent is in.
 	TargetCollectionId *openapi_types.UUID `json:"target_collection_id,omitempty"`
-	TargetParentId     *openapi_types.UUID `json:"target_parent_id,omitempty"`
+
+	// TargetParentId The item to move this one under. Null moves it to the top level of a collection, which then has to be named by target_collection_id.
+	TargetParentId *openapi_types.UUID `json:"target_parent_id,omitempty"`
+}
+
+// ReorderWorkItemJSONBody defines parameters for ReorderWorkItem.
+type ReorderWorkItemJSONBody struct {
+	// BeforeItemId The sibling to place this item before. Null or omitted appends to the end of the level.
+	BeforeItemId *openapi_types.UUID `json:"before_item_id,omitempty"`
+}
+
+// ReorderWorkItemParams defines parameters for ReorderWorkItem.
+type ReorderWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // BulkItemsJSONBody defines parameters for BulkItems.
@@ -2348,6 +2365,9 @@ type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
 
 // MoveWorkItemJSONRequestBody defines body for MoveWorkItem for application/json ContentType.
 type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
+
+// ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
+type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
 
 // BulkItemsJSONRequestBody defines body for BulkItems for application/json ContentType.
 type BulkItemsJSONRequestBody BulkItemsJSONBody
@@ -2462,6 +2482,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:move)
 	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId)
+
+	// (POST /items/{itemId}:reorder)
+	ReorderWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ReorderWorkItemParams)
 	// RetainItem Take an object out of the running retention period
 	// (POST /items/{itemId}:retain)
 	RetainItem(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
@@ -3681,6 +3704,56 @@ func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ReorderWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) ReorderWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReorderWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReorderWorkItem(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RetainItem operation middleware
 func (siw *ServerInterfaceWrapper) RetainItem(w http.ResponseWriter, r *http.Request) {
 
@@ -4156,6 +4229,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reorder", wrapper.ReorderWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:move", wrapper.MoveWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.ListComments)

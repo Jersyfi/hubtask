@@ -159,6 +159,10 @@ func (pending) MoveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.It
 	notAvailable(w, r)
 }
 
+func (pending) ReorderWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ReorderWorkItemParams) {
+	notAvailable(w, r)
+}
+
 func (pending) RetainItem(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
