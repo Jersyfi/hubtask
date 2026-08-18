@@ -43,6 +43,8 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 	registry, err := usecase.NewRegistry(nil,
 		work.CreateContainer{}.Descriptor(),
 		work.CreateWorkItem{}.Descriptor(),
+		work.CompleteWorkItem{}.Descriptor(),
+		work.ReopenWorkItem{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.GrantMembership{}.Descriptor(),

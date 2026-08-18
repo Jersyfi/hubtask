@@ -225,9 +225,19 @@ func run() error {
 	// placement is permitted, so what an installation advertises and what it accepts cannot
 	// drift apart (ADR-0006).
 	containers := postgres.NewContainerRepository()
+	items := postgres.NewItemRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
+
+	// Both directions of completion share one dependency set. The two operations are the same walk in
+	// opposite directions, and wiring them separately would be two places to get one of eleven fields
+	// wrong (work.CompletionWriter).
+	completion := work.CompletionWriter{
+		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
 
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
@@ -271,7 +281,7 @@ func run() error {
 			HLC:        hybrid,
 		}.Descriptor(),
 		work.CreateWorkItem{
-			Items:      postgres.NewItemRepository(),
+			Items:      items,
 			Containers: containers,
 			Profiles:   profiles,
 			Authorizer: authorizer,
@@ -283,6 +293,8 @@ func run() error {
 			IDs:        ids,
 			HLC:        hybrid,
 		}.Descriptor(),
+		work.CompleteWorkItem{Completion: completion}.Descriptor(),
+		work.ReopenWorkItem{Completion: completion}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process
