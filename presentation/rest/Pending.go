@@ -36,6 +36,37 @@ func notAvailable(w http.ResponseWriter, r *http.Request) {
 		correlation.RequestIDFrom(r.Context()))
 }
 
+// The identity operations. They land one by one as B-02 registers each use case; until then the
+// route exists because the contract declares it, and answers that this installation does not
+// serve it yet.
+func (pending) InviteAccount(w http.ResponseWriter, r *http.Request, _ openapi.InviteAccountParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
+func (pending) GrantMembership(w http.ResponseWriter, r *http.Request, _ openapi.GrantMembershipParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RevokeMembership(w http.ResponseWriter, r *http.Request, _ openapi.MembershipId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateGroup(w http.ResponseWriter, r *http.Request, _ openapi.CreateGroupParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateGroup(w http.ResponseWriter, r *http.Request, _ openapi.GroupId, _ openapi.UpdateGroupParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteGroup(w http.ResponseWriter, r *http.Request, _ openapi.GroupId) {
+	notAvailable(w, r)
+}
+
 func (pending) ListAuditEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListAuditEntriesParams) {
 	notAvailable(w, r)
 }

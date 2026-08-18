@@ -163,10 +163,10 @@ func localeTag(raw string) (string, error) {
 		}
 		for _, r := range part {
 			isLetter := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
-			isDigit := r >= '0' && r <= '9'
 			// The first subtag is a language and is letters only; the ones after it may be
 			// digits (a region like 419, the UN code for Latin America).
-			if !isLetter && !(isDigit && i > 0) {
+			isRegionDigit := r >= '0' && r <= '9' && i > 0
+			if !isLetter && !isRegionDigit {
 				return "", shared.ErrValidation.
 					WithDetail("accounts.locale_invalid").
 					WithParams(map[string]string{"value": tag})

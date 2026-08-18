@@ -29,6 +29,7 @@ security:
 
 tags:
   - name: meta
+  - name: identity
   - name: containers
   - name: items
   - name: structure
@@ -435,6 +436,168 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/SyncDevice" }
+
+  /accounts:invite:
+    post:
+      tags: [identity]
+      operationId: inviteAccount
+      summary: Invite a person into this workspace
+      description: |
+        Creates an account in `INVITED` status. Permissions can be granted to it immediately;
+        it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+        The notification is queued as a job — this call does not wait for an email.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountInvite"
+      responses:
+        "201":
+          description: Invited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/{accountId}/preferences:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    patch:
+      tags: [identity]
+      operationId: updateAccountPreferences
+      summary: Set how the product speaks to an account
+      description: |
+        Locale, time zone and the first day of the week. An empty value clears the preference,
+        which means the workspace default applies again — the second link of the resolution chain
+        request → account → tenant → installation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountPreferences"
+      responses:
+        "200":
+          description: The account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /memberships:
+    post:
+      tags: [identity]
+      operationId: grantMembership
+      summary: Grant a role at a scope
+      description: |
+        To an account or to a group, never both. The role applies downwards from the scope:
+        a role at a hub applies to its collections and their items.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembershipGrant"
+      responses:
+        "201":
+          description: Granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Membership"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /memberships/{membershipId}:
+    parameters:
+      - $ref: "#/components/parameters/MembershipId"
+    delete:
+      tags: [identity]
+      operationId: revokeMembership
+      summary: Take a role away
+      description: |
+        Takes effect on the next request. What the account holds through a group is unaffected —
+        that is the group's membership, revoked separately.
+      responses:
+        "204":
+          description: Revoked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /groups:
+    post:
+      tags: [identity]
+      operationId: createGroup
+      summary: Create a group
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupCreate"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /groups/{groupId}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    patch:
+      tags: [identity]
+      operationId: updateGroup
+      summary: Rename a group or change its description
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupUpdate"
+      responses:
+        "200":
+          description: The group
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [identity]
+      operationId: deleteGroup
+      summary: Delete a group
+      description: |
+        Its memberships go with it: what the group granted, nobody holds afterwards. Members of
+        the group keep whatever they hold in their own right.
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /containers:
     get:
@@ -861,6 +1024,24 @@ components:
       bearerFormat: "An OIDC access token, hbt_pat_…, or a service account token"
 
   parameters:
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+    MembershipId:
+      name: membershipId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     ContainerId:
       name: containerId
       in: path
@@ -958,6 +1139,98 @@ components:
       type: string
       description: Extensible; /meta/capabilities returns the valid values.
       enum: [TASK, WORK_PACKAGE, ACTIVITY]
+
+    Account:
+      type: object
+      required: [id, kind, display_name, status]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [USER, SERVICE_ACCOUNT] }
+        email: { type: [string, "null"], format: email }
+        display_name: { type: string, minLength: 1, maxLength: 200 }
+        status: { type: string, enum: [ACTIVE, INVITED, DISABLED] }
+        locale: { type: [string, "null"] }
+        time_zone: { type: [string, "null"] }
+        week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+
+    AccountInvite:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        display_name: { type: [string, "null"], maxLength: 200 }
+
+    AccountPreferences:
+      type: object
+      description: |
+        Every field is optional, and an empty string clears the preference rather than setting it
+        to nothing — the workspace default applies again.
+      properties:
+        locale: { type: [string, "null"] }
+        time_zone: { type: [string, "null"] }
+        week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+
+    Group:
+      type: object
+      required: [id, name, version]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        version: { type: integer }
+
+    GroupCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        members:
+          type: array
+          description: Accounts to put in the group straight away.
+          items: { type: string, format: uuid }
+
+    GroupUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        members:
+          type: array
+          description: The complete membership after the change; omitted leaves it as it is.
+          items: { type: string, format: uuid }
+
+    MembershipScope:
+      type: string
+      enum: [TENANT, HUB, COLLECTION, ITEM]
+
+    MembershipRole:
+      type: string
+      enum: [OWNER, ADMIN, MEMBER, CONTRIBUTOR, VIEWER, GUEST]
+
+    Membership:
+      type: object
+      required: [id, scope_type, role]
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: [string, "null"], format: uuid }
+        group_id: { type: [string, "null"], format: uuid }
+        scope_type: { $ref: "#/components/schemas/MembershipScope" }
+        scope_id: { type: [string, "null"], format: uuid }
+        role: { $ref: "#/components/schemas/MembershipRole" }
+
+    MembershipGrant:
+      type: object
+      required: [scope_type, role]
+      description: |
+        Exactly one of `account_id` and `group_id`. Neither grants to nobody; both would leave no
+        answer to whose right it is when one of the two is removed.
+      properties:
+        account_id: { type: [string, "null"], format: uuid }
+        group_id: { type: [string, "null"], format: uuid }
+        scope_type: { $ref: "#/components/schemas/MembershipScope" }
+        scope_id: { type: [string, "null"], format: uuid }
+        role: { $ref: "#/components/schemas/MembershipRole" }
 
     Container:
       type: object
