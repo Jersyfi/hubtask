@@ -8,6 +8,7 @@ import (
 	"errors"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -25,10 +26,66 @@ var collectionID = shared.MustParseID("0192f000-0000-7000-8000-00000000000c")
 // the use case owes is not only a return value.
 
 type items struct {
-	inserted  []domain.WorkItem
-	stored    map[shared.ID]domain.WorkItem
-	lastKey   string
-	insertErr error
+	inserted []domain.WorkItem
+	stored   map[shared.ID]domain.WorkItem
+	lastKey  string
+	// The move and reorder fakes: what the neighbours answer, and what each write was asked to store. The
+	// B-08 tests care about both - one is the position the ordering service measured against, the other is
+	// where the item ended up.
+	previousKey string
+	nextKey     string
+	askedLevel  repository.Level
+	askedBefore shared.ID
+	ranks       []rankWrite
+	moves       []repository.Move
+	insertErr   error
+	rankErr     error
+	moveErr     error
+	subtreeSize int
+}
+
+// rankWrite is one call to SetOrderKey: the item as it would be stored, and the version it was written
+// against.
+type rankWrite struct {
+	item            domain.WorkItem
+	expectedVersion int
+}
+
+func (i *items) Neighbours(
+	_ context.Context, level repository.Level, beforeID, _ shared.ID,
+) (string, string, error) {
+	i.askedLevel, i.askedBefore = level, beforeID
+	return i.previousKey, i.nextKey, nil
+}
+
+func (i *items) SetOrderKey(_ context.Context, item domain.WorkItem, expectedVersion int) error {
+	if i.rankErr != nil {
+		return i.rankErr
+	}
+	i.ranks = append(i.ranks, rankWrite{item: item, expectedVersion: expectedVersion})
+	i.stored[item.ID] = item
+	return nil
+}
+
+func (i *items) MoveSubtree(_ context.Context, move repository.Move) (int, error) {
+	if i.moveErr != nil {
+		return 0, i.moveErr
+	}
+	i.moves = append(i.moves, move)
+
+	moved := i.stored[move.Item.ID]
+	moved.ParentID = move.TargetParentID
+	moved.CollectionID = move.CollectionID
+	moved.Path = move.NewPrefix
+	moved.Depth += move.DepthDelta
+	moved.OrderKey = move.OrderKey
+	moved.UpdatedAt = move.UpdatedAt
+	i.stored[move.Item.ID] = moved
+
+	if i.subtreeSize == 0 {
+		return 1, nil
+	}
+	return i.subtreeSize, nil
 }
 
 func (i *items) Find(_ context.Context, id shared.ID) (domain.WorkItem, error) {

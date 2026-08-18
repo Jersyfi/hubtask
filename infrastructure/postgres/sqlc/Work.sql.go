@@ -285,6 +285,7 @@ UPDATE work_item SET
   updated_at    = $5,
   version       = version + 1
 WHERE path LIKE $3::text || '%'
+  AND id <> $6::uuid
 `
 
 type MoveWorkItemSubtreeParams struct {
@@ -293,6 +294,7 @@ type MoveWorkItemSubtreeParams struct {
 	OldPrefix    string
 	DepthDelta   int32
 	UpdatedAt    pgtype.Timestamptz
+	ItemID       pgtype.UUID
 }
 
 // Rewrites the materialised path, the depth and the collection of an item and everything below it, in one
@@ -310,8 +312,13 @@ type MoveWorkItemSubtreeParams struct {
 // Trashed rows in the subtree are rewritten too, deliberately. Their path still has to describe where they
 // would be restored to; leaving them behind would point a restore at an ancestor that has moved.
 //
-// The version moves on every row. A descendant's path is part of its state, and a client caching the subtree
-// has to be able to tell that it changed.
+// The version moves on every row, because a descendant's path is part of its state and a client caching the
+// subtree has to be able to tell that it changed.
+//
+// The moved item itself is excluded. Its own path begins with its own prefix, so it would match - and it is
+// SetWorkItemPlacement that owns its row, which is where the optimistic lock is. Without the exclusion the
+// moved item would have its version bumped twice by one move, which is not a design but an artefact of
+// writing it in two statements.
 func (q *Queries) MoveWorkItemSubtree(ctx context.Context, arg MoveWorkItemSubtreeParams) (int64, error) {
 	result, err := q.db.Exec(ctx, moveWorkItemSubtree,
 		arg.CollectionID,
@@ -319,6 +326,7 @@ func (q *Queries) MoveWorkItemSubtree(ctx context.Context, arg MoveWorkItemSubtr
 		arg.OldPrefix,
 		arg.DepthDelta,
 		arg.UpdatedAt,
+		arg.ItemID,
 	)
 	if err != nil {
 		return 0, err
@@ -415,15 +423,21 @@ func (q *Queries) SetWorkItemOrderKey(ctx context.Context, arg SetWorkItemOrderK
 
 const setWorkItemPlacement = `-- name: SetWorkItemPlacement :execrows
 UPDATE work_item SET
-  parent_id  = $1::uuid,
-  order_key  = $2,
-  updated_at = $3,
-  version    = version + 1
-WHERE id = $4::uuid AND version = $5
+  parent_id     = $1::uuid,
+  collection_id = $2::uuid,
+  path          = $3,
+  depth         = $4,
+  order_key     = $5,
+  updated_at    = $6,
+  version       = version + 1
+WHERE id = $7::uuid AND version = $8
 `
 
 type SetWorkItemPlacementParams struct {
 	ParentID        pgtype.UUID
+	CollectionID    pgtype.UUID
+	Path            string
+	Depth           int32
 	OrderKey        string
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
@@ -432,12 +446,15 @@ type SetWorkItemPlacementParams struct {
 
 // The moved item's own row: the parent it now sits under and the rank it takes among its new siblings.
 //
-// Separate from the subtree rewrite because only this row's parent changes - a descendant keeps the parent it
-// had - and because the optimistic lock belongs on the row the caller read. The path, the depth and the
-// collection are the subtree statement's business, and this one deliberately does not touch them.
+// This row is written here in full and excluded from the subtree statement, so that one move moves one
+// version. Only this row's parent changes - a descendant keeps the parent it had - and the optimistic lock
+// belongs on the row the caller actually read, which is this one.
 func (q *Queries) SetWorkItemPlacement(ctx context.Context, arg SetWorkItemPlacementParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setWorkItemPlacement,
 		arg.ParentID,
+		arg.CollectionID,
+		arg.Path,
+		arg.Depth,
 		arg.OrderKey,
 		arg.UpdatedAt,
 		arg.ID,

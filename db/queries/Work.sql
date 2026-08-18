@@ -100,8 +100,13 @@ INSERT INTO work_item (
 -- Trashed rows in the subtree are rewritten too, deliberately. Their path still has to describe where they
 -- would be restored to; leaving them behind would point a restore at an ancestor that has moved.
 --
--- The version moves on every row. A descendant's path is part of its state, and a client caching the subtree
--- has to be able to tell that it changed.
+-- The version moves on every row, because a descendant's path is part of its state and a client caching the
+-- subtree has to be able to tell that it changed.
+--
+-- The moved item itself is excluded. Its own path begins with its own prefix, so it would match - and it is
+-- SetWorkItemPlacement that owns its row, which is where the optimistic lock is. Without the exclusion the
+-- moved item would have its version bumped twice by one move, which is not a design but an artefact of
+-- writing it in two statements.
 UPDATE work_item SET
   collection_id = sqlc.arg('collection_id')::uuid,
   path          = sqlc.arg('new_prefix')::text
@@ -109,19 +114,23 @@ UPDATE work_item SET
   depth         = depth + sqlc.arg('depth_delta')::int,
   updated_at    = sqlc.arg('updated_at'),
   version       = version + 1
-WHERE path LIKE sqlc.arg('old_prefix')::text || '%';
+WHERE path LIKE sqlc.arg('old_prefix')::text || '%'
+  AND id <> sqlc.arg('item_id')::uuid;
 
 -- name: SetWorkItemPlacement :execrows
 -- The moved item's own row: the parent it now sits under and the rank it takes among its new siblings.
 --
--- Separate from the subtree rewrite because only this row's parent changes - a descendant keeps the parent it
--- had - and because the optimistic lock belongs on the row the caller read. The path, the depth and the
--- collection are the subtree statement's business, and this one deliberately does not touch them.
+-- This row is written here in full and excluded from the subtree statement, so that one move moves one
+-- version. Only this row's parent changes - a descendant keeps the parent it had - and the optimistic lock
+-- belongs on the row the caller actually read, which is this one.
 UPDATE work_item SET
-  parent_id  = sqlc.narg('parent_id')::uuid,
-  order_key  = sqlc.arg('order_key'),
-  updated_at = sqlc.arg('updated_at'),
-  version    = version + 1
+  parent_id     = sqlc.narg('parent_id')::uuid,
+  collection_id = sqlc.arg('collection_id')::uuid,
+  path          = sqlc.arg('path'),
+  depth         = sqlc.arg('depth'),
+  order_key     = sqlc.arg('order_key'),
+  updated_at    = sqlc.arg('updated_at'),
+  version       = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
 -- name: SetWorkItemOrderKey :execrows
