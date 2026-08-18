@@ -289,6 +289,22 @@ func run() error {
 			IDs:        ids,
 			HLC:        hybrid,
 		}.Descriptor(),
+		work.GetContainer{
+			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		// The authorisation service twice, under two names: Authorize for the level a client named,
+		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
+		// may see rather than refused outright (ReadContainers.Execute).
+		work.ListContainers{
+			Containers: containers, Authorizer: authorizer, Reader: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.GetWorkItem{
+			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListWorkItems{
+			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process
