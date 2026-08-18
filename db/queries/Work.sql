@@ -90,3 +90,37 @@ INSERT INTO work_item (
   sqlc.narg('notes'), sqlc.arg('order_key'), sqlc.arg('created_by'),
   sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
+
+-- name: ChildCompletion :one
+-- How many children an item has, and how many of them are done. The two numbers the roll-up decides
+-- from (I-W5), as counts rather than as rows: the question is "is anything still open down there", and
+-- reading a subtree to answer one boolean is the shape this avoids.
+--
+-- Trashed children are excluded outright. They are deletions waiting out their retention period, and a
+-- work package whose last activity was deleted must not become done because of it. Archived children are
+-- counted as they stand - archiving is a decision to keep something quietly, not to disown it.
+--
+-- Served by wi_parent_idx (tenant_id, parent_id, order_key): the tenant comes from row level security, so
+-- the leading column is satisfied without appearing here.
+SELECT
+  count(*)::int AS total,
+  (count(*) FILTER (WHERE is_completed))::int AS completed
+FROM work_item
+WHERE parent_id = sqlc.arg('parent_id')::uuid
+  AND deleted_at IS NULL;
+
+-- name: SetWorkItemCompletion :execrows
+-- Optimistic locking in the WHERE clause: the update matches nothing when somebody else has moved the row
+-- on, and the caller learns that rather than overwriting them (api-guidelines.md §5).
+--
+-- Both completion columns are written together, always. The table's own CHECK insists that
+-- `is_completed = (completed_at IS NOT NULL)`, so a statement that set one without the other would be
+-- refused by the database - which is the right place for that rule and the reason this query has no
+-- branch in it.
+UPDATE work_item SET
+  is_completed = sqlc.arg('is_completed'),
+  completed_at = sqlc.narg('completed_at'),
+  completed_by = sqlc.narg('completed_by'),
+  updated_at   = sqlc.arg('updated_at'),
+  version      = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');

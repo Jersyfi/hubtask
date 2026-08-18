@@ -11,6 +11,37 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const childCompletion = `-- name: ChildCompletion :one
+SELECT
+  count(*)::int AS total,
+  (count(*) FILTER (WHERE is_completed))::int AS completed
+FROM work_item
+WHERE parent_id = $1::uuid
+  AND deleted_at IS NULL
+`
+
+type ChildCompletionRow struct {
+	Total     int32
+	Completed int32
+}
+
+// How many children an item has, and how many of them are done. The two numbers the roll-up decides
+// from (I-W5), as counts rather than as rows: the question is "is anything still open down there", and
+// reading a subtree to answer one boolean is the shape this avoids.
+//
+// Trashed children are excluded outright. They are deletions waiting out their retention period, and a
+// work package whose last activity was deleted must not become done because of it. Archived children are
+// counted as they stand - archiving is a decision to keep something quietly, not to disown it.
+//
+// Served by wi_parent_idx (tenant_id, parent_id, order_key): the tenant comes from row level security, so
+// the leading column is satisfied without appearing here.
+func (q *Queries) ChildCompletion(ctx context.Context, parentID pgtype.UUID) (ChildCompletionRow, error) {
+	row := q.db.QueryRow(ctx, childCompletion, parentID)
+	var i ChildCompletionRow
+	err := row.Scan(&i.Total, &i.Completed)
+	return i, err
+}
+
 const findContainer = `-- name: FindContainer :one
 
 SELECT
@@ -283,4 +314,45 @@ func (q *Queries) LastWorkItemOrderKey(ctx context.Context, arg LastWorkItemOrde
 	var order_key string
 	err := row.Scan(&order_key)
 	return order_key, err
+}
+
+const setWorkItemCompletion = `-- name: SetWorkItemCompletion :execrows
+UPDATE work_item SET
+  is_completed = $1,
+  completed_at = $2,
+  completed_by = $3,
+  updated_at   = $4,
+  version      = version + 1
+WHERE id = $5::uuid AND version = $6
+`
+
+type SetWorkItemCompletionParams struct {
+	IsCompleted     bool
+	CompletedAt     pgtype.Timestamptz
+	CompletedBy     pgtype.UUID
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Optimistic locking in the WHERE clause: the update matches nothing when somebody else has moved the row
+// on, and the caller learns that rather than overwriting them (api-guidelines.md §5).
+//
+// Both completion columns are written together, always. The table's own CHECK insists that
+// `is_completed = (completed_at IS NOT NULL)`, so a statement that set one without the other would be
+// refused by the database - which is the right place for that rule and the reason this query has no
+// branch in it.
+func (q *Queries) SetWorkItemCompletion(ctx context.Context, arg SetWorkItemCompletionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemCompletion,
+		arg.IsCompleted,
+		arg.CompletedAt,
+		arg.CompletedBy,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

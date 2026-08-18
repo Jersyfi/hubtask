@@ -49,6 +49,10 @@ type itemDouble struct{}
 func (itemDouble) Find(context.Context, shared.ID) (work.WorkItem, error) {
 	return work.WorkItem{}, shared.ErrNotFound
 }
+func (itemDouble) ChildCompletion(context.Context, shared.ID) (work.ChildCompletion, error) {
+	return work.ChildCompletion{}, nil
+}
+func (itemDouble) SetCompletion(context.Context, work.WorkItem, int) error { return nil }
 func (itemDouble) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }
