@@ -18,6 +18,8 @@
 //     and a typo there points a reader at nothing.
 //   - Every document CLAUDE.md's reading order names exists, because that list is what a new
 //     session is told to read.
+//   - The support matrix and the workflows agree in both directions, so that support can neither
+//     be claimed without a job nor removed by deleting one (see matrix.go).
 package main
 
 import (
@@ -46,6 +48,7 @@ func main() {
 	problems = append(problems, checkLinks(root, docs)...)
 	problems = append(problems, checkADRIndex(root)...)
 	problems = append(problems, checkADRReferences(root)...)
+	problems = append(problems, checkSupportMatrix(root)...)
 
 	if len(problems) > 0 {
 		sort.Strings(problems)

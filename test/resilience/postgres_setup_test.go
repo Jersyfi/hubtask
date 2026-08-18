@@ -46,11 +46,21 @@ func testDSN(t *testing.T) string {
 	return sharedDSN
 }
 
+// postgresImage is the database the suite runs against. Configurable so that the support matrix
+// can vary it (docs/architecture/support-matrix.md): the default is the supported floor, and the
+// nightly matrix job sets it to every other major the table claims.
+func postgresImage() string {
+	if image := os.Getenv("HUBTASK_TEST_POSTGRES_IMAGE"); image != "" {
+		return image
+	}
+	return "postgres:16-alpine"
+}
+
 func startDatabase() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	container, err := tcpostgres.Run(ctx, "postgres:16-alpine",
+	container, err := tcpostgres.Run(ctx, postgresImage(),
 		tcpostgres.WithDatabase("hubtask_test"),
 		tcpostgres.WithUsername("postgres"),
 		tcpostgres.WithPassword("postgres"),

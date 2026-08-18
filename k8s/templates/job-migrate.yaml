@@ -30,7 +30,14 @@ spec:
       labels: {{- include "hubtask.labels" (dict "root" . "role" "migrate") | nindent 8 }}
     spec:
       restartPolicy: Never
-      serviceAccountName: {{ include "hubtask.serviceAccountName" . }}
+      # Deliberately the namespace default, and with no token mounted.
+      #
+      # A hook runs before the release's own objects exist, so naming the chart's ServiceAccount
+      # here makes the job unschedulable on a first install - the job controller looks it up and
+      # does not find it, forever. The job needs no Kubernetes identity in any case: it talks to
+      # PostgreSQL and to nothing else, which is the same reason the ServiceAccount itself mounts
+      # no token (ADR-0015).
+      automountServiceAccountToken: false
       securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: migrate
@@ -47,6 +54,17 @@ spec:
                 secretKeyRef:
                   name: {{ include "hubtask.secretName" . }}
                   key: {{ .Values.migration.dsnSecretKey }}
+            {{- if .Values.migration.appPasswordSecretKey }}
+            # The migrator is the operator that grants hubtask_app its login (A-11): the migration
+            # creates the role without one, because a credential has no business in a migration.
+            # Only installations that hand it the password get the grant - a cluster that manages
+            # the role itself leaves this unset.
+            - name: HUBTASK_DB_APP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "hubtask.secretName" . }}
+                  key: {{ .Values.migration.appPasswordSecretKey }}
+            {{- end }}
           resources: {{- toYaml .Values.migration.resources | nindent 12 }}
           securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           volumeMounts:

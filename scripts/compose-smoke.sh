@@ -18,6 +18,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 TAG="${1:?usage: compose-smoke.sh <image tag>}"
+# The engine. Podman is a supported runtime (docs/architecture/support-matrix.md) and it is the
+# same Compose file - which is exactly the claim worth checking, since "podman is compatible" is
+# true until it is not.
+COMPOSE="${HUBTASK_COMPOSE:-docker compose}"
 IMAGE="${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}"
 PROJECT="hubtask-smoke"
 # Ports of their own, so that the check does not collide with a development stack on 8080.
@@ -29,7 +33,7 @@ DEADLINE_SECONDS=300
 
 ENV_FILE="$(mktemp)"
 cleanup() {
-	docker compose --env-file "$ENV_FILE" -p "$PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
 	rm -f "$ENV_FILE"
 }
 trap cleanup EXIT
@@ -48,8 +52,8 @@ HUBTASK_OPS_PORT=$OPS_PORT
 ENV
 
 cd deploy/docker
-docker compose --env-file "$ENV_FILE" -p "$PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
-docker compose --env-file "$ENV_FILE" -p "$PROJECT" up -d
+$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
+$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" up -d
 
 started=$SECONDS
 ready=""
@@ -63,8 +67,8 @@ done
 
 if [ -z "$ready" ]; then
 	echo "FAILED: /readyz did not turn green within ${DEADLINE_SECONDS}s"
-	docker compose --env-file "$ENV_FILE" -p "$PROJECT" ps
-	docker compose --env-file "$ENV_FILE" -p "$PROJECT" logs --tail 50
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" ps
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs --tail 50
 	exit 1
 fi
 echo "ready after $((SECONDS - started))s"
@@ -91,20 +95,20 @@ for series in hubtask_build_info hubtask_job_queue_depth hubtask_panics_recovere
 done
 
 if [ "$failures" -ne 0 ]; then
-	docker compose --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 50
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 50
 	exit 1
 fi
 
 # The application's sessions run as the role row level security was built for - not as the owner,
 # not as anything that could step around the boundary (multi-tenancy.md §2.1, task A-11).
-contained="$(docker compose --env-file "$ENV_FILE" -p "$PROJECT" exec -T db \
+contained="$($COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" exec -T db \
 	psql -U hubtask -d hubtask -tA \
 	-c "SELECT rolcanlogin AND NOT rolsuper AND NOT rolbypassrls FROM pg_roles WHERE rolname='hubtask_app'")"
 if [ "$contained" != "t" ]; then
 	echo "FAILED: hubtask_app is missing, cannot log in, or can bypass row level security"
 	exit 1
 fi
-sessions="$(docker compose --env-file "$ENV_FILE" -p "$PROJECT" exec -T db \
+sessions="$($COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" exec -T db \
 	psql -U hubtask -d hubtask -tA \
 	-c "SELECT count(*) FROM pg_stat_activity WHERE usename='hubtask_app'")"
 if [ "${sessions:-0}" -lt 1 ]; then
