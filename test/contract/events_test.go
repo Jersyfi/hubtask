@@ -127,6 +127,112 @@ func TestTheEventOfAHubCarriesANullParent(t *testing.T) {
 	}
 }
 
+// itemCreated builds a work package: the middle level, so the event carries both a parent item and
+// a collection, which is the case the two identifiers exist for.
+func itemCreated(t *testing.T) event.Envelope {
+	t.Helper()
+
+	task := shared.MustParseID("0192f000-0000-7000-8000-000000000011")
+	item := work.WorkItem{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-000000000012"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemWorkPackage,
+		ParentID:     task,
+		Path:         "/" + task.String() + "/0192f000-0000-7000-8000-000000000012/",
+		Depth:        2,
+		Title:        "Order the cable",
+		Notes:        "Three metres, not two.",
+		OrderKey:     "a0",
+		CreatedBy:    shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt:    time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC),
+		Version:      1,
+	}
+
+	envelope, err := event.NewItemCreated(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e3"), item,
+		event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, item.CreatedAt, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+	return envelope
+}
+
+// The same criterion for the second aggregate: what the system publishes matches the schema it
+// publishes it under.
+func TestTheItemCreatedEventMatchesItsSchema(t *testing.T) {
+	spec := loadEventSchema(t, event.ItemCreated)
+
+	body, err := json.Marshal(eventbus.ToCloudEvent(itemCreated(t), "urn:hubtask:test"))
+	if err != nil {
+		t.Fatalf("rendering the event: %v", err)
+	}
+
+	problems, err := spec.validateAgainst("root", body)
+	if err != nil {
+		t.Fatalf("validating: %v", err)
+	}
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+}
+
+// A task sits directly under the collection, and the schema has to accept that as null - a
+// consumer that places items in a tree reads the field rather than inferring it from the type,
+// because inferring it breaks the day a level is configured above the task.
+func TestTheEventOfATaskCarriesANullParentAndNoNotes(t *testing.T) {
+	spec := loadEventSchema(t, event.ItemCreated)
+
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000013")
+	item := work.WorkItem{
+		ID:           id,
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemTask,
+		Path:         work.RootPath(id),
+		Depth:        1,
+		Title:        "Buy milk",
+		OrderKey:     "a0",
+		CreatedBy:    shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt:    time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC),
+		Version:      1,
+	}
+	envelope, err := event.NewItemCreated(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e4"), item,
+		event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, item.CreatedAt, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+	if err != nil {
+		t.Fatalf("rendering the event: %v", err)
+	}
+	if problems, _ := spec.validateAgainst("root", body); len(problems) > 0 {
+		t.Errorf("the event of a task does not match its schema: %v", problems)
+	}
+
+	var rendered map[string]any
+	if err := json.Unmarshal(body, &rendered); err != nil {
+		t.Fatalf("re-reading the event: %v", err)
+	}
+	data, _ := rendered["data"].(map[string]any)
+	if parent, present := data["parent_id"]; !present || parent != nil {
+		t.Errorf("parent_id is %v rather than null", data["parent_id"])
+	}
+	// An unset note is left out rather than sent as null, the way an unset description is: a
+	// consumer tolerates the absence, and the bytes are not spent saying nothing.
+	if _, present := data["notes"]; present {
+		t.Error("an unset note was sent anyway")
+	}
+	// Completion is the opposite case, and deliberately so: always present, so that a rule
+	// reading it needs no special case for the one event where it would be missing.
+	completion, present := data["completion"].(map[string]any)
+	if !present || completion["is_completed"] != false {
+		t.Errorf("completion = %v, want an open one", data["completion"])
+	}
+}
+
 // Every event the domain can emit has a schema, and every schema belongs to an event. A schema
 // without an event is a promise to a subscriber that nothing keeps; an event without a schema is
 // a contract nobody can write against.
