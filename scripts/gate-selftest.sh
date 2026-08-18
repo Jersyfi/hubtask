@@ -419,6 +419,43 @@ else
 fi
 mv "$RULES.selftest-backup" "$RULES"
 
+header "Support matrix (make gate-docs)"
+
+# The matrix is only worth anything if it cannot drift. Both directions are shown to bite: a row
+# claiming a job nobody wrote, and a matrix job no row claims.
+# The probe has to go into the matrix itself: the gate reads that one document, and a row in any
+# other file is correctly none of its business.
+CHECKS=$((CHECKS + 1))
+MATRIX="docs/architecture/support-matrix.md"
+cp "$MATRIX" "$MATRIX.selftest-backup"
+printf '\n| Probe | `supported` | `nightly.yml:matrix-nobody-wrote-this` |\n' >> "$MATRIX"
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a matrix row claiming a job nobody wrote"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "a matrix row claiming a job nobody wrote"
+fi
+mv "$MATRIX.selftest-backup" "$MATRIX"
+
+CHECKS=$((CHECKS + 1))
+WORKFLOW=".github/workflows/gate-selftest-probe.yml"
+cat > "$WORKFLOW" <<'PROBE'
+name: Selftest probe
+on: workflow_dispatch
+jobs:
+  matrix-unclaimed:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "a matrix job no row in the support matrix claims"
+PROBE
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a matrix job without a row"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "a matrix job without a row"
+fi
+rm -f "$WORKFLOW"
+
 header "Licences (make gate-licenses)"
 
 # The licence gate cannot be shown a GPL dependency without adding one, so it is shown the other

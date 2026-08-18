@@ -133,3 +133,18 @@ for that (open point CI-1).
 | CI-1 | Self-hosted runner for load tests | `0.6.0` |
 | CI-2 | Whether to enable the merge queue (worthwhile once several contributors work in parallel) | As needed |
 | CI-3 | Enforce image signature verification at deployment (Kyverno/Sigstore policy) | `0.9.0` |
+
+---
+
+## The support matrix
+
+The `matrix-*` jobs in `nightly.yml` are the evidence behind
+[support-matrix.md](./support-matrix.md): the full suite natively on arm64, the integration suite
+against every PostgreSQL major the table claims, the Compose stack under Podman, and the chart
+installed into a throwaway kind cluster. Their names are load-bearing — `make gate-docs`
+reconciles them with the table in both directions, so renaming a job without its row turns the
+build red, and deleting one does too.
+
+A failing nightly job files an issue with the `claude:task` label rather than staying a red run in
+a tab nobody opens; one issue per job, reopened rather than duplicated, so a platform that has been
+broken for a week is one thread instead of seven.

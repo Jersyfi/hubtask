@@ -22,6 +22,12 @@ uses `HUBTASK_VERSION` as a variable, so self-hosters can pin.
 
 ---
 
+Which runtimes, architectures and PostgreSQL majors are supported — and the CI job that proves
+each one — is [support-matrix.md](./support-matrix.md). It is enforced rather than described: a
+row without a job fails the build, and so does a matrix job without a row.
+
+---
+
 ## 2. Modes of operation
 
 ### 2.1 Self-hosting (Docker/Podman)

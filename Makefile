@@ -11,6 +11,9 @@ LDFLAGS     := -s -w \
 	-X main.commit=$(COMMIT) \
 	-X main.buildDate=$(BUILD_DATE)
 GO          ?= go
+# The container engine. Podman is a supported runtime and takes the same arguments; the matrix job
+# sets both this and HUBTASK_COMPOSE (docs/architecture/support-matrix.md).
+DOCKER      ?= docker
 TOOLS_DIR   := .tools
 IMAGE       ?= ghcr.io/jersyfi/hubtask
 
@@ -317,6 +320,12 @@ gate-observability:
 	@# that it runs in `make verify` without needing a downloaded tool (test/observability).
 	$(call go_test,,./test/observability/...,)
 
+## gate-kind: Install the chart into a real cluster (expects a kind cluster to exist)
+.PHONY: gate-kind
+gate-kind: docker-build
+	$(call require_tool,helm)
+	scripts/kind-smoke.sh $(VERSION)
+
 ## gate-docs: Check cross references and the ADR index
 .PHONY: gate-docs
 gate-docs:
@@ -345,7 +354,7 @@ migrate:
 ## docker-build: Build the container image
 .PHONY: docker-build
 docker-build:
-	docker build -t $(IMAGE):$(VERSION) \
+	$(DOCKER) build -t $(IMAGE):$(VERSION) \
 		--build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) \
 		-f deploy/docker/Dockerfile .
 

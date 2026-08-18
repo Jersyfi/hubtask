@@ -1,4 +1,8 @@
-# Long-running gates outside the PR path: fuzzing, load, chaos, restore.
+# Long-running gates outside the PR path: fuzzing, load, chaos, restore - and the support matrix.
+#
+# The `matrix-*` jobs are the evidence behind docs/architecture/support-matrix.md. Their names are
+# load-bearing: the documentation gate reconciles them with the table in both directions, so
+# renaming one without the row turns the build red, and so does deleting one.
 name: Nightly
 
 on:
@@ -40,6 +44,87 @@ jobs:
       - run: make gate-resilience
       - run: make gate-load
 
+  matrix-arm64:
+    name: Support matrix - the full suite on arm64
+    # Natively, not cross-compiled. The release image is multi-arch and until now nothing had ever
+    # *run* the tests on ARM - a claim of support that no job stood behind.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: "1.25"
+          cache: true
+      - run: make tools
+      - run: make verify
+      - run: make gate-integration
+      - run: make gate-compose
+
+  matrix-postgres:
+    name: Support matrix - PostgreSQL ${{ matrix.postgres }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # 16 is the supported floor and runs on every pull request; this job is what lets the
+        # table claim anything beyond it.
+        postgres: ["17-alpine"]
+    env:
+      HUBTASK_TEST_POSTGRES_IMAGE: postgres:${{ matrix.postgres }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: "1.25"
+          cache: true
+      - run: make tools
+      # The integration suite starts its own container, so the image variable is all it takes.
+      - run: make gate-integration
+      - run: make gate-resilience
+
+  matrix-podman:
+    name: Support matrix - the stack under Podman
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: "1.25"
+          cache: true
+      - name: Podman with its Compose implementation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman podman-compose
+          podman --version
+      # The same Compose file, the same script, a different engine. deployment.md promises
+      # "Docker/Podman"; this is what turns that from a sentence into a claim with evidence.
+      - name: The reference stack under Podman
+        env:
+          DOCKER: podman
+          HUBTASK_COMPOSE: podman-compose
+        run: make gate-compose
+
+  matrix-kind:
+    name: Support matrix - the chart on a real API server
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: "1.25"
+          cache: true
+      - run: make tools
+      # `helm template` renders; only an API server *validates*. Admission is where a field that
+      # does not exist, or a value of the wrong type, is finally noticed.
+      - uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
+        with:
+          cluster_name: hubtask
+      - run: make gate-kind
+
   vulnerabilities:
     name: Vulnerabilities in the published build
     runs-on: ubuntu-latest
@@ -66,3 +151,59 @@ jobs:
       - uses: github/codeql-action/upload-sarif@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3.37.7
         with:
           sarif_file: trivy.sarif
+
+  report:
+    name: File what broke
+    # A nightly failure that only exists as a red run in a tab nobody opens is a failure nobody
+    # fixes. This turns it into an issue - one per failing job, deduplicated across nights, with
+    # the label that lets the CI assistant open a pull request against it.
+    needs: [deep, matrix-arm64, matrix-postgres, matrix-podman, matrix-kind, vulnerabilities]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const failed = Object.entries(${{ toJSON(needs) }})
+              .filter(([, job]) => job.result === 'failure')
+              .map(([name]) => name);
+
+            for (const job of failed) {
+              const title = `Nightly: ${job} is failing`;
+              // One issue per job, reopened rather than duplicated: a platform that breaks for a
+              // week should be one thread, not seven.
+              const existing = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${context.repo.owner}/${context.repo.repo} is:issue in:title "${title}"`,
+              });
+              const body = [
+                `The nightly job \`${job}\` failed.`,
+                ``,
+                `* Run: ${run}`,
+                `* Commit: ${context.sha}`,
+                ``,
+                `If this is a \`matrix-*\` job, a row in \`docs/architecture/support-matrix.md\``,
+                `is currently claiming support that nothing proves. Either the defect gets fixed or`,
+                `the row changes - silently leaving it is the one outcome the matrix exists to`,
+                `prevent.`,
+              ].join('\n');
+
+              if (existing.data.total_count > 0) {
+                const issue = existing.data.items[0];
+                await github.rest.issues.createComment({
+                  ...context.repo, issue_number: issue.number, body,
+                });
+                if (issue.state === 'closed') {
+                  await github.rest.issues.update({
+                    ...context.repo, issue_number: issue.number, state: 'open',
+                  });
+                }
+              } else {
+                await github.rest.issues.create({
+                  ...context.repo, title, body, labels: ['task', 'claude:task'],
+                });
+              }
+            }

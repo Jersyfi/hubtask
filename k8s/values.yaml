@@ -75,6 +75,10 @@ migration:
   # role and give db-dsn the application role (hubtask_app, no BYPASSRLS) - migrations create
   # objects, the application must not be able to (multi-tenancy.md §2.1).
   dsnSecretKey: db-dsn
+  # The key holding the password for hubtask_app. Set it and the migrator grants that role its
+  # login after migrating, so the application never has to connect as the owner (A-11). Leave it
+  # empty where the cluster manages database roles itself.
+  appPasswordSecretKey: ""
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits:   { memory: 256Mi }
