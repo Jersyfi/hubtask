@@ -109,6 +109,7 @@
   "items.collection_archived": "That collection is archived. Unarchive it before adding anything to it.",
   "items.collection_trashed": "That collection is in the trash.",
   "items.collection_not_found": "That collection does not exist.",
+  "items.not_found": "That entry does not exist.",
   "items.profiles_incoherent": "This installation is misconfigured and could not create that entry.",
   "accounts.email_empty": "An invitation needs an email address.",
   "accounts.email_malformed": "{value} does not look like an email address.",
