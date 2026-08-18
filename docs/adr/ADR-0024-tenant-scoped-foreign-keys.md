@@ -1,6 +1,6 @@
 # ADR-0024 — Tenant-scoped foreign keys
 
-**Status:** proposed · **Date:** 2026-08-18
+**Status:** accepted · **Date:** 2026-08-18
 
 ## Context
 
