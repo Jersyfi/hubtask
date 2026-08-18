@@ -159,16 +159,15 @@ func TestAnItemIsInvisibleFromAnotherTenant(t *testing.T) {
 	}
 }
 
-// The cross-tenant negative test for Insert: the tenant comes from the transaction and not from
-// the object, so an item built for another tenant lands in the caller's own - it cannot be
-// smuggled across the boundary.
+// The cross-tenant negative test for Insert, and the measurement ADR-0024 turned around.
 //
-// What this deliberately does not claim is that the write fails. It does not: the collection is a
-// plain foreign key, and a foreign key is checked without regard to row level security, so a row
-// may be written that points at a collection its own tenant cannot see. The row is still tenant
-// B's and tenant A cannot read it, which is what the boundary guarantees - but the reference
-// dangles, and no adapter in this schema enforces otherwise. Enforcing it belongs to the schema
-// as a whole rather than to this one table.
+// Until the composite foreign keys landed, this write succeeded: a foreign key is checked by
+// triggers that run as the table owner, which row level security does not reach, so a row could be
+// written naming a collection its own tenant cannot see. The row was still tenant B's and tenant A
+// could not read it - but the reference dangled, and a cascade from tenant A's own deletion took
+// tenant B's row with it.
+//
+// Now the tenant is part of the key, so the reference cannot leave the tenant at all.
 func TestInsertCannotWriteAnItemIntoAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
@@ -176,23 +175,81 @@ func TestInsertCannotWriteAnItemIntoAnotherTenant(t *testing.T) {
 	smuggled := freshID(t)
 
 	// The object claims tenant A, the transaction belongs to tenant B.
-	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+	err := write(ctx, t, tenantB, func(ctx context.Context) error {
 		return repo.Insert(ctx, taskIn(tenantA, authorB, collection, smuggled, "Buy milk", "a0"))
-	}); err != nil {
-		t.Fatalf("writing the task: %v", err)
+	})
+	if err == nil {
+		t.Fatal("tenant B wrote an item naming tenant A's collection")
 	}
 
-	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := repo.Find(ctx, smuggled)
-		return err
-	}); !errors.Is(err, shared.ErrNotFound) {
-		t.Fatalf("the row landed in tenant A although the transaction was tenant B's: %v", err)
+	if rows := countIn(ctx, t, `SELECT count(*) FROM work_item WHERE id = $1`,
+		smuggled.String()); rows != 0 {
+		t.Errorf("%d rows were written anyway", rows)
 	}
-	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
-		_, err := repo.Find(ctx, smuggled)
-		return err
+}
+
+// The existence oracle ADR-0024 measured, closed.
+//
+// The refusal above must be indistinguishable from one naming an identifier that exists nowhere.
+// While the key was single-column the two differed - a foreign identifier succeeded where a
+// nonexistent one failed - and that difference answered "does this exist in this installation"
+// across the tenant boundary, which multi-tenancy.md §2 forbids.
+func TestAForeignReferenceIsIndistinguishableFromANonexistentOne(t *testing.T) {
+	ctx := context.Background()
+	foreign := collectionFor(ctx, t, tenantA, authorA)
+	repo := postgres.NewItemRepository()
+
+	nowhere := shared.MustParseID("01936f2a-7c1e-7000-8000-ffffffffff10")
+
+	errForeign := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.Insert(ctx, taskIn(tenantB, authorB, foreign, freshID(t), "Buy milk", "a0"))
+	})
+	errNowhere := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.Insert(ctx, taskIn(tenantB, authorB, nowhere, freshID(t), "Buy milk", "a0"))
+	})
+
+	if errForeign == nil || errNowhere == nil {
+		t.Fatalf("one of the two was accepted: foreign=%v nowhere=%v", errForeign, errNowhere)
+	}
+	// The same answer, to the letter. A caller comparing the two learns nothing about what exists
+	// outside its own tenant.
+	if errForeign.Error() != errNowhere.Error() {
+		t.Errorf("the two refusals differ:\n  foreign  = %v\n  nowhere  = %v", errForeign, errNowhere)
+	}
+}
+
+// The data-loss path ADR-0024 measured, contained: a cascade cannot cross the boundary, because a
+// reference that crosses it cannot exist. One tenant deleting its own container leaves every other
+// tenant's rows alone.
+func TestATenantsDeletionCannotReachAnotherTenantsItems(t *testing.T) {
+	ctx := context.Background()
+	collectionA := collectionFor(ctx, t, tenantA, authorA)
+	collectionB := collectionFor(ctx, t, tenantB, authorB)
+	repo := postgres.NewItemRepository()
+
+	own := freshID(t)
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, own, "Buy milk", "a0"))
 	}); err != nil {
-		t.Fatalf("the row is not in the tenant that wrote it: %v", err)
+		t.Fatalf("writing tenant B's task: %v", err)
+	}
+
+	// Tenant A hard-deletes its own collection. Nothing of tenant B's may move.
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`DELETE FROM container WHERE id = $1`, collectionA.String()); err != nil {
+		t.Fatalf("deleting tenant A's collection: %v", err)
+	}
+
+	if rows := countIn(ctx, t, `SELECT count(*) FROM work_item WHERE id = $1`, own.String()); rows != 1 {
+		t.Errorf("tenant B's item is gone after tenant A deleted its own collection")
+	}
+	// And the cascade still works inside a tenant, which is what it is for.
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`DELETE FROM container WHERE id = $1`, collectionB.String()); err != nil {
+		t.Fatalf("deleting tenant B's collection: %v", err)
+	}
+	if rows := countIn(ctx, t, `SELECT count(*) FROM work_item WHERE id = $1`, own.String()); rows != 0 {
+		t.Errorf("the cascade did not reach tenant B's own item")
 	}
 }
 

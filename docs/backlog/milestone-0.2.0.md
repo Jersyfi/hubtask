@@ -304,12 +304,53 @@ the matrix instead of standing alone.
 
 ---
 
+## B-16 — Tenant-scoped foreign keys **[L]**
+
+*Can run in parallel. Arose from B-03 and is decided by [ADR-0024](../adr/ADR-0024-tenant-scoped-foreign-keys.md).*
+
+ADR-0010 promises isolation "even in the presence of application bugs" and multi-tenancy.md calls
+row level security "the last, unbypassable boundary". For **references** that is not true:
+PostgreSQL checks referential integrity in triggers that run as the table owner, so a foreign key
+sees rows the querying tenant cannot. Measured against PostgreSQL 16.15 with the application role,
+a cross-tenant reference can be written; it then dangles from its own tenant's view; the outcome
+difference between a foreign identifier and a nonexistent one is an existence oracle across the
+boundary; and `ON DELETE CASCADE` lets one tenant's ordinary deletion destroy another tenant's
+rows. The last is a data-loss path, not a leak.
+
+None of it is reachable through the application today, because every use case resolves references
+through a repository under row level security first. This task closes the gap the promise already
+claims is closed:
+
+* 30 foreign keys between tables whose `tenant_id` is `NOT NULL` become composite, carrying the
+  tenant and pointing at `(tenant_id, id)`; 11 referenced tables gain that unique index. Three
+  need `ON DELETE SET NULL (column)`, because the naive form nulls `tenant_id` — and is accepted
+  when declared, failing only when it fires.
+* The six keys in the backup family stay single-column, and the ADR says why: `NULL` means
+  installation-wide there, so a composite key would both forbid a tenant using an
+  installation-wide target and, under `MATCH SIMPLE`, switch the check off for the rows that keep
+  a `NULL` tenant.
+* A gate walks `pg_constraint` and fails the build on a single-column foreign key between two
+  `NOT NULL` tenant tables, and on a composite one whose delete rule would null the tenant — the
+  same shape as the gate that proves row level security is active everywhere.
+* Migration forward-only and safe for a rolling update: indexes `CONCURRENTLY`, constraints added
+  `NOT VALID`, validated in a step of their own.
+
+**Acceptance:** the four measurements from the ADR are permanent tests and all four are refused or
+contained; `make verify` and `gate-integration` green; the gate turns red when a single-column
+foreign key is reintroduced; `db/schema.sql` reflects the same state.
+
+**Read:** ADR-0024, ADR-0010, `multi-tenancy.md` §2
+
+---
+
 ## The order at a glance
 
 ```
 B-01 ──────────────────────────────┬─ B-14
                                    │
 B-15 ──────────────────────────────┤
+                                   │
+B-16 ──────────────────────────────┤
                                    │
 B-02 ──────────────────────────────┤
                                    │
