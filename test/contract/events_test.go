@@ -281,3 +281,141 @@ func TestTheExtensionAttributesCarryTheChain(t *testing.T) {
 		t.Errorf("a person acting for themselves has a principal: %v", rendered["onbehalfof"])
 	}
 }
+
+// completedItem is a work package that has been completed: the middle level, so both identifiers the
+// payload carries are exercised, and a completion that is answered in full.
+func completedItem(t *testing.T) work.WorkItem {
+	t.Helper()
+
+	task := shared.MustParseID("0192f000-0000-7000-8000-000000000011")
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000012")
+	completedAt := time.Date(2026, 8, 18, 11, 0, 0, 0, time.UTC)
+
+	return work.WorkItem{
+		ID:           id,
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemWorkPackage,
+		ParentID:     task,
+		Path:         "/" + task.String() + "/" + id.String() + "/",
+		Depth:        2,
+		Title:        "Order the cable",
+		Completion: work.Completion{
+			IsCompleted: true,
+			CompletedAt: &completedAt,
+			CompletedBy: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		},
+		OrderKey:  "a0",
+		CreatedBy: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt: time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC),
+		UpdatedAt: completedAt,
+		Version:   2,
+	}
+}
+
+// What the system publishes matches the schema it publishes it under - for the two directions of
+// completion as much as for the create (B-07).
+func TestTheCompletionEventsMatchTheirSchemas(t *testing.T) {
+	done := completedItem(t)
+	reopened := done
+	reopened.Completion = work.Completion{}
+	reopened.Version = 3
+
+	cases := map[string]struct {
+		eventType event.Type
+		build     func() (event.Envelope, error)
+	}{
+		"completed": {event.ItemCompleted, func() (event.Envelope, error) {
+			return event.NewItemCompleted(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e4"), done,
+				event.Actor{Kind: shared.ActorUser, ID: done.Completion.CompletedBy},
+				done.UpdatedAt, event.Cause{})
+		}},
+		"reopened": {event.ItemReopened, func() (event.Envelope, error) {
+			return event.NewItemReopened(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e5"), reopened,
+				event.Actor{Kind: shared.ActorUser, ID: reopened.CreatedBy},
+				reopened.UpdatedAt, event.Cause{})
+		}},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			envelope, err := c.build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, c.eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// The schemas pin `is_completed` to one value each, which is what stops the two events being told apart
+// by a payload field rather than by their type. An event carrying the wrong state has to fail its schema.
+func TestACompletionEventCannotCarryTheOppositeState(t *testing.T) {
+	// Rendered by hand: the constructors refuse this, which is the point - the schema is the second
+	// line of defence, for anything that ever builds an event without going through them.
+	done := completedItem(t)
+	envelope, err := event.NewItemCompleted(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e6"), done,
+		event.Actor{Kind: shared.ActorUser, ID: done.Completion.CompletedBy}, done.UpdatedAt, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	rendered := eventbus.ToCloudEvent(envelope, "urn:hubtask:test")
+	body, err := json.Marshal(rendered)
+	if err != nil {
+		t.Fatalf("rendering: %v", err)
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(body, &raw); err != nil {
+		t.Fatalf("re-reading: %v", err)
+	}
+	data, _ := raw["data"].(map[string]any)
+	completion, _ := data["completion"].(map[string]any)
+	completion["is_completed"] = false
+
+	tampered, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatalf("re-rendering: %v", err)
+	}
+	problems, err := loadEventSchema(t, event.ItemCompleted).validateAgainst("root", tampered)
+	if err != nil {
+		t.Fatalf("validating: %v", err)
+	}
+	if len(problems) == 0 {
+		t.Error("a completed event claiming the item is open passed its own schema")
+	}
+}
+
+// The constructors refuse an event that would say the opposite of its own name. A defect in whatever
+// built it rather than something a client did, so it is an internal error.
+func TestACompletionEventRefusesAnInconsistentItem(t *testing.T) {
+	done := completedItem(t)
+	stillOpen := done
+	stillOpen.Completion = work.Completion{}
+
+	actor := event.Actor{Kind: shared.ActorUser, ID: done.CreatedBy}
+	id := shared.MustParseID("0192f000-0000-7000-8000-0000000000e7")
+
+	if _, err := event.NewItemCompleted(id, stillOpen, actor, done.UpdatedAt, event.Cause{}); err == nil {
+		t.Error("a completed event was built for an open item")
+	}
+	if _, err := event.NewItemReopened(id, done, actor, done.UpdatedAt, event.Cause{}); err == nil {
+		t.Error("a reopened event was built for a completed item")
+	}
+}

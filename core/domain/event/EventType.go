@@ -26,13 +26,26 @@ const (
 	// rather than on three event names, and a fifth level reaches it without a new subscription.
 	// Consumers: automation, search, SSE.
 	ItemCreated Type = "de.hubtask.work.item.created.v1"
+	// ItemCompleted announces that an item is done. Consumers: automation (the commonest trigger there
+	// is), the roll-up itself, ON_COMPLETION recurrence, search, SSE.
+	//
+	// Announced for a roll-up as much as for a person's click, and a consumer cannot tell the two apart
+	// from the type - it reads the causation chain for that. The alternative, a separate event for an
+	// automatic completion, would make every rule that reacts to "done" subscribe to two names and
+	// forget one.
+	ItemCompleted Type = "de.hubtask.work.item.completed.v1"
+	// ItemReopened announces that a completed item is open again. Its own type rather than a field on
+	// the completed event: a rule that reacts to work being finished must not fire when work is
+	// unfinished, and a subscriber filtering on a payload field to avoid that is a subscriber that will
+	// eventually not.
+	ItemReopened Type = "de.hubtask.work.item.reopened.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
 // event schemas under api/events/ are reconciled against it by the contract test, so an event
 // without a schema, or a schema without an event, is a red build rather than a discovery made by
 // a subscriber.
-var types = [...]Type{ContainerCreated, ItemCreated}
+var types = [...]Type{ContainerCreated, ItemCreated, ItemCompleted, ItemReopened}
 
 // Types returns every defined event type.
 func Types() []Type { return types[:] }
