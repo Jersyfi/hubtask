@@ -72,3 +72,58 @@ type Membership struct {
 	Scope     Scope
 	Role      Role
 }
+
+// Grant is a membership as it is stored: a role at a scope, held by an account or by a group.
+//
+// Membership is what the resolution reads and deliberately drops the distinction - a right held
+// through a group is not a lesser right. Grant is what an administrator writes, where the
+// distinction is the whole point: revoking a person's own membership must not silently take away
+// what their team gives them.
+type Grant struct {
+	ID       shared.ID
+	TenantID shared.ID
+	// Exactly one of AccountID and GroupID is set. Both or neither is a programming error, and
+	// NewGrant refuses it rather than leaving the database to.
+	AccountID shared.ID
+	GroupID   shared.ID
+	Scope     Scope
+	Role      Role
+}
+
+// NewGrant checks what the database constrains, before the database has to.
+func NewGrant(id, tenantID, accountID, groupID shared.ID, scope Scope, role Role) (Grant, error) {
+	switch {
+	case id.IsZero() || tenantID.IsZero():
+		return Grant{}, shared.ErrInternal.WithDetail("memberships.identity_incomplete")
+	case accountID.IsZero() == groupID.IsZero():
+		// Neither is a grant that applies to nobody; both is a grant with two subjects and no
+		// answer to whose it is when one of them is removed.
+		return Grant{}, shared.ErrValidation.WithDetail("memberships.subject_ambiguous")
+	case !role.Valid():
+		return Grant{}, shared.ErrValidation.
+			WithDetail("memberships.role_unknown").
+			WithParams(map[string]string{"value": string(role)})
+	case !scope.Valid():
+		return Grant{}, shared.ErrValidation.
+			WithDetail("memberships.scope_invalid").
+			WithParams(map[string]string{"value": string(scope.Type)})
+	}
+	return Grant{
+		ID: id, TenantID: tenantID, AccountID: accountID, GroupID: groupID,
+		Scope: scope, Role: role,
+	}, nil
+}
+
+// Valid reports whether the scope is one the model defines, and whether it carries the identifier
+// that level needs. The tenant scope has none - there is one tenant per unit of work - and every
+// other level names the container or item it applies to.
+func (s Scope) Valid() bool {
+	switch s.Type {
+	case ScopeTenant:
+		return s.ID.IsZero()
+	case ScopeHub, ScopeCollection, ScopeItem:
+		return !s.ID.IsZero()
+	default:
+		return false
+	}
+}
