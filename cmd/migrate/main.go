@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	// The pgx driver in its database/sql form: goose speaks database/sql, and a second driver for
@@ -99,12 +100,83 @@ func run(args []string) error {
 
 	switch command {
 	case "up":
-		return up(ctx, pool)
+		if err := up(ctx, pool); err != nil {
+			return err
+		}
+		return grantAppLogin(ctx, pool)
 	case "status":
 		return status(ctx, pool)
 	default:
 		return fmt.Errorf("unknown command %q: up or status", command)
 	}
+}
+
+// grantAppLogin gives hubtask_app its login, when the operator hands this process the password.
+//
+// The migration creates the role without one, because a credential has no business being in a
+// migration (db/migrations/0001_init.sql) - but without a login the application cannot connect as
+// the role row level security was built for, and a reference stack that quietly connected as the
+// owner instead is exactly what task A-11 exists to end. The migrator is the natural operator: it
+// already runs before the application, once per start, as a role that may ALTER ROLE.
+//
+// Nothing is assembled from strings (rule 9). ALTER ROLE takes no bind parameters, so the
+// password travels as a parameterised server-side setting and format(%L) quotes it inside the
+// server. Both statements run on one connection, because a setting lives in its session.
+func grantAppLogin(ctx context.Context, pool *sql.DB) error {
+	password, err := appPassword()
+	if err != nil {
+		return err
+	}
+	if password == "" {
+		// Not configured. Kubernetes installations manage the role themselves; only the
+		// installations that hand the migrator the password get the grant.
+		return nil
+	}
+
+	conn, err := pool.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("connection for the grant: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	if _, err := conn.ExecContext(ctx,
+		`SELECT set_config('hubtask.app_password', $1, false)`, password); err != nil {
+		return errors.New("staging the application password failed")
+	}
+	if _, err := conn.ExecContext(ctx, `
+		DO $grant$ BEGIN
+			EXECUTE format('ALTER ROLE hubtask_app WITH LOGIN PASSWORD %L',
+				current_setting('hubtask.app_password'));
+		END $grant$`); err != nil {
+		// Deliberately without the driver's message: it can echo the statement, and the
+		// statement now carries a credential (T-18).
+		return errors.New("granting the application role its login failed")
+	}
+	// The connection goes back to a pool; the setting must not linger there.
+	if _, err := conn.ExecContext(ctx,
+		`SELECT set_config('hubtask.app_password', '', false)`); err != nil {
+		return errors.New("clearing the staged password failed")
+	}
+
+	slog.Info("application role login granted", slog.String("role", "hubtask_app"))
+	return nil
+}
+
+// appPassword reads the optional grant password, with the same file convention as every other
+// secret, so Docker and Kubernetes secrets work without the detour through an environment
+// variable.
+func appPassword() (string, error) {
+	if password := os.Getenv("HUBTASK_DB_APP_PASSWORD"); password != "" {
+		return password, nil
+	}
+	if path := os.Getenv("HUBTASK_DB_APP_PASSWORD_FILE"); path != "" {
+		content, err := os.ReadFile(path) //nolint:gosec // G304: the path is configuration, and reading it is the point
+		if err != nil {
+			return "", errors.New("HUBTASK_DB_APP_PASSWORD_FILE points to a file that cannot be read")
+		}
+		return strings.TrimSpace(string(content)), nil
+	}
+	return "", nil
 }
 
 func up(ctx context.Context, pool *sql.DB) error {

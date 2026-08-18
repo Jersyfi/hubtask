@@ -38,6 +38,12 @@ The chart refuses to render without `existingSecret`. That is deliberate: a secr
 value ends up in the release history, in whatever repository the values file lives in, and in the
 output of `helm get values`.
 
+`db-dsn` should carry the **application role** — `hubtask_app`, which the migration creates
+without `SUPERUSER` or `BYPASSRLS`, so that row level security is the last boundary
+(multi-tenancy.md §2.1). Give the migration an owner DSN under a second key and name it in
+`migration.dsnSecretKey`; the migrator can also grant `hubtask_app` its login itself when it is
+handed `HUBTASK_DB_APP_PASSWORD`.
+
 ## Principles that must not be watered down in the templates
 
 * `/healthz` is the liveness probe and checks **no** dependencies — otherwise a database outage

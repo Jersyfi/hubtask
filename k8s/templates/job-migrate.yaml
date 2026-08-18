@@ -38,11 +38,15 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/usr/local/bin/hubtask-migrate", "up"]
           env:
+            # The migration's DSN may be a different key from the application's: migrations run
+            # as the owner, the application as hubtask_app, and the two must not be the same role
+            # (multi-tenancy.md §2.1). The default keeps both on db-dsn for installations that
+            # have not made the split yet.
             - name: HUBTASK_DB_DSN
               valueFrom:
                 secretKeyRef:
                   name: {{ include "hubtask.secretName" . }}
-                  key: db-dsn
+                  key: {{ .Values.migration.dsnSecretKey }}
           resources: {{- toYaml .Values.migration.resources | nindent 12 }}
           securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           volumeMounts:

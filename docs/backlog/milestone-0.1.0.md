@@ -178,6 +178,31 @@ rejects a GPL dependency; `make gate-docs` green.
 
 ---
 
+## A-11 — Self-hosting connects as the application role **[G]**
+
+*Follow-up: found while checking A-09's acceptance. Security-critical.*
+
+The Compose reference connects the application as the database owner, so row level security never
+applies in a self-hosted installation — a forgotten tenant condition reads another tenant's rows
+instead of returning nothing. The migration deliberately creates `hubtask_app` without a login
+(a credential has no business in a migration); somebody has to be the operator who grants it, and
+in the reference stack that somebody is the migrator, which already runs before the application
+as a role that may `ALTER ROLE`.
+
+Give `hubtask-migrate` the grant step (password via `HUBTASK_DB_APP_PASSWORD`, `_FILE` variant
+included, no SQL assembled from strings), point the app service's DSN at `hubtask_app`, and let
+the smoke test prove the boundary: the connected role has neither `SUPERUSER` nor `BYPASSRLS`.
+The Helm chart gets a separate secret key for the migration DSN, so Kubernetes can make the same
+split.
+
+**Acceptance:** `scripts/compose-smoke.sh` verifies the application's sessions run as
+`hubtask_app` and that the role cannot bypass RLS; the shipped migrator grants the login
+idempotently; `helm template` renders the migration job with its own DSN key.
+
+**Read:** `multi-tenancy.md` §2.1, ADR-0010, `security.md` §6
+
+---
+
 ## The order at a glance
 
 ```
