@@ -1552,6 +1552,12 @@ type ContainerCreate struct {
 	Type        ContainerType       `json:"type"`
 }
 
+// ContainerPage defines model for ContainerPage.
+type ContainerPage struct {
+	Data []Container `json:"data"`
+	Page PageInfo    `json:"page"`
+}
+
 // ContainerType defines model for ContainerType.
 type ContainerType string
 
@@ -1803,8 +1809,10 @@ type MoveResultDroppedReferencesKind string
 
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
-	HasMore    *bool   `json:"has_more,omitempty"`
-	NextCursor *string `json:"next_cursor,omitempty"`
+	HasMore bool `json:"has_more"`
+
+	// NextCursor The cursor for the next page, null on the last one. Opaque and signed: it is produced by the server and is neither to be constructed nor parsed by a client.
+	NextCursor *string `json:"next_cursor"`
 }
 
 // Problem defines model for Problem.
@@ -2091,6 +2099,12 @@ type WorkItemCreate struct {
 
 	// Type Extensible; /meta/capabilities returns the valid values.
 	Type ItemType `json:"type"`
+}
+
+// WorkItemPage defines model for WorkItemPage.
+type WorkItemPage struct {
+	Data []WorkItem `json:"data"`
+	Page PageInfo   `json:"page"`
 }
 
 // WorkItemUpdate JSON Merge Patch; null deletes a field.

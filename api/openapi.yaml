@@ -615,15 +615,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [data, page]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Container"
-                  page:
-                    $ref: "#/components/schemas/PageInfo"
+                $ref: "#/components/schemas/ContainerPage"
         "4XX":
           $ref: "#/components/responses/Problem"
     post:
@@ -720,15 +712,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [data, page]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/WorkItem"
-                  page:
-                    $ref: "#/components/schemas/PageInfo"
+                $ref: "#/components/schemas/WorkItemPage"
         "4XX":
           $ref: "#/components/responses/Problem"
     post:
@@ -1162,9 +1146,36 @@ components:
 
     PageInfo:
       type: object
+      required: [next_cursor, has_more]
       properties:
-        next_cursor: { type: [string, "null"] }
+        next_cursor:
+          type: [string, "null"]
+          description: >
+            The cursor for the next page, null on the last one. Opaque and signed: it is produced by
+            the server and is neither to be constructed nor parsed by a client.
         has_more: { type: boolean }
+
+    ContainerPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Container"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    WorkItemPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkItem"
+        page:
+          $ref: "#/components/schemas/PageInfo"
 
     ContainerType:
       type: string

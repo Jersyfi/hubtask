@@ -91,6 +91,7 @@ func (pending) StartBackup(w http.ResponseWriter, r *http.Request) { notAvailabl
 
 func (pending) VerifyBackup(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
 
+// ListContainers is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ListContainers(w http.ResponseWriter, r *http.Request, _ openapi.ListContainersParams) {
 	notAvailable(w, r)
 }
@@ -106,6 +107,7 @@ func (pending) TrashContainer(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// GetContainer is overridden by RestController, for the reason given at CreateContainer.
 func (pending) GetContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
 	notAvailable(w, r)
 }
@@ -131,6 +133,7 @@ func (pending) CreateWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// ListWorkItems is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ListWorkItems(w http.ResponseWriter, r *http.Request, _ openapi.ListWorkItemsParams) {
 	notAvailable(w, r)
 }
@@ -139,6 +142,7 @@ func (pending) TrashWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.I
 	notAvailable(w, r)
 }
 
+// GetWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) GetWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.GetWorkItemParams) {
 	notAvailable(w, r)
 }
