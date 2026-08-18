@@ -4,7 +4,7 @@ A record of every data category the system processes, with its purpose, classifi
 locations, retention, and deletion path. The basis for the record of processing activities
 (GDPR Art. 30) that every operator keeps for themselves.
 
-* **Version:** 0.1.0 · **As of:** 2026-08-18 · **Maintenance:** by pull request, so changes are traceable
+* **Version:** 0.2.0 · **As of:** 2026-08-18 · **Maintenance:** by pull request, so changes are traceable
 * **Concept:** [../architecture/data-protection.md](../architecture/data-protection.md)
 * **Consistency check:** gate PG-7 compares this record against the database schema; a table with personal content that is missing here fails the build.
 
@@ -41,7 +41,9 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Last token use (time, truncated IP) | `access_token` | `PERSONAL_TECHNICAL` | Abuse detection | Legitimate interest | 90 days | `RETENTION` |
 | Sessions (refresh family, device characteristics, truncated IP) | `session` | `PERSONAL_TECHNICAL` | Session management, security | Legitimate interest | 30 days after expiry | `RETENTION` |
 | Failed sign-ins, lockout counters | `login_attempt` | `PERSONAL_TECHNICAL` | Brute force protection | Legitimate interest | 30 days | `RETENTION` |
-| Invitations (email, creator, status) | `invitation` | `PERSONAL_BASIC` | Onboarding | Contract | 30 days after completion | `RETENTION` |
+| Invitations (address, status) | `account` (status `INVITED`) | `PERSONAL_BASIC` | Onboarding | Contract | With the account; an invitation never accepted is an account never used | `CASCADE` |
+| Who invited whom, and when | `audit_log` | `PERSONAL_TECHNICAL` | Evidence of how somebody got access | Legitimate interest | The audit period | `IMMUTABLE` |
+| Queued invitation message (identifiers only) | `job` | `PERSONAL_TECHNICAL` (references) | Delivering the invitation | Contract | 7 days after completion | `RETENTION` |
 | Workspace (name, slug, locale, settings) | `tenant` | `NON_PERSONAL` | The boundary everything else sits in | Contract | The lifetime of the workspace | `CASCADE` (everything below it) |
 | Group (name, description) | `account_group` | `NON_PERSONAL` | Permissions in bulk | Contract | The lifetime of the group | `CASCADE` |
 | Consent (purpose, granted, revoked, source) | `consent_record` | `PERSONAL_BASIC` | Evidence of a consent given or withdrawn | Consent (Art. 7(1) as evidence) | 3 years after withdrawal | `RETENTION` |
@@ -145,6 +147,11 @@ individually switchable, and enumerated here in full:
 2. A new outbound connection → an entry in §6 and verification through gate PG-6.
 3. A change of period → an entry here and in the `retention_policy` defaults.
 4. Gate PG-7 compares the schema and the catalogue automatically; PG-2 verifies the deletion paths in practice.
-5. A partition is not a data category. `audit_log_2026_08` and the other partitions of `audit_log`
+5. An invitation is an account, not a separate record. There is no `invitation` table: the account
+   exists in `INVITED` status from the moment somebody is invited, so a permission can be granted
+   to it before the person signs in, and nothing they were given works until they do. A row with a
+   redemption token arrives with the sign-in flow (`0.6.0`), because a token nobody can redeem is a
+   credential lying around for months.
+6. A partition is not a data category. `audit_log_2026_08` and the other partitions of `audit_log`
    and `change_log` are recorded through their parent table, and a gate reconciling the schema
    against this document has to resolve them to it rather than demand a row of their own.
