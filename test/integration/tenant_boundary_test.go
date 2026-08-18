@@ -497,9 +497,64 @@ func unscopedReferences(ctx context.Context, t *testing.T) (findings []string, c
 // it before a delete does (ADR-0024).
 func TestNoDeleteRuleWouldNullTheTenant(t *testing.T) {
 	ctx := context.Background()
+
+	findings, checked := tenantNullingDeleteRules(ctx, t)
+	for _, finding := range findings {
+		t.Error(finding)
+	}
+	if checked == 0 {
+		t.Error("no composite SET NULL reference found at all - the query is not seeing the schema")
+	}
+}
+
+// The same second half this gate's neighbour has: proof that it fails when the rule is broken.
+// Without it the check above is a query nobody has watched answer "yes" - and this is the one trap
+// PostgreSQL accepts at declaration time, so a gate that is quietly disconnected would be found by
+// a delete in production rather than here (ADR-0024).
+func TestTheDeleteRuleGateCatchesAMissingColumnList(t *testing.T) {
+	ctx := context.Background()
 	admin := adminPool(ctx, t)
 
-	rows, err := admin.Query(ctx, `
+	// Composite and tenant-first, so the neighbouring gate has nothing to say about it - what is
+	// wrong is only the delete rule, which nulls the whole key including the tenant.
+	if _, err := admin.Exec(ctx, `
+		CREATE TABLE selftest_delete_rule (
+		  id uuid PRIMARY KEY,
+		  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+		  collection_id uuid,
+		  FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id)
+		    ON DELETE SET NULL)`); err != nil {
+		t.Fatalf("building the deliberate violation: %v", err)
+	}
+	defer func() {
+		if _, err := admin.Exec(ctx, `DROP TABLE IF EXISTS selftest_delete_rule`); err != nil {
+			t.Fatalf("removing the deliberate violation: %v", err)
+		}
+	}()
+
+	findings, _ := tenantNullingDeleteRules(ctx, t)
+
+	var caught bool
+	for _, finding := range findings {
+		if strings.Contains(finding, "selftest_delete_rule") {
+			caught = true
+		}
+	}
+	if !caught {
+		t.Errorf("the gate did not report a delete rule it was shown: %v", findings)
+	}
+	if len(findings) != 1 {
+		t.Errorf("the gate reported %d findings, want only the deliberate one: %v",
+			len(findings), findings)
+	}
+}
+
+// tenantNullingDeleteRules returns one finding per composite reference whose delete rule would null
+// the tenant, and how many delete rules it judged.
+func tenantNullingDeleteRules(ctx context.Context, t *testing.T) (findings []string, checked int) {
+	t.Helper()
+
+	rows, err := adminPool(ctx, t).Query(ctx, `
 		SELECT con.conname, src.relname,
 		       (SELECT count(*) FROM unnest(con.confdelsetcols) AS c) AS set_columns
 		FROM pg_constraint con
@@ -515,26 +570,24 @@ func TestNoDeleteRuleWouldNullTheTenant(t *testing.T) {
 	}
 	defer rows.Close()
 
-	found := 0
 	for rows.Next() {
 		var name, table string
 		var setColumns int
 		if err := rows.Scan(&name, &table, &setColumns); err != nil {
 			t.Fatalf("scan: %v", err)
 		}
-		found++
+		checked++
 		// No column list means "null the whole key", and the whole key includes the tenant.
 		if setColumns == 0 {
-			t.Errorf("%s on %s is ON DELETE SET NULL without a column list: the delete would null "+
-				"tenant_id and fail at run time (ADR-0024)", name, table)
+			findings = append(findings, fmt.Sprintf(
+				"%s on %s is ON DELETE SET NULL without a column list: the delete would null "+
+					"tenant_id and fail at run time (ADR-0024)", name, table))
 		}
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatalf("rows: %v", err)
 	}
-	if found == 0 {
-		t.Error("no composite SET NULL reference found at all - the query is not seeing the schema")
-	}
+	return findings, checked
 }
 
 // The tables whose tenant is nullable are outside the rule, and that has to stay a decision rather
