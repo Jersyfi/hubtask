@@ -274,6 +274,10 @@ CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
 CREATE INDEX wi_assignee_idx ON work_item (tenant_id, assignee_id, is_completed, due_at)
   WHERE deleted_at IS NULL;
 CREATE INDEX wi_parent_idx   ON work_item (tenant_id, parent_id, order_key);
+-- The plain item list of GET /items: one level of one collection, in its manual order. `id` last,
+-- because the cursor is a keyset over (order_key, id) (B-04, api-guidelines.md §4).
+CREATE INDEX wi_level_order_idx ON work_item (tenant_id, collection_id, parent_id, order_key, id)
+  WHERE deleted_at IS NULL;
 CREATE INDEX wi_path_idx     ON work_item (tenant_id, path text_pattern_ops);
 CREATE INDEX wi_search_idx   ON work_item USING gin (search_vector);
 CREATE INDEX wi_custom_idx   ON work_item USING gin (custom_fields jsonb_path_ops);
