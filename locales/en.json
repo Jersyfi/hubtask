@@ -89,6 +89,7 @@
   "containers.parent_archived": "That hub is archived. Unarchive it before adding anything to it.",
   "containers.parent_trashed": "That hub is in the trash.",
   "containers.identity_incomplete": "This installation is misconfigured and could not create that entry.",
+  "containers.trash_batch_missing": "This installation is misconfigured and could not delete that hub or collection.",
   "containers.completion_policy_unknown": "{value} is not a completion policy this installation knows.",
   "containers.field_malformed": "The {field} has to fit on one line.",
   "containers.archived": "That hub or collection is archived. Unarchive it before changing anything in it.",
@@ -140,6 +141,7 @@
   "items.before_item_not_in_level": "That entry is not in the list this one is being moved into.",
   "items.bucket_not_at_top_level": "Only entries directly in a collection sit on its board.",
   "items.profiles_incoherent": "This installation is misconfigured and could not create that entry.",
+  "items.trash_batch_missing": "This installation is misconfigured and could not delete that entry.",
 
   "buckets.name_empty": "A bucket needs a name.",
   "buckets.name_too_long": "The name may be at most {maximum} characters long.",
