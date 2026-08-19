@@ -17,8 +17,10 @@ import (
 // in the application layer, once, whichever channel the call came through (ADR-0005, arc42 §4).
 
 const (
-	createBucketUseCase = "CreateBucket"
-	listBucketsUseCase  = "ListBuckets"
+	createBucketUseCase  = "CreateBucket"
+	listBucketsUseCase   = "ListBuckets"
+	updateBucketUseCase  = "UpdateBucket"
+	reorderBucketUseCase = "ReorderBucket"
 )
 
 // CreateBucket answers POST /containers/{containerId}/buckets.
@@ -111,4 +113,109 @@ func bucketResponse(out usecase.Output) openapi.Bucket {
 		bucket.ColorToken = &token
 	}
 	return bucket
+}
+
+// UpdateBucket answers PATCH /containers/{containerId}/buckets/{bucketId}.
+//
+// The collection in the path is not passed on. The column already knows which board it is on, and a
+// path segment that could disagree with the row would be a second answer to a question that has one
+// - the route names it so that a client can address a column without holding a flat identifier
+// space in its head.
+func (c *RestController) UpdateBucket(
+	w http.ResponseWriter, r *http.Request,
+	_ openapi.ContainerId, bucketID openapi.BucketId, _ openapi.UpdateBucketParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	actor, _ := appshared.ActorFrom(r.Context())
+
+	var body openapi.BucketUpdate
+	present, err := decodeJSONWithPresence(r, &body)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	in := usecase.Input{"bucket_id": bucketID.String()}
+	// Only the fields the client sent. A merge patch says "leave it alone" by omission, and a
+	// handler that passed every field would clear the colour of every client that only meant to
+	// rename something.
+	if present["name"] && body.Name != nil {
+		in["name"] = *body.Name
+	}
+	if present["color_token"] {
+		in["color_token"] = optionalStringField(body.ColorToken)
+	}
+	if present["wip_limit"] {
+		// Null and 0 are the same instruction - remove the limit - because zero is not a limit
+		// anybody could satisfy. Reading them as one saves the layers below a second flag beside
+		// the number.
+		limit := 0
+		if body.WipLimit != nil {
+			limit = *body.WipLimit
+		}
+		in["wip_limit"] = limit
+	}
+	if present["is_done_bucket"] && body.IsDoneBucket != nil {
+		in["is_done_bucket"] = *body.IsDoneBucket
+	}
+	if version, ok := versionFromIfMatch(ifMatchOf(r)); ok {
+		in["expected_version"] = version
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), updateBucketUseCase, actor, in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	bucket := bucketResponse(out)
+	w.Header().Set("ETag", etag(bucket.Version))
+	writeJSON(w, r, http.StatusOK, bucket)
+}
+
+// ReorderBucket answers POST /containers/{containerId}/buckets/{bucketId}:reorder.
+func (c *RestController) ReorderBucket(
+	w http.ResponseWriter, r *http.Request,
+	_ openapi.ContainerId, bucketID openapi.BucketId, _ openapi.ReorderBucketParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	actor, _ := appshared.ActorFrom(r.Context())
+
+	in := usecase.Input{"bucket_id": bucketID.String()}
+
+	// The body is optional: no body at all means "move it to the right hand end", which is a
+	// position like any other.
+	if r.ContentLength > 0 {
+		var body openapi.ReorderBucketJSONBody
+		if err := decodeJSON(r, &body); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		if body.BeforeBucketId != nil {
+			in["before_bucket_id"] = body.BeforeBucketId.String()
+		}
+	}
+	if version, ok := versionFromIfMatch(ifMatchOf(r)); ok {
+		in["expected_version"] = version
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), reorderBucketUseCase, actor, in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	bucket := bucketResponse(out)
+	w.Header().Set("ETag", etag(bucket.Version))
+	writeJSON(w, r, http.StatusOK, bucket)
 }

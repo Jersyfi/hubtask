@@ -262,9 +262,15 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
-	// The bucket use cases share their dependencies with each other rather than with the container
-	// writer: a bucket is its own row with its own version and its own uniqueness, and the
-	// collection it belongs to is a foreign key rather than an aggregate boundary.
+	// Every verb that changes an existing column shares one dependency set: they read the same
+	// bucket, ask the same permission question of the same collection, and owe the same four writes
+	// (work.BucketWriter).
+	bucketWriter := work.BucketWriter{
+		Buckets: buckets, Containers: containers, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -352,6 +358,8 @@ func run() error {
 		work.ListBuckets{
 			Buckets: buckets, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.UpdateBucket{Writer: bucketWriter}.Descriptor(),
+		work.ReorderBucket{Writer: bucketWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),

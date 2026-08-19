@@ -1476,6 +1476,16 @@ type BucketCreate struct {
 	WipLimit       *int                `json:"wip_limit,omitempty"`
 }
 
+// BucketUpdate JSON Merge Patch; null deletes a field.
+type BucketUpdate struct {
+	ColorToken   *string `json:"color_token,omitempty"`
+	IsDoneBucket *bool   `json:"is_done_bucket,omitempty"`
+	Name         *string `json:"name,omitempty"`
+
+	// WipLimit Null and 0 both remove the limit. Zero is not a limit anybody could satisfy, so nothing is lost by reading it that way, and it saves a client from a second field beside the number.
+	WipLimit *int `json:"wip_limit,omitempty"`
+}
+
 // BulkOperation defines model for BulkOperation.
 type BulkOperation struct {
 	ItemId  *openapi_types.UUID     `json:"item_id,omitempty"`
@@ -2169,6 +2179,9 @@ type WorkItemUpdate struct {
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID
 
+// BucketId defines model for BucketId.
+type BucketId = openapi_types.UUID
+
 // CollectionId defines model for CollectionId.
 type CollectionId = openapi_types.UUID
 
@@ -2264,6 +2277,24 @@ type TrashContainerParams struct {
 
 // RenameContainerParams defines parameters for RenameContainer.
 type RenameContainerParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateBucketParams defines parameters for UpdateBucket.
+type UpdateBucketParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ReorderBucketJSONBody defines parameters for ReorderBucket.
+type ReorderBucketJSONBody struct {
+	// BeforeBucketId The column this one goes to the left of. Absent is the right hand end.
+	BeforeBucketId *openapi_types.UUID `json:"before_bucket_id,omitempty"`
+}
+
+// ReorderBucketParams defines parameters for ReorderBucket.
+type ReorderBucketParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -2456,6 +2487,12 @@ type RenameContainerApplicationMergePatchPlusJSONRequestBody = ContainerUpdate
 // CreateBucketJSONRequestBody defines body for CreateBucket for application/json ContentType.
 type CreateBucketJSONRequestBody = BucketCreate
 
+// UpdateBucketApplicationMergePatchPlusJSONRequestBody defines body for UpdateBucket for application/merge-patch+json ContentType.
+type UpdateBucketApplicationMergePatchPlusJSONRequestBody = BucketUpdate
+
+// ReorderBucketJSONRequestBody defines body for ReorderBucket for application/json ContentType.
+type ReorderBucketJSONRequestBody ReorderBucketJSONBody
+
 // UpdateContainerPoliciesJSONRequestBody defines body for UpdateContainerPolicies for application/json ContentType.
 type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 
@@ -2563,6 +2600,12 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}/buckets)
 	CreateBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+
+	// (PATCH /containers/{containerId}/buckets/{bucketId})
+	UpdateBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params UpdateBucketParams)
+
+	// (POST /containers/{containerId}/buckets/{bucketId}:reorder)
+	ReorderBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params ReorderBucketParams)
 
 	// (GET /containers/{containerId}/labels)
 	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId)
@@ -3323,6 +3366,124 @@ func (siw *ServerInterfaceWrapper) CreateBucket(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateBucket(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateBucket operation middleware
+func (siw *ServerInterfaceWrapper) UpdateBucket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "bucketId" -------------
+	var bucketId BucketId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketId", r.PathValue("bucketId"), &bucketId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateBucketParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateBucket(w, r, containerId, bucketId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReorderBucket operation middleware
+func (siw *ServerInterfaceWrapper) ReorderBucket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "bucketId" -------------
+	var bucketId BucketId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketId", r.PathValue("bucketId"), &bucketId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReorderBucketParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReorderBucket(w, r, containerId, bucketId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4712,6 +4873,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.AddComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.ListBuckets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.CreateBucket)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}", wrapper.UpdateBucket)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}:reorder", wrapper.ReorderBucket)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.ListLabels)
 
 	return m

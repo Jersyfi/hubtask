@@ -150,6 +150,9 @@
   "buckets.deleted": "That bucket has been deleted.",
   "buckets.not_found": "That bucket does not exist.",
   "buckets.before_bucket_not_on_board": "That bucket is not on the board this one is being added to.",
+  "buckets.before_bucket_is_self": "A bucket cannot be moved in front of itself.",
+  "buckets.bucket_id_required": "Say which bucket to change.",
+  "buckets.update_empty": "Say what to change about that bucket.",
   "buckets.name_taken": "A bucket called {name} already exists in this collection.",
   "buckets.version_conflict": "Someone else changed that bucket in the meantime. Read it again and reapply.",
 

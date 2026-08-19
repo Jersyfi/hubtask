@@ -64,3 +64,43 @@ func bucketPayload(bucket work.Bucket) map[string]any {
 // BucketSubject is what a bucket event is about. Kept next to the event so that the two cannot
 // drift: a consumer filtering on the subject and a producer writing it read the same line.
 func BucketSubject(id shared.ID) string { return "bucket/" + id.String() }
+
+// NewBucketUpdated announces that a column's own fields changed.
+//
+// A snapshot and the change set beside it, as every change event in this system carries: the
+// snapshot is what the column now is, and the change set is what a field change trigger is written
+// against - a rule fires on "it became the done column" or on "it stopped being one", and only the
+// second needs the value that went.
+func NewBucketUpdated(id shared.ID, bucket work.Bucket, changes []work.FieldChange,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newBucketChange(id, BucketUpdated, bucket, changes, actor, occurredAt, cause)
+}
+
+// NewBucketReordered announces that a column sits elsewhere on its board.
+func NewBucketReordered(id shared.ID, bucket work.Bucket, changes []work.FieldChange,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newBucketChange(id, BucketReordered, bucket, changes, actor, occurredAt, cause)
+}
+
+func newBucketChange(id shared.ID, eventType Type, bucket work.Bucket,
+	changes []work.FieldChange, actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if len(changes) == 0 {
+		// An event announcing that nothing changed. The writer does not write when nothing moved, so
+		// reaching this means the two disagree - a defect rather than something a client sent
+		// (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.change_set_empty")
+	}
+
+	changeSet := make(map[string]any, len(changes))
+	for _, change := range changes {
+		changeSet[change.Field] = map[string]any{"from": change.From, "to": change.To}
+	}
+
+	payload := bucketPayload(bucket)
+	payload["change_set"] = changeSet
+	return NewEnvelope(id, eventType, bucket.TenantID,
+		BucketSubject(bucket.ID), actor, occurredAt, cause, payload)
+}

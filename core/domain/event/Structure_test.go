@@ -97,3 +97,51 @@ func TestASetBoardValueTravelsAsItsValue(t *testing.T) {
 		t.Errorf("deleted_at is %v", payload["deleted_at"])
 	}
 }
+
+// The snapshot and the change set answer different questions: the snapshot is what the column now
+// is, and the change set is what a field change trigger is written against - a rule fires on "it
+// became the done column" or on "it stopped being one", and only the second needs the value that
+// went.
+func TestTheBucketChangeEventsCarryBothTheSnapshotAndTheChangeSet(t *testing.T) {
+	bucket := eventBucketIn(eventCollection)
+	renamed := []work.FieldChange{{Field: work.FieldName, From: "Doing", To: "In progress"}}
+
+	events := map[Type]func() (Envelope, error){
+		BucketUpdated: func() (Envelope, error) {
+			return NewBucketUpdated(eventID, bucket, renamed, by(), occurred, Cause{})
+		},
+		BucketReordered: func() (Envelope, error) {
+			return NewBucketReordered(eventID, bucket,
+				[]work.FieldChange{{Field: work.FieldOrderKey, From: "a0", To: "a1"}},
+				by(), occurred, Cause{})
+		},
+	}
+
+	for eventType, build := range events {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+			if envelope.Type != eventType {
+				t.Errorf("event type %s", envelope.Type)
+			}
+			if envelope.Payload["id"] != eventBucket.String() {
+				t.Errorf("the event describes another column: %v", envelope.Payload["id"])
+			}
+			changeSet, _ := envelope.Payload["change_set"].(map[string]any)
+			if len(changeSet) != 1 {
+				t.Fatalf("the change set is %+v, want one field", changeSet)
+			}
+		})
+	}
+}
+
+// An event announcing that nothing changed means the writer and the event disagree, which is a
+// defect rather than something a client sent.
+func TestABucketEventRefusesAnEmptyChangeSet(t *testing.T) {
+	if _, err := NewBucketReordered(
+		eventID, eventBucketIn(eventCollection), nil, by(), occurred, Cause{}); err == nil {
+		t.Fatal("an event with no change set was built")
+	}
+}

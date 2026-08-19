@@ -89,6 +89,16 @@ const (
 	// entry, because a board that could be rearranged without anything being announced would be a
 	// hole in the contract exactly where a kanban client synchronises.
 	BucketCreated Type = "de.hubtask.work.bucket.created.v1"
+	// BucketUpdated announces that a column's own fields changed: what it is called, what it holds
+	// at once, whether it means finished. Consumers: kanban clients, automation, search.
+	BucketUpdated Type = "de.hubtask.work.bucket.updated.v1"
+	// BucketReordered announces that a column sits elsewhere on its board.
+	//
+	// Its own type rather than an update carrying `order_key`, on the reasoning that separates
+	// ItemMoved from ItemUpdated: a rule that reacts to a column being renamed must not fire when
+	// somebody drags it one place to the left. A board has one dimension, so there is no move to
+	// distinguish this from - a column cannot leave its collection.
+	BucketReordered Type = "de.hubtask.work.bucket.reordered.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -99,7 +109,7 @@ var types = [...]Type{
 	ContainerCreated, ContainerRenamed, ContainerPoliciesUpdated, ContainerMoved,
 	ContainerArchived, ContainerUnarchived,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
-	BucketCreated,
+	BucketCreated, BucketUpdated, BucketReordered,
 }
 
 // Types returns every defined event type.

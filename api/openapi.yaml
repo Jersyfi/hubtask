@@ -1225,6 +1225,73 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /containers/{containerId}/buckets/{bucketId}:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/BucketId"
+    patch:
+      tags: [structure]
+      operationId: updateBucket
+      description: >
+        Changes a column's own fields. A field that is not sent is left alone; sending color_token
+        as null clears it, and sending wip_limit as null or 0 removes the limit. The name stays
+        unique in the collection. Where the column sits is not here - that is :reorder, so that a
+        rename and a rearrangement are two operations with two audit entries.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/BucketUpdate"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /containers/{containerId}/buckets/{bucketId}:reorder:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/BucketId"
+    post:
+      tags: [structure]
+      operationId: reorderBucket
+      description: >
+        Moves a column along its board. An absent before_bucket_id moves it to the right hand end.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                before_bucket_id:
+                  type: [string, "null"]
+                  format: uuid
+                  description: The column this one goes to the left of. Absent is the right hand end.
+      responses:
+        "200":
+          description: Moved
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}/labels:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -1271,6 +1338,11 @@ components:
 
     ContainerId:
       name: containerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    BucketId:
+      name: bucketId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1812,6 +1884,21 @@ components:
         before_bucket_id: { type: [string, "null"], format: uuid }
         wip_limit: { type: [integer, "null"] }
         is_done_bucket: { type: boolean, default: false }
+        color_token: { type: [string, "null"] }
+
+    BucketUpdate:
+      type: object
+      description: JSON Merge Patch; null deletes a field.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        wip_limit:
+          type: [integer, "null"]
+          minimum: 0
+          description: >
+            Null and 0 both remove the limit. Zero is not a limit anybody could satisfy, so nothing
+            is lost by reading it that way, and it saves a client from a second field beside the
+            number.
+        is_done_bucket: { type: boolean }
         color_token: { type: [string, "null"] }
 
     Label:

@@ -888,3 +888,69 @@ func TestTheBucketCreatedEventMatchesItsSchema(t *testing.T) {
 		})
 	}
 }
+
+// The two change events of a board carry a snapshot and a change set beside it, as every change
+// event in this system does: the snapshot is what the column now is, and the change set is what a
+// field change trigger is written against.
+func TestTheBucketChangeEventsMatchTheirSchemas(t *testing.T) {
+	bucket := work.Bucket{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Name:         "In progress", OrderKey: "a1", Version: 2,
+	}
+	by := event.Actor{
+		Kind: shared.ActorUser, ID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	}
+	at := time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC)
+	eventID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e4")
+
+	for eventType, build := range map[event.Type]func() (event.Envelope, error){
+		event.BucketUpdated: func() (event.Envelope, error) {
+			return event.NewBucketUpdated(eventID, bucket,
+				[]work.FieldChange{{Field: work.FieldName, From: "Doing", To: "In progress"}},
+				by, at, event.Cause{})
+		},
+		event.BucketReordered: func() (event.Envelope, error) {
+			return event.NewBucketReordered(eventID, bucket,
+				[]work.FieldChange{{Field: work.FieldOrderKey, From: "a0", To: "a1"}},
+				by, at, event.Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// An event announcing that nothing changed is a defect: the writer does not write when nothing
+// moved, so reaching that point means the two disagree.
+func TestABucketChangeEventRefusesAnEmptyChangeSet(t *testing.T) {
+	_, err := event.NewBucketUpdated(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e4"),
+		work.Bucket{
+			ID:       shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"),
+			TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		},
+		nil, event.Actor{Kind: shared.ActorSystem},
+		time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC), event.Cause{})
+	if err == nil {
+		t.Fatal("an event with no change set was built")
+	}
+}
