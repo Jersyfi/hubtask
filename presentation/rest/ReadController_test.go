@@ -263,8 +263,9 @@ func TestAnEmptyPageCarriesAnEmptyArray(t *testing.T) {
 	}
 }
 
-// `expand` is in the contract and has no implementation yet. Refused rather than ignored: a client that
-// asked for children and got an item without them cannot tell that from an item that has none.
+// A relation this installation does not serve is refused rather than ignored: a client that asked
+// for children and got an item without them cannot tell that from an item that has none. `labels`
+// is served since B-09; the rest wait for the use cases that own them.
 func TestAnUnsupportedExpandIsRefusedRatherThanIgnored(t *testing.T) {
 	registry := &catalogue{out: readItem()}
 
@@ -330,5 +331,66 @@ func TestAnUnwiredReadAnswers500(t *testing.T) {
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500: %s", recorder.Code, recorder.Body)
+	}
+}
+
+// `expand=labels` is served, and reaches the catalogue as the flag it asked for.
+func TestExpandingLabelsReachesTheCatalogue(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		path string
+	}{
+		{name: "one entry", path: "/items/" + sampleItemID + "?expand=labels"},
+		{
+			name: "a page",
+			path: "/items?collection_id=0192f000-0000-7000-8000-00000000000b&expand=labels",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			registry := &catalogue{out: readItem()}
+			if c.name == "a page" {
+				registry.out = usecase.Output{
+					"data": []usecase.Output{readItem()},
+					"page": map[string]any{"next_cursor": nil, "has_more": false},
+				}
+			}
+
+			response := get(t, registry, c.path)
+			if response.Code != http.StatusOK {
+				t.Fatalf("status %d, want 200: %s", response.Code, response.Body)
+			}
+			if registry.in["expand_labels"] != true {
+				t.Errorf("expand_labels is %v", registry.in["expand_labels"])
+			}
+		})
+	}
+}
+
+// The labels are in the response only when the caller asked, and as an empty array rather than null
+// when the entry carries none: absent means "not asked for", which is a different answer.
+func TestTheLabelsAreInTheResponseOnlyWhenAsked(t *testing.T) {
+	labelled := readItem()
+	labelled["label_ids"] = []string{"0192f000-0000-7000-8000-0000000000c1"}
+
+	response := get(t, &catalogue{out: labelled}, "/items/"+sampleItemID+"?expand=labels")
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
+	}
+
+	var body map[string]json.RawMessage
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("the body is not an object: %v", err)
+	}
+	if _, present := body["label_ids"]; !present {
+		t.Error("label_ids is missing although the client asked for it")
+	}
+
+	plain := get(t, &catalogue{out: readItem()}, "/items/"+sampleItemID)
+	var without map[string]json.RawMessage
+	if err := json.NewDecoder(plain.Body).Decode(&without); err != nil {
+		t.Fatalf("the body is not an object: %v", err)
+	}
+	if _, present := without["label_ids"]; present {
+		t.Error("label_ids came back although nobody asked")
 	}
 }

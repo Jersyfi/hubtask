@@ -414,10 +414,12 @@ func run() error {
 			UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.GetWorkItem{
-			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Items: items, ItemLabels: itemLabels, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.ListWorkItems{
-			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Items: items, ItemLabels: itemLabels, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),
 		work.ReopenWorkItem{Completion: completion}.Descriptor(),

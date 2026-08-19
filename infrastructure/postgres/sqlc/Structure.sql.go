@@ -494,6 +494,48 @@ func (q *Queries) ListLabels(ctx context.Context, collectionID pgtype.UUID) ([]L
 	return items, nil
 }
 
+const listLabelsOfItems = `-- name: ListLabelsOfItems :many
+SELECT il.item_id, l.id AS label_id
+FROM item_label il
+JOIN label l ON l.id = il.label_id
+WHERE il.item_id = ANY($1::uuid[])
+  AND l.deleted_at IS NULL
+ORDER BY il.item_id, l.name, l.id
+`
+
+type ListLabelsOfItemsRow struct {
+	ItemID  pgtype.UUID
+	LabelID pgtype.UUID
+}
+
+// The labels a page of entries carries, in one statement: what `expand=labels` needs.
+//
+// One query for the whole page rather than one per entry. A list of fifty entries is fifty round
+// trips the other way round, which is the cost that makes a relation nobody asked for expensive -
+// and it is why the relation is asked for rather than always included.
+//
+// Deleted labels are left out, as they are on one entry: the label is gone from the collection's
+// vocabulary, so it is gone from the chips a client renders.
+func (q *Queries) ListLabelsOfItems(ctx context.Context, itemIds []pgtype.UUID) ([]ListLabelsOfItemsRow, error) {
+	rows, err := q.db.Query(ctx, listLabelsOfItems, itemIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLabelsOfItemsRow{}
+	for rows.Next() {
+		var i ListLabelsOfItemsRow
+		if err := rows.Scan(&i.ItemID, &i.LabelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSetElements = `-- name: ListSetElements :many
 SELECT element_id, add_tag, remove_tag
 FROM set_element

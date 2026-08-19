@@ -322,6 +322,48 @@ func (r ItemLabelRepository) Remove(
 	return affected != 0, nil
 }
 
+// ListFor returns the labels a page of entries carries, keyed by entry.
+func (r ItemLabelRepository) ListFor(
+	ctx context.Context, itemIDs []shared.ID,
+) (map[shared.ID][]shared.ID, error) {
+	carried := map[shared.ID][]shared.ID{}
+	if len(itemIDs) == 0 {
+		// Nothing to ask about. Answered here rather than by the query, so that an empty page costs
+		// no round trip at all.
+		return carried, nil
+	}
+
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	keys := make([]pgtype.UUID, 0, len(itemIDs))
+	for _, id := range itemIDs {
+		key, err := uuidOf(id)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+
+	rows, err := queries.ListLabelsOfItems(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the labels of %d entries: %w", len(itemIDs), err))
+	}
+
+	for _, row := range rows {
+		itemID, labelID, err := idPair(row.ItemID, row.LabelID)
+		if err != nil {
+			return nil, err
+		}
+		carried[itemID] = append(carried[itemID], labelID)
+	}
+	return carried, nil
+}
+
 // Elements returns every tag of one item's label set.
 func (r ItemLabelRepository) Elements(
 	ctx context.Context, itemID shared.ID,

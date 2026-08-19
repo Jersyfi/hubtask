@@ -369,6 +369,15 @@ type ItemLabels interface {
 	// replica never saw added has still made a decision that another replica has to merge.
 	Remove(ctx context.Context, itemID, labelID shared.ID, tag shared.HLC) (bool, error)
 
+	// ListFor returns the labels a page of entries carries, keyed by entry: what `expand=labels`
+	// needs. One query for the whole page, because one per entry is a round trip per row - which
+	// is the cost that makes a relation nobody asked for expensive, and why it is asked for rather
+	// than always included.
+	//
+	// An entry that carries none is absent from the map rather than present with an empty slice.
+	// The caller writes the empty list, because the caller is the one that knows the page.
+	ListFor(ctx context.Context, itemIDs []shared.ID) (map[shared.ID][]shared.ID, error)
+
 	// Elements returns every tag of one item's label set: what a merge compares a client's tags
 	// against.
 	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)

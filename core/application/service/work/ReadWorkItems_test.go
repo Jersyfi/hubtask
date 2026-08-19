@@ -298,3 +298,111 @@ func TestAMalformedIdentifierIsRefusedAtTheCatalogueBoundary(t *testing.T) {
 		t.Error("the repository was queried with a malformed identifier in hand")
 	}
 }
+
+// `expand=labels`: absent unless asked for, and an empty array when the entry carries none. The
+// difference matters - a client that could not tell "no labels" from "I did not ask" would render
+// an entry without its chips and have no way to know why (B-09).
+func TestExpandingTheLabelsOfOneEntry(t *testing.T) {
+	store, containerStore := readFixture()
+	carried := newItemLabels()
+	carried.carried[readItemID] = []shared.ID{urgentLabel}
+
+	handler := GetWorkItem{
+		Items: store, ItemLabels: carried, Containers: containerStore,
+		Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{},
+	}
+
+	t.Run("asked for", func(t *testing.T) {
+		out, err := handler.invoke(t.Context(), actorFixture(), usecase.Input{
+			"item_id": readItemID.String(), "expand_labels": true,
+		})
+		if err != nil {
+			t.Fatalf("reading the item: %v", err)
+		}
+		ids, asked := out["label_ids"].([]string)
+		if !asked || len(ids) != 1 || ids[0] != urgentLabel.String() {
+			t.Errorf("label_ids is %v", out["label_ids"])
+		}
+	})
+
+	t.Run("not asked for", func(t *testing.T) {
+		out, err := handler.invoke(t.Context(), actorFixture(), usecase.Input{
+			"item_id": readItemID.String(),
+		})
+		if err != nil {
+			t.Fatalf("reading the item: %v", err)
+		}
+		if _, present := out["label_ids"]; present {
+			t.Errorf("label_ids came back although nobody asked: %v", out["label_ids"])
+		}
+	})
+
+	t.Run("asked for on an entry that carries none", func(t *testing.T) {
+		delete(carried.carried, readItemID)
+
+		out, err := handler.invoke(t.Context(), actorFixture(), usecase.Input{
+			"item_id": readItemID.String(), "expand_labels": true,
+		})
+		if err != nil {
+			t.Fatalf("reading the item: %v", err)
+		}
+		ids, asked := out["label_ids"].([]string)
+		if !asked || len(ids) != 0 {
+			t.Errorf("label_ids is %v, want an empty list", out["label_ids"])
+		}
+	})
+}
+
+// One query for the whole page rather than one per entry: a list of fifty entries is fifty round
+// trips the other way round.
+func TestExpandingTheLabelsOfAPageAsksOnce(t *testing.T) {
+	store, containerStore := readFixture()
+	second := shared.MustParseID("0192f000-0000-7000-8000-000000000303")
+	store.page = repository.ItemPage{Items: []domain.WorkItem{
+		itemFixture(readItemID, readCollectionID, "Buy milk"),
+		itemFixture(second, readCollectionID, "Buy bread"),
+	}}
+
+	carried := newItemLabels()
+	carried.carried[second] = []shared.ID{urgentLabel}
+
+	out, err := ListWorkItems{
+		Items: store, ItemLabels: carried, Containers: containerStore,
+		Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{},
+	}.invoke(t.Context(), actorFixture(), usecase.Input{
+		"collection_id": readCollectionID.String(), "expand_labels": true,
+	})
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+
+	rows, _ := out["data"].([]usecase.Output)
+	if len(rows) != 2 {
+		t.Fatalf("%d rows, want 2", len(rows))
+	}
+	first, _ := rows[0]["label_ids"].([]string)
+	if len(first) != 0 {
+		t.Errorf("the first entry carries %v", first)
+	}
+	last, _ := rows[1]["label_ids"].([]string)
+	if len(last) != 1 || last[0] != urgentLabel.String() {
+		t.Errorf("the second entry carries %v", last)
+	}
+}
+
+// A refused read pays for no second query: the labels are read after the permission check.
+func TestARefusedReadDoesNotAskForLabels(t *testing.T) {
+	store, containerStore := readFixture()
+	carried := newItemLabels()
+	carried.listErr = errors.New("the labels were read despite the refusal")
+
+	_, err := GetWorkItem{
+		Items: store, ItemLabels: carried, Containers: containerStore,
+		Authorizer: &authorizer{err: shared.ErrForbidden}, UnitOfWork: &unitOfWork{},
+	}.invoke(t.Context(), actorFixture(), usecase.Input{
+		"item_id": readItemID.String(), "expand_labels": true,
+	})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the refusal did not come back: %v", err)
+	}
+}

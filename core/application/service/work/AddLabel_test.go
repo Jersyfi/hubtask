@@ -91,6 +91,22 @@ func (l *itemLabels) Remove(
 	return carried, nil
 }
 
+func (l *itemLabels) ListFor(
+	_ context.Context, itemIDs []shared.ID,
+) (map[shared.ID][]shared.ID, error) {
+	if l.listErr != nil {
+		return nil, l.listErr
+	}
+
+	carried := map[shared.ID][]shared.ID{}
+	for _, id := range itemIDs {
+		if labels := l.carried[id]; len(labels) != 0 {
+			carried[id] = slices.Clone(labels)
+		}
+	}
+	return carried, nil
+}
+
 func (l *itemLabels) Elements(_ context.Context, itemID shared.ID) ([]domain.SetElement, error) {
 	elements := make([]domain.SetElement, 0, len(l.elements[itemID]))
 	for _, element := range l.elements[itemID] {

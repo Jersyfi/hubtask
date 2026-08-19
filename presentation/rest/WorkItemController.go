@@ -275,6 +275,15 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		bucketID := uuidValue(bucket)
 		item.BucketId = &bucketID
 	}
+	// Present only when the caller asked for it with `expand=labels`, and then an empty array when
+	// the entry carries none: absent means "not asked for", which is a different answer from "none".
+	if ids, asked := out["label_ids"].([]string); asked {
+		labels := make([]openapi_types.UUID, 0, len(ids))
+		for _, id := range ids {
+			labels = append(labels, uuidValue(id))
+		}
+		item.LabelIds = &labels
+	}
 	item.ArchivedAt, item.DeletedAt = optionalTimeField(out["archived_at"]), optionalTimeField(out["deleted_at"])
 	return item
 }

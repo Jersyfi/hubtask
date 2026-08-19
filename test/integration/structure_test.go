@@ -1115,3 +1115,53 @@ func TestAnEntryCarriesItsColumn(t *testing.T) {
 		t.Errorf("the entry is still in column %s", after.BucketID)
 	}
 }
+
+// The labels of a page, in one query: what `expand=labels` reads. An entry that carries none is
+// absent from the map rather than present with an empty list - the caller writes the empty list,
+// because the caller is the one that knows the page.
+func TestTheLabelsOfAPageComeBackInOneQuery(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+
+	label := seedLabel(ctx, t, tenantA, collection)
+	labelled := seedTask(ctx, t, tenantA, authorA, collection)
+	bare := seedTask(ctx, t, tenantA, authorA, collection)
+
+	added, err := shared.NewHLC(created, 1, "server")
+	if err != nil {
+		t.Fatalf("building the tag: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemLabelRepo().Add(ctx, labelled, label.ID, added)
+	}); err != nil {
+		t.Fatalf("adding the label: %v", err)
+	}
+
+	var carried map[shared.ID][]shared.ID
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		carried, err = itemLabelRepo().ListFor(ctx, []shared.ID{labelled, bare})
+		return err
+	}); err != nil {
+		t.Fatalf("listing the labels of the page: %v", err)
+	}
+
+	if len(carried[labelled]) != 1 || carried[labelled][0] != label.ID {
+		t.Errorf("the labelled entry carries %v", carried[labelled])
+	}
+	if _, present := carried[bare]; present {
+		t.Errorf("the bare entry is in the map: %v", carried[bare])
+	}
+
+	// The cross-tenant negative for ListFor (gate SG-3).
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		other, err := itemLabelRepo().ListFor(ctx, []shared.ID{labelled, bare})
+		if len(other) != 0 {
+			t.Errorf("tenant B read tenant A's labels: %v", other)
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("listing from tenant B: %v", err)
+	}
+}

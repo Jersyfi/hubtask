@@ -2236,6 +2236,9 @@ type ContainerTypeFilter = ContainerType
 // Cursor defines model for Cursor.
 type Cursor = string
 
+// Expand defines model for Expand.
+type Expand = []string
+
 // GroupId defines model for GroupId.
 type GroupId = openapi_types.UUID
 
@@ -2414,6 +2417,9 @@ type ListWorkItemsParams struct {
 	Cursor          *Cursor          `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size            *PageSize        `form:"size,omitempty" json:"size,omitempty"`
 	IncludeArchived *IncludeArchived `form:"include_archived,omitempty" json:"include_archived,omitempty"`
+
+	// Expand Relations to include, e.g. children:1, labels, assignee, cover. A relation this installation does not serve is refused by name rather than ignored: an entry that came back without its labels because they were not implemented is indistinguishable from one that carries none.
+	Expand *Expand `form:"expand,omitempty" json:"expand,omitempty"`
 }
 
 // CreateWorkItemParams defines parameters for CreateWorkItem.
@@ -2430,8 +2436,8 @@ type TrashWorkItemParams struct {
 
 // GetWorkItemParams defines parameters for GetWorkItem.
 type GetWorkItemParams struct {
-	// Expand Include relations, e.g. children:1, labels, assignee, cover
-	Expand *[]string `form:"expand,omitempty" json:"expand,omitempty"`
+	// Expand Relations to include, e.g. children:1, labels, assignee, cover. A relation this installation does not serve is refused by name rather than ignored: an entry that came back without its labels because they were not implemented is indistinguishable from one that carries none.
+	Expand *Expand `form:"expand,omitempty" json:"expand,omitempty"`
 }
 
 // UpdateWorkItemParams defines parameters for UpdateWorkItem.
@@ -4196,6 +4202,19 @@ func (siw *ServerInterfaceWrapper) ListWorkItems(w http.ResponseWriter, r *http.
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_archived"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_archived", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "expand" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", false, false, "expand", r.URL.Query(), &params.Expand, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "expand"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "expand", Err: err})
 		}
 		return
 	}

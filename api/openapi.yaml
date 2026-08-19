@@ -841,6 +841,7 @@ paths:
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/PageSize"
         - $ref: "#/components/parameters/IncludeArchived"
+        - $ref: "#/components/parameters/Expand"
       responses:
         "200":
           description: A page of items
@@ -881,14 +882,7 @@ paths:
       tags: [items]
       operationId: getWorkItem
       parameters:
-        - name: expand
-          in: query
-          description: "Include relations, e.g. children:1, labels, assignee, cover"
-          schema:
-            type: array
-            items: { type: string }
-          style: form
-          explode: false
+        - $ref: "#/components/parameters/Expand"
       responses:
         "200":
           description: The item
@@ -1507,6 +1501,19 @@ components:
       name: include_archived
       in: query
       schema: { type: boolean, default: false }
+    Expand:
+      name: expand
+      in: query
+      description: >
+        Relations to include, e.g. children:1, labels, assignee, cover. A relation this
+        installation does not serve is refused by name rather than ignored: an entry that came back
+        without its labels because they were not implemented is indistinguishable from one that
+        carries none.
+      schema:
+        type: array
+        items: { type: string }
+      style: form
+      explode: false
     IdempotencyKey:
       name: Idempotency-Key
       in: header

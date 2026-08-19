@@ -291,3 +291,19 @@ WHERE wi.bucket_id = b.id
   AND wi.path LIKE sqlc.arg('path_prefix')::text || '%'
   AND b.collection_id <> sqlc.arg('collection_id')::uuid
 RETURNING wi.id, b.id AS bucket_id;
+
+-- name: ListLabelsOfItems :many
+-- The labels a page of entries carries, in one statement: what `expand=labels` needs.
+--
+-- One query for the whole page rather than one per entry. A list of fifty entries is fifty round
+-- trips the other way round, which is the cost that makes a relation nobody asked for expensive -
+-- and it is why the relation is asked for rather than always included.
+--
+-- Deleted labels are left out, as they are on one entry: the label is gone from the collection's
+-- vocabulary, so it is gone from the chips a client renders.
+SELECT il.item_id, l.id AS label_id
+FROM item_label il
+JOIN label l ON l.id = il.label_id
+WHERE il.item_id = ANY(sqlc.arg('item_ids')::uuid[])
+  AND l.deleted_at IS NULL
+ORDER BY il.item_id, l.name, l.id;
