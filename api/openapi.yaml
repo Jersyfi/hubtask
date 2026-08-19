@@ -1005,6 +1005,34 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:restore:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: restoreWorkItem
+      description: >
+        Takes one deletion back out of the trash, whole. Exactly the entries that went in together
+        come back: a separate, younger deletion inside the same subtree stays where it is, because a
+        restore is keyed on the deletion rather than on the subtree. An entry that was archived when
+        it was deleted comes back archived - restoring undoes the deletion and nothing else. Refused
+        while the entry above it, or its collection, is still in the trash; the answer names what to
+        restore first. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Restored
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:archive:
     parameters:
       - $ref: "#/components/parameters/ItemId"

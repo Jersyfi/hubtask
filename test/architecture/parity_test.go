@@ -70,6 +70,8 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.ReorderWorkItem{}.Descriptor(),
 		work.ArchiveWorkItem{}.Descriptor(),
 		work.UnarchiveWorkItem{}.Descriptor(),
+		work.TrashWorkItem{}.Descriptor(),
+		work.RestoreWorkItem{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.GrantMembership{}.Descriptor(),

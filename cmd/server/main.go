@@ -438,6 +438,8 @@ func run() error {
 		work.ReorderWorkItem{Placement: placement}.Descriptor(),
 		work.ArchiveWorkItem{Lifecycle: lifecycle}.Descriptor(),
 		work.UnarchiveWorkItem{Lifecycle: lifecycle}.Descriptor(),
+		work.TrashWorkItem{Lifecycle: lifecycle}.Descriptor(),
+		work.RestoreWorkItem{Lifecycle: lifecycle}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process

@@ -97,24 +97,32 @@ func (h UnarchiveWorkItem) Execute(
 // true)` would say nothing about either.
 type itemVerb struct {
 	action audit.Action
+	// batch names the deletion this verb acts on: a fresh identifier on the way into the trash, the
+	// one already on the row on the way out, and none at all for the archive verbs, which are not
+	// about a deletion. Nil where there is none - the writer then passes the zero identifier, and
+	// the transitions that do not read it never look.
+	batch func(domain.WorkItem, clock.IDGenerator) shared.ID
 	// apply is the domain transition. It reports no changes when the entry already says what the
 	// caller asked it to say, which is what makes every one of these verbs idempotent.
-	apply func(domain.WorkItem, time.Time) (domain.WorkItem, []domain.FieldChange, error)
+	apply func(domain.WorkItem, time.Time, shared.ID) (domain.WorkItem, []domain.FieldChange, error)
 	// store writes the decided state and reports how many rows it touched. One for a stamp on a
 	// single entry; a subtree's size for the verbs that take one with them.
-	store func(context.Context, repository.Items, domain.WorkItem, int) (int, error)
+	store func(context.Context, repository.Items, repository.ItemTrash) (int, error)
 	// announce builds the event. It is handed the row count because the trash events carry it - a
 	// consumer cannot derive how much went, since nothing below the entry is announced separately.
 	announce func(shared.ID, domain.WorkItem, int, event.Actor, time.Time) (event.Envelope, error)
 	// op is what an offline client is told: an upsert for a state change it should apply, a deletion
 	// for an entry it should drop (offline-sync.md §3.1).
 	op changelog.Operation
+	// guard is what this verb refuses beyond what the transition itself does. Nil where the
+	// transition is the whole of it.
+	guard func(context.Context, LifecycleWriter, domain.WorkItem) error
 }
 
 var (
 	archiving = itemVerb{
 		action: ItemArchivedAction,
-		apply: func(item domain.WorkItem, now time.Time) (domain.WorkItem, []domain.FieldChange, error) {
+		apply: func(item domain.WorkItem, now time.Time, _ shared.ID) (domain.WorkItem, []domain.FieldChange, error) {
 			return item.Archived(now)
 		},
 		store:    storeArchiveStamp,
@@ -123,7 +131,7 @@ var (
 	}
 	unarchiving = itemVerb{
 		action: ItemUnarchivedAction,
-		apply: func(item domain.WorkItem, now time.Time) (domain.WorkItem, []domain.FieldChange, error) {
+		apply: func(item domain.WorkItem, now time.Time, _ shared.ID) (domain.WorkItem, []domain.FieldChange, error) {
 			return item.Unarchived(now)
 		},
 		store:    storeArchiveStamp,
@@ -134,22 +142,37 @@ var (
 
 // storeArchiveStamp writes the stamp on one row. One row is the whole of it, so the count is one.
 func storeArchiveStamp(
-	ctx context.Context, items repository.Items, item domain.WorkItem, expectedVersion int,
+	ctx context.Context, items repository.Items, trash repository.ItemTrash,
 ) (int, error) {
-	if err := items.SetArchived(ctx, item, expectedVersion); err != nil {
+	if err := items.SetArchived(ctx, trash.Item, trash.ExpectedVersion); err != nil {
 		return 0, err
 	}
 	return 1, nil
 }
 
-// announceItem adapts an event constructor that does not take a row count to the shape the writer
-// calls. The archive verbs are about one entry, so there is no count for their payload to carry.
+// announceItem and announceSubtree adapt the event constructors to the one shape the writer calls.
+//
+// Two adapters rather than one signature everywhere, because the difference is real: the archive
+// verbs are about one entry and have no count for their payload to carry, and the trash verbs have
+// one that a consumer cannot derive - nothing below the entry is announced separately.
+//
+// The cause is empty at both call sites. These are things a person did; a lifecycle change caused by
+// another event will pass its own chain when there is one to pass (automation.md §2).
 func announceItem(
 	build func(shared.ID, domain.WorkItem, event.Actor, time.Time, event.Cause) (event.Envelope, error),
 ) func(shared.ID, domain.WorkItem, int, event.Actor, time.Time) (event.Envelope, error) {
 	return func(id shared.ID, item domain.WorkItem, _ int, actor event.Actor, at time.Time,
 	) (event.Envelope, error) {
 		return build(id, item, actor, at, event.Cause{})
+	}
+}
+
+func announceSubtree(
+	build func(shared.ID, domain.WorkItem, int, event.Actor, time.Time, event.Cause) (event.Envelope, error),
+) func(shared.ID, domain.WorkItem, int, event.Actor, time.Time) (event.Envelope, error) {
+	return func(id shared.ID, item domain.WorkItem, touched int, actor event.Actor, at time.Time,
+	) (event.Envelope, error) {
+		return build(id, item, touched, actor, at, event.Cause{})
 	}
 }
 
@@ -204,7 +227,20 @@ func (w LifecycleWriter) change(
 			return err
 		}
 
-		wanted, changes, err := verb.apply(item, now)
+		if verb.guard != nil {
+			if err := verb.guard(ctx, w, item); err != nil {
+				return err
+			}
+		}
+
+		// The batch is decided before the transition, because the transition is what writes it onto
+		// the row - and on the way out it has to be read off the row before being cleared.
+		var batch shared.ID
+		if verb.batch != nil {
+			batch = verb.batch(item, w.IDs)
+		}
+
+		wanted, changes, err := verb.apply(item, now, batch)
 		if err != nil {
 			return err
 		}
@@ -223,7 +259,9 @@ func (w LifecycleWriter) change(
 			return nil
 		}
 
-		changed, err = w.write(ctx, actor, verb, wanted, item.Version, cmd.ExpectedVersion, now)
+		changed, err = w.write(ctx, actor, verb, repository.ItemTrash{
+			Item: wanted, Prefix: item.Path, BatchID: batch,
+		}, item.Version, cmd.ExpectedVersion, now)
 		return err
 	})
 	if err != nil {
@@ -236,21 +274,22 @@ func (w LifecycleWriter) change(
 // offline clients, and the audit entry - all inside the caller's transaction (test AT-5).
 func (w LifecycleWriter) write(
 	ctx context.Context, actor appshared.ActorContext, verb itemVerb,
-	after domain.WorkItem, currentVersion, expectedVersion int, now time.Time,
+	stored repository.ItemTrash, currentVersion, expectedVersion int, now time.Time,
 ) (domain.WorkItem, error) {
-	expected := expectedVersion
-	if expected == 0 {
+	stored.ExpectedVersion = expectedVersion
+	if stored.ExpectedVersion == 0 {
 		// The caller read no version and accepts whatever is there. Not the same as skipping the
 		// check: the version in hand is still the one the update matches on, so a concurrent write
 		// between the read and here is still caught.
-		expected = currentVersion
+		stored.ExpectedVersion = currentVersion
 	}
 
-	touched, err := verb.store(ctx, w.Items, after, expected)
+	touched, err := verb.store(ctx, w.Items, stored)
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
-	after.Version = expected + 1
+	after := stored.Item
+	after.Version = stored.ExpectedVersion + 1
 
 	// Built from the stored state rather than from the command, so that what the event says and what
 	// the row holds cannot disagree.

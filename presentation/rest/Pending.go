@@ -194,6 +194,7 @@ func (pending) ListWorkItems(w http.ResponseWriter, r *http.Request, _ openapi.L
 	notAvailable(w, r)
 }
 
+// TrashWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) TrashWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.TrashWorkItemParams) {
 	notAvailable(w, r)
 }
@@ -233,6 +234,11 @@ func (pending) MoveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.It
 
 // ReorderWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ReorderWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ReorderWorkItemParams) {
+	notAvailable(w, r)
+}
+
+// The lifecycle actions are overridden by RestController, for the reason given at CreateContainer.
+func (pending) RestoreWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.RestoreWorkItemParams) {
 	notAvailable(w, r)
 }
 

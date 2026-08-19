@@ -150,3 +150,54 @@ func TestAStaleArchiveAnswers409(t *testing.T) {
 		t.Errorf("code = %v, want version_conflict", problem["code"])
 	}
 }
+
+// The deletion is a DELETE with no body back. What the client has to know is where to find the
+// entry again, and that is the trash rather than this response (api-guidelines.md §2).
+func TestTrashingAnEntryAnswers204AndPassesOnTheIfMatch(t *testing.T) {
+	registry := &catalogue{out: archivedItemOutput()}
+
+	controller := NewRestController()
+	controller.UseCases = registry
+	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+	request := httptest.NewRequestWithContext(
+		ctx, http.MethodDelete, APIBasePath+"/items/"+lifecycleItemID, strings.NewReader(""))
+	request.Header.Set("If-Match", `"3"`)
+
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if recorder.Body.Len() != 0 {
+		t.Errorf("a 204 carries a body: %s", recorder.Body)
+	}
+	if registry.name != "TrashWorkItem" {
+		t.Errorf("use case = %q, want TrashWorkItem", registry.name)
+	}
+	if registry.in["expected_version"] != 3 {
+		t.Errorf("expected_version = %v, want 3", registry.in["expected_version"])
+	}
+}
+
+// The restore is an action with the entry back, because the client has to redraw it and needs the
+// version it now has.
+func TestRestoringAnEntryAnswers200WithTheEntry(t *testing.T) {
+	registry := &catalogue{out: archivedItemOutput()}
+
+	recorder := lifecycleAction(t, registry, "restore", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "RestoreWorkItem" {
+		t.Errorf("use case = %q, want RestoreWorkItem", registry.name)
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"5"` {
+		t.Errorf("ETag = %q, want \"5\"", tag)
+	}
+}

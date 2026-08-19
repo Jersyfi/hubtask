@@ -19,6 +19,8 @@ import (
 const (
 	archiveWorkItemUseCase   = "ArchiveWorkItem"
 	unarchiveWorkItemUseCase = "UnarchiveWorkItem"
+	trashWorkItemUseCase     = "TrashWorkItem"
+	restoreWorkItemUseCase   = "RestoreWorkItem"
 )
 
 // ArchiveWorkItem answers POST /items/{itemId}:archive.
@@ -37,6 +39,46 @@ func (c *RestController) UnarchiveWorkItem(
 	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, _ openapi.UnarchiveWorkItemParams,
 ) {
 	c.itemLifecycle(w, r, unarchiveWorkItemUseCase, itemID)
+}
+
+// TrashWorkItem answers DELETE /items/{itemId}.
+//
+// A DELETE rather than an action suffix, and 204 rather than the entry: the entry is gone from every
+// list the client draws, and there is nothing about it left worth sending back. That it is a soft
+// delete is the server's business - what the client has to know is where to find it again, which is
+// the trash rather than this response (api-guidelines.md §2).
+//
+// The subtree goes with it. Nothing here says so, because nothing here decides it: the invariant is
+// the application layer's, and a controller that mentioned the cascade would be a second place
+// stating a rule.
+func (c *RestController) TrashWorkItem(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, params openapi.TrashWorkItemParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	actor, _ := appshared.ActorFrom(r.Context())
+
+	in := usecase.Input{"item_id": itemID.String()}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+
+	if _, err := c.UseCases.Invoke(r.Context(), trashWorkItemUseCase, actor, in); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RestoreWorkItem answers POST /items/{itemId}:restore.
+func (c *RestController) RestoreWorkItem(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, _ openapi.RestoreWorkItemParams,
+) {
+	c.itemLifecycle(w, r, restoreWorkItemUseCase, itemID)
 }
 
 // itemLifecycle is the shape every lifecycle action shares: a path parameter, an optional If-Match,
