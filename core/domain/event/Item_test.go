@@ -175,3 +175,104 @@ func TestTheTypeRendersAsItsName(t *testing.T) {
 		t.Error("the item event is not in the closed set")
 	}
 }
+
+// The move event, in the package that builds it. The contract test judges its shape against the schema; this
+// says what the builder decides, which the schema cannot: which half of a move is read off the item and which
+// half has to be told.
+func TestTheMoveEventCarriesBothEndsOfTheMove(t *testing.T) {
+	oldTask := shared.MustParseID("0192f000-0000-7000-8000-000000000011")
+	newTask := shared.MustParseID("0192f000-0000-7000-8000-000000000014")
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000012")
+	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
+	fromPath := "/" + oldTask.String() + "/" + id.String() + "/"
+
+	item := work.WorkItem{
+		ID:           id,
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemWorkPackage,
+		ParentID:     newTask,
+		Path:         "/" + newTask.String() + "/" + id.String() + "/",
+		Depth:        2,
+		Title:        "Order the cable",
+		OrderKey:     "a1",
+		CreatedBy:    shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt:    at,
+		UpdatedAt:    at.Add(time.Hour),
+		Version:      2,
+	}
+
+	envelope, err := NewItemMoved(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000f1"), item,
+		Movement{FromParentID: oldTask, FromPath: fromPath, FromCollectionID: item.CollectionID},
+		Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, item.UpdatedAt, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Type != ItemMoved {
+		t.Errorf("the type is %s", envelope.Type)
+	}
+	if envelope.Payload["from_parent_id"] != oldTask.String() {
+		t.Errorf("from_parent_id is %v", envelope.Payload["from_parent_id"])
+	}
+	if envelope.Payload["to_parent_id"] != newTask.String() {
+		t.Errorf("to_parent_id is %v", envelope.Payload["to_parent_id"])
+	}
+	// The prefix swap: together these two are what a client rewrites its own subtree with, which is why a moved
+	// subtree needs no event per descendant.
+	if envelope.Payload["from_path"] != fromPath {
+		t.Errorf("from_path is %v, want %q", envelope.Payload["from_path"], fromPath)
+	}
+	if envelope.Payload["path"] != item.Path {
+		t.Errorf("path is %v, want %q", envelope.Payload["path"], item.Path)
+	}
+	// The collection did not change, so the field says so rather than repeating the current one.
+	if envelope.Payload["from_collection_id"] != nil {
+		t.Errorf("from_collection_id is %v on a move within one collection", envelope.Payload["from_collection_id"])
+	}
+	// Reserved and null until buckets exist, and present so a kanban consumer can be written now.
+	for _, field := range []string{"from_bucket_id", "to_bucket_id"} {
+		if value, present := envelope.Payload[field]; !present || value != nil {
+			t.Errorf("%s is %v (present=%v), want a null that is there", field, value, present)
+		}
+	}
+}
+
+// A move out of a collection sets the field a device subscribed to one hub reads to know the item has left its
+// scope.
+func TestAMoveBetweenCollectionsSaysWhereItCameFrom(t *testing.T) {
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000016")
+	source := shared.MustParseID("0192f000-0000-7000-8000-00000000000b")
+	destination := shared.MustParseID("0192f000-0000-7000-8000-00000000001b")
+	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
+
+	item := work.WorkItem{
+		ID: id, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: destination, Type: work.ItemTask, Path: work.RootPath(id), Depth: 1,
+		Title: "Weekly shop", OrderKey: "a0",
+		CreatedBy: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt: at, UpdatedAt: at, Version: 2,
+	}
+
+	envelope, err := NewItemMoved(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000f2"), item,
+		Movement{FromPath: work.RootPath(id), FromCollectionID: source},
+		Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, at, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Payload["from_collection_id"] != source.String() {
+		t.Errorf("from_collection_id is %v, want %s", envelope.Payload["from_collection_id"], source)
+	}
+	if envelope.Payload["collection_id"] != destination.String() {
+		t.Errorf("collection_id is %v, want %s", envelope.Payload["collection_id"], destination)
+	}
+	// A task sits directly in a collection, so both parent fields are null and the schema has to accept it.
+	for _, field := range []string{"from_parent_id", "to_parent_id"} {
+		if value, present := envelope.Payload[field]; !present || value != nil {
+			t.Errorf("%s is %v (present=%v), want a null that is there", field, value, present)
+		}
+	}
+}

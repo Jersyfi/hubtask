@@ -193,3 +193,92 @@ UPDATE work_item SET
   updated_at   = sqlc.arg('updated_at'),
   version      = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+-- name: MoveWorkItemSubtree :execrows
+-- Rewrites the materialised path, the depth and the collection of an item and everything below it, in one
+-- statement (I-W2: the path and the depth stay consistent, and changes go through a move that updates the
+-- subtree within one transaction).
+--
+-- The prefix swap is what makes this one statement rather than a walk: every descendant's new path is its old
+-- path with the old prefix replaced, and `substring(path from length(prefix) + 1)` is that suffix. The depth
+-- moves by a constant, because every row in a subtree shifts by the same number of levels.
+--
+-- `LIKE prefix || '%'` rather than starts_with, because that is the form wi_path_idx
+-- (tenant_id, path text_pattern_ops) serves as an index scan. A path is built from UUIDs and separators, so
+-- it can contain no LIKE metacharacter - there is nothing here for a `%` or a `_` in the data to do.
+--
+-- Trashed rows in the subtree are rewritten too, deliberately. Their path still has to describe where they
+-- would be restored to; leaving them behind would point a restore at an ancestor that has moved.
+--
+-- The version moves on every row, because a descendant's path is part of its state and a client caching the
+-- subtree has to be able to tell that it changed.
+--
+-- The moved item itself is excluded. Its own path begins with its own prefix, so it would match - and it is
+-- SetWorkItemPlacement that owns its row, which is where the optimistic lock is. Without the exclusion the
+-- moved item would have its version bumped twice by one move, which is not a design but an artefact of
+-- writing it in two statements.
+UPDATE work_item SET
+  collection_id = sqlc.arg('collection_id')::uuid,
+  path          = sqlc.arg('new_prefix')::text
+                  || substring(path from length(sqlc.arg('old_prefix')::text) + 1),
+  depth         = depth + sqlc.arg('depth_delta')::int,
+  updated_at    = sqlc.arg('updated_at'),
+  version       = version + 1
+WHERE path LIKE sqlc.arg('old_prefix')::text || '%'
+  AND id <> sqlc.arg('item_id')::uuid;
+
+-- name: SetWorkItemPlacement :execrows
+-- The moved item's own row: the parent it now sits under and the rank it takes among its new siblings.
+--
+-- This row is written here in full and excluded from the subtree statement, so that one move moves one
+-- version. Only this row's parent changes - a descendant keeps the parent it had - and the optimistic lock
+-- belongs on the row the caller actually read, which is this one.
+UPDATE work_item SET
+  parent_id     = sqlc.narg('parent_id')::uuid,
+  collection_id = sqlc.arg('collection_id')::uuid,
+  path          = sqlc.arg('path'),
+  depth         = sqlc.arg('depth'),
+  order_key     = sqlc.arg('order_key'),
+  updated_at    = sqlc.arg('updated_at'),
+  version       = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: SetWorkItemOrderKey :execrows
+-- A reorder within one level: the rank alone, which is the whole of what drag and drop changes.
+UPDATE work_item SET
+  order_key  = sqlc.arg('order_key'),
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: OrderKeyNeighbours :one
+-- The two ranks a new position sits between: the rank of the item to go before, and the greatest rank below
+-- it in the same level.
+--
+-- Both come back as the empty string when there is nothing there, which is what the ordering service reads as
+-- "no bound" - before everything, or after everything. Asking the database for both in one row rather than
+-- computing one from a list keeps the answer consistent with what is stored at the moment it is asked.
+--
+-- COLLATE "C" on the comparison and nowhere else it could disagree: a rank key is a fractional index whose
+-- scheme rests on byte order, and a database created en_US.utf8 on glibc would order it differently from the
+-- domain that produced it.
+--
+-- The level is (collection, parent), and the parent is compared with IS NOT DISTINCT FROM so that an absent
+-- one means the items directly in the collection rather than no filter at all.
+WITH level AS (
+  SELECT id, order_key
+  FROM work_item
+  WHERE collection_id = sqlc.arg('collection_id')::uuid
+    AND parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
+    AND deleted_at IS NULL
+    AND id <> sqlc.arg('moving_id')::uuid
+), anchor AS (
+  SELECT order_key FROM level WHERE id = sqlc.narg('before_id')::uuid
+)
+SELECT
+  coalesce((SELECT order_key FROM anchor), '')::text AS next_key,
+  coalesce((
+    SELECT max(order_key COLLATE "C")
+    FROM level
+    WHERE (SELECT order_key FROM anchor) IS NULL
+       OR order_key COLLATE "C" < (SELECT order_key FROM anchor) COLLATE "C"
+  ), '')::text AS previous_key;

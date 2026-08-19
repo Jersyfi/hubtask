@@ -561,6 +561,30 @@ func (e DependencyHealthCircuitState) Valid() bool {
 	}
 }
 
+// Defines values for DroppedReferenceKind.
+const (
+	DroppedReferenceKindBUCKET      DroppedReferenceKind = "BUCKET"
+	DroppedReferenceKindCUSTOMFIELD DroppedReferenceKind = "CUSTOM_FIELD"
+	DroppedReferenceKindLABEL       DroppedReferenceKind = "LABEL"
+	DroppedReferenceKindMEMBER      DroppedReferenceKind = "MEMBER"
+)
+
+// Valid indicates whether the value is a known member of the DroppedReferenceKind enum.
+func (e DroppedReferenceKind) Valid() bool {
+	switch e {
+	case DroppedReferenceKindBUCKET:
+		return true
+	case DroppedReferenceKindCUSTOMFIELD:
+		return true
+	case DroppedReferenceKindLABEL:
+		return true
+	case DroppedReferenceKindMEMBER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterNodeOp.
 const (
 	AND         FilterNodeOp = "AND"
@@ -870,30 +894,6 @@ func (e MembershipScope) Valid() bool {
 	case MembershipScopeITEM:
 		return true
 	case MembershipScopeTENANT:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for MoveResultDroppedReferencesKind.
-const (
-	MoveResultDroppedReferencesKindBUCKET      MoveResultDroppedReferencesKind = "BUCKET"
-	MoveResultDroppedReferencesKindCUSTOMFIELD MoveResultDroppedReferencesKind = "CUSTOM_FIELD"
-	MoveResultDroppedReferencesKindLABEL       MoveResultDroppedReferencesKind = "LABEL"
-	MoveResultDroppedReferencesKindMEMBER      MoveResultDroppedReferencesKind = "MEMBER"
-)
-
-// Valid indicates whether the value is a known member of the MoveResultDroppedReferencesKind enum.
-func (e MoveResultDroppedReferencesKind) Valid() bool {
-	switch e {
-	case MoveResultDroppedReferencesKindBUCKET:
-		return true
-	case MoveResultDroppedReferencesKindCUSTOMFIELD:
-		return true
-	case MoveResultDroppedReferencesKindLABEL:
-		return true
-	case MoveResultDroppedReferencesKindMEMBER:
 		return true
 	default:
 		return false
@@ -1610,6 +1610,19 @@ type DependencyHealth struct {
 // DependencyHealthCircuitState defines model for DependencyHealth.CircuitState.
 type DependencyHealthCircuitState string
 
+// DroppedReference defines model for DroppedReference.
+type DroppedReference struct {
+	// Code A stable message code saying why.
+	Code string `json:"code"`
+
+	// Id The reference that could not be carried over.
+	Id   string               `json:"id"`
+	Kind DroppedReferenceKind `json:"kind"`
+}
+
+// DroppedReferenceKind defines model for DroppedReference.Kind.
+type DroppedReferenceKind string
+
 // FilterNode Either a leaf (field/op/value) or a combination (op/nodes).
 type FilterNode struct {
 	Field *string       `json:"field,omitempty"`
@@ -1795,17 +1808,10 @@ type MembershipScope string
 
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
-	// DroppedReferences Labels/buckets/members that could not be resolved when changing collection.
-	DroppedReferences *[]struct {
-		Code *string                          `json:"code,omitempty"`
-		Id   *string                          `json:"id,omitempty"`
-		Kind *MoveResultDroppedReferencesKind `json:"kind,omitempty"`
-	} `json:"dropped_references,omitempty"`
-	Item *WorkItem `json:"item,omitempty"`
+	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
+	DroppedReferences []DroppedReference `json:"dropped_references"`
+	Item              WorkItem           `json:"item"`
 }
-
-// MoveResultDroppedReferencesKind defines model for MoveResult.DroppedReferences.Kind.
-type MoveResultDroppedReferencesKind string
 
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
@@ -2298,14 +2304,31 @@ type CompleteWorkItemParams struct {
 
 // MoveWorkItemJSONBody defines parameters for MoveWorkItem.
 type MoveWorkItemJSONBody struct {
-	BeforeItemId       *openapi_types.UUID `json:"before_item_id,omitempty"`
-	TargetBucketId     *openapi_types.UUID `json:"target_bucket_id,omitempty"`
+	// BeforeItemId The sibling to place this item before at the destination. Null or omitted appends.
+	BeforeItemId   *openapi_types.UUID `json:"before_item_id,omitempty"`
+	TargetBucketId *openapi_types.UUID `json:"target_bucket_id,omitempty"`
+
+	// TargetCollectionId The destination collection. May be omitted when target_parent_id is given: an item's collection is the one its parent is in.
 	TargetCollectionId *openapi_types.UUID `json:"target_collection_id,omitempty"`
-	TargetParentId     *openapi_types.UUID `json:"target_parent_id,omitempty"`
+
+	// TargetParentId The item to move this one under. Null moves it to the top level of a collection, which then has to be named by target_collection_id.
+	TargetParentId *openapi_types.UUID `json:"target_parent_id,omitempty"`
 }
 
 // ReopenWorkItemParams defines parameters for ReopenWorkItem.
 type ReopenWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ReorderWorkItemJSONBody defines parameters for ReorderWorkItem.
+type ReorderWorkItemJSONBody struct {
+	// BeforeItemId The sibling to place this item before. Null or omitted appends to the end of the level.
+	BeforeItemId *openapi_types.UUID `json:"before_item_id,omitempty"`
+}
+
+// ReorderWorkItemParams defines parameters for ReorderWorkItem.
+type ReorderWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -2380,6 +2403,9 @@ type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
 
 // MoveWorkItemJSONRequestBody defines body for MoveWorkItem for application/json ContentType.
 type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
+
+// ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
+type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
 
 // BulkItemsJSONRequestBody defines body for BulkItems for application/json ContentType.
 type BulkItemsJSONRequestBody BulkItemsJSONBody
@@ -2500,6 +2526,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:reopen)
 	ReopenWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ReopenWorkItemParams)
+
+	// (POST /items/{itemId}:reorder)
+	ReorderWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ReorderWorkItemParams)
 	// RetainItem Take an object out of the running retention period
 	// (POST /items/{itemId}:retain)
 	RetainItem(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
@@ -3854,6 +3883,56 @@ func (siw *ServerInterfaceWrapper) ReopenWorkItem(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ReorderWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) ReorderWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReorderWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReorderWorkItem(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RetainItem operation middleware
 func (siw *ServerInterfaceWrapper) RetainItem(w http.ResponseWriter, r *http.Request) {
 
@@ -4331,6 +4410,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reorder", wrapper.ReorderWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:move", wrapper.MoveWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.ListComments)

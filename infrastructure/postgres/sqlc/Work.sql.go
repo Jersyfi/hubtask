@@ -542,6 +542,122 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 	return items, nil
 }
 
+const moveWorkItemSubtree = `-- name: MoveWorkItemSubtree :execrows
+UPDATE work_item SET
+  collection_id = $1::uuid,
+  path          = $2::text
+                  || substring(path from length($3::text) + 1),
+  depth         = depth + $4::int,
+  updated_at    = $5,
+  version       = version + 1
+WHERE path LIKE $3::text || '%'
+  AND id <> $6::uuid
+`
+
+type MoveWorkItemSubtreeParams struct {
+	CollectionID pgtype.UUID
+	NewPrefix    string
+	OldPrefix    string
+	DepthDelta   int32
+	UpdatedAt    pgtype.Timestamptz
+	ItemID       pgtype.UUID
+}
+
+// Rewrites the materialised path, the depth and the collection of an item and everything below it, in one
+// statement (I-W2: the path and the depth stay consistent, and changes go through a move that updates the
+// subtree within one transaction).
+//
+// The prefix swap is what makes this one statement rather than a walk: every descendant's new path is its old
+// path with the old prefix replaced, and `substring(path from length(prefix) + 1)` is that suffix. The depth
+// moves by a constant, because every row in a subtree shifts by the same number of levels.
+//
+// `LIKE prefix || '%'` rather than starts_with, because that is the form wi_path_idx
+// (tenant_id, path text_pattern_ops) serves as an index scan. A path is built from UUIDs and separators, so
+// it can contain no LIKE metacharacter - there is nothing here for a `%` or a `_` in the data to do.
+//
+// Trashed rows in the subtree are rewritten too, deliberately. Their path still has to describe where they
+// would be restored to; leaving them behind would point a restore at an ancestor that has moved.
+//
+// The version moves on every row, because a descendant's path is part of its state and a client caching the
+// subtree has to be able to tell that it changed.
+//
+// The moved item itself is excluded. Its own path begins with its own prefix, so it would match - and it is
+// SetWorkItemPlacement that owns its row, which is where the optimistic lock is. Without the exclusion the
+// moved item would have its version bumped twice by one move, which is not a design but an artefact of
+// writing it in two statements.
+func (q *Queries) MoveWorkItemSubtree(ctx context.Context, arg MoveWorkItemSubtreeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, moveWorkItemSubtree,
+		arg.CollectionID,
+		arg.NewPrefix,
+		arg.OldPrefix,
+		arg.DepthDelta,
+		arg.UpdatedAt,
+		arg.ItemID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const orderKeyNeighbours = `-- name: OrderKeyNeighbours :one
+WITH level AS (
+  SELECT id, order_key
+  FROM work_item
+  WHERE collection_id = $1::uuid
+    AND parent_id IS NOT DISTINCT FROM $2::uuid
+    AND deleted_at IS NULL
+    AND id <> $3::uuid
+), anchor AS (
+  SELECT order_key FROM level WHERE id = $4::uuid
+)
+SELECT
+  coalesce((SELECT order_key FROM anchor), '')::text AS next_key,
+  coalesce((
+    SELECT max(order_key COLLATE "C")
+    FROM level
+    WHERE (SELECT order_key FROM anchor) IS NULL
+       OR order_key COLLATE "C" < (SELECT order_key FROM anchor) COLLATE "C"
+  ), '')::text AS previous_key
+`
+
+type OrderKeyNeighboursParams struct {
+	CollectionID pgtype.UUID
+	ParentID     pgtype.UUID
+	MovingID     pgtype.UUID
+	BeforeID     pgtype.UUID
+}
+
+type OrderKeyNeighboursRow struct {
+	NextKey     string
+	PreviousKey string
+}
+
+// The two ranks a new position sits between: the rank of the item to go before, and the greatest rank below
+// it in the same level.
+//
+// Both come back as the empty string when there is nothing there, which is what the ordering service reads as
+// "no bound" - before everything, or after everything. Asking the database for both in one row rather than
+// computing one from a list keeps the answer consistent with what is stored at the moment it is asked.
+//
+// COLLATE "C" on the comparison and nowhere else it could disagree: a rank key is a fractional index whose
+// scheme rests on byte order, and a database created en_US.utf8 on glibc would order it differently from the
+// domain that produced it.
+//
+// The level is (collection, parent), and the parent is compared with IS NOT DISTINCT FROM so that an absent
+// one means the items directly in the collection rather than no filter at all.
+func (q *Queries) OrderKeyNeighbours(ctx context.Context, arg OrderKeyNeighboursParams) (OrderKeyNeighboursRow, error) {
+	row := q.db.QueryRow(ctx, orderKeyNeighbours,
+		arg.CollectionID,
+		arg.ParentID,
+		arg.MovingID,
+		arg.BeforeID,
+	)
+	var i OrderKeyNeighboursRow
+	err := row.Scan(&i.NextKey, &i.PreviousKey)
+	return i, err
+}
+
 const setWorkItemCompletion = `-- name: SetWorkItemCompletion :execrows
 UPDATE work_item SET
   is_completed = $1,
@@ -573,6 +689,80 @@ func (q *Queries) SetWorkItemCompletion(ctx context.Context, arg SetWorkItemComp
 		arg.IsCompleted,
 		arg.CompletedAt,
 		arg.CompletedBy,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setWorkItemOrderKey = `-- name: SetWorkItemOrderKey :execrows
+UPDATE work_item SET
+  order_key  = $1,
+  updated_at = $2,
+  version    = version + 1
+WHERE id = $3::uuid AND version = $4
+`
+
+type SetWorkItemOrderKeyParams struct {
+	OrderKey        string
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// A reorder within one level: the rank alone, which is the whole of what drag and drop changes.
+func (q *Queries) SetWorkItemOrderKey(ctx context.Context, arg SetWorkItemOrderKeyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemOrderKey,
+		arg.OrderKey,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setWorkItemPlacement = `-- name: SetWorkItemPlacement :execrows
+UPDATE work_item SET
+  parent_id     = $1::uuid,
+  collection_id = $2::uuid,
+  path          = $3,
+  depth         = $4,
+  order_key     = $5,
+  updated_at    = $6,
+  version       = version + 1
+WHERE id = $7::uuid AND version = $8
+`
+
+type SetWorkItemPlacementParams struct {
+	ParentID        pgtype.UUID
+	CollectionID    pgtype.UUID
+	Path            string
+	Depth           int32
+	OrderKey        string
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The moved item's own row: the parent it now sits under and the rank it takes among its new siblings.
+//
+// This row is written here in full and excluded from the subtree statement, so that one move moves one
+// version. Only this row's parent changes - a descendant keeps the parent it had - and the optimistic lock
+// belongs on the row the caller actually read, which is this one.
+func (q *Queries) SetWorkItemPlacement(ctx context.Context, arg SetWorkItemPlacementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemPlacement,
+		arg.ParentID,
+		arg.CollectionID,
+		arg.Path,
+		arg.Depth,
+		arg.OrderKey,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

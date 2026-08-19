@@ -57,6 +57,11 @@ func (itemDouble) ChildCompletion(context.Context, shared.ID) (work.ChildComplet
 	return work.ChildCompletion{}, nil
 }
 func (itemDouble) SetCompletion(context.Context, work.WorkItem, int) error { return nil }
+func (itemDouble) Neighbours(context.Context, Level, shared.ID, shared.ID) (string, string, error) {
+	return "", "", nil
+}
+func (itemDouble) SetOrderKey(context.Context, work.WorkItem, int) error { return nil }
+func (itemDouble) MoveSubtree(context.Context, Move) (int, error)        { return 0, nil }
 func (itemDouble) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }

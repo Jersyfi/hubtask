@@ -68,11 +68,62 @@ func NewItemReopened(id shared.ID, item work.WorkItem, actor Actor,
 		ItemSubject(item.ID), actor, occurredAt, cause, itemPayload(item))
 }
 
-// itemPayload is the snapshot all three item events carry: the item in the API's field names, so that a
-// webhook payload and a REST response describe the same object in the same words.
+// Movement is where an item came from, for an event about where it now is.
 //
-// One builder rather than one per event. Three copies of this map would drift in exactly the way that
-// matters least to whoever changes one and most to a subscriber reading all three.
+// The "from" half cannot be read off the item afterwards - the item is the new state - so it is passed. The
+// "to" half is not: it is in the snapshot, and a payload that carried both would be two places for the same
+// value to be wrong.
+type Movement struct {
+	FromParentID shared.ID
+	// FromPath is the item's materialised path before the move. It is what lets a client rewrite its own copy
+	// of the subtree without being sent an event per descendant: every descendant's new path is its old one
+	// with FromPath swapped for the item's current Path (I-W2).
+	FromPath string
+	// FromCollectionID is set when the move crossed collections, which is what decides whether a device
+	// subscribed to one hub still sees the item at all (offline-sync.md §3.1).
+	FromCollectionID shared.ID
+}
+
+// NewItemMoved announces that an item sits somewhere else.
+//
+// One event for reparenting, for a change of collection and for a reorder, because domain-model.md §4 gives
+// movement one event and names `orderKey` in its payload. A drag within a list and a drag between lists are
+// the same gesture to a person and the same event to a rule; a consumer that cares only about reparenting
+// compares the two parent identifiers.
+//
+// `from_bucket_id` and `to_bucket_id` are in the documented payload and are null here: buckets arrive with
+// B-09, and a field invented before the thing it names would be a promise nothing keeps.
+func NewItemMoved(id shared.ID, item work.WorkItem, from Movement, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	payload := itemPayload(item)
+	payload["from_parent_id"] = nil
+	payload["to_parent_id"] = nil
+	payload["from_path"] = from.FromPath
+	payload["from_collection_id"] = nil
+	payload["from_bucket_id"] = nil
+	payload["to_bucket_id"] = nil
+
+	if !from.FromParentID.IsZero() {
+		payload["from_parent_id"] = from.FromParentID.String()
+	}
+	if !item.ParentID.IsZero() {
+		payload["to_parent_id"] = item.ParentID.String()
+	}
+	if !from.FromCollectionID.IsZero() && from.FromCollectionID != item.CollectionID {
+		payload["from_collection_id"] = from.FromCollectionID.String()
+	}
+
+	return NewEnvelope(id, ItemMoved, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, payload)
+}
+
+// itemPayload is the snapshot every item event carries - created, completed, reopened and moved - in the
+// API's field names, so that a webhook payload and a REST response describe the same object in the same
+// words.
+//
+// One builder rather than one per event. Copies of this map would drift in the way that matters least to
+// whoever changes one and most to a subscriber reading them all.
 func itemPayload(item work.WorkItem) map[string]any {
 	payload := map[string]any{
 		"id":            item.ID.String(),

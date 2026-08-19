@@ -876,6 +876,45 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:reorder:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: reorderWorkItem
+      description: >
+        Moves the item within its own level. The position is given as the item to place it before;
+        omitting it appends to the end. The rank is a fractional index, so an insertion between two
+        neighbours renumbers nothing else and two offline devices can insert into the same list without
+        either one's order being discarded.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                before_item_id:
+                  type: [string, "null"]
+                  format: uuid
+                  description: >
+                    The sibling to place this item before. Null or omitted appends to the end of the
+                    level.
+      responses:
+        "200":
+          description: Reordered
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:move:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -893,18 +932,29 @@ paths:
                 target_parent_id:
                   type: [string, "null"]
                   format: uuid
+                  description: >
+                    The item to move this one under. Null moves it to the top level of a collection,
+                    which then has to be named by target_collection_id.
                 target_collection_id:
                   type: string
                   format: uuid
+                  description: >
+                    The destination collection. May be omitted when target_parent_id is given: an
+                    item's collection is the one its parent is in.
                 target_bucket_id:
                   type: [string, "null"]
                   format: uuid
                 before_item_id:
                   type: [string, "null"]
                   format: uuid
+                  description: >
+                    The sibling to place this item before at the destination. Null or omitted appends.
       responses:
         "200":
           description: Moved
+          headers:
+            ETag:
+              schema: { type: string }
           content:
             application/json:
               schema:
@@ -1459,17 +1509,25 @@ components:
 
     MoveResult:
       type: object
+      required: [item, dropped_references]
       properties:
         item: { $ref: "#/components/schemas/WorkItem" }
         dropped_references:
           type: array
-          description: Labels/buckets/members that could not be resolved when changing collection.
+          description: >
+            Labels, buckets, members or custom fields that could not be resolved in the destination
+            collection and were therefore removed (invariant I-W6: unresolvable references are reported
+            back, never silently dropped). Always present; empty when nothing was lost.
           items:
-            type: object
-            properties:
-              kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
-              id: { type: string }
-              code: { type: string }
+            $ref: "#/components/schemas/DroppedReference"
+
+    DroppedReference:
+      type: object
+      required: [kind, id, code]
+      properties:
+        kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
+        id: { type: string, description: The reference that could not be carried over. }
+        code: { type: string, description: A stable message code saying why. }
 
     FilterNode:
       type: object

@@ -443,14 +443,6 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 	return out
 }
 
-// idOrNil is timeOrNil for an identifier: the canonical spelling, or an explicit null.
-func idOrNil(id shared.ID) any {
-	if id.IsZero() {
-		return nil
-	}
-	return id.String()
-}
-
 // Descriptor is the catalogue entry. Registering it is what makes the use case reachable through
 // REST, MCP and automation at once (arc42 §4).
 func (h CreateWorkItem) Descriptor() usecase.Descriptor {

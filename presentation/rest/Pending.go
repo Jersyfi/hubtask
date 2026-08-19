@@ -169,7 +169,13 @@ func (pending) ReopenWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// MoveWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) MoveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+// ReorderWorkItem is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ReorderWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ReorderWorkItemParams) {
 	notAvailable(w, r)
 }
 

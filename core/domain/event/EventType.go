@@ -39,13 +39,21 @@ const (
 	// unfinished, and a subscriber filtering on a payload field to avoid that is a subscriber that will
 	// eventually not.
 	ItemReopened Type = "de.hubtask.work.item.reopened.v1"
+	// ItemMoved announces that an item sits somewhere else: under a different parent, in a different
+	// collection, or at a different rank among the same siblings. Consumers: kanban automation, search, SSE.
+	//
+	// One type for all three, because domain-model.md §4 gives it one and names `orderKey` among its
+	// payload: a drag within a list and a drag between lists are the same gesture to a person and the same
+	// event to a rule. A consumer that cares only about reparenting compares `from_parent_id` with
+	// `to_parent_id`.
+	ItemMoved Type = "de.hubtask.work.item.moved.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
 // event schemas under api/events/ are reconciled against it by the contract test, so an event
 // without a schema, or a schema without an event, is a red build rather than a discovery made by
 // a subscriber.
-var types = [...]Type{ContainerCreated, ItemCreated, ItemCompleted, ItemReopened}
+var types = [...]Type{ContainerCreated, ItemCreated, ItemCompleted, ItemReopened, ItemMoved}
 
 // Types returns every defined event type.
 func Types() []Type { return types[:] }

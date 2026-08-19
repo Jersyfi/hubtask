@@ -185,6 +185,158 @@ func (r ItemRepository) SetCompletion(ctx context.Context, item work.WorkItem, e
 	return nil
 }
 
+// Neighbours returns the ranks either side of a position at one level.
+func (r ItemRepository) Neighbours(
+	ctx context.Context, level repository.Level, beforeID, movingID shared.ID,
+) (string, string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	collection, err := uuidOf(level.CollectionID)
+	if err != nil {
+		return "", "", err
+	}
+	parent, err := optionalUUID(level.ParentID)
+	if err != nil {
+		return "", "", err
+	}
+	before, err := optionalUUID(beforeID)
+	if err != nil {
+		return "", "", err
+	}
+	moving, err := optionalUUID(movingID)
+	if err != nil {
+		return "", "", err
+	}
+
+	row, err := queries.OrderKeyNeighbours(ctx, sqlc.OrderKeyNeighboursParams{
+		CollectionID: collection,
+		ParentID:     parent,
+		MovingID:     moving,
+		BeforeID:     before,
+	})
+	if err != nil {
+		return "", "", shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the neighbours in %s: %w", level.CollectionID, err))
+	}
+	return row.PreviousKey, row.NextKey, nil
+}
+
+// SetOrderKey writes a new rank for one item.
+func (r ItemRepository) SetOrderKey(ctx context.Context, item work.WorkItem, expectedVersion int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetWorkItemOrderKey(ctx, sqlc.SetWorkItemOrderKeyParams{
+		OrderKey:  item.OrderKey,
+		UpdatedAt: timestampOf(item.UpdatedAt),
+		ID:        id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the rank of %s: %w", item.ID, err))
+	}
+	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
+}
+
+// MoveSubtree rewrites the item's placement and its subtree's paths, and returns the subtree's size.
+//
+// Two statements in the order that matters. The placement carries the optimistic lock, so it runs first and a
+// stale version stops the move before any path is rewritten. The subtree rewrite then cannot fail on a
+// version, which is why it is safe to have no lock of its own: it is bounded by the path prefix of a row this
+// transaction has already claimed.
+//
+// The moved item is written by the first statement and excluded from the second, so one move moves one version
+// per row. Written the other way round - both statements matching the moved item - a single move would bump its
+// version twice, which is an artefact of the split rather than anything a caller asked for.
+func (r ItemRepository) MoveSubtree(ctx context.Context, move repository.Move) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := uuidOf(move.Item.ID)
+	if err != nil {
+		return 0, err
+	}
+	parent, err := optionalUUID(move.TargetParentID)
+	if err != nil {
+		return 0, err
+	}
+	collection, err := uuidOf(move.CollectionID)
+	if err != nil {
+		return 0, err
+	}
+
+	placed, err := queries.SetWorkItemPlacement(ctx, sqlc.SetWorkItemPlacementParams{
+		ParentID:     parent,
+		CollectionID: collection,
+		Path:         move.NewPrefix,
+		//nolint:gosec // G115: a depth is bounded by the profile's MaxDepth
+		Depth:     int32(move.Item.Depth + move.DepthDelta),
+		OrderKey:  move.OrderKey,
+		UpdatedAt: timestampOf(move.UpdatedAt),
+		ID:        id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(move.ExpectedVersion),
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the placement of %s: %w", move.Item.ID, err))
+	}
+	if err := versionConflictIfUntouched(placed, move.Item.ID, move.ExpectedVersion); err != nil {
+		return 0, err
+	}
+
+	touched, err := queries.MoveWorkItemSubtree(ctx, sqlc.MoveWorkItemSubtreeParams{
+		CollectionID: collection,
+		NewPrefix:    move.NewPrefix,
+		OldPrefix:    move.OldPrefix,
+		//nolint:gosec // G115: a depth delta is bounded by the profile's MaxDepth
+		DepthDelta: int32(move.DepthDelta),
+		UpdatedAt:  timestampOf(move.UpdatedAt),
+		ItemID:     id,
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("rewriting the subtree of %s: %w", move.Item.ID, err))
+	}
+	// The count is the descendants, and the moved item is one more: the subtree statement excludes it, so
+	// that one move moves one version per row. Zero descendants is an ordinary leaf and not a failure.
+	return int(touched) + 1, nil
+}
+
+// versionConflictIfUntouched turns an update that matched nothing into the answer a caller can act on.
+//
+// Either the row is gone or somebody else moved it on, and the second is the interesting one: read it again
+// and reapply. It is also the answer when the row belongs to another tenant, because row level security
+// removed it from the update's reach - and a caller must not be able to tell that apart from a version that
+// moved (multi-tenancy.md §2).
+func versionConflictIfUntouched(affected int64, id shared.ID, expectedVersion int) error {
+	if affected != 0 {
+		return nil
+	}
+	return shared.ErrVersionConflict.
+		WithDetail("items.version_conflict").
+		WithParams(map[string]string{
+			"item_id": id.String(), "expected_version": strconv.Itoa(expectedVersion),
+		})
+}
+
 // LastOrderKey returns the highest rank among a new item's siblings, or the empty string when it
 // would be the first.
 func (r ItemRepository) LastOrderKey(ctx context.Context, collectionID, parentID shared.ID) (string, error) {
