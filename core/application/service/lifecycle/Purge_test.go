@@ -287,7 +287,9 @@ func TestASweepCountsWhatItCouldNotRemove(t *testing.T) {
 	}
 	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldItem, ScopeID: otherTaskID, Reason: "Litigation"}}
 
-	outcome, err := h.purger.Sweep(t.Context(), actor(), now, domain.DeletedByRetention, now)
+	outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{
+		Cutoff: now, Reason: domain.DeletedByRetention, ObserveTombstoneWindow: true,
+	}, now)
 	if err != nil {
 		t.Fatalf("the sweep failed: %v", err)
 	}
@@ -316,7 +318,9 @@ func TestASweepRespectsTheTombstoneWindow(t *testing.T) {
 		expiredItem(otherTaskID, now.Add(-40*24*time.Hour)),
 	}
 
-	outcome, err := h.purger.Sweep(t.Context(), actor(), now, domain.DeletedByRetention, now)
+	outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{
+		Cutoff: now, Reason: domain.DeletedByRetention, ObserveTombstoneWindow: true,
+	}, now)
 	if err != nil {
 		t.Fatalf("the sweep failed: %v", err)
 	}
@@ -344,7 +348,9 @@ func TestASweepRemovesEntriesBeforeContainersAndAsksOneCutoff(t *testing.T) {
 	}
 	cutoff := now.Add(-30 * 24 * time.Hour)
 
-	outcome, err := h.purger.Sweep(t.Context(), actor(), cutoff, domain.DeletedByRetention, now)
+	outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{
+		Cutoff: cutoff, Reason: domain.DeletedByRetention, ObserveTombstoneWindow: true,
+	}, now)
 	if err != nil {
 		t.Fatalf("the sweep failed: %v", err)
 	}
@@ -411,7 +417,9 @@ func TestTheRemovalIsAuditedAsASummary(t *testing.T) {
 func TestASweepWithNothingToDoWritesNothing(t *testing.T) {
 	h := newHarness()
 
-	outcome, err := h.purger.Sweep(t.Context(), actor(), now, domain.DeletedByRetention, now)
+	outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{
+		Cutoff: now, Reason: domain.DeletedByRetention, ObserveTombstoneWindow: true,
+	}, now)
 	if err != nil {
 		t.Fatalf("the sweep failed: %v", err)
 	}
@@ -420,5 +428,30 @@ func TestASweepWithNothingToDoWritesNothing(t *testing.T) {
 	}
 	if len(h.removals.recorded) != 0 || len(h.events.appended) != 0 {
 		t.Error("an empty sweep wrote something")
+	}
+}
+
+// The window is a floor on the automatic paths and not on an explicit one. A person emptying their
+// own trash has said so, and the tombstone the purge writes is what stops the resurrection there.
+func TestAnExplicitSweepDoesNotWaitOutTheOfflineWindow(t *testing.T) {
+	h := newHarness()
+	h.expired.items = []repository.ExpiredItem{
+		expiredItem(taskID, now.Add(-40*24*time.Hour)), // well inside the window
+	}
+
+	outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{
+		Cutoff: now, Reason: domain.DeletedByUser, ObserveTombstoneWindow: false,
+	}, now)
+	if err != nil {
+		t.Fatalf("the sweep failed: %v", err)
+	}
+
+	if outcome.Removed != 1 || outcome.Blocked[BlockedByTombstoneWindow] != 0 {
+		t.Errorf("an explicit sweep reports %+v, want the entry removed", outcome)
+	}
+	// The marker still outlives the row by the whole window, which is what makes it safe.
+	if h.removals.purgeAfter.Sub(h.removals.deletedAt) != window {
+		t.Errorf("the tombstone window is %v, want %v",
+			h.removals.purgeAfter.Sub(h.removals.deletedAt), window)
 	}
 }

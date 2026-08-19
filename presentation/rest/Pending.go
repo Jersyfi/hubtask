@@ -250,6 +250,14 @@ func (pending) ListTrash(w http.ResponseWriter, r *http.Request, _ openapi.ListT
 	notAvailable(w, r)
 }
 
+func (pending) PurgeWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.PurgeWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) EmptyTrash(w http.ResponseWriter, r *http.Request, _ openapi.EmptyTrashParams) {
+	notAvailable(w, r)
+}
+
 // ArchiveWorkItem and UnarchiveWorkItem are overridden by RestController, for the reason given at
 // CreateContainer.
 func (pending) ArchiveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ArchiveWorkItemParams) {

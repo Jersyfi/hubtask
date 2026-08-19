@@ -27,6 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -232,6 +233,7 @@ func run() error {
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
 	trash := postgres.NewTrashRepository(cursors)
+	lifecycleStore := postgres.NewLifecycleRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
@@ -256,11 +258,20 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// One engine behind every path that removes for good: a person purging an entry, a person
+	// emptying a trash, and the retention job. They differ in what they select and in whether a
+	// refusal is an error or a number - not in what removing owes (lifecycle.Purger).
+	purger := lifecycle.Purger{
+		Trash: trash, Expired: lifecycleStore, Holds: lifecycleStore, Removals: lifecycleStore,
+		Events: outbox, Audit: auditSink, Clock: clockadapter.System{}, IDs: ids,
+		TombstoneWindow: cfg.Retention.TombstoneWindow, BatchSize: cfg.Retention.BatchSize,
+	}
+
 	// Every verb that moves an entry between the archive and the trash shares one dependency set.
 	// They are the same walk with a different transition in the middle, and wiring them separately
 	// would be one more place for "restoring records what trashing records" to stop being true
 	// (work.LifecycleWriter).
-	lifecycle := work.LifecycleWriter{
+	itemLifecycle := work.LifecycleWriter{
 		Items: items, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -439,11 +450,18 @@ func run() error {
 
 		work.MoveWorkItem{Placement: placement}.Descriptor(),
 		work.ReorderWorkItem{Placement: placement}.Descriptor(),
-		work.ArchiveWorkItem{Lifecycle: lifecycle}.Descriptor(),
-		work.UnarchiveWorkItem{Lifecycle: lifecycle}.Descriptor(),
-		work.TrashWorkItem{Lifecycle: lifecycle}.Descriptor(),
-		work.RestoreWorkItem{Lifecycle: lifecycle}.Descriptor(),
+		work.ArchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
+		work.UnarchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
+		work.TrashWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
+		work.RestoreWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
 		work.ListTrash{Trash: trash, Reader: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
+		lifecycle.PurgeWorkItem{
+			Items: items, Containers: containers, Purger: purger,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		lifecycle.EmptyTrash{
+			Purger: purger, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process

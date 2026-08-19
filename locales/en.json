@@ -128,6 +128,7 @@
   "items.parent_is_self": "An entry cannot be moved into itself.",
   "items.parent_in_own_subtree": "An entry cannot be moved into something that sits inside it.",
   "items.trashed": "That entry is in the trash. Restore it before changing it.",
+  "items.not_trashed": "That entry is not in the trash. Delete it first - that can be undone, and this cannot.",
   "items.archived": "That entry is archived. Unarchive it before changing it.",
   "items.item_id_required": "Say which entry to change.",
   "items.update_empty": "Say what to change about that entry.",

@@ -134,3 +134,100 @@ func TestAnEmptyTrashIsAnEmptyArray(t *testing.T) {
 		t.Errorf("an empty trash renders as %s", recorder.Body)
 	}
 }
+
+// The named purge answers 204: the caller asked for one entry to go, and how many rows hung off it
+// is not a fact about their request (api-guidelines.md §2).
+func TestPurgingAnEntryAnswers204(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"removed": 3}}
+
+	controller := NewRestController()
+	controller.UseCases = registry
+	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+	itemID := "0192f000-0000-7000-8000-00000000000e"
+	request := httptest.NewRequestWithContext(
+		ctx, http.MethodPost, APIBasePath+"/items/"+itemID+":purge", strings.NewReader(""))
+
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "PurgeWorkItem" || registry.in["item_id"] != itemID {
+		t.Errorf("the call reached %q with %v", registry.name, registry.in)
+	}
+}
+
+// Emptying answers a summary rather than 204: a pass is not necessarily the whole of it, and a
+// client that got no answer could not tell that it should call again - nor that rows stayed behind
+// under a legal hold.
+func TestEmptyingTheTrashAnswersWithTheSummary(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"matched": 12, "removed": 10,
+		"blocked": map[string]any{"legal_hold": 1, "tombstone_window": 1},
+	}}
+
+	controller := NewRestController()
+	controller.UseCases = registry
+	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+	request := httptest.NewRequestWithContext(
+		ctx, http.MethodPost, APIBasePath+"/trash:empty", strings.NewReader(""))
+
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "EmptyTrash" {
+		t.Errorf("use case = %q, want EmptyTrash", registry.name)
+	}
+
+	var summary struct {
+		Matched int            `json:"matched"`
+		Removed int            `json:"removed"`
+		Blocked map[string]int `json:"blocked"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &summary); err != nil {
+		t.Fatalf("the answer is not JSON: %v", err)
+	}
+	if summary.Matched != 12 || summary.Removed != 10 {
+		t.Errorf("the summary reads %+v", summary)
+	}
+	if summary.Blocked["legal_hold"] != 1 || summary.Blocked["tombstone_window"] != 1 {
+		t.Errorf("the reasons read %v", summary.Blocked)
+	}
+}
+
+// `blocked` is always an object, empty when nothing was kept: a client rendering "why some stayed"
+// should not have to tell an absent map from an empty one.
+func TestAnUnblockedPassStillCarriesAnEmptyReasonMap(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"matched": 3, "removed": 3, "blocked": map[string]any{},
+	}}
+
+	controller := NewRestController()
+	controller.UseCases = registry
+	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+	request := httptest.NewRequestWithContext(
+		ctx, http.MethodPost, APIBasePath+"/trash:empty", strings.NewReader(""))
+
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+
+	if !strings.Contains(recorder.Body.String(), `"blocked":{}`) {
+		t.Errorf("an unblocked pass renders as %s", recorder.Body)
+	}
+}

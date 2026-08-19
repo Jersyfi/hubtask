@@ -75,6 +75,7 @@ type Config struct {
 	CORS      CORSConfig
 	Outbound  OutboundConfig
 	Queue     QueueConfig
+	Retention RetentionConfig
 	Locale    LocaleConfig
 	Metrics   MetricsConfig
 	Tracing   TracingConfig
@@ -107,6 +108,24 @@ type DatabaseConfig struct {
 	// (engineering-guidelines.md §4) - the protection against a runaway query.
 	StatementTimeout       time.Duration
 	WorkerStatementTimeout time.Duration
+}
+
+// RetentionConfig is the lifecycle context's operational surface: how a deletion run is paced, and
+// how long the marker of a removal has to outlive it (ADR-0020, data-retention.md §5).
+//
+// Data rather than code, like the periods themselves - but unlike them, these are the operator's
+// rather than the tenant's: a batch size is about the database this installation runs on, and the
+// offline window is about the devices its people carry.
+type RetentionConfig struct {
+	// TombstoneWindow is the maximum offline window (offline-sync.md §7). Two things at once: how
+	// long a removal's marker survives it, and the lower bound an automatic run observes before
+	// removing at all. A device that has not checked in for longer than this has to resynchronise
+	// from scratch, so the marker has done its work by then.
+	TombstoneWindow time.Duration
+	// BatchSize is how many rows one pass of a deletion reads. Batches so that a large deletion does
+	// not hold one transaction open across the whole of it, and so that it can be stopped between
+	// passes rather than only by killing it.
+	BatchSize int
 }
 
 // QueueConfig is the background work of the worker and scheduler roles (ADR-0008).

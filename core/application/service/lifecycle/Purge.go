@@ -154,7 +154,25 @@ func (p Purger) Subtree(
 	return removed, nil
 }
 
-// Sweep removes everything deleted before the cutoff, in one batch, and reports what it did.
+// Selection is what one sweep is to remove.
+type Selection struct {
+	// Cutoff is the deletion date a row has to be older than. The retention job passes the tenant's
+	// period; a person emptying a trash passes now, which is everything in it.
+	Cutoff time.Time
+	// Reason is why, for the journal, the events and the metric.
+	Reason domain.DeletionReason
+	// ObserveTombstoneWindow holds back rows deleted more recently than the maximum offline window
+	// (offline-sync.md §7).
+	//
+	// True for the automatic paths and false for an explicit one, which is the distinction the two
+	// documents together draw. A retention rule removing an object a device has not yet heard about
+	// would let that device recreate it on its next push, and nobody asked for the removal to happen
+	// today. A person emptying their own trash did ask, and the tombstone the purge writes is what
+	// stops the resurrection there - the marker outlives the row by the whole window either way.
+	ObserveTombstoneWindow bool
+}
+
+// Sweep removes everything the selection covers, in one batch, and reports what it did.
 //
 // One batch per call. The caller decides whether to come back for another - the retention job loops
 // until a pass finds nothing, and a person emptying a trash gets one pass and a count - because that
@@ -164,21 +182,24 @@ func (p Purger) Subtree(
 // A refusal is counted rather than raised. This selects rather than names, so "one of these is held"
 // is a fact about the run and not a failure of it.
 func (p Purger) Sweep(
-	ctx context.Context, actor appshared.ActorContext, cutoff time.Time,
-	reason domain.DeletionReason, now time.Time,
+	ctx context.Context, actor appshared.ActorContext, selection Selection, now time.Time,
 ) (Outcome, error) {
 	var outcome Outcome
+	cutoff, reason := selection.Cutoff, selection.Reason
 
 	holds, err := p.Holds.Active(ctx)
 	if err != nil {
 		return outcome, err
 	}
 
-	// The floor offline clients impose, applied to the automatic paths. An object may only disappear
-	// for good once every known device has had the chance to learn of the deletion; until then it is
-	// past its period and still not removable, which is a state the run reports rather than hides
-	// (offline-sync.md §7, data-retention.md §4.5).
+	// The floor offline clients impose. An object may only disappear for good once every known
+	// device has had the chance to learn of the deletion; until then it is past its period and still
+	// not removable, which is a state the run reports rather than hides.
 	safe := now.Add(-p.TombstoneWindow)
+	if !selection.ObserveTombstoneWindow {
+		// An explicit act. Everything selected is old enough by definition.
+		safe = now
+	}
 
 	items, err := p.Expired.Items(ctx, cutoff, p.BatchSize)
 	if err != nil {

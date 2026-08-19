@@ -1953,6 +1953,18 @@ type Problem struct {
 	Type      *string                 `json:"type,omitempty"`
 }
 
+// PurgeSummary What one pass of a removal did.
+type PurgeSummary struct {
+	// Blocked What was kept, counted by reason - `legal_hold`, `tombstone_window`. An object rather than a total, so that a client can say why rather than only how many.
+	Blocked map[string]int `json:"blocked"`
+
+	// Matched How many rows the pass considered, whether or not they went.
+	Matched int `json:"matched"`
+
+	// Removed How many actually went.
+	Removed int `json:"removed"`
+}
+
 // RestoreRequest defines model for RestoreRequest.
 type RestoreRequest struct {
 	ArchiveId string `json:"archive_id"`
@@ -2558,6 +2570,12 @@ type MoveWorkItemJSONBody struct {
 	TargetParentId *openapi_types.UUID `json:"target_parent_id,omitempty"`
 }
 
+// PurgeWorkItemParams defines parameters for PurgeWorkItem.
+type PurgeWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ReopenWorkItemParams defines parameters for ReopenWorkItem.
 type ReopenWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -2618,6 +2636,12 @@ type ListRetentionPoliciesParams struct {
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// EmptyTrashParams defines parameters for EmptyTrash.
+type EmptyTrashParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UpdateAccountPreferencesJSONRequestBody defines body for UpdateAccountPreferences for application/json ContentType.
@@ -2845,6 +2869,9 @@ type ServerInterface interface {
 	// (POST /items/{itemId}:move)
 	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
+	// (POST /items/{itemId}:purge)
+	PurgeWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params PurgeWorkItemParams)
+
 	// (POST /items/{itemId}:reopen)
 	ReopenWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ReopenWorkItemParams)
 
@@ -2901,6 +2928,9 @@ type ServerInterface interface {
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
+	// EmptyTrash Remove everything in the trash for good
+	// (POST /trash:empty)
+	EmptyTrash(w http.ResponseWriter, r *http.Request, params EmptyTrashParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -4867,6 +4897,56 @@ func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// PurgeWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) PurgeWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PurgeWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PurgeWorkItem(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReopenWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) ReopenWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -5431,6 +5511,47 @@ func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// EmptyTrash operation middleware
+func (siw *ServerInterfaceWrapper) EmptyTrash(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params EmptyTrashParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EmptyTrash(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -5564,6 +5685,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups/{backupId}:verify", wrapper.VerifyBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/restores", wrapper.StartRestore)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/trash", wrapper.ListTrash)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/trash:empty", wrapper.EmptyTrash)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/retention-policies", wrapper.ListRetentionPolicies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies", wrapper.CreateRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies/{policyId}:preview", wrapper.PreviewRetentionPolicy)
@@ -5596,6 +5718,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:purge", wrapper.PurgeWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:restore", wrapper.RestoreWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:archive", wrapper.ArchiveWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:unarchive", wrapper.UnarchiveWorkItem)

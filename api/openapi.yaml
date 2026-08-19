@@ -323,6 +323,30 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /trash:empty:
+    post:
+      tags: [items, containers]
+      operationId: emptyTrash
+      summary: Remove everything in the trash for good
+      description: >
+        Irreversible, and it reaches hubs and collections as readily as entries - which is why it
+        needs the owner's right to delete a container rather than the right to write entries.
+
+        Anything under a legal hold stays, and is counted in the answer rather than failing the call.
+        A large trash takes more than one pass: `matched` says how many rows this pass considered, and
+        calling again continues where it left off.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: What the pass removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurgeSummary"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /retention-policies:
     get:
       tags: [retention]
@@ -1062,6 +1086,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:purge:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: purgeWorkItem
+      description: >
+        Removes an entry in the trash and everything under it for good, before its retention period
+        is up. Irreversible: no restore brings it back, and a backup taken before it does not either
+        - the deletion journal sees to that. Refused for an entry that is not in the trash; delete
+        it first, which is reversible. Refused while a legal hold is in force over it, and the answer
+        says at which level.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: Removed for good
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -2448,6 +2492,24 @@ components:
         confirmation:
           type: [string, "null"]
           description: For destructive modes, the exact tenant name.
+
+    PurgeSummary:
+      type: object
+      description: What one pass of a removal did.
+      required: [matched, removed, blocked]
+      properties:
+        matched:
+          type: integer
+          description: How many rows the pass considered, whether or not they went.
+        removed:
+          type: integer
+          description: How many actually went.
+        blocked:
+          type: object
+          additionalProperties: { type: integer }
+          description: >
+            What was kept, counted by reason - `legal_hold`, `tombstone_window`. An object rather
+            than a total, so that a client can say why rather than only how many.
 
     TrashPage:
       type: object
