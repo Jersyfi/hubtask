@@ -834,3 +834,57 @@ func TestAChangeEventRefusesAnEmptyChangeSet(t *testing.T) {
 		t.Fatal("an event with no changes was built")
 	}
 }
+
+// The bucket a board is made of (B-09). `wip_limit` and `color_token` are explicit nulls in the
+// payload rather than omissions, for the reason the response carries them that way: a subscriber
+// that had to tell "no limit" from "this producer does not know about limits" would have to fetch
+// the column, which is what a snapshot exists to avoid.
+func TestTheBucketCreatedEventMatchesItsSchema(t *testing.T) {
+	spec := loadEventSchema(t, event.BucketCreated)
+	limit := 4
+
+	for _, c := range []struct {
+		name   string
+		bucket work.Bucket
+	}{
+		{name: "a plain column", bucket: work.Bucket{
+			ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"),
+			TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+			Name:         "Doing", OrderKey: "a1", Version: 1,
+		}},
+		{name: "one that carries everything", bucket: work.Bucket{
+			ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000b2"),
+			TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+			Name:         "Done", OrderKey: "a2", WipLimit: &limit, IsDoneBucket: true,
+			ColorToken: "surface.green", Version: 1,
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			envelope, err := event.NewBucketCreated(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e3"), c.bucket,
+				event.Actor{
+					Kind: shared.ActorUser,
+					ID:   shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+				},
+				time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC), event.Cause{})
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := spec.validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}

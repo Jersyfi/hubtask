@@ -1775,15 +1775,34 @@ components:
 
     Bucket:
       type: object
-      required: [id, name]
+      description: >
+        A column of a collection's board - the "list" of the requirements. It belongs to exactly one
+        collection, and its name is unique there, compared without regard to case or accents.
+      required: [id, collection_id, name, order_key, wip_limit, is_done_bucket, color_token, version]
       properties:
         id: { type: string, format: uuid }
         collection_id: { type: string, format: uuid }
         name: { type: string, minLength: 1, maxLength: 120 }
-        order_key: { type: string }
-        wip_limit: { type: [integer, "null"] }
+        order_key:
+          type: string
+          description: >
+            The rank on the board - a fractional index rather than a number (offline-sync.md §4.2).
+        wip_limit:
+          type: [integer, "null"]
+          minimum: 1
+          description: >
+            How many entries the people using this board agreed to have in the column at once.
+            Advisory: nothing refuses the drop that exceeds it, because the requirement is that the
+            column turns red rather than that the work becomes impossible. Null is no limit.
         is_done_bucket: { type: boolean, default: false }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            Always present, as null when unset - like wip_limit. A board renders both, and a field
+            that appeared only once somebody had set it is one a client cannot read unconditionally.
+        version:
+          type: integer
+          description: The optimistic lock, returned as the ETag and sent back as If-Match.
 
     BucketCreate:
       type: object

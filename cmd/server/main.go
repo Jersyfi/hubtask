@@ -232,6 +232,7 @@ func run() error {
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
 	profiles := postgres.NewCapabilityProfileRepository()
+	buckets := postgres.NewBucketRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
@@ -261,6 +262,9 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// The bucket use cases share their dependencies with each other rather than with the container
+	// writer: a bucket is its own row with its own version and its own uniqueness, and the
+	// collection it belongs to is a foreign key rather than an aggregate boundary.
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -333,6 +337,21 @@ func run() error {
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.MoveContainer{Writer: containerWriter}.Descriptor(),
+		work.CreateBucket{
+			Buckets:    buckets,
+			Containers: containers,
+			Authorizer: authorizer,
+			Events:     outbox,
+			Changes:    changes,
+			Audit:      auditSink,
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{},
+			IDs:        ids,
+			HLC:        hybrid,
+		}.Descriptor(),
+		work.ListBuckets{
+			Buckets: buckets, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),

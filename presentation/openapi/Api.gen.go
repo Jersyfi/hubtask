@@ -1447,15 +1447,24 @@ type BackupTargetCreateEncryptionMode string
 // BackupTargetKind defines model for BackupTargetKind.
 type BackupTargetKind string
 
-// Bucket defines model for Bucket.
+// Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
-	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
-	ColorToken   *string             `json:"color_token,omitempty"`
-	Id           openapi_types.UUID  `json:"id"`
-	IsDoneBucket *bool               `json:"is_done_bucket,omitempty"`
-	Name         string              `json:"name"`
-	OrderKey     *string             `json:"order_key,omitempty"`
-	WipLimit     *int                `json:"wip_limit,omitempty"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// ColorToken Always present, as null when unset - like wip_limit. A board renders both, and a field that appeared only once somebody had set it is one a client cannot read unconditionally.
+	ColorToken   *string            `json:"color_token"`
+	Id           openapi_types.UUID `json:"id"`
+	IsDoneBucket bool               `json:"is_done_bucket"`
+	Name         string             `json:"name"`
+
+	// OrderKey The rank on the board - a fractional index rather than a number (offline-sync.md §4.2).
+	OrderKey string `json:"order_key"`
+
+	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
+	Version int `json:"version"`
+
+	// WipLimit How many entries the people using this board agreed to have in the column at once. Advisory: nothing refuses the drop that exceeds it, because the requirement is that the column turns red rather than that the work becomes impossible. Null is no limit.
+	WipLimit *int `json:"wip_limit"`
 }
 
 // BucketCreate defines model for BucketCreate.

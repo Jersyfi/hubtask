@@ -82,6 +82,13 @@ const (
 	// event to a rule. A consumer that cares only about reparenting compares `from_parent_id` with
 	// `to_parent_id`.
 	ItemMoved Type = "de.hubtask.work.item.moved.v1"
+	// BucketCreated announces a new column on a collection's board. Consumers: kanban clients,
+	// automation, search.
+	//
+	// domain-model.md §4 names no bucket event at all. It follows the scheme rather than a table
+	// entry, because a board that could be rearranged without anything being announced would be a
+	// hole in the contract exactly where a kanban client synchronises.
+	BucketCreated Type = "de.hubtask.work.bucket.created.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -92,6 +99,7 @@ var types = [...]Type{
 	ContainerCreated, ContainerRenamed, ContainerPoliciesUpdated, ContainerMoved,
 	ContainerArchived, ContainerUnarchived,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
+	BucketCreated,
 }
 
 // Types returns every defined event type.

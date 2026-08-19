@@ -134,6 +134,8 @@ func (pending) UnarchiveContainer(w http.ResponseWriter, r *http.Request, _ open
 	notAvailable(w, r)
 }
 
+// ListBuckets and CreateBucket are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) ListBuckets(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
 	notAvailable(w, r)
 }

@@ -149,6 +149,7 @@
   "buckets.identity_incomplete": "This installation is misconfigured and could not create that bucket.",
   "buckets.deleted": "That bucket has been deleted.",
   "buckets.not_found": "That bucket does not exist.",
+  "buckets.before_bucket_not_on_board": "That bucket is not on the board this one is being added to.",
   "buckets.name_taken": "A bucket called {name} already exists in this collection.",
   "buckets.version_conflict": "Someone else changed that bucket in the meantime. Read it again and reapply.",
 

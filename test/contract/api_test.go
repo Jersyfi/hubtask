@@ -7,6 +7,7 @@ package contract
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -519,5 +520,73 @@ func TestTheLastPageCarriesAnExplicitNullCursor(t *testing.T) {
 	}
 	if value != nil {
 		t.Errorf("next_cursor is %v, want null", value)
+	}
+}
+
+// bucketProjection is a column as a use case returns it: the field names of the contract, with the
+// optional values as explicit nulls (B-09).
+func bucketProjection() catalogue.Output {
+	return catalogue.Output{
+		"id":             "0192f000-0000-7000-8000-0000000000b1",
+		"collection_id":  "0192f000-0000-7000-8000-00000000000b",
+		"name":           "Doing",
+		"order_key":      "a1",
+		"wip_limit":      nil,
+		"is_done_bucket": false,
+		"color_token":    nil,
+		"version":        1,
+	}
+}
+
+// A board is a plain array rather than a page, so it is judged against the item schema row by row:
+// the contract declares `type: array` with `items: Bucket`, and the validator judges a named schema.
+func TestABoardMatchesTheBucketSchema(t *testing.T) {
+	spec := contractSpec(t)
+	collection := "0192f000-0000-7000-8000-00000000000b"
+
+	status, body := readResponse(t, "/containers/"+collection+"/buckets",
+		catalogue.Output{"data": []catalogue.Output{bucketProjection()}})
+	if status != http.StatusOK {
+		t.Fatalf("status %d: %s", status, body)
+	}
+
+	var board []json.RawMessage
+	if err := json.Unmarshal(body, &board); err != nil {
+		t.Fatalf("the board is not an array: %v (%s)", err, body)
+	}
+	if len(board) != 1 {
+		t.Fatalf("%d columns, want 1", len(board))
+	}
+
+	problems, err := spec.validateAgainst("Bucket", board[0])
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, problem := range problems {
+		t.Errorf("Bucket: %s", problem)
+	}
+}
+
+// The optional values a board renders are present as null rather than absent. A client that had to
+// tell "no limit" from "this server does not know about limits" would have to fetch the column.
+func TestAColumnCarriesItsOptionalValuesAsNull(t *testing.T) {
+	collection := "0192f000-0000-7000-8000-00000000000b"
+
+	_, body := readResponse(t, "/containers/"+collection+"/buckets",
+		catalogue.Output{"data": []catalogue.Output{bucketProjection()}})
+
+	var board []map[string]json.RawMessage
+	if err := json.Unmarshal(body, &board); err != nil {
+		t.Fatalf("the board is not an array: %v (%s)", err, body)
+	}
+	for _, field := range []string{"wip_limit", "color_token"} {
+		raw, present := board[0][field]
+		if !present {
+			t.Errorf("%s is absent rather than null", field)
+			continue
+		}
+		if string(raw) != "null" {
+			t.Errorf("%s is %s, want null", field, raw)
+		}
 	}
 }
