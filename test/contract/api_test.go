@@ -631,3 +631,35 @@ func TestAVocabularyMatchesTheLabelSchema(t *testing.T) {
 		t.Errorf("Label: %s", problem)
 	}
 }
+
+// The labels an entry carries, as adding and removing report them (B-09).
+func TestTheItemLabelResponseMatchesTheSchema(t *testing.T) {
+	spec := contractSpec(t)
+	itemID := "0192f000-0000-7000-8000-00000000000e"
+
+	controller := rest.NewRestController()
+	controller.UseCases = fixedCatalogue{out: catalogue.Output{
+		"item_id":   itemID,
+		"label_ids": []string{"0192f000-0000-7000-8000-0000000000c1"},
+	}}
+
+	ctx := appshared.ContextWithActor(context.Background(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+	response := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(response, httptest.NewRequestWithContext(ctx, http.MethodPut,
+		rest.APIBasePath+"/items/"+itemID+"/labels/0192f000-0000-7000-8000-0000000000c1", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
+	}
+	problems, err := spec.validateAgainst("ItemLabels", response.Body.Bytes())
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, problem := range problems {
+		t.Errorf("ItemLabels: %s", problem)
+	}
+}

@@ -1100,3 +1100,68 @@ func TestTheLabelChangeEventsMatchTheirSchemas(t *testing.T) {
 		})
 	}
 }
+
+// The two events domain-model.md §4 names by hand. Their payload is a reference rather than a
+// snapshot, which is the one place this system does not send one: a set merges separately, so a
+// snapshot of the entry would carry a value another device may already have merged differently.
+func TestTheItemLabelEventsMatchTheirSchemas(t *testing.T) {
+	item := work.WorkItem{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-00000000000e"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemTask,
+		Path:         work.RootPath(shared.MustParseID("0192f000-0000-7000-8000-00000000000e")),
+		Depth:        1, Title: "Buy oat milk", OrderKey: "a0",
+		CreatedBy: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		Version:   1,
+	}
+	labelID := shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+	by := event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}
+	at := time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC)
+	eventID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e8")
+
+	for eventType, build := range map[event.Type]func() (event.Envelope, error){
+		event.ItemLabelAdded: func() (event.Envelope, error) {
+			return event.NewItemLabelAdded(eventID, item, labelID, by, at, event.Cause{})
+		},
+		event.ItemLabelRemoved: func() (event.Envelope, error) {
+			return event.NewItemLabelRemoved(eventID, item, labelID, by, at, event.Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// An event about no label at all means the writer and the event disagree, which is a defect rather
+// than something a client sent.
+func TestAnItemLabelEventNeedsALabel(t *testing.T) {
+	_, err := event.NewItemLabelAdded(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e8"),
+		work.WorkItem{
+			ID:       shared.MustParseID("0192f000-0000-7000-8000-00000000000e"),
+			TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		},
+		"", event.Actor{Kind: shared.ActorSystem},
+		time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC), event.Cause{})
+	if err == nil {
+		t.Fatal("an event naming no label was built")
+	}
+}

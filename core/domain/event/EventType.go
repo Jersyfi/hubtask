@@ -117,6 +117,15 @@ const (
 	// are not, so listing them would make the payload unbounded; a consumer that renders chips
 	// drops this label from all of them, which is what the deletion means.
 	LabelDeleted Type = "de.hubtask.work.label.deleted.v1"
+	// ItemLabelAdded announces that an entry now carries a label. Consumers: automation.
+	//
+	// One of the two events domain-model.md §4 names by hand, and the payload it names is `labelId`.
+	// Its own type rather than an ItemUpdated carrying a set, because a set is not a field: it
+	// merges as an OR-set rather than by last writer wins, and a rule written against "the labels
+	// changed" could not tell an addition from a removal.
+	ItemLabelAdded Type = "de.hubtask.work.item.label_added.v1"
+	// ItemLabelRemoved announces that an entry no longer carries a label. Consumers: automation.
+	ItemLabelRemoved Type = "de.hubtask.work.item.label_removed.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -129,6 +138,7 @@ var types = [...]Type{
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted,
+	ItemLabelAdded, ItemLabelRemoved,
 }
 
 // Types returns every defined event type.

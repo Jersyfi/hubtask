@@ -234,6 +234,7 @@ func run() error {
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
+	itemLabels := postgres.NewItemLabelRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
@@ -278,6 +279,17 @@ func run() error {
 		Labels: labels, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
+	// Both directions of an entry's labels share one dependency set. They are the same write in
+	// opposite directions - the same capability gate, the same collection check, the same tag -
+	// and wiring them separately would be two places to get one of thirteen fields wrong
+	// (work.ItemLabelWriter).
+	itemLabelWriter := work.ItemLabelWriter{
+		Items: items, ItemLabels: itemLabels, Labels: labels, Containers: containers,
+		Profiles: profiles, Authorizer: authorizer, Events: outbox, Changes: changes,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		HLC: hybrid,
 	}
 
 	useCases, err := usecase.NewRegistry(
@@ -387,6 +399,8 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateLabel{Writer: labelWriter}.Descriptor(),
 		work.DeleteLabel{Writer: labelWriter}.Descriptor(),
+		work.AddLabel{Writer: itemLabelWriter}.Descriptor(),
+		work.RemoveLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),

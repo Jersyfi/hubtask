@@ -1400,6 +1400,41 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/labels/{labelId}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+      - $ref: "#/components/parameters/LabelId"
+    put:
+      tags: [items]
+      operationId: addLabel
+      description: >
+        Puts a label on an entry. Idempotent: an entry that already carries it succeeds. The label
+        has to belong to the entry's own collection - a label is a vocabulary one collection agreed
+        on - and the entry's type has to carry the LABELS capability.
+      responses:
+        "200":
+          description: The labels the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemLabels"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: removeLabel
+      description: >
+        Takes a label off an entry. Idempotent: an entry that does not carry it succeeds.
+      responses:
+        "200":
+          description: The labels the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemLabels"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2046,6 +2081,19 @@ components:
         name: { type: string, minLength: 1, maxLength: 120 }
         color_token: { type: string, minLength: 1 }
         description: { type: [string, "null"] }
+
+    ItemLabels:
+      type: object
+      description: >
+        The labels one entry carries. Returned by adding and removing rather than the entry itself,
+        because neither touches the entry's own row: a label lives beside it, and an entry whose
+        version had moved would tell a client its title had changed too.
+      required: [item_id, label_ids]
+      properties:
+        item_id: { type: string, format: uuid }
+        label_ids:
+          type: array
+          items: { type: string, format: uuid }
 
     LabelUpdate:
       type: object
