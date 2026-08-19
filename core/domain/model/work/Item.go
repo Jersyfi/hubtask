@@ -253,6 +253,116 @@ func (i WorkItem) IsArchived() bool { return i.ArchivedAt != nil }
 // period, which is a different thing from being archived.
 func (i WorkItem) IsTrashed() bool { return i.DeletedAt != nil }
 
+// Field names, as the API spells them. They travel into the event's change set and into the change
+// log, where a client matches them against the members it sent - so they are written once here
+// rather than as a literal at each of the three places that has to agree.
+const (
+	FieldTitle = "title"
+	FieldNotes = "notes"
+)
+
+// ItemAttributes is what an update may change: the fields 0.2.0 owns.
+//
+// A nil pointer means "leave it alone", which is what an absent member of a JSON Merge Patch says.
+// The distinction is the whole of the type's job: `notes: null` clears the notes and an omitted
+// `notes` keeps them, and a struct of plain strings could not tell a caller that meant one from a
+// caller that meant the other - it would clear the notes of every client that only wanted to
+// rename something.
+//
+// Icon and colour are deliberately absent. The backlog names them, but a WorkItem has neither -
+// domain-model.md §3.4 gives the item no such field and §3.3 puts both on Container, which is
+// B-06's subject. Adding them here would be a model change rather than an implementation of one.
+type ItemAttributes struct {
+	Title *string
+	Notes *string
+}
+
+// IsEmpty reports whether the update asks for nothing at all.
+func (a ItemAttributes) IsEmpty() bool { return a.Title == nil && a.Notes == nil }
+
+// FieldChange is one field that moved, with the value on each side.
+//
+// Reported out of the domain rather than recomputed by each recipient. Three of them describe the
+// same change - the event's change set, one change log entry per field for the offline merge, and
+// the audit entry - and three derivations would be three chances to disagree about what changed.
+type FieldChange struct {
+	Field    string
+	From, To string
+}
+
+// Updated applies an update and reports which fields moved.
+//
+// Nothing that did not move is in the result, and a request that changes nothing returns the item
+// untouched with no changes at all. That is what makes a repeat harmless rather than merely
+// accepted: the caller writes nothing, spends no version and announces nothing, which is the same
+// contract Completed keeps for the same reason.
+//
+// The capability is asked before the lifecycle, exactly as EnsureCompletable does and for the same
+// reason: "an activity has no notes" is true of the type whatever state one particular activity is
+// in, and answering with the state first would send a client off to unarchive an item whose notes
+// would still be refused afterwards.
+func (i WorkItem) Updated(
+	attributes ItemAttributes, profile CapabilityProfile, at time.Time,
+) (WorkItem, []FieldChange, error) {
+	// Only a non-empty value needs the capability, which is the rule NewWorkItem already applies at
+	// creation. An activity has no notes to begin with, so clearing them asks for the state it is
+	// already in; refusing that would be a second answer to a question that has one.
+	if attributes.Notes != nil && strings.TrimSpace(*attributes.Notes) != "" {
+		if err := profile.Require(CapabilityNotes, "/notes"); err != nil {
+			return WorkItem{}, nil, err
+		}
+	}
+	if err := i.EnsureEditable(); err != nil {
+		return WorkItem{}, nil, err
+	}
+
+	var changes []FieldChange
+
+	if attributes.Title != nil {
+		title, err := itemTitle(*attributes.Title)
+		if err != nil {
+			return WorkItem{}, nil, err
+		}
+		if title != i.Title {
+			changes = append(changes, FieldChange{Field: FieldTitle, From: i.Title, To: title})
+			i.Title = title
+		}
+	}
+
+	if attributes.Notes != nil {
+		notes := strings.TrimSpace(*attributes.Notes)
+		if notes != i.Notes {
+			changes = append(changes, FieldChange{Field: FieldNotes, From: i.Notes, To: notes})
+			i.Notes = notes
+		}
+	}
+
+	if len(changes) == 0 {
+		return i, nil, nil
+	}
+	i.UpdatedAt = at
+	return i, changes, nil
+}
+
+// EnsureEditable refuses an item whose state makes it read-only (I-W4).
+//
+// A conflict rather than a validation failure: the request is well formed and the state is what
+// makes it impossible, which is the distinction that tells a client whether restoring the item
+// first would help (api-guidelines.md §6).
+func (i WorkItem) EnsureEditable() error {
+	if i.IsTrashed() {
+		return shared.ErrConflict.
+			WithDetail("items.trashed").
+			WithParams(map[string]string{"item_id": i.ID.String()})
+	}
+	if i.IsArchived() {
+		return shared.ErrConflict.
+			WithDetail("items.archived").
+			WithParams(map[string]string{"item_id": i.ID.String()})
+	}
+	return nil
+}
+
 // EnsureCompletable refuses what cannot have its completion changed at all.
 //
 // Two reasons, and they are different kinds of answer. A type whose profile does not carry COMPLETION
@@ -269,17 +379,7 @@ func (i WorkItem) EnsureCompletable(profile CapabilityProfile) error {
 	if err := profile.Require(CapabilityCompletion, "/completion"); err != nil {
 		return err
 	}
-	if i.IsTrashed() {
-		return shared.ErrConflict.
-			WithDetail("items.trashed").
-			WithParams(map[string]string{"item_id": i.ID.String()})
-	}
-	if i.IsArchived() {
-		return shared.ErrConflict.
-			WithDetail("items.archived").
-			WithParams(map[string]string{"item_id": i.ID.String()})
-	}
-	return nil
+	return i.EnsureEditable()
 }
 
 // Completed returns the item marked done, by whom and when.
