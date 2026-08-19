@@ -615,15 +615,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [data, page]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Container"
-                  page:
-                    $ref: "#/components/schemas/PageInfo"
+                $ref: "#/components/schemas/ContainerPage"
         "4XX":
           $ref: "#/components/responses/Problem"
     post:
@@ -701,6 +693,28 @@ paths:
           $ref: "#/components/responses/Problem"
 
   /items:
+    get:
+      tags: [items]
+      operationId: listWorkItems
+      description: |
+        The items of one level, in their manual order: the items directly in the collection when
+        `parent_id` is omitted, and the children of that item when it is given. A whole subtree,
+        and every other filter, is what `POST /items:query` is for.
+      parameters:
+        - $ref: "#/components/parameters/CollectionId"
+        - $ref: "#/components/parameters/ParentId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/IncludeArchived"
+      responses:
+        "200":
+          description: A page of items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItemPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
     post:
       tags: [items]
       operationId: createWorkItem
@@ -1052,6 +1066,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    CollectionId:
+      name: collection_id
+      in: query
+      required: true
+      schema: { type: string, format: uuid }
     ParentId:
       name: parent_id
       in: query
@@ -1127,9 +1146,36 @@ components:
 
     PageInfo:
       type: object
+      required: [next_cursor, has_more]
       properties:
-        next_cursor: { type: [string, "null"] }
+        next_cursor:
+          type: [string, "null"]
+          description: >
+            The cursor for the next page, null on the last one. Opaque and signed: it is produced by
+            the server and is neither to be constructed nor parsed by a client.
         has_more: { type: boolean }
+
+    ContainerPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Container"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    WorkItemPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkItem"
+        page:
+          $ref: "#/components/schemas/PageInfo"
 
     ContainerType:
       type: string

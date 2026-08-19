@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // ContainerRepository stores hubs and collections.
@@ -23,9 +24,13 @@ import (
 // Nothing here names a tenant. The transaction the caller opened decided that, and row level
 // security applies it to every statement below (ADR-0010) - which is why the cross-tenant tests
 // in test/integration are the ones that prove this file correct, not a unit test with a fake.
-type ContainerRepository struct{}
+type ContainerRepository struct {
+	cursors security.CursorCodec
+}
 
-func NewContainerRepository() ContainerRepository { return ContainerRepository{} }
+func NewContainerRepository(cursors security.CursorCodec) ContainerRepository {
+	return ContainerRepository{cursors: cursors}
+}
 
 var _ repository.Containers = ContainerRepository{}
 
@@ -63,6 +68,62 @@ func (r ContainerRepository) Find(ctx context.Context, id shared.ID) (work.Conta
 			WithCause(fmt.Errorf("reading the container: %w", err))
 	}
 	return containerFrom(row)
+}
+
+// List returns one page of one level, in the containers' manual order.
+func (r ContainerRepository) List(
+	ctx context.Context, query repository.ContainerQuery,
+) (repository.ContainerPage, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.ContainerPage{}, err
+	}
+
+	parent, err := optionalUUID(query.ParentID)
+	if err != nil {
+		return repository.ContainerPage{}, err
+	}
+	from, err := cursorAfter(r.cursors, query.Page.Cursor)
+	if err != nil {
+		return repository.ContainerPage{}, err
+	}
+
+	var containerType *sqlc.ContainerType
+	if query.Type != "" {
+		of := sqlc.ContainerType(query.Type)
+		containerType = &of
+	}
+
+	rows, err := queries.ListContainers(ctx, sqlc.ListContainersParams{
+		ParentID:        parent,
+		Type:            containerType,
+		IncludeArchived: query.IncludeArchived,
+		CursorOrderKey:  from.sortKey,
+		CursorID:        from.id,
+		// One beyond the page, which is what answers "is there more" without a second query. The
+		// extra row is dropped below rather than returned.
+		PageSize: pageProbe(query.Page.Size),
+	})
+	if err != nil {
+		return repository.ContainerPage{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the containers: %w", err))
+	}
+
+	page := repository.ContainerPage{Containers: make([]work.Container, 0, len(rows))}
+	for _, row := range rows {
+		container, err := containerFrom(sqlc.FindContainerRow(row))
+		if err != nil {
+			return repository.ContainerPage{}, err
+		}
+		page.Containers = append(page.Containers, container)
+	}
+
+	page.Containers, page.Info = pageOf(page.Containers, query.Page.Size, r.cursors,
+		func(last work.Container) security.Position {
+			return security.Position{SortKey: last.OrderKey, ID: last.ID}
+		})
+	return page, nil
 }
 
 // LastOrderKey returns the highest rank at one level, or the empty string when the level is empty.

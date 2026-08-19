@@ -152,7 +152,19 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	if notes := out.String("notes"); notes != "" {
 		item.Notes = &notes
 	}
+	item.ArchivedAt, item.DeletedAt = optionalTimeField(out["archived_at"]), optionalTimeField(out["deleted_at"])
 	return item
+}
+
+// optionalTimeField maps a projection's optional instant. The generated fields carry omitempty, so an
+// unset one is absent rather than null - which the schema allows either way, and which is the shape a
+// create already produced before the read side existed.
+func optionalTimeField(value any) *time.Time {
+	at, ok := value.(time.Time)
+	if !ok {
+		return nil
+	}
+	return &at
 }
 
 // completionResponse maps the done/open state. It is sent even on a create, where it is always

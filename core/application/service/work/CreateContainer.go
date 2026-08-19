@@ -264,14 +264,19 @@ func firstNonZero(ids ...shared.ID) shared.ID {
 // automation action result describe the container in the same words.
 func containerOutput(container domain.Container) usecase.Output {
 	out := usecase.Output{
-		"id":         container.ID.String(),
-		"type":       string(container.Type),
-		"parent_id":  nil,
-		"name":       container.Name,
-		"order_key":  container.OrderKey,
-		"created_at": container.CreatedAt,
-		"updated_at": container.UpdatedAt,
-		"version":    container.Version,
+		"id":        container.ID.String(),
+		"type":      string(container.Type),
+		"parent_id": nil,
+		"name":      container.Name,
+		"order_key": container.OrderKey,
+		// The lifecycle timestamps are always present, as null when unset. A create never sets
+		// either, but the read side returns the same projection - and a field that appears only
+		// once a container has been archived is a field a client cannot rely on (I-C2, I-C3).
+		"archived_at": timeOrNil(container.ArchivedAt),
+		"deleted_at":  timeOrNil(container.DeletedAt),
+		"created_at":  container.CreatedAt,
+		"updated_at":  container.UpdatedAt,
+		"version":     container.Version,
 	}
 	if !container.ParentID.IsZero() {
 		out["parent_id"] = container.ParentID.String()
@@ -286,6 +291,16 @@ func containerOutput(container domain.Container) usecase.Output {
 		}
 	}
 	return out
+}
+
+// timeOrNil is how an optional instant reaches a projection: the value, or an explicit null. Nothing
+// here decides that an absent timestamp means anything - the field says "not archived" by being null,
+// and leaving it out entirely would say "this server does not know about archiving".
+func timeOrNil(at *time.Time) any {
+	if at == nil {
+		return nil
+	}
+	return *at
 }
 
 // Descriptor is the catalogue entry: what the use case is called, what it needs, what it records,

@@ -17,7 +17,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 var (
@@ -67,6 +69,20 @@ func containerIn(tenant, author shared.ID, id shared.ID, name, orderKey string) 
 	}
 }
 
+// pageCursors is the cursor codec the list repositories page with. A fixed secret rather than a
+// random one, so that a cursor printed in a failing test is the same value on a rerun.
+func pageCursors() security.CursorCodec {
+	return security.NewCursorCodec(secret.New("integration test installation secret"))
+}
+
+// containerRepo and itemRepo exist so that the codec is wired in one place: a test that built its
+// own would page with a different key, and every cursor it produced would be refused by the next.
+func containerRepo() postgres.ContainerRepository {
+	return postgres.NewContainerRepository(pageCursors())
+}
+
+func itemRepo() postgres.ItemRepository { return postgres.NewItemRepository(pageCursors()) }
+
 // write runs fn in a read-write transaction for the tenant, which is the only way a repository
 // method can be called at all.
 func write(ctx context.Context, t *testing.T, tenant shared.ID, fn func(context.Context) error) error {
@@ -84,7 +100,7 @@ func read(ctx context.Context, t *testing.T, tenant shared.ID, fn func(context.C
 func TestAContainerIsWrittenAndReadBack(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
-	repo := postgres.NewContainerRepository()
+	repo := containerRepo()
 
 	id, name := freshID(t), freshName(t)
 	hub := containerIn(tenantA, authorA, id, name, "a0")
@@ -130,7 +146,7 @@ func TestAContainerIsWrittenAndReadBack(t *testing.T) {
 func TestAContainerIsInvisibleFromAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
-	repo := postgres.NewContainerRepository()
+	repo := containerRepo()
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
@@ -154,7 +170,7 @@ func TestAContainerIsInvisibleFromAnotherTenant(t *testing.T) {
 func TestInsertCannotWriteIntoAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
-	repo := postgres.NewContainerRepository()
+	repo := containerRepo()
 	smuggled := freshID(t)
 
 	// The object claims tenant A, the transaction belongs to tenant B.
@@ -183,7 +199,7 @@ func TestInsertCannotWriteIntoAnotherTenant(t *testing.T) {
 func TestTheLastOrderKeyIsPerTenant(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
-	repo := postgres.NewContainerRepository()
+	repo := containerRepo()
 
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
 		return repo.Insert(ctx, containerIn(tenantB, authorB, freshID(t), freshName(t), "zz"))
@@ -209,7 +225,7 @@ func TestTheLastOrderKeyIsPerTenant(t *testing.T) {
 func TestAnEmptyLevelHasNoLastOrderKey(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
-	repo := postgres.NewContainerRepository()
+	repo := containerRepo()
 	emptyHub := freshID(t)
 
 	var key string
@@ -230,7 +246,7 @@ func TestAnEmptyLevelHasNoLastOrderKey(t *testing.T) {
 func TestTheRanksSortInTheDatabaseAsTheyDoInTheDomain(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
-	repo := postgres.NewContainerRepository()
+	repo := containerRepo()
 	parent := freshID(t)
 
 	// The hub has to exist: a collection references it, and the database says so.
@@ -274,7 +290,7 @@ func TestTheRanksSortInTheDatabaseAsTheyDoInTheDomain(t *testing.T) {
 func TestASecondContainerWithTheSameNameIsAConflict(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
-	repo := postgres.NewContainerRepository()
+	repo := containerRepo()
 	first, second, name := freshID(t), freshID(t), freshName(t)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
@@ -306,7 +322,7 @@ func TestASecondContainerWithTheSameNameIsAConflict(t *testing.T) {
 func TestNamesAreNormalisedBeforeTheyAreCompared(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
-	repo := postgres.NewContainerRepository()
+	repo := containerRepo()
 
 	composed := "\u00dcbersicht"    // "Übersicht" with Ü as one code point
 	decomposed := "U\u0308bersicht" // the same word with a combining diaeresis

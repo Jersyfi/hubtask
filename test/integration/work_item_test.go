@@ -12,7 +12,6 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
-	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // The cross-tenant suite for the items repository. Every method gets a negative test, because the
@@ -26,7 +25,7 @@ func collectionFor(ctx context.Context, t *testing.T, tenant, author shared.ID) 
 	seedContainerTenants(ctx, t)
 
 	hubID, collectionID := freshID(t), freshID(t)
-	containers := postgres.NewContainerRepository()
+	containers := containerRepo()
 
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		hub := containerIn(tenant, author, hubID, freshName(t), "a0")
@@ -54,7 +53,7 @@ func taskIn(tenant, author, collection, id shared.ID, title, orderKey string) wo
 func TestAnItemIsWrittenAndReadBack(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
-	repo := postgres.NewItemRepository()
+	repo := itemRepo()
 
 	id := freshID(t)
 	task := taskIn(tenantA, authorA, collection, id, "Buy milk", "a0")
@@ -102,7 +101,7 @@ func TestAnItemIsWrittenAndReadBack(t *testing.T) {
 func TestASubtreeIsWrittenAtEveryLevel(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
-	repo := postgres.NewItemRepository()
+	repo := itemRepo()
 
 	taskID, packageID, activityID := freshID(t), freshID(t), freshID(t)
 	task := taskIn(tenantA, authorA, collection, taskID, "Weekly shop", "a0")
@@ -141,7 +140,7 @@ func TestASubtreeIsWrittenAtEveryLevel(t *testing.T) {
 func TestAnItemIsInvisibleFromAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
-	repo := postgres.NewItemRepository()
+	repo := itemRepo()
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
@@ -171,7 +170,7 @@ func TestAnItemIsInvisibleFromAnotherTenant(t *testing.T) {
 func TestInsertCannotWriteAnItemIntoAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
-	repo := postgres.NewItemRepository()
+	repo := itemRepo()
 	smuggled := freshID(t)
 
 	// The object claims tenant A, the transaction belongs to tenant B.
@@ -197,7 +196,7 @@ func TestInsertCannotWriteAnItemIntoAnotherTenant(t *testing.T) {
 func TestAForeignReferenceIsIndistinguishableFromANonexistentOne(t *testing.T) {
 	ctx := context.Background()
 	foreign := collectionFor(ctx, t, tenantA, authorA)
-	repo := postgres.NewItemRepository()
+	repo := itemRepo()
 
 	nowhere := shared.MustParseID("01936f2a-7c1e-7000-8000-ffffffffff10")
 
@@ -225,7 +224,7 @@ func TestATenantsDeletionCannotReachAnotherTenantsItems(t *testing.T) {
 	ctx := context.Background()
 	collectionA := collectionFor(ctx, t, tenantA, authorA)
 	collectionB := collectionFor(ctx, t, tenantB, authorB)
-	repo := postgres.NewItemRepository()
+	repo := itemRepo()
 
 	own := freshID(t)
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
@@ -259,7 +258,7 @@ func TestTheLastItemOrderKeyIsPerTenant(t *testing.T) {
 	ctx := context.Background()
 	collectionA := collectionFor(ctx, t, tenantA, authorA)
 	collectionB := collectionFor(ctx, t, tenantB, authorB)
-	repo := postgres.NewItemRepository()
+	repo := itemRepo()
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		return repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, freshID(t), "Buy milk", "z9"))
@@ -285,7 +284,7 @@ func TestTheLastItemOrderKeyIsPerTenant(t *testing.T) {
 func TestTheSiblingLevelIsTheCollectionAndTheParentTogether(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
-	repo := postgres.NewItemRepository()
+	repo := itemRepo()
 
 	taskID := freshID(t)
 	task := taskIn(tenantA, authorA, collection, taskID, "Weekly shop", "a0")
@@ -332,7 +331,7 @@ func TestAnEmptyCollectionHasNoLastItemOrderKey(t *testing.T) {
 	var key string
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		var err error
-		key, err = postgres.NewItemRepository().LastOrderKey(ctx, collection, "")
+		key, err = itemRepo().LastOrderKey(ctx, collection, "")
 		return err
 	}); err != nil {
 		t.Fatalf("an empty collection is reported as an error: %v", err)
@@ -347,7 +346,7 @@ func TestAnEmptyCollectionHasNoLastItemOrderKey(t *testing.T) {
 func TestTitlesAreNormalisedOnTheWayIn(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
-	repo := postgres.NewItemRepository()
+	repo := itemRepo()
 
 	composed := "\u00dcbung"    // "Übung" with Ü as one code point
 	decomposed := "U\u0308bung" // the same word with a combining diaeresis

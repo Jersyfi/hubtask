@@ -10,6 +10,7 @@ import (
 	"time"
 
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -34,10 +35,15 @@ var (
 // return value: an event, a change log entry and an audit entry are part of the result.
 
 type containers struct {
-	inserted  []domain.Container
-	stored    map[shared.ID]domain.Container
-	lastKey   string
+	inserted []domain.Container
+	stored   map[shared.ID]domain.Container
+	lastKey  string
+	// page is what List answers with, and asked is what it was asked - the read use cases care about
+	// both: one is the projection they build, the other is the query they translated.
+	page      repository.ContainerPage
+	asked     repository.ContainerQuery
 	findErr   error
+	listErr   error
 	insertErr error
 }
 
@@ -50,6 +56,16 @@ func (c *containers) Find(_ context.Context, id shared.ID) (domain.Container, er
 		return domain.Container{}, shared.ErrNotFound
 	}
 	return container, nil
+}
+
+func (c *containers) List(
+	_ context.Context, query repository.ContainerQuery,
+) (repository.ContainerPage, error) {
+	c.asked = query
+	if c.listErr != nil {
+		return repository.ContainerPage{}, c.listErr
+	}
+	return c.page, nil
 }
 
 func (c *containers) LastOrderKey(context.Context, shared.ID) (string, error) {
@@ -93,19 +109,31 @@ func (s *sink) Append(_ context.Context, entry audit.Entry) error {
 type unitOfWork struct {
 	committed  bool
 	rolledBack bool
+	// writes and reads count the two kinds separately. The read side must never open a write
+	// transaction - a read may be served by a replica, and one that asked for a writable transaction
+	// would pin every list in the product to the primary (multi-tenancy.md §7, B-04). A fake that
+	// could not tell the two apart could not say so.
+	writes int
+	reads  int
 }
 
-func (u *unitOfWork) Within(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+func (u *unitOfWork) Within(ctx context.Context, s persistence.Scope, fn func(context.Context) error) error {
+	u.writes++
+	return u.run(ctx, s, fn)
+}
+
+func (u *unitOfWork) WithinReadOnly(ctx context.Context, s persistence.Scope, fn func(context.Context) error) error {
+	u.reads++
+	return u.run(ctx, s, fn)
+}
+
+func (u *unitOfWork) run(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
 	if err := fn(ctx); err != nil {
 		u.rolledBack = true
 		return err
 	}
 	u.committed = true
 	return nil
-}
-
-func (u *unitOfWork) WithinReadOnly(ctx context.Context, s persistence.Scope, fn func(context.Context) error) error {
-	return u.Within(ctx, s, fn)
 }
 
 type authorizer struct {

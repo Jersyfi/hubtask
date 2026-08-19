@@ -224,7 +224,13 @@ func run() error {
 	// particular: /meta/capabilities answers from the same reader that decides whether a
 	// placement is permitted, so what an installation advertises and what it accepts cannot
 	// drift apart (ADR-0006).
-	containers := postgres.NewContainerRepository()
+	//
+	// The cursor codec is shared by both list repositories rather than derived twice: it is keyed on
+	// the installation secret, and one derivation means one place where that key comes from
+	// (api-guidelines.md §4).
+	cursors := security.NewCursorCodec(cfg.SecretKey)
+	containers := postgres.NewContainerRepository(cursors)
+	items := postgres.NewItemRepository(cursors)
 	profiles := postgres.NewCapabilityProfileRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
@@ -271,7 +277,7 @@ func run() error {
 			HLC:        hybrid,
 		}.Descriptor(),
 		work.CreateWorkItem{
-			Items:      postgres.NewItemRepository(),
+			Items:      items,
 			Containers: containers,
 			Profiles:   profiles,
 			Authorizer: authorizer,
@@ -282,6 +288,22 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+		}.Descriptor(),
+		work.GetContainer{
+			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		// The authorisation service twice, under two names: Authorize for the level a client named,
+		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
+		// may see rather than refused outright (ReadContainers.Execute).
+		work.ListContainers{
+			Containers: containers, Authorizer: authorizer, Reader: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.GetWorkItem{
+			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListWorkItems{
+			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 	)
 	if err != nil {
