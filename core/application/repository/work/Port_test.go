@@ -57,6 +57,7 @@ func (itemDouble) ChildCompletion(context.Context, shared.ID) (work.ChildComplet
 	return work.ChildCompletion{}, nil
 }
 func (itemDouble) SetCompletion(context.Context, work.WorkItem, int) error { return nil }
+func (itemDouble) SetAttributes(context.Context, work.WorkItem, int) error { return nil }
 func (itemDouble) Neighbours(context.Context, Level, shared.ID, shared.ID) (string, string, error) {
 	return "", "", nil
 }

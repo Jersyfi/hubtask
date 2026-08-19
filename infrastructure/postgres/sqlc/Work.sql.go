@@ -658,6 +658,51 @@ func (q *Queries) OrderKeyNeighbours(ctx context.Context, arg OrderKeyNeighbours
 	return i, err
 }
 
+const setWorkItemAttributes = `-- name: SetWorkItemAttributes :execrows
+UPDATE work_item SET
+  title      = $1,
+  notes      = $2,
+  updated_at = $3,
+  version    = version + 1
+WHERE id = $4::uuid AND version = $5
+`
+
+type SetWorkItemAttributesParams struct {
+	Title           string
+	Notes           *string
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The item's own fields: what UpdateWorkItem may change in 0.2.0 (B-05).
+//
+// Both columns are written on every call, not only the ones that moved. The application has already
+// decided what the row should say - it read the item, applied the update and refused what the capability
+// profile does not allow - so this writes that decision whole. A statement that switched on which fields
+// were sent would be the second place deciding it, in the layer that is not allowed to decide anything
+// (ADR-0005), and `notes = COALESCE($1, notes)` would additionally make clearing the notes unexpressible.
+//
+// Optimistic locking in the WHERE clause, as everywhere: the update matches nothing when somebody else has
+// moved the row on, and the caller learns that rather than overwriting them (api-guidelines.md §5).
+//
+// `search_vector` follows by itself. It is a generated column over title and notes, so the index behind
+// full text search cannot fall behind a rename - which is exactly what a trigger somebody has to remember
+// would eventually do.
+func (q *Queries) SetWorkItemAttributes(ctx context.Context, arg SetWorkItemAttributesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemAttributes,
+		arg.Title,
+		arg.Notes,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setWorkItemCompletion = `-- name: SetWorkItemCompletion :execrows
 UPDATE work_item SET
   is_completed = $1,

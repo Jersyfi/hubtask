@@ -193,6 +193,28 @@ UPDATE work_item SET
   updated_at   = sqlc.arg('updated_at'),
   version      = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+-- name: SetWorkItemAttributes :execrows
+-- The item's own fields: what UpdateWorkItem may change in 0.2.0 (B-05).
+--
+-- Both columns are written on every call, not only the ones that moved. The application has already
+-- decided what the row should say - it read the item, applied the update and refused what the capability
+-- profile does not allow - so this writes that decision whole. A statement that switched on which fields
+-- were sent would be the second place deciding it, in the layer that is not allowed to decide anything
+-- (ADR-0005), and `notes = COALESCE($1, notes)` would additionally make clearing the notes unexpressible.
+--
+-- Optimistic locking in the WHERE clause, as everywhere: the update matches nothing when somebody else has
+-- moved the row on, and the caller learns that rather than overwriting them (api-guidelines.md §5).
+--
+-- `search_vector` follows by itself. It is a generated column over title and notes, so the index behind
+-- full text search cannot fall behind a rename - which is exactly what a trigger somebody has to remember
+-- would eventually do.
+UPDATE work_item SET
+  title      = sqlc.arg('title'),
+  notes      = sqlc.narg('notes'),
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
 -- name: MoveWorkItemSubtree :execrows
 -- Rewrites the materialised path, the depth and the collection of an item and everything below it, in one
 -- statement (I-W2: the path and the depth stay consistent, and changes go through a move that updates the

@@ -185,6 +185,49 @@ func (r ItemRepository) SetCompletion(ctx context.Context, item work.WorkItem, e
 	return nil
 }
 
+// SetAttributes writes an item's own fields: the title, and the notes where the type carries them.
+//
+// One statement writing both columns, whichever of them moved. What the row should say was decided by the
+// use case, and re-deciding it here from a list of changed fields would put that rule in the layer that is
+// not allowed to hold one (ADR-0005).
+func (r ItemRepository) SetAttributes(ctx context.Context, item work.WorkItem, expectedVersion int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetWorkItemAttributes(ctx, sqlc.SetWorkItemAttributesParams{
+		Title:     item.Title,
+		Notes:     optionalText(item.Notes),
+		UpdatedAt: timestampOf(item.UpdatedAt),
+		ID:        id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		// No title and no notes in the message: the error text reaches the log, and user content does not
+		// go there (rule 10, ADR-0017).
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the attributes of %s: %w", item.ID, err))
+	}
+	if affected == 0 {
+		// Either it is gone or somebody else moved it on, and a row belonging to another tenant is the same
+		// answer: row level security removed it from the update's reach, and a caller must not be able to
+		// tell that apart from a version that moved (multi-tenancy.md §2).
+		return shared.ErrVersionConflict.
+			WithDetail("items.version_conflict").
+			WithParams(map[string]string{
+				"item_id": item.ID.String(), "expected_version": strconv.Itoa(expectedVersion),
+			})
+	}
+	return nil
+}
+
 // Neighbours returns the ranks either side of a position at one level.
 func (r ItemRepository) Neighbours(
 	ctx context.Context, level repository.Level, beforeID, movingID shared.ID,
