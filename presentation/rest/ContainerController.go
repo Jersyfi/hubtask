@@ -188,6 +188,19 @@ func containerResponse(out usecase.Output) openapi.Container {
 	}
 	container.ArchivedAt = optionalTimeField(out["archived_at"])
 	container.DeletedAt = optionalTimeField(out["deleted_at"])
+
+	// Always present, both of them. `effective_archived` is what a client reads to know whether it
+	// may write - a collection in an archived hub carries no stamp of its own (I-C3) - and a boolean
+	// that only appeared once something was archived is one a client cannot rely on.
+	effectiveArchived, _ := out["effective_archived"].(bool)
+	container.EffectiveArchived = &effectiveArchived
+	if policies, ok := out["policies"].(map[string]any); ok {
+		container.Policies = &openapi.ContainerPolicies{}
+		if policy, ok := policies["completion_policy"].(string); ok {
+			completionPolicy := openapi.CompletionPolicy(policy)
+			container.Policies.CompletionPolicy = &completionPolicy
+		}
+	}
 	return container
 }
 
