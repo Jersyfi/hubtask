@@ -53,6 +53,12 @@ type containers struct {
 	findErr   error
 	listErr   error
 	insertErr error
+	// The trash side: what each call was asked to do, and how many entries the cascade reports as
+	// having gone with the containers - the item count is the one part the container double cannot
+	// work out for itself, because entries live in the other repository.
+	trashed       []repository.ContainerTrash
+	restored      []repository.ContainerTrash
+	cascadedItems int
 }
 
 func (c *containers) Find(_ context.Context, id shared.ID) (domain.Container, error) {
@@ -110,6 +116,51 @@ func (c *containers) SetArchived(_ context.Context, container domain.Container, 
 
 func (c *containers) SetPlacement(_ context.Context, container domain.Container, expected int) error {
 	return c.write("placement", container, expected)
+}
+
+// The trash side (B-10). The cascade is worked out from what is stored rather than configured, so
+// that a test which puts two collections in a hub gets two collections back without having to say
+// so twice - and so that the double cannot silently disagree with the fixture it was built from.
+func (c *containers) TrashSubtree(
+	_ context.Context, trash repository.ContainerTrash,
+) (repository.Cascade, error) {
+	if err := c.write("trashed", trash.Container, trash.ExpectedVersion); err != nil {
+		return repository.Cascade{}, err
+	}
+	c.trashed = append(c.trashed, trash)
+
+	cascade := repository.Cascade{Items: c.cascadedItems}
+	for id, stored := range c.stored {
+		if stored.ParentID != trash.Container.ID || stored.IsTrashed() {
+			continue
+		}
+		stored.DeletedAt, stored.TrashBatchID = trash.Container.DeletedAt, trash.BatchID
+		stored.Version++
+		c.stored[id] = stored
+		cascade.Collections = append(cascade.Collections, id)
+	}
+	return cascade, nil
+}
+
+func (c *containers) RestoreBatch(
+	_ context.Context, restore repository.ContainerTrash,
+) (repository.Cascade, error) {
+	if err := c.write("restored", restore.Container, restore.ExpectedVersion); err != nil {
+		return repository.Cascade{}, err
+	}
+	c.restored = append(c.restored, restore)
+
+	cascade := repository.Cascade{Items: c.cascadedItems}
+	for id, stored := range c.stored {
+		if id == restore.Container.ID || stored.TrashBatchID != restore.BatchID {
+			continue
+		}
+		stored.DeletedAt, stored.TrashBatchID = nil, ""
+		stored.Version++
+		c.stored[id] = stored
+		cascade.Collections = append(cascade.Collections, id)
+	}
+	return cascade, nil
 }
 
 func (c *containers) write(method string, container domain.Container, expected int) error {

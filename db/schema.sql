@@ -176,6 +176,12 @@ CREATE UNIQUE INDEX container_name_uq
   WHERE deleted_at IS NULL;
 CREATE INDEX container_parent_idx ON container (tenant_id, parent_id, order_key)
   WHERE deleted_at IS NULL;
+-- The trash view and the way back out of it. Every other index on this table is partial on
+-- `deleted_at IS NULL` and therefore describes exactly what the trash is not (B-10).
+CREATE INDEX container_trash_idx ON container (tenant_id, deleted_at)
+  WHERE deleted_at IS NOT NULL;
+CREATE INDEX container_trash_batch_idx ON container (tenant_id, trash_batch_id)
+  WHERE trash_batch_id IS NOT NULL;
 
 CREATE TABLE bucket (
   id             uuid PRIMARY KEY,
@@ -291,6 +297,9 @@ CREATE INDEX wi_path_idx     ON work_item (tenant_id, path text_pattern_ops);
 CREATE INDEX wi_search_idx   ON work_item USING gin (search_vector);
 CREATE INDEX wi_custom_idx   ON work_item USING gin (custom_fields jsonb_path_ops);
 CREATE INDEX wi_trash_idx    ON work_item (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
+-- Restoring a deletion is one statement keyed on the batch every row of it shares (B-10, I-C2).
+CREATE INDEX wi_trash_batch_idx ON work_item (tenant_id, trash_batch_id)
+  WHERE trash_batch_id IS NOT NULL;
 
 CREATE TABLE item_label (
   tenant_id uuid NOT NULL,

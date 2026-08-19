@@ -169,6 +169,22 @@ type Containers interface {
 	// what the archiving covered.
 	SetArchived(ctx context.Context, container work.Container, expectedVersion int) error
 
+	// TrashSubtree moves a hub or a collection and everything under it into the trash under one
+	// batch, and reports what went with it.
+	//
+	// One method rather than several, for the reason MoveSubtree is one: the statements behind it
+	// must not be separable. A hub in the trash whose collections are still live is a tree that
+	// does not describe itself, and a collection in the trash whose items are not is a deletion
+	// that a restore could not reverse (I-C2). A row already in the trash from an earlier deletion
+	// keeps that deletion and is not in the answer.
+	TrashSubtree(ctx context.Context, trash ContainerTrash) (Cascade, error)
+
+	// RestoreBatch takes one deletion back out of the trash, whole, and reports what came back.
+	//
+	// Keyed on the batch and not on the subtree, which is what makes a restore exactly reverse the
+	// deletion it undoes: a younger, separate deletion inside the same subtree stays in the trash.
+	RestoreBatch(ctx context.Context, restore ContainerTrash) (Cascade, error)
+
 	// SetPlacement writes where a collection sits and how it ranks there, or reports a version
 	// conflict. The whole of what a move changes: a container tree is two deep, so nothing below it
 	// has to follow.
@@ -263,6 +279,26 @@ type Items interface {
 
 	// Insert writes a new item.
 	Insert(ctx context.Context, item work.WorkItem) error
+
+	// SetArchived writes an item's archive stamp, set or cleared, or reports a version conflict.
+	//
+	// One row, whatever sits below it. Archiving is a decision about one entry: a work package
+	// under an archived task stays writable, because an item's children are entries in their own
+	// right rather than a level of the structure - which is what makes this different from I-C3.
+	SetArchived(ctx context.Context, item work.WorkItem, expectedVersion int) error
+
+	// TrashSubtree moves an item and everything under it into the trash under one batch, and
+	// reports how many rows went, the item included.
+	//
+	// A descendant already in the trash from an earlier deletion keeps that deletion and is not
+	// counted: adopting it would restart its retention period and make a restore of this batch
+	// bring back something nobody deleted this time (I-C2).
+	TrashSubtree(ctx context.Context, trash ItemTrash) (int, error)
+
+	// RestoreBatch takes one deletion back out of the trash, whole, and reports how many rows came
+	// back. It serves a container's deletion as well as an item's: the items of a trashed
+	// collection carry the container's batch.
+	RestoreBatch(ctx context.Context, restore ItemTrash) (int, error)
 }
 
 // Buckets stores the columns of a collection's board.
@@ -381,4 +417,78 @@ type ItemLabels interface {
 	// Elements returns every tag of one item's label set: what a merge compares a client's tags
 	// against.
 	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)
+}
+
+// ItemTrash is everything one item's deletion or restore needs decided before it runs.
+//
+// The item arrives already stamped by the domain, as it does everywhere else in this port: the
+// decision about what the row should say has been taken, and the adapter writes it.
+type ItemTrash struct {
+	// Item is the row the caller read, with the stamp the transition put on it - set on the way
+	// in, cleared on the way out.
+	Item work.WorkItem
+	// Prefix is the item's own path. Every row of its subtree begins with it, which is what makes
+	// a subtree deletion one statement rather than a walk (I-W2).
+	Prefix string
+	// BatchID is the deletion all of it belongs to. It is passed rather than read off the item,
+	// because on the way out the item's own batch has already been cleared by the transition and
+	// the rest of the batch still has to be found.
+	BatchID shared.ID
+	// ExpectedVersion locks the row the caller read. Zero means the caller read no version.
+	ExpectedVersion int
+}
+
+// ContainerTrash is the same for a hub or a collection, whose deletion takes a subtree of two
+// kinds with it (I-C2).
+type ContainerTrash struct {
+	Container       work.Container
+	BatchID         shared.ID
+	ExpectedVersion int
+}
+
+// Cascade is what a container's deletion or restore took with it.
+//
+// The collections are returned as identifiers rather than counted, because each is announced to
+// offline clients in its own right: a device that subscribes to one collection rather than to the
+// hub above it would otherwise never learn that its collection is gone (offline-sync.md §3.1). The
+// items are counted, because they are announced through the collection they are in.
+type Cascade struct {
+	Collections []shared.ID
+	Items       int
+}
+
+// TrashPage is one page of the trash, newest deletion first.
+type TrashPage struct {
+	Entries []work.TrashEntry
+	Info    PageInfo
+}
+
+// Trash reads what is in the trash and finally removes it.
+//
+// Its own interface rather than methods on Containers and Items, because what it answers spans
+// both: "what did I delete" is one question with one order and one cursor, and splitting it in two
+// would leave the use case merging two pages and inventing a cursor that covers neither.
+type Trash interface {
+	// List returns one page of the trash: one entry per deletion, not one per deleted row. The
+	// entry is the batch's root - the thing somebody deleted - and what came along with it is
+	// reached through the batch.
+	List(ctx context.Context, page Page) (TrashPage, error)
+
+	// SubtreeIDs returns every identifier in one item's subtree, the item included.
+	//
+	// Read before a hard delete rather than derived from the cascade the schema would apply: each
+	// row that goes needs a tombstone and a journal entry of its own (offline-sync.md §7,
+	// data-retention.md §5), and rows removed by a foreign key nobody counted are exactly the
+	// orphans the completeness rule forbids (ADR-0020 §6).
+	SubtreeIDs(ctx context.Context, prefix string) ([]shared.ID, error)
+
+	// PurgeItems removes items for good, by identifier, and reports how many rows went.
+	PurgeItems(ctx context.Context, ids []shared.ID) (int, error)
+
+	// PurgeContainers removes hubs and collections for good, by identifier.
+	//
+	// Collections before the hubs that hold them: `container.parent_id` is ON DELETE RESTRICT, so a
+	// hub whose collections are still there refuses to go. That is the database insisting on the
+	// order rather than a rule a caller could forget - but the caller still has to call it twice.
+	PurgeContainers(ctx context.Context, ids []shared.ID) (int, error)
 }
