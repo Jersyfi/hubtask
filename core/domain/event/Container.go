@@ -155,3 +155,60 @@ func containerPayload(container work.Container) map[string]any {
 // ContainerSubject is what a container event is about. Kept next to the event so that the two
 // cannot drift: a consumer filtering on the subject and a producer writing it read the same line.
 func ContainerSubject(id shared.ID) string { return "container/" + id.String() }
+
+// NewContainerDeleted announces that a container and everything under it are in the trash.
+//
+// The batch is in the payload because it is what makes the deletion one thing: a consumer that
+// holds the subtree removes it whole, and a restore of that batch is what will bring it back. The
+// counts say how much went - a client cannot derive them, because nothing below the container gets
+// an event of its own.
+func NewContainerDeleted(id shared.ID, container work.Container, cascade Cascade, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if container.DeletedAt == nil {
+		// The event would say the opposite of its own name. A defect in whatever built it, not
+		// something a client did (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.lifecycle_inconsistent")
+	}
+	return NewEnvelope(id, ContainerDeleted, container.TenantID,
+		ContainerSubject(container.ID), actor, occurredAt, cause,
+		trashPayload(container, cascade))
+}
+
+// NewContainerRestored announces that a container's deletion has been reversed, whole.
+func NewContainerRestored(id shared.ID, container work.Container, cascade Cascade, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if container.DeletedAt != nil {
+		return Envelope{}, shared.ErrInternal.WithDetail("events.lifecycle_inconsistent")
+	}
+	return NewEnvelope(id, ContainerRestored, container.TenantID,
+		ContainerSubject(container.ID), actor, occurredAt, cause,
+		trashPayload(container, cascade))
+}
+
+// Cascade is how much a container's deletion or restore took with it.
+//
+// Counts rather than identifiers. A consumer reacting to the deletion of a hub does not need a list
+// of two hundred entries in order to drop what it holds below it - it has the container - and an
+// event whose size grew with the subtree would eventually be an event nobody can deliver.
+type Cascade struct {
+	Collections int
+	Items       int
+}
+
+// trashPayload is the container snapshot with the deletion's own fields on it.
+func trashPayload(container work.Container, cascade Cascade) map[string]any {
+	payload := containerPayload(container)
+	payload["deleted_at"] = nil
+	payload["trash_batch_id"] = nil
+	if container.DeletedAt != nil {
+		payload["deleted_at"] = container.DeletedAt.UTC()
+	}
+	if !container.TrashBatchID.IsZero() {
+		payload["trash_batch_id"] = container.TrashBatchID.String()
+	}
+	payload["collections"] = cascade.Collections
+	payload["items"] = cascade.Items
+	return payload
+}
