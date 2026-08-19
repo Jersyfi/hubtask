@@ -252,7 +252,7 @@ func (w ContainerWriter) write(
 	if err := w.recordChanges(ctx, after, actor, changes); err != nil {
 		return domain.Container{}, err
 	}
-	if err := w.recordAudit(ctx, after, actor, change, changes, now); err != nil {
+	if err := w.recordAudit(ctx, after, actor, change.action, change.classification, changes, now); err != nil {
 		return domain.Container{}, err
 	}
 	return after, nil
@@ -310,12 +310,13 @@ func clearedAsNull(value string) any {
 // what they now say.
 func (w ContainerWriter) recordAudit(
 	ctx context.Context, container domain.Container, actor appshared.ActorContext,
-	change containerChange, changes []domain.FieldChange, now time.Time,
+	action audit.Action, classification audit.Classification,
+	changes []domain.FieldChange, now time.Time,
 ) error {
 	recorded := make([]audit.Change, 0, len(changes)+1)
 	for _, moved := range changes {
 		recorded = append(recorded, audit.Change{
-			Field: moved.Field, Classification: change.classification,
+			Field: moved.Field, Classification: classification,
 			From: moved.From, To: moved.To,
 		})
 	}
@@ -325,7 +326,7 @@ func (w ContainerWriter) recordAudit(
 	return w.Audit.Append(ctx, audit.Entry{
 		TenantID:   container.TenantID,
 		OccurredAt: now,
-		Action:     change.action,
+		Action:     action,
 		Outcome:    audit.OutcomeSuccess,
 		Severity:   audit.SeverityInfo,
 		ActorKind:  actor.Kind,

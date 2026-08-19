@@ -332,6 +332,7 @@ func run() error {
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
+		work.MoveContainer{Writer: containerWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),

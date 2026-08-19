@@ -112,8 +112,8 @@ func (pending) GetContainer(w http.ResponseWriter, r *http.Request, _ openapi.Co
 	notAvailable(w, r)
 }
 
-// The container lifecycle. All of these but MoveContainer are overridden by RestController; they
-// stay here for the reason CreateContainer does.
+// The container lifecycle. All of these are overridden by RestController; they stay here for the
+// reason CreateContainer does.
 func (pending) RenameContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.RenameContainerParams) {
 	notAvailable(w, r)
 }

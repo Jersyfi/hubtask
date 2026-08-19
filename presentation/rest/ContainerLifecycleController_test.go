@@ -273,3 +273,39 @@ func TestTheArchiveActionsSendOnlyTheIdentifier(t *testing.T) {
 		t.Errorf("input = %v, want the identifier alone", registry.in)
 	}
 }
+
+func TestMovingAContainerAnswers200AndNamesTheUseCase(t *testing.T) {
+	registry := &catalogue{out: renamedContainer()}
+	target := "0192f000-0000-7000-8000-00000000001c"
+
+	recorder := containerRequest(t, registry, http.MethodPost, "/containers/"+containerID+":move",
+		`{"target_parent_id":"`+target+`"}`, "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "MoveContainer" {
+		t.Errorf("use case = %q", registry.name)
+	}
+	if registry.in["target_parent_id"] != target {
+		t.Errorf("target_parent_id = %v", registry.in["target_parent_id"])
+	}
+	// Absent means "append to the end of the level", which the catalogue reads from the field not
+	// being there at all.
+	if _, present := registry.in["before_container_id"]; present {
+		t.Errorf("an absent sibling was invented: %v", registry.in)
+	}
+}
+
+// A body that omitted the required destination decodes to the nil UUID, and that must not travel on
+// as an identifier: it would come back as "that hub does not exist", which is not what went wrong.
+// The catalogue is asked without the field, and names it as missing.
+func TestAMoveWithoutADestinationSendsNoIdentifier(t *testing.T) {
+	registry := &catalogue{out: renamedContainer()}
+
+	containerRequest(t, registry, http.MethodPost, "/containers/"+containerID+":move", `{}`, "")
+
+	if _, present := registry.in["target_parent_id"]; present {
+		t.Errorf("the nil identifier was passed on: %v", registry.in)
+	}
+}

@@ -43,8 +43,7 @@ type containers struct {
 	// that only saw the row could not tell an update that honoured an If-Match from one that ignored
 	// it.
 	written []writtenContainer
-	// bounds is what Neighbours answers with, and placedBefore is the sibling it was asked about.
-	bounds       [2]string
+	// placedBefore is the sibling Neighbours was asked about.
 	placedBefore shared.ID
 	writeErr     error
 	// page is what List answers with, and asked is what it was asked - the read use cases care about
@@ -124,11 +123,36 @@ func (c *containers) write(method string, container domain.Container, expected i
 	return nil
 }
 
+// Neighbours answers from what is stored rather than from a canned pair, because the exclusion of
+// the moving container from its own level is what makes a repeated move idempotent - a fake that
+// returned fixed bounds would hide exactly the behaviour the tests are about.
 func (c *containers) Neighbours(
-	_ context.Context, _, beforeID, _ shared.ID,
+	_ context.Context, parentID, beforeID, movingID shared.ID,
 ) (string, string, error) {
 	c.placedBefore = beforeID
-	return c.bounds[0], c.bounds[1], nil
+
+	var level []string
+	var anchor string
+	for _, container := range c.stored {
+		if container.ParentID != parentID || container.ID == movingID || container.DeletedAt != nil {
+			continue
+		}
+		level = append(level, container.OrderKey)
+		if container.ID == beforeID {
+			anchor = container.OrderKey
+		}
+	}
+
+	var previous string
+	for _, key := range level {
+		if anchor != "" && key >= anchor {
+			continue
+		}
+		if key > previous {
+			previous = key
+		}
+	}
+	return previous, anchor, nil
 }
 
 type events struct{ appended []event.Envelope }
