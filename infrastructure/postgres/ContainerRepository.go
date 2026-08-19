@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -203,6 +204,195 @@ func (r ContainerRepository) Insert(ctx context.Context, container work.Containe
 		WithCause(fmt.Errorf("writing the container: %w", err))
 }
 
+// SetAttributes writes the container's own descriptive fields.
+//
+// The name check is the unique index rather than a query before the update, for the reason Insert
+// relies on it: a check followed by a write is two statements with a gap, and two renames arriving
+// inside that gap both pass the check.
+func (r ContainerRepository) SetAttributes(
+	ctx context.Context, container work.Container, expectedVersion int,
+) error {
+	queries, id, err := containerWrite(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetContainerAttributes(ctx, sqlc.SetContainerAttributesParams{
+		Name:        container.Name,
+		Description: optionalText(container.Description),
+		Icon:        optionalText(container.Icon),
+		ColorToken:  optionalText(container.ColorToken),
+		UpdatedAt:   timestampOf(container.UpdatedAt),
+		ID:          id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return containerWriteError(err, container, "writing the attributes")
+	}
+	return containerConflict(affected, container, expectedVersion)
+}
+
+// SetPolicies writes one key of the policies document and leaves the others alone.
+func (r ContainerRepository) SetPolicies(
+	ctx context.Context, container work.Container, expectedVersion int,
+) error {
+	queries, id, err := containerWrite(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetContainerPolicies(ctx, sqlc.SetContainerPoliciesParams{
+		CompletionPolicy: string(container.CompletionPolicy.OrDefault()),
+		UpdatedAt:        timestampOf(container.UpdatedAt),
+		ID:               id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return containerWriteError(err, container, "writing the policies")
+	}
+	return containerConflict(affected, container, expectedVersion)
+}
+
+// SetArchived writes the container's own archive stamp, set or cleared.
+func (r ContainerRepository) SetArchived(
+	ctx context.Context, container work.Container, expectedVersion int,
+) error {
+	queries, id, err := containerWrite(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+
+	// A nil stamp is SQL NULL rather than the zero time: unarchiving clears the column, and a zero
+	// timestamp in it would read back as "archived in the year one".
+	archivedAt := pgtype.Timestamptz{}
+	if container.ArchivedAt != nil {
+		archivedAt = timestampOf(*container.ArchivedAt)
+	}
+
+	affected, err := queries.SetContainerArchived(ctx, sqlc.SetContainerArchivedParams{
+		ArchivedAt: archivedAt,
+		UpdatedAt:  timestampOf(container.UpdatedAt),
+		ID:         id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return containerWriteError(err, container, "writing the archive stamp")
+	}
+	return containerConflict(affected, container, expectedVersion)
+}
+
+// SetPlacement writes where a collection sits and how it ranks there.
+func (r ContainerRepository) SetPlacement(
+	ctx context.Context, container work.Container, expectedVersion int,
+) error {
+	queries, id, err := containerWrite(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+	parent, err := uuidOf(container.ParentID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetContainerPlacement(ctx, sqlc.SetContainerPlacementParams{
+		ParentID:  parent,
+		OrderKey:  container.OrderKey,
+		UpdatedAt: timestampOf(container.UpdatedAt),
+		ID:        id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return containerWriteError(err, container, "writing the placement")
+	}
+	return containerConflict(affected, container, expectedVersion)
+}
+
+// Neighbours returns the ranks either side of a position at one container level.
+func (r ContainerRepository) Neighbours(
+	ctx context.Context, parentID, beforeID, movingID shared.ID,
+) (string, string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	parent, err := optionalUUID(parentID)
+	if err != nil {
+		return "", "", err
+	}
+	before, err := optionalUUID(beforeID)
+	if err != nil {
+		return "", "", err
+	}
+	moving, err := uuidOf(movingID)
+	if err != nil {
+		return "", "", err
+	}
+
+	bounds, err := queries.ContainerOrderKeyNeighbours(ctx, sqlc.ContainerOrderKeyNeighboursParams{
+		ParentID: parent,
+		MovingID: moving,
+		BeforeID: before,
+	})
+	if err != nil {
+		return "", "", shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the rank bounds: %w", err))
+	}
+	return bounds.PreviousKey, bounds.NextKey, nil
+}
+
+// containerWrite is the preamble every write shares: the queries of the caller's transaction, and
+// the identifier as the driver's type.
+func containerWrite(ctx context.Context, id shared.ID) (*sqlc.Queries, pgtype.UUID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, pgtype.UUID{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return nil, pgtype.UUID{}, err
+	}
+	return queries, key, nil
+}
+
+// containerWriteError translates what the driver reports. A name already taken is the unique index
+// speaking, and it is the one failure a client can act on.
+//
+// No name in the message: the error text reaches the log, and a container's name is user content
+// (rule 10, ADR-0017). The conflict carries it, because that answer goes to the client that sent it.
+func containerWriteError(err error, container work.Container, what string) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == containerNameIndex {
+		return shared.ErrConflict.
+			WithDetail("containers.name_taken").
+			WithParams(map[string]string{"name": container.Name})
+	}
+	return shared.ErrUnavailable.
+		WithDetail("postgres.query_failed").
+		WithCause(fmt.Errorf("%s of %s: %w", what, container.ID, err))
+}
+
+// containerConflict turns "no row matched" into the version conflict it is.
+//
+// Either the container is gone or somebody else moved it on, and a row belonging to another tenant
+// is the same answer: row level security removed it from the update's reach, and a caller must not
+// be able to tell that apart from a version that moved (multi-tenancy.md §2).
+func containerConflict(affected int64, container work.Container, expectedVersion int) error {
+	if affected != 0 {
+		return nil
+	}
+	return shared.ErrVersionConflict.
+		WithDetail("containers.version_conflict").
+		WithParams(map[string]string{
+			"container_id": container.ID.String(), "expected_version": strconv.Itoa(expectedVersion),
+		})
+}
+
 func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
@@ -245,6 +435,7 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 		OrderKey:         row.OrderKey,
 		CompletionPolicy: policy,
 		ArchivedAt:       optionalTime(row.ArchivedAt),
+		ParentArchivedAt: optionalTime(row.ParentArchivedAt),
 		DeletedAt:        optionalTime(row.DeletedAt),
 		TrashBatchID:     trashBatchID,
 		CreatedBy:        createdBy,

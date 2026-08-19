@@ -38,6 +38,15 @@ type containers struct {
 	inserted []domain.Container
 	stored   map[shared.ID]domain.Container
 	lastKey  string
+	// written is what the lifecycle use cases wrote, in order, each entry the whole container as the
+	// use case decided it should read. The version it was written against travels beside it: a test
+	// that only saw the row could not tell an update that honoured an If-Match from one that ignored
+	// it.
+	written []writtenContainer
+	// bounds is what Neighbours answers with, and placedBefore is the sibling it was asked about.
+	bounds       [2]string
+	placedBefore shared.ID
+	writeErr     error
 	// page is what List answers with, and asked is what it was asked - the read use cases care about
 	// both: one is the projection they build, the other is the query they translated.
 	page      repository.ContainerPage
@@ -78,6 +87,48 @@ func (c *containers) Insert(_ context.Context, container domain.Container) error
 	}
 	c.inserted = append(c.inserted, container)
 	return nil
+}
+
+// writtenContainer is one write the lifecycle performed: which method, what the row now says, and
+// the version it was written against.
+type writtenContainer struct {
+	method    string
+	container domain.Container
+	expected  int
+}
+
+func (c *containers) SetAttributes(_ context.Context, container domain.Container, expected int) error {
+	return c.write("attributes", container, expected)
+}
+
+func (c *containers) SetPolicies(_ context.Context, container domain.Container, expected int) error {
+	return c.write("policies", container, expected)
+}
+
+func (c *containers) SetArchived(_ context.Context, container domain.Container, expected int) error {
+	return c.write("archived", container, expected)
+}
+
+func (c *containers) SetPlacement(_ context.Context, container domain.Container, expected int) error {
+	return c.write("placement", container, expected)
+}
+
+func (c *containers) write(method string, container domain.Container, expected int) error {
+	if c.writeErr != nil {
+		return c.writeErr
+	}
+	c.written = append(c.written, writtenContainer{method: method, container: container, expected: expected})
+	if c.stored != nil {
+		c.stored[container.ID] = container
+	}
+	return nil
+}
+
+func (c *containers) Neighbours(
+	_ context.Context, _, beforeID, _ shared.ID,
+) (string, string, error) {
+	c.placedBefore = beforeID
+	return c.bounds[0], c.bounds[1], nil
 }
 
 type events struct{ appended []event.Envelope }

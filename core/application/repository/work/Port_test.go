@@ -23,8 +23,15 @@ func (double) Find(context.Context, shared.ID) (work.Container, error) {
 func (double) List(context.Context, ContainerQuery) (ContainerPage, error) {
 	return ContainerPage{}, nil
 }
-func (double) LastOrderKey(context.Context, shared.ID) (string, error) { return "", nil }
-func (double) Insert(context.Context, work.Container) error            { return nil }
+func (double) LastOrderKey(context.Context, shared.ID) (string, error)  { return "", nil }
+func (double) Insert(context.Context, work.Container) error             { return nil }
+func (double) SetAttributes(context.Context, work.Container, int) error { return nil }
+func (double) SetPolicies(context.Context, work.Container, int) error   { return nil }
+func (double) SetArchived(context.Context, work.Container, int) error   { return nil }
+func (double) SetPlacement(context.Context, work.Container, int) error  { return nil }
+func (double) Neighbours(context.Context, shared.ID, shared.ID, shared.ID) (string, string, error) {
+	return "", "", nil
+}
 
 var _ Containers = double{}
 
