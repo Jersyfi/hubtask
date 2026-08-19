@@ -107,3 +107,33 @@ type Policies interface {
 	// period read as zero would be a trash emptied the moment something landed in it.
 	Find(ctx context.Context, kind domain.DataKind) (domain.Policy, error)
 }
+
+// RunStatus is how a retention run ended.
+type RunStatus string
+
+const (
+	RunSucceeded RunStatus = "SUCCEEDED"
+	RunFailed    RunStatus = "FAILED"
+)
+
+// RunResult is what one run did, as the log records it.
+type RunResult struct {
+	Matched    int
+	Removed    int
+	Blocked    map[string]int
+	Status     RunStatus
+	FinishedAt time.Time
+}
+
+// Runs is the log of what the retention did (data-retention.md §5).
+//
+// Two methods rather than one write at the end, so that a run killed halfway leaves a row saying it
+// started and never finished. That is the state an operator needs to see: a deletion run that
+// vanished without trace is indistinguishable from one that never started.
+type Runs interface {
+	// Start opens the log entry for one run.
+	Start(ctx context.Context, id shared.ID, kind domain.DataKind, startedAt time.Time) error
+
+	// Finish closes it with what the run did.
+	Finish(ctx context.Context, id shared.ID, result RunResult) error
+}

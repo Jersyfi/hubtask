@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 func (h *lifecycleHarness) trash() TrashWorkItem     { return TrashWorkItem{Lifecycle: h.writer} }
@@ -257,5 +258,63 @@ func TestTheDeletionIsDeclaredDestructiveAndTheRestoreIsNot(t *testing.T) {
 	}
 	if h.restore().Descriptor().Destructive {
 		t.Error("RestoreWorkItem is declared destructive")
+	}
+}
+
+// A deletion schedules its own cleanup, in the transaction that made it. It is not only convenient:
+// nothing in this system may enumerate tenants, so no scheduler can create one sweep per tenant -
+// and a deletion whose cleanup was never scheduled would sit in the trash until somebody deleted
+// something else, with nothing to say why.
+func TestADeletionSchedulesTheTenantsRetentionSweep(t *testing.T) {
+	h := newLifecycleHarness()
+	ctx, actor := t.Context(), itemActor()
+
+	if _, err := h.trash().Execute(ctx, actor, LifecycleCommand{ItemID: taskID}); err != nil {
+		t.Fatalf("trashing was refused: %v", err)
+	}
+
+	if len(h.jobs.enqueued) != 1 {
+		t.Fatalf("%d jobs enqueued, want 1", len(h.jobs.enqueued))
+	}
+	request := h.jobs.enqueued[0]
+	if request.Kind != queue.KindRetentionSweep {
+		t.Errorf("the job is a %s, want a %s", request.Kind, queue.KindRetentionSweep)
+	}
+	if request.TenantID != tenantID {
+		t.Errorf("the job is for %q, want the tenant %q", request.TenantID, tenantID)
+	}
+	// The dedupe key is the tenant, so a request that deletes twenty entries leaves one job rather
+	// than twenty (queue.Request.DedupeKey).
+	if request.DedupeKey != tenantID.String() {
+		t.Errorf("the dedupe key is %q, want the tenant", request.DedupeKey)
+	}
+}
+
+// The other verbs ask for nothing. Archiving puts nothing on a clock, and a restore takes something
+// off one - a sweep asked for by either would be a job scheduled for work that does not exist.
+func TestOnlyTheDeletionSchedulesASweep(t *testing.T) {
+	h := newLifecycleHarness()
+	ctx, actor := t.Context(), itemActor()
+
+	if _, err := h.archive().Execute(ctx, actor, LifecycleCommand{ItemID: taskID}); err != nil {
+		t.Fatalf("archiving was refused: %v", err)
+	}
+	if _, err := h.unarchive().Execute(ctx, actor, LifecycleCommand{ItemID: taskID}); err != nil {
+		t.Fatalf("unarchiving was refused: %v", err)
+	}
+	if len(h.jobs.enqueued) != 0 {
+		t.Errorf("the archive verbs scheduled %v", h.jobs.enqueued)
+	}
+
+	if _, err := h.trash().Execute(ctx, actor, LifecycleCommand{ItemID: taskID}); err != nil {
+		t.Fatalf("trashing was refused: %v", err)
+	}
+	before := len(h.jobs.enqueued)
+
+	if _, err := h.restore().Execute(ctx, actor, LifecycleCommand{ItemID: taskID}); err != nil {
+		t.Fatalf("the restore was refused: %v", err)
+	}
+	if len(h.jobs.enqueued) != before {
+		t.Errorf("the restore scheduled a sweep: %v", h.jobs.enqueued)
 	}
 }

@@ -245,6 +245,13 @@ func (w ContainerWriter) writeTrash(
 	if err := w.recordTrashAudit(ctx, after, cascade, actor, verb, now); err != nil {
 		return domain.Container{}, err
 	}
+	if verb.entering {
+		// The clock starts here, so the sweep that will read it is asked for here. The reasoning is
+		// at LifecycleWriter.Queue; a restore takes things off the clock and asks for nothing.
+		if err := scheduleRetention(ctx, w.Queue, after.TenantID); err != nil {
+			return domain.Container{}, err
+		}
+	}
 	return after, nil
 }
 

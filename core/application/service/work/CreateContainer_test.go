@@ -21,6 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -271,6 +272,20 @@ func (a *authorizer) Authorize(_ context.Context, _ appshared.ActorContext, requ
 	a.requests = append(a.requests, request)
 	return a.err
 }
+
+// jobs is the queue as the writers see it: what was asked for, and under which key.
+type jobs struct{ enqueued []queue.Request }
+
+func (j *jobs) Enqueue(_ context.Context, request queue.Request) error {
+	j.enqueued = append(j.enqueued, request)
+	return nil
+}
+
+func (j *jobs) Claim(context.Context, queue.Lease) ([]queue.Job, error) { return nil, nil }
+func (j *jobs) Complete(context.Context, queue.Job) error               { return nil }
+func (j *jobs) Repeat(context.Context, queue.Job, time.Time) error      { return nil }
+func (j *jobs) Fail(context.Context, queue.Failure) error               { return nil }
+func (j *jobs) Depth(context.Context) ([]queue.Depth, error)            { return nil, nil }
 
 // ids hands out predictable identifiers, so a test can assert on what was written.
 type ids struct{ issued int }

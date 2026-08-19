@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -55,6 +56,9 @@ type ContainerWriter struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
+	// Queue is where a deletion asks for the tenant's cleanup to be scheduled. Only TrashContainer
+	// uses it; the reasoning is at LifecycleWriter.Queue.
+	Queue queue.Queue
 }
 
 // RenameContainer changes a hub or a collection's own descriptive fields.

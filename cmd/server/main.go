@@ -274,13 +274,14 @@ func run() error {
 	itemLifecycle := work.LifecycleWriter{
 		Items: items, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Queue: jobs,
 	}
 
 	// Every verb that changes an existing container shares one dependency set: they read the same
 	// container, ask the same permission question, and owe the same four writes
 	// (work.ContainerWriter).
 	containerWriter := work.ContainerWriter{
+		Queue:      jobs,
 		Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -588,7 +589,22 @@ func run() error {
 
 	// The kinds this build knows. The scheduler publishes a zero for each of them, so that the
 	// backlog gauge exists before there is a backlog.
-	handlers := map[queueport.Kind]queueport.Handler{queueport.KindOutboxDispatch: dispatcher}
+	// The retention run, and the queue's way into it. One pass per job execution, because the
+	// handler runs inside the transaction the runner opened - the job comes back for the next pass
+	// rather than looping inside one transaction (data-retention.md §5).
+	retention := worker.RetentionSweep{
+		Retention: lifecycle.RunRetention{
+			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
+			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+		},
+		Interval:     cfg.Retention.Interval,
+		Continuation: cfg.Queue.OutboxMinInterval,
+	}
+
+	handlers := map[queueport.Kind]queueport.Handler{
+		queueport.KindOutboxDispatch: dispatcher,
+		queueport.KindRetentionSweep: retention,
+	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {
 		kinds = append(kinds, kind)

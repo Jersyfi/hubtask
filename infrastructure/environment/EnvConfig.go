@@ -114,6 +114,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			// lower bound on a hard delete. A thousand rows a pass: data-retention.md §5's default.
 			TombstoneWindow: getDuration("HUBTASK_TOMBSTONE_WINDOW", 90*24*time.Hour),
 			BatchSize:       getInt("HUBTASK_RETENTION_BATCH_SIZE", 1000),
+			Interval:        getDuration("HUBTASK_RETENTION_INTERVAL", time.Hour),
 		},
 		Metrics: env.MetricsConfig{
 			TenantLabel: getBool("HUBTASK_METRICS_TENANT_LABEL", false),

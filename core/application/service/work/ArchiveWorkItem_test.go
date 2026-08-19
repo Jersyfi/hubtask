@@ -28,6 +28,7 @@ type lifecycleHarness struct {
 	audit      *sink
 	authorizer *authorizer
 	uow        *unitOfWork
+	jobs       *jobs
 }
 
 func newLifecycleHarness() *lifecycleHarness {
@@ -40,12 +41,12 @@ func newLifecycleHarness() *lifecycleHarness {
 	h := &lifecycleHarness{
 		items: store, containers: containerStore,
 		events: &events{}, changes: &changes{}, audit: &sink{},
-		authorizer: &authorizer{}, uow: &unitOfWork{},
+		authorizer: &authorizer{}, uow: &unitOfWork{}, jobs: &jobs{},
 	}
 	h.writer = LifecycleWriter{
 		Items: store, Containers: containerStore, Authorizer: h.authorizer,
 		Events: h.events, Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
-		Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{}, Queue: h.jobs,
 	}
 
 	containerStore.stored[hubID] = domain.Container{

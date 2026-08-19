@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -51,6 +52,13 @@ type LifecycleWriter struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
+	// Queue is where a deletion asks for the tenant's cleanup to be scheduled.
+	//
+	// A deletion scheduling its own cleanup is not only convenient, it is the only shape available:
+	// nothing in this system may enumerate tenants - the `tenant` table is behind row level security
+	// with no bypass for the application role - so no scheduler can create one sweep job per tenant.
+	// The job that a deletion creates reschedules itself forever afterwards (queue.KindRetentionSweep).
+	Queue queue.Queue
 }
 
 // ArchiveWorkItem takes an entry out of use without deleting it: kept, and read-only.
@@ -117,6 +125,9 @@ type itemVerb struct {
 	// guard is what this verb refuses beyond what the transition itself does. Nil where the
 	// transition is the whole of it.
 	guard func(context.Context, LifecycleWriter, domain.WorkItem) error
+	// schedulesRetention marks the verb that puts something on a clock. Only the way into the trash
+	// does: a restore takes something off the clock, and archiving never puts anything on one.
+	schedulesRetention bool
 }
 
 var (
@@ -307,7 +318,32 @@ func (w LifecycleWriter) write(
 	if err := w.recordAudit(ctx, after, actor, verb, touched, now); err != nil {
 		return domain.WorkItem{}, err
 	}
+	if verb.schedulesRetention {
+		if err := scheduleRetention(ctx, w.Queue, after.TenantID); err != nil {
+			return domain.WorkItem{}, err
+		}
+	}
 	return after, nil
+}
+
+// scheduleRetention asks for the tenant's sweep, in the transaction that made the deletion.
+//
+// The same transaction on purpose: a deletion whose cleanup was never scheduled would sit in the
+// trash until somebody deleted something else, and nothing would say why. The dedupe key is the
+// tenant, so a request that deletes twenty entries leaves one job - and a tenant whose sweep is
+// already waiting has it pulled forward rather than duplicated (queue.Request.DedupeKey).
+//
+// A nil queue is a build without one, which is a state the composition root does not produce and a
+// test may: nothing to schedule is better than a panic on the deletion path.
+func scheduleRetention(ctx context.Context, jobs queue.Queue, tenantID shared.ID) error {
+	if jobs == nil {
+		return nil
+	}
+	return jobs.Enqueue(ctx, queue.Request{
+		Kind:      queue.KindRetentionSweep,
+		TenantID:  tenantID,
+		DedupeKey: tenantID.String(),
+	})
 }
 
 // recordChange writes what an offline client has to be told (offline-sync.md §3.1).

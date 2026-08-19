@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 // I-C2: one deletion, one batch, over the hub, its collections and their entries.
@@ -280,5 +281,32 @@ func TestTheContainerDeletionIsDeclaredDestructiveAndTheRestoreIsNot(t *testing.
 	}
 	if (RestoreContainer{}).Descriptor().Destructive {
 		t.Error("RestoreContainer is declared destructive")
+	}
+}
+
+// A container's deletion schedules the tenant's sweep for the same reason an entry's does, and the
+// restore asks for nothing.
+func TestDeletingAContainerSchedulesTheSweepAndRestoringDoesNot(t *testing.T) {
+	h := newContainerHarness()
+	h.withCollection()
+	ctx := t.Context()
+
+	if _, err := (TrashContainer{Writer: h.writer}).Execute(ctx, actor(),
+		ContainerLifecycleCommand{ContainerID: shoppingID}); err != nil {
+		t.Fatalf("the deletion was refused: %v", err)
+	}
+	if len(h.jobs.enqueued) != 1 || h.jobs.enqueued[0].Kind != queue.KindRetentionSweep {
+		t.Fatalf("the jobs are %v, want one retention sweep", h.jobs.enqueued)
+	}
+	if h.jobs.enqueued[0].TenantID != tenantID {
+		t.Errorf("the job is for %q, want the tenant", h.jobs.enqueued[0].TenantID)
+	}
+
+	if _, err := (RestoreContainer{Writer: h.writer}).Execute(ctx, actor(),
+		ContainerLifecycleCommand{ContainerID: shoppingID}); err != nil {
+		t.Fatalf("the restore was refused: %v", err)
+	}
+	if len(h.jobs.enqueued) != 1 {
+		t.Errorf("the restore scheduled a sweep: %v", h.jobs.enqueued)
 	}
 }

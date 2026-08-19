@@ -113,3 +113,38 @@ ON CONFLICT (tenant_id, data_kind) DO NOTHING;
 SELECT data_kind, retain_days, min_days, max_days
 FROM retention_policy
 WHERE data_kind = sqlc.arg('data_kind');
+
+-- name: StartRetentionRun :exec
+-- The log of one run, opened before it does anything.
+--
+-- Opened first and closed afterwards rather than written once at the end, so that a run killed
+-- halfway leaves a row saying RUNNING with no finish. That is the state an operator needs to see: a
+-- deletion run that vanished without trace is indistinguishable from one that never started.
+--
+-- `policy_id` stays null. A period is keyed on (tenant, data kind) rather than by an identifier of
+-- its own - the column anticipates the rule model of data-retention.md §2, which is its own piece of
+-- work.
+--
+-- The phase is EXECUTE and not MARK. For the trash the grace period ADR-0020 §3 asks for is the
+-- trash itself: the object is visible, it can be taken out, and it has a date - so a MARK pass would
+-- be a second grace period on top of a grace period. MARK belongs to the data kinds that have no
+-- trash of their own.
+INSERT INTO retention_run (id, tenant_id, data_kind, phase, started_at, status)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('data_kind'), 'EXECUTE',
+  sqlc.arg('started_at'), 'RUNNING'
+);
+
+-- name: FinishRetentionRun :execrows
+-- What the run did, written when it is over.
+--
+-- `blocked_reasons` is an object keyed by reason rather than a total, because "twelve were kept" is
+-- not something an operator can act on and "twelve were kept by a legal hold" is.
+UPDATE retention_run SET
+  matched         = sqlc.arg('matched'),
+  affected        = sqlc.arg('affected'),
+  blocked         = sqlc.arg('blocked'),
+  blocked_reasons = sqlc.arg('blocked_reasons'),
+  finished_at     = sqlc.arg('finished_at'),
+  status          = sqlc.arg('status')
+WHERE id = sqlc.arg('id')::uuid;

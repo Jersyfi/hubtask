@@ -126,6 +126,10 @@ type RetentionConfig struct {
 	// not hold one transaction open across the whole of it, and so that it can be stopped between
 	// passes rather than only by killing it.
 	BatchSize int
+	// Interval is how long a tenant's sweep waits after a pass that reached the end of its trash.
+	// It is what a quiet installation pays for having the machinery at all: nothing expires within
+	// an hour of anything else, so an hour is often enough and cheap.
+	Interval time.Duration
 }
 
 // QueueConfig is the background work of the worker and scheduler roles (ADR-0008).

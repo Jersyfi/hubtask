@@ -34,6 +34,7 @@ type containerHarness struct {
 	audit      *sink
 	authorizer *authorizer
 	uow        *unitOfWork
+	jobs       *jobs
 }
 
 func newContainerHarness() *containerHarness {
@@ -45,10 +46,12 @@ func newContainerHarness() *containerHarness {
 		audit:      &sink{},
 		authorizer: &authorizer{},
 		uow:        &unitOfWork{},
+		jobs:       &jobs{},
 	}
 	h.writer = ContainerWriter{
 		Containers: store, Authorizer: h.authorizer, Events: h.events, Changes: h.changes,
 		Audit: h.audit, UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		Queue: h.jobs,
 	}
 	return h
 }

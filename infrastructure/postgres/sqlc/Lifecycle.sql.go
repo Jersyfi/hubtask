@@ -236,6 +236,47 @@ func (q *Queries) FindRetentionPolicy(ctx context.Context, dataKind string) (Fin
 	return i, err
 }
 
+const finishRetentionRun = `-- name: FinishRetentionRun :execrows
+UPDATE retention_run SET
+  matched         = $1,
+  affected        = $2,
+  blocked         = $3,
+  blocked_reasons = $4,
+  finished_at     = $5,
+  status          = $6
+WHERE id = $7::uuid
+`
+
+type FinishRetentionRunParams struct {
+	Matched        int32
+	Affected       int32
+	Blocked        int32
+	BlockedReasons []byte
+	FinishedAt     pgtype.Timestamptz
+	Status         string
+	ID             pgtype.UUID
+}
+
+// What the run did, written when it is over.
+//
+// `blocked_reasons` is an object keyed by reason rather than a total, because "twelve were kept" is
+// not something an operator can act on and "twelve were kept by a legal hold" is.
+func (q *Queries) FinishRetentionRun(ctx context.Context, arg FinishRetentionRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, finishRetentionRun,
+		arg.Matched,
+		arg.Affected,
+		arg.Blocked,
+		arg.BlockedReasons,
+		arg.FinishedAt,
+		arg.Status,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const recordDeletions = `-- name: RecordDeletions :exec
 INSERT INTO deletion_journal (tenant_id, entity, entity_id, deleted_at, reason)
 SELECT
@@ -307,5 +348,38 @@ func (q *Queries) RecordTombstones(ctx context.Context, arg RecordTombstonesPara
 		arg.PurgeAfter,
 		arg.EntityIds,
 	)
+	return err
+}
+
+const startRetentionRun = `-- name: StartRetentionRun :exec
+INSERT INTO retention_run (id, tenant_id, data_kind, phase, started_at, status)
+VALUES (
+  $1, current_tenant_id(), $2, 'EXECUTE',
+  $3, 'RUNNING'
+)
+`
+
+type StartRetentionRunParams struct {
+	ID        pgtype.UUID
+	DataKind  string
+	StartedAt pgtype.Timestamptz
+}
+
+// The log of one run, opened before it does anything.
+//
+// Opened first and closed afterwards rather than written once at the end, so that a run killed
+// halfway leaves a row saying RUNNING with no finish. That is the state an operator needs to see: a
+// deletion run that vanished without trace is indistinguishable from one that never started.
+//
+// `policy_id` stays null. A period is keyed on (tenant, data kind) rather than by an identifier of
+// its own - the column anticipates the rule model of data-retention.md §2, which is its own piece of
+// work.
+//
+// The phase is EXECUTE and not MARK. For the trash the grace period ADR-0020 §3 asks for is the
+// trash itself: the object is visible, it can be taken out, and it has a date - so a MARK pass would
+// be a second grace period on top of a grace period. MARK belongs to the data kinds that have no
+// trash of their own.
+func (q *Queries) StartRetentionRun(ctx context.Context, arg StartRetentionRunParams) error {
+	_, err := q.db.Exec(ctx, startRetentionRun, arg.ID, arg.DataKind, arg.StartedAt)
 	return err
 }

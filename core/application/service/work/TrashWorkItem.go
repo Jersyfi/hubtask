@@ -76,6 +76,8 @@ var (
 		// A deletion, so that an offline client removes its local copy rather than applying a state
 		// change to something it should no longer show (offline-sync.md §3.1).
 		op: changelog.Delete,
+		// The clock starts here, so the sweep that will read it is asked for here.
+		schedulesRetention: true,
 	}
 	restoring = itemVerb{
 		action: ItemRestoredAction,

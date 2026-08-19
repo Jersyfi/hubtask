@@ -47,6 +47,9 @@ type Metrics struct {
 	jobQueueDepth     metric.Int64Gauge
 	outboxLag         metric.Float64Histogram
 	schedulerTickLag  metric.Int64Gauge
+	retentionDeleted  metric.Int64Counter
+	retentionBlocked  metric.Int64Counter
+	retentionRun      metric.Float64Histogram
 	tenantLabelActive bool
 }
 
@@ -219,7 +222,59 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("tick lag gauge: %w", err)
 	}
+	return m.retentionInstruments(meter)
+}
+
+// retentionInstruments are the three numbers data-retention.md §5 asks a deletion run to publish.
+//
+// Counters rather than gauges for what was removed and what was kept: the question an operator asks
+// is "how much has gone since", not "how much went in the last run", and a gauge answers only the
+// second. The labels are the closed sets the lifecycle package defines - one data kind and two block
+// reasons - so nothing unbounded can reach a label from here
+// (observability-reliability.md §3.2).
+func (m *Metrics) retentionInstruments(meter metric.Meter) error {
+	var err error
+	if m.retentionDeleted, err = meter.Int64Counter(
+		namespace+"_retention_deleted_total",
+		metric.WithDescription("Rows removed for good by the retention runs, by data kind."),
+	); err != nil {
+		return fmt.Errorf("retention deletion counter: %w", err)
+	}
+	if m.retentionBlocked, err = meter.Int64Counter(
+		namespace+"_retention_blocked_total",
+		metric.WithDescription("Rows past their period that were kept, by reason."),
+	); err != nil {
+		return fmt.Errorf("retention block counter: %w", err)
+	}
+	if m.retentionRun, err = meter.Float64Histogram(
+		namespace+"_retention_run_duration_seconds",
+		metric.WithDescription("How long one pass of a retention run took, by data kind."),
+		metric.WithUnit("s"),
+		// A pass is one batch, so it should be short. Past thirty seconds the question is no longer
+		// how long but what is holding the transaction.
+		metric.WithExplicitBucketBoundaries(0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30, 60),
+	); err != nil {
+		return fmt.Errorf("retention run histogram: %w", err)
+	}
 	return nil
+}
+
+// RetentionDeleted counts what a pass removed. Written even when it is zero: a counter that has
+// never been written has no series, and an alert on a deletion run that never happens is one that
+// reads "no data" and is believed (observability-reliability.md §4).
+func (m *Metrics) RetentionDeleted(ctx context.Context, dataKind string, count int64) {
+	m.retentionDeleted.Add(ctx, count, metric.WithAttributes(attribute.String("data_kind", dataKind)))
+}
+
+// RetentionBlocked counts what a pass kept, by reason. The reason is the point: "twelve were kept"
+// is not something an operator can act on, and "twelve were kept by a legal hold" is.
+func (m *Metrics) RetentionBlocked(ctx context.Context, reason string, count int64) {
+	m.retentionBlocked.Add(ctx, count, metric.WithAttributes(attribute.String("reason", reason)))
+}
+
+// RetentionRun records how long one pass took.
+func (m *Metrics) RetentionRun(ctx context.Context, dataKind string, seconds float64) {
+	m.retentionRun.Record(ctx, seconds, metric.WithAttributes(attribute.String("data_kind", dataKind)))
 }
 
 // buildInfo is the gauge that is always 1 and whose labels are the point: it makes the version

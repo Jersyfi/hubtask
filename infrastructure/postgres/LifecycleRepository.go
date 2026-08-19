@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -33,6 +34,7 @@ var (
 	_ repository.Removals   = LifecycleRepository{}
 	_ repository.Expired    = LifecycleRepository{}
 	_ repository.Policies   = LifecycleRepository{}
+	_ repository.Runs       = LifecycleRepository{}
 )
 
 // Active returns the holds in force for this tenant.
@@ -281,7 +283,7 @@ func (r LifecycleRepository) Find(
 		if IsNoRows(err) {
 			// Also the answer when the row belongs to another tenant: row level security removed it
 			// from the result, and the caller must not be able to tell the two apart.
-			return domain.Policy{}, shared.ErrNotFound.WithDetail("retention.policy_not_found")
+			return domain.Policy{}, shared.ErrNotFound.WithDetail("lifecycle.policy_not_found")
 		}
 		return domain.Policy{}, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -320,3 +322,98 @@ func dayColumn(days int) int32 {
 // maxRetainDays is a hundred years. Not a policy limit but a safety one, like MaxPoolConns: a
 // four-digit period is a plan, and a six-digit one is a typo.
 const maxRetainDays = 36500
+
+// Start opens the log entry for one retention run.
+func (r LifecycleRepository) Start(
+	ctx context.Context, id shared.ID, kind domain.DataKind, startedAt time.Time,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+
+	err = queries.StartRetentionRun(ctx, sqlc.StartRetentionRunParams{
+		ID: key, DataKind: string(kind), StartedAt: timestampOf(startedAt),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("opening the retention run: %w", err))
+	}
+	return nil
+}
+
+// Finish closes the log entry with what the run did.
+func (r LifecycleRepository) Finish(
+	ctx context.Context, id shared.ID, result repository.RunResult,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+
+	// An object keyed by reason rather than a total: "twelve were kept" is not something an operator
+	// can act on, and "twelve were kept by a legal hold" is. Always an object, empty when nothing was
+	// kept, so a reader never has to tell an absent map from an empty one.
+	reasons := result.Blocked
+	if reasons == nil {
+		reasons = map[string]int{}
+	}
+	encoded, err := json.Marshal(reasons)
+	if err != nil {
+		return shared.ErrInternal.
+			WithDetail("lifecycle.run_unrecordable").
+			WithCause(fmt.Errorf("encoding the blocked reasons: %w", err))
+	}
+
+	blocked := 0
+	for _, count := range reasons {
+		blocked += count
+	}
+
+	affected, err := queries.FinishRetentionRun(ctx, sqlc.FinishRetentionRunParams{
+		Matched:        countColumn(result.Matched),
+		Affected:       countColumn(result.Removed),
+		Blocked:        countColumn(blocked),
+		BlockedReasons: encoded,
+		FinishedAt:     timestampOf(result.FinishedAt),
+		Status:         string(result.Status),
+		ID:             key,
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("closing the retention run: %w", err))
+	}
+	if affected == 0 {
+		// The row this run opened is gone, or belongs to somebody else. Either way the run has no
+		// log, which is the one thing this method exists to prevent.
+		return shared.ErrInternal.WithDetail("lifecycle.run_unrecordable")
+	}
+	return nil
+}
+
+// countColumn narrows a count for the column that holds it. Bounded rather than converted, for the
+// reason dayColumn is: a number arriving from outside should not become a negative one on the way in.
+func countColumn(count int) int32 {
+	switch {
+	case count < 0:
+		return 0
+	case count > maxRunCount:
+		return maxRunCount
+	default:
+		return int32(count)
+	}
+}
+
+// maxRunCount is what one run's counters are capped at. Far beyond any batch this system reads and
+// well inside the column's range.
+const maxRunCount = 1 << 30
