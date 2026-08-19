@@ -338,3 +338,26 @@ func equalInstants(a, b *time.Time) bool {
 	}
 	return a.Equal(*b)
 }
+
+// A path is the chain of entries above one, and reading it back is what lets a legal hold placed on
+// a task reach the activities under it without a query per level.
+func TestAPathReadsBackAsTheChainItEncodes(t *testing.T) {
+	task := WorkItem{ID: taskID, Path: RootPath(taskID)}
+	pack := WorkItem{ID: packageID, Path: task.ChildPath(packageID)}
+
+	if got := PathIDs(pack.Path); len(got) != 2 || got[0] != taskID || got[1] != packageID {
+		t.Errorf("the path reads back as %v, want the task and then the work package", got)
+	}
+	if got := PathIDs(task.Path); len(got) != 1 || got[0] != taskID {
+		t.Errorf("a root path reads back as %v, want just the entry", got)
+	}
+
+	// A malformed path yields nothing rather than an error: every stored path was written by
+	// checkPlacement, so an unreadable one is a defect elsewhere - and the caller is a deletion,
+	// which must not be stopped by a chain it can only fail to widen.
+	for _, path := range []string{"", "/", "/not-a-uuid/"} {
+		if got := PathIDs(path); got != nil {
+			t.Errorf("the malformed path %q read back as %v", path, got)
+		}
+	}
+}

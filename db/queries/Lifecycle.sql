@@ -54,3 +54,41 @@ SELECT
   sqlc.arg('deleted_at')::timestamptz, sqlc.arg('purge_after')::timestamptz
 FROM unnest(sqlc.arg('entity_ids')::uuid[]) AS entity_id
 ON CONFLICT (tenant_id, entity, entity_id) DO NOTHING;
+
+-- name: ExpiredTrashItems :many
+-- The entries whose time in the trash is up, deepest first.
+--
+-- Deepest first because a purge works a subtree from the bottom up (data-retention.md §4.6): a
+-- parent removed before its children would take them with it through the foreign key, and rows
+-- removed by a cascade nobody counted are exactly the orphans that leave no journal entry and no
+-- tombstone behind (ADR-0020 §6).
+--
+-- The cutoff is a parameter rather than a period, so that the caller reads the clock once for the
+-- whole run - two readings would let a long batch use two different definitions of "expired". A
+-- cutoff of now is what emptying a trash by hand passes.
+--
+-- `hub_id` travels because a legal hold placed on a hub has to reach an entry three levels below it,
+-- and the entry alone does not know which hub it is under. The join is a primary key lookup.
+--
+-- The limit is the batch: a retention run removes in batches so that a large deletion does not hold
+-- one transaction open across the whole of it (data-retention.md §5).
+SELECT i.id, i.type, i.path, i.collection_id, col.parent_id AS hub_id, i.deleted_at
+FROM work_item i
+JOIN container col ON col.id = i.collection_id
+WHERE i.deleted_at IS NOT NULL
+  AND i.deleted_at < sqlc.arg('cutoff')::timestamptz
+ORDER BY i.depth DESC, i.deleted_at, i.id
+LIMIT sqlc.arg('batch_size');
+
+-- name: ExpiredTrashContainers :many
+-- The hubs and collections whose time in the trash is up, collections before the hubs that hold them.
+--
+-- The order is the same bottom-up rule and the same reason: `container.parent_id` is
+-- ON DELETE RESTRICT, so a hub whose collections are still there refuses to go - the database
+-- insists on the order, and this is where it is obeyed rather than discovered.
+SELECT c.id, c.type, c.parent_id, c.deleted_at
+FROM container c
+WHERE c.deleted_at IS NOT NULL
+  AND c.deleted_at < sqlc.arg('cutoff')::timestamptz
+ORDER BY (c.type = 'HUB'), c.deleted_at, c.id
+LIMIT sqlc.arg('batch_size');

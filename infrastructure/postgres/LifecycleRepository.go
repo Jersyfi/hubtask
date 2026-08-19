@@ -13,6 +13,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
@@ -30,6 +31,7 @@ func NewLifecycleRepository() LifecycleRepository { return LifecycleRepository{}
 var (
 	_ repository.LegalHolds = LifecycleRepository{}
 	_ repository.Removals   = LifecycleRepository{}
+	_ repository.Expired    = LifecycleRepository{}
 )
 
 // Active returns the holds in force for this tenant.
@@ -147,3 +149,97 @@ func groupRemovals(
 	}
 	return byEntity, reasons, order, nil
 }
+
+// Items returns the entries whose time in the trash is up, deepest first.
+func (r LifecycleRepository) Items(
+	ctx context.Context, cutoff time.Time, batchSize int,
+) ([]repository.ExpiredItem, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ExpiredTrashItems(ctx, sqlc.ExpiredTrashItemsParams{
+		Cutoff: timestampOf(cutoff), BatchSize: batchLimit(batchSize),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the expired entries: %w", err))
+	}
+
+	expired := make([]repository.ExpiredItem, 0, len(rows))
+	for _, row := range rows {
+		id, collection, err := idPair(row.ID, row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		// A collection always sits in a hub (I-C1), so this is absent only for a row the schema
+		// should not hold - and an empty identifier is what the hold check reads as "no hub named".
+		hub, err := optionalID(row.HubID)
+		if err != nil {
+			return nil, err
+		}
+		expired = append(expired, repository.ExpiredItem{
+			ID: id, Type: work.ItemType(row.Type), Path: row.Path,
+			CollectionID: collection, HubID: hub, DeletedAt: timeFrom(row.DeletedAt),
+		})
+	}
+	return expired, nil
+}
+
+// Containers returns the hubs and collections whose time in the trash is up, collections first.
+func (r LifecycleRepository) Containers(
+	ctx context.Context, cutoff time.Time, batchSize int,
+) ([]repository.ExpiredContainer, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ExpiredTrashContainers(ctx, sqlc.ExpiredTrashContainersParams{
+		Cutoff: timestampOf(cutoff), BatchSize: batchLimit(batchSize),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the expired containers: %w", err))
+	}
+
+	expired := make([]repository.ExpiredContainer, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		parent, err := optionalID(row.ParentID)
+		if err != nil {
+			return nil, err
+		}
+		expired = append(expired, repository.ExpiredContainer{
+			ID: id, Type: work.ContainerType(row.Type), ParentID: parent,
+			DeletedAt: timeFrom(row.DeletedAt),
+		})
+	}
+	return expired, nil
+}
+
+// batchLimit bounds what can be asked of the database, whatever arrives from above.
+//
+// The second bound rather than the first: the caller clamps the configured batch, so a value
+// reaching here outside the range means it did not - and an unbounded read on a deletion path is
+// the one place where trusting a caller's arithmetic is worst.
+func batchLimit(size int) int32 {
+	switch {
+	case size < 1:
+		return 1
+	case size > maxPurgeBatch:
+		return maxPurgeBatch
+	default:
+		return int32(size)
+	}
+}
+
+// maxPurgeBatch is the ceiling on one read of what may be removed. data-retention.md §5 puts the
+// default at a thousand objects per transaction; this is the hard limit around that knob.
+const maxPurgeBatch = 10000

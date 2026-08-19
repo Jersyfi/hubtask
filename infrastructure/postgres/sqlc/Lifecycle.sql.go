@@ -65,6 +65,124 @@ func (q *Queries) ActiveLegalHolds(ctx context.Context) ([]ActiveLegalHoldsRow, 
 	return items, nil
 }
 
+const expiredTrashContainers = `-- name: ExpiredTrashContainers :many
+SELECT c.id, c.type, c.parent_id, c.deleted_at
+FROM container c
+WHERE c.deleted_at IS NOT NULL
+  AND c.deleted_at < $1::timestamptz
+ORDER BY (c.type = 'HUB'), c.deleted_at, c.id
+LIMIT $2
+`
+
+type ExpiredTrashContainersParams struct {
+	Cutoff    pgtype.Timestamptz
+	BatchSize int32
+}
+
+type ExpiredTrashContainersRow struct {
+	ID        pgtype.UUID
+	Type      ContainerType
+	ParentID  pgtype.UUID
+	DeletedAt pgtype.Timestamptz
+}
+
+// The hubs and collections whose time in the trash is up, collections before the hubs that hold them.
+//
+// The order is the same bottom-up rule and the same reason: `container.parent_id` is
+// ON DELETE RESTRICT, so a hub whose collections are still there refuses to go - the database
+// insists on the order, and this is where it is obeyed rather than discovered.
+func (q *Queries) ExpiredTrashContainers(ctx context.Context, arg ExpiredTrashContainersParams) ([]ExpiredTrashContainersRow, error) {
+	rows, err := q.db.Query(ctx, expiredTrashContainers, arg.Cutoff, arg.BatchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExpiredTrashContainersRow{}
+	for rows.Next() {
+		var i ExpiredTrashContainersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.ParentID,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const expiredTrashItems = `-- name: ExpiredTrashItems :many
+SELECT i.id, i.type, i.path, i.collection_id, col.parent_id AS hub_id, i.deleted_at
+FROM work_item i
+JOIN container col ON col.id = i.collection_id
+WHERE i.deleted_at IS NOT NULL
+  AND i.deleted_at < $1::timestamptz
+ORDER BY i.depth DESC, i.deleted_at, i.id
+LIMIT $2
+`
+
+type ExpiredTrashItemsParams struct {
+	Cutoff    pgtype.Timestamptz
+	BatchSize int32
+}
+
+type ExpiredTrashItemsRow struct {
+	ID           pgtype.UUID
+	Type         ItemType
+	Path         string
+	CollectionID pgtype.UUID
+	HubID        pgtype.UUID
+	DeletedAt    pgtype.Timestamptz
+}
+
+// The entries whose time in the trash is up, deepest first.
+//
+// Deepest first because a purge works a subtree from the bottom up (data-retention.md §4.6): a
+// parent removed before its children would take them with it through the foreign key, and rows
+// removed by a cascade nobody counted are exactly the orphans that leave no journal entry and no
+// tombstone behind (ADR-0020 §6).
+//
+// The cutoff is a parameter rather than a period, so that the caller reads the clock once for the
+// whole run - two readings would let a long batch use two different definitions of "expired". A
+// cutoff of now is what emptying a trash by hand passes.
+//
+// `hub_id` travels because a legal hold placed on a hub has to reach an entry three levels below it,
+// and the entry alone does not know which hub it is under. The join is a primary key lookup.
+//
+// The limit is the batch: a retention run removes in batches so that a large deletion does not hold
+// one transaction open across the whole of it (data-retention.md §5).
+func (q *Queries) ExpiredTrashItems(ctx context.Context, arg ExpiredTrashItemsParams) ([]ExpiredTrashItemsRow, error) {
+	rows, err := q.db.Query(ctx, expiredTrashItems, arg.Cutoff, arg.BatchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExpiredTrashItemsRow{}
+	for rows.Next() {
+		var i ExpiredTrashItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Path,
+			&i.CollectionID,
+			&i.HubID,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordDeletions = `-- name: RecordDeletions :exec
 INSERT INTO deletion_journal (tenant_id, entity, entity_id, deleted_at, reason)
 SELECT

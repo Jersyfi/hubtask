@@ -493,3 +493,32 @@ func (i WorkItem) SubtreePathUnder(parentPath string) string {
 
 // RootPath is the path of an item directly under the collection: the top of a subtree.
 func RootPath(id shared.ID) string { return PathSeparator + id.String() + PathSeparator }
+
+// PathIDs reads a materialised path back into the chain it encodes: the entries from the top of the
+// collection down to and including this one.
+//
+// The inverse of how a path is built, and it exists for the one question a stored path cannot answer
+// otherwise: which entries sit above this one. A legal hold placed on a task has to reach the
+// activities under it (data-retention.md §4.1), and walking the parent chain to find out would be a
+// query per level for something the row already carries.
+//
+// A malformed path yields nothing rather than an error. Every path in the database was written by
+// checkPlacement, so an unreadable one is a defect elsewhere - and the caller of this is a deletion,
+// which must not be stopped by a chain it can only fail to widen.
+func PathIDs(path string) []shared.ID {
+	trimmed := strings.Trim(path, PathSeparator)
+	if trimmed == "" {
+		return nil
+	}
+
+	segments := strings.Split(trimmed, PathSeparator)
+	ids := make([]shared.ID, 0, len(segments))
+	for _, segment := range segments {
+		id, err := shared.ParseID(segment)
+		if err != nil {
+			return nil
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
