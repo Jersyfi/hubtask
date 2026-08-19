@@ -49,6 +49,19 @@ func (p CompletionPolicy) Valid() bool {
 	return false
 }
 
+// OrDefault reads the absent policy as the default: a collection that has never been configured
+// behaves as MANUAL, and so does a hub, which has no items for a policy to decide about.
+//
+// One rule in one place. The column starts as `{}` and a Container built anywhere but by the adapter
+// carries the zero value, so every reader would otherwise have to know that "" and MANUAL are the
+// same thing - and one of them would eventually not.
+func (p CompletionPolicy) OrDefault() CompletionPolicy {
+	if p == "" {
+		return DefaultCompletionPolicy
+	}
+	return p
+}
+
 // ParseCompletionPolicy reads a stored or submitted policy.
 //
 // The empty value is the default rather than an error: the `policies` column starts as `{}`, so every
@@ -57,7 +70,7 @@ func (p CompletionPolicy) Valid() bool {
 // nobody recognises is not a reason to silently pick a behaviour.
 func ParseCompletionPolicy(value string) (CompletionPolicy, error) {
 	if value == "" {
-		return DefaultCompletionPolicy, nil
+		return CompletionPolicy("").OrDefault(), nil
 	}
 	policy := CompletionPolicy(value)
 	if !policy.Valid() {

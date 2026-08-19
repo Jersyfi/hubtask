@@ -21,6 +21,33 @@ type Type string
 const (
 	// ContainerCreated announces a new hub or collection. Consumers: automation, webhooks, search.
 	ContainerCreated Type = "de.hubtask.work.container.created.v1"
+	// ContainerRenamed announces that a container's own descriptive fields changed. Consumers:
+	// automation, webhooks, search.
+	ContainerRenamed Type = "de.hubtask.work.container.renamed.v1"
+	// ContainerPoliciesUpdated announces that a collection now works differently - today, whether a
+	// child's completion propagates upwards. Consumers: automation, the roll-up.
+	//
+	// Its own type rather than a rename carrying a different field, because the two are different
+	// decisions: a rule that reacts to a collection being reconfigured must not fire when somebody
+	// corrects a typo in its name. domain-model.md §4 names neither, and this is the narrower of the
+	// two names it could have had.
+	ContainerPoliciesUpdated Type = "de.hubtask.work.container.policies_updated.v1"
+	// ContainerMoved announces that a collection sits in a different hub, or at a different rank in
+	// the same one. Consumers: automation, search, SSE.
+	//
+	// The counterpart of ItemMoved, and one type for both reasons as that one is: a drag within a
+	// level and a drag between hubs are the same gesture to a person.
+	ContainerMoved Type = "de.hubtask.work.container.moved.v1"
+	// ContainerArchived announces that a container is read-only, and everything under it with it
+	// (I-C3). Consumers: automation, webhooks, search.
+	ContainerArchived Type = "de.hubtask.work.container.archived.v1"
+	// ContainerUnarchived announces that a container is writable again.
+	//
+	// Its own type rather than the `.restored` domain-model.md §4 pairs with `.archived`: that name
+	// belongs to the trash, and a rule written to react to something coming back from a deletion must
+	// not fire when somebody unarchives a hub. The same reasoning separates ItemReopened from
+	// ItemCompleted.
+	ContainerUnarchived Type = "de.hubtask.work.container.unarchived.v1"
 	// ItemCreated announces a new task, work package or activity. One type for all three levels,
 	// because they are one aggregate (ADR-0006): a subscriber filters on the payload's `type`
 	// rather than on three event names, and a fifth level reaches it without a new subscription.
@@ -61,7 +88,11 @@ const (
 // event schemas under api/events/ are reconciled against it by the contract test, so an event
 // without a schema, or a schema without an event, is a red build rather than a discovery made by
 // a subscriber.
-var types = [...]Type{ContainerCreated, ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved}
+var types = [...]Type{
+	ContainerCreated, ContainerRenamed, ContainerPoliciesUpdated, ContainerMoved,
+	ContainerArchived, ContainerUnarchived,
+	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
+}
 
 // Types returns every defined event type.
 func Types() []Type { return types[:] }

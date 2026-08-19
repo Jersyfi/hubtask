@@ -14,12 +14,20 @@
 -- yields NULL for a collection that has never been configured, and coalesce turns that into the empty
 -- string - which the domain reads as the default. Coalescing here rather than mapping a nil pointer in
 -- the adapter keeps the generated field a plain string, and "unset" one concept instead of two.
+--
+-- The hub's own archive stamp travels with the row as `parent_archived_at`, which is invariant I-C3's
+-- second half: a collection in an archived hub is read-only without being archived itself. Read here
+-- rather than stored on the collection, so that archiving a hub writes one row and unarchiving it
+-- restores exactly what it covered - a collection archived in its own right stays archived. The join
+-- is a primary key lookup, and it is NULL for a hub, which sits under nothing.
 SELECT
-  id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
-  coalesce(policies->>'completion_policy', '')::text AS completion_policy,
-  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
-FROM container
-WHERE id = $1;
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+FROM container c
+LEFT JOIN container parent ON parent.id = c.parent_id
+WHERE c.id = $1;
 
 -- name: LastContainerOrderKey :one
 -- The highest rank directly under a parent, or no row when the level is empty. A NULL parent is
@@ -59,7 +67,10 @@ INSERT INTO container (
 -- the filters agreeing, not a special case worth coding.
 --
 -- Trashed rows are never here - the trash is its own view (B-10). Archived ones are, when the caller
--- asks: an archived collection is still a collection, and hiding it would make it unreachable.
+-- asks: an archived collection is still a collection, and hiding it would make it unreachable. The
+-- filter reads the row's own stamp rather than the effective one on purpose - a collection is not
+-- hidden from the level because the hub above it was archived, since the client asking for that hub's
+-- collections has just been told the hub is archived.
 --
 -- The keyset is (order_key, id) rather than an offset, so a page boundary survives a concurrent
 -- insert (api-guidelines.md §4). `id` is the tiebreak the guidelines require, and it is what makes
@@ -73,21 +84,128 @@ INSERT INTO container (
 -- there is a next page is otherwise a second query, and a COUNT over the level is the expensive
 -- thing this endpoint exists to avoid.
 SELECT
-  id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
-  coalesce(policies->>'completion_policy', '')::text AS completion_policy,
-  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
-FROM container
-WHERE parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
-  AND deleted_at IS NULL
-  AND (sqlc.narg('type')::container_type IS NULL OR type = sqlc.narg('type')::container_type)
-  AND (sqlc.arg('include_archived')::boolean OR archived_at IS NULL)
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+FROM container c
+LEFT JOIN container parent ON parent.id = c.parent_id
+WHERE c.parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
+  AND c.deleted_at IS NULL
+  AND (sqlc.narg('type')::container_type IS NULL OR c.type = sqlc.narg('type')::container_type)
+  AND (sqlc.arg('include_archived')::boolean OR c.archived_at IS NULL)
   AND (
     sqlc.narg('cursor_order_key')::text IS NULL
-    OR (order_key COLLATE "C", id)
+    OR (c.order_key COLLATE "C", c.id)
        > (sqlc.narg('cursor_order_key')::text COLLATE "C", sqlc.narg('cursor_id')::uuid)
   )
-ORDER BY order_key COLLATE "C", id
+ORDER BY c.order_key COLLATE "C", c.id
 LIMIT sqlc.arg('page_size');
+
+-- name: SetContainerAttributes :execrows
+-- A container's own descriptive fields: what RenameContainer may change (B-06).
+--
+-- Every column is written on every call, not only the ones that moved. The application has already
+-- decided what the row should say - it read the container, applied the update and refused what the
+-- lifecycle does not allow - so this writes that decision whole. `description = COALESCE($1,
+-- description)` would additionally make clearing a description unexpressible.
+--
+-- The name is normalised here for the reason InsertContainer normalises it: the unique index has to
+-- see two spellings of the same word as one name, and the domain may not import a Unicode library
+-- (ADR-0001). A rename into a name already taken at this level therefore fails on `container_name_uq`
+-- exactly as an insert does, which is what keeps one answer for one condition.
+--
+-- Optimistic locking in the WHERE clause, as everywhere: the update matches nothing when somebody
+-- else has moved the row on, and the caller learns that rather than overwriting them
+-- (api-guidelines.md §5).
+UPDATE container SET
+  name        = normalize(sqlc.arg('name')::text, NFC),
+  description = sqlc.narg('description'),
+  icon        = sqlc.narg('icon'),
+  color_token = sqlc.narg('color_token'),
+  updated_at  = sqlc.arg('updated_at'),
+  version     = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: SetContainerPolicies :execrows
+-- One key of the policies document, set in place.
+--
+-- `jsonb_set` rather than replacing the column, because the column holds four documented keys and this
+-- use case owns one of them. Overwriting the whole document would silently discard a default bucket or
+-- a capability override the moment either of those arrives - a data loss nobody would see until the
+-- feature that wrote them stopped working.
+--
+-- The value is a parameter of the jsonb constructor rather than concatenated text: `to_jsonb` on a
+-- bound parameter is what keeps this a parameterised statement, which rule 9 requires of every query
+-- including the ones that build a document.
+UPDATE container SET
+  policies   = jsonb_set(policies, '{completion_policy}',
+               to_jsonb(sqlc.arg('completion_policy')::text), true),
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: SetContainerArchived :execrows
+-- The archive stamp, set or cleared. One statement for both directions, because they differ in the
+-- value and in nothing else.
+--
+-- Only this row. A collection under an archived hub inherits the state through FindContainer's join
+-- rather than through a stamp of its own, so archiving a hub writes one row here however many
+-- collections sit in it - and unarchiving it restores exactly what it covered, leaving a collection
+-- that was archived in its own right archived (I-C3).
+UPDATE container SET
+  archived_at = sqlc.narg('archived_at'),
+  updated_at  = sqlc.arg('updated_at'),
+  version     = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: SetContainerPlacement :execrows
+-- Where a collection sits and how it ranks there: the whole of what a move changes.
+--
+-- No subtree statement beside it, unlike the item move. A container tree is two levels deep (I-C1), so
+-- a collection has no containers below it whose path would have to follow - and the items it holds
+-- reference their collection rather than a path through the hubs.
+--
+-- A name already taken in the destination fails on `container_name_uq`, which is the same index that
+-- decides an insert. Checking beforehand would be two statements with a gap, and two moves arriving
+-- inside that gap would both pass the check (multi-tenancy.md §2.1).
+UPDATE container SET
+  parent_id  = sqlc.arg('parent_id')::uuid,
+  order_key  = sqlc.arg('order_key'),
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: ContainerOrderKeyNeighbours :one
+-- The two ranks a position sits between at one container level: the rank of the container to go
+-- before, and the greatest rank below it.
+--
+-- The counterpart of OrderKeyNeighbours for items, and the same shape for the same reasons: both
+-- bounds in one row so that they are consistent as of the moment they are asked, the empty string for
+-- "nothing there", and COLLATE "C" wherever two ranks are compared - a fractional index rests on byte
+-- order, and a database created en_US.utf8 on glibc would order it differently from the domain that
+-- produced it.
+--
+-- The level is the parent, compared with IS NOT DISTINCT FROM so that an absent one means the hubs
+-- rather than no filter at all. The moving container is excluded from its own level: a reorder would
+-- otherwise measure a position against the rank it is leaving.
+WITH level AS (
+  SELECT id, order_key
+  FROM container
+  WHERE parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
+    AND deleted_at IS NULL
+    AND id <> sqlc.arg('moving_id')::uuid
+), anchor AS (
+  SELECT order_key FROM level WHERE id = sqlc.narg('before_id')::uuid
+)
+SELECT
+  coalesce((SELECT order_key FROM anchor), '')::text AS next_key,
+  coalesce((
+    SELECT max(order_key COLLATE "C")
+    FROM level
+    WHERE (SELECT order_key FROM anchor) IS NULL
+       OR order_key COLLATE "C" < (SELECT order_key FROM anchor) COLLATE "C"
+  ), '')::text AS previous_key;
 
 -- name: FindWorkItem :one
 -- Trashed and archived items are returned rather than filtered out, for the reason FindContainer

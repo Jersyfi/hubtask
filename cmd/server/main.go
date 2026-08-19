@@ -252,6 +252,15 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// Every verb that changes an existing container shares one dependency set: they read the same
+	// container, ask the same permission question, and owe the same four writes
+	// (work.ContainerWriter).
+	containerWriter := work.ContainerWriter{
+		Containers: containers, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -319,6 +328,11 @@ func run() error {
 			IDs:        ids,
 			HLC:        hybrid,
 		}.Descriptor(),
+		work.RenameContainer{Writer: containerWriter}.Descriptor(),
+		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
+		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
+		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
+		work.MoveContainer{Writer: containerWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),

@@ -501,6 +501,24 @@ func (e CapabilitiesTenancyMode) Valid() bool {
 	}
 }
 
+// Defines values for CompletionPolicy.
+const (
+	MANUAL CompletionPolicy = "MANUAL"
+	ROLLUP CompletionPolicy = "ROLLUP"
+)
+
+// Valid indicates whether the value is a known member of the CompletionPolicy enum.
+func (e CompletionPolicy) Valid() bool {
+	switch e {
+	case MANUAL:
+		return true
+	case ROLLUP:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerType.
 const (
 	ContainerTypeCOLLECTION ContainerType = "COLLECTION"
@@ -1524,22 +1542,30 @@ type Completion struct {
 	IsCompleted *bool               `json:"is_completed,omitempty"`
 }
 
+// CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
+type CompletionPolicy string
+
 // Container defines model for Container.
 type Container struct {
-	ArchivedAt  *time.Time              `json:"archived_at,omitempty"`
-	ColorToken  *string                 `json:"color_token,omitempty"`
-	CreatedAt   *time.Time              `json:"created_at,omitempty"`
-	DeletedAt   *time.Time              `json:"deleted_at,omitempty"`
-	Description *string                 `json:"description,omitempty"`
-	Icon        *string                 `json:"icon,omitempty"`
-	Id          openapi_types.UUID      `json:"id"`
-	Name        string                  `json:"name"`
-	OrderKey    *string                 `json:"order_key,omitempty"`
-	ParentId    *openapi_types.UUID     `json:"parent_id,omitempty"`
-	Policies    *map[string]interface{} `json:"policies,omitempty"`
-	Type        ContainerType           `json:"type"`
-	UpdatedAt   *time.Time              `json:"updated_at,omitempty"`
-	Version     int                     `json:"version"`
+	ArchivedAt  *time.Time `json:"archived_at,omitempty"`
+	ColorToken  *string    `json:"color_token,omitempty"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+	Description *string    `json:"description,omitempty"`
+
+	// EffectiveArchived Whether this container is read-only: archived itself, or sitting in an archived hub (I-C3). archived_at says which of the two - it is null for a collection that only inherits it.
+	EffectiveArchived *bool               `json:"effective_archived,omitempty"`
+	Icon              *string             `json:"icon,omitempty"`
+	Id                openapi_types.UUID  `json:"id"`
+	Name              string              `json:"name"`
+	OrderKey          *string             `json:"order_key,omitempty"`
+	ParentId          *openapi_types.UUID `json:"parent_id,omitempty"`
+
+	// Policies How a collection works, as opposed to what it is called. One key today; the others the data model names - the default bucket, capability overrides, automatic assignment - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps.
+	Policies  *ContainerPolicies `json:"policies,omitempty"`
+	Type      ContainerType      `json:"type"`
+	UpdatedAt *time.Time         `json:"updated_at,omitempty"`
+	Version   int                `json:"version"`
 }
 
 // ContainerCreate defines model for ContainerCreate.
@@ -1558,16 +1584,21 @@ type ContainerPage struct {
 	Page PageInfo    `json:"page"`
 }
 
+// ContainerPolicies How a collection works, as opposed to what it is called. One key today; the others the data model names - the default bucket, capability overrides, automatic assignment - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps.
+type ContainerPolicies struct {
+	// CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
+	CompletionPolicy *CompletionPolicy `json:"completion_policy,omitempty"`
+}
+
 // ContainerType defines model for ContainerType.
 type ContainerType string
 
 // ContainerUpdate defines model for ContainerUpdate.
 type ContainerUpdate struct {
-	ColorToken  *string                 `json:"color_token,omitempty"`
-	Description *string                 `json:"description,omitempty"`
-	Icon        *string                 `json:"icon,omitempty"`
-	Name        *string                 `json:"name,omitempty"`
-	Policies    *map[string]interface{} `json:"policies,omitempty"`
+	ColorToken  *string `json:"color_token,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Icon        *string `json:"icon,omitempty"`
+	Name        *string `json:"name,omitempty"`
 }
 
 // Cover defines model for Cover.
@@ -2222,10 +2253,43 @@ type TrashContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
-// UpdateContainerParams defines parameters for UpdateContainer.
-type UpdateContainerParams struct {
+// RenameContainerParams defines parameters for RenameContainer.
+type RenameContainerParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateContainerPoliciesParams defines parameters for UpdateContainerPolicies.
+type UpdateContainerPoliciesParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ArchiveContainerParams defines parameters for ArchiveContainer.
+type ArchiveContainerParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// MoveContainerJSONBody defines parameters for MoveContainer.
+type MoveContainerJSONBody struct {
+	// BeforeContainerId The sibling to place this collection before at the destination. Null or omitted appends to the end of the level.
+	BeforeContainerId *openapi_types.UUID `json:"before_container_id,omitempty"`
+
+	// TargetParentId The hub the collection moves into. Naming the one it is in reorders it there.
+	TargetParentId openapi_types.UUID `json:"target_parent_id"`
+}
+
+// MoveContainerParams defines parameters for MoveContainer.
+type MoveContainerParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UnarchiveContainerParams defines parameters for UnarchiveContainer.
+type UnarchiveContainerParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CreateGroupParams defines parameters for CreateGroup.
@@ -2377,11 +2441,17 @@ type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 // CreateContainerJSONRequestBody defines body for CreateContainer for application/json ContentType.
 type CreateContainerJSONRequestBody = ContainerCreate
 
-// UpdateContainerApplicationMergePatchPlusJSONRequestBody defines body for UpdateContainer for application/merge-patch+json ContentType.
-type UpdateContainerApplicationMergePatchPlusJSONRequestBody = ContainerUpdate
+// RenameContainerApplicationMergePatchPlusJSONRequestBody defines body for RenameContainer for application/merge-patch+json ContentType.
+type RenameContainerApplicationMergePatchPlusJSONRequestBody = ContainerUpdate
 
 // CreateBucketJSONRequestBody defines body for CreateBucket for application/json ContentType.
 type CreateBucketJSONRequestBody = BucketCreate
+
+// UpdateContainerPoliciesJSONRequestBody defines body for UpdateContainerPolicies for application/json ContentType.
+type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
+
+// MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
+type MoveContainerJSONRequestBody MoveContainerJSONBody
 
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
@@ -2477,7 +2547,7 @@ type ServerInterface interface {
 	GetContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (PATCH /containers/{containerId})
-	UpdateContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UpdateContainerParams)
+	RenameContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params RenameContainerParams)
 
 	// (GET /containers/{containerId}/buckets)
 	ListBuckets(w http.ResponseWriter, r *http.Request, containerId ContainerId)
@@ -2487,6 +2557,18 @@ type ServerInterface interface {
 
 	// (GET /containers/{containerId}/labels)
 	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+
+	// (PUT /containers/{containerId}/policies)
+	UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UpdateContainerPoliciesParams)
+
+	// (POST /containers/{containerId}:archive)
+	ArchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ArchiveContainerParams)
+
+	// (POST /containers/{containerId}:move)
+	MoveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params MoveContainerParams)
+
+	// (POST /containers/{containerId}:unarchive)
+	UnarchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UnarchiveContainerParams)
 	// CreateGroup Create a group
 	// (POST /groups)
 	CreateGroup(w http.ResponseWriter, r *http.Request, params CreateGroupParams)
@@ -3139,8 +3221,8 @@ func (siw *ServerInterfaceWrapper) GetContainer(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// UpdateContainer operation middleware
-func (siw *ServerInterfaceWrapper) UpdateContainer(w http.ResponseWriter, r *http.Request) {
+// RenameContainer operation middleware
+func (siw *ServerInterfaceWrapper) RenameContainer(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -3155,7 +3237,7 @@ func (siw *ServerInterfaceWrapper) UpdateContainer(w http.ResponseWriter, r *htt
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params UpdateContainerParams
+	var params RenameContainerParams
 
 	headers := r.Header
 
@@ -3179,7 +3261,7 @@ func (siw *ServerInterfaceWrapper) UpdateContainer(w http.ResponseWriter, r *htt
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateContainer(w, r, containerId, params)
+		siw.Handler.RenameContainer(w, r, containerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3258,6 +3340,206 @@ func (siw *ServerInterfaceWrapper) ListLabels(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListLabels(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateContainerPolicies operation middleware
+func (siw *ServerInterfaceWrapper) UpdateContainerPolicies(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateContainerPoliciesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateContainerPolicies(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ArchiveContainer operation middleware
+func (siw *ServerInterfaceWrapper) ArchiveContainer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ArchiveContainerParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ArchiveContainer(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MoveContainer operation middleware
+func (siw *ServerInterfaceWrapper) MoveContainer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MoveContainerParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MoveContainer(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnarchiveContainer operation middleware
+func (siw *ServerInterfaceWrapper) UnarchiveContainer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UnarchiveContainerParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnarchiveContainer(w, r, containerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4401,7 +4683,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers", wrapper.CreateContainer)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}", wrapper.TrashContainer)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}", wrapper.GetContainer)
-	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.UpdateContainer)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move", wrapper.MoveContainer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:archive", wrapper.ArchiveContainer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:unarchive", wrapper.UnarchiveContainer)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items", wrapper.ListWorkItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items", wrapper.CreateWorkItem)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}", wrapper.TrashWorkItem)

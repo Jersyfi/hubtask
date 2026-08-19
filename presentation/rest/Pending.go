@@ -112,7 +112,25 @@ func (pending) GetContainer(w http.ResponseWriter, r *http.Request, _ openapi.Co
 	notAvailable(w, r)
 }
 
-func (pending) UpdateContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.UpdateContainerParams) {
+// The container lifecycle. All of these are overridden by RestController; they stay here for the
+// reason CreateContainer does.
+func (pending) RenameContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.RenameContainerParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.UpdateContainerPoliciesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) MoveContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.MoveContainerParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ArchiveContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.ArchiveContainerParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UnarchiveContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.UnarchiveContainerParams) {
 	notAvailable(w, r)
 }
 

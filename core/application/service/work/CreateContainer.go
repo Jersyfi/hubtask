@@ -273,10 +273,20 @@ func containerOutput(container domain.Container) usecase.Output {
 		// either, but the read side returns the same projection - and a field that appears only
 		// once a container has been archived is a field a client cannot rely on (I-C2, I-C3).
 		"archived_at": timeOrNil(container.ArchivedAt),
-		"deleted_at":  timeOrNil(container.DeletedAt),
-		"created_at":  container.CreatedAt,
-		"updated_at":  container.UpdatedAt,
-		"version":     container.Version,
+		// Whether the container is read-only, which is not derivable from the fields above: a
+		// collection in an archived hub carries no stamp of its own (I-C3). `archived_at` beside it
+		// says which of the two it is, so a client offers "unarchive" on the right object.
+		"effective_archived": container.IsEffectivelyArchived(),
+		"deleted_at":         timeOrNil(container.DeletedAt),
+		// The policies document, with the one key that has a use case. It is always here rather than
+		// only on a configured collection, so that a client reads the behaviour off the response
+		// instead of knowing what an absent document means.
+		"policies": map[string]any{
+			"completion_policy": string(container.CompletionPolicy.OrDefault()),
+		},
+		"created_at": container.CreatedAt,
+		"updated_at": container.UpdatedAt,
+		"version":    container.Version,
 	}
 	if !container.ParentID.IsZero() {
 		out["parent_id"] = container.ParentID.String()

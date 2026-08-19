@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.container.created.v1.json",
-  "title": "de.hubtask.work.container.created.v1",
-  "description": "A hub or a collection was created. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
+  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.container.moved.v1.json",
+  "title": "de.hubtask.work.container.moved.v1",
+  "description": "A collection sits in a different hub, or at a different rank in the same one. One type for both, because a drag within a level and a drag between hubs are the same gesture to a person; a consumer that cares only about reparenting compares from_parent_id with parent_id. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
   "type": "object",
   "required": [
     "specversion",
@@ -38,7 +38,7 @@
     "type": {
       "type": "string",
       "enum": [
-        "de.hubtask.work.container.created.v1"
+        "de.hubtask.work.container.moved.v1"
       ]
     },
     "subject": {
@@ -95,7 +95,7 @@
     },
     "data": {
       "type": "object",
-      "description": "A snapshot of the container as it was created. A consumer that had to fetch it would produce one request per event and read a state that has already moved on.",
+      "description": "A snapshot of the collection where it now sits, with the hub it came from beside it.",
       "required": [
         "id",
         "type",
@@ -108,7 +108,8 @@
         "created_at",
         "created_by",
         "updated_at",
-        "version"
+        "version",
+        "from_parent_id"
       ],
       "additionalProperties": true,
       "properties": {
@@ -182,6 +183,14 @@
         },
         "version": {
           "type": "integer"
+        },
+        "from_parent_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "description": "The hub the collection came out of. Equal to parent_id when only the rank changed."
         }
       }
     }

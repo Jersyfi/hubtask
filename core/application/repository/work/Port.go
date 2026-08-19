@@ -142,6 +142,41 @@ type Containers interface {
 	// check followed by an insert is two statements with a gap between them, and two requests
 	// arriving in that gap both pass the check (multi-tenancy.md §2.1).
 	Insert(ctx context.Context, container work.Container) error
+
+	// SetAttributes writes a container's own descriptive fields - what RenameContainer may change -
+	// or reports a version conflict.
+	//
+	// The whole container is passed rather than the fields that moved, for the reason Items.SetAttributes
+	// takes the whole item: the decision about what the row should say has already been taken, and an
+	// adapter handed a list of changes would have to apply them a second time. A name already taken at
+	// this level comes back as `containers.name_taken`, from the same index an insert fails on.
+	SetAttributes(ctx context.Context, container work.Container, expectedVersion int) error
+
+	// SetPolicies writes a collection's policies, or reports a version conflict. One key of the
+	// document is written and the rest is left alone - the others have use cases of their own.
+	SetPolicies(ctx context.Context, container work.Container, expectedVersion int) error
+
+	// SetArchived writes the container's own archive stamp, set or cleared, or reports a version
+	// conflict.
+	//
+	// One row, whatever sits below it. A collection inherits an archived hub's state through the read
+	// rather than through a stamp of its own (I-C3), which is what lets unarchiving restore exactly
+	// what the archiving covered.
+	SetArchived(ctx context.Context, container work.Container, expectedVersion int) error
+
+	// SetPlacement writes where a collection sits and how it ranks there, or reports a version
+	// conflict. The whole of what a move changes: a container tree is two deep, so nothing below it
+	// has to follow.
+	SetPlacement(ctx context.Context, container work.Container, expectedVersion int) error
+
+	// Neighbours returns the two ranks a position sits between at one container level: the container
+	// to go before, and whatever sits below it.
+	//
+	// An empty parentID means the hub level. An empty beforeID means the end of the level. Both bounds
+	// come back as the empty string when there is nothing there, which is what the ordering service
+	// reads as "no bound". The moving container is excluded from its own level - reordering within a
+	// level would otherwise measure a position against the rank it is leaving.
+	Neighbours(ctx context.Context, parentID, beforeID, movingID shared.ID) (previous, next string, err error)
 }
 
 // Items stores work items: tasks, work packages, and activities.
