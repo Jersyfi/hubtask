@@ -96,6 +96,75 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 	return nil
 }
 
+// Permitted answers the same question as Authorize for many paths at once: which of these may the
+// actor do this to.
+//
+// It exists for the one read the single check cannot serve. A list anchored to a container asks about
+// one path and goes through Authorize; the hub level is anchored to nothing, and a check at the tenant
+// scope would refuse everybody whose membership sits on a hub rather than on the workspace - which is
+// most of the point of hub-scoped memberships (domain-model.md §3.2). So the rows are read first and
+// the ones the actor may not see are dropped.
+//
+// One membership read for the whole page, not one per row. The port's comment is explicit that the
+// query may be generous and must not be unbounded, and the union of a page's scopes is bounded by the
+// page size - which the use case has already clamped to the contract's maximum.
+//
+// Nothing here is audited. A row left out of a list is not a denied access: nobody was refused
+// anything, the actor asked what they can see and was told. The refusal that *is* recorded is the
+// token scope, because that one refuses the whole operation rather than narrowing its answer
+// (audit.md §4).
+func (s Service) Permitted(
+	ctx context.Context, actor appshared.ActorContext, request Request, paths [][]identity.Scope,
+) ([]bool, error) {
+	if !actor.IsAuthenticated() {
+		return nil, shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	if request.TokenScope != "" {
+		if err := actor.RequireScope(request.TokenScope); err != nil {
+			s.recordRefusal(ctx, actor, request, "scope")
+			return nil, err
+		}
+	}
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
+	var memberships []identity.Membership
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		memberships, err = s.Memberships.Along(ctx, actor.AccountID, union(paths))
+		return err
+	})
+	if err != nil {
+		// Not a refusal: nobody was denied anything, the question could not be answered.
+		return nil, err
+	}
+
+	allowed := make([]bool, len(paths))
+	for i, path := range paths {
+		allowed[i] = service.Allows(memberships, path, request.Permission)
+	}
+	return allowed, nil
+}
+
+// union flattens the paths into the scopes to ask about, without duplicates. The resolution ignores
+// whatever is not on the path it is checking, so asking about all of them at once is safe - and it is
+// the difference between one query per page and one per row.
+func union(paths [][]identity.Scope) []identity.Scope {
+	seen := make(map[identity.Scope]bool)
+	var scopes []identity.Scope
+
+	for _, path := range paths {
+		for _, scope := range path {
+			if !seen[scope] {
+				seen[scope] = true
+				scopes = append(scopes, scope)
+			}
+		}
+	}
+	return scopes
+}
+
 // recordRefusal writes the DENIED entry in a transaction of its own.
 //
 // A failed write does not turn into a different answer for the client - the refusal stands either

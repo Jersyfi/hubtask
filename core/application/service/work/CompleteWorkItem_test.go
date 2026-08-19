@@ -7,7 +7,6 @@ import (
 	"errors"
 	"testing"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -112,12 +111,6 @@ func (h *completionHarness) touched() []shared.ID {
 		ids = append(ids, write.item.ID)
 	}
 	return ids
-}
-
-func actorFixture() appshared.ActorContext {
-	return appshared.ActorContext{
-		Kind: appshared.ActorUser, TenantID: tenantID, AccountID: accountID,
-	}
 }
 
 // The acceptance criterion, first direction: completing the last activity completes the work package when

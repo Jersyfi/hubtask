@@ -42,8 +42,8 @@ func completionCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry
 	sink := postgres.NewAuditSink(ids)
 
 	writer := work.CompletionWriter{
-		Items:      postgres.NewItemRepository(),
-		Containers: postgres.NewContainerRepository(),
+		Items:      itemRepo(),
+		Containers: containerRepo(),
 		Profiles:   postgres.NewCapabilityProfileRepository(),
 		Authorizer: access.Service{
 			Memberships: postgres.NewMembershipRepository(),

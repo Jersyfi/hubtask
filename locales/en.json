@@ -116,9 +116,11 @@
   "items.item_id_required": "Say which entry to change.",
   "items.version_conflict": "Someone else changed that entry in the meantime. Read it again and reapply.",
   "items.cascade_not_supported": "This installation cannot complete a whole subtree in one step yet.",
+  "items.collection_id_required": "Say which collection to list.",
   "items.collection_missing": "This entry refers to a collection that is no longer there.",
-  "items.not_found": "That entry does not exist.",
+  "items.expand_not_supported": "This installation cannot include related entries in that response yet.",
   "items.parent_not_in_collection": "That entry is in another collection.",
+  "items.not_found": "That entry does not exist.",
   "items.profiles_incoherent": "This installation is misconfigured and could not create that entry.",
   "accounts.email_empty": "An invitation needs an email address.",
   "accounts.email_malformed": "{value} does not look like an email address.",
@@ -157,6 +159,7 @@
   "events.completion_inconsistent": "This installation could not announce that change.",
 
   "shared.id_malformed": "{value} is not a valid identifier.",
+  "shared.cursor_invalid": "This page link is no longer usable. Please start the list again.",
 
   "usecase.input_invalid": "The request contains invalid values.",
   "usecase.field_required": "This field is required.",

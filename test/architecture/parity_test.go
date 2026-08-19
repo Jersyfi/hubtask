@@ -43,6 +43,10 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 	registry, err := usecase.NewRegistry(nil,
 		work.CreateContainer{}.Descriptor(),
 		work.CreateWorkItem{}.Descriptor(),
+		work.GetContainer{}.Descriptor(),
+		work.ListContainers{}.Descriptor(),
+		work.GetWorkItem{}.Descriptor(),
+		work.ListWorkItems{}.Descriptor(),
 		work.CompleteWorkItem{}.Descriptor(),
 		work.ReopenWorkItem{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),
@@ -105,7 +109,14 @@ func servedRoutes(t *testing.T) map[string]bool {
 		// A request that reaches the pending set answers 404 with a detail code saying so. Every
 		// operation is probed with an empty body, which is enough: an implemented operation
 		// answers something else, whatever it thinks of the body.
-		request := httptest.NewRequestWithContext(actorContext(t), method, path, strings.NewReader("{}"))
+		//
+		// The path wildcards are filled with a real identifier rather than probed as `{containerId}`.
+		// The generated wrapper binds path parameters before it dispatches, so a literal brace fails
+		// to parse as a uuid and the operation answers 400 - which is not the pending answer, and the
+		// route was therefore counted as served whether anything served it or not. Every
+		// parameterised operation passed this gate for free until this line.
+		request := httptest.NewRequestWithContext(
+			actorContext(t), method, boundPath(path), strings.NewReader("{}"))
 		recorder := httptest.NewRecorder()
 		routes.ServeHTTP(recorder, request)
 
@@ -154,6 +165,32 @@ func operationOf(t *testing.T, template string) string {
 	}
 	return ""
 }
+
+// boundPath substitutes a syntactically valid identifier for every wildcard of a route template, so
+// that the probe reaches the handler rather than the parameter binding.
+func boundPath(template string) string {
+	var out strings.Builder
+
+	for {
+		start := strings.IndexByte(template, '{')
+		if start < 0 {
+			out.WriteString(template)
+			return out.String()
+		}
+		end := strings.IndexByte(template[start:], '}')
+		if end < 0 {
+			out.WriteString(template)
+			return out.String()
+		}
+		out.WriteString(template[:start])
+		out.WriteString(probeIdentifier)
+		template = template[start+end+1:]
+	}
+}
+
+// probeIdentifier is a well-formed UUIDv7. Every path parameter of this contract is one
+// (api/openapi.yaml, components.parameters), so one value covers them all.
+const probeIdentifier = "0192f000-0000-7000-8000-00000000000b"
 
 func isPending(recorder *httptest.ResponseRecorder) bool {
 	if recorder.Code != http.StatusNotFound {

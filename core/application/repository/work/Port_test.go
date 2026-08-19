@@ -20,6 +20,9 @@ type double struct{}
 func (double) Find(context.Context, shared.ID) (work.Container, error) {
 	return work.Container{}, shared.ErrNotFound
 }
+func (double) List(context.Context, ContainerQuery) (ContainerPage, error) {
+	return ContainerPage{}, nil
+}
 func (double) LastOrderKey(context.Context, shared.ID) (string, error) { return "", nil }
 func (double) Insert(context.Context, work.Container) error            { return nil }
 
@@ -49,6 +52,7 @@ type itemDouble struct{}
 func (itemDouble) Find(context.Context, shared.ID) (work.WorkItem, error) {
 	return work.WorkItem{}, shared.ErrNotFound
 }
+func (itemDouble) List(context.Context, ItemQuery) (ItemPage, error) { return ItemPage{}, nil }
 func (itemDouble) ChildCompletion(context.Context, shared.ID) (work.ChildCompletion, error) {
 	return work.ChildCompletion{}, nil
 }

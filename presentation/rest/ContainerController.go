@@ -149,6 +149,8 @@ func containerResponse(out usecase.Output) openapi.Container {
 	if colorToken := out.String("color_token"); colorToken != "" {
 		container.ColorToken = &colorToken
 	}
+	container.ArchivedAt = optionalTimeField(out["archived_at"])
+	container.DeletedAt = optionalTimeField(out["deleted_at"])
 	return container
 }
 

@@ -41,7 +41,7 @@ func catalogueFor(t *testing.T) *usecase.Registry {
 	sink := postgres.NewAuditSink(ids)
 
 	registry, err := usecase.NewRegistry(nil, work.CreateContainer{
-		Containers: postgres.NewContainerRepository(),
+		Containers: containerRepo(),
 		Authorizer: access.Service{
 			Memberships: postgres.NewMembershipRepository(),
 			UnitOfWork:  unitOfWork,

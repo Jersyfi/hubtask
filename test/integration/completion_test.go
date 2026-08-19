@@ -13,7 +13,6 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
-	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // The two completion methods against a real database (B-07). Both get a cross-tenant negative, because
@@ -28,7 +27,7 @@ func childrenUnder(
 ) []shared.ID {
 	t.Helper()
 
-	items := postgres.NewItemRepository()
+	items := itemRepo()
 	ids := make([]shared.ID, 0, n)
 
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
@@ -63,7 +62,7 @@ func seedTask(ctx context.Context, t *testing.T, tenant, author, collection shar
 
 	id := freshID(t)
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return postgres.NewItemRepository().
+		return itemRepo().
 			Insert(ctx, taskIn(tenant, author, collection, id, freshName(t), "a0"))
 	}); err != nil {
 		t.Fatalf("seeding the task: %v", err)
@@ -102,7 +101,7 @@ func childCompletionOf(ctx context.Context, t *testing.T, tenant, parent shared.
 	var summary work.ChildCompletion
 	if err := read(ctx, t, tenant, func(ctx context.Context) error {
 		var err error
-		summary, err = postgres.NewItemRepository().ChildCompletion(ctx, parent)
+		summary, err = itemRepo().ChildCompletion(ctx, parent)
 		return err
 	}); err != nil {
 		t.Fatalf("counting the children: %v", err)
@@ -165,7 +164,7 @@ func TestCompletingTheLastChildMakesTheSummaryComplete(t *testing.T) {
 
 	last := findItem(ctx, t, tenantA, children[1])
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewItemRepository().SetCompletion(ctx, last.Completed(authorA, created.Add(2*time.Hour)), last.Version)
+		return itemRepo().SetCompletion(ctx, last.Completed(authorA, created.Add(2*time.Hour)), last.Version)
 	}); err != nil {
 		t.Fatalf("completing the last child: %v", err)
 	}
@@ -183,7 +182,7 @@ func TestSetCompletionWritesBothColumnsAndBumpsTheVersion(t *testing.T) {
 	at := created.Add(time.Hour)
 	before := findItem(ctx, t, tenantA, id)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewItemRepository().SetCompletion(ctx, before.Completed(authorA, at), before.Version)
+		return itemRepo().SetCompletion(ctx, before.Completed(authorA, at), before.Version)
 	}); err != nil {
 		t.Fatalf("completing: %v", err)
 	}
@@ -204,7 +203,7 @@ func TestSetCompletionWritesBothColumnsAndBumpsTheVersion(t *testing.T) {
 
 	// And back again: reopening clears both columns, which the table's own CHECK insists on.
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewItemRepository().SetCompletion(ctx, done.Reopened(created.Add(2*time.Hour)), done.Version)
+		return itemRepo().SetCompletion(ctx, done.Reopened(created.Add(2*time.Hour)), done.Version)
 	}); err != nil {
 		t.Fatalf("reopening: %v", err)
 	}
@@ -224,13 +223,13 @@ func TestSetCompletionRefusesAStaleVersion(t *testing.T) {
 
 	item := findItem(ctx, t, tenantA, id)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewItemRepository().SetCompletion(ctx, item.Completed(authorA, created.Add(time.Hour)), item.Version)
+		return itemRepo().SetCompletion(ctx, item.Completed(authorA, created.Add(time.Hour)), item.Version)
 	}); err != nil {
 		t.Fatalf("the first write: %v", err)
 	}
 
 	err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewItemRepository().SetCompletion(ctx, item.Completed(authorA, created.Add(2*time.Hour)), item.Version)
+		return itemRepo().SetCompletion(ctx, item.Completed(authorA, created.Add(2*time.Hour)), item.Version)
 	})
 	if !errors.Is(err, shared.ErrVersionConflict) {
 		t.Errorf("a stale version answered %v, want a version conflict", err)
@@ -259,7 +258,7 @@ func TestSetCompletionCannotReachAnotherTenant(t *testing.T) {
 
 	item := findItem(ctx, t, tenantA, id)
 	err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return postgres.NewItemRepository().SetCompletion(ctx, item.Completed(authorB, created.Add(time.Hour)), item.Version)
+		return itemRepo().SetCompletion(ctx, item.Completed(authorB, created.Add(time.Hour)), item.Version)
 	})
 	if !errors.Is(err, shared.ErrVersionConflict) {
 		t.Fatalf("writing across the boundary answered %v", err)
@@ -279,7 +278,7 @@ func findItem(ctx context.Context, t *testing.T, tenant, id shared.ID) work.Work
 	var item work.WorkItem
 	if err := read(ctx, t, tenant, func(ctx context.Context) error {
 		var err error
-		item, err = postgres.NewItemRepository().Find(ctx, id)
+		item, err = itemRepo().Find(ctx, id)
 		return err
 	}); err != nil {
 		t.Fatalf("reading item %s: %v", id, err)

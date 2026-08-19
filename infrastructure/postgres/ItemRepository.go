@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // ItemRepository stores tasks, work packages and activities - one table for all three, because
@@ -23,9 +24,13 @@ import (
 // Nothing here names a tenant. The transaction the caller opened decided that, and row level
 // security applies it to every statement below (ADR-0010) - which is why the cross-tenant tests
 // in test/integration are what prove this file correct, not a unit test with a fake.
-type ItemRepository struct{}
+type ItemRepository struct {
+	cursors security.CursorCodec
+}
 
-func NewItemRepository() ItemRepository { return ItemRepository{} }
+func NewItemRepository(cursors security.CursorCodec) ItemRepository {
+	return ItemRepository{cursors: cursors}
+}
 
 var _ repository.Items = ItemRepository{}
 
@@ -53,6 +58,60 @@ func (r ItemRepository) Find(ctx context.Context, id shared.ID) (work.WorkItem, 
 			WithCause(fmt.Errorf("reading the work item: %w", err))
 	}
 	return itemFrom(row)
+}
+
+// List returns one page of one level of one collection, in the items' manual order.
+//
+// Unlike Find, this filters: a trashed item is not part of a level, and an archived one only when
+// the caller says so. Find answers "what is this item", where the lifecycle state is the answer;
+// this answers "what is in here", where it is not.
+func (r ItemRepository) List(ctx context.Context, query repository.ItemQuery) (repository.ItemPage, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.ItemPage{}, err
+	}
+
+	collection, err := uuidOf(query.CollectionID)
+	if err != nil {
+		return repository.ItemPage{}, err
+	}
+	parent, err := optionalUUID(query.ParentID)
+	if err != nil {
+		return repository.ItemPage{}, err
+	}
+	from, err := cursorAfter(r.cursors, query.Page.Cursor)
+	if err != nil {
+		return repository.ItemPage{}, err
+	}
+
+	rows, err := queries.ListWorkItems(ctx, sqlc.ListWorkItemsParams{
+		CollectionID:    collection,
+		ParentID:        parent,
+		IncludeArchived: query.IncludeArchived,
+		CursorOrderKey:  from.sortKey,
+		CursorID:        from.id,
+		PageSize:        pageProbe(query.Page.Size),
+	})
+	if err != nil {
+		return repository.ItemPage{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the work items: %w", err))
+	}
+
+	page := repository.ItemPage{Items: make([]work.WorkItem, 0, len(rows))}
+	for _, row := range rows {
+		item, err := itemFrom(sqlc.FindWorkItemRow(row))
+		if err != nil {
+			return repository.ItemPage{}, err
+		}
+		page.Items = append(page.Items, item)
+	}
+
+	page.Items, page.Info = pageOf(page.Items, query.Page.Size, r.cursors,
+		func(last work.WorkItem) security.Position {
+			return security.Position{SortKey: last.OrderKey, ID: last.ID}
+		})
+	return page, nil
 }
 
 // ChildCompletion counts one item's children and how many are done.

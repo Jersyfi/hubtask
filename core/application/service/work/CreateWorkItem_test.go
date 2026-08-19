@@ -8,6 +8,7 @@ import (
 	"errors"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -28,22 +29,38 @@ type items struct {
 	inserted []domain.WorkItem
 	stored   map[shared.ID]domain.WorkItem
 	lastKey  string
+	// page is what List answers with, and asked is what it was asked (B-04's read side).
+	page  repository.ItemPage
+	asked repository.ItemQuery
 	// children is what ChildCompletion answers, per parent, and completions records every write
 	// SetCompletion took - the roll-up tests care about both: one is the state it decided from, the
 	// other is what it decided.
 	children    map[shared.ID]domain.ChildCompletion
 	completions []completionWrite
+	findErr     error
+	listErr     error
 	insertErr   error
 	setErr      error
 	conflictOn  shared.ID
 }
 
 func (i *items) Find(_ context.Context, id shared.ID) (domain.WorkItem, error) {
+	if i.findErr != nil {
+		return domain.WorkItem{}, i.findErr
+	}
 	item, found := i.stored[id]
 	if !found {
 		return domain.WorkItem{}, shared.ErrNotFound
 	}
 	return item, nil
+}
+
+func (i *items) List(_ context.Context, query repository.ItemQuery) (repository.ItemPage, error) {
+	i.asked = query
+	if i.listErr != nil {
+		return repository.ItemPage{}, i.listErr
+	}
+	return i.page, nil
 }
 
 // completionWrite is one call to SetCompletion: what it was asked to store and against which version.
