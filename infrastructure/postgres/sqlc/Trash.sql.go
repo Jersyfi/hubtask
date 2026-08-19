@@ -12,7 +12,7 @@ import (
 )
 
 const listTrash = `-- name: ListTrash :many
-SELECT kind, id, trash_batch_id, deleted_at, title, subtype, collection_id, parent_id, version
+SELECT kind, id, trash_batch_id, deleted_at, title, subtype, hub_id, collection_id, parent_id, version
 FROM (
   SELECT
     'CONTAINER'::text AS kind,
@@ -21,6 +21,7 @@ FROM (
     c.deleted_at      AS deleted_at,
     c.name            AS title,
     c.type::text      AS subtype,
+    c.parent_id       AS hub_id,
     NULL::uuid        AS collection_id,
     c.parent_id       AS parent_id,
     c.version         AS version
@@ -33,7 +34,7 @@ FROM (
 
   SELECT
     'ITEM'::text, i.id, i.trash_batch_id, i.deleted_at, i.title, i.type::text,
-    i.collection_id, i.parent_id, i.version
+    col.parent_id, i.collection_id, i.parent_id, i.version
   FROM work_item i
   JOIN container col ON col.id = i.collection_id
   LEFT JOIN work_item ip ON ip.id = i.parent_id
@@ -62,6 +63,7 @@ type ListTrashRow struct {
 	DeletedAt    pgtype.Timestamptz
 	Title        string
 	Subtype      string
+	HubID        pgtype.UUID
 	CollectionID pgtype.UUID
 	ParentID     pgtype.UUID
 	Version      int32
@@ -79,6 +81,11 @@ type ListTrashRow struct {
 // hub's batch, an item whose collection or parent item was deleted with it carries theirs, and both
 // are therefore dropped. `IS DISTINCT FROM` rather than `<>`, so that a row whose parent is not in
 // the trash at all - a NULL on the joined side - counts as a root rather than as unknown.
+//
+// `hub_id` is the level the permission question is asked at. A membership held at a hub applies
+// downwards (domain-model.md §3.2), so an entry that named only its collection could not be shown to
+// somebody whose right sits on the hub above it - and the trash is the one view that spans hubs, so
+// there is no path parameter to read it from. For a hub it is null: the hub is its own level.
 //
 // Both branches read through the partial trash indices, and the joins are primary key lookups.
 //
@@ -101,6 +108,7 @@ func (q *Queries) ListTrash(ctx context.Context, arg ListTrashParams) ([]ListTra
 			&i.DeletedAt,
 			&i.Title,
 			&i.Subtype,
+			&i.HubID,
 			&i.CollectionID,
 			&i.ParentID,
 			&i.Version,

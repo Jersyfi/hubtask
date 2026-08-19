@@ -225,12 +225,13 @@ func run() error {
 	// placement is permitted, so what an installation advertises and what it accepts cannot
 	// drift apart (ADR-0006).
 	//
-	// The cursor codec is shared by both list repositories rather than derived twice: it is keyed on
-	// the installation secret, and one derivation means one place where that key comes from
+	// The cursor codec is shared by every list repository rather than derived once each: it is keyed
+	// on the installation secret, and one derivation means one place where that key comes from
 	// (api-guidelines.md §4).
 	cursors := security.NewCursorCodec(cfg.SecretKey)
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
+	trash := postgres.NewTrashRepository(cursors)
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
@@ -442,6 +443,7 @@ func run() error {
 		work.UnarchiveWorkItem{Lifecycle: lifecycle}.Descriptor(),
 		work.TrashWorkItem{Lifecycle: lifecycle}.Descriptor(),
 		work.RestoreWorkItem{Lifecycle: lifecycle}.Descriptor(),
+		work.ListTrash{Trash: trash, Reader: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process

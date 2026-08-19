@@ -1215,6 +1215,24 @@ func (e SyncPullRequestScopesDepth) Valid() bool {
 	}
 }
 
+// Defines values for TrashEntryKind.
+const (
+	TrashEntryKindCONTAINER TrashEntryKind = "CONTAINER"
+	TrashEntryKindITEM      TrashEntryKind = "ITEM"
+)
+
+// Valid indicates whether the value is a known member of the TrashEntryKind enum.
+func (e TrashEntryKind) Valid() bool {
+	switch e {
+	case TrashEntryKindCONTAINER:
+		return true
+	case TrashEntryKindITEM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -2130,6 +2148,46 @@ type SyncPushResponse struct {
 	ServerTime *time.Time           `json:"server_time,omitempty"`
 }
 
+// TrashEntry One deletion, as the trash lists it. A projection rather than the object: it carries what the view shows and what restoring it needs, and reading the entry back in full is a second request to the object's own endpoint.
+type TrashEntry struct {
+	// CollectionId The collection an entry belongs to. Null for a container.
+	CollectionId *openapi_types.UUID `json:"collection_id"`
+
+	// DeletedAt When it went in, and the moment the retention period runs from.
+	DeletedAt time.Time `json:"deleted_at"`
+
+	// HubId The hub it sits under. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes containers and entries by design, so a field that appeared only for some rows would be one a client could not read unconditionally.
+	HubId *openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID  `json:"id"`
+
+	// Kind Which of the two endpoints restores it.
+	Kind TrashEntryKind `json:"kind"`
+
+	// ParentId Where it would go back to - the hub of a collection, the entry above an entry.
+	ParentId *openapi_types.UUID `json:"parent_id"`
+
+	// Subtype HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
+	Subtype string `json:"subtype"`
+
+	// Title The container's name or the entry's title.
+	Title string `json:"title"`
+
+	// TrashBatchId The deletion every row of one act shares. It is what a restore is keyed on, and what tells a client that two entries went together.
+	TrashBatchId openapi_types.UUID `json:"trash_batch_id"`
+
+	// Version The row's version, so a restore can be sent with the version it was read at.
+	Version int `json:"version"`
+}
+
+// TrashEntryKind Which of the two endpoints restores it.
+type TrashEntryKind string
+
+// TrashPage defines model for TrashPage.
+type TrashPage struct {
+	Data []TrashEntry `json:"data"`
+	Page PageInfo     `json:"page"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	ArchivedAt *time.Time          `json:"archived_at,omitempty"`
@@ -2556,6 +2614,12 @@ type ListRetentionPoliciesParams struct {
 	Effective *bool `form:"effective,omitempty" json:"effective,omitempty"`
 }
 
+// ListTrashParams defines parameters for ListTrash.
+type ListTrashParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // UpdateAccountPreferencesJSONRequestBody defines body for UpdateAccountPreferences for application/json ContentType.
 type UpdateAccountPreferencesJSONRequestBody = AccountPreferences
 
@@ -2834,6 +2898,9 @@ type ServerInterface interface {
 	// SyncPush Transmit local mutations
 	// (POST /sync:push)
 	SyncPush(w http.ResponseWriter, r *http.Request)
+	// ListTrash What is in the trash
+	// (GET /trash)
+	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -5318,6 +5385,52 @@ func (siw *ServerInterfaceWrapper) SyncPush(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ListTrash operation middleware
+func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTrashParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTrash(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -5450,6 +5563,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups", wrapper.StartBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups/{backupId}:verify", wrapper.VerifyBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/restores", wrapper.StartRestore)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/trash", wrapper.ListTrash)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/retention-policies", wrapper.ListRetentionPolicies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies", wrapper.CreateRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies/{policyId}:preview", wrapper.PreviewRetentionPolicy)

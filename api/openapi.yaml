@@ -296,6 +296,33 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
 
+  /trash:
+    get:
+      tags: [items, containers]
+      operationId: listTrash
+      summary: What is in the trash
+      description: >
+        One entry per deletion, newest first - not one per deleted row. A hub with two hundred
+        entries under it went into the trash as one act and comes back as one act, so what is listed
+        is the root of each deletion: the thing somebody deleted. The batch beside it is what took
+        the rest, and restoring the root brings all of it back.
+
+        The list spans hubs, so it is narrowed to what the caller may see rather than refused: an
+        entry deleted out of a hub the caller has no access to is not in the page. Pages can
+        therefore be shorter than the requested size; walk on until has_more is false.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The trash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrashPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /retention-policies:
     get:
       tags: [retention]
@@ -2421,6 +2448,67 @@ components:
         confirmation:
           type: [string, "null"]
           description: For destructive modes, the exact tenant name.
+
+    TrashPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrashEntry"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    TrashEntry:
+      type: object
+      description: >
+        One deletion, as the trash lists it. A projection rather than the object: it carries what the
+        view shows and what restoring it needs, and reading the entry back in full is a second
+        request to the object's own endpoint.
+      required:
+        [kind, id, trash_batch_id, deleted_at, title, subtype, hub_id, collection_id, parent_id, version]
+      properties:
+        kind:
+          type: string
+          enum: [CONTAINER, ITEM]
+          description: Which of the two endpoints restores it.
+        id: { type: string, format: uuid }
+        trash_batch_id:
+          type: string
+          format: uuid
+          description: >
+            The deletion every row of one act shares. It is what a restore is keyed on, and what
+            tells a client that two entries went together.
+        deleted_at:
+          type: string
+          format: date-time
+          description: When it went in, and the moment the retention period runs from.
+        title:
+          type: string
+          description: The container's name or the entry's title.
+        subtype:
+          type: string
+          description: HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
+        hub_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The hub it sits under. Null for a hub, which is its own level. Required and nullable
+            rather than optional, like the two below it: this list mixes containers and entries by
+            design, so a field that appeared only for some rows would be one a client could not read
+            unconditionally.
+        collection_id:
+          type: [string, "null"]
+          format: uuid
+          description: The collection an entry belongs to. Null for a container.
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: Where it would go back to - the hub of a collection, the entry above an entry.
+        version:
+          type: integer
+          description: The row's version, so a restore can be sent with the version it was read at.
 
     RetentionPolicy:
       type: object

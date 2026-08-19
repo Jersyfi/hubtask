@@ -414,9 +414,13 @@ func trashEntryFrom(row sqlc.ListTrashRow) (work.TrashEntry, error) {
 	if err != nil {
 		return work.TrashEntry{}, err
 	}
-	// Both of these are legitimately absent: a hub sits under nothing, and a task's parent is its
-	// collection rather than another item. optionalID is what keeps that an empty identifier rather
-	// than an error about a NULL.
+	// These are legitimately absent: a hub sits under nothing and is its own level, and a task's
+	// parent is its collection rather than another item. optionalID is what keeps that an empty
+	// identifier rather than an error about a NULL.
+	hub, err := optionalID(row.HubID)
+	if err != nil {
+		return work.TrashEntry{}, err
+	}
 	collection, err := optionalID(row.CollectionID)
 	if err != nil {
 		return work.TrashEntry{}, err
@@ -439,6 +443,7 @@ func trashEntryFrom(row sqlc.ListTrashRow) (work.TrashEntry, error) {
 		DeletedAt:    row.DeletedAt.Time,
 		Title:        row.Title,
 		Subtype:      row.Subtype,
+		HubID:        hub,
 		CollectionID: collection,
 		ParentID:     parent,
 		Version:      int(row.Version),

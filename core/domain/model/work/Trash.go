@@ -48,6 +48,11 @@ type TrashEntry struct {
 	// ACTIVITY for an item. A client draws a different icon for each, and a string rather than
 	// either enumeration keeps this projection from having to be two types.
 	Subtype string
+	// HubID is the level the permission question is asked at. A membership held at a hub applies
+	// downwards, so an entry that named only its collection could not be shown to somebody whose
+	// right sits on the hub above it - and the trash is the one view that spans hubs, so there is no
+	// path parameter to read it from. Empty for a hub, which is its own level.
+	HubID shared.ID
 	// CollectionID and ParentID say where the entry would go back to, which is what lets a client
 	// show "in Shopping" beside a deleted entry rather than only its title. Empty where they do not
 	// apply - a hub sits in nothing, and an item is under a collection rather than a container.
