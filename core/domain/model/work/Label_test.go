@@ -81,7 +81,7 @@ func TestNewLabelNeedsAColour(t *testing.T) {
 	}{
 		{name: "absent", input: "", detailCode: "labels.color_token_empty"},
 		{name: "whitespace only", input: "  ", detailCode: "labels.color_token_empty"},
-		{name: "a control character", input: "accentred", detailCode: "labels.color_token_malformed"},
+		{name: "a control character", input: "accent\u0085red", detailCode: "labels.color_token_malformed"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			in := baseLabel

@@ -257,3 +257,112 @@ type Items interface {
 	// Insert writes a new item.
 	Insert(ctx context.Context, item work.WorkItem) error
 }
+
+// Buckets stores the columns of a collection's board.
+//
+// Its own repository rather than methods on Containers: a bucket is its own row with its own
+// version and its own uniqueness, and the collection it belongs to is a foreign key rather than an
+// aggregate boundary. Which is also why deleting one is not a cascade - MoveItems is what a
+// deleted column owes its items, and it is a decision the use case takes rather than the schema.
+type Buckets interface {
+	// Find returns the bucket, or ErrNotFound if it does not exist *for this tenant*. Deleted
+	// buckets come back as they are stored: what that state means is the domain's question, and
+	// hiding a deleted bucket here would turn "it has been deleted" into "it never existed".
+	Find(ctx context.Context, id shared.ID) (work.Bucket, error)
+
+	// List returns a collection's board, left to right, deleted columns left out.
+	//
+	// Not paged, unlike the container and item lists: a board has as many columns as fit on a
+	// screen, and the contract returns a plain array (api-guidelines.md §2).
+	List(ctx context.Context, collectionID shared.ID) ([]work.Bucket, error)
+
+	// LastOrderKey returns the highest rank among the collection's buckets, or the empty string
+	// when it has none. Deleted buckets count - their rank is still occupied, and reusing the key
+	// would put two columns in the same place.
+	LastOrderKey(ctx context.Context, collectionID shared.ID) (string, error)
+
+	// Insert writes a new bucket. A name already taken in this collection comes back as a conflict
+	// with the detail code `buckets.name_taken`, translated from the unique index rather than
+	// checked beforehand: a check followed by an insert is two statements with a gap between them,
+	// and two requests arriving in that gap both pass the check (multi-tenancy.md §2.1).
+	Insert(ctx context.Context, bucket work.Bucket) error
+
+	// SetAttributes writes a bucket's own fields, or reports a version conflict.
+	SetAttributes(ctx context.Context, bucket work.Bucket, expectedVersion int) error
+
+	// SetOrderKey writes a new rank for one bucket, or reports a version conflict. The whole of
+	// what a reorder changes: a board is one level, so nothing below a column follows it.
+	SetOrderKey(ctx context.Context, bucket work.Bucket, expectedVersion int) error
+
+	// SetDeleted writes the bucket's deletion stamp, or reports a version conflict. A soft delete:
+	// the row stays, so that a change log entry can still name it (offline-sync.md §7).
+	SetDeleted(ctx context.Context, bucket work.Bucket, expectedVersion int) error
+
+	// Neighbours returns the two ranks a position sits between on one board: the bucket to go
+	// before, and whatever sits below it. An empty beforeID means the end of the board, and both
+	// bounds come back as the empty string when there is nothing there. The moving bucket is
+	// excluded from its own board - a reorder would otherwise measure a position against the rank
+	// it is leaving.
+	Neighbours(ctx context.Context, collectionID, beforeID, movingID shared.ID) (previous, next string, err error)
+
+	// FirstOther returns the collection's leftmost remaining bucket, ignoring one: where a deleted
+	// column's items go. ErrNotFound when the column being deleted was the last one, which is not
+	// a failure - the items then carry no bucket, which is the state the collection was in before
+	// anybody made a board.
+	FirstOther(ctx context.Context, collectionID, excludedID shared.ID) (work.Bucket, error)
+
+	// MoveItems moves every item out of one bucket and into another, and returns how many it
+	// touched. A zero target takes them out of any bucket at all.
+	//
+	// One method rather than a read followed by a write per item: what a deleted column owes its
+	// items is one statement, and a loop over them would be a transaction whose length depended on
+	// how busy the column was.
+	MoveItems(ctx context.Context, sourceID, targetID shared.ID, at time.Time) (int, error)
+}
+
+// Labels stores a collection's vocabulary.
+type Labels interface {
+	// Find returns the label, or ErrNotFound if it does not exist *for this tenant*. Deleted
+	// labels come back as they are stored, for the reason Buckets.Find returns deleted buckets.
+	Find(ctx context.Context, id shared.ID) (work.Label, error)
+
+	// List returns a collection's labels by name, deleted ones left out.
+	List(ctx context.Context, collectionID shared.ID) ([]work.Label, error)
+
+	// Insert writes a new label. A name already taken in this collection comes back as
+	// `labels.name_taken`, from the unique index.
+	Insert(ctx context.Context, label work.Label) error
+
+	// SetAttributes writes a label's own fields, or reports a version conflict.
+	SetAttributes(ctx context.Context, label work.Label, expectedVersion int) error
+
+	// SetDeleted writes the label's deletion stamp, or reports a version conflict. The rows saying
+	// which items carry it stay: the read side filters on the label's own stamp, which is what
+	// makes a deletion undoable without having to remember who wore it.
+	SetDeleted(ctx context.Context, label work.Label, expectedVersion int) error
+}
+
+// ItemLabels stores which items carry which labels, and the tags that decide it after a merge.
+//
+// Two tables behind one interface, deliberately. `item_label` is the membership every read goes
+// through, and `set_element` is the OR-set tag that survives an offline merge (offline-sync.md
+// §4.2, §10). Writing one without the other is the failure mode: membership with no tag merges as
+// last writer wins and loses a concurrent change, a tag with no membership is invisible to every
+// read. So neither is separately callable.
+type ItemLabels interface {
+	// List returns the labels an item carries, deleted labels left out.
+	List(ctx context.Context, itemID shared.ID) ([]shared.ID, error)
+
+	// Add puts a label on an item and records the addition's tag. Adding one the item already
+	// carries is the state the caller asked for and succeeds, writing a fresh tag.
+	Add(ctx context.Context, itemID, labelID shared.ID, tag shared.HLC) error
+
+	// Remove takes a label off an item, records the removal's tag, and reports whether the item
+	// carried it at all. The tag is written either way: a device that removes something this
+	// replica never saw added has still made a decision that another replica has to merge.
+	Remove(ctx context.Context, itemID, labelID shared.ID, tag shared.HLC) (bool, error)
+
+	// Elements returns every tag of one item's label set: what a merge compares a client's tags
+	// against.
+	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)
+}

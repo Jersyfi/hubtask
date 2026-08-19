@@ -148,6 +148,9 @@
   "buckets.wip_limit_invalid": "{value} is not a work in progress limit. Use a number above zero, or none at all.",
   "buckets.identity_incomplete": "This installation is misconfigured and could not create that bucket.",
   "buckets.deleted": "That bucket has been deleted.",
+  "buckets.not_found": "That bucket does not exist.",
+  "buckets.name_taken": "A bucket called {name} already exists in this collection.",
+  "buckets.version_conflict": "Someone else changed that bucket in the meantime. Read it again and reapply.",
 
   "labels.name_empty": "A label needs a name.",
   "labels.name_too_long": "The name may be at most {maximum} characters long.",
@@ -157,6 +160,9 @@
   "labels.description_malformed": "The description has to fit on one line.",
   "labels.identity_incomplete": "This installation is misconfigured and could not create that label.",
   "labels.deleted": "That label has been deleted.",
+  "labels.not_found": "That label does not exist.",
+  "labels.name_taken": "A label called {name} already exists in this collection.",
+  "labels.version_conflict": "Someone else changed that label in the meantime. Read it again and reapply.",
 
   "accounts.email_empty": "An invitation needs an email address.",
   "accounts.email_malformed": "{value} does not look like an email address.",
