@@ -236,6 +236,16 @@ func (pending) ReorderWorkItem(w http.ResponseWriter, r *http.Request, _ openapi
 	notAvailable(w, r)
 }
 
+// ArchiveWorkItem and UnarchiveWorkItem are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) ArchiveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ArchiveWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UnarchiveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.UnarchiveWorkItemParams) {
+	notAvailable(w, r)
+}
+
 func (pending) RetainItem(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }

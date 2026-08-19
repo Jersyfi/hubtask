@@ -185,6 +185,9 @@ func (i *items) SetAttributes(_ context.Context, item domain.WorkItem, expectedV
 	return nil
 }
 
+// SetArchived writes the stamp and moves the version on, as `version = version + 1` in the statement
+// does. The stored version has to move: a use case that archived twice would otherwise read the
+// pre-write version on its second pass, and an idempotence test would be measuring the fake.
 func (i *items) SetArchived(_ context.Context, item domain.WorkItem, expectedVersion int) error {
 	if i.setErr != nil {
 		return i.setErr
@@ -193,6 +196,7 @@ func (i *items) SetArchived(_ context.Context, item domain.WorkItem, expectedVer
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.attributes = append(i.attributes, attributeWrite{item: item, expectedVersion: expectedVersion})
+	item.Version = expectedVersion + 1
 	i.stored[item.ID] = item
 	return nil
 }
@@ -208,7 +212,9 @@ func (i *items) TrashSubtree(_ context.Context, trash repository.ItemTrash) (int
 		return 0, shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.trashed = append(i.trashed, trash)
-	i.stored[trash.Item.ID] = trash.Item
+	stamped := trash.Item
+	stamped.Version = trash.ExpectedVersion + 1
+	i.stored[trash.Item.ID] = stamped
 
 	moved := 1
 	for id, stored := range i.stored {
@@ -234,7 +240,9 @@ func (i *items) RestoreBatch(_ context.Context, restore repository.ItemTrash) (i
 		return 0, shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.restored = append(i.restored, restore)
-	i.stored[restore.Item.ID] = restore.Item
+	cleared := restore.Item
+	cleared.Version = restore.ExpectedVersion + 1
+	i.stored[restore.Item.ID] = cleared
 
 	moved := 1
 	for id, stored := range i.stored {

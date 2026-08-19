@@ -1005,6 +1005,57 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:archive:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: archiveWorkItem
+      description: >
+        Archives the entry: it is kept and becomes read-only. Distinct from the trash, which is a
+        deletion with a retention period running against it - an archived entry stays until somebody
+        says otherwise. Nothing below it is archived with it: an entry's children are entries in
+        their own right, unlike the collections of a hub. Idempotent - archiving an archived entry
+        succeeds and changes nothing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Archived
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:unarchive:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: unarchiveWorkItem
+      description: >
+        Makes an archived entry writable again. Refused for an entry in the trash: restore it first,
+        and the answer says so. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Unarchived
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:reorder:
     parameters:
       - $ref: "#/components/parameters/ItemId"

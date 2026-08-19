@@ -232,3 +232,68 @@ func TestTheOptionalFieldsAreAbsentRatherThanNull(t *testing.T) {
 		t.Errorf("an unset field was sent anyway: %v", envelope.Payload["icon"])
 	}
 }
+
+// The container's deletion carries the batch and how much went with it. Counts rather than
+// identifiers: a consumer reacting to a deleted hub has the hub, and an event whose size grew with
+// the subtree would eventually be one nobody can deliver.
+func TestTheContainerDeletionEventsCarryTheBatchAndTheCascade(t *testing.T) {
+	batch := shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	cascade := Cascade{Collections: 2, Items: 17}
+	who := by()
+
+	trashedHub := work.Container{
+		ID: eventHub, TenantID: eventTenant, Type: work.ContainerHub, Name: "Private", OrderKey: "a0",
+		CompletionPolicy: work.CompletionManual, CreatedBy: eventAuthor, CreatedAt: occurred,
+		UpdatedAt: occurred, Version: 2,
+	}
+	deleted, _, err := trashedHub.Trashed(occurred, batch)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+
+	t.Run("deleted", func(t *testing.T) {
+		envelope, err := NewContainerDeleted(eventID, deleted, cascade, who, occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		if envelope.Type != ContainerDeleted {
+			t.Errorf("type = %s, want %s", envelope.Type, ContainerDeleted)
+		}
+		if envelope.Payload["deleted_at"] == nil {
+			t.Error("the deletion stamp is missing")
+		}
+		if envelope.Payload["trash_batch_id"] != batch.String() {
+			t.Errorf("the batch is %v, want %q", envelope.Payload["trash_batch_id"], batch)
+		}
+		if envelope.Payload["collections"] != 2 || envelope.Payload["items"] != 17 {
+			t.Errorf("the cascade is %v/%v, want 2/17",
+				envelope.Payload["collections"], envelope.Payload["items"])
+		}
+	})
+
+	t.Run("restored", func(t *testing.T) {
+		envelope, err := NewContainerRestored(eventID, trashedHub, cascade, who, occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		if envelope.Type != ContainerRestored {
+			t.Errorf("type = %s, want %s", envelope.Type, ContainerRestored)
+		}
+		for _, field := range []string{"deleted_at", "trash_batch_id"} {
+			if envelope.Payload[field] != nil {
+				t.Errorf("%s carries %v after the deletion was reversed", field, envelope.Payload[field])
+			}
+		}
+	})
+
+	t.Run("neither can contradict its own name", func(t *testing.T) {
+		if _, err := NewContainerDeleted(
+			eventID, trashedHub, cascade, who, occurred, Cause{}); !errors.Is(err, shared.ErrInternal) {
+			t.Errorf("deleting a container that is not in the trash reported %v", err)
+		}
+		if _, err := NewContainerRestored(
+			eventID, deleted, cascade, who, occurred, Cause{}); !errors.Is(err, shared.ErrInternal) {
+			t.Errorf("restoring a container still in the trash reported %v", err)
+		}
+	})
+}

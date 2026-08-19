@@ -255,6 +255,16 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// Every verb that moves an entry between the archive and the trash shares one dependency set.
+	// They are the same walk with a different transition in the middle, and wiring them separately
+	// would be one more place for "restoring records what trashing records" to stop being true
+	// (work.LifecycleWriter).
+	lifecycle := work.LifecycleWriter{
+		Items: items, Containers: containers, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	// Every verb that changes an existing container shares one dependency set: they read the same
 	// container, ask the same permission question, and owe the same four writes
 	// (work.ContainerWriter).
@@ -426,6 +436,8 @@ func run() error {
 
 		work.MoveWorkItem{Placement: placement}.Descriptor(),
 		work.ReorderWorkItem{Placement: placement}.Descriptor(),
+		work.ArchiveWorkItem{Lifecycle: lifecycle}.Descriptor(),
+		work.UnarchiveWorkItem{Lifecycle: lifecycle}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process
