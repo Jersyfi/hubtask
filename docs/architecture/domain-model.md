@@ -235,6 +235,8 @@ and a business payload. Events are a public contract (webhooks, automation, n8n)
 | `item.due_changed` | `oldDueAt`, `newDueAt`, `timeZone` | Scheduler, calendar feed |
 | `item.due_soon` / `item.overdue` | `dueAt`, `thresholdSpec` | Reminders, automation |
 | `item.archived` / `.trashed` / `.restored` / `.purged` | Lifecycle | Cleanup, media GC |
+| `bucket.created` / `.updated` / `.reordered` / `.deleted` | A bucket snapshot; `.updated` and `.reordered` add a `changeSet`, `.deleted` says where its items went | Kanban clients, automation, search |
+| `label.created` / `.updated` / `.deleted` | A label snapshot; `.updated` adds a `changeSet` | Automation, search |
 | `comment.created` / `.updated` / `.deleted` | The comment | Notification, automation |
 | `attachment.added` / `.removed` | A media reference | Media GC |
 | `recurrence.occurrence_created` | `sourceItemId`, `newItemId`, `occurrenceAt` | History |
@@ -246,7 +248,13 @@ and a business payload. Events are a public contract (webhooks, automation, n8n)
 
 `container.unarchived` is separate from `.restored`, which belongs to the trash: a rule written to
 react to something coming back from a deletion must not fire when somebody unarchives a hub. The same
-reasoning separates `item.reopened` from `item.completed`.
+reasoning separates `item.reopened` from `item.completed`, and `bucket.reordered` from
+`bucket.updated` — dragging a column one place to the left is not renaming it.
+
+`item.label_added` and `item.label_removed` carry a reference rather than a snapshot, which is the
+one exception to the rule above. A label set merges as an OR-set rather than by last writer wins
+(offline-sync.md §4.2), so a snapshot of the item would carry a set another device may already have
+merged differently; `labelId` is what a rule reacts to and `itemId` is what it reads the rest from.
 
 **Compatibility rules:** fields may only be added; removing or reinterpreting one requires a `.v2`
 alongside continued delivery of `.v1` for at least two minor releases.

@@ -153,6 +153,11 @@ CREATE TABLE container (
   -- policies keys (domain-model.md §3.3): completion_policy (MANUAL | ROLLUP, read since B-07),
   -- default_bucket_id, capability_overrides, auto_assign. An absent key means the default; the column
   -- starts as {} and UpdateContainerPolicies (B-06) is what writes into it.
+  --
+  -- default_bucket_id has no writer and is not read. B-09 needed a column for a deleted bucket's
+  -- items to fall back to and derived it instead - the collection's leftmost remaining bucket -
+  -- because a stored default is a value nothing keeps up to date: a column deleted while the key
+  -- still named it would send items into a bucket that is no longer on the board.
   policies     jsonb NOT NULL DEFAULT '{}'::jsonb,
   archived_at  timestamptz,
   deleted_at   timestamptz,
