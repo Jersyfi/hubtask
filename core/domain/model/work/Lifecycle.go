@@ -143,11 +143,15 @@ func (c Container) Trashed(at time.Time, batch shared.ID) (Container, []FieldCha
 	if batch.IsZero() {
 		return Container{}, nil, shared.ErrInternal.WithDetail("containers.trash_batch_missing")
 	}
-	if err := c.ensureLifecycleChangeable(); err != nil {
-		return Container{}, nil, err
-	}
+	// Before the gate, not after it. A container already in the trash is the state the caller asked
+	// for, and the gate would refuse exactly that state - which would make a retry after a lost
+	// response an error rather than a no-op, and would put a second deletion of the same subtree
+	// beyond reach for no reason.
 	if c.IsTrashed() {
 		return c, nil, nil
+	}
+	if err := c.ensureLifecycleChangeable(); err != nil {
+		return Container{}, nil, err
 	}
 
 	changes := []FieldChange{{Field: FieldDeletedAt, From: "", To: instant(at)}}

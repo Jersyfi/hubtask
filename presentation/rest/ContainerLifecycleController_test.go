@@ -309,3 +309,43 @@ func TestAMoveWithoutADestinationSendsNoIdentifier(t *testing.T) {
 		t.Errorf("the nil identifier was passed on: %v", registry.in)
 	}
 }
+
+// The container deletion is a DELETE with no body back: it is gone from every list the client draws,
+// and where to find it again is the trash rather than this response (api-guidelines.md §2).
+func TestDeletingAContainerAnswers204AndPassesOnTheIfMatch(t *testing.T) {
+	registry := &catalogue{out: renamedContainer()}
+
+	recorder := containerRequest(t, registry, http.MethodDelete, "/containers/"+containerID, "", `"3"`)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if recorder.Body.Len() != 0 {
+		t.Errorf("a 204 carries a body: %s", recorder.Body)
+	}
+	if registry.name != "TrashContainer" {
+		t.Errorf("use case = %q, want TrashContainer", registry.name)
+	}
+	if registry.in["expected_version"] != 3 {
+		t.Errorf("expected_version = %v, want 3", registry.in["expected_version"])
+	}
+}
+
+// The restore answers with the container, because the client has to redraw it and needs the version
+// it now has.
+func TestRestoringAContainerAnswers200WithTheContainer(t *testing.T) {
+	registry := &catalogue{out: renamedContainer()}
+
+	recorder := containerRequest(
+		t, registry, http.MethodPost, "/containers/"+containerID+":restore", "", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "RestoreContainer" {
+		t.Errorf("use case = %q, want RestoreContainer", registry.name)
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"4"` {
+		t.Errorf("ETag = %q, want \"4\"", tag)
+	}
+}

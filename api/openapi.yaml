@@ -692,7 +692,13 @@ paths:
     delete:
       tags: [containers]
       operationId: trashContainer
-      description: A soft delete; the entire subtree moves to the trash for 30 days.
+      description: >
+        A soft delete: the hub or collection and everything under it move to the trash under one
+        deletion - a hub takes its collections, and every collection takes its entries. It all stays
+        for the tenant's trash retention period, 30 days by default, and comes back as one act
+        through :restore until the retention job removes it for good. Anything already in the trash
+        from an earlier deletion keeps that deletion rather than joining this one. Needs the owner's
+        right to delete a container. Idempotent.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       responses:
@@ -766,6 +772,33 @@ paths:
       responses:
         "200":
           description: Moved
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}:restore:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [containers]
+      operationId: restoreContainer
+      description: >
+        Takes one container deletion back out of the trash, whole: the hub, its collections, and
+        every entry that went in with them. Exactly what went in together comes back - a separate,
+        younger deletion inside the same subtree stays where it is, because a restore is keyed on the
+        deletion rather than on the subtree. A container archived when it was deleted comes back
+        archived. Needs the same right as the deletion, which is the owner's. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Restored
           headers:
             ETag:
               schema: { type: string }

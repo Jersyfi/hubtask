@@ -145,10 +145,50 @@ func (c *RestController) UnarchiveContainer(
 const (
 	archiveContainerUseCase   = "ArchiveContainer"
 	unarchiveContainerUseCase = "UnarchiveContainer"
+	trashContainerUseCase     = "TrashContainer"
+	restoreContainerUseCase   = "RestoreContainer"
 )
 
-// containerLifecycle is the shape the two archive verbs share: a path parameter, an optional
-// If-Match, and the container back with its new tag.
+// TrashContainer answers DELETE /containers/{containerId}.
+//
+// A DELETE rather than an action suffix, and 204 rather than the container: it is gone from every
+// list the client draws, and there is nothing about it left worth sending back. That it is a soft
+// delete is the server's business - what the client has to know is where to find it again, which is
+// the trash rather than this response (api-guidelines.md §2).
+func (c *RestController) TrashContainer(
+	w http.ResponseWriter, r *http.Request,
+	containerID openapi.ContainerId, params openapi.TrashContainerParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	in := usecase.Input{"container_id": containerID.String()}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+
+	if _, err := c.UseCases.Invoke(r.Context(), trashContainerUseCase, actorOf(r), in); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RestoreContainer answers POST /containers/{containerId}:restore.
+func (c *RestController) RestoreContainer(
+	w http.ResponseWriter, r *http.Request,
+	containerID openapi.ContainerId, _ openapi.RestoreContainerParams,
+) {
+	c.containerLifecycle(w, r, restoreContainerUseCase, containerID)
+}
+
+// containerLifecycle is the shape every action that answers with the container shares: a path
+// parameter, an optional If-Match, and the container back with its new tag. The deletion is not one
+// of them - it answers 204, and has its own handler above.
 //
 // The If-Match is read off the request rather than off generated parameters, because the
 // specification does not declare one for an action - `ifMatchOf` is what the item's own actions

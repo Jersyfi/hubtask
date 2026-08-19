@@ -251,6 +251,29 @@ func TestTrashingAContainerRespectsTheArchivedSubtree(t *testing.T) {
 	}
 }
 
+// Every container verb applied twice changes nothing the second time, and keeps the first time's
+// timestamp. The retention period runs off that stamp, so a silently restarted one is thirty more
+// days of storage nobody asked for.
+func TestTheContainerLifecycleVerbsAreIdempotent(t *testing.T) {
+	hub := Container{ID: packageID, TenantID: itemTenant, Type: ContainerHub, Name: "Private"}
+
+	once, _, err := hub.Trashed(trashedAt, batchOne)
+	if err != nil {
+		t.Fatalf("the first deletion was refused: %v", err)
+	}
+
+	twice, changes, err := once.Trashed(laterOn, batchTwo)
+	if err != nil {
+		t.Fatalf("the second deletion was refused: %v", err)
+	}
+	if len(changes) != 0 {
+		t.Errorf("the second deletion reports %d changes, want none", len(changes))
+	}
+	if !twice.DeletedAt.Equal(trashedAt) || twice.TrashBatchID != batchOne {
+		t.Error("the second deletion re-dated the first or adopted it into a new batch")
+	}
+}
+
 // The container's way back, and that it clears the batch with the stamp.
 func TestRestoringAContainer(t *testing.T) {
 	hub := Container{ID: packageID, TenantID: itemTenant, Type: ContainerHub, Name: "Private"}

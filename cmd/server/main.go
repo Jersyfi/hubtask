@@ -376,6 +376,8 @@ func run() error {
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.MoveContainer{Writer: containerWriter}.Descriptor(),
+		work.TrashContainer{Writer: containerWriter}.Descriptor(),
+		work.RestoreContainer{Writer: containerWriter}.Descriptor(),
 		work.CreateBucket{
 			Buckets:    buckets,
 			Containers: containers,
