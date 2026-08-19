@@ -53,6 +53,8 @@ type CreateWorkItemCommand struct {
 	ParentID     shared.ID
 	Title        string
 	Notes        string
+	// BucketID is the column of the collection's board the entry starts in, empty for none.
+	BucketID shared.ID
 }
 
 // CreateWorkItem creates a task, a work package, or an activity.
@@ -66,6 +68,7 @@ type CreateWorkItemCommand struct {
 // one, names none of the three levels.
 type CreateWorkItem struct {
 	Items      repository.Items
+	Buckets    repository.Buckets
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
 	Authorizer Authorizer
@@ -232,6 +235,15 @@ func (h CreateWorkItem) build(
 		return domain.WorkItem{}, err
 	}
 
+	if !cmd.BucketID.IsZero() {
+		// Checked against the collection the entry is being created in, before the constructor
+		// checks the capability: a column of another collection's board is a reference nothing
+		// renders (I-W6).
+		if err := ensureBucketOnBoard(ctx, h.Buckets, collection.ID, cmd.BucketID); err != nil {
+			return domain.WorkItem{}, err
+		}
+	}
+
 	orderKey, err := h.nextItemOrderKey(ctx, collection.ID, placement.ParentID)
 	if err != nil {
 		return domain.WorkItem{}, err
@@ -246,6 +258,7 @@ func (h CreateWorkItem) build(
 		ParentID:     placement.ParentID,
 		Title:        cmd.Title,
 		Notes:        cmd.Notes,
+		BucketID:     cmd.BucketID,
 		Profile:      profile,
 		Path:         placement.PathOf(id),
 		Depth:        placement.Depth,
@@ -426,6 +439,9 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 			"completed_at": timeOrNil(item.Completion.CompletedAt),
 			"completed_by": idOrNil(item.Completion.CompletedBy),
 		},
+		// Always present, as null for an entry on no board. A field that appeared only once
+		// somebody had dragged the card into a column is one a client cannot read unconditionally.
+		"bucket_id":   idOrNil(item.BucketID),
 		"order_key":   item.OrderKey,
 		"archived_at": timeOrNil(item.ArchivedAt),
 		"deleted_at":  timeOrNil(item.DeletedAt),
@@ -482,6 +498,13 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"carries the NOTES capability; on one that does not, sending it is refused " +
 					"rather than ignored.",
 			},
+			{
+				Name: "bucket_id", Kind: usecase.KindID,
+				Description: "The column of the collection's board the entry starts in. It has to " +
+					"be on this collection's board, and only a type whose profile carries BUCKET " +
+					"has one - a board belongs to a collection, so only the entries directly in it " +
+					"have a place on it.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ItemCreatedAction, TargetType: itemTarget,
@@ -504,6 +527,10 @@ func (h CreateWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
+	bucketID, err := in.ID("bucket_id")
+	if err != nil {
+		return nil, err
+	}
 
 	item, err := h.Execute(ctx, actor, CreateWorkItemCommand{
 		Type:         domain.ItemType(in.String("type")),
@@ -511,6 +538,7 @@ func (h CreateWorkItem) invoke(
 		ParentID:     parentID,
 		Title:        in.String("title"),
 		Notes:        in.String("notes"),
+		BucketID:     bucketID,
 	})
 	if err != nil {
 		return nil, err

@@ -337,3 +337,46 @@ func TestAnUpdateEventWithNothingInItIsRefused(t *testing.T) {
 		t.Errorf("an empty change set answered %v", err)
 	}
 }
+
+// The two events domain-model.md §4 names by hand. Their payload is the reference rather than a
+// snapshot, which is the one place this system does not send one: an entry snapshot would have to
+// carry the whole label set to be useful, and the set is exactly what merges separately.
+func TestTheItemLabelEventsCarryTheReference(t *testing.T) {
+	item := task()
+	labelID := shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+
+	for eventType, build := range map[Type]func() (Envelope, error){
+		ItemLabelAdded: func() (Envelope, error) {
+			return NewItemLabelAdded(eventID, item, labelID, by(), occurred, Cause{})
+		},
+		ItemLabelRemoved: func() (Envelope, error) {
+			return NewItemLabelRemoved(eventID, item, labelID, by(), occurred, Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+			if envelope.Type != eventType || envelope.Subject != ItemSubject(item.ID) {
+				t.Errorf("unexpected envelope: %+v", envelope)
+			}
+			if envelope.Payload["label_id"] != labelID.String() {
+				t.Errorf("the event does not name the label: %+v", envelope.Payload)
+			}
+			if envelope.Payload["collection_id"] != item.CollectionID.String() {
+				t.Errorf("the event does not name the collection: %+v", envelope.Payload)
+			}
+			if _, snapshot := envelope.Payload["title"]; snapshot {
+				t.Error("the event carries a snapshot of the entry")
+			}
+		})
+	}
+}
+
+// An event about no label at all means the writer and the event disagree, which is a defect.
+func TestAnItemLabelEventRefusesAnEmptyLabel(t *testing.T) {
+	if _, err := NewItemLabelRemoved(eventID, task(), "", by(), occurred, Cause{}); err == nil {
+		t.Fatal("an event naming no label was built")
+	}
+}

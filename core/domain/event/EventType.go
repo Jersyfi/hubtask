@@ -82,6 +82,50 @@ const (
 	// event to a rule. A consumer that cares only about reparenting compares `from_parent_id` with
 	// `to_parent_id`.
 	ItemMoved Type = "de.hubtask.work.item.moved.v1"
+	// BucketCreated announces a new column on a collection's board. Consumers: kanban clients,
+	// automation, search.
+	//
+	// domain-model.md §4 names no bucket event at all. It follows the scheme rather than a table
+	// entry, because a board that could be rearranged without anything being announced would be a
+	// hole in the contract exactly where a kanban client synchronises.
+	BucketCreated Type = "de.hubtask.work.bucket.created.v1"
+	// BucketUpdated announces that a column's own fields changed: what it is called, what it holds
+	// at once, whether it means finished. Consumers: kanban clients, automation, search.
+	BucketUpdated Type = "de.hubtask.work.bucket.updated.v1"
+	// BucketReordered announces that a column sits elsewhere on its board.
+	//
+	// Its own type rather than an update carrying `order_key`, on the reasoning that separates
+	// ItemMoved from ItemUpdated: a rule that reacts to a column being renamed must not fire when
+	// somebody drags it one place to the left. A board has one dimension, so there is no move to
+	// distinguish this from - a column cannot leave its collection.
+	BucketReordered Type = "de.hubtask.work.bucket.reordered.v1"
+	// BucketDeleted announces that a column is off the board, and says where its entries went.
+	//
+	// The destination is in the payload because a consumer cannot derive it: the entries moved to
+	// the leftmost remaining column, and a kanban client that only learned the column was gone
+	// would have to reload the board to find out where its cards are.
+	BucketDeleted Type = "de.hubtask.work.bucket.deleted.v1"
+	// LabelCreated announces a new label in a collection's vocabulary. Consumers: automation,
+	// search, clients that render a chip.
+	LabelCreated Type = "de.hubtask.work.label.created.v1"
+	// LabelUpdated announces that a label's own fields changed: what it is called, what colour it
+	// is, what it means. Consumers: automation, search, clients that render a chip.
+	LabelUpdated Type = "de.hubtask.work.label.updated.v1"
+	// LabelDeleted announces that a label is out of a collection's vocabulary.
+	//
+	// The entries that carried it are not named. A collection's vocabulary is small and its entries
+	// are not, so listing them would make the payload unbounded; a consumer that renders chips
+	// drops this label from all of them, which is what the deletion means.
+	LabelDeleted Type = "de.hubtask.work.label.deleted.v1"
+	// ItemLabelAdded announces that an entry now carries a label. Consumers: automation.
+	//
+	// One of the two events domain-model.md §4 names by hand, and the payload it names is `labelId`.
+	// Its own type rather than an ItemUpdated carrying a set, because a set is not a field: it
+	// merges as an OR-set rather than by last writer wins, and a rule written against "the labels
+	// changed" could not tell an addition from a removal.
+	ItemLabelAdded Type = "de.hubtask.work.item.label_added.v1"
+	// ItemLabelRemoved announces that an entry no longer carries a label. Consumers: automation.
+	ItemLabelRemoved Type = "de.hubtask.work.item.label_removed.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -92,6 +136,9 @@ var types = [...]Type{
 	ContainerCreated, ContainerRenamed, ContainerPoliciesUpdated, ContainerMoved,
 	ContainerArchived, ContainerUnarchived,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
+	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
+	LabelCreated, LabelUpdated, LabelDeleted,
+	ItemLabelAdded, ItemLabelRemoved,
 }
 
 // Types returns every defined event type.

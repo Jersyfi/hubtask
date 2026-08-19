@@ -39,11 +39,13 @@ const (
 // client comes to believe it stored something (domain-model.md §2, ADR-0006).
 //
 // What it does not change: where the item sits (MoveWorkItem), whether it is done
-// (CompleteWorkItem), and the fields whose use cases arrive later - the due date, the assignee, the
-// labels. A single endpoint that wrote all of them would need one audit entry covering everything
-// and one event nobody could subscribe to narrowly.
+// (CompleteWorkItem), which labels it carries (AddLabel - a set is not a field), and the fields
+// whose use cases arrive later, the due date and the assignee. A single endpoint that wrote all of
+// them would need one audit entry covering everything and one event nobody could subscribe to
+// narrowly.
 type UpdateWorkItem struct {
 	Items      repository.Items
+	Buckets    repository.Buckets
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
 	Authorizer Authorizer
@@ -118,6 +120,12 @@ func (h UpdateWorkItem) Execute(
 		profile, err := profileOf(ctx, h.Profiles, item.Type)
 		if err != nil {
 			return err
+		}
+
+		if cmd.Attributes.BucketID != nil && !cmd.Attributes.BucketID.IsZero() {
+			if err := ensureBucketOnBoard(ctx, h.Buckets, item.CollectionID, *cmd.Attributes.BucketID); err != nil {
+				return err
+			}
 		}
 
 		wanted, changes, err := item.Updated(cmd.Attributes, profile, now)
@@ -309,6 +317,14 @@ func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 					"carries NOTES - on an activity this is refused.",
 			},
 			{
+				Name: "bucket_id", Kind: usecase.KindID,
+				Description: "The column of the collection's board to put the entry in. Empty takes " +
+					"it off the board, omitted leaves it where it is. The column has to be on this " +
+					"collection's board, and only a type whose capability profile carries BUCKET " +
+					"has one - a board belongs to a collection, so only the entries directly in it " +
+					"have a place on it.",
+			},
+			{
 				Name: "expected_version", Kind: usecase.KindInt,
 				Description: "The version last read, from the If-Match header over REST. Omitted means the " +
 					"caller read none and accepts whatever is there; a version that has moved on since is " +
@@ -338,9 +354,20 @@ func (h UpdateWorkItem) invoke(
 	// `notes` wants them gone. A channel that could not say which would clear the notes of every
 	// client that only meant to rename something.
 	cmd := UpdateCommand{
-		ItemID:          itemID,
-		Attributes:      domain.ItemAttributes{Title: in.OptionalString("title"), Notes: in.OptionalString("notes")},
+		ItemID: itemID,
+		Attributes: domain.ItemAttributes{
+			Title: in.OptionalString("title"), Notes: in.OptionalString("notes"),
+		},
 		ExpectedVersion: in.Int("expected_version"),
+	}
+	// The board is read by presence for the reason the text fields are read by pointer: an empty
+	// `bucket_id` takes the entry off the board, and an absent one leaves it where it is.
+	if in.Present("bucket_id") {
+		bucketID, err := in.ID("bucket_id")
+		if err != nil {
+			return nil, err
+		}
+		cmd.Attributes.BucketID = &bucketID
 	}
 	if cmd.Attributes.IsEmpty() {
 		return nil, shared.ErrValidation.

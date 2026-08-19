@@ -1447,15 +1447,24 @@ type BackupTargetCreateEncryptionMode string
 // BackupTargetKind defines model for BackupTargetKind.
 type BackupTargetKind string
 
-// Bucket defines model for Bucket.
+// Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
-	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
-	ColorToken   *string             `json:"color_token,omitempty"`
-	Id           openapi_types.UUID  `json:"id"`
-	IsDoneBucket *bool               `json:"is_done_bucket,omitempty"`
-	Name         string              `json:"name"`
-	OrderKey     *string             `json:"order_key,omitempty"`
-	WipLimit     *int                `json:"wip_limit,omitempty"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// ColorToken Always present, as null when unset - like wip_limit. A board renders both, and a field that appeared only once somebody had set it is one a client cannot read unconditionally.
+	ColorToken   *string            `json:"color_token"`
+	Id           openapi_types.UUID `json:"id"`
+	IsDoneBucket bool               `json:"is_done_bucket"`
+	Name         string             `json:"name"`
+
+	// OrderKey The rank on the board - a fractional index rather than a number (offline-sync.md §4.2).
+	OrderKey string `json:"order_key"`
+
+	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
+	Version int `json:"version"`
+
+	// WipLimit How many entries the people using this board agreed to have in the column at once. Advisory: nothing refuses the drop that exceeds it, because the requirement is that the column turns red rather than that the work becomes impossible. Null is no limit.
+	WipLimit *int `json:"wip_limit"`
 }
 
 // BucketCreate defines model for BucketCreate.
@@ -1465,6 +1474,27 @@ type BucketCreate struct {
 	IsDoneBucket   *bool               `json:"is_done_bucket,omitempty"`
 	Name           string              `json:"name"`
 	WipLimit       *int                `json:"wip_limit,omitempty"`
+}
+
+// BucketDeletion What became of the entries that were in a deleted column. Reported rather than left to be discovered: a board that silently reassigned a person's cards would be indistinguishable from one that lost them.
+type BucketDeletion struct {
+	BucketId openapi_types.UUID `json:"bucket_id"`
+
+	// MovedItems How many entries were moved.
+	MovedItems int `json:"moved_items"`
+
+	// TargetBucketId The column the entries moved to - the leftmost remaining one. Null when this was the last column on the board, in which case the entries now carry none.
+	TargetBucketId *openapi_types.UUID `json:"target_bucket_id"`
+}
+
+// BucketUpdate JSON Merge Patch; null deletes a field.
+type BucketUpdate struct {
+	ColorToken   *string `json:"color_token,omitempty"`
+	IsDoneBucket *bool   `json:"is_done_bucket,omitempty"`
+	Name         *string `json:"name,omitempty"`
+
+	// WipLimit Null and 0 both remove the limit. Zero is not a limit anybody could satisfy, so nothing is lost by reading it that way, and it saves a client from a second field beside the number.
+	WipLimit *int `json:"wip_limit,omitempty"`
 }
 
 // BulkOperation defines model for BulkOperation.
@@ -1647,8 +1677,11 @@ type DroppedReference struct {
 	Code string `json:"code"`
 
 	// Id The reference that could not be carried over.
-	Id   string               `json:"id"`
-	Kind DroppedReferenceKind `json:"kind"`
+	Id string `json:"id"`
+
+	// ItemId The entry that lost it. A move carries a whole subtree, so one operation can drop references from several entries at once.
+	ItemId *openapi_types.UUID  `json:"item_id,omitempty"`
+	Kind   DroppedReferenceKind `json:"kind"`
 }
 
 // DroppedReferenceKind defines model for DroppedReference.Kind.
@@ -1735,6 +1768,12 @@ type HealthWarning struct {
 // HealthWarningSeverity defines model for HealthWarning.Severity.
 type HealthWarningSeverity string
 
+// ItemLabels The labels one entry carries. Returned by adding and removing rather than the entry itself, because neither touches the entry's own row: a label lives beside it, and an entry whose version had moved would tell a client its title had changed too.
+type ItemLabels struct {
+	ItemId   openapi_types.UUID   `json:"item_id"`
+	LabelIds []openapi_types.UUID `json:"label_ids"`
+}
+
 // ItemQuery defines model for ItemQuery.
 type ItemQuery struct {
 	Count  *ItemQueryCount `json:"count,omitempty"`
@@ -1802,13 +1841,35 @@ type JobRef struct {
 // JobRefStatus defines model for JobRef.Status.
 type JobRefStatus string
 
-// Label defines model for Label.
+// Label A tag a collection defines and its entries carry. Defined on the collection rather than on the workspace: a label is a vocabulary the people working in one collection agree on, and a workspace-wide list would make every collection pay for every other's.
 type Label struct {
-	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
-	ColorToken   string              `json:"color_token"`
-	Description  *string             `json:"description,omitempty"`
-	Id           openapi_types.UUID  `json:"id"`
-	Name         string              `json:"name"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// ColorToken A theme token rather than a colour value, so clients render it in their own palette. Required: a label is rendered as a chip and nothing else.
+	ColorToken string `json:"color_token"`
+
+	// Description Always present, as null when unset.
+	Description *string            `json:"description"`
+	Id          openapi_types.UUID `json:"id"`
+	Name        string             `json:"name"`
+
+	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
+	Version int `json:"version"`
+}
+
+// LabelCreate defines model for LabelCreate.
+type LabelCreate struct {
+	ColorToken  string  `json:"color_token"`
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+}
+
+// LabelUpdate JSON Merge Patch; null deletes a field.
+type LabelUpdate struct {
+	// ColorToken Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a client would have to invent one.
+	ColorToken  *string `json:"color_token,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Name        *string `json:"name,omitempty"`
 }
 
 // Membership defines model for Membership.
@@ -2160,6 +2221,9 @@ type WorkItemUpdate struct {
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID
 
+// BucketId defines model for BucketId.
+type BucketId = openapi_types.UUID
+
 // CollectionId defines model for CollectionId.
 type CollectionId = openapi_types.UUID
 
@@ -2171,6 +2235,9 @@ type ContainerTypeFilter = ContainerType
 
 // Cursor defines model for Cursor.
 type Cursor = string
+
+// Expand defines model for Expand.
+type Expand = []string
 
 // GroupId defines model for GroupId.
 type GroupId = openapi_types.UUID
@@ -2186,6 +2253,9 @@ type IncludeArchived = bool
 
 // ItemId defines model for ItemId.
 type ItemId = openapi_types.UUID
+
+// LabelId defines model for LabelId.
+type LabelId = openapi_types.UUID
 
 // MembershipId defines model for MembershipId.
 type MembershipId = openapi_types.UUID
@@ -2259,6 +2329,42 @@ type RenameContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DeleteBucketParams defines parameters for DeleteBucket.
+type DeleteBucketParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateBucketParams defines parameters for UpdateBucket.
+type UpdateBucketParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ReorderBucketJSONBody defines parameters for ReorderBucket.
+type ReorderBucketJSONBody struct {
+	// BeforeBucketId The column this one goes to the left of. Absent is the right hand end.
+	BeforeBucketId *openapi_types.UUID `json:"before_bucket_id,omitempty"`
+}
+
+// ReorderBucketParams defines parameters for ReorderBucket.
+type ReorderBucketParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// DeleteLabelParams defines parameters for DeleteLabel.
+type DeleteLabelParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateLabelParams defines parameters for UpdateLabel.
+type UpdateLabelParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateContainerPoliciesParams defines parameters for UpdateContainerPolicies.
 type UpdateContainerPoliciesParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -2311,6 +2417,9 @@ type ListWorkItemsParams struct {
 	Cursor          *Cursor          `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size            *PageSize        `form:"size,omitempty" json:"size,omitempty"`
 	IncludeArchived *IncludeArchived `form:"include_archived,omitempty" json:"include_archived,omitempty"`
+
+	// Expand Relations to include, e.g. children:1, labels, assignee, cover. A relation this installation does not serve is refused by name rather than ignored: an entry that came back without its labels because they were not implemented is indistinguishable from one that carries none.
+	Expand *Expand `form:"expand,omitempty" json:"expand,omitempty"`
 }
 
 // CreateWorkItemParams defines parameters for CreateWorkItem.
@@ -2327,8 +2436,8 @@ type TrashWorkItemParams struct {
 
 // GetWorkItemParams defines parameters for GetWorkItem.
 type GetWorkItemParams struct {
-	// Expand Include relations, e.g. children:1, labels, assignee, cover
-	Expand *[]string `form:"expand,omitempty" json:"expand,omitempty"`
+	// Expand Relations to include, e.g. children:1, labels, assignee, cover. A relation this installation does not serve is refused by name rather than ignored: an entry that came back without its labels because they were not implemented is indistinguishable from one that carries none.
+	Expand *Expand `form:"expand,omitempty" json:"expand,omitempty"`
 }
 
 // UpdateWorkItemParams defines parameters for UpdateWorkItem.
@@ -2447,6 +2556,18 @@ type RenameContainerApplicationMergePatchPlusJSONRequestBody = ContainerUpdate
 // CreateBucketJSONRequestBody defines body for CreateBucket for application/json ContentType.
 type CreateBucketJSONRequestBody = BucketCreate
 
+// UpdateBucketApplicationMergePatchPlusJSONRequestBody defines body for UpdateBucket for application/merge-patch+json ContentType.
+type UpdateBucketApplicationMergePatchPlusJSONRequestBody = BucketUpdate
+
+// ReorderBucketJSONRequestBody defines body for ReorderBucket for application/json ContentType.
+type ReorderBucketJSONRequestBody ReorderBucketJSONBody
+
+// CreateLabelJSONRequestBody defines body for CreateLabel for application/json ContentType.
+type CreateLabelJSONRequestBody = LabelCreate
+
+// UpdateLabelApplicationMergePatchPlusJSONRequestBody defines body for UpdateLabel for application/merge-patch+json ContentType.
+type UpdateLabelApplicationMergePatchPlusJSONRequestBody = LabelUpdate
+
 // UpdateContainerPoliciesJSONRequestBody defines body for UpdateContainerPolicies for application/json ContentType.
 type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 
@@ -2555,8 +2676,26 @@ type ServerInterface interface {
 	// (POST /containers/{containerId}/buckets)
 	CreateBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
+	// (DELETE /containers/{containerId}/buckets/{bucketId})
+	DeleteBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params DeleteBucketParams)
+
+	// (PATCH /containers/{containerId}/buckets/{bucketId})
+	UpdateBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params UpdateBucketParams)
+
+	// (POST /containers/{containerId}/buckets/{bucketId}:reorder)
+	ReorderBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params ReorderBucketParams)
+
 	// (GET /containers/{containerId}/labels)
 	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+
+	// (POST /containers/{containerId}/labels)
+	CreateLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+
+	// (DELETE /containers/{containerId}/labels/{labelId})
+	DeleteLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId, labelId LabelId, params DeleteLabelParams)
+
+	// (PATCH /containers/{containerId}/labels/{labelId})
+	UpdateLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId, labelId LabelId, params UpdateLabelParams)
 
 	// (PUT /containers/{containerId}/policies)
 	UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UpdateContainerPoliciesParams)
@@ -2599,6 +2738,12 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}/comments)
 	AddComment(w http.ResponseWriter, r *http.Request, itemId ItemId, params AddCommentParams)
+
+	// (DELETE /items/{itemId}/labels/{labelId})
+	RemoveLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
+
+	// (PUT /items/{itemId}/labels/{labelId})
+	AddLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
 
 	// (POST /items/{itemId}:complete)
 	CompleteWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params CompleteWorkItemParams)
@@ -3323,6 +3468,183 @@ func (siw *ServerInterfaceWrapper) CreateBucket(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteBucket operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBucket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "bucketId" -------------
+	var bucketId BucketId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketId", r.PathValue("bucketId"), &bucketId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteBucketParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBucket(w, r, containerId, bucketId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateBucket operation middleware
+func (siw *ServerInterfaceWrapper) UpdateBucket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "bucketId" -------------
+	var bucketId BucketId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketId", r.PathValue("bucketId"), &bucketId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateBucketParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateBucket(w, r, containerId, bucketId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReorderBucket operation middleware
+func (siw *ServerInterfaceWrapper) ReorderBucket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "bucketId" -------------
+	var bucketId BucketId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketId", r.PathValue("bucketId"), &bucketId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReorderBucketParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReorderBucket(w, r, containerId, bucketId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListLabels operation middleware
 func (siw *ServerInterfaceWrapper) ListLabels(w http.ResponseWriter, r *http.Request) {
 
@@ -3340,6 +3662,150 @@ func (siw *ServerInterfaceWrapper) ListLabels(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListLabels(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateLabel operation middleware
+func (siw *ServerInterfaceWrapper) CreateLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateLabel(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteLabel operation middleware
+func (siw *ServerInterfaceWrapper) DeleteLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "labelId" -------------
+	var labelId LabelId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "labelId", r.PathValue("labelId"), &labelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labelId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteLabelParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteLabel(w, r, containerId, labelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateLabel operation middleware
+func (siw *ServerInterfaceWrapper) UpdateLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "labelId" -------------
+	var labelId LabelId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "labelId", r.PathValue("labelId"), &labelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labelId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateLabelParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateLabel(w, r, containerId, labelId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3740,6 +4206,19 @@ func (siw *ServerInterfaceWrapper) ListWorkItems(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// ------------- Optional query parameter "expand" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", false, false, "expand", r.URL.Query(), &params.Expand, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "expand"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "expand", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListWorkItems(w, r, params)
 	}))
@@ -4030,6 +4509,76 @@ func (siw *ServerInterfaceWrapper) AddComment(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AddComment(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveLabel operation middleware
+func (siw *ServerInterfaceWrapper) RemoveLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "labelId" -------------
+	var labelId LabelId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "labelId", r.PathValue("labelId"), &labelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labelId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveLabel(w, r, itemId, labelId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddLabel operation middleware
+func (siw *ServerInterfaceWrapper) AddLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "labelId" -------------
+	var labelId LabelId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "labelId", r.PathValue("labelId"), &labelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labelId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddLabel(w, r, itemId, labelId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4703,7 +5252,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.AddComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.ListBuckets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.CreateBucket)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}", wrapper.DeleteBucket)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}", wrapper.UpdateBucket)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}:reorder", wrapper.ReorderBucket)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.ListLabels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.CreateLabel)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}", wrapper.DeleteLabel)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}", wrapper.UpdateLabel)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/labels/{labelId}", wrapper.RemoveLabel)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/labels/{labelId}", wrapper.AddLabel)
 
 	return m
 }

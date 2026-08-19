@@ -216,3 +216,41 @@ func completionPayload(completion work.Completion) map[string]any {
 // ItemSubject is what an item event is about. Kept next to the event so that the two cannot
 // drift: a consumer filtering on the subject and a producer writing it read the same line.
 func ItemSubject(id shared.ID) string { return "item/" + id.String() }
+
+// NewItemLabelAdded announces that an entry now carries a label (domain-model.md §4).
+//
+// The payload is the reference rather than a snapshot of the item, which is the one place this
+// system does not send one. Two reasons, and they are the same reason: a set is not a field. An
+// item snapshot would have to carry the whole set to be useful, and the set is exactly what merges
+// separately (offline-sync.md §4.2) - so a consumer reading it out of an event would be reading a
+// value that another device may already have merged differently. `label_id` is what a rule reacts
+// to, and `item_id` is what it reads the rest from.
+func NewItemLabelAdded(id shared.ID, item work.WorkItem, labelID shared.ID, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newItemLabelChange(id, ItemLabelAdded, item, labelID, actor, occurredAt, cause)
+}
+
+// NewItemLabelRemoved announces that an entry no longer carries a label.
+func NewItemLabelRemoved(id shared.ID, item work.WorkItem, labelID shared.ID, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newItemLabelChange(id, ItemLabelRemoved, item, labelID, actor, occurredAt, cause)
+}
+
+func newItemLabelChange(id shared.ID, eventType Type, item work.WorkItem, labelID shared.ID,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if labelID.IsZero() {
+		// An event about no label at all. Nothing a client sent could have caused it, so it is a
+		// defect rather than input (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.label_missing")
+	}
+
+	return NewEnvelope(id, eventType, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, map[string]any{
+			"item_id":       item.ID.String(),
+			"collection_id": item.CollectionID.String(),
+			"label_id":      labelID.String(),
+		})
+}

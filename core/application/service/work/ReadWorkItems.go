@@ -31,6 +31,7 @@ const (
 // GetWorkItem reads one task, work package or activity.
 type GetWorkItem struct {
 	Items      repository.Items
+	ItemLabels repository.ItemLabels
 	Containers repository.Containers
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
@@ -39,6 +40,13 @@ type GetWorkItem struct {
 // GetWorkItemQuery is the input, typed.
 type GetWorkItemQuery struct {
 	ItemID shared.ID
+	// ExpandLabels asks for the labels the entry carries.
+	//
+	// Asked for rather than always included, which is what `expand` is for (api-guidelines.md §4):
+	// the labels are a second query, and a client rendering a plain list should not pay for chips
+	// it is not drawing. Absent rather than empty when it was not asked for - so that a client can
+	// tell "this entry has no labels" from "I did not ask".
+	ExpandLabels bool
 }
 
 // Execute returns the item.
@@ -92,6 +100,50 @@ func (h GetWorkItem) Execute(
 	return item, nil
 }
 
+// labelsOf reads the labels a page of entries carries, or nothing when the caller did not ask.
+//
+// Read after the permission check rather than with the entries: a caller who may not read them is
+// refused before the second query runs, which is one round trip a refusal does not pay for.
+func labelsOf(
+	ctx context.Context, uow persistence.UnitOfWork, labels repository.ItemLabels,
+	actor appshared.ActorContext, expand bool, items []domain.WorkItem,
+) (map[shared.ID][]shared.ID, error) {
+	if !expand || len(items) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]shared.ID, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+
+	var carried map[shared.ID][]shared.ID
+	err := uow.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		carried, err = labels.ListFor(ctx, ids)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return carried, nil
+}
+
+// withLabels puts an entry's labels into its projection - as an empty array when it carries none,
+// because the caller asked and "none" is the answer.
+func withLabels(out usecase.Output, item domain.WorkItem, carried map[shared.ID][]shared.ID) usecase.Output {
+	if carried == nil {
+		return out
+	}
+
+	ids := make([]string, 0, len(carried[item.ID]))
+	for _, id := range carried[item.ID] {
+		ids = append(ids, id.String())
+	}
+	out["label_ids"] = ids
+	return out
+}
+
 // Descriptor is the catalogue entry.
 func (h GetWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
@@ -106,6 +158,12 @@ func (h GetWorkItem) Descriptor() usecase.Descriptor {
 			{
 				Name: "item_id", Kind: usecase.KindID, Required: true,
 				Description: "The item to read.",
+			},
+			{
+				Name: "expand_labels", Kind: usecase.KindBool,
+				Description: "Includes the labels the entry carries. Omitted leaves the field out " +
+					"of the answer entirely, so that a client can tell an entry with no labels " +
+					"from one whose labels it did not ask for.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -124,16 +182,23 @@ func (h GetWorkItem) invoke(
 		return nil, err
 	}
 
-	item, err := h.Execute(ctx, actor, GetWorkItemQuery{ItemID: itemID})
+	expand := in.Bool("expand_labels")
+	item, err := h.Execute(ctx, actor, GetWorkItemQuery{ItemID: itemID, ExpandLabels: expand})
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+
+	carried, err := labelsOf(ctx, h.UnitOfWork, h.ItemLabels, actor, expand, []domain.WorkItem{item})
+	if err != nil {
+		return nil, err
+	}
+	return withLabels(itemOutput(item), item, carried), nil
 }
 
 // ListWorkItems reads one level of one collection.
 type ListWorkItems struct {
 	Items      repository.Items
+	ItemLabels repository.ItemLabels
 	Containers repository.Containers
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
@@ -251,6 +316,11 @@ func (h ListWorkItems) Descriptor() usecase.Descriptor {
 				Name: "size", Kind: usecase.KindInt,
 				Description: "Rows per page, 1 to 200. Defaults to 50.",
 			},
+			{
+				Name: "expand_labels", Kind: usecase.KindBool,
+				Description: "Includes the labels each entry carries, read for the whole page in " +
+					"one query. Omitted leaves the field out of the answer entirely.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ItemReadAction, TargetType: itemTarget,
@@ -283,9 +353,15 @@ func (h ListWorkItems) invoke(
 		return nil, err
 	}
 
+	carried, err := labelsOf(
+		ctx, h.UnitOfWork, h.ItemLabels, actor, in.Bool("expand_labels"), page.Items)
+	if err != nil {
+		return nil, err
+	}
+
 	data := make([]usecase.Output, 0, len(page.Items))
 	for _, item := range page.Items {
-		data = append(data, itemOutput(item))
+		data = append(data, withLabels(itemOutput(item), item, carried))
 	}
 	return pageOutput(data, page.Info), nil
 }

@@ -7,6 +7,7 @@ package contract
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -519,5 +520,146 @@ func TestTheLastPageCarriesAnExplicitNullCursor(t *testing.T) {
 	}
 	if value != nil {
 		t.Errorf("next_cursor is %v, want null", value)
+	}
+}
+
+// bucketProjection is a column as a use case returns it: the field names of the contract, with the
+// optional values as explicit nulls (B-09).
+func bucketProjection() catalogue.Output {
+	return catalogue.Output{
+		"id":             "0192f000-0000-7000-8000-0000000000b1",
+		"collection_id":  "0192f000-0000-7000-8000-00000000000b",
+		"name":           "Doing",
+		"order_key":      "a1",
+		"wip_limit":      nil,
+		"is_done_bucket": false,
+		"color_token":    nil,
+		"version":        1,
+	}
+}
+
+// A board is a plain array rather than a page, so it is judged against the item schema row by row:
+// the contract declares `type: array` with `items: Bucket`, and the validator judges a named schema.
+func TestABoardMatchesTheBucketSchema(t *testing.T) {
+	spec := contractSpec(t)
+	collection := "0192f000-0000-7000-8000-00000000000b"
+
+	status, body := readResponse(t, "/containers/"+collection+"/buckets",
+		catalogue.Output{"data": []catalogue.Output{bucketProjection()}})
+	if status != http.StatusOK {
+		t.Fatalf("status %d: %s", status, body)
+	}
+
+	var board []json.RawMessage
+	if err := json.Unmarshal(body, &board); err != nil {
+		t.Fatalf("the board is not an array: %v (%s)", err, body)
+	}
+	if len(board) != 1 {
+		t.Fatalf("%d columns, want 1", len(board))
+	}
+
+	problems, err := spec.validateAgainst("Bucket", board[0])
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, problem := range problems {
+		t.Errorf("Bucket: %s", problem)
+	}
+}
+
+// The optional values a board renders are present as null rather than absent. A client that had to
+// tell "no limit" from "this server does not know about limits" would have to fetch the column.
+func TestAColumnCarriesItsOptionalValuesAsNull(t *testing.T) {
+	collection := "0192f000-0000-7000-8000-00000000000b"
+
+	_, body := readResponse(t, "/containers/"+collection+"/buckets",
+		catalogue.Output{"data": []catalogue.Output{bucketProjection()}})
+
+	var board []map[string]json.RawMessage
+	if err := json.Unmarshal(body, &board); err != nil {
+		t.Fatalf("the board is not an array: %v (%s)", err, body)
+	}
+	for _, field := range []string{"wip_limit", "color_token"} {
+		raw, present := board[0][field]
+		if !present {
+			t.Errorf("%s is absent rather than null", field)
+			continue
+		}
+		if string(raw) != "null" {
+			t.Errorf("%s is %s, want null", field, raw)
+		}
+	}
+}
+
+// labelProjection is a label as a use case returns it: the field names of the contract, with the
+// description as an explicit null (B-09).
+func labelProjection() catalogue.Output {
+	return catalogue.Output{
+		"id":            "0192f000-0000-7000-8000-0000000000c1",
+		"collection_id": "0192f000-0000-7000-8000-00000000000b",
+		"name":          "Urgent",
+		"color_token":   "accent.red",
+		"description":   nil,
+		"version":       1,
+	}
+}
+
+// A vocabulary is a plain array, so it is judged against the item schema row by row.
+func TestAVocabularyMatchesTheLabelSchema(t *testing.T) {
+	spec := contractSpec(t)
+	collection := "0192f000-0000-7000-8000-00000000000b"
+
+	status, body := readResponse(t, "/containers/"+collection+"/labels",
+		catalogue.Output{"data": []catalogue.Output{labelProjection()}})
+	if status != http.StatusOK {
+		t.Fatalf("status %d: %s", status, body)
+	}
+
+	var vocabulary []json.RawMessage
+	if err := json.Unmarshal(body, &vocabulary); err != nil {
+		t.Fatalf("the vocabulary is not an array: %v (%s)", err, body)
+	}
+	if len(vocabulary) != 1 {
+		t.Fatalf("%d labels, want 1", len(vocabulary))
+	}
+
+	problems, err := spec.validateAgainst("Label", vocabulary[0])
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, problem := range problems {
+		t.Errorf("Label: %s", problem)
+	}
+}
+
+// The labels an entry carries, as adding and removing report them (B-09).
+func TestTheItemLabelResponseMatchesTheSchema(t *testing.T) {
+	spec := contractSpec(t)
+	itemID := "0192f000-0000-7000-8000-00000000000e"
+
+	controller := rest.NewRestController()
+	controller.UseCases = fixedCatalogue{out: catalogue.Output{
+		"item_id":   itemID,
+		"label_ids": []string{"0192f000-0000-7000-8000-0000000000c1"},
+	}}
+
+	ctx := appshared.ContextWithActor(context.Background(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+	response := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(response, httptest.NewRequestWithContext(ctx, http.MethodPut,
+		rest.APIBasePath+"/items/"+itemID+"/labels/0192f000-0000-7000-8000-0000000000c1", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
+	}
+	problems, err := spec.validateAgainst("ItemLabels", response.Body.Bytes())
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, problem := range problems {
+		t.Errorf("ItemLabels: %s", problem)
 	}
 }

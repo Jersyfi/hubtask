@@ -834,3 +834,334 @@ func TestAChangeEventRefusesAnEmptyChangeSet(t *testing.T) {
 		t.Fatal("an event with no changes was built")
 	}
 }
+
+// The bucket a board is made of (B-09). `wip_limit` and `color_token` are explicit nulls in the
+// payload rather than omissions, for the reason the response carries them that way: a subscriber
+// that had to tell "no limit" from "this producer does not know about limits" would have to fetch
+// the column, which is what a snapshot exists to avoid.
+func TestTheBucketCreatedEventMatchesItsSchema(t *testing.T) {
+	spec := loadEventSchema(t, event.BucketCreated)
+	limit := 4
+
+	for _, c := range []struct {
+		name   string
+		bucket work.Bucket
+	}{
+		{name: "a plain column", bucket: work.Bucket{
+			ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"),
+			TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+			Name:         "Doing", OrderKey: "a1", Version: 1,
+		}},
+		{name: "one that carries everything", bucket: work.Bucket{
+			ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000b2"),
+			TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+			Name:         "Done", OrderKey: "a2", WipLimit: &limit, IsDoneBucket: true,
+			ColorToken: "surface.green", Version: 1,
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			envelope, err := event.NewBucketCreated(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e3"), c.bucket,
+				event.Actor{
+					Kind: shared.ActorUser,
+					ID:   shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+				},
+				time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC), event.Cause{})
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := spec.validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// The two change events of a board carry a snapshot and a change set beside it, as every change
+// event in this system does: the snapshot is what the column now is, and the change set is what a
+// field change trigger is written against.
+func TestTheBucketChangeEventsMatchTheirSchemas(t *testing.T) {
+	bucket := work.Bucket{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Name:         "In progress", OrderKey: "a1", Version: 2,
+	}
+	by := event.Actor{
+		Kind: shared.ActorUser, ID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	}
+	at := time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC)
+	eventID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e4")
+
+	for eventType, build := range map[event.Type]func() (event.Envelope, error){
+		event.BucketUpdated: func() (event.Envelope, error) {
+			return event.NewBucketUpdated(eventID, bucket,
+				[]work.FieldChange{{Field: work.FieldName, From: "Doing", To: "In progress"}},
+				by, at, event.Cause{})
+		},
+		event.BucketReordered: func() (event.Envelope, error) {
+			return event.NewBucketReordered(eventID, bucket,
+				[]work.FieldChange{{Field: work.FieldOrderKey, From: "a0", To: "a1"}},
+				by, at, event.Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// An event announcing that nothing changed is a defect: the writer does not write when nothing
+// moved, so reaching that point means the two disagree.
+func TestABucketChangeEventRefusesAnEmptyChangeSet(t *testing.T) {
+	_, err := event.NewBucketUpdated(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e4"),
+		work.Bucket{
+			ID:       shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"),
+			TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		},
+		nil, event.Actor{Kind: shared.ActorSystem},
+		time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC), event.Cause{})
+	if err == nil {
+		t.Fatal("an event with no change set was built")
+	}
+}
+
+// A deletion says where the entries went, so that a consumer does not have to reload the board.
+func TestTheBucketDeletedEventMatchesItsSchema(t *testing.T) {
+	deleted := time.Date(2026, 8, 19, 10, 0, 0, 0, time.UTC)
+	bucket := work.Bucket{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Name:         "Doing", OrderKey: "a1", DeletedAt: &deleted, Version: 2,
+	}
+	by := event.Actor{
+		Kind: shared.ActorUser, ID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	}
+
+	for _, c := range []struct {
+		name   string
+		target shared.ID
+		moved  int
+	}{
+		{name: "onto the leftmost remaining column",
+			target: shared.MustParseID("0192f000-0000-7000-8000-0000000000b2"), moved: 3},
+		{name: "off the last column of the board"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			envelope, err := event.NewBucketDeleted(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e5"), bucket,
+				c.target, c.moved, by, deleted, event.Cause{})
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, event.BucketDeleted).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// A label as a collection defines it (B-09).
+func TestTheLabelCreatedEventMatchesItsSchema(t *testing.T) {
+	spec := loadEventSchema(t, event.LabelCreated)
+
+	for _, c := range []struct {
+		name  string
+		label work.Label
+	}{
+		{name: "a plain label", label: work.Label{
+			ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000c1"),
+			TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+			Name:         "Urgent", ColorToken: "accent.red", Version: 1,
+		}},
+		{name: "one that carries a description", label: work.Label{
+			ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000c2"),
+			TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+			Name:         "Blocked", ColorToken: "accent.amber",
+			Description: "Waiting on somebody else", Version: 1,
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			envelope, err := event.NewLabelCreated(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e6"), c.label,
+				event.Actor{
+					Kind: shared.ActorUser,
+					ID:   shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+				},
+				time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC), event.Cause{})
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := spec.validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// The two remaining label events. A deletion carries a snapshot and no list of the entries that
+// carried the label: a collection's vocabulary is small and its entries are not, so listing them
+// would make the payload unbounded.
+func TestTheLabelChangeEventsMatchTheirSchemas(t *testing.T) {
+	deleted := time.Date(2026, 8, 19, 10, 0, 0, 0, time.UTC)
+	label := work.Label{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000c1"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Name:         "Blocked", ColorToken: "accent.amber", Version: 2,
+	}
+	by := event.Actor{
+		Kind: shared.ActorUser, ID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	}
+	eventID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e7")
+
+	for eventType, build := range map[event.Type]func() (event.Envelope, error){
+		event.LabelUpdated: func() (event.Envelope, error) {
+			return event.NewLabelUpdated(eventID, label,
+				[]work.FieldChange{{Field: work.FieldName, From: "Urgent", To: "Blocked"}},
+				by, deleted, event.Cause{})
+		},
+		event.LabelDeleted: func() (event.Envelope, error) {
+			gone := label
+			gone.DeletedAt = &deleted
+			return event.NewLabelDeleted(eventID, gone, by, deleted, event.Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// The two events domain-model.md §4 names by hand. Their payload is a reference rather than a
+// snapshot, which is the one place this system does not send one: a set merges separately, so a
+// snapshot of the entry would carry a value another device may already have merged differently.
+func TestTheItemLabelEventsMatchTheirSchemas(t *testing.T) {
+	item := work.WorkItem{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-00000000000e"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemTask,
+		Path:         work.RootPath(shared.MustParseID("0192f000-0000-7000-8000-00000000000e")),
+		Depth:        1, Title: "Buy oat milk", OrderKey: "a0",
+		CreatedBy: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		Version:   1,
+	}
+	labelID := shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+	by := event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}
+	at := time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC)
+	eventID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e8")
+
+	for eventType, build := range map[event.Type]func() (event.Envelope, error){
+		event.ItemLabelAdded: func() (event.Envelope, error) {
+			return event.NewItemLabelAdded(eventID, item, labelID, by, at, event.Cause{})
+		},
+		event.ItemLabelRemoved: func() (event.Envelope, error) {
+			return event.NewItemLabelRemoved(eventID, item, labelID, by, at, event.Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// An event about no label at all means the writer and the event disagree, which is a defect rather
+// than something a client sent.
+func TestAnItemLabelEventNeedsALabel(t *testing.T) {
+	_, err := event.NewItemLabelAdded(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e8"),
+		work.WorkItem{
+			ID:       shared.MustParseID("0192f000-0000-7000-8000-00000000000e"),
+			TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		},
+		"", event.Actor{Kind: shared.ActorSystem},
+		time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC), event.Cause{})
+	if err == nil {
+		t.Fatal("an event naming no label was built")
+	}
+}

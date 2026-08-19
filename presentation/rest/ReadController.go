@@ -73,20 +73,15 @@ func (c *RestController) ListContainers(
 func (c *RestController) GetWorkItem(
 	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, params openapi.GetWorkItemParams,
 ) {
-	// `expand` is in the contract and has no implementation yet: the relations it can ask for -
-	// children, labels, the assignee, the cover - belong to use cases that have not landed. Refused
-	// rather than ignored, on the same reasoning that makes an unknown request field a 422: a client
-	// that asked for children and received an item without them cannot tell that from an item that
-	// has none, and would render an empty tree (api-guidelines.md §6).
-	if expandsAnything(params.Expand) {
-		WriteProblem(w, shared.ErrValidation.
-			WithDetail("items.expand_not_supported").
-			WithFields(shared.FieldError{Path: "/expand", Code: "items.expand_not_supported"}),
-			correlation.RequestIDFrom(r.Context()))
+	labels, err := expansionsOf(params.Expand)
+	if err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
 		return
 	}
 
-	out, ok := c.read(w, r, getWorkItemUseCase, usecase.Input{"item_id": itemID.String()})
+	out, ok := c.read(w, r, getWorkItemUseCase, usecase.Input{
+		"item_id": itemID.String(), "expand_labels": labels,
+	})
 	if !ok {
 		return
 	}
@@ -95,33 +90,56 @@ func (c *RestController) GetWorkItem(
 	writeJSON(w, r, http.StatusOK, workItemResponse(out))
 }
 
-// expandsAnything reports whether the caller actually asked for a relation.
+// expansionsOf reads the relations a client asked for and reports which of them this installation
+// serves.
 //
-// `?expand=` binds as one empty entry rather than as no parameter at all, and a client that always
-// sends the parameter and leaves it empty is asking for the plain item. Refusing that would be
-// refusing a request that can be answered exactly as asked.
-func expandsAnything(expand *[]string) bool {
+// `labels` is served since B-09. Everything else the contract's example names - children, the
+// assignee, the cover - belongs to use cases that have not landed, and is refused by name rather
+// than ignored: a client that asked for children and received an entry without them cannot tell
+// that from an entry that has none, and would render an empty tree (api-guidelines.md §6).
+//
+// The list is comma separated in one query parameter (`style: form, explode: false`), and the
+// generated type hands it over already split. An empty entry is skipped rather than refused:
+// `?expand=` binds as one empty string rather than as no parameter, and a client that always sends
+// the parameter and leaves it empty is asking for the plain entry.
+func expansionsOf(expand *[]string) (labels bool, err error) {
 	if expand == nil {
-		return false
+		return false, nil
 	}
+
 	for _, relation := range *expand {
-		if strings.TrimSpace(relation) != "" {
-			return true
+		switch relation = strings.TrimSpace(relation); relation {
+		case "":
+			continue
+		case "labels":
+			labels = true
+		default:
+			return false, shared.ErrValidation.
+				WithDetail("items.expand_not_supported").
+				WithParams(map[string]string{"value": relation}).
+				WithFields(shared.FieldError{Path: "/expand", Code: "items.expand_not_supported"})
 		}
 	}
-	return false
+	return labels, nil
 }
 
 // ListWorkItems answers GET /items.
 func (c *RestController) ListWorkItems(
 	w http.ResponseWriter, r *http.Request, params openapi.ListWorkItemsParams,
 ) {
+	labels, err := expansionsOf(params.Expand)
+	if err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+
 	out, ok := c.read(w, r, listWorkItemsUseCase, usecase.Input{
 		"collection_id":    params.CollectionId.String(),
 		"parent_id":        optionalUUIDField(params.ParentId),
 		"include_archived": optionalBoolField(params.IncludeArchived),
 		"cursor":           optionalStringField(params.Cursor),
 		"size":             optionalIntField(params.Size),
+		"expand_labels":    labels,
 	})
 	if !ok {
 		return

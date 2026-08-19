@@ -154,8 +154,10 @@ func TestAFieldThatWasNotSentIsNotInvented(t *testing.T) {
 
 	postItem(t, registry, `{"type":"TASK","collection_id":"`+collectionID+`","title":"Buy milk"}`)
 
+	// `bucket_id` is not in this list any more: it is served since B-09, and travels like
+	// `parent_id` and `notes` - always sent, as null when the client named none.
 	for _, absent := range []string{
-		"bucket_id", "before_item_id", "assignee_id", "auto_assign", "label_ids", "member_ids",
+		"before_item_id", "assignee_id", "auto_assign", "label_ids", "member_ids",
 		"due_at", "due_date_only", "due_time_zone", "cover", "custom_fields",
 	} {
 		if _, present := registry.in[absent]; present {
@@ -211,5 +213,33 @@ func TestARefusedPlacementIsReportedAsAProblem(t *testing.T) {
 	params, _ := problem["params"].(map[string]any)
 	if params["item_type"] != "ACTIVITY" || params["capability"] != "NOTES" {
 		t.Errorf("params = %v", problem["params"])
+	}
+}
+
+// The column an entry sits in travels like the title: sent when the client sent it, and null and
+// the empty string alike take the entry off the board (B-09).
+func TestTheColumnTravelsWithTheItemUpdate(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		body string
+		want any
+	}{
+		{
+			name: "a column named",
+			body: `{"bucket_id":"0192f000-0000-7000-8000-0000000000b1"}`,
+			want: "0192f000-0000-7000-8000-0000000000b1",
+		},
+		{name: "null takes it off the board", body: `{"bucket_id":null}`, want: ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			registry := &catalogue{out: createdItem()}
+
+			patchItem(t, registry, c.body, "")
+
+			if registry.in["bucket_id"] != c.want {
+				t.Errorf("bucket_id reached the use case as %v, want %v",
+					registry.in["bucket_id"], c.want)
+			}
+		})
 	}
 }

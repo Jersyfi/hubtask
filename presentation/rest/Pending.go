@@ -134,6 +134,8 @@ func (pending) UnarchiveContainer(w http.ResponseWriter, r *http.Request, _ open
 	notAvailable(w, r)
 }
 
+// ListBuckets and CreateBucket are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) ListBuckets(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
 	notAvailable(w, r)
 }
@@ -142,7 +144,43 @@ func (pending) CreateBucket(w http.ResponseWriter, r *http.Request, _ openapi.Co
 	notAvailable(w, r)
 }
 
+func (pending) UpdateBucket(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.BucketId, _ openapi.UpdateBucketParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReorderBucket(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.BucketId, _ openapi.ReorderBucketParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteBucket(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.BucketId, _ openapi.DeleteBucketParams) {
+	notAvailable(w, r)
+}
+
+// ListLabels and CreateLabel are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) ListLabels(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateLabel(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateLabel(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.LabelId, _ openapi.UpdateLabelParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteLabel(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.LabelId, _ openapi.DeleteLabelParams) {
+	notAvailable(w, r)
+}
+
+// AddLabel and RemoveLabel are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) AddLabel(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.LabelId) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveLabel(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.LabelId) {
 	notAvailable(w, r)
 }
 

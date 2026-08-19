@@ -25,6 +25,7 @@ var updateNow = time.Date(2026, 8, 17, 11, 0, 0, 0, time.UTC)
 type updateHarness struct {
 	handler    UpdateWorkItem
 	items      *items
+	buckets    *buckets
 	containers *containers
 	events     *events
 	changes    *changes
@@ -40,13 +41,15 @@ func newUpdateHarness() *updateHarness {
 	}
 	containerStore := &containers{stored: map[shared.ID]domain.Container{}}
 
+	board := &buckets{stored: map[shared.ID]domain.Bucket{}}
 	h := &updateHarness{
-		items: store, containers: containerStore,
+		items: store, buckets: board, containers: containerStore,
 		events: &events{}, changes: &changes{}, audit: &sink{},
 		authorizer: &authorizer{}, uow: &unitOfWork{},
 	}
 	h.handler = UpdateWorkItem{
-		Items: store, Containers: containerStore, Profiles: &profiles{rows: systemProfiles()},
+		Items: store, Buckets: board, Containers: containerStore,
+		Profiles:   &profiles{rows: systemProfiles()},
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
 		UnitOfWork: h.uow, Clock: clock.Fixed(updateNow), IDs: &ids{}, HLC: &hlcSource{},
 	}
@@ -62,7 +65,25 @@ func newUpdateHarness() *updateHarness {
 
 	store.stored[packageID] = updatableItem(packageID, domain.ItemWorkPackage, taskID)
 	store.stored[activityID] = updatableItem(activityID, domain.ItemActivity, packageID)
+	// A task as well as the two below it: only a task carries a board, so the bucket tests need
+	// one and the capability tests need the others (domain-model.md §2).
+	task := updatableItem(taskID, domain.ItemTask, "")
+	task.Path = domain.RootPath(taskID)
+	store.stored[taskID] = task
 	return h
+}
+
+// withBucketOn puts a column on some collection's board and hands it back.
+func (h *updateHarness) withBucketOn(collection shared.ID) domain.Bucket {
+	bucket := domain.Bucket{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-0000000009b1"), TenantID: tenantID,
+		CollectionID: collection, Name: "Doing", OrderKey: "a0", Version: 1,
+	}
+	if collection != collectionID {
+		bucket.ID = shared.MustParseID("0192f000-0000-7000-8000-0000000009b2")
+	}
+	h.buckets.stored[bucket.ID] = bucket
+	return bucket
 }
 
 func updatableItem(id shared.ID, itemType domain.ItemType, parent shared.ID) domain.WorkItem {
@@ -477,9 +498,10 @@ func TestAnArchivedItemRefusesTheUpdate(t *testing.T) {
 
 func TestAnItemThatDoesNotExistIsSaidSo(t *testing.T) {
 	h := newUpdateHarness()
+	absent := shared.MustParseID("0192f000-0000-7000-8000-0000000009ff")
 
 	_, err := h.handler.Execute(t.Context(), actorFixture(), UpdateCommand{
-		ItemID: taskID, Attributes: domain.ItemAttributes{Title: said("Order the longer cable")},
+		ItemID: absent, Attributes: domain.ItemAttributes{Title: said("Order the longer cable")},
 	})
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("a missing item answered %v", err)
@@ -564,5 +586,98 @@ func TestTheDescriptorDeclaresWhatTheGatesRead(t *testing.T) {
 		if !declared[field] {
 			t.Errorf("the input does not declare %q", field)
 		}
+	}
+}
+
+// The board an entry sits on, through the update (B-09). Empty is not "leave it alone": it takes
+// the entry off the board, which is the same distinction the text fields keep.
+func TestUpdatingTheColumnAnEntrySitsIn(t *testing.T) {
+	h := newUpdateHarness()
+	board := h.withBucketOn(collectionID)
+
+	t.Run("into a column of this collection's board", func(t *testing.T) {
+		out, err := h.handler.invoke(t.Context(), actorFixture(), usecase.Input{
+			"item_id": taskID.String(), "bucket_id": board.ID.String(),
+		})
+		if err != nil {
+			t.Fatalf("the update failed: %v", err)
+		}
+		if out["bucket_id"] != board.ID.String() {
+			t.Errorf("bucket_id is %v", out["bucket_id"])
+		}
+	})
+
+	t.Run("a column nobody named leaves it where it is", func(t *testing.T) {
+		out, err := h.handler.invoke(t.Context(), actorFixture(), usecase.Input{
+			"item_id": taskID.String(), "title": "Buy oat milk",
+		})
+		if err != nil {
+			t.Fatalf("the update failed: %v", err)
+		}
+		if out["bucket_id"] != board.ID.String() {
+			t.Errorf("the entry left its column: %v", out["bucket_id"])
+		}
+	})
+
+	t.Run("off the board again", func(t *testing.T) {
+		out, err := h.handler.invoke(t.Context(), actorFixture(), usecase.Input{
+			"item_id": taskID.String(), "bucket_id": "",
+		})
+		if err != nil {
+			t.Fatalf("the update failed: %v", err)
+		}
+		if out["bucket_id"] != nil {
+			t.Errorf("bucket_id is %v, want null", out["bucket_id"])
+		}
+	})
+}
+
+// Invariant I-W6: a column belongs to the collection whose board it is on, and one from elsewhere
+// would put the entry on a board it is not on.
+func TestAColumnFromAnotherCollectionIsRefused(t *testing.T) {
+	h := newUpdateHarness()
+	elsewhere := h.withBucketOn(shared.MustParseID("0192f000-0000-7000-8000-0000000009cf"))
+
+	_, err := h.handler.invoke(t.Context(), actorFixture(), usecase.Input{
+		"item_id": taskID.String(), "bucket_id": elsewhere.ID.String(),
+	})
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("a foreign column was accepted: %v", err)
+	}
+	if shared.AsError(err).DetailCode != "buckets.not_in_collection" {
+		t.Errorf("detail code %s", shared.AsError(err).DetailCode)
+	}
+}
+
+// A board belongs to a collection, so only the entries directly in it have a place on one. The
+// capability matrix says the same thing about the type, and it is what refuses this.
+func TestAWorkPackageCannotBePutOnABoard(t *testing.T) {
+	h := newUpdateHarness()
+	board := h.withBucketOn(collectionID)
+
+	_, err := h.handler.invoke(t.Context(), actorFixture(), usecase.Input{
+		"item_id": packageID.String(), "bucket_id": board.ID.String(),
+	})
+	if !errors.Is(err, shared.ErrCapabilityNotSupported) {
+		t.Fatalf("a work package was put on a board: %v", err)
+	}
+}
+
+// A column that is no longer on the board is refused: an entry put into one would be nowhere a
+// client draws.
+func TestADeletedColumnCannotTakeAnEntry(t *testing.T) {
+	h := newUpdateHarness()
+	board := h.withBucketOn(collectionID)
+	deleted, _, err := board.Deleted(updateNow)
+	if err != nil {
+		t.Fatalf("deleting the column: %v", err)
+	}
+	h.buckets.stored[board.ID] = deleted
+
+	_, err = h.handler.invoke(t.Context(), actorFixture(), usecase.Input{
+		"item_id": taskID.String(), "bucket_id": board.ID.String(),
+	})
+	if !errors.Is(err, shared.ErrConflict) {
+		t.Fatalf("a deleted column took an entry: %v", err)
 	}
 }

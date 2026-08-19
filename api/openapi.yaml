@@ -841,6 +841,7 @@ paths:
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/PageSize"
         - $ref: "#/components/parameters/IncludeArchived"
+        - $ref: "#/components/parameters/Expand"
       responses:
         "200":
           description: A page of items
@@ -881,14 +882,7 @@ paths:
       tags: [items]
       operationId: getWorkItem
       parameters:
-        - name: expand
-          in: query
-          description: "Include relations, e.g. children:1, labels, assignee, cover"
-          schema:
-            type: array
-            items: { type: string }
-          style: form
-          explode: false
+        - $ref: "#/components/parameters/Expand"
       responses:
         "200":
           description: The item
@@ -1225,6 +1219,92 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /containers/{containerId}/buckets/{bucketId}:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/BucketId"
+    patch:
+      tags: [structure]
+      operationId: updateBucket
+      description: >
+        Changes a column's own fields. A field that is not sent is left alone; sending color_token
+        as null clears it, and sending wip_limit as null or 0 removes the limit. The name stays
+        unique in the collection. Where the column sits is not here - that is :reorder, so that a
+        rename and a rearrangement are two operations with two audit entries.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/BucketUpdate"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [structure]
+      operationId: deleteBucket
+      description: >
+        Takes the column off the board. Its entries are not deleted with it: they move to the
+        leftmost remaining column, or out of any column when this was the last one. What became of
+        them is in the answer rather than left to be discovered.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Deleted, with what became of the entries that were in it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BucketDeletion"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}/buckets/{bucketId}:reorder:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/BucketId"
+    post:
+      tags: [structure]
+      operationId: reorderBucket
+      description: >
+        Moves a column along its board. An absent before_bucket_id moves it to the right hand end.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                before_bucket_id:
+                  type: [string, "null"]
+                  format: uuid
+                  description: The column this one goes to the left of. Absent is the right hand end.
+      responses:
+        "200":
+          description: Moved
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}/labels:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -1233,13 +1313,119 @@ paths:
       operationId: listLabels
       responses:
         "200":
-          description: The collection's labels
+          description: The collection's labels, by name
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/Label"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [structure]
+      operationId: createLabel
+      description: >
+        Adds a label to a collection's vocabulary. The name has to be free in the collection,
+        compared without regard to case or accents. The colour is required: a label is rendered as
+        a chip and nothing else, so with none a client would have to invent one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LabelCreate"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Label"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}/labels/{labelId}:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/LabelId"
+    patch:
+      tags: [structure]
+      operationId: updateLabel
+      description: >
+        Changes a label's own fields. A field that is not sent is left alone; sending description as
+        null clears it. The colour cannot be cleared - a label is rendered as a chip and nothing
+        else. The name stays unique in the collection.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/LabelUpdate"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Label"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [structure]
+      operationId: deleteLabel
+      description: >
+        Takes the label out of the collection's vocabulary. The entries that carried it are not
+        rewritten: they stop showing it because it is gone, which is what makes the deletion
+        undoable without having to remember who wore it.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/labels/{labelId}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+      - $ref: "#/components/parameters/LabelId"
+    put:
+      tags: [items]
+      operationId: addLabel
+      description: >
+        Puts a label on an entry. Idempotent: an entry that already carries it succeeds. The label
+        has to belong to the entry's own collection - a label is a vocabulary one collection agreed
+        on - and the entry's type has to carry the LABELS capability.
+      responses:
+        "200":
+          description: The labels the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemLabels"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: removeLabel
+      description: >
+        Takes a label off an entry. Idempotent: an entry that does not carry it succeeds.
+      responses:
+        "200":
+          description: The labels the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemLabels"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -1274,6 +1460,16 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    LabelId:
+      name: labelId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    BucketId:
+      name: bucketId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     ItemId:
       name: itemId
       in: path
@@ -1305,6 +1501,19 @@ components:
       name: include_archived
       in: query
       schema: { type: boolean, default: false }
+    Expand:
+      name: expand
+      in: query
+      description: >
+        Relations to include, e.g. children:1, labels, assignee, cover. A relation this
+        installation does not serve is refused by name rather than ignored: an entry that came back
+        without its labels because they were not implemented is indistinguishable from one that
+        carries none.
+      schema:
+        type: array
+        items: { type: string }
+      style: form
+      explode: false
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -1680,6 +1889,12 @@ components:
       type: object
       required: [kind, id, code]
       properties:
+        item_id:
+          type: string
+          format: uuid
+          description: >
+            The entry that lost it. A move carries a whole subtree, so one operation can drop
+            references from several entries at once.
         kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
         id: { type: string, description: The reference that could not be carried over. }
         code: { type: string, description: A stable message code saying why. }
@@ -1775,15 +1990,34 @@ components:
 
     Bucket:
       type: object
-      required: [id, name]
+      description: >
+        A column of a collection's board - the "list" of the requirements. It belongs to exactly one
+        collection, and its name is unique there, compared without regard to case or accents.
+      required: [id, collection_id, name, order_key, wip_limit, is_done_bucket, color_token, version]
       properties:
         id: { type: string, format: uuid }
         collection_id: { type: string, format: uuid }
         name: { type: string, minLength: 1, maxLength: 120 }
-        order_key: { type: string }
-        wip_limit: { type: [integer, "null"] }
+        order_key:
+          type: string
+          description: >
+            The rank on the board - a fractional index rather than a number (offline-sync.md §4.2).
+        wip_limit:
+          type: [integer, "null"]
+          minimum: 1
+          description: >
+            How many entries the people using this board agreed to have in the column at once.
+            Advisory: nothing refuses the drop that exceeds it, because the requirement is that the
+            column turns red rather than that the work becomes impossible. Null is no limit.
         is_done_bucket: { type: boolean, default: false }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            Always present, as null when unset - like wip_limit. A board renders both, and a field
+            that appeared only once somebody had set it is one a client cannot read unconditionally.
+        version:
+          type: integer
+          description: The optimistic lock, returned as the ETag and sent back as If-Match.
 
     BucketCreate:
       type: object
@@ -1795,14 +2029,96 @@ components:
         is_done_bucket: { type: boolean, default: false }
         color_token: { type: [string, "null"] }
 
+    BucketUpdate:
+      type: object
+      description: JSON Merge Patch; null deletes a field.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        wip_limit:
+          type: [integer, "null"]
+          minimum: 0
+          description: >
+            Null and 0 both remove the limit. Zero is not a limit anybody could satisfy, so nothing
+            is lost by reading it that way, and it saves a client from a second field beside the
+            number.
+        is_done_bucket: { type: boolean }
+        color_token: { type: [string, "null"] }
+
+    BucketDeletion:
+      type: object
+      description: >
+        What became of the entries that were in a deleted column. Reported rather than left to be
+        discovered: a board that silently reassigned a person's cards would be indistinguishable
+        from one that lost them.
+      required: [bucket_id, target_bucket_id, moved_items]
+      properties:
+        bucket_id: { type: string, format: uuid }
+        target_bucket_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The column the entries moved to - the leftmost remaining one. Null when this was the
+            last column on the board, in which case the entries now carry none.
+        moved_items:
+          type: integer
+          description: How many entries were moved.
+
     Label:
       type: object
-      required: [id, name, color_token]
+      description: >
+        A tag a collection defines and its entries carry. Defined on the collection rather than on
+        the workspace: a label is a vocabulary the people working in one collection agree on, and a
+        workspace-wide list would make every collection pay for every other's.
+      required: [id, collection_id, name, color_token, description, version]
       properties:
         id: { type: string, format: uuid }
         collection_id: { type: string, format: uuid }
         name: { type: string, minLength: 1, maxLength: 120 }
-        color_token: { type: string }
+        color_token:
+          type: string
+          minLength: 1
+          description: >
+            A theme token rather than a colour value, so clients render it in their own palette.
+            Required: a label is rendered as a chip and nothing else.
+        description:
+          type: [string, "null"]
+          description: Always present, as null when unset.
+        version:
+          type: integer
+          description: The optimistic lock, returned as the ETag and sent back as If-Match.
+
+    LabelCreate:
+      type: object
+      required: [name, color_token]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        color_token: { type: string, minLength: 1 }
+        description: { type: [string, "null"] }
+
+    ItemLabels:
+      type: object
+      description: >
+        The labels one entry carries. Returned by adding and removing rather than the entry itself,
+        because neither touches the entry's own row: a label lives beside it, and an entry whose
+        version had moved would tell a client its title had changed too.
+      required: [item_id, label_ids]
+      properties:
+        item_id: { type: string, format: uuid }
+        label_ids:
+          type: array
+          items: { type: string, format: uuid }
+
+    LabelUpdate:
+      type: object
+      description: JSON Merge Patch; null deletes a field.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        color_token:
+          type: string
+          minLength: 1
+          description: >
+            Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a
+            client would have to invent one.
         description: { type: [string, "null"] }
 
     Comment:

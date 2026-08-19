@@ -232,6 +232,9 @@ func run() error {
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
 	profiles := postgres.NewCapabilityProfileRepository()
+	buckets := postgres.NewBucketRepository()
+	labels := postgres.NewLabelRepository()
+	itemLabels := postgres.NewItemLabelRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
@@ -247,7 +250,7 @@ func run() error {
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
 	// reorder is a move that keeps its parent (work.PlacementWriter).
 	placement := work.PlacementWriter{
-		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
@@ -259,6 +262,34 @@ func run() error {
 		Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
+	// Every verb that changes an existing column shares one dependency set: they read the same
+	// bucket, ask the same permission question of the same collection, and owe the same four writes
+	// (work.BucketWriter).
+	bucketWriter := work.BucketWriter{
+		Buckets: buckets, Containers: containers, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
+	// Both verbs that change an existing label share one dependency set, for the reason the bucket
+	// verbs do (work.LabelWriter).
+	labelWriter := work.LabelWriter{
+		Labels: labels, Containers: containers, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
+	// Both directions of an entry's labels share one dependency set. They are the same write in
+	// opposite directions - the same capability gate, the same collection check, the same tag -
+	// and wiring them separately would be two places to get one of thirteen fields wrong
+	// (work.ItemLabelWriter).
+	itemLabelWriter := work.ItemLabelWriter{
+		Items: items, ItemLabels: itemLabels, Labels: labels, Containers: containers,
+		Profiles: profiles, Authorizer: authorizer, Events: outbox, Changes: changes,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		HLC: hybrid,
 	}
 
 	useCases, err := usecase.NewRegistry(
@@ -304,6 +335,7 @@ func run() error {
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items:      items,
+			Buckets:    buckets,
 			Containers: containers,
 			Profiles:   profiles,
 			Authorizer: authorizer,
@@ -317,6 +349,7 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
+			Buckets:    buckets,
 			Containers: containers,
 			Profiles:   profiles,
 			Authorizer: authorizer,
@@ -333,6 +366,43 @@ func run() error {
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.MoveContainer{Writer: containerWriter}.Descriptor(),
+		work.CreateBucket{
+			Buckets:    buckets,
+			Containers: containers,
+			Authorizer: authorizer,
+			Events:     outbox,
+			Changes:    changes,
+			Audit:      auditSink,
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{},
+			IDs:        ids,
+			HLC:        hybrid,
+		}.Descriptor(),
+		work.ListBuckets{
+			Buckets: buckets, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.UpdateBucket{Writer: bucketWriter}.Descriptor(),
+		work.ReorderBucket{Writer: bucketWriter}.Descriptor(),
+		work.DeleteBucket{Writer: bucketWriter}.Descriptor(),
+		work.CreateLabel{
+			Labels:     labels,
+			Containers: containers,
+			Authorizer: authorizer,
+			Events:     outbox,
+			Changes:    changes,
+			Audit:      auditSink,
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{},
+			IDs:        ids,
+			HLC:        hybrid,
+		}.Descriptor(),
+		work.ListLabels{
+			Labels: labels, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.UpdateLabel{Writer: labelWriter}.Descriptor(),
+		work.DeleteLabel{Writer: labelWriter}.Descriptor(),
+		work.AddLabel{Writer: itemLabelWriter}.Descriptor(),
+		work.RemoveLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
@@ -344,10 +414,12 @@ func run() error {
 			UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.GetWorkItem{
-			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Items: items, ItemLabels: itemLabels, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.ListWorkItems{
-			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Items: items, ItemLabels: itemLabels, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),
 		work.ReopenWorkItem{Completion: completion}.Descriptor(),

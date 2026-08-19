@@ -212,7 +212,7 @@ SELECT
 -- returns them: the repository reports what is stored and judges none of it (I-W4).
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, order_key,
+  is_completed, completed_at, completed_by, bucket_id, order_key,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE id = $1;
@@ -236,17 +236,17 @@ LIMIT 1;
 -- every query that compares or searches them, and doing it here keeps a Unicode library out of
 -- the domain (ADR-0001, I-W7).
 --
--- The fields this use case does not own are absent rather than defaulted: bucket, labels,
--- members, assignee, due date, cover, custom fields and the recurrence rule are written by the
--- use cases that own them, and their columns carry NULL until then.
+-- The fields this use case does not own are absent rather than defaulted: labels, members,
+-- assignee, due date, cover, custom fields and the recurrence rule are written by the use cases
+-- that own them, and their columns carry NULL until then.
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  order_key, created_by, created_at, updated_at, version
+  bucket_id, order_key, created_by, created_at, updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
   normalize(sqlc.arg('title')::text, NFC),
-  sqlc.narg('notes'), sqlc.arg('order_key'), sqlc.arg('created_by'),
+  sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'), sqlc.arg('created_by'),
   sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
 
@@ -264,7 +264,7 @@ INSERT INTO work_item (
 -- and for the same reasons.
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, order_key,
+  is_completed, completed_at, completed_by, bucket_id, order_key,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE collection_id = sqlc.arg('collection_id')::uuid
@@ -329,6 +329,7 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 UPDATE work_item SET
   title      = sqlc.arg('title'),
   notes      = sqlc.narg('notes'),
+  bucket_id  = sqlc.narg('bucket_id'),
   updated_at = sqlc.arg('updated_at'),
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
@@ -378,6 +379,7 @@ UPDATE work_item SET
   path          = sqlc.arg('path'),
   depth         = sqlc.arg('depth'),
   order_key     = sqlc.arg('order_key'),
+  bucket_id     = sqlc.narg('bucket_id')::uuid,
   updated_at    = sqlc.arg('updated_at'),
   version       = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');

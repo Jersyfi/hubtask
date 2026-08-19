@@ -174,7 +174,7 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 const findWorkItem = `-- name: FindWorkItem :one
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, order_key,
+  is_completed, completed_at, completed_by, bucket_id, order_key,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE id = $1
@@ -193,6 +193,7 @@ type FindWorkItemRow struct {
 	IsCompleted  bool
 	CompletedAt  pgtype.Timestamptz
 	CompletedBy  pgtype.UUID
+	BucketID     pgtype.UUID
 	OrderKey     string
 	ArchivedAt   pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
@@ -221,6 +222,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.IsCompleted,
 		&i.CompletedAt,
 		&i.CompletedBy,
+		&i.BucketID,
 		&i.OrderKey,
 		&i.ArchivedAt,
 		&i.DeletedAt,
@@ -281,13 +283,13 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 const insertWorkItem = `-- name: InsertWorkItem :exec
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  order_key, created_by, created_at, updated_at, version
+  bucket_id, order_key, created_by, created_at, updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   normalize($7::text, NFC),
-  $8, $9, $10,
-  $11, $11, 1
+  $8, $9, $10, $11,
+  $12, $12, 1
 )
 `
 
@@ -300,6 +302,7 @@ type InsertWorkItemParams struct {
 	Depth        int32
 	Title        string
 	Notes        *string
+	BucketID     pgtype.UUID
 	OrderKey     string
 	CreatedBy    pgtype.UUID
 	CreatedAt    pgtype.Timestamptz
@@ -310,9 +313,9 @@ type InsertWorkItemParams struct {
 // every query that compares or searches them, and doing it here keeps a Unicode library out of
 // the domain (ADR-0001, I-W7).
 //
-// The fields this use case does not own are absent rather than defaulted: bucket, labels,
-// members, assignee, due date, cover, custom fields and the recurrence rule are written by the
-// use cases that own them, and their columns carry NULL until then.
+// The fields this use case does not own are absent rather than defaulted: labels, members,
+// assignee, due date, cover, custom fields and the recurrence rule are written by the use cases
+// that own them, and their columns carry NULL until then.
 func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) error {
 	_, err := q.db.Exec(ctx, insertWorkItem,
 		arg.ID,
@@ -323,6 +326,7 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 		arg.Depth,
 		arg.Title,
 		arg.Notes,
+		arg.BucketID,
 		arg.OrderKey,
 		arg.CreatedBy,
 		arg.CreatedAt,
@@ -502,7 +506,7 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 const listWorkItems = `-- name: ListWorkItems :many
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, order_key,
+  is_completed, completed_at, completed_by, bucket_id, order_key,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE collection_id = $1::uuid
@@ -540,6 +544,7 @@ type ListWorkItemsRow struct {
 	IsCompleted  bool
 	CompletedAt  pgtype.Timestamptz
 	CompletedBy  pgtype.UUID
+	BucketID     pgtype.UUID
 	OrderKey     string
 	ArchivedAt   pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
@@ -590,6 +595,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.IsCompleted,
 			&i.CompletedAt,
 			&i.CompletedBy,
+			&i.BucketID,
 			&i.OrderKey,
 			&i.ArchivedAt,
 			&i.DeletedAt,
@@ -895,14 +901,16 @@ const setWorkItemAttributes = `-- name: SetWorkItemAttributes :execrows
 UPDATE work_item SET
   title      = $1,
   notes      = $2,
-  updated_at = $3,
+  bucket_id  = $3,
+  updated_at = $4,
   version    = version + 1
-WHERE id = $4::uuid AND version = $5
+WHERE id = $5::uuid AND version = $6
 `
 
 type SetWorkItemAttributesParams struct {
 	Title           string
 	Notes           *string
+	BucketID        pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -926,6 +934,7 @@ func (q *Queries) SetWorkItemAttributes(ctx context.Context, arg SetWorkItemAttr
 	result, err := q.db.Exec(ctx, setWorkItemAttributes,
 		arg.Title,
 		arg.Notes,
+		arg.BucketID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,
@@ -1013,9 +1022,10 @@ UPDATE work_item SET
   path          = $3,
   depth         = $4,
   order_key     = $5,
-  updated_at    = $6,
+  bucket_id     = $6::uuid,
+  updated_at    = $7,
   version       = version + 1
-WHERE id = $7::uuid AND version = $8
+WHERE id = $8::uuid AND version = $9
 `
 
 type SetWorkItemPlacementParams struct {
@@ -1024,6 +1034,7 @@ type SetWorkItemPlacementParams struct {
 	Path            string
 	Depth           int32
 	OrderKey        string
+	BucketID        pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -1041,6 +1052,7 @@ func (q *Queries) SetWorkItemPlacement(ctx context.Context, arg SetWorkItemPlace
 		arg.Path,
 		arg.Depth,
 		arg.OrderKey,
+		arg.BucketID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,
