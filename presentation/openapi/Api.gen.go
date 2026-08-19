@@ -1552,6 +1552,12 @@ type ContainerCreate struct {
 	Type        ContainerType       `json:"type"`
 }
 
+// ContainerPage defines model for ContainerPage.
+type ContainerPage struct {
+	Data []Container `json:"data"`
+	Page PageInfo    `json:"page"`
+}
+
 // ContainerType defines model for ContainerType.
 type ContainerType string
 
@@ -1809,8 +1815,10 @@ type MoveResult struct {
 
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
-	HasMore    *bool   `json:"has_more,omitempty"`
-	NextCursor *string `json:"next_cursor,omitempty"`
+	HasMore bool `json:"has_more"`
+
+	// NextCursor The cursor for the next page, null on the last one. Opaque and signed: it is produced by the server and is neither to be constructed nor parsed by a client.
+	NextCursor *string `json:"next_cursor"`
 }
 
 // Problem defines model for Problem.
@@ -2099,6 +2107,12 @@ type WorkItemCreate struct {
 	Type ItemType `json:"type"`
 }
 
+// WorkItemPage defines model for WorkItemPage.
+type WorkItemPage struct {
+	Data []WorkItem `json:"data"`
+	Page PageInfo   `json:"page"`
+}
+
 // WorkItemUpdate JSON Merge Patch; null deletes a field.
 type WorkItemUpdate struct {
 	AssigneeId   *openapi_types.UUID     `json:"assignee_id,omitempty"`
@@ -2114,6 +2128,9 @@ type WorkItemUpdate struct {
 
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID
+
+// CollectionId defines model for CollectionId.
+type CollectionId = openapi_types.UUID
 
 // ContainerId defines model for ContainerId.
 type ContainerId = openapi_types.UUID
@@ -2223,6 +2240,15 @@ type UpdateGroupParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListWorkItemsParams defines parameters for ListWorkItems.
+type ListWorkItemsParams struct {
+	CollectionId    CollectionId     `form:"collection_id" json:"collection_id"`
+	ParentId        *ParentId        `form:"parent_id,omitempty" json:"parent_id,omitempty"`
+	Cursor          *Cursor          `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size            *PageSize        `form:"size,omitempty" json:"size,omitempty"`
+	IncludeArchived *IncludeArchived `form:"include_archived,omitempty" json:"include_archived,omitempty"`
+}
+
 // CreateWorkItemParams defines parameters for CreateWorkItem.
 type CreateWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -2287,6 +2313,12 @@ type MoveWorkItemJSONBody struct {
 
 	// TargetParentId The item to move this one under. Null moves it to the top level of a collection, which then has to be named by target_collection_id.
 	TargetParentId *openapi_types.UUID `json:"target_parent_id,omitempty"`
+}
+
+// ReopenWorkItemParams defines parameters for ReopenWorkItem.
+type ReopenWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ReorderWorkItemJSONBody defines parameters for ReorderWorkItem.
@@ -2465,6 +2497,9 @@ type ServerInterface interface {
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
 
+	// (GET /items)
+	ListWorkItems(w http.ResponseWriter, r *http.Request, params ListWorkItemsParams)
+
 	// (POST /items)
 	CreateWorkItem(w http.ResponseWriter, r *http.Request, params CreateWorkItemParams)
 
@@ -2488,6 +2523,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:move)
 	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId)
+
+	// (POST /items/{itemId}:reopen)
+	ReopenWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ReopenWorkItemParams)
 
 	// (POST /items/{itemId}:reorder)
 	ReorderWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ReorderWorkItemParams)
@@ -3346,6 +3384,91 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListWorkItems operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkItems(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListWorkItemsParams
+
+	// ------------- Required query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "parent_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "parent_id", r.URL.Query(), &params.ParentId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "parent_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "parent_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "include_archived" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_archived", r.URL.Query(), &params.IncludeArchived, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_archived"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_archived", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWorkItems(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) CreateWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -3701,6 +3824,56 @@ func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.MoveWorkItem(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReopenWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) ReopenWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReopenWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReopenWorkItem(w, r, itemId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4229,12 +4402,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}", wrapper.TrashContainer)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}", wrapper.GetContainer)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.UpdateContainer)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items", wrapper.ListWorkItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items", wrapper.CreateWorkItem)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}", wrapper.TrashWorkItem)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}", wrapper.GetWorkItem)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reorder", wrapper.ReorderWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:move", wrapper.MoveWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkItems)

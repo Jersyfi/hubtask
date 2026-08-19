@@ -91,6 +91,7 @@ func (pending) StartBackup(w http.ResponseWriter, r *http.Request) { notAvailabl
 
 func (pending) VerifyBackup(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
 
+// ListContainers is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ListContainers(w http.ResponseWriter, r *http.Request, _ openapi.ListContainersParams) {
 	notAvailable(w, r)
 }
@@ -106,6 +107,7 @@ func (pending) TrashContainer(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// GetContainer is overridden by RestController, for the reason given at CreateContainer.
 func (pending) GetContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
 	notAvailable(w, r)
 }
@@ -131,10 +133,16 @@ func (pending) CreateWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// ListWorkItems is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ListWorkItems(w http.ResponseWriter, r *http.Request, _ openapi.ListWorkItemsParams) {
+	notAvailable(w, r)
+}
+
 func (pending) TrashWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.TrashWorkItemParams) {
 	notAvailable(w, r)
 }
 
+// GetWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) GetWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.GetWorkItemParams) {
 	notAvailable(w, r)
 }
@@ -151,7 +159,13 @@ func (pending) AddComment(w http.ResponseWriter, r *http.Request, _ openapi.Item
 	notAvailable(w, r)
 }
 
+// CompleteWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CompleteWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CompleteWorkItemParams) {
+	notAvailable(w, r)
+}
+
+// ReopenWorkItem is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ReopenWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ReopenWorkItemParams) {
 	notAvailable(w, r)
 }
 

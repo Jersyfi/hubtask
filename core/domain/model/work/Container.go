@@ -50,10 +50,14 @@ const MaxContainerNameLength = 200
 
 // Container is a hub or a collection (domain-model.md §3.3).
 //
-// What is deliberately absent: `policies`. Its four documented keys - the completion policy, the
-// default bucket, capability overrides, and automatic assignment - are each set by a use case of
-// their own (UpdateContainerPolicies), and a field nothing writes is a promise nothing keeps.
-// The column carries the empty object until then.
+// Of the `policies` column's four documented keys, one is here: the completion policy, because B-07
+// reads it. The other three - the default bucket, capability overrides, automatic assignment - stay
+// absent on the reasoning that kept this one absent until now: a field nothing reads and nothing
+// writes is a promise nothing keeps. They arrive with the use cases that own them.
+//
+// Nothing writes the completion policy yet either; UpdateContainerPolicies (B-06) does. It is read all
+// the same, and a collection that has never been configured reads as the default - which is why the
+// column starting as `{}` is a special case nowhere above the adapter.
 type Container struct {
 	ID       shared.ID
 	TenantID shared.ID
@@ -80,6 +84,10 @@ type Container struct {
 	CreatedBy    shared.ID
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	// CompletionPolicy decides whether a child's completion propagates upwards (I-W5). Only a
+	// collection carries a meaningful one - a hub holds no items - and it is read off both, because
+	// the column is on both and a reader that skipped hubs would be a second rule to keep.
+	CompletionPolicy CompletionPolicy
 	// Version is the optimistic lock. It starts at 1, which is what the column default says, so
 	// that a freshly created container has an ETag before it has been read back.
 	Version int
@@ -142,10 +150,15 @@ func NewContainer(in NewContainerInput) (Container, error) {
 		Icon:        strings.TrimSpace(in.Icon),
 		ColorToken:  strings.TrimSpace(in.ColorToken),
 		OrderKey:    in.OrderKey,
-		CreatedBy:   in.CreatedBy,
-		CreatedAt:   in.Now,
-		UpdatedAt:   in.Now,
-		Version:     1,
+		// Not a parameter: a new collection has no policy configured, and the policy it behaves as is
+		// the default until UpdateContainerPolicies (B-06) says otherwise. Setting it here rather than
+		// leaving the zero value means nothing above this constructor has to know that "" and MANUAL
+		// are the same thing.
+		CompletionPolicy: DefaultCompletionPolicy,
+		CreatedBy:        in.CreatedBy,
+		CreatedAt:        in.Now,
+		UpdatedAt:        in.Now,
+		Version:          1,
 	}, nil
 }
 

@@ -29,6 +29,19 @@ type items struct {
 	inserted []domain.WorkItem
 	stored   map[shared.ID]domain.WorkItem
 	lastKey  string
+	// page is what List answers with, and asked is what it was asked (B-04's read side).
+	page  repository.ItemPage
+	asked repository.ItemQuery
+	// children is what ChildCompletion answers, per parent, and completions records every write
+	// SetCompletion took - the roll-up tests care about both: one is the state it decided from, the
+	// other is what it decided.
+	children    map[shared.ID]domain.ChildCompletion
+	completions []completionWrite
+	findErr     error
+	listErr     error
+	insertErr   error
+	setErr      error
+	conflictOn  shared.ID
 	// The move and reorder fakes: what the neighbours answer, and what each write was asked to store. The
 	// B-08 tests care about both - one is the position the ordering service measured against, the other is
 	// where the item ended up.
@@ -38,7 +51,6 @@ type items struct {
 	askedBefore shared.ID
 	ranks       []rankWrite
 	moves       []repository.Move
-	insertErr   error
 	rankErr     error
 	moveErr     error
 	subtreeSize int
@@ -89,11 +101,46 @@ func (i *items) MoveSubtree(_ context.Context, move repository.Move) (int, error
 }
 
 func (i *items) Find(_ context.Context, id shared.ID) (domain.WorkItem, error) {
+	if i.findErr != nil {
+		return domain.WorkItem{}, i.findErr
+	}
 	item, found := i.stored[id]
 	if !found {
 		return domain.WorkItem{}, shared.ErrNotFound
 	}
 	return item, nil
+}
+
+func (i *items) List(_ context.Context, query repository.ItemQuery) (repository.ItemPage, error) {
+	i.asked = query
+	if i.listErr != nil {
+		return repository.ItemPage{}, i.listErr
+	}
+	return i.page, nil
+}
+
+// completionWrite is one call to SetCompletion: what it was asked to store and against which version.
+type completionWrite struct {
+	item            domain.WorkItem
+	expectedVersion int
+}
+
+func (i *items) ChildCompletion(_ context.Context, parentID shared.ID) (domain.ChildCompletion, error) {
+	return i.children[parentID], nil
+}
+
+func (i *items) SetCompletion(_ context.Context, item domain.WorkItem, expectedVersion int) error {
+	if i.setErr != nil {
+		return i.setErr
+	}
+	if item.ID == i.conflictOn {
+		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.completions = append(i.completions, completionWrite{item: item, expectedVersion: expectedVersion})
+	// Kept, so that a second pass over the same item reads the state the first pass wrote - which is what
+	// makes an idempotence test mean anything.
+	i.stored[item.ID] = item
+	return nil
 }
 
 func (i *items) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {

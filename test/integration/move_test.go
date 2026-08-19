@@ -14,7 +14,6 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
-	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // The three placement methods against a real database (B-08). Each gets a cross-tenant negative, because the
@@ -36,7 +35,7 @@ func movableSubtree(ctx context.Context, t *testing.T, tenant, author, collectio
 	activity.Path, activity.Depth = pack.ChildPath(activityID), 3
 
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		items := postgres.NewItemRepository()
+		items := itemRepo()
 		for _, item := range []work.WorkItem{task, pack, activity} {
 			if err := items.Insert(ctx, item); err != nil {
 				return err
@@ -57,7 +56,7 @@ func findWorkItem(ctx context.Context, t *testing.T, tenant, id shared.ID) work.
 	var item work.WorkItem
 	if err := read(ctx, t, tenant, func(ctx context.Context) error {
 		var err error
-		item, err = postgres.NewItemRepository().Find(ctx, id)
+		item, err = itemRepo().Find(ctx, id)
 		return err
 	}); err != nil {
 		t.Fatalf("reading item %s: %v", id, err)
@@ -71,7 +70,7 @@ func seedRootTask(ctx context.Context, t *testing.T, tenant, author, collection 
 
 	id := freshID(t)
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return postgres.NewItemRepository().
+		return itemRepo().
 			Insert(ctx, taskIn(tenant, author, collection, id, freshName(t), "a0"))
 	}); err != nil {
 		t.Fatalf("seeding the task: %v", err)
@@ -113,7 +112,7 @@ func TestMovingAnItemRewritesItsWholeSubtree(t *testing.T) {
 	destinationID := freshID(t)
 	destination := taskIn(tenantA, authorA, collection, destinationID, freshName(t), "b0")
 	if err := write(background, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewItemRepository().Insert(ctx, destination)
+		return itemRepo().Insert(ctx, destination)
 	}); err != nil {
 		t.Fatalf("seeding the destination: %v", err)
 	}
@@ -124,7 +123,7 @@ func TestMovingAnItemRewritesItsWholeSubtree(t *testing.T) {
 	var touched int
 	if err := write(background, t, tenantA, func(ctx context.Context) error {
 		var err error
-		touched, err = postgres.NewItemRepository().MoveSubtree(ctx, repository.Move{
+		touched, err = itemRepo().MoveSubtree(ctx, repository.Move{
 			Item:            pack,
 			TargetParentID:  destinationID,
 			CollectionID:    collection,
@@ -186,7 +185,7 @@ func TestASubtreeShiftsEveryDepthByTheSameAmount(t *testing.T) {
 	delta := (deeper.Depth + 1) - pack.Depth
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := postgres.NewItemRepository().MoveSubtree(ctx, repository.Move{
+		_, err := itemRepo().MoveSubtree(ctx, repository.Move{
 			Item: pack, TargetParentID: deeper.ID, CollectionID: collection,
 			OldPrefix: pack.Path, NewPrefix: newPrefix, DepthDelta: delta,
 			OrderKey: "c0", UpdatedAt: created.Add(time.Hour), ExpectedVersion: pack.Version,
@@ -221,14 +220,14 @@ func TestATrashedDescendantIsRewrittenWithTheSubtree(t *testing.T) {
 	destinationID := freshID(t)
 	destination := taskIn(tenantA, authorA, collection, destinationID, freshName(t), "b0")
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewItemRepository().Insert(ctx, destination)
+		return itemRepo().Insert(ctx, destination)
 	}); err != nil {
 		t.Fatalf("seeding the destination: %v", err)
 	}
 
 	newPrefix := destination.ChildPath(pack.ID)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := postgres.NewItemRepository().MoveSubtree(ctx, repository.Move{
+		_, err := itemRepo().MoveSubtree(ctx, repository.Move{
 			Item: pack, TargetParentID: destinationID, CollectionID: collection,
 			OldPrefix: pack.Path, NewPrefix: newPrefix, DepthDelta: 0,
 			OrderKey: "c0", UpdatedAt: created.Add(time.Hour), ExpectedVersion: pack.Version,
@@ -252,7 +251,7 @@ func TestAMoveWithAStaleVersionRewritesNothing(t *testing.T) {
 	_, pack, activity := movableSubtree(ctx, t, tenantA, authorA, collection)
 
 	err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := postgres.NewItemRepository().MoveSubtree(ctx, repository.Move{
+		_, err := itemRepo().MoveSubtree(ctx, repository.Move{
 			Item: pack, TargetParentID: pack.ParentID, CollectionID: collection,
 			OldPrefix: pack.Path, NewPrefix: pack.Path, DepthDelta: 0,
 			OrderKey: "c0", UpdatedAt: created.Add(time.Hour),
@@ -277,7 +276,7 @@ func TestAMoveCannotReachAnotherTenant(t *testing.T) {
 	_, pack, activity := movableSubtree(ctx, t, tenantA, authorA, collection)
 
 	err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		_, err := postgres.NewItemRepository().MoveSubtree(ctx, repository.Move{
+		_, err := itemRepo().MoveSubtree(ctx, repository.Move{
 			Item: pack, TargetParentID: pack.ParentID, CollectionID: collection,
 			OldPrefix: pack.Path, NewPrefix: pack.Path + "moved/", DepthDelta: 0,
 			OrderKey: "c0", UpdatedAt: created.Add(time.Hour), ExpectedVersion: pack.Version,
@@ -299,7 +298,7 @@ func TestReorderingBetweenTwoNeighboursTouchesOneRow(t *testing.T) {
 
 	first, second, third := freshID(t), freshID(t), freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		items := postgres.NewItemRepository()
+		items := itemRepo()
 		for id, key := range map[shared.ID]string{first: "a0", second: "a1", third: "a2"} {
 			if err := items.Insert(ctx, taskIn(tenantA, authorA, collection, id, freshName(t), key)); err != nil {
 				return err
@@ -316,7 +315,7 @@ func TestReorderingBetweenTwoNeighboursTouchesOneRow(t *testing.T) {
 	var previous, next string
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		var err error
-		previous, next, err = postgres.NewItemRepository().Neighbours(ctx, level, second, third)
+		previous, next, err = itemRepo().Neighbours(ctx, level, second, third)
 		return err
 	}); err != nil {
 		t.Fatalf("reading the neighbours: %v", err)
@@ -330,7 +329,7 @@ func TestReorderingBetweenTwoNeighboursTouchesOneRow(t *testing.T) {
 	ranked.OrderKey = "a0V"
 	ranked.UpdatedAt = created.Add(time.Hour)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewItemRepository().SetOrderKey(ctx, ranked, moving.Version)
+		return itemRepo().SetOrderKey(ctx, ranked, moving.Version)
 	}); err != nil {
 		t.Fatalf("reordering: %v", err)
 	}
@@ -354,7 +353,7 @@ func TestTheMovingItemIsNotItsOwnNeighbour(t *testing.T) {
 
 	first, second := freshID(t), freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		items := postgres.NewItemRepository()
+		items := itemRepo()
 		if err := items.Insert(ctx, taskIn(tenantA, authorA, collection, first, freshName(t), "a0")); err != nil {
 			return err
 		}
@@ -369,7 +368,7 @@ func TestTheMovingItemIsNotItsOwnNeighbour(t *testing.T) {
 	var previous, next string
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		var err error
-		previous, next, err = postgres.NewItemRepository().Neighbours(ctx, level, "", second)
+		previous, next, err = itemRepo().Neighbours(ctx, level, "", second)
 		return err
 	}); err != nil {
 		t.Fatalf("reading the neighbours: %v", err)
@@ -387,7 +386,7 @@ func TestAnEmptyLevelHasNoBounds(t *testing.T) {
 	var previous, next string
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		var err error
-		previous, next, err = postgres.NewItemRepository().
+		previous, next, err = itemRepo().
 			Neighbours(ctx, repository.Level{CollectionID: collection}, "", "")
 		return err
 	}); err != nil {
@@ -409,7 +408,7 @@ func TestTheRankMethodsCannotReachAnotherTenant(t *testing.T) {
 		var previous, next string
 		if err := read(ctx, t, tenantB, func(ctx context.Context) error {
 			var err error
-			previous, next, err = postgres.NewItemRepository().
+			previous, next, err = itemRepo().
 				Neighbours(ctx, repository.Level{CollectionID: collection}, "", "")
 			return err
 		}); err != nil {
@@ -424,7 +423,7 @@ func TestTheRankMethodsCannotReachAnotherTenant(t *testing.T) {
 		ranked := item
 		ranked.OrderKey = "z9"
 		err := write(ctx, t, tenantB, func(ctx context.Context) error {
-			return postgres.NewItemRepository().SetOrderKey(ctx, ranked, item.Version)
+			return itemRepo().SetOrderKey(ctx, ranked, item.Version)
 		})
 		if !errors.Is(err, shared.ErrVersionConflict) {
 			t.Fatalf("writing across the boundary answered %v", err)

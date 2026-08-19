@@ -253,6 +253,73 @@ func (i WorkItem) IsArchived() bool { return i.ArchivedAt != nil }
 // period, which is a different thing from being archived.
 func (i WorkItem) IsTrashed() bool { return i.DeletedAt != nil }
 
+// EnsureCompletable refuses what cannot have its completion changed at all.
+//
+// Two reasons, and they are different kinds of answer. A type whose profile does not carry COMPLETION
+// cannot be completed by anybody - that is the capability matrix, and it comes back as
+// ErrCapabilityNotSupported naming the type and the capability (ADR-0006). A trashed or archived item
+// cannot be *edited*, which is invariant I-W4 and a conflict: the request is well formed and the state
+// is what makes it impossible, which is the distinction that tells a client whether restoring the item
+// first would help (api-guidelines.md §6).
+//
+// The capability is checked before the lifecycle deliberately. "An activity has no completion" is true
+// of the type whatever state one particular activity is in, and reporting the state first would send a
+// client off to restore an item that still could not be completed afterwards.
+func (i WorkItem) EnsureCompletable(profile CapabilityProfile) error {
+	if err := profile.Require(CapabilityCompletion, "/completion"); err != nil {
+		return err
+	}
+	if i.IsTrashed() {
+		return shared.ErrConflict.
+			WithDetail("items.trashed").
+			WithParams(map[string]string{"item_id": i.ID.String()})
+	}
+	if i.IsArchived() {
+		return shared.ErrConflict.
+			WithDetail("items.archived").
+			WithParams(map[string]string{"item_id": i.ID.String()})
+	}
+	return nil
+}
+
+// Completed returns the item marked done, by whom and when.
+//
+// Idempotent: an item that is already done comes back untouched, keeping the original timestamp and the
+// original person. That is not politeness towards a client retrying - it is what invariant I-W5 asks of
+// the roll-up, which may reach the same parent twice from two children, and it is what keeps
+// `completed_by` the truth about who finished the work rather than about who last pressed the button.
+//
+// The caller decides what to do with an unchanged item: nothing is written, no version is spent and no
+// event is announced, which is what makes a repeat harmless rather than merely accepted.
+func (i WorkItem) Completed(by shared.ID, at time.Time) WorkItem {
+	if i.Completion.IsCompleted {
+		return i
+	}
+
+	completedAt := at.UTC()
+	i.Completion = Completion{IsCompleted: true, CompletedAt: &completedAt, CompletedBy: by}
+	i.UpdatedAt = at
+	return i
+}
+
+// Reopened returns the item marked open again, and clears who completed it and when.
+//
+// Cleared rather than kept: the two fields answer "when was this finished, and by whom", and an open
+// item has no answer. Keeping the old values would make `completed_at` a record of the last time it
+// happened to be closed, which is what the activity history is for (B-11).
+//
+// Idempotent for the reason Completed is: reopening propagates upwards, and an item already open comes
+// back untouched so that nothing is written.
+func (i WorkItem) Reopened(at time.Time) WorkItem {
+	if !i.Completion.IsCompleted {
+		return i
+	}
+
+	i.Completion = Completion{}
+	i.UpdatedAt = at
+	return i
+}
+
 // ChildPath is where an item directly underneath this one would sit. Kept next to Path so that
 // the two cannot drift: whoever builds a path and whoever reads it share this line.
 func (i WorkItem) ChildPath(child shared.ID) string { return i.Path + child.String() + PathSeparator }

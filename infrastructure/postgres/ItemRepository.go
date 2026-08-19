@@ -9,10 +9,13 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // ItemRepository stores tasks, work packages and activities - one table for all three, because
@@ -21,9 +24,13 @@ import (
 // Nothing here names a tenant. The transaction the caller opened decided that, and row level
 // security applies it to every statement below (ADR-0010) - which is why the cross-tenant tests
 // in test/integration are what prove this file correct, not a unit test with a fake.
-type ItemRepository struct{}
+type ItemRepository struct {
+	cursors security.CursorCodec
+}
 
-func NewItemRepository() ItemRepository { return ItemRepository{} }
+func NewItemRepository(cursors security.CursorCodec) ItemRepository {
+	return ItemRepository{cursors: cursors}
+}
 
 var _ repository.Items = ItemRepository{}
 
@@ -51,6 +58,131 @@ func (r ItemRepository) Find(ctx context.Context, id shared.ID) (work.WorkItem, 
 			WithCause(fmt.Errorf("reading the work item: %w", err))
 	}
 	return itemFrom(row)
+}
+
+// List returns one page of one level of one collection, in the items' manual order.
+//
+// Unlike Find, this filters: a trashed item is not part of a level, and an archived one only when
+// the caller says so. Find answers "what is this item", where the lifecycle state is the answer;
+// this answers "what is in here", where it is not.
+func (r ItemRepository) List(ctx context.Context, query repository.ItemQuery) (repository.ItemPage, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.ItemPage{}, err
+	}
+
+	collection, err := uuidOf(query.CollectionID)
+	if err != nil {
+		return repository.ItemPage{}, err
+	}
+	parent, err := optionalUUID(query.ParentID)
+	if err != nil {
+		return repository.ItemPage{}, err
+	}
+	from, err := cursorAfter(r.cursors, query.Page.Cursor)
+	if err != nil {
+		return repository.ItemPage{}, err
+	}
+
+	rows, err := queries.ListWorkItems(ctx, sqlc.ListWorkItemsParams{
+		CollectionID:    collection,
+		ParentID:        parent,
+		IncludeArchived: query.IncludeArchived,
+		CursorOrderKey:  from.sortKey,
+		CursorID:        from.id,
+		PageSize:        pageProbe(query.Page.Size),
+	})
+	if err != nil {
+		return repository.ItemPage{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the work items: %w", err))
+	}
+
+	page := repository.ItemPage{Items: make([]work.WorkItem, 0, len(rows))}
+	for _, row := range rows {
+		item, err := itemFrom(sqlc.FindWorkItemRow(row))
+		if err != nil {
+			return repository.ItemPage{}, err
+		}
+		page.Items = append(page.Items, item)
+	}
+
+	page.Items, page.Info = pageOf(page.Items, query.Page.Size, r.cursors,
+		func(last work.WorkItem) security.Position {
+			return security.Position{SortKey: last.OrderKey, ID: last.ID}
+		})
+	return page, nil
+}
+
+// ChildCompletion counts one item's children and how many are done.
+func (r ItemRepository) ChildCompletion(ctx context.Context, parentID shared.ID) (work.ChildCompletion, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return work.ChildCompletion{}, err
+	}
+	parent, err := uuidOf(parentID)
+	if err != nil {
+		return work.ChildCompletion{}, err
+	}
+
+	// No IsNoRows branch: an aggregate over no rows is still one row, with two zeroes in it. An item
+	// with no children is therefore the same answer as an item whose children were all trashed, which is
+	// what the roll-up wants - it concludes nothing from either.
+	row, err := queries.ChildCompletion(ctx, parent)
+	if err != nil {
+		return work.ChildCompletion{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the children of %s: %w", parentID, err))
+	}
+	return work.ChildCompletion{Total: int(row.Total), Completed: int(row.Completed)}, nil
+}
+
+// SetCompletion writes the completion, against the version the caller decided on.
+func (r ItemRepository) SetCompletion(ctx context.Context, item work.WorkItem, expectedVersion int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+	completedBy, err := optionalUUID(item.Completion.CompletedBy)
+	if err != nil {
+		return err
+	}
+
+	var completedAt pgtype.Timestamptz
+	if item.Completion.CompletedAt != nil {
+		completedAt = timestampOf(*item.Completion.CompletedAt)
+	}
+
+	affected, err := queries.SetWorkItemCompletion(ctx, sqlc.SetWorkItemCompletionParams{
+		IsCompleted: item.Completion.IsCompleted,
+		CompletedAt: completedAt,
+		CompletedBy: completedBy,
+		UpdatedAt:   timestampOf(item.UpdatedAt),
+		ID:          id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the completion of %s: %w", item.ID, err))
+	}
+	if affected == 0 {
+		// Either it is gone or somebody else moved it on. The second is the interesting one and the one a
+		// client can act on: read it again and reapply. It is also the answer when the row belongs to
+		// another tenant, because row level security removed it from the update's reach - and a caller
+		// must not be able to tell that apart from a version that moved (multi-tenancy.md §2).
+		return shared.ErrVersionConflict.
+			WithDetail("items.version_conflict").
+			WithParams(map[string]string{
+				"item_id": item.ID.String(), "expected_version": strconv.Itoa(expectedVersion),
+			})
+	}
+	return nil
 }
 
 // Neighbours returns the ranks either side of a position at one level.

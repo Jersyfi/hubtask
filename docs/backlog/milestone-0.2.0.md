@@ -83,8 +83,9 @@ pagination per the API guidelines, ETags for optimistic concurrency, and the pro
 leaves domain objects inside the core (DTOs at the application layer).
 
 **Acceptance:** cursor pagination is stable under concurrent inserts (no skipped or repeated
-rows); an ETag round trip works (`If-Match` on a later update returns `412` on a stale version);
-read-only transactions are used (`WithinReadOnly`); the contract test covers every new response.
+rows); an ETag round trip works (`If-Match` on a later update returns `409 version_conflict` on a
+stale version, per ADR-0025); read-only transactions are used (`WithinReadOnly`); the contract
+test covers every new response.
 
 **Read:** `api-guidelines.md`, `domain-model.md` §6, `multi-tenancy.md` §7
 

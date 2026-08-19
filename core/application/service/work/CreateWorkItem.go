@@ -193,8 +193,10 @@ func (h CreateWorkItem) scopeOf(
 		return "", nil, err
 	}
 
-	// Built by containerPath, which the move use cases need for the same reason: two copies of this would
-	// eventually disagree about one level.
+	// The path runs from the tenant downwards: the hub the collection sits in, then the collection
+	// itself. A membership held at any of them counts, which is what "the effective permission is the
+	// highest role along the path" means. Built by containerPath, which the read side needs for the
+	// same reason - two copies of this would eventually disagree about one level.
 	return collection.ID, containerPath(collection), nil
 }
 
@@ -416,16 +418,21 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 		"path":          item.Path,
 		"depth":         item.Depth,
 		"title":         item.Title,
+		// Read off the item rather than written out as three nulls. A create never produces a
+		// completed item, and the read side returns this same projection for one that is
+		// (B-07) - a completion that reported itself open would be a lie a client acts on.
 		"completion": map[string]any{
 			"is_completed": item.Completion.IsCompleted,
-			"completed_at": nil,
-			"completed_by": nil,
+			"completed_at": timeOrNil(item.Completion.CompletedAt),
+			"completed_by": idOrNil(item.Completion.CompletedBy),
 		},
-		"order_key":  item.OrderKey,
-		"created_by": item.CreatedBy.String(),
-		"created_at": item.CreatedAt,
-		"updated_at": item.UpdatedAt,
-		"version":    item.Version,
+		"order_key":   item.OrderKey,
+		"archived_at": timeOrNil(item.ArchivedAt),
+		"deleted_at":  timeOrNil(item.DeletedAt),
+		"created_by":  item.CreatedBy.String(),
+		"created_at":  item.CreatedAt,
+		"updated_at":  item.UpdatedAt,
+		"version":     item.Version,
 	}
 	if !item.ParentID.IsZero() {
 		out["parent_id"] = item.ParentID.String()

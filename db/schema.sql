@@ -150,6 +150,9 @@ CREATE TABLE container (
   icon         text,
   color_token  text,
   order_key    text NOT NULL,
+  -- policies keys (domain-model.md §3.3): completion_policy (MANUAL | ROLLUP, read since B-07),
+  -- default_bucket_id, capability_overrides, auto_assign. An absent key means the default; the column
+  -- starts as {} and UpdateContainerPolicies (B-06) is what writes into it.
   policies     jsonb NOT NULL DEFAULT '{}'::jsonb,
   archived_at  timestamptz,
   deleted_at   timestamptz,
@@ -274,6 +277,11 @@ CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
 CREATE INDEX wi_assignee_idx ON work_item (tenant_id, assignee_id, is_completed, due_at)
   WHERE deleted_at IS NULL;
 CREATE INDEX wi_parent_idx   ON work_item (tenant_id, parent_id, order_key);
+-- The plain item list of GET /items: one level of one collection, in its manual order. `id` last,
+-- because the cursor is a keyset over (order_key, id) (B-04, api-guidelines.md §4).
+CREATE INDEX wi_level_order_idx
+  ON work_item (tenant_id, collection_id, parent_id, order_key COLLATE "C", id)
+  WHERE deleted_at IS NULL;
 CREATE INDEX wi_path_idx     ON work_item (tenant_id, path text_pattern_ops);
 CREATE INDEX wi_search_idx   ON work_item USING gin (search_vector);
 CREATE INDEX wi_custom_idx   ON work_item USING gin (custom_fields jsonb_path_ops);

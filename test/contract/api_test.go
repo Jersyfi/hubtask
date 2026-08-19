@@ -11,11 +11,13 @@ import (
 	"net/http/httptest"
 	"slices"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/otel/trace/noop"
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	catalogue "github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/presentation/rest"
@@ -181,7 +183,7 @@ func TestEveryErrorMatchesTheProblemSchema(t *testing.T) {
 		wantStatus int
 	}{
 		"an unknown route":      {rest.APIBasePath + "/nothing-here", http.StatusNotFound},
-		"a pending operation":   {rest.APIBasePath + "/containers", http.StatusNotFound},
+		"a pending operation":   {rest.APIBasePath + "/backup-targets", http.StatusNotFound},
 		"outside the base path": {"/nothing-here", http.StatusNotFound},
 	}
 
@@ -245,5 +247,232 @@ func TestTheErrorModelMapsOntoTheDocumentedStatuses(t *testing.T) {
 		for _, problem := range problems {
 			t.Errorf("%v: %s", err, problem)
 		}
+	}
+}
+
+// The read side's responses, judged by the schemas in api/openapi.yaml rather than by a copy of them
+// here (B-04). Four of them: the two single objects, and the two pages - the page schemas are named
+// components for exactly this reason, since an inline schema in a path item is one this validator
+// cannot resolve.
+func readResponse(t *testing.T, path string, out catalogue.Output) (int, []byte) {
+	t.Helper()
+
+	controller := rest.NewRestController()
+	controller.UseCases = fixedCatalogue{out: out}
+
+	ctx := appshared.ContextWithActor(context.Background(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+
+	response := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(response, httptest.NewRequestWithContext(
+		ctx, http.MethodGet, rest.APIBasePath+path, nil))
+	return response.Code, response.Body.Bytes()
+}
+
+// fixedCatalogue answers every invocation with one output. What the use case would decide is not this
+// test's subject - the shape of what the adapter writes is.
+// The completion actions answer with a WorkItem, and the state they answer with is the one a create never
+// produces: completed, with both fields of the completion answered (B-07).
+func TestTheCompletionResponsesMatchTheSchema(t *testing.T) {
+	spec := contractSpec(t)
+	at := time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC)
+	completedAt := at.Add(time.Hour)
+	itemID := "0192f000-0000-7000-8000-00000000000e"
+
+	completed := catalogue.Output{
+		"id":            itemID,
+		"type":          "ACTIVITY",
+		"collection_id": "0192f000-0000-7000-8000-00000000000b",
+		"parent_id":     "0192f000-0000-7000-8000-00000000000f",
+		"path":          "/0192f000-0000-7000-8000-00000000000f/" + itemID + "/",
+		"depth":         2,
+		"title":         "Order the cable",
+		"completion": map[string]any{
+			"is_completed": true,
+			"completed_at": completedAt,
+			"completed_by": "0192f000-0000-7000-8000-00000000000d",
+		},
+		"order_key":  "a0",
+		"created_by": "0192f000-0000-7000-8000-00000000000d",
+		"created_at": at,
+		"updated_at": completedAt,
+		"version":    4,
+	}
+	reopened := catalogue.Output{}
+	for field, value := range completed {
+		reopened[field] = value
+	}
+	reopened["completion"] = map[string]any{
+		"is_completed": false, "completed_at": nil, "completed_by": nil,
+	}
+	reopened["version"] = 5
+
+	for name, c := range map[string]struct {
+		action string
+		out    catalogue.Output
+	}{
+		"complete": {"complete", completed},
+		"reopen":   {"reopen", reopened},
+	} {
+		t.Run(name, func(t *testing.T) {
+			controller := rest.NewRestController()
+			controller.UseCases = fixedCatalogue{out: c.out}
+
+			ctx := appshared.ContextWithActor(context.Background(), appshared.ActorContext{
+				Kind:      appshared.ActorUser,
+				TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+				AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+			})
+
+			response := httptest.NewRecorder()
+			controller.Routes().ServeHTTP(response, httptest.NewRequestWithContext(
+				ctx, http.MethodPost, rest.APIBasePath+"/items/"+itemID+":"+c.action, nil))
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", response.Code, response.Body)
+			}
+			problems, err := spec.validateAgainst("WorkItem", response.Body.Bytes())
+			if err != nil {
+				t.Fatalf("%v", err)
+			}
+			for _, problem := range problems {
+				t.Errorf("WorkItem: %s", problem)
+			}
+		})
+	}
+}
+
+// fixedCatalogue answers every invocation with one output. What a use case would decide is not this test's
+// subject - the shape of what the adapter writes is.
+type fixedCatalogue struct{ out catalogue.Output }
+
+func (c fixedCatalogue) Invoke(
+	context.Context, string, appshared.ActorContext, catalogue.Input,
+) (catalogue.Output, error) {
+	return c.out, nil
+}
+
+func containerProjection() catalogue.Output {
+	at := time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
+	return catalogue.Output{
+		"id":          "0192f000-0000-7000-8000-00000000000b",
+		"type":        "HUB",
+		"parent_id":   nil,
+		"name":        "Private",
+		"description": "Everything personal",
+		"icon":        "home",
+		"color_token": "blue",
+		"order_key":   "a0",
+		"archived_at": nil,
+		"deleted_at":  nil,
+		"created_at":  at,
+		"updated_at":  at,
+		"version":     1,
+	}
+}
+
+func itemProjection() catalogue.Output {
+	at := time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
+	completedAt := at.Add(time.Hour)
+
+	return catalogue.Output{
+		"id":            "0192f000-0000-7000-8000-00000000000e",
+		"type":          "TASK",
+		"collection_id": "0192f000-0000-7000-8000-00000000000b",
+		"parent_id":     nil,
+		"path":          "/0192f000-0000-7000-8000-00000000000e/",
+		"depth":         1,
+		"title":         "Buy milk",
+		"notes":         "Semi-skimmed, two litres",
+		// Completed and archived, which is the state a create never produces: the read side returns
+		// this projection and the schema has to accept it.
+		"completion": map[string]any{
+			"is_completed": true,
+			"completed_at": completedAt,
+			"completed_by": "0192f000-0000-7000-8000-00000000000d",
+		},
+		"order_key":   "a0",
+		"archived_at": completedAt,
+		"deleted_at":  nil,
+		"created_by":  "0192f000-0000-7000-8000-00000000000d",
+		"created_at":  at,
+		"updated_at":  at,
+		"version":     3,
+	}
+}
+
+func TestTheReadResponsesMatchTheirSchemas(t *testing.T) {
+	spec := contractSpec(t)
+	collection := "0192f000-0000-7000-8000-00000000000b"
+
+	cases := map[string]struct {
+		path   string
+		out    catalogue.Output
+		schema string
+	}{
+		"a container": {
+			"/containers/" + collection, containerProjection(), "Container",
+		},
+		"an item": {
+			"/items/0192f000-0000-7000-8000-00000000000e", itemProjection(), "WorkItem",
+		},
+		"a page of containers": {
+			"/containers",
+			catalogue.Output{
+				"data": []catalogue.Output{containerProjection()},
+				"page": map[string]any{"next_cursor": "an-opaque-cursor", "has_more": true},
+			},
+			"ContainerPage",
+		},
+		"a page of items": {
+			"/items?collection_id=" + collection,
+			catalogue.Output{
+				"data": []catalogue.Output{itemProjection()},
+				"page": map[string]any{"next_cursor": nil, "has_more": false},
+			},
+			"WorkItemPage",
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			status, body := readResponse(t, c.path, c.out)
+			if status != http.StatusOK {
+				t.Fatalf("status %d: %s", status, body)
+			}
+
+			problems, err := spec.validateAgainst(c.schema, body)
+			if err != nil {
+				t.Fatalf("%v", err)
+			}
+			for _, problem := range problems {
+				t.Errorf("%s: %s", c.schema, problem)
+			}
+		})
+	}
+}
+
+// PageInfo requires both of its fields, so the last page carries an explicit null rather than no
+// field: a client reads next_cursor unconditionally, and an omitted one would make "no more pages"
+// indistinguishable from "this server does not page".
+func TestTheLastPageCarriesAnExplicitNullCursor(t *testing.T) {
+	_, body := readResponse(t, "/containers", catalogue.Output{
+		"data": []catalogue.Output{},
+		"page": map[string]any{"next_cursor": nil, "has_more": false},
+	})
+
+	page, ok := decode(t, body)["page"].(map[string]any)
+	if !ok {
+		t.Fatalf("the body carries no page: %s", body)
+	}
+	value, present := page["next_cursor"]
+	if !present {
+		t.Error("next_cursor is absent rather than null")
+	}
+	if value != nil {
+		t.Errorf("next_cursor is %v, want null", value)
 	}
 }

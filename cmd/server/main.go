@@ -224,11 +224,25 @@ func run() error {
 	// particular: /meta/capabilities answers from the same reader that decides whether a
 	// placement is permitted, so what an installation advertises and what it accepts cannot
 	// drift apart (ADR-0006).
-	containers := postgres.NewContainerRepository()
-	items := postgres.NewItemRepository()
+	//
+	// The cursor codec is shared by both list repositories rather than derived twice: it is keyed on
+	// the installation secret, and one derivation means one place where that key comes from
+	// (api-guidelines.md §4).
+	cursors := security.NewCursorCodec(cfg.SecretKey)
+	containers := postgres.NewContainerRepository(cursors)
+	items := postgres.NewItemRepository(cursors)
 	profiles := postgres.NewCapabilityProfileRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
+
+	// Both directions of completion share one dependency set. The two operations are the same walk in
+	// opposite directions, and wiring them separately would be two places to get one of eleven fields
+	// wrong (work.CompletionWriter).
+	completion := work.CompletionWriter{
+		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
 
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
 	// reorder is a move that keeps its parent (work.PlacementWriter).
@@ -292,6 +306,25 @@ func run() error {
 			IDs:        ids,
 			HLC:        hybrid,
 		}.Descriptor(),
+		work.GetContainer{
+			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		// The authorisation service twice, under two names: Authorize for the level a client named,
+		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
+		// may see rather than refused outright (ReadContainers.Execute).
+		work.ListContainers{
+			Containers: containers, Authorizer: authorizer, Reader: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.GetWorkItem{
+			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListWorkItems{
+			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.CompleteWorkItem{Completion: completion}.Descriptor(),
+		work.ReopenWorkItem{Completion: completion}.Descriptor(),
+
 		work.MoveWorkItem{Placement: placement}.Descriptor(),
 		work.ReorderWorkItem{Placement: placement}.Descriptor(),
 	)

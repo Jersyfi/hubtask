@@ -33,6 +33,41 @@ func NewItemCreated(id shared.ID, item work.WorkItem, actor Actor,
 		ItemSubject(item.ID), actor, occurredAt, cause, itemPayload(item))
 }
 
+// NewItemCompleted announces that an item is done.
+//
+// Announced for a roll-up exactly as for a person's click. A consumer that needs to know which it was
+// reads the causation chain - the roll-up's event is caused by the child's - rather than a second event
+// type, because a separate name for an automatic completion would make every rule that reacts to "done"
+// subscribe to two of them and forget one.
+//
+// The payload is the whole item rather than just the completion, for the reason NewItemCreated gives: a
+// consumer that had to fetch the item would produce a request per event and read a state that has
+// already moved on. `completion.completed_at` and `completion.completed_by` are the two fields
+// domain-model.md §4 names for this event, and they are inside the completion object where a REST
+// response also carries them.
+func NewItemCompleted(id shared.ID, item work.WorkItem, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if !item.Completion.IsCompleted {
+		// The event would say the opposite of its own name. A defect in whatever built it, not something
+		// a client did (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.completion_inconsistent")
+	}
+	return NewEnvelope(id, ItemCompleted, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, itemPayload(item))
+}
+
+// NewItemReopened announces that a completed item is open again.
+func NewItemReopened(id shared.ID, item work.WorkItem, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if item.Completion.IsCompleted {
+		return Envelope{}, shared.ErrInternal.WithDetail("events.completion_inconsistent")
+	}
+	return NewEnvelope(id, ItemReopened, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, itemPayload(item))
+}
+
 // Movement is where an item came from, for an event about where it now is.
 //
 // The "from" half cannot be read off the item afterwards - the item is the new state - so it is passed. The
@@ -83,8 +118,9 @@ func NewItemMoved(id shared.ID, item work.WorkItem, from Movement, actor Actor,
 		ItemSubject(item.ID), actor, occurredAt, cause, payload)
 }
 
-// itemPayload is the snapshot every item event carries: the item in the API's field names, so that a webhook
-// payload and a REST response describe the same object in the same words.
+// itemPayload is the snapshot every item event carries - created, completed, reopened and moved - in the
+// API's field names, so that a webhook payload and a REST response describe the same object in the same
+// words.
 //
 // One builder rather than one per event. Copies of this map would drift in the way that matters least to
 // whoever changes one and most to a subscriber reading them all.
@@ -101,8 +137,12 @@ func itemPayload(item work.WorkItem) map[string]any {
 		"order_key":     item.OrderKey,
 		"created_at":    item.CreatedAt.UTC(),
 		"created_by":    item.CreatedBy.String(),
-		"updated_at":    item.UpdatedAt.UTC(),
-		"version":       item.Version,
+		// updated_at travels because the completion events are about a change, and a consumer ordering
+		// two changes to the same item needs to know when each happened. It is on the created event too:
+		// one builder, and a field that appeared on two of three events would be a field a subscriber
+		// cannot rely on.
+		"updated_at": item.UpdatedAt.UTC(),
+		"version":    item.Version,
 	}
 	if !item.ParentID.IsZero() {
 		payload["parent_id"] = item.ParentID.String()

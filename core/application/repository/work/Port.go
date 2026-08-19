@@ -16,6 +16,72 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
+// Page is what a paged read asks for and reports back about the walk itself.
+//
+// The cursor is opaque here, and deliberately so: it is produced and read by the adapter, which is
+// the only layer that knows what the rows are sorted by and holds the key it is signed with
+// (api-guidelines.md §4, security.md §8). The application layer clamps the size, passes the cursor
+// through, and never looks inside it - so a change of sort key is a change to one adapter rather than
+// to every use case that lists something.
+type Page struct {
+	// Cursor is the boundary to continue after, empty for the first page.
+	Cursor string
+	// Size is how many rows the caller wants. Already clamped by the use case; an adapter reads one
+	// row beyond it to answer HasMore, and does not return that row.
+	Size int
+}
+
+// PageInfo is the walk's own state, as the contract's PageInfo schema carries it.
+type PageInfo struct {
+	// NextCursor continues the walk, and is empty when HasMore is false.
+	NextCursor string
+	HasMore    bool
+}
+
+// ContainerQuery names one level of the container tree.
+//
+// A level rather than a filtered set: an absent ParentID means the hubs, not "any parent". The tree
+// is two deep, so "one level" is the whole of what a plain list can usefully mean here - everything
+// else is the query DSL (B-12).
+type ContainerQuery struct {
+	// ParentID is the hub whose collections are wanted, or the zero identifier for the hubs.
+	ParentID shared.ID
+	// Type narrows the level further, and composes with ParentID rather than replacing it. The two
+	// impossible combinations therefore return an empty page: a collection always has a parent, a
+	// hub never does.
+	Type work.ContainerType
+	// IncludeArchived keeps archived containers in the page. Trashed ones are never in it - the
+	// trash is its own view (B-10).
+	IncludeArchived bool
+	Page            Page
+}
+
+// ContainerPage is one page of a level.
+type ContainerPage struct {
+	Containers []work.Container
+	Info       PageInfo
+}
+
+// ItemQuery names one level of one collection.
+//
+// CollectionID is required even when ParentID decides the level on its own: it is what the index the
+// query reads through begins with, and what keeps the level of tasks from being a scan of every task
+// in the tenant.
+type ItemQuery struct {
+	CollectionID shared.ID
+	// ParentID is the item whose children are wanted, or the zero identifier for the items directly
+	// in the collection.
+	ParentID        shared.ID
+	IncludeArchived bool
+	Page            Page
+}
+
+// ItemPage is one page of a level.
+type ItemPage struct {
+	Items []work.WorkItem
+	Info  PageInfo
+}
+
 // Level names one level of one collection: the items with the same parent inside it. An absent ParentID is
 // the level directly under the collection.
 type Level struct {
@@ -54,6 +120,14 @@ type Containers interface {
 	// would confirm the existence of another tenant's data (multi-tenancy.md §2).
 	Find(ctx context.Context, id shared.ID) (work.Container, error)
 
+	// List returns one page of one level, in the containers' manual order.
+	//
+	// It reports what the tenant has, and judges no further than the query asks: whether the actor
+	// may see a given container is decided in the application layer, which is the only place
+	// authorisation happens (ADR-0005). A repository that filtered by permission would be a second
+	// place for that rule to be wrong.
+	List(ctx context.Context, query ContainerQuery) (ContainerPage, error)
+
 	// LastOrderKey returns the highest rank among the containers directly under parentID, or the
 	// empty string when there are none. An empty parentID means the hubs, which sit under nothing.
 	//
@@ -82,6 +156,29 @@ type Items interface {
 	// exist" (I-W4).
 	Find(ctx context.Context, id shared.ID) (work.WorkItem, error)
 
+	// List returns one page of one level of one collection, in the items' manual order.
+	//
+	// Trashed items are never in it, and archived ones only when asked - unlike Find, which reports
+	// both as they are stored. The difference is not an inconsistency: Find answers "what is this
+	// item", where the lifecycle state is the answer, and List answers "what is in this level", where
+	// a trashed item is not.
+	List(ctx context.Context, query ItemQuery) (ItemPage, error)
+
+	// ChildCompletion counts the children of one item and how many of them are done - the two numbers
+	// the roll-up decides from (I-W5).
+	//
+	// A summary rather than the children, because the question is one boolean: is anything still open
+	// down there. Trashed children are not counted, archived ones are; the reasoning is at
+	// work.ChildCompletion, and it lives there rather than here because it is a rule about what
+	// "children" means and not about how they are stored.
+	ChildCompletion(ctx context.Context, parentID shared.ID) (work.ChildCompletion, error)
+
+	// SetCompletion writes an item's completion, or reports a version conflict.
+	//
+	// The expected version is passed rather than read off the item, for the reason UpdateGroup's is: the
+	// caller knows which version it decided against, and an update that re-read the row would overwrite
+	// whoever moved it in between (api-guidelines.md §5).
+	SetCompletion(ctx context.Context, item work.WorkItem, expectedVersion int) error
 	// Neighbours returns the two ranks a position sits between at one level: the item to go before, and
 	// whatever sits below it.
 	//

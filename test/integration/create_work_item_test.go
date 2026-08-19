@@ -30,9 +30,8 @@ import (
 // narrowing. Working in A would mean testing the system matrix against a tenant that has replaced
 // it, which is a different question and a confusing way to ask it.
 
-func itemCatalogueFor(t *testing.T) *usecase.Registry {
+func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 	t.Helper()
-	ctx := context.Background()
 
 	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
 	fixed := portclock.Fixed(created)
@@ -44,8 +43,8 @@ func itemCatalogueFor(t *testing.T) *usecase.Registry {
 	sink := postgres.NewAuditSink(ids)
 
 	registry, err := usecase.NewRegistry(nil, work.CreateWorkItem{
-		Items:      postgres.NewItemRepository(),
-		Containers: postgres.NewContainerRepository(),
+		Items:      itemRepo(),
+		Containers: containerRepo(),
 		Profiles:   postgres.NewCapabilityProfileRepository(),
 		Authorizer: access.Service{
 			Memberships: postgres.NewMembershipRepository(),
@@ -80,7 +79,7 @@ func TestTheThreeLevelsAreCreatedAgainstTheSeededProfiles(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
 	collection := collectionFor(ctx, t, tenantB, authorB)
-	registry := itemCatalogueFor(t)
+	registry := itemCatalogueFor(ctx, t)
 	actor := itemWriter(tenantB, authorB)
 
 	task, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
@@ -129,7 +128,7 @@ func TestCreatingAnItemWritesEverythingInOneTransaction(t *testing.T) {
 	collection := collectionFor(ctx, t, tenantB, authorB)
 	title := freshName(t)
 
-	out, err := itemCatalogueFor(t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
+	out, err := itemCatalogueFor(ctx, t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
 		usecase.Input{"type": "TASK", "collection_id": collection.String(), "title": title})
 	if err != nil {
 		t.Fatalf("creating the task: %v", err)
@@ -189,7 +188,7 @@ func TestEveryForbiddenPlacementIsRefusedAgainstTheDatabase(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
 	collection := collectionFor(ctx, t, tenantB, authorB)
-	registry := itemCatalogueFor(t)
+	registry := itemCatalogueFor(ctx, t)
 	actor := itemWriter(tenantB, authorB)
 
 	task, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
@@ -253,7 +252,7 @@ func TestANoteOnAnActivityIsRefusedByTheSeededProfile(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
 	collection := collectionFor(ctx, t, tenantB, authorB)
-	registry := itemCatalogueFor(t)
+	registry := itemCatalogueFor(ctx, t)
 	actor := itemWriter(tenantB, authorB)
 
 	task, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
@@ -292,7 +291,7 @@ func TestAFieldNoUseCaseWritesYetIsRefusedByName(t *testing.T) {
 	seedMemberships(ctx, t)
 	collection := collectionFor(ctx, t, tenantB, authorB)
 
-	_, err := itemCatalogueFor(t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
+	_, err := itemCatalogueFor(ctx, t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
 		usecase.Input{
 			"type": "TASK", "collection_id": collection.String(), "title": "Buy milk",
 			"due_at": "2026-09-01T09:00:00Z",
@@ -316,7 +315,7 @@ func TestAnItemCannotBeCreatedInAnotherTenantsCollection(t *testing.T) {
 	// The collection belongs to the other tenant this time, and the actor is the one working here.
 	collection := collectionFor(ctx, t, tenantA, authorA)
 
-	_, err := itemCatalogueFor(t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
+	_, err := itemCatalogueFor(ctx, t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
 		usecase.Input{
 			"type": "TASK", "collection_id": collection.String(), "title": "Buy milk",
 		})
@@ -350,7 +349,7 @@ func TestAnAccountWithoutARoleCannotCreateAnItem(t *testing.T) {
 	before := countIn(ctx, t,
 		`SELECT count(*) FROM audit_log WHERE tenant_id = $1 AND outcome = 'DENIED'`, tenantB.String())
 
-	_, err := itemCatalogueFor(t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, stranger),
+	_, err := itemCatalogueFor(ctx, t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, stranger),
 		usecase.Input{"type": "TASK", "collection_id": collection.String(), "title": "Buy milk"})
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("error = %v, want forbidden", err)
