@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -270,6 +271,50 @@ func readResponse(t *testing.T, path string, out catalogue.Output) (int, []byte)
 	controller.Routes().ServeHTTP(response, httptest.NewRequestWithContext(
 		ctx, http.MethodGet, rest.APIBasePath+path, nil))
 	return response.Code, response.Body.Bytes()
+}
+
+// The update's response is a WorkItem like every other, and it is worth judging separately because
+// it is the one that arrives through a different content type: a merge patch, whose body the router
+// has to accept before the response can be judged at all.
+func TestTheUpdateResponseMatchesTheSchema(t *testing.T) {
+	spec := contractSpec(t)
+	itemID := "0192f000-0000-7000-8000-00000000000e"
+
+	renamed := itemProjection()
+	renamed["title"] = "Buy oat milk"
+	renamed["version"] = 4
+
+	controller := rest.NewRestController()
+	controller.UseCases = fixedCatalogue{out: renamed}
+
+	ctx := appshared.ContextWithActor(context.Background(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+
+	request := httptest.NewRequestWithContext(ctx, http.MethodPatch,
+		rest.APIBasePath+"/items/"+itemID, strings.NewReader(`{"title":"Buy oat milk"}`))
+	request.Header.Set("Content-Type", "application/merge-patch+json")
+	request.Header.Set("If-Match", `"3"`)
+
+	response := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
+	}
+	// The entity tag a client writes its next update against (api-guidelines.md §5).
+	if tag := response.Header().Get("ETag"); tag != `"4"` {
+		t.Errorf("ETag = %q", tag)
+	}
+	problems, err := spec.validateAgainst("WorkItem", response.Body.Bytes())
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, problem := range problems {
+		t.Errorf("WorkItem: %s", problem)
+	}
 }
 
 // fixedCatalogue answers every invocation with one output. What the use case would decide is not this

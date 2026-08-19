@@ -4,6 +4,7 @@
 package event
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -274,5 +275,65 @@ func TestAMoveBetweenCollectionsSaysWhereItCameFrom(t *testing.T) {
 		if value, present := envelope.Payload[field]; !present || value != nil {
 			t.Errorf("%s is %v (present=%v), want a null that is there", field, value, present)
 		}
+	}
+}
+
+// The update event is the one that is not a snapshot: it names the fields that moved and carries the
+// content of no other one. A rename must not put somebody's notes into every subscriber's log.
+func TestTheUpdateEventCarriesAChangeSetRatherThanASnapshot(t *testing.T) {
+	item := task()
+	item.Title = "Buy oat milk"
+	item.Notes = "Semi-skimmed, two litres"
+	item.Version = 2
+
+	envelope, err := NewItemUpdated(eventID, item,
+		[]work.FieldChange{{Field: work.FieldTitle, From: "Buy milk", To: item.Title}},
+		Actor{Kind: shared.ActorUser, ID: eventAuthor}, occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Type != ItemUpdated {
+		t.Errorf("type = %s", envelope.Type)
+	}
+	if envelope.Subject != ItemSubject(item.ID) {
+		t.Errorf("subject = %s", envelope.Subject)
+	}
+
+	changeSet, present := envelope.Payload["change_set"].(map[string]any)
+	if !present {
+		t.Fatalf("there is no change set: %v", envelope.Payload)
+	}
+	title, _ := changeSet[work.FieldTitle].(map[string]any)
+	if title["from"] != "Buy milk" || title["to"] != "Buy oat milk" {
+		t.Errorf("the change set says %v", changeSet[work.FieldTitle])
+	}
+
+	// The notes did not move, so neither they nor the title appear outside the change set.
+	if _, present := changeSet[work.FieldNotes]; present {
+		t.Error("the change set names a field that did not move")
+	}
+	for _, field := range []string{"title", "notes", "path", "order_key", "completion"} {
+		if _, present := envelope.Payload[field]; present {
+			t.Errorf("the event carries %q outside the change set", field)
+		}
+	}
+
+	// Enough to place it, and no more: which collection, and which version the change produced.
+	if envelope.Payload["collection_id"] != eventCollection.String() {
+		t.Errorf("collection_id = %v", envelope.Payload["collection_id"])
+	}
+	if envelope.Payload["version"] != 2 {
+		t.Errorf("version = %v", envelope.Payload["version"])
+	}
+}
+
+// An event announcing that nothing changed would be a lie the writer cannot have meant: it does not
+// write when nothing moved, so the two disagreeing is a defect rather than something a client sent.
+func TestAnUpdateEventWithNothingInItIsRefused(t *testing.T) {
+	_, err := NewItemUpdated(eventID, task(), nil,
+		Actor{Kind: shared.ActorUser, ID: eventAuthor}, occurred, Cause{})
+	if !errors.Is(err, shared.ErrInternal) {
+		t.Errorf("an empty change set answered %v", err)
 	}
 }

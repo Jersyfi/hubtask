@@ -95,10 +95,15 @@ test covers every new response.
 
 *Depends on: B-03, B-04*
 
-`UpdateWorkItem` for the fields 0.2.0 owns: title, notes (where `NOTES` is active), icon/colour.
+`UpdateWorkItem` for the fields 0.2.0 owns: title and notes (where `NOTES` is active).
 Optimistic locking through `version` (`409` with a machine-readable conflict), the LWW merge rule
 per field for offline sync, and the capability check exactly as the matrix demands: setting notes
 on an `ACTIVITY` is `capability_not_supported`.
+
+This entry originally named icon and colour as a third field. A `WorkItem` has neither —
+`domain-model.md` §3.4 gives the item no such field and §3.3 puts both on `Container`, whose
+lifecycle is B-06. The backlog was corrected rather than the two documents, as with A-07's event
+name.
 
 **Acceptance:** a concurrent update loses cleanly (409, nothing written); each changed field lands
 individually in the change log (per-field LWW, offline-sync.md §4); the event carries the changed
