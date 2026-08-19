@@ -515,16 +515,7 @@ func (w PlacementWriter) hierarchy(ctx context.Context) (service.Hierarchy, erro
 }
 
 func (w PlacementWriter) findItem(ctx context.Context, id shared.ID) (domain.WorkItem, error) {
-	item, err := w.Items.Find(ctx, id)
-	if err != nil {
-		if errors.Is(err, shared.ErrNotFound) {
-			return domain.WorkItem{}, shared.ErrNotFound.
-				WithDetail("items.not_found").
-				WithParams(map[string]string{"item_id": id.String()})
-		}
-		return domain.WorkItem{}, err
-	}
-	return item, nil
+	return findItem(ctx, w.Items, id)
 }
 
 func (w PlacementWriter) findParent(ctx context.Context, id shared.ID) (domain.WorkItem, error) {
@@ -541,18 +532,8 @@ func (w PlacementWriter) findParent(ctx context.Context, id shared.ID) (domain.W
 	return parent, nil
 }
 
-// findCollection reads a collection the item already belongs to. A missing one is a defect rather than a
-// client's mistake: a tenant-scoped foreign key makes it unreachable (ADR-0024).
 func (w PlacementWriter) findCollection(ctx context.Context, id shared.ID) (domain.Container, error) {
-	collection, err := w.Containers.Find(ctx, id)
-	if err != nil {
-		if errors.Is(err, shared.ErrNotFound) {
-			return domain.Container{}, shared.ErrInternal.
-				WithDetail("items.collection_missing").WithCause(err)
-		}
-		return domain.Container{}, err
-	}
-	return collection, nil
+	return findCollection(ctx, w.Containers, id)
 }
 
 // findNamedCollection reads a collection the caller named, where absent is the caller's mistake and says so.

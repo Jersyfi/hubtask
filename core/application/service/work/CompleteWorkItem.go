@@ -5,7 +5,6 @@ package work
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"time"
 
@@ -175,7 +174,7 @@ func (w CompletionWriter) change(
 			// The If-Match is still honoured: a caller that wrote against a version somebody else has
 			// moved on is told so, even when its own change would have been a no-op, because the state it
 			// was reasoning about is not the state that is there.
-			if err := w.ensureExpectedVersion(item, cmd.ExpectedVersion); err != nil {
+			if err := ensureExpectedVersion(item, cmd.ExpectedVersion); err != nil {
 				return err
 			}
 			changed = item
@@ -368,45 +367,11 @@ func (w CompletionWriter) recordAudit(
 
 // completable refuses an item whose type or state does not allow its completion to change.
 func (w CompletionWriter) completable(ctx context.Context, item domain.WorkItem) error {
-	profile, err := w.profileOf(ctx, item.Type)
+	profile, err := profileOf(ctx, w.Profiles, item.Type)
 	if err != nil {
 		return err
 	}
 	return item.EnsureCompletable(profile)
-}
-
-// profileOf reads the capability profile in force for one type.
-//
-// Through the hierarchy rather than off the list directly, for the reason NewHierarchy documents: read off
-// a narrowed set alone, the topology comes out wrong. Only the profile is wanted here, and building it the
-// same way is what keeps this answer and CreateWorkItem's the same answer.
-func (w CompletionWriter) profileOf(ctx context.Context, itemType domain.ItemType) (domain.CapabilityProfile, error) {
-	inForce, err := w.Profiles.List(ctx)
-	if err != nil {
-		return domain.CapabilityProfile{}, err
-	}
-	system, err := w.Profiles.ListSystem(ctx)
-	if err != nil {
-		return domain.CapabilityProfile{}, err
-	}
-	hierarchy, err := service.NewHierarchy(inForce, system)
-	if err != nil {
-		return domain.CapabilityProfile{}, err
-	}
-	return hierarchy.Profile(itemType)
-}
-
-// ensureExpectedVersion refuses a caller writing against a version that has moved on, even when the change
-// it asked for would have been a no-op.
-func (w CompletionWriter) ensureExpectedVersion(item domain.WorkItem, expected int) error {
-	if expected == 0 || expected == item.Version {
-		return nil
-	}
-	return shared.ErrVersionConflict.
-		WithDetail("items.version_conflict").
-		WithParams(map[string]string{
-			"item_id": item.ID.String(), "current_version": strconv.Itoa(item.Version),
-		})
 }
 
 // collectionOf reads the collection an item lives in, read-only and outside the write transaction, because
@@ -431,30 +396,11 @@ func (w CompletionWriter) collectionOf(
 }
 
 func (w CompletionWriter) findItem(ctx context.Context, id shared.ID) (domain.WorkItem, error) {
-	item, err := w.Items.Find(ctx, id)
-	if err != nil {
-		if errors.Is(err, shared.ErrNotFound) {
-			return domain.WorkItem{}, shared.ErrNotFound.
-				WithDetail("items.not_found").
-				WithParams(map[string]string{"item_id": id.String()})
-		}
-		return domain.WorkItem{}, err
-	}
-	return item, nil
+	return findItem(ctx, w.Items, id)
 }
 
-// findCollection reads the collection. A missing one under an item that exists is a defect rather than a
-// client's mistake: a tenant-scoped foreign key makes it unreachable (ADR-0024).
 func (w CompletionWriter) findCollection(ctx context.Context, id shared.ID) (domain.Container, error) {
-	collection, err := w.Containers.Find(ctx, id)
-	if err != nil {
-		if errors.Is(err, shared.ErrNotFound) {
-			return domain.Container{}, shared.ErrInternal.
-				WithDetail("items.collection_missing").WithCause(err)
-		}
-		return domain.Container{}, err
-	}
-	return collection, nil
+	return findCollection(ctx, w.Containers, id)
 }
 
 // Descriptor is the catalogue entry. Registering it is what makes the use case reachable through REST, MCP
