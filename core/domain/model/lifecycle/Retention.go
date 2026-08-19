@@ -49,16 +49,34 @@ func DefaultPolicies() []Policy {
 
 // Cutoff is the instant a row has to have been deleted before, for this policy to allow its removal.
 //
-// The lower bound is applied here rather than trusted from the row. data-retention.md §4.3 makes it
-// a precedence rule - "lower bounds per data kind prevent accidental immediate deletion" - and a
-// rule that only ran where somebody wrote the policy would be a rule the one bad row escapes. A
-// period below the bound is treated as the bound rather than refused: the tenant asked for their
+// The lower bound is applied here rather than trusted from the row, and it is the bound of the *kind*
+// rather than the one the row carries. data-retention.md §4.3 makes it a precedence rule - "lower
+// bounds per data kind prevent accidental immediate deletion; trash, for example, is at least 7
+// days" - which makes it a property of the kind that a row is a copy of. A rule that read the copy
+// would be undercut by whoever wrote the copy, which is the one thing a lower bound exists to
+// prevent.
+//
+// A period below the bound is treated as the bound rather than refused: the tenant asked for their
 // trash to be emptied sooner, and answering with the soonest allowed is closer to that than refusing
 // to sweep at all.
 func (p Policy) Cutoff(now time.Time) time.Time {
 	days := p.RetainDays
-	if days < p.MinDays {
-		days = p.MinDays
+	if floor := FloorFor(p.DataKind); days < floor {
+		days = floor
 	}
 	return now.AddDate(0, 0, -days)
+}
+
+// FloorFor is the lower bound of one kind: what no configuration may undercut.
+//
+// Read off the documented defaults, so that the bound and the default it belongs to are one
+// statement. A kind that has no default has no bound either - which is the honest answer for a kind
+// nothing sweeps yet, rather than a floor invented here.
+func FloorFor(kind DataKind) int {
+	for _, policy := range DefaultPolicies() {
+		if policy.DataKind == kind {
+			return policy.MinDays
+		}
+	}
+	return 0
 }

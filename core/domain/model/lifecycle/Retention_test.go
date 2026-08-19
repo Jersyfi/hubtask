@@ -45,10 +45,11 @@ func TestTheCutoffCountsBackTheConfiguredPeriod(t *testing.T) {
 	}
 }
 
-// The lower bound of data-retention.md §4.3, applied where the period is used rather than trusted
-// from the row: a rule that only ran where somebody wrote the policy is a rule the one bad row
-// escapes. A period below the floor becomes the floor rather than a refusal - the tenant asked for
-// their trash to be emptied sooner, and the soonest allowed is closer to that than not sweeping.
+// The lower bound of data-retention.md §4.3, applied where the period is used and taken from the
+// kind rather than from the row. A rule that read the row's own copy of the bound would be undercut
+// by whoever wrote that copy, which is the one thing a lower bound exists to prevent. A period below
+// it becomes the bound rather than a refusal - the tenant asked for their trash to be emptied
+// sooner, and the soonest allowed is closer to that than not sweeping at all.
 func TestAPeriodBelowTheFloorIsRaisedToIt(t *testing.T) {
 	for _, c := range []struct {
 		name       string
@@ -61,8 +62,10 @@ func TestAPeriodBelowTheFloorIsRaisedToIt(t *testing.T) {
 		{"above it", 30, 30},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			// The row's own bound is deliberately wrong here: it is a copy, and the bound the
+			// sweep obeys is the kind's.
 			policy := lifecycle.Policy{
-				DataKind: lifecycle.KindTrash, RetainDays: c.retainDays, MinDays: 7,
+				DataKind: lifecycle.KindTrash, RetainDays: c.retainDays, MinDays: 1,
 			}
 
 			if got, want := policy.Cutoff(noon), noon.AddDate(0, 0, -c.wantDays); !got.Equal(want) {
@@ -70,5 +73,16 @@ func TestAPeriodBelowTheFloorIsRaisedToIt(t *testing.T) {
 					c.retainDays, got, want, c.wantDays)
 			}
 		})
+	}
+}
+
+// A kind with no documented default has no bound either, which is the honest answer for one nothing
+// sweeps yet rather than a floor invented in the code.
+func TestAKindWithNoDefaultHasNoFloor(t *testing.T) {
+	if floor := lifecycle.FloorFor("COMMENT"); floor != 0 {
+		t.Errorf("an unswept kind has a floor of %d days, want none", floor)
+	}
+	if floor := lifecycle.FloorFor(lifecycle.KindTrash); floor != 7 {
+		t.Errorf("the trash floor is %d days, want 7", floor)
 	}
 }
