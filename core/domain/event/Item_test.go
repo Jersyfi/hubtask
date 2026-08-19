@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -510,7 +511,7 @@ func TestThePurgeEventCarriesNoContentOfWhatWasDeleted(t *testing.T) {
 
 	envelope, err := NewItemPurged(eventID, Purge{
 		TenantID: eventTenant, ItemID: item.ID, Type: item.Type,
-		CollectionID: eventCollection, Path: item.Path, Reason: PurgedByRetention,
+		CollectionID: eventCollection, Path: item.Path, Reason: lifecycle.DeletedByRetention,
 	}, Actor{Kind: shared.ActorSystem}, occurred, Cause{})
 	if err != nil {
 		t.Fatalf("building the event: %v", err)
@@ -528,7 +529,7 @@ func TestThePurgeEventCarriesNoContentOfWhatWasDeleted(t *testing.T) {
 		t.Errorf("path = %v, want %q - it is how a consumer finds what went with the entry",
 			envelope.Payload["path"], item.Path)
 	}
-	if envelope.Payload["reason"] != string(PurgedByRetention) {
-		t.Errorf("reason = %v, want %s", envelope.Payload["reason"], PurgedByRetention)
+	if envelope.Payload["reason"] != string(lifecycle.DeletedByRetention) {
+		t.Errorf("reason = %v, want %s", envelope.Payload["reason"], lifecycle.DeletedByRetention)
 	}
 }

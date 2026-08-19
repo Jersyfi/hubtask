@@ -6,6 +6,7 @@ package event
 import (
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -332,18 +333,12 @@ type Purge struct {
 	Path string
 	// Reason says whether a person asked for this or a retention rule did. An operator reading a
 	// cleanup log needs to be able to tell those apart, and a consumer may want to react to only one.
-	Reason PurgeReason
+	//
+	// The lifecycle context's vocabulary rather than one of this package's own: the journal, this
+	// event and the metric are asking the same question, and two enumerations would eventually
+	// answer it with two different words.
+	Reason lifecycle.DeletionReason
 }
-
-// PurgeReason is why an entry was removed for good.
-type PurgeReason string
-
-const (
-	// PurgedByUser is somebody emptying their trash or purging one entry: an explicit act.
-	PurgedByUser PurgeReason = "USER"
-	// PurgedByRetention is the retention job doing what the tenant's policy says (ADR-0020).
-	PurgedByRetention PurgeReason = "RETENTION"
-)
 
 // NewItemPurged announces that an entry is gone for good.
 //

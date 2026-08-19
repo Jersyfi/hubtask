@@ -16,6 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
@@ -1241,7 +1242,7 @@ func TestTheTrashAndArchiveEventsMatchTheirSchemas(t *testing.T) {
 			build: func(id shared.ID) (event.Envelope, error) {
 				return event.NewItemPurged(id, event.Purge{
 					TenantID: tenant, ItemID: task.ID, Type: task.Type,
-					CollectionID: collectionID, Path: task.Path, Reason: event.PurgedByRetention,
+					CollectionID: collectionID, Path: task.Path, Reason: lifecycle.DeletedByRetention,
 				}, who, at, event.Cause{})
 			},
 		},
