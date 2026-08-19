@@ -225,23 +225,32 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 		return work.Container{}, err
 	}
 
+	// The policy is parsed rather than cast. A value the column should not hold is a validation error
+	// with the key named, not a silent fall back to the default: a collection working one way while its
+	// configuration says another is the failure that would be hardest to notice.
+	policy, err := work.ParseCompletionPolicy(row.CompletionPolicy)
+	if err != nil {
+		return work.Container{}, err
+	}
+
 	return work.Container{
-		ID:           id,
-		TenantID:     tenantID,
-		Type:         work.ContainerType(row.Type),
-		ParentID:     parentID,
-		Name:         row.Name,
-		Description:  stringFrom(row.Description),
-		Icon:         stringFrom(row.Icon),
-		ColorToken:   stringFrom(row.ColorToken),
-		OrderKey:     row.OrderKey,
-		ArchivedAt:   optionalTime(row.ArchivedAt),
-		DeletedAt:    optionalTime(row.DeletedAt),
-		TrashBatchID: trashBatchID,
-		CreatedBy:    createdBy,
-		CreatedAt:    timeFrom(row.CreatedAt),
-		UpdatedAt:    timeFrom(row.UpdatedAt),
-		Version:      int(row.Version),
+		ID:               id,
+		TenantID:         tenantID,
+		Type:             work.ContainerType(row.Type),
+		ParentID:         parentID,
+		Name:             row.Name,
+		Description:      stringFrom(row.Description),
+		Icon:             stringFrom(row.Icon),
+		ColorToken:       stringFrom(row.ColorToken),
+		OrderKey:         row.OrderKey,
+		CompletionPolicy: policy,
+		ArchivedAt:       optionalTime(row.ArchivedAt),
+		DeletedAt:        optionalTime(row.DeletedAt),
+		TrashBatchID:     trashBatchID,
+		CreatedBy:        createdBy,
+		CreatedAt:        timeFrom(row.CreatedAt),
+		UpdatedAt:        timeFrom(row.UpdatedAt),
+		Version:          int(row.Version),
 	}, nil
 }
 

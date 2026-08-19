@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.item.created.v1.json",
-  "title": "de.hubtask.work.item.created.v1",
-  "description": "A task, a work package or an activity was created. One event for all three levels rather than one per level: they are one aggregate (ADR-0006), so a subscriber that wants only activities filters on `data.type`, and a level configured later reaches it without a new subscription. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
+  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.item.completed.v1.json",
+  "title": "de.hubtask.work.item.completed.v1",
+  "description": "A task, a work package or an activity was completed. One event for all three levels rather than one per level: they are one aggregate (ADR-0006), so a subscriber that wants only activities filters on `data.type`, and a level configured later reaches it without a new subscription. Announced for an automatic roll-up (invariant I-W5) exactly as for a person's click: a consumer that needs to know which it was reads the causation chain, where a roll-up's event is caused by the child's, rather than a second event type - a separate name for an automatic completion would make every rule that reacts to work being done subscribe to two names and forget one. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
   "type": "object",
   "required": [
     "specversion",
@@ -38,7 +38,7 @@
     "type": {
       "type": "string",
       "enum": [
-        "de.hubtask.work.item.created.v1"
+        "de.hubtask.work.item.completed.v1"
       ]
     },
     "subject": {
@@ -95,19 +95,20 @@
     },
     "data": {
       "type": "object",
-      "description": "A snapshot of the item as it was created, in the field names of the API (schema WorkItem), so that a webhook payload and a REST response describe the same object in the same words.",
+      "description": "A snapshot of the item as it now stands, in the field names of the API (schema WorkItem), so that a webhook payload and a REST response describe the same object in the same words.",
       "required": [
-        "id",
-        "type",
         "collection_id",
-        "parent_id",
-        "path",
-        "depth",
-        "title",
         "completion",
-        "order_key",
         "created_at",
         "created_by",
+        "depth",
+        "id",
+        "order_key",
+        "parent_id",
+        "path",
+        "title",
+        "type",
+        "updated_at",
         "version"
       ],
       "additionalProperties": true,
@@ -155,28 +156,29 @@
         },
         "completion": {
           "type": "object",
-          "description": "The done/open state. Always sent, though a created item is always open: a rule that reads it should not need a special case for the one event where it happens to be absent.",
+          "description": "The done state. is_completed is true on this event by definition, and completed_at and completed_by are both answered.",
           "required": [
-            "is_completed"
+            "is_completed",
+            "completed_at",
+            "completed_by"
           ],
           "additionalProperties": true,
           "properties": {
             "is_completed": {
-              "type": "boolean"
+              "type": "boolean",
+              "enum": [
+                true
+              ]
             },
             "completed_at": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "format": "date-time"
+              "type": "string",
+              "format": "date-time",
+              "description": "Set: this event says the item is done, so both are answered."
             },
             "completed_by": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "format": "uuid"
+              "type": "string",
+              "format": "uuid",
+              "description": "Set: this event says the item is done, so both are answered."
             }
           }
         },
@@ -198,7 +200,7 @@
         "updated_at": {
           "type": "string",
           "format": "date-time",
-          "description": "When the item last changed. Not required on this event, where it equals created_at; the completion events are about a change and a consumer ordering two of them needs it."
+          "description": "When the item last changed - the instant of this completion change."
         }
       }
     }

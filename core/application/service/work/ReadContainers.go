@@ -311,17 +311,3 @@ func (h ListContainers) invoke(
 	}
 	return pageOutput(data, page.Info), nil
 }
-
-// containerPath is the authorisation path to a container, running from the tenant downwards: the hub
-// it sits in, then the container itself. A membership at any of them counts, which is what "the
-// effective permission is the highest role along the path" means (domain-model.md §3.2).
-func containerPath(container domain.Container) []identity.Scope {
-	path := []identity.Scope{identity.TenantScope()}
-	if !container.ParentID.IsZero() {
-		path = append(path, identity.HubScope(container.ParentID))
-	}
-	if container.Type == domain.ContainerHub {
-		return append(path, identity.HubScope(container.ID))
-	}
-	return append(path, identity.CollectionScope(container.ID))
-}

@@ -8,8 +8,15 @@
 -- what is stored and judges none of it: whether a container may take children is a question the
 -- domain answers, and a query that hid a trashed parent would turn "it is in the trash" into
 -- "it does not exist" (I-C2, I-C3).
+--
+-- One key of `policies` is read out, not the column: the completion policy has a reader (B-07) and the
+-- other three keys do not, and selecting a value nothing consumes is a promise nothing keeps. `->>`
+-- yields NULL for a collection that has never been configured, and coalesce turns that into the empty
+-- string - which the domain reads as the default. Coalescing here rather than mapping a nil pointer in
+-- the adapter keeps the generated field a plain string, and "unset" one concept instead of two.
 SELECT
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
+  coalesce(policies->>'completion_policy', '')::text AS completion_policy,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM container
 WHERE id = $1;
@@ -67,6 +74,7 @@ INSERT INTO container (
 -- thing this endpoint exists to avoid.
 SELECT
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
+  coalesce(policies->>'completion_policy', '')::text AS completion_policy,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM container
 WHERE parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
@@ -152,3 +160,36 @@ WHERE collection_id = sqlc.arg('collection_id')::uuid
   )
 ORDER BY order_key COLLATE "C", id
 LIMIT sqlc.arg('page_size');
+-- name: ChildCompletion :one
+-- How many children an item has, and how many of them are done. The two numbers the roll-up decides
+-- from (I-W5), as counts rather than as rows: the question is "is anything still open down there", and
+-- reading a subtree to answer one boolean is the shape this avoids.
+--
+-- Trashed children are excluded outright. They are deletions waiting out their retention period, and a
+-- work package whose last activity was deleted must not become done because of it. Archived children are
+-- counted as they stand - archiving is a decision to keep something quietly, not to disown it.
+--
+-- Served by wi_parent_idx (tenant_id, parent_id, order_key): the tenant comes from row level security, so
+-- the leading column is satisfied without appearing here.
+SELECT
+  count(*)::int AS total,
+  (count(*) FILTER (WHERE is_completed))::int AS completed
+FROM work_item
+WHERE parent_id = sqlc.arg('parent_id')::uuid
+  AND deleted_at IS NULL;
+
+-- name: SetWorkItemCompletion :execrows
+-- Optimistic locking in the WHERE clause: the update matches nothing when somebody else has moved the row
+-- on, and the caller learns that rather than overwriting them (api-guidelines.md §5).
+--
+-- Both completion columns are written together, always. The table's own CHECK insists that
+-- `is_completed = (completed_at IS NOT NULL)`, so a statement that set one without the other would be
+-- refused by the database - which is the right place for that rule and the reason this query has no
+-- branch in it.
+UPDATE work_item SET
+  is_completed = sqlc.arg('is_completed'),
+  completed_at = sqlc.narg('completed_at'),
+  completed_by = sqlc.narg('completed_by'),
+  updated_at   = sqlc.arg('updated_at'),
+  version      = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');

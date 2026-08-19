@@ -132,6 +132,22 @@ type Items interface {
 	// a trashed item is not.
 	List(ctx context.Context, query ItemQuery) (ItemPage, error)
 
+	// ChildCompletion counts the children of one item and how many of them are done - the two numbers
+	// the roll-up decides from (I-W5).
+	//
+	// A summary rather than the children, because the question is one boolean: is anything still open
+	// down there. Trashed children are not counted, archived ones are; the reasoning is at
+	// work.ChildCompletion, and it lives there rather than here because it is a rule about what
+	// "children" means and not about how they are stored.
+	ChildCompletion(ctx context.Context, parentID shared.ID) (work.ChildCompletion, error)
+
+	// SetCompletion writes an item's completion, or reports a version conflict.
+	//
+	// The expected version is passed rather than read off the item, for the reason UpdateGroup's is: the
+	// caller knows which version it decided against, and an update that re-read the row would overwrite
+	// whoever moved it in between (api-guidelines.md §5).
+	SetCompletion(ctx context.Context, item work.WorkItem, expectedVersion int) error
+
 	// LastOrderKey returns the highest rank among the siblings of a new item, or the empty string
 	// when there are none. The siblings are the items with the same parent inside the same
 	// collection; an empty parentID means those directly under the collection.

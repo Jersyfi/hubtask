@@ -235,6 +235,15 @@ func run() error {
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
+	// Both directions of completion share one dependency set. The two operations are the same walk in
+	// opposite directions, and wiring them separately would be two places to get one of eleven fields
+	// wrong (work.CompletionWriter).
+	completion := work.CompletionWriter{
+		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -305,6 +314,8 @@ func run() error {
 		work.ListWorkItems{
 			Items: items, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.CompleteWorkItem{Completion: completion}.Descriptor(),
+		work.ReopenWorkItem{Completion: completion}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process

@@ -159,7 +159,13 @@ func (pending) AddComment(w http.ResponseWriter, r *http.Request, _ openapi.Item
 	notAvailable(w, r)
 }
 
+// CompleteWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CompleteWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CompleteWorkItemParams) {
+	notAvailable(w, r)
+}
+
+// ReopenWorkItem is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ReopenWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ReopenWorkItemParams) {
 	notAvailable(w, r)
 }
 

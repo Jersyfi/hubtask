@@ -9,6 +9,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -33,9 +36,44 @@ var (
 	fixtureCounter atomic.Uint64
 )
 
+// freshID hands out an identifier from a namespace of its own: the variant segment is 8f00, where every
+// hand-written fixture constant in this package uses 8000.
+//
+// That separation is not cosmetic. The counter walks upwards through the low bytes, and the constants sit
+// in the same low bytes - authorA is ...0000000000a1, so the 161st generated identifier used to *be*
+// authorA. Nothing noticed until a test file pushed the counter past 161, and then two unrelated identity
+// tests failed with "that address is taken" because an account insert had collided on its primary key.
+// A namespace makes that impossible rather than unlikely.
 func freshID(t *testing.T) shared.ID {
 	t.Helper()
-	return shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8000-%012x", fixtureCounter.Add(1)))
+	return shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8f00-%012x", fixtureCounter.Add(1)))
+}
+
+// The namespace has to stay a namespace. A constant added later in the generated range would reintroduce
+// exactly the collision the segment exists to prevent, and it would show up as an unrelated test failing
+// on the primary key of a row it never wrote.
+func TestNoFixtureConstantSitsInTheGeneratedRange(t *testing.T) {
+	const generatedVariant = "8f00"
+
+	sources, err := filepath.Glob("*_test.go")
+	if err != nil {
+		t.Fatalf("listing the test files: %v", err)
+	}
+
+	// Every UUID literal in the package, wherever it is written.
+	literal := regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-([0-9a-f]{4})-[0-9a-f]{12}`)
+	for _, source := range sources {
+		content, err := os.ReadFile(source)
+		if err != nil {
+			t.Fatalf("reading %s: %v", source, err)
+		}
+		for _, match := range literal.FindAllStringSubmatch(string(content), -1) {
+			if match[1] == generatedVariant {
+				t.Errorf("%s writes %s by hand, which is in freshID's namespace (variant %s)",
+					source, match[0], generatedVariant)
+			}
+		}
+	}
 }
 
 func freshName(t *testing.T) string {

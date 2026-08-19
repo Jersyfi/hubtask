@@ -150,6 +150,9 @@ CREATE TABLE container (
   icon         text,
   color_token  text,
   order_key    text NOT NULL,
+  -- policies keys (domain-model.md §3.3): completion_policy (MANUAL | ROLLUP, read since B-07),
+  -- default_bucket_id, capability_overrides, auto_assign. An absent key means the default; the column
+  -- starts as {} and UpdateContainerPolicies (B-06) is what writes into it.
   policies     jsonb NOT NULL DEFAULT '{}'::jsonb,
   archived_at  timestamptz,
   deleted_at   timestamptz,

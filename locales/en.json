@@ -88,6 +88,7 @@
   "containers.parent_archived": "That hub is archived. Unarchive it before adding anything to it.",
   "containers.parent_trashed": "That hub is in the trash.",
   "containers.identity_incomplete": "This installation is misconfigured and could not create that entry.",
+  "containers.completion_policy_unknown": "{value} is not a completion policy this installation knows.",
 
   "items.capability_not_supported": "A {item_type} has no {capability}.",
   "items.type_unknown": "{value} is not a kind of entry. Use TASK, WORK_PACKAGE or ACTIVITY.",
@@ -110,6 +111,11 @@
   "items.collection_trashed": "That collection is in the trash.",
   "items.collection_not_found": "That collection does not exist.",
   "items.collection_or_parent_required": "Say which collection the entry belongs to, or which entry it sits in.",
+  "items.trashed": "That entry is in the trash. Restore it before changing it.",
+  "items.archived": "That entry is archived. Unarchive it before changing it.",
+  "items.item_id_required": "Say which entry to change.",
+  "items.version_conflict": "Someone else changed that entry in the meantime. Read it again and reapply.",
+  "items.cascade_not_supported": "This installation cannot complete a whole subtree in one step yet.",
   "items.collection_id_required": "Say which collection to list.",
   "items.collection_missing": "This entry refers to a collection that is no longer there.",
   "items.expand_not_supported": "This installation cannot include related entries in that response yet.",
@@ -150,6 +156,7 @@
   "events.envelope_incomplete": "This installation could not announce that change.",
   "events.type_unknown": "This installation could not announce that change.",
   "events.causation_too_deep": "This change was triggered by a chain of automations that goes too deep. Hubtask stopped it after {maximum} steps.",
+  "events.completion_inconsistent": "This installation could not announce that change.",
 
   "shared.id_malformed": "{value} is not a valid identifier.",
   "shared.cursor_invalid": "This page link is no longer usable. Please start the list again.",

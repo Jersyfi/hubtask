@@ -9,6 +9,8 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -110,6 +112,77 @@ func (r ItemRepository) List(ctx context.Context, query repository.ItemQuery) (r
 			return security.Position{SortKey: last.OrderKey, ID: last.ID}
 		})
 	return page, nil
+}
+
+// ChildCompletion counts one item's children and how many are done.
+func (r ItemRepository) ChildCompletion(ctx context.Context, parentID shared.ID) (work.ChildCompletion, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return work.ChildCompletion{}, err
+	}
+	parent, err := uuidOf(parentID)
+	if err != nil {
+		return work.ChildCompletion{}, err
+	}
+
+	// No IsNoRows branch: an aggregate over no rows is still one row, with two zeroes in it. An item
+	// with no children is therefore the same answer as an item whose children were all trashed, which is
+	// what the roll-up wants - it concludes nothing from either.
+	row, err := queries.ChildCompletion(ctx, parent)
+	if err != nil {
+		return work.ChildCompletion{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the children of %s: %w", parentID, err))
+	}
+	return work.ChildCompletion{Total: int(row.Total), Completed: int(row.Completed)}, nil
+}
+
+// SetCompletion writes the completion, against the version the caller decided on.
+func (r ItemRepository) SetCompletion(ctx context.Context, item work.WorkItem, expectedVersion int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+	completedBy, err := optionalUUID(item.Completion.CompletedBy)
+	if err != nil {
+		return err
+	}
+
+	var completedAt pgtype.Timestamptz
+	if item.Completion.CompletedAt != nil {
+		completedAt = timestampOf(*item.Completion.CompletedAt)
+	}
+
+	affected, err := queries.SetWorkItemCompletion(ctx, sqlc.SetWorkItemCompletionParams{
+		IsCompleted: item.Completion.IsCompleted,
+		CompletedAt: completedAt,
+		CompletedBy: completedBy,
+		UpdatedAt:   timestampOf(item.UpdatedAt),
+		ID:          id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the completion of %s: %w", item.ID, err))
+	}
+	if affected == 0 {
+		// Either it is gone or somebody else moved it on. The second is the interesting one and the one a
+		// client can act on: read it again and reapply. It is also the answer when the row belongs to
+		// another tenant, because row level security removed it from the update's reach - and a caller
+		// must not be able to tell that apart from a version that moved (multi-tenancy.md §2).
+		return shared.ErrVersionConflict.
+			WithDetail("items.version_conflict").
+			WithParams(map[string]string{
+				"item_id": item.ID.String(), "expected_version": strconv.Itoa(expectedVersion),
+			})
+	}
+	return nil
 }
 
 // LastOrderKey returns the highest rank among a new item's siblings, or the empty string when it

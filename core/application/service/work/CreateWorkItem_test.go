@@ -26,14 +26,22 @@ var collectionID = shared.MustParseID("0192f000-0000-7000-8000-00000000000c")
 // the use case owes is not only a return value.
 
 type items struct {
-	inserted  []domain.WorkItem
-	stored    map[shared.ID]domain.WorkItem
-	lastKey   string
-	page      repository.ItemPage
-	asked     repository.ItemQuery
-	findErr   error
-	listErr   error
-	insertErr error
+	inserted []domain.WorkItem
+	stored   map[shared.ID]domain.WorkItem
+	lastKey  string
+	// page is what List answers with, and asked is what it was asked (B-04's read side).
+	page  repository.ItemPage
+	asked repository.ItemQuery
+	// children is what ChildCompletion answers, per parent, and completions records every write
+	// SetCompletion took - the roll-up tests care about both: one is the state it decided from, the
+	// other is what it decided.
+	children    map[shared.ID]domain.ChildCompletion
+	completions []completionWrite
+	findErr     error
+	listErr     error
+	insertErr   error
+	setErr      error
+	conflictOn  shared.ID
 }
 
 func (i *items) Find(_ context.Context, id shared.ID) (domain.WorkItem, error) {
@@ -53,6 +61,30 @@ func (i *items) List(_ context.Context, query repository.ItemQuery) (repository.
 		return repository.ItemPage{}, i.listErr
 	}
 	return i.page, nil
+}
+
+// completionWrite is one call to SetCompletion: what it was asked to store and against which version.
+type completionWrite struct {
+	item            domain.WorkItem
+	expectedVersion int
+}
+
+func (i *items) ChildCompletion(_ context.Context, parentID shared.ID) (domain.ChildCompletion, error) {
+	return i.children[parentID], nil
+}
+
+func (i *items) SetCompletion(_ context.Context, item domain.WorkItem, expectedVersion int) error {
+	if i.setErr != nil {
+		return i.setErr
+	}
+	if item.ID == i.conflictOn {
+		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.completions = append(i.completions, completionWrite{item: item, expectedVersion: expectedVersion})
+	// Kept, so that a second pass over the same item reads the state the first pass wrote - which is what
+	// makes an idempotence test mean anything.
+	i.stored[item.ID] = item
+	return nil
 }
 
 func (i *items) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
