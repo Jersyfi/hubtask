@@ -163,6 +163,7 @@
   "events.type_unknown": "This installation could not announce that change.",
   "events.causation_too_deep": "This change was triggered by a chain of automations that goes too deep. Hubtask stopped it after {maximum} steps.",
   "events.completion_inconsistent": "This installation could not announce that change.",
+  "events.change_set_empty": "This installation could not announce that change.",
 
   "shared.id_malformed": "{value} is not a valid identifier.",
   "shared.cursor_invalid": "This page link is no longer usable. Please start the list again.",

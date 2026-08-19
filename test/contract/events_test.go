@@ -233,6 +233,94 @@ func TestTheEventOfATaskCarriesANullParentAndNoNotes(t *testing.T) {
 	}
 }
 
+// The same criterion for the one item event that carries a change set rather than a snapshot.
+func TestTheItemUpdatedEventMatchesItsSchema(t *testing.T) {
+	spec := loadEventSchema(t, event.ItemUpdated)
+
+	body, err := json.Marshal(eventbus.ToCloudEvent(itemUpdated(t), "urn:hubtask:test"))
+	if err != nil {
+		t.Fatalf("rendering the event: %v", err)
+	}
+
+	problems, err := spec.validateAgainst("root", body)
+	if err != nil {
+		t.Fatalf("validating: %v", err)
+	}
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+}
+
+// The acceptance criterion of B-05: the event names the fields that changed and carries the content
+// of no other field. A rename must not put somebody's notes into every subscriber's log.
+func TestTheItemUpdatedEventCarriesOnlyWhatChanged(t *testing.T) {
+	body, err := json.Marshal(eventbus.ToCloudEvent(itemUpdated(t), "urn:hubtask:test"))
+	if err != nil {
+		t.Fatalf("rendering the event: %v", err)
+	}
+
+	var rendered map[string]any
+	if err := json.Unmarshal(body, &rendered); err != nil {
+		t.Fatalf("re-reading the event: %v", err)
+	}
+	data, _ := rendered["data"].(map[string]any)
+
+	changeSet, present := data["change_set"].(map[string]any)
+	if !present {
+		t.Fatalf("there is no change set: %v", data)
+	}
+	if len(changeSet) != 1 {
+		t.Fatalf("the change set names %d fields rather than the one that changed: %v", len(changeSet), changeSet)
+	}
+	title, _ := changeSet["title"].(map[string]any)
+	if title["from"] != "Order the cable" || title["to"] != "Order the longer cable" {
+		t.Errorf("the change set says %v", changeSet["title"])
+	}
+
+	// The notes did not change, so neither the field nor its content is anywhere in the event.
+	if _, present := changeSet["notes"]; present {
+		t.Error("the change set names a field that did not change")
+	}
+	for field := range data {
+		if field == "notes" || field == "title" {
+			t.Errorf("the event carries %q outside the change set", field)
+		}
+	}
+}
+
+// itemUpdated renames a work package whose notes stay as they are: the case the change set exists
+// for, because the item has a second content field that must not travel.
+func itemUpdated(t *testing.T) event.Envelope {
+	t.Helper()
+
+	task := shared.MustParseID("0192f000-0000-7000-8000-000000000011")
+	item := work.WorkItem{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-000000000012"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemWorkPackage,
+		ParentID:     task,
+		Path:         "/" + task.String() + "/0192f000-0000-7000-8000-000000000012/",
+		Depth:        2,
+		Title:        "Order the longer cable",
+		Notes:        "Three metres, not two.",
+		OrderKey:     "a0",
+		CreatedBy:    shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt:    time.Date(2026, 8, 18, 9, 0, 0, 0, time.UTC),
+		UpdatedAt:    time.Date(2026, 8, 18, 11, 0, 0, 0, time.UTC),
+		Version:      2,
+	}
+
+	envelope, err := event.NewItemUpdated(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e5"), item,
+		[]work.FieldChange{{Field: work.FieldTitle, From: "Order the cable", To: item.Title}},
+		event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}, item.UpdatedAt, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+	return envelope
+}
+
 // Every event the domain can emit has a schema, and every schema belongs to an event. A schema
 // without an event is a promise to a subscriber that nothing keeps; an event without a schema is
 // a contract nobody can write against.
