@@ -108,6 +108,7 @@ minutes by default); values beyond that are set to server time and the event is 
 | Appending lists | Comments, activities | Append-only, no conflicts |
 | Counters | Progress, derived values | Computed server-side, never set by a client |
 | Free text edited concurrently | Long notes | LWW plus preservation of the displaced version as a comment attachment (§5). Character-level merging (CRDT text) is deliberately **not** part of 1.0 — see the ADR |
+| Lifecycle stamps | `archived_at`, `deleted_at`, `trash_batch_id` | Server-side, and not a field merge at all. A deletion reaches a client as a `DELETE` op with no payload and a restore as an `UPSERT`, so a client applies a state rather than merging a timestamp — and a subtree deletion is announced by its root alone, which the client applies to the subtree it holds by path prefix. The batch identifier is the server's: it names one deletion, and a client that invented one would be claiming two deletions were the same act |
 
 **How "per field" is written down.** A scalar update records **one change log entry per field that
 moved**, each taking its own HLC and carrying only that field. One entry listing several fields
