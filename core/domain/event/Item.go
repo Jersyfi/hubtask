@@ -33,6 +33,46 @@ func NewItemCreated(id shared.ID, item work.WorkItem, actor Actor,
 		ItemSubject(item.ID), actor, occurredAt, cause, itemPayload(item))
 }
 
+// NewItemUpdated announces that an item's own fields changed: what was renamed, what was noted.
+//
+// The one item event that is not a snapshot, and deliberately. domain-model.md §4 gives this event a
+// `changeSet` - old and new per field - rather than the object, and the difference is not a saving of
+// bytes: an update touches one field of an item whose other fields are somebody's notes, so a snapshot
+// on every rename would copy the whole of them into every subscriber's log, every time, for a change
+// that did not involve them. What did not change is not announced.
+//
+// Both sides of each field travel, because that is what a field change trigger is written against: a
+// rule fires on "the title became X" or on "it stopped being Y", and a payload carrying only the new
+// value can answer the first question but never the second.
+//
+// Enough of the item travels beside the change set for a consumer to place it - which collection it is
+// in, and which version the change produced - and no more.
+func NewItemUpdated(id shared.ID, item work.WorkItem, changes []work.FieldChange, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if len(changes) == 0 {
+		// An event that announces nothing changed. The writer does not write when nothing moved, so
+		// reaching this means the two disagree - a defect rather than something a client sent
+		// (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.change_set_empty")
+	}
+
+	changeSet := make(map[string]any, len(changes))
+	for _, change := range changes {
+		changeSet[change.Field] = map[string]any{"from": change.From, "to": change.To}
+	}
+
+	return NewEnvelope(id, ItemUpdated, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, map[string]any{
+			"id":            item.ID.String(),
+			"type":          string(item.Type),
+			"collection_id": item.CollectionID.String(),
+			"updated_at":    item.UpdatedAt.UTC(),
+			"version":       item.Version,
+			"change_set":    changeSet,
+		})
+}
+
 // NewItemCompleted announces that an item is done.
 //
 // Announced for a roll-up exactly as for a person's click. A consumer that needs to know which it was

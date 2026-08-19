@@ -117,6 +117,7 @@
   "items.trashed": "That entry is in the trash. Restore it before changing it.",
   "items.archived": "That entry is archived. Unarchive it before changing it.",
   "items.item_id_required": "Say which entry to change.",
+  "items.update_empty": "Say what to change about that entry.",
   "items.version_conflict": "Someone else changed that entry in the meantime. Read it again and reapply.",
   "items.cascade_not_supported": "This installation cannot complete a whole subtree in one step yet.",
   "items.collection_id_required": "Say which collection to list.",
@@ -163,6 +164,7 @@
   "events.type_unknown": "This installation could not announce that change.",
   "events.causation_too_deep": "This change was triggered by a chain of automations that goes too deep. Hubtask stopped it after {maximum} steps.",
   "events.completion_inconsistent": "This installation could not announce that change.",
+  "events.change_set_empty": "This installation could not announce that change.",
 
   "shared.id_malformed": "{value} is not a valid identifier.",
   "shared.cursor_invalid": "This page link is no longer usable. Please start the list again.",

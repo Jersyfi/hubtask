@@ -179,6 +179,15 @@ type Items interface {
 	// caller knows which version it decided against, and an update that re-read the row would overwrite
 	// whoever moved it in between (api-guidelines.md §5).
 	SetCompletion(ctx context.Context, item work.WorkItem, expectedVersion int) error
+
+	// SetAttributes writes an item's own fields - what UpdateWorkItem may change - or reports a version
+	// conflict.
+	//
+	// The whole item is passed rather than the fields that moved, because the decision about what the row
+	// should say has already been taken: the use case read the item, applied the update and refused what
+	// the capability profile does not allow. An adapter handed a list of changes would have to apply them
+	// a second time, which is the second place for that rule to be wrong (ADR-0005).
+	SetAttributes(ctx context.Context, item work.WorkItem, expectedVersion int) error
 	// Neighbours returns the two ranks a position sits between at one level: the item to go before, and
 	// whatever sits below it.
 	//

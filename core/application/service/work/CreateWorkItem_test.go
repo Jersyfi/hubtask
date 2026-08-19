@@ -37,11 +37,15 @@ type items struct {
 	// other is what it decided.
 	children    map[shared.ID]domain.ChildCompletion
 	completions []completionWrite
-	findErr     error
-	listErr     error
-	insertErr   error
-	setErr      error
-	conflictOn  shared.ID
+	// attributes records every write SetAttributes took: the B-05 tests care about what was stored as
+	// much as about what came back, because a use case that returned the right item and wrote the wrong
+	// one would pass every assertion made on the answer alone.
+	attributes []attributeWrite
+	findErr    error
+	listErr    error
+	insertErr  error
+	setErr     error
+	conflictOn shared.ID
 	// The move and reorder fakes: what the neighbours answer, and what each write was asked to store. The
 	// B-08 tests care about both - one is the position the ordering service measured against, the other is
 	// where the item ended up.
@@ -139,6 +143,28 @@ func (i *items) SetCompletion(_ context.Context, item domain.WorkItem, expectedV
 	i.completions = append(i.completions, completionWrite{item: item, expectedVersion: expectedVersion})
 	// Kept, so that a second pass over the same item reads the state the first pass wrote - which is what
 	// makes an idempotence test mean anything.
+	i.stored[item.ID] = item
+	return nil
+}
+
+// attributeWrite is one call to SetAttributes: what it was asked to store and against which version.
+type attributeWrite struct {
+	item            domain.WorkItem
+	expectedVersion int
+}
+
+func (i *items) SetAttributes(_ context.Context, item domain.WorkItem, expectedVersion int) error {
+	if i.setErr != nil {
+		return i.setErr
+	}
+	// The optimistic lock, as the statement behind it works: the update matches nothing when the row has
+	// moved on, and the caller is told rather than overwriting whoever moved it. Modelled here rather
+	// than only in the integration test, because a use case that passed the wrong version would
+	// otherwise look correct at this level.
+	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
+		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.attributes = append(i.attributes, attributeWrite{item: item, expectedVersion: expectedVersion})
 	i.stored[item.ID] = item
 	return nil
 }

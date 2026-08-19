@@ -147,6 +147,7 @@ func (pending) GetWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.Ite
 	notAvailable(w, r)
 }
 
+// UpdateWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) UpdateWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.UpdateWorkItemParams) {
 	notAvailable(w, r)
 }

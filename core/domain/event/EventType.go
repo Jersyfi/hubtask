@@ -26,6 +26,14 @@ const (
 	// rather than on three event names, and a fifth level reaches it without a new subscription.
 	// Consumers: automation, search, SSE.
 	ItemCreated Type = "de.hubtask.work.item.created.v1"
+	// ItemUpdated announces that an item's own fields changed: what was renamed, what was noted.
+	// Consumers: automation (field change triggers are the second commonest there is), the activity
+	// history, search, SSE.
+	//
+	// Its own type rather than a field on a general "changed" event, and separate from moved and
+	// completed, because a rule that reacts to a rename must not fire when somebody drags a card
+	// between lists. The three answer different questions about the same object.
+	ItemUpdated Type = "de.hubtask.work.item.updated.v1"
 	// ItemCompleted announces that an item is done. Consumers: automation (the commonest trigger there
 	// is), the roll-up itself, ON_COMPLETION recurrence, search, SSE.
 	//
@@ -53,7 +61,7 @@ const (
 // event schemas under api/events/ are reconciled against it by the contract test, so an event
 // without a schema, or a schema without an event, is a red build rather than a discovery made by
 // a subscriber.
-var types = [...]Type{ContainerCreated, ItemCreated, ItemCompleted, ItemReopened, ItemMoved}
+var types = [...]Type{ContainerCreated, ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved}
 
 // Types returns every defined event type.
 func Types() []Type { return types[:] }

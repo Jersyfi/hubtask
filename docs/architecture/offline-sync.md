@@ -109,6 +109,18 @@ minutes by default); values beyond that are set to server time and the event is 
 | Counters | Progress, derived values | Computed server-side, never set by a client |
 | Free text edited concurrently | Long notes | LWW plus preservation of the displaced version as a comment attachment (§5). Character-level merging (CRDT text) is deliberately **not** part of 1.0 — see the ADR |
 
+**How "per field" is written down.** A scalar update records **one change log entry per field that
+moved**, each taking its own HLC and carrying only that field. One entry listing several fields
+would give the pair a single HLC, and the merge would then decide them together — silently
+discarding whichever field a second device had written concurrently, which is the exact failure
+this row exists to prevent. Fields the caller did not touch are not in the log at all: a payload
+repeating them would let a stale value win a merge it should never have entered. `version` and
+`updated_at` are derived and never merged.
+
+That is also why the write side distinguishes an absent field from an empty one all the way down
+from the merge patch that expressed it (`api-guidelines.md` §"Partial updates"): "leave the notes
+alone" must not reach the log as "set the notes to nothing".
+
 ### 4.3 What the server always decides itself
 
 Permissions, the tenant boundary, the invariants of the capability matrix (which type may sit under
