@@ -360,6 +360,7 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateBucket{Writer: bucketWriter}.Descriptor(),
 		work.ReorderBucket{Writer: bucketWriter}.Descriptor(),
+		work.DeleteBucket{Writer: bucketWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),

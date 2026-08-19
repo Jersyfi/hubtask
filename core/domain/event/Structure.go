@@ -104,3 +104,24 @@ func newBucketChange(id shared.ID, eventType Type, bucket work.Bucket,
 	return NewEnvelope(id, eventType, bucket.TenantID,
 		BucketSubject(bucket.ID), actor, occurredAt, cause, payload)
 }
+
+// NewBucketDeleted announces that a column is off the board, and says where its entries went.
+//
+// The destination and the count are in the payload rather than left to be discovered: the entries
+// moved to the leftmost remaining column, and a consumer that only learned the column was gone
+// would have to reload the whole board to find out where its cards are. A zero target is the last
+// column of a board - the entries then carry none, which is the state the collection was in before
+// anybody made one.
+func NewBucketDeleted(id shared.ID, bucket work.Bucket, targetBucketID shared.ID, movedItems int,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	payload := bucketPayload(bucket)
+	payload["target_bucket_id"] = nil
+	if !targetBucketID.IsZero() {
+		payload["target_bucket_id"] = targetBucketID.String()
+	}
+	payload["moved_items"] = movedItems
+
+	return NewEnvelope(id, BucketDeleted, bucket.TenantID,
+		BucketSubject(bucket.ID), actor, occurredAt, cause, payload)
+}

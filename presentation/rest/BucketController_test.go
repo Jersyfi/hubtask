@@ -274,3 +274,54 @@ func TestReorderingPassesOnTheAnchor(t *testing.T) {
 		t.Errorf("before_bucket_id is %v", registry.in["before_bucket_id"])
 	}
 }
+
+// 200 with a body rather than 204, unlike a container's deletion: what became of the entries that
+// were in the column is not derivable from the request, and a client that received no content would
+// have to reload the whole board to find out where its cards are.
+func TestDeletingABucketAnswersWithWhatBecameOfTheEntries(t *testing.T) {
+	target := "0192f000-0000-7000-8000-0000000000b2"
+	registry := &catalogue{out: usecase.Output{
+		"bucket_id": firstBucket, "target_bucket_id": target, "moved_items": 3,
+	}}
+
+	recorder := bucketRequest(t, registry, http.MethodDelete,
+		"/containers/"+boardCollection+"/buckets/"+firstBucket, "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != deleteBucketUseCase {
+		t.Errorf("the handler invoked %q", registry.name)
+	}
+
+	var deletion map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &deletion); err != nil {
+		t.Fatalf("the body is not an object: %v (%s)", err, recorder.Body)
+	}
+	if deletion["target_bucket_id"] != target {
+		t.Errorf("target_bucket_id is %v", deletion["target_bucket_id"])
+	}
+	if deletion["moved_items"] != float64(3) {
+		t.Errorf("moved_items is %v", deletion["moved_items"])
+	}
+}
+
+// The last column of a board has nowhere to send its entries, and the answer says so with a null
+// rather than by leaving the field out.
+func TestDeletingTheLastBucketAnswersWithANullTarget(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"bucket_id": firstBucket, "target_bucket_id": nil, "moved_items": 0,
+	}}
+
+	recorder := bucketRequest(t, registry, http.MethodDelete,
+		"/containers/"+boardCollection+"/buckets/"+firstBucket, "")
+
+	var deletion map[string]json.RawMessage
+	if err := json.Unmarshal(recorder.Body.Bytes(), &deletion); err != nil {
+		t.Fatalf("the body is not an object: %v (%s)", err, recorder.Body)
+	}
+	raw, present := deletion["target_bucket_id"]
+	if !present || string(raw) != "null" {
+		t.Errorf("target_bucket_id is %s, want null", raw)
+	}
+}

@@ -99,6 +99,12 @@ const (
 	// somebody drags it one place to the left. A board has one dimension, so there is no move to
 	// distinguish this from - a column cannot leave its collection.
 	BucketReordered Type = "de.hubtask.work.bucket.reordered.v1"
+	// BucketDeleted announces that a column is off the board, and says where its entries went.
+	//
+	// The destination is in the payload because a consumer cannot derive it: the entries moved to
+	// the leftmost remaining column, and a kanban client that only learned the column was gone
+	// would have to reload the board to find out where its cards are.
+	BucketDeleted Type = "de.hubtask.work.bucket.deleted.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -109,7 +115,7 @@ var types = [...]Type{
 	ContainerCreated, ContainerRenamed, ContainerPoliciesUpdated, ContainerMoved,
 	ContainerArchived, ContainerUnarchived,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
-	BucketCreated, BucketUpdated, BucketReordered,
+	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 }
 
 // Types returns every defined event type.

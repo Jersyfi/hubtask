@@ -1257,6 +1257,25 @@ paths:
                 $ref: "#/components/schemas/Bucket"
         "4XX":
           $ref: "#/components/responses/Problem"
+    delete:
+      tags: [structure]
+      operationId: deleteBucket
+      description: >
+        Takes the column off the board. Its entries are not deleted with it: they move to the
+        leftmost remaining column, or out of any column when this was the last one. What became of
+        them is in the answer rather than left to be discovered.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Deleted, with what became of the entries that were in it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BucketDeletion"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}/buckets/{bucketId}:reorder:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -1900,6 +1919,25 @@ components:
             number.
         is_done_bucket: { type: boolean }
         color_token: { type: [string, "null"] }
+
+    BucketDeletion:
+      type: object
+      description: >
+        What became of the entries that were in a deleted column. Reported rather than left to be
+        discovered: a board that silently reassigned a person's cards would be indistinguishable
+        from one that lost them.
+      required: [bucket_id, target_bucket_id, moved_items]
+      properties:
+        bucket_id: { type: string, format: uuid }
+        target_bucket_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The column the entries moved to - the leftmost remaining one. Null when this was the
+            last column on the board, in which case the entries now carry none.
+        moved_items:
+          type: integer
+          description: How many entries were moved.
 
     Label:
       type: object

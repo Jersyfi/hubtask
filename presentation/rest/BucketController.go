@@ -21,6 +21,7 @@ const (
 	listBucketsUseCase   = "ListBuckets"
 	updateBucketUseCase  = "UpdateBucket"
 	reorderBucketUseCase = "ReorderBucket"
+	deleteBucketUseCase  = "DeleteBucket"
 )
 
 // CreateBucket answers POST /containers/{containerId}/buckets.
@@ -218,4 +219,43 @@ func (c *RestController) ReorderBucket(
 	bucket := bucketResponse(out)
 	w.Header().Set("ETag", etag(bucket.Version))
 	writeJSON(w, r, http.StatusOK, bucket)
+}
+
+// DeleteBucket answers DELETE /containers/{containerId}/buckets/{bucketId}.
+//
+// 200 with a body rather than 204, unlike a container's deletion. What became of the entries that
+// were in the column is not derivable from the request, and a client that received no content would
+// have to reload the whole board to find out where its cards are.
+func (c *RestController) DeleteBucket(
+	w http.ResponseWriter, r *http.Request,
+	_ openapi.ContainerId, bucketID openapi.BucketId, _ openapi.DeleteBucketParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	actor, _ := appshared.ActorFrom(r.Context())
+
+	in := usecase.Input{"bucket_id": bucketID.String()}
+	if version, ok := versionFromIfMatch(ifMatchOf(r)); ok {
+		in["expected_version"] = version
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), deleteBucketUseCase, actor, in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	deletion := openapi.BucketDeletion{
+		BucketId:   uuidValue(out.String("bucket_id")),
+		MovedItems: out.Int("moved_items"),
+	}
+	if target := out.String("target_bucket_id"); target != "" {
+		targetID := uuidValue(target)
+		deletion.TargetBucketId = &targetID
+	}
+	writeJSON(w, r, http.StatusOK, deletion)
 }

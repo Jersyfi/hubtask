@@ -1476,6 +1476,17 @@ type BucketCreate struct {
 	WipLimit       *int                `json:"wip_limit,omitempty"`
 }
 
+// BucketDeletion What became of the entries that were in a deleted column. Reported rather than left to be discovered: a board that silently reassigned a person's cards would be indistinguishable from one that lost them.
+type BucketDeletion struct {
+	BucketId openapi_types.UUID `json:"bucket_id"`
+
+	// MovedItems How many entries were moved.
+	MovedItems int `json:"moved_items"`
+
+	// TargetBucketId The column the entries moved to - the leftmost remaining one. Null when this was the last column on the board, in which case the entries now carry none.
+	TargetBucketId *openapi_types.UUID `json:"target_bucket_id"`
+}
+
 // BucketUpdate JSON Merge Patch; null deletes a field.
 type BucketUpdate struct {
 	ColorToken   *string `json:"color_token,omitempty"`
@@ -2281,6 +2292,12 @@ type RenameContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DeleteBucketParams defines parameters for DeleteBucket.
+type DeleteBucketParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateBucketParams defines parameters for UpdateBucket.
 type UpdateBucketParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -2600,6 +2617,9 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}/buckets)
 	CreateBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+
+	// (DELETE /containers/{containerId}/buckets/{bucketId})
+	DeleteBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params DeleteBucketParams)
 
 	// (PATCH /containers/{containerId}/buckets/{bucketId})
 	UpdateBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params UpdateBucketParams)
@@ -3366,6 +3386,65 @@ func (siw *ServerInterfaceWrapper) CreateBucket(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateBucket(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteBucket operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBucket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "bucketId" -------------
+	var bucketId BucketId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketId", r.PathValue("bucketId"), &bucketId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteBucketParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBucket(w, r, containerId, bucketId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4873,6 +4952,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.AddComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.ListBuckets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.CreateBucket)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}", wrapper.DeleteBucket)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}", wrapper.UpdateBucket)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}:reorder", wrapper.ReorderBucket)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.ListLabels)

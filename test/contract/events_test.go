@@ -954,3 +954,49 @@ func TestABucketChangeEventRefusesAnEmptyChangeSet(t *testing.T) {
 		t.Fatal("an event with no change set was built")
 	}
 }
+
+// A deletion says where the entries went, so that a consumer does not have to reload the board.
+func TestTheBucketDeletedEventMatchesItsSchema(t *testing.T) {
+	deleted := time.Date(2026, 8, 19, 10, 0, 0, 0, time.UTC)
+	bucket := work.Bucket{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Name:         "Doing", OrderKey: "a1", DeletedAt: &deleted, Version: 2,
+	}
+	by := event.Actor{
+		Kind: shared.ActorUser, ID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	}
+
+	for _, c := range []struct {
+		name   string
+		target shared.ID
+		moved  int
+	}{
+		{name: "onto the leftmost remaining column",
+			target: shared.MustParseID("0192f000-0000-7000-8000-0000000000b2"), moved: 3},
+		{name: "off the last column of the board"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			envelope, err := event.NewBucketDeleted(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e5"), bucket,
+				c.target, c.moved, by, deleted, event.Cause{})
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, event.BucketDeleted).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}

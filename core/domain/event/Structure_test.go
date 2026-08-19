@@ -145,3 +145,46 @@ func TestABucketEventRefusesAnEmptyChangeSet(t *testing.T) {
 		t.Fatal("an event with no change set was built")
 	}
 }
+
+// The destination and the count are in the payload because a consumer cannot derive them: the
+// entries moved to the leftmost remaining column, and a kanban client that only learned the column
+// was gone would have to reload the board to find out where its cards are.
+func TestTheBucketDeletedEventSaysWhereTheEntriesWent(t *testing.T) {
+	deleted := occurred.Add(time.Hour)
+	bucket := eventBucketIn(eventCollection)
+	bucket.DeletedAt = &deleted
+	target := shared.MustParseID("0192f000-0000-7000-8000-0000000000b2")
+
+	envelope, err := NewBucketDeleted(eventID, bucket, target, 3, by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Type != BucketDeleted {
+		t.Errorf("event type %s", envelope.Type)
+	}
+	if envelope.Payload["target_bucket_id"] != target.String() {
+		t.Errorf("target_bucket_id is %v", envelope.Payload["target_bucket_id"])
+	}
+	if envelope.Payload["moved_items"] != 3 {
+		t.Errorf("moved_items is %v", envelope.Payload["moved_items"])
+	}
+	if envelope.Payload["deleted_at"] != deleted.UTC() {
+		t.Errorf("deleted_at is %v", envelope.Payload["deleted_at"])
+	}
+}
+
+// The last column of a board has nowhere to send its entries, and the payload says so with a null:
+// the entries then carry none, which is the state the collection was in before anybody made a board.
+func TestTheBucketDeletedEventCarriesANullTargetForTheLastColumn(t *testing.T) {
+	envelope, err := NewBucketDeleted(eventID, eventBucketIn(eventCollection), "", 0,
+		by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	value, present := envelope.Payload["target_bucket_id"]
+	if !present || value != nil {
+		t.Errorf("target_bucket_id is %v, want null", value)
+	}
+}

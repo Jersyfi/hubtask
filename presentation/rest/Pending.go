@@ -152,6 +152,10 @@ func (pending) ReorderBucket(w http.ResponseWriter, r *http.Request, _ openapi.C
 	notAvailable(w, r)
 }
 
+func (pending) DeleteBucket(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.BucketId, _ openapi.DeleteBucketParams) {
+	notAvailable(w, r)
+}
+
 func (pending) ListLabels(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
 	notAvailable(w, r)
 }
