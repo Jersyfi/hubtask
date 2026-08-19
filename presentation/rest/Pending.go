@@ -156,7 +156,13 @@ func (pending) DeleteBucket(w http.ResponseWriter, r *http.Request, _ openapi.Co
 	notAvailable(w, r)
 }
 
+// ListLabels and CreateLabel are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) ListLabels(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateLabel(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
 	notAvailable(w, r)
 }
 

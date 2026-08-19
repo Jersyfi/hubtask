@@ -590,3 +590,44 @@ func TestAColumnCarriesItsOptionalValuesAsNull(t *testing.T) {
 		}
 	}
 }
+
+// labelProjection is a label as a use case returns it: the field names of the contract, with the
+// description as an explicit null (B-09).
+func labelProjection() catalogue.Output {
+	return catalogue.Output{
+		"id":            "0192f000-0000-7000-8000-0000000000c1",
+		"collection_id": "0192f000-0000-7000-8000-00000000000b",
+		"name":          "Urgent",
+		"color_token":   "accent.red",
+		"description":   nil,
+		"version":       1,
+	}
+}
+
+// A vocabulary is a plain array, so it is judged against the item schema row by row.
+func TestAVocabularyMatchesTheLabelSchema(t *testing.T) {
+	spec := contractSpec(t)
+	collection := "0192f000-0000-7000-8000-00000000000b"
+
+	status, body := readResponse(t, "/containers/"+collection+"/labels",
+		catalogue.Output{"data": []catalogue.Output{labelProjection()}})
+	if status != http.StatusOK {
+		t.Fatalf("status %d: %s", status, body)
+	}
+
+	var vocabulary []json.RawMessage
+	if err := json.Unmarshal(body, &vocabulary); err != nil {
+		t.Fatalf("the vocabulary is not an array: %v (%s)", err, body)
+	}
+	if len(vocabulary) != 1 {
+		t.Fatalf("%d labels, want 1", len(vocabulary))
+	}
+
+	problems, err := spec.validateAgainst("Label", vocabulary[0])
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, problem := range problems {
+		t.Errorf("Label: %s", problem)
+	}
+}

@@ -125,3 +125,38 @@ func NewBucketDeleted(id shared.ID, bucket work.Bucket, targetBucketID shared.ID
 	return NewEnvelope(id, BucketDeleted, bucket.TenantID,
 		BucketSubject(bucket.ID), actor, occurredAt, cause, payload)
 }
+
+// NewLabelCreated announces a new label in a collection's vocabulary.
+func NewLabelCreated(id shared.ID, label work.Label, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return NewEnvelope(id, LabelCreated, label.TenantID,
+		LabelSubject(label.ID), actor, occurredAt, cause, labelPayload(label))
+}
+
+// labelPayload is the snapshot every label event carries, in the API's field names.
+//
+// `description` is an explicit null rather than an omission, for the reason a bucket's limit is: a
+// client renders the label from this and should not have to tell "no description" from "this
+// producer does not know about descriptions".
+func labelPayload(label work.Label) map[string]any {
+	payload := map[string]any{
+		"id":            label.ID.String(),
+		"collection_id": label.CollectionID.String(),
+		"name":          label.Name,
+		"color_token":   label.ColorToken,
+		"description":   nil,
+		"deleted_at":    nil,
+		"version":       label.Version,
+	}
+	if label.Description != "" {
+		payload["description"] = label.Description
+	}
+	if label.DeletedAt != nil {
+		payload["deleted_at"] = label.DeletedAt.UTC()
+	}
+	return payload
+}
+
+// LabelSubject is what a label event is about.
+func LabelSubject(id shared.ID) string { return "label/" + id.String() }

@@ -1000,3 +1000,53 @@ func TestTheBucketDeletedEventMatchesItsSchema(t *testing.T) {
 		})
 	}
 }
+
+// A label as a collection defines it (B-09).
+func TestTheLabelCreatedEventMatchesItsSchema(t *testing.T) {
+	spec := loadEventSchema(t, event.LabelCreated)
+
+	for _, c := range []struct {
+		name  string
+		label work.Label
+	}{
+		{name: "a plain label", label: work.Label{
+			ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000c1"),
+			TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+			Name:         "Urgent", ColorToken: "accent.red", Version: 1,
+		}},
+		{name: "one that carries a description", label: work.Label{
+			ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000c2"),
+			TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+			Name:         "Blocked", ColorToken: "accent.amber",
+			Description: "Waiting on somebody else", Version: 1,
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			envelope, err := event.NewLabelCreated(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e6"), c.label,
+				event.Actor{
+					Kind: shared.ActorUser,
+					ID:   shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+				},
+				time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC), event.Cause{})
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := spec.validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}

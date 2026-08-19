@@ -1832,13 +1832,27 @@ type JobRef struct {
 // JobRefStatus defines model for JobRef.Status.
 type JobRefStatus string
 
-// Label defines model for Label.
+// Label A tag a collection defines and its entries carry. Defined on the collection rather than on the workspace: a label is a vocabulary the people working in one collection agree on, and a workspace-wide list would make every collection pay for every other's.
 type Label struct {
-	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
-	ColorToken   string              `json:"color_token"`
-	Description  *string             `json:"description,omitempty"`
-	Id           openapi_types.UUID  `json:"id"`
-	Name         string              `json:"name"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// ColorToken A theme token rather than a colour value, so clients render it in their own palette. Required: a label is rendered as a chip and nothing else.
+	ColorToken string `json:"color_token"`
+
+	// Description Always present, as null when unset.
+	Description *string            `json:"description"`
+	Id          openapi_types.UUID `json:"id"`
+	Name        string             `json:"name"`
+
+	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
+	Version int `json:"version"`
+}
+
+// LabelCreate defines model for LabelCreate.
+type LabelCreate struct {
+	ColorToken  string  `json:"color_token"`
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
 }
 
 // Membership defines model for Membership.
@@ -2510,6 +2524,9 @@ type UpdateBucketApplicationMergePatchPlusJSONRequestBody = BucketUpdate
 // ReorderBucketJSONRequestBody defines body for ReorderBucket for application/json ContentType.
 type ReorderBucketJSONRequestBody ReorderBucketJSONBody
 
+// CreateLabelJSONRequestBody defines body for CreateLabel for application/json ContentType.
+type CreateLabelJSONRequestBody = LabelCreate
+
 // UpdateContainerPoliciesJSONRequestBody defines body for UpdateContainerPolicies for application/json ContentType.
 type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 
@@ -2629,6 +2646,9 @@ type ServerInterface interface {
 
 	// (GET /containers/{containerId}/labels)
 	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+
+	// (POST /containers/{containerId}/labels)
+	CreateLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (PUT /containers/{containerId}/policies)
 	UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UpdateContainerPoliciesParams)
@@ -3589,6 +3609,32 @@ func (siw *ServerInterfaceWrapper) ListLabels(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListLabels(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateLabel operation middleware
+func (siw *ServerInterfaceWrapper) CreateLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateLabel(w, r, containerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4956,6 +5002,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}", wrapper.UpdateBucket)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}:reorder", wrapper.ReorderBucket)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.ListLabels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.CreateLabel)
 
 	return m
 }

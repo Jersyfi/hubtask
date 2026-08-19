@@ -105,6 +105,9 @@ const (
 	// the leftmost remaining column, and a kanban client that only learned the column was gone
 	// would have to reload the board to find out where its cards are.
 	BucketDeleted Type = "de.hubtask.work.bucket.deleted.v1"
+	// LabelCreated announces a new label in a collection's vocabulary. Consumers: automation,
+	// search, clients that render a chip.
+	LabelCreated Type = "de.hubtask.work.label.created.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -116,6 +119,7 @@ var types = [...]Type{
 	ContainerArchived, ContainerUnarchived,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
+	LabelCreated,
 }
 
 // Types returns every defined event type.

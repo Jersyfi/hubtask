@@ -11,7 +11,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-var eventBucket = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+var (
+	eventBucket = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	eventLabel  = shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+)
 
 func eventBucketIn(collection shared.ID) work.Bucket {
 	return work.Bucket{
@@ -186,5 +189,53 @@ func TestTheBucketDeletedEventCarriesANullTargetForTheLastColumn(t *testing.T) {
 	value, present := envelope.Payload["target_bucket_id"]
 	if !present || value != nil {
 		t.Errorf("target_bucket_id is %v, want null", value)
+	}
+}
+
+func eventLabelIn(collection shared.ID) work.Label {
+	return work.Label{
+		ID: eventLabel, TenantID: eventTenant, CollectionID: collection,
+		Name: "Urgent", ColorToken: "accent.red", Version: 1,
+	}
+}
+
+// The description travels as an explicit null rather than as an omission, for the reason a bucket's
+// limit does: a client renders the label from this snapshot.
+func TestTheLabelCreatedEventCarriesTheLabel(t *testing.T) {
+	envelope, err := NewLabelCreated(eventID, eventLabelIn(eventCollection), by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Type != LabelCreated || envelope.Subject != LabelSubject(eventLabel) {
+		t.Errorf("unexpected envelope: %+v", envelope)
+	}
+	payload := envelope.Payload
+	if payload["name"] != "Urgent" || payload["color_token"] != "accent.red" {
+		t.Errorf("unexpected payload: %+v", payload)
+	}
+	for _, field := range []string{"description", "deleted_at"} {
+		value, present := payload[field]
+		if !present || value != nil {
+			t.Errorf("%s is %v, want null", field, value)
+		}
+	}
+}
+
+func TestASetLabelValueTravelsAsItsValue(t *testing.T) {
+	deleted := occurred.Add(time.Hour)
+	label := eventLabelIn(eventCollection)
+	label.Description, label.DeletedAt = "Needs a decision today", &deleted
+
+	envelope, err := NewLabelCreated(eventID, label, by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Payload["description"] != "Needs a decision today" {
+		t.Errorf("description is %v", envelope.Payload["description"])
+	}
+	if envelope.Payload["deleted_at"] != deleted.UTC() {
+		t.Errorf("deleted_at is %v", envelope.Payload["deleted_at"])
 	}
 }

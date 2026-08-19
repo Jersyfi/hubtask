@@ -233,6 +233,7 @@ func run() error {
 	items := postgres.NewItemRepository(cursors)
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
+	labels := postgres.NewLabelRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
@@ -361,6 +362,21 @@ func run() error {
 		work.UpdateBucket{Writer: bucketWriter}.Descriptor(),
 		work.ReorderBucket{Writer: bucketWriter}.Descriptor(),
 		work.DeleteBucket{Writer: bucketWriter}.Descriptor(),
+		work.CreateLabel{
+			Labels:     labels,
+			Containers: containers,
+			Authorizer: authorizer,
+			Events:     outbox,
+			Changes:    changes,
+			Audit:      auditSink,
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{},
+			IDs:        ids,
+			HLC:        hybrid,
+		}.Descriptor(),
+		work.ListLabels{
+			Labels: labels, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
