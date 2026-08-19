@@ -468,40 +468,49 @@ func (c Container) WithPolicies(policies ContainerPolicies, at time.Time) (Conta
 	return c, changes, nil
 }
 
-// Archived stamps the container read-only, and reports whether that changed anything.
+// Archived stamps the container read-only, and reports the change as the other verbs do.
 //
-// Idempotent: archiving an archived container succeeds and writes nothing, which is what makes a
-// retry after a lost response harmless. The inherited state is a gate rather than a no-op - a
-// collection whose hub is archived is inside an archived subtree, and archiving it would be a write
-// into one (I-C3). Unarchive the hub first; the answer names it.
-func (c Container) Archived(at time.Time) (Container, bool, error) {
+// Idempotent: archiving an archived container succeeds with no changes, which is what makes a retry
+// after a lost response harmless. The inherited state is a gate rather than a no-op - a collection
+// whose hub is archived is inside an archived subtree, and archiving it would be a write into one
+// (I-C3). Unarchive the hub first; the answer names it.
+func (c Container) Archived(at time.Time) (Container, []FieldChange, error) {
 	if err := c.ensureLifecycleChangeable(); err != nil {
-		return Container{}, false, err
+		return Container{}, nil, err
 	}
 	if c.IsArchived() {
-		return c, false, nil
+		return c, nil, nil
 	}
+
+	changes := []FieldChange{{Field: FieldArchivedAt, From: "", To: instant(at)}}
 	c.ArchivedAt = &at
 	c.UpdatedAt = at
-	return c, true, nil
+	return c, changes, nil
 }
 
-// Unarchived lifts this container's own stamp, and reports whether that changed anything.
+// Unarchived lifts this container's own stamp.
 //
 // Only its own. A collection archived in its own right stays archived when its hub is unarchived,
 // because unarchiving restores what was archived and not what was merely covered by it - which is
 // the whole reason the inherited stamp is never written onto the row.
-func (c Container) Unarchived(at time.Time) (Container, bool, error) {
+func (c Container) Unarchived(at time.Time) (Container, []FieldChange, error) {
 	if err := c.ensureLifecycleChangeable(); err != nil {
-		return Container{}, false, err
+		return Container{}, nil, err
 	}
 	if !c.IsArchived() {
-		return c, false, nil
+		return c, nil, nil
 	}
+
+	changes := []FieldChange{{Field: FieldArchivedAt, From: instant(*c.ArchivedAt), To: ""}}
 	c.ArchivedAt = nil
 	c.UpdatedAt = at
-	return c, true, nil
+	return c, changes, nil
 }
+
+// instant is how a timestamp travels in a change set: RFC 3339 in UTC, which is the one spelling
+// every channel of this system already uses. The empty string is the field being cleared, exactly
+// as it is for the text fields - a recipient reads "not set" from it and never a zero time.
+func instant(at time.Time) string { return at.UTC().Format(time.RFC3339Nano) }
 
 // ensureLifecycleChangeable is what archiving and unarchiving both need: not in the trash, and not
 // inside somebody else's archived subtree.
@@ -547,8 +556,7 @@ func (c Container) EnsureEditable() error {
 	return nil
 }
 
-// MovedInto returns the container as it sits under a new parent, and reports whether it moved at
-// all.
+// MovedInto returns the container as it sits under a new parent, and reports what moved with it.
 //
 // Everything a create refuses a move refuses too: the type under the new parent, a trashed or
 // archived destination (Container.EnsureAcceptsChildren). Re-checking rather than assuming is what
@@ -556,39 +564,50 @@ func (c Container) EnsureEditable() error {
 //
 // A hub is refused outright. It sits in the tenant and in nothing else (I-C1), so there is no
 // destination to name and a move would have to invent one.
-func (c Container) MovedInto(parent Container, orderKey string, at time.Time) (Container, bool, error) {
+func (c Container) MovedInto(parent Container, orderKey string, at time.Time) (Container, []FieldChange, error) {
 	if c.Type != ContainerCollection {
-		return Container{}, false, shared.ErrValidation.
+		return Container{}, nil, shared.ErrValidation.
 			WithDetail("containers.hub_not_movable").
 			WithParams(map[string]string{"container_id": c.ID.String()}).
 			WithFields(shared.FieldError{Path: "/target_parent_id", Code: "containers.hub_not_movable"})
 	}
 	if err := c.EnsureEditable(); err != nil {
-		return Container{}, false, err
+		return Container{}, nil, err
 	}
 	if parent.ID == c.ID {
 		// A container inside itself has no level and no path. Cheap to check and unrecoverable to
 		// store, which is the same reasoning the item hierarchy's cycle check rests on (I-W2).
-		return Container{}, false, shared.ErrValidation.
+		return Container{}, nil, shared.ErrValidation.
 			WithDetail("containers.parent_is_self").
 			WithParams(map[string]string{"container_id": c.ID.String()}).
 			WithFields(shared.FieldError{Path: "/target_parent_id", Code: "containers.parent_is_self"})
 	}
 	if err := parent.EnsureAcceptsChildren(c.Type); err != nil {
-		return Container{}, false, err
+		return Container{}, nil, err
 	}
 	if orderKey == "" {
-		return Container{}, false, shared.ErrInternal.WithDetail("containers.identity_incomplete")
+		return Container{}, nil, shared.ErrInternal.WithDetail("containers.identity_incomplete")
 	}
 
 	if parent.ID == c.ParentID && orderKey == c.OrderKey {
-		return c, false, nil
+		return c, nil, nil
 	}
+
+	var changes []FieldChange
+	if parent.ID != c.ParentID {
+		changes = append(changes, FieldChange{
+			Field: FieldParentID, From: c.ParentID.String(), To: parent.ID.String(),
+		})
+	}
+	if orderKey != c.OrderKey {
+		changes = append(changes, FieldChange{Field: FieldOrderKey, From: c.OrderKey, To: orderKey})
+	}
+
 	c.ParentID = parent.ID
 	c.OrderKey = orderKey
 	// The destination decides what the collection inherits. It has just been checked as accepting
 	// children, so it is not archived - which is what makes this a clear rather than a copy.
 	c.ParentArchivedAt = nil
 	c.UpdatedAt = at
-	return c, true, nil
+	return c, changes, nil
 }

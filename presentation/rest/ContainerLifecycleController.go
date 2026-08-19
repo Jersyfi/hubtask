@@ -119,3 +119,59 @@ func (c *RestController) UpdateContainerPolicies(
 	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, containerResponse(out))
 }
+
+// ArchiveContainer answers POST /containers/{containerId}:archive.
+//
+// No body. The container is named by the path, and there is nothing to decide about archiving it -
+// which is what makes the action suffix right for it: a status field would have to be sent, read
+// and validated to say the one thing this route says by existing (api-guidelines.md §2).
+func (c *RestController) ArchiveContainer(
+	w http.ResponseWriter, r *http.Request,
+	containerID openapi.ContainerId, _ openapi.ArchiveContainerParams,
+) {
+	c.containerLifecycle(w, r, archiveContainerUseCase, containerID)
+}
+
+// UnarchiveContainer answers POST /containers/{containerId}:unarchive.
+func (c *RestController) UnarchiveContainer(
+	w http.ResponseWriter, r *http.Request,
+	containerID openapi.ContainerId, _ openapi.UnarchiveContainerParams,
+) {
+	c.containerLifecycle(w, r, unarchiveContainerUseCase, containerID)
+}
+
+const (
+	archiveContainerUseCase   = "ArchiveContainer"
+	unarchiveContainerUseCase = "UnarchiveContainer"
+)
+
+// containerLifecycle is the shape the two archive verbs share: a path parameter, an optional
+// If-Match, and the container back with its new tag.
+//
+// The If-Match is read off the request rather than off generated parameters, because the
+// specification does not declare one for an action - `ifMatchOf` is what the item's own actions
+// use, and reading the header directly keeps the two consistent.
+func (c *RestController) containerLifecycle(
+	w http.ResponseWriter, r *http.Request, useCase string, containerID openapi.ContainerId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	in := usecase.Input{"container_id": containerID.String()}
+	if version, ok := versionFromIfMatch(ifMatchOf(r)); ok {
+		in["expected_version"] = version
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), useCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	w.Header().Set("ETag", etag(out.Int("version")))
+	writeJSON(w, r, http.StatusOK, containerResponse(out))
+}

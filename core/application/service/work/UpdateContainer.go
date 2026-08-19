@@ -269,6 +269,10 @@ func (w ContainerWriter) write(
 // The payload names only the field that moved. `version` and `updated_at` are derived and never
 // merged, and a payload that repeated the untouched fields would let a stale value for one of them
 // win a merge it should never have been in.
+//
+// A cleared field travels as null rather than as the empty string. Every field a container change
+// touches holds "not set" as the empty string in the domain, and the API spells that null - a client
+// merging `""` into a timestamp or an icon would be merging a value this system never renders.
 func (w ContainerWriter) recordChanges(
 	ctx context.Context, container domain.Container, actor appshared.ActorContext,
 	changes []domain.FieldChange,
@@ -284,13 +288,22 @@ func (w ContainerWriter) recordChanges(
 			ContainerID: firstNonZero(container.ParentID, container.ID),
 			ActorID:     actor.AccountID,
 			HLC:         w.HLC.Next(),
-			Payload:     map[string]any{change.Field: change.To},
+			Payload:     map[string]any{change.Field: clearedAsNull(change.To)},
 		})
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// clearedAsNull is how "the field is now empty" reaches a payload: as null, which is what the API
+// spells it.
+func clearedAsNull(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 // recordAudit writes the evidence: which fields changed, and - where they are not user content -

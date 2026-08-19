@@ -211,3 +211,65 @@ func TestAnOmittedPolicyKeyIsNotSentAsAnInstruction(t *testing.T) {
 		t.Error("an empty policies document was answered without asking the catalogue")
 	}
 }
+
+func archivedContainer() usecase.Output {
+	out := renamedContainer()
+	out["archived_at"] = time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC)
+	out["effective_archived"] = true
+	return out
+}
+
+func TestArchivingAContainerAnswers200AndNamesTheUseCase(t *testing.T) {
+	registry := &catalogue{out: archivedContainer()}
+
+	recorder := containerRequest(t, registry, http.MethodPost,
+		"/containers/"+containerID+":archive", "", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "ArchiveContainer" {
+		t.Errorf("use case = %q", registry.name)
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"4"` {
+		t.Errorf("ETag = %q", tag)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("the response is not JSON: %v", err)
+	}
+	if body["effective_archived"] != true || body["archived_at"] == nil {
+		t.Errorf("body = %v", body)
+	}
+}
+
+func TestUnarchivingAContainerNamesTheOtherUseCase(t *testing.T) {
+	registry := &catalogue{out: renamedContainer()}
+
+	recorder := containerRequest(t, registry, http.MethodPost,
+		"/containers/"+containerID+":unarchive", "", `"3"`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "UnarchiveContainer" {
+		t.Errorf("use case = %q", registry.name)
+	}
+	// An action declares no If-Match in the specification, and the header is honoured all the same:
+	// a client that read a version and wants to archive exactly that one can say so.
+	if registry.in["expected_version"] != 3 {
+		t.Errorf("expected_version = %v", registry.in["expected_version"])
+	}
+}
+
+// The two archive routes take no body, and the identifier they act on comes from the path alone.
+func TestTheArchiveActionsSendOnlyTheIdentifier(t *testing.T) {
+	registry := &catalogue{out: archivedContainer()}
+
+	containerRequest(t, registry, http.MethodPost, "/containers/"+containerID+":archive", "", "")
+
+	if len(registry.in) != 1 || registry.in["container_id"] != containerID {
+		t.Errorf("input = %v, want the identifier alone", registry.in)
+	}
+}

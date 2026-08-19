@@ -307,11 +307,16 @@ func TestWithPolicies(t *testing.T) {
 func TestArchivedAndUnarchived(t *testing.T) {
 	t.Run("archiving stamps it", func(t *testing.T) {
 		updated, moved, err := collection().Archived(changed)
-		if err != nil || !moved {
-			t.Fatalf("archiving was refused: moved=%v err=%v", moved, err)
+		if err != nil || len(moved) != 1 {
+			t.Fatalf("archiving was refused: moved=%+v err=%v", moved, err)
 		}
 		if updated.ArchivedAt == nil || !updated.ArchivedAt.Equal(changed) {
 			t.Errorf("archived at %v, want the clock's %v", updated.ArchivedAt, changed)
+		}
+		// The change set says what an offline client has to be told, and it says it in the one
+		// spelling every channel of this system uses.
+		if moved[0].Field != "archived_at" || moved[0].To != changed.UTC().Format(time.RFC3339Nano) {
+			t.Errorf("the change does not describe the stamp: %+v", moved[0])
 		}
 	})
 
@@ -324,7 +329,7 @@ func TestArchivedAndUnarchived(t *testing.T) {
 		if err != nil {
 			t.Fatalf("refused: %v", err)
 		}
-		if moved || !updated.ArchivedAt.Equal(archived) || updated.UpdatedAt != created {
+		if len(moved) != 0 || !updated.ArchivedAt.Equal(archived) || updated.UpdatedAt != created {
 			t.Errorf("a repeat moved the stamp: %+v", updated)
 		}
 	})
@@ -334,18 +339,22 @@ func TestArchivedAndUnarchived(t *testing.T) {
 		container.ArchivedAt = &archived
 
 		updated, moved, err := container.Unarchived(changed)
-		if err != nil || !moved {
-			t.Fatalf("unarchiving was refused: moved=%v err=%v", moved, err)
+		if err != nil || len(moved) != 1 {
+			t.Fatalf("unarchiving was refused: moved=%+v err=%v", moved, err)
 		}
 		if updated.ArchivedAt != nil {
 			t.Errorf("still archived: %+v", updated.ArchivedAt)
+		}
+		// The cleared field travels as the empty string, exactly as a cleared description does.
+		if moved[0].To != "" || moved[0].From == "" {
+			t.Errorf("the change does not describe the clearing: %+v", moved[0])
 		}
 	})
 
 	t.Run("unarchiving an open container writes nothing", func(t *testing.T) {
 		_, moved, err := collection().Unarchived(changed)
-		if err != nil || moved {
-			t.Fatalf("moved=%v err=%v, want a silent no-op", moved, err)
+		if err != nil || len(moved) != 0 {
+			t.Fatalf("moved=%+v err=%v, want a silent no-op", moved, err)
 		}
 	})
 
@@ -355,8 +364,8 @@ func TestArchivedAndUnarchived(t *testing.T) {
 		container := hub()
 		container.ArchivedAt = &archived
 
-		if _, moved, err := container.Unarchived(changed); err != nil || !moved {
-			t.Fatalf("an archived hub refused to be unarchived: moved=%v err=%v", moved, err)
+		if _, moved, err := container.Unarchived(changed); err != nil || len(moved) != 1 {
+			t.Fatalf("an archived hub refused to be unarchived: moved=%+v err=%v", moved, err)
 		}
 	})
 
@@ -390,11 +399,16 @@ func TestMovedInto(t *testing.T) {
 
 	t.Run("into another hub", func(t *testing.T) {
 		updated, moved, err := collection().MovedInto(destination, "q", changed)
-		if err != nil || !moved {
-			t.Fatalf("the move was refused: moved=%v err=%v", moved, err)
+		if err != nil || len(moved) != 2 {
+			t.Fatalf("the move was refused: moved=%+v err=%v", moved, err)
 		}
 		if updated.ParentID != otherHub || updated.OrderKey != "q" {
 			t.Errorf("unexpected placement: parent %q rank %q", updated.ParentID, updated.OrderKey)
+		}
+		// Both fields are announced, because an offline client merges them separately: the hub is
+		// last writer wins, the rank is a fractional index that merges by itself.
+		if moved[0].Field != "parent_id" || moved[1].Field != "order_key" {
+			t.Errorf("the change set does not name both fields: %+v", moved)
 		}
 	})
 
@@ -415,8 +429,8 @@ func TestMovedInto(t *testing.T) {
 
 	t.Run("naming the hub it already sits in at the rank it already has moves nothing", func(t *testing.T) {
 		_, moved, err := collection().MovedInto(hub(), "m", changed)
-		if err != nil || moved {
-			t.Fatalf("moved=%v err=%v, want a silent no-op", moved, err)
+		if err != nil || len(moved) != 0 {
+			t.Fatalf("moved=%+v err=%v, want a silent no-op", moved, err)
 		}
 	})
 
