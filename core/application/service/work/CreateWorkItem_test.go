@@ -157,7 +157,11 @@ func (i *items) SetAttributes(_ context.Context, item domain.WorkItem, expectedV
 	if i.setErr != nil {
 		return i.setErr
 	}
-	if item.ID == i.conflictOn {
+	// The optimistic lock, as the statement behind it works: the update matches nothing when the row has
+	// moved on, and the caller is told rather than overwriting whoever moved it. Modelled here rather
+	// than only in the integration test, because a use case that passed the wrong version would
+	// otherwise look correct at this level.
+	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.attributes = append(i.attributes, attributeWrite{item: item, expectedVersion: expectedVersion})
