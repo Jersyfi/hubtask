@@ -200,9 +200,15 @@ func (r ItemRepository) SetAttributes(ctx context.Context, item work.WorkItem, e
 		return err
 	}
 
+	bucket, err := optionalUUID(item.BucketID)
+	if err != nil {
+		return err
+	}
+
 	affected, err := queries.SetWorkItemAttributes(ctx, sqlc.SetWorkItemAttributesParams{
 		Title:     item.Title,
 		Notes:     optionalText(item.Notes),
+		BucketID:  bucket,
 		UpdatedAt: timestampOf(item.UpdatedAt),
 		ID:        id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
@@ -304,28 +310,48 @@ func (r ItemRepository) SetOrderKey(ctx context.Context, item work.WorkItem, exp
 // The moved item is written by the first statement and excluded from the second, so one move moves one version
 // per row. Written the other way round - both statements matching the moved item - a single move would bump its
 // version twice, which is an artefact of the split rather than anything a caller asked for.
-func (r ItemRepository) MoveSubtree(ctx context.Context, move repository.Move) (int, error) {
+func (r ItemRepository) MoveSubtree(
+	ctx context.Context, move repository.Move,
+) (int, []work.DroppedReference, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	id, err := uuidOf(move.Item.ID)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	parent, err := optionalUUID(move.TargetParentID)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	collection, err := uuidOf(move.CollectionID)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
+	}
+
+	// The moved item keeps its column only where the board did not change under it. A move to
+	// another collection takes the item away from the board it was on, and a reference to a column
+	// of the collection it left would be one nothing renders (I-W6).
+	bucket, err := optionalUUID(move.BucketID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// The references the destination cannot resolve, dropped and reported before anything moves
+	// (I-W6). Before, because the subtree is found by the path it still has - and because the
+	// placement statement below writes the moved item's own column, so a clear that ran after it
+	// would have nothing left to report about the row a person actually dragged.
+	dropped, err := r.clearForeignReferences(ctx, queries, move)
+	if err != nil {
+		return 0, nil, err
 	}
 
 	placed, err := queries.SetWorkItemPlacement(ctx, sqlc.SetWorkItemPlacementParams{
 		ParentID:     parent,
 		CollectionID: collection,
+		BucketID:     bucket,
 		Path:         move.NewPrefix,
 		//nolint:gosec // G115: a depth is bounded by the profile's MaxDepth
 		Depth:     int32(move.Item.Depth + move.DepthDelta),
@@ -336,12 +362,12 @@ func (r ItemRepository) MoveSubtree(ctx context.Context, move repository.Move) (
 		ExpectedVersion: int32(move.ExpectedVersion),
 	})
 	if err != nil {
-		return 0, shared.ErrUnavailable.
+		return 0, nil, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the placement of %s: %w", move.Item.ID, err))
 	}
 	if err := versionConflictIfUntouched(placed, move.Item.ID, move.ExpectedVersion); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	touched, err := queries.MoveWorkItemSubtree(ctx, sqlc.MoveWorkItemSubtreeParams{
@@ -354,13 +380,82 @@ func (r ItemRepository) MoveSubtree(ctx context.Context, move repository.Move) (
 		ItemID:     id,
 	})
 	if err != nil {
-		return 0, shared.ErrUnavailable.
+		return 0, nil, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("rewriting the subtree of %s: %w", move.Item.ID, err))
 	}
 	// The count is the descendants, and the moved item is one more: the subtree statement excludes it, so
 	// that one move moves one version per row. Zero descendants is an ordinary leaf and not a failure.
-	return int(touched) + 1, nil
+	return int(touched) + 1, dropped, nil
+}
+
+// clearForeignReferences drops what the destination collection does not define, and names it.
+//
+// Two statements rather than one, because they touch two tables - but neither is separable from the
+// move: an entry that kept a label of the collection it left is a reference nothing renders, and one
+// that kept a column is on a board it is not on (I-W6).
+//
+// The subtree is found by the path it still has, because this runs before the paths move. Neither
+// statement moves a version: the move's own two statements bump every row in the subtree, and a
+// second bump would make one move look like two.
+func (r ItemRepository) clearForeignReferences(
+	ctx context.Context, queries *sqlc.Queries, move repository.Move,
+) ([]work.DroppedReference, error) {
+	collection, err := uuidOf(move.CollectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	labels, err := queries.ClearForeignSubtreeLabels(ctx, sqlc.ClearForeignSubtreeLabelsParams{
+		PathPrefix:   move.OldPrefix,
+		CollectionID: collection,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("clearing the labels below %s: %w", move.Item.ID, err))
+	}
+
+	buckets, err := queries.ClearForeignSubtreeBuckets(ctx, sqlc.ClearForeignSubtreeBucketsParams{
+		PathPrefix:   move.OldPrefix,
+		CollectionID: collection,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("clearing the buckets below %s: %w", move.Item.ID, err))
+	}
+
+	dropped := make([]work.DroppedReference, 0, len(labels)+len(buckets))
+	for _, row := range labels {
+		itemID, labelID, err := idPair(row.ItemID, row.LabelID)
+		if err != nil {
+			return nil, err
+		}
+		dropped = append(dropped, work.DroppedLabel(itemID, labelID))
+	}
+	for _, row := range buckets {
+		itemID, bucketID, err := idPair(row.ID, row.BucketID)
+		if err != nil {
+			return nil, err
+		}
+		dropped = append(dropped, work.DroppedBucket(itemID, bucketID))
+	}
+	return dropped, nil
+}
+
+// idPair reads two identifiers of one row, so that the two loops above do not each carry four lines
+// of error handling.
+func idPair(left, right pgtype.UUID) (shared.ID, shared.ID, error) {
+	first, err := idFrom(left)
+	if err != nil {
+		return "", "", err
+	}
+	second, err := idFrom(right)
+	if err != nil {
+		return "", "", err
+	}
+	return first, second, nil
 }
 
 // versionConflictIfUntouched turns an update that matched nothing into the answer a caller can act on.
@@ -443,6 +538,11 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 		return err
 	}
 
+	bucket, err := optionalUUID(item.BucketID)
+	if err != nil {
+		return err
+	}
+
 	depth, err := columnDepth(item.Depth)
 	if err != nil {
 		return err
@@ -457,6 +557,7 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 		Depth:        depth,
 		Title:        item.Title,
 		Notes:        optionalText(item.Notes),
+		BucketID:     bucket,
 		OrderKey:     item.OrderKey,
 		CreatedBy:    createdBy,
 		CreatedAt:    timestampOf(item.CreatedAt),
@@ -513,6 +614,10 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 	if err != nil {
 		return work.WorkItem{}, err
 	}
+	bucketID, err := optionalID(row.BucketID)
+	if err != nil {
+		return work.WorkItem{}, err
+	}
 
 	return work.WorkItem{
 		ID:           id,
@@ -529,6 +634,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 			CompletedAt: optionalTime(row.CompletedAt),
 			CompletedBy: completedBy,
 		},
+		BucketID:     bucketID,
 		OrderKey:     row.OrderKey,
 		ArchivedAt:   optionalTime(row.ArchivedAt),
 		DeletedAt:    optionalTime(row.DeletedAt),

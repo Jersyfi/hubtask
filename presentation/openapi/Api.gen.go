@@ -1677,8 +1677,11 @@ type DroppedReference struct {
 	Code string `json:"code"`
 
 	// Id The reference that could not be carried over.
-	Id   string               `json:"id"`
-	Kind DroppedReferenceKind `json:"kind"`
+	Id string `json:"id"`
+
+	// ItemId The entry that lost it. A move carries a whole subtree, so one operation can drop references from several entries at once.
+	ItemId *openapi_types.UUID  `json:"item_id,omitempty"`
+	Kind   DroppedReferenceKind `json:"kind"`
 }
 
 // DroppedReferenceKind defines model for DroppedReference.Kind.

@@ -56,6 +56,8 @@ type items struct {
 	ranks       []rankWrite
 	moves       []repository.Move
 	rankErr     error
+	// dropped is what MoveSubtree reports as lost, for the tests about I-W6.
+	dropped     []domain.DroppedReference
 	moveErr     error
 	subtreeSize int
 }
@@ -83,9 +85,11 @@ func (i *items) SetOrderKey(_ context.Context, item domain.WorkItem, expectedVer
 	return nil
 }
 
-func (i *items) MoveSubtree(_ context.Context, move repository.Move) (int, error) {
+func (i *items) MoveSubtree(
+	_ context.Context, move repository.Move,
+) (int, []domain.DroppedReference, error) {
 	if i.moveErr != nil {
-		return 0, i.moveErr
+		return 0, nil, i.moveErr
 	}
 	i.moves = append(i.moves, move)
 
@@ -95,13 +99,17 @@ func (i *items) MoveSubtree(_ context.Context, move repository.Move) (int, error
 	moved.Path = move.NewPrefix
 	moved.Depth += move.DepthDelta
 	moved.OrderKey = move.OrderKey
+	moved.BucketID = move.BucketID
 	moved.UpdatedAt = move.UpdatedAt
 	i.stored[move.Item.ID] = moved
 
-	if i.subtreeSize == 0 {
-		return 1, nil
+	// What the destination could not resolve. Set by a test that wants a loss reported; the
+	// repository decides it for real, out of the two statements that clear the subtree (I-W6).
+	size := i.subtreeSize
+	if size == 0 {
+		size = 1
 	}
-	return i.subtreeSize, nil
+	return size, i.dropped, nil
 }
 
 func (i *items) Find(_ context.Context, id shared.ID) (domain.WorkItem, error) {
@@ -828,19 +836,21 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	for _, field := range descriptor.Input {
 		declared[field.Name] = true
 	}
-	for _, owned := range []string{"type", "title", "collection_id", "parent_id", "notes"} {
+	for _, owned := range []string{
+		"type", "title", "collection_id", "parent_id", "notes", "bucket_id",
+	} {
 		if !declared[owned] {
 			t.Errorf("%s is not declared", owned)
 		}
 	}
-	for _, later := range []string{"bucket_id", "label_ids", "assignee_id", "due_at", "cover"} {
+	for _, later := range []string{"label_ids", "assignee_id", "due_at", "cover"} {
 		if declared[later] {
 			t.Errorf("%s is declared, though no use case writes it yet", later)
 		}
 	}
 
 	if err := descriptor.ValidateInput(map[string]any{
-		"type": "TASK", "title": "Buy milk", "bucket_id": "0192f000-0000-7000-8000-00000000000e",
+		"type": "TASK", "title": "Buy milk", "assignee_id": "0192f000-0000-7000-8000-00000000000e",
 	}); err == nil {
 		t.Error("a field nothing writes was accepted rather than refused by name")
 	}

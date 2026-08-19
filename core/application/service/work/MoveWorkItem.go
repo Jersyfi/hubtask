@@ -42,6 +42,7 @@ const (
 // two implementations.
 type PlacementWriter struct {
 	Items      repository.Items
+	Buckets    repository.Buckets
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
 	Authorizer Authorizer
@@ -78,7 +79,11 @@ type MoveWorkItemCommand struct {
 	// in, and making a client repeat it is making it possible to contradict.
 	TargetCollectionID shared.ID
 	// BeforeItemID is the sibling to land in front of at the destination. Empty appends.
-	BeforeItemID    shared.ID
+	BeforeItemID shared.ID
+	// TargetBucketID is the column of the destination's board to land in, meaningful only together
+	// with BucketGiven: the zero value is both "no column" and "not asked for".
+	TargetBucketID  shared.ID
+	BucketGiven     bool
 	ExpectedVersion int
 }
 
@@ -96,17 +101,12 @@ type MoveResult struct {
 	// SubtreeSize is how many rows moved, the item included. The event reports it so that a client knows how
 	// much of its own copy to rewrite.
 	SubtreeSize int
-	// DroppedReferences is always empty on this version. Labels, buckets and members arrive with B-09 and
-	// 0.3.0, so a change of collection has nothing yet that could fail to resolve - the field exists because
-	// the contract declares it and a client should not have to change shape when it fills.
-	DroppedReferences []DroppedReference
-}
-
-// DroppedReference is one reference a move could not carry into the destination collection.
-type DroppedReference struct {
-	Kind string
-	ID   shared.ID
-	Code string
+	// DroppedReferences is what the destination collection could not resolve: the labels of the
+	// vocabulary the subtree left, and the columns of the board it was on (I-W6). Empty rather than
+	// nil, and empty for every move within one collection - nothing there has to be resolved again.
+	//
+	// The members and the custom fields join it with the use cases that own them.
+	DroppedReferences []domain.DroppedReference
 }
 
 // Execute moves the item and returns it.
@@ -334,6 +334,10 @@ func (w PlacementWriter) perform(
 			return err
 		}
 
+		if err := w.ensureBucketAt(ctx, fresh, spot); err != nil {
+			return err
+		}
+
 		orderKey, err := w.rankAt(ctx, fresh, spot)
 		if err != nil {
 			return err
@@ -346,6 +350,51 @@ func (w PlacementWriter) perform(
 		return MoveResult{}, err
 	}
 	return result, nil
+}
+
+// ensureBucketAt refuses a column the destination cannot give the item.
+//
+// Two questions, and they are different: whether this type has a board at all - the capability
+// matrix, where only a task does, because a board belongs to the collection and only the entries
+// directly in it have a place on it - and whether the column is on the destination's board (I-W6).
+// A named column is checked against the collection the item is moving *into*, not the one it is
+// leaving, which is what makes "move it to the other board's Doing column" one operation.
+func (w PlacementWriter) ensureBucketAt(
+	ctx context.Context, plan placement, spot service.Placement,
+) error {
+	if !plan.command.BucketGiven || plan.command.TargetBucketID.IsZero() {
+		// No column asked for, or the entry taken off the board. Neither needs the capability: an
+		// entry that is on no board is the state a type without one is always in.
+		return nil
+	}
+
+	profile, err := w.profileFor(ctx, plan.item.Type)
+	if err != nil {
+		return err
+	}
+	if err := profile.Require(domain.CapabilityBucket, "/target_bucket_id"); err != nil {
+		return err
+	}
+	if spot.Depth != 1 {
+		// A board is the collection's, so only the entries directly in it have a place on it. The
+		// capability above says the same thing about the type; this says it about where the entry
+		// is landing, which is what a move can change without changing the type.
+		return shared.ErrValidation.
+			WithDetail("items.bucket_not_at_top_level").
+			WithParams(map[string]string{"item_id": plan.item.ID.String()}).
+			WithFields(shared.FieldError{
+				Path: "/target_bucket_id", Code: "items.bucket_not_at_top_level",
+			})
+	}
+	return ensureBucketOnBoard(ctx, w.Buckets, plan.destination.ID, plan.command.TargetBucketID)
+}
+
+// profileFor reads the capability profile in force for one type, through the hierarchy the move
+// already builds - so that what a move permits and what a create permits are one answer.
+func (w PlacementWriter) profileFor(
+	ctx context.Context, itemType domain.ItemType,
+) (domain.CapabilityProfile, error) {
+	return profileOf(ctx, w.Profiles, itemType)
 }
 
 // rankAt works out the rank the item takes at its destination.
@@ -394,10 +443,21 @@ func (w PlacementWriter) write(
 	after.Depth = spot.Depth
 	after.OrderKey = orderKey
 	after.UpdatedAt = now
+	// The column the item lands in. A named one wins; otherwise it keeps the one it had inside its
+	// own collection and loses it on the way out, because a reference to a column of the collection
+	// it left is one nothing renders (I-W6). The repository reports the loss, so nothing here has
+	// to guess whether there was one.
+	switch {
+	case plan.command.BucketGiven:
+		after.BucketID = plan.command.TargetBucketID
+	case after.CollectionID != before.CollectionID:
+		after.BucketID = ""
+	}
 
 	size := 1
+	dropped := []domain.DroppedReference{}
 	if plan.reparents() {
-		moved, err := w.Items.MoveSubtree(ctx, repository.Move{
+		moved, lost, err := w.Items.MoveSubtree(ctx, repository.Move{
 			Item:            before,
 			TargetParentID:  spot.ParentID,
 			CollectionID:    plan.destination.ID,
@@ -405,6 +465,7 @@ func (w PlacementWriter) write(
 			NewPrefix:       after.Path,
 			DepthDelta:      after.Depth - before.Depth,
 			OrderKey:        orderKey,
+			BucketID:        after.BucketID,
 			UpdatedAt:       now,
 			ExpectedVersion: expected,
 		})
@@ -412,6 +473,7 @@ func (w PlacementWriter) write(
 			return MoveResult{}, err
 		}
 		size = moved
+		dropped = append(dropped, lost...)
 	} else {
 		// Nothing moved, so no path changed and the subtree is untouched. Writing one row rather than the
 		// whole subtree is the difference between a reorder and a move.
@@ -439,8 +501,9 @@ func (w PlacementWriter) write(
 		return MoveResult{}, err
 	}
 
-	// Empty, and present: there is nothing yet that a change of collection could fail to carry over (I-W6).
-	return MoveResult{Item: after, SubtreeSize: size, DroppedReferences: []DroppedReference{}}, nil
+	// Always present, and empty for a move that resolved everything: a client that iterates the
+	// losses should not have to nil-check the field (I-W6).
+	return MoveResult{Item: after, SubtreeSize: size, DroppedReferences: dropped}, nil
 }
 
 // recordChange writes what an offline client has to be told (offline-sync.md §3.1).
@@ -602,8 +665,10 @@ func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "target_bucket_id", Kind: usecase.KindID,
-				Description: "Reserved. Buckets arrive with their own use case, and sending one is refused " +
-					"rather than silently ignored.",
+				Description: "The column of the destination collection's board to land in. Empty " +
+					"takes the entry off any board; omitted keeps the column it was in when the " +
+					"collection does not change, and drops it when it does - a column belongs to " +
+					"the collection whose board it is on.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -648,14 +713,6 @@ func (h ReorderWorkItem) Descriptor() usecase.Descriptor {
 func (h MoveWorkItem) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	if in.Present("target_bucket_id") {
-		// In the contract and served by nothing yet. Refused by name rather than dropped: a client that moved
-		// a card into a bucket and got a 200 believes the card is in that bucket (B-09).
-		return nil, shared.ErrValidation.
-			WithDetail("items.bucket_not_supported").
-			WithFields(shared.FieldError{Path: "/target_bucket_id", Code: "items.bucket_not_supported"})
-	}
-
 	itemID, err := in.ID("item_id")
 	if err != nil {
 		return nil, err
@@ -672,10 +729,18 @@ func (h MoveWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
+	bucketID, err := in.ID("target_bucket_id")
+	if err != nil {
+		return nil, err
+	}
 
 	result, err := h.Execute(ctx, actor, MoveWorkItemCommand{
 		ItemID:         itemID,
 		TargetParentID: parentID,
+		TargetBucketID: bucketID,
+		// Present, not non-empty, for the reason the parent is: an empty `target_bucket_id` takes
+		// the entry off the board and an absent one leaves the column where the collection allows.
+		BucketGiven: in.Present("target_bucket_id"),
 		// Present, not non-empty: a client that sends `"target_parent_id": null` is asking for the top level,
 		// and one that omits the field is asking for nothing to change. Those are different requests and the
 		// difference is invisible in the value.
@@ -713,13 +778,16 @@ func (h ReorderWorkItem) invoke(
 	return itemOutput(item), nil
 }
 
-// moveOutput is the shape a move answers with: the contract's MoveResult, whose `dropped_references` is present
-// and empty until there is something a change of collection could fail to carry over (I-W6).
+// moveOutput is the shape a move answers with: the contract's MoveResult, whose `dropped_references`
+// is always present and empty when the destination resolved everything (I-W6).
 func moveOutput(result MoveResult) usecase.Output {
 	dropped := make([]usecase.Output, 0, len(result.DroppedReferences))
 	for _, reference := range result.DroppedReferences {
 		dropped = append(dropped, usecase.Output{
-			"kind": reference.Kind, "id": reference.ID.String(), "code": reference.Code,
+			"item_id": reference.ItemID.String(),
+			"kind":    string(reference.Kind),
+			"id":      reference.ID.String(),
+			"code":    reference.Code,
 		})
 	}
 	return usecase.Output{

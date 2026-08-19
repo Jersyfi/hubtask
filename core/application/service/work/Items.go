@@ -92,3 +92,33 @@ func ensureExpectedVersion(item domain.WorkItem, expected int) error {
 			"item_id": item.ID.String(), "current_version": strconv.Itoa(item.Version),
 		})
 }
+
+// ensureBucketOnBoard refuses a column that is not on the collection's board.
+//
+// Invariant I-W6, checked before the write rather than left to the foreign key: the key would
+// accept a column of another collection in the same tenant, and the entry would then render on a
+// board it is not on. A deleted column is refused for the same reason - it is off the board, and an
+// entry put into one would be nowhere a client draws.
+func ensureBucketOnBoard(
+	ctx context.Context, buckets repository.Buckets, collectionID, bucketID shared.ID,
+) error {
+	bucket, err := buckets.Find(ctx, bucketID)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return shared.ErrNotFound.
+				WithDetail("buckets.not_found").
+				WithParams(map[string]string{"bucket_id": bucketID.String()}).
+				WithFields(shared.FieldError{Path: "/bucket_id", Code: "buckets.not_found"})
+		}
+		return err
+	}
+	if bucket.CollectionID != collectionID {
+		return shared.ErrValidation.
+			WithDetail("buckets.not_in_collection").
+			WithParams(map[string]string{
+				"bucket_id": bucketID.String(), "collection_id": collectionID.String(),
+			}).
+			WithFields(shared.FieldError{Path: "/bucket_id", Code: "buckets.not_in_collection"})
+	}
+	return bucket.EnsureEditable()
+}

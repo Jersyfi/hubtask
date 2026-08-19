@@ -138,7 +138,7 @@
   "items.not_found": "That entry does not exist.",
   "items.collection_contradicts_parent": "That collection is not the one the chosen parent belongs to.",
   "items.before_item_not_in_level": "That entry is not in the list this one is being moved into.",
-  "items.bucket_not_supported": "This installation cannot put entries into buckets yet.",
+  "items.bucket_not_at_top_level": "Only entries directly in a collection sit on its board.",
   "items.profiles_incoherent": "This installation is misconfigured and could not create that entry.",
 
   "buckets.name_empty": "A bucket needs a name.",
@@ -151,6 +151,7 @@
   "buckets.not_found": "That bucket does not exist.",
   "buckets.before_bucket_not_on_board": "That bucket is not on the board this one is being added to.",
   "buckets.before_bucket_is_self": "A bucket cannot be moved in front of itself.",
+  "buckets.not_in_collection": "That bucket belongs to another collection. A board belongs to the collection it is on.",
   "buckets.bucket_id_required": "Say which bucket to change.",
   "buckets.update_empty": "Say what to change about that bucket.",
   "buckets.name_taken": "A bucket called {name} already exists in this collection.",

@@ -1882,6 +1882,12 @@ components:
       type: object
       required: [kind, id, code]
       properties:
+        item_id:
+          type: string
+          format: uuid
+          description: >
+            The entry that lost it. A move carries a whole subtree, so one operation can drop
+            references from several entries at once.
         kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
         id: { type: string, description: The reference that could not be carried over. }
         code: { type: string, description: A stable message code saying why. }

@@ -250,7 +250,7 @@ func run() error {
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
 	// reorder is a move that keeps its parent (work.PlacementWriter).
 	placement := work.PlacementWriter{
-		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
@@ -335,6 +335,7 @@ func run() error {
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items:      items,
+			Buckets:    buckets,
 			Containers: containers,
 			Profiles:   profiles,
 			Authorizer: authorizer,
@@ -348,6 +349,7 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
+			Buckets:    buckets,
 			Containers: containers,
 			Profiles:   profiles,
 			Authorizer: authorizer,

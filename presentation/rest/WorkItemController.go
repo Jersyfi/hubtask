@@ -42,6 +42,7 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 		"collection_id": optionalUUIDField(body.CollectionId),
 		"parent_id":     optionalUUIDField(body.ParentId),
 		"notes":         optionalStringField(body.Notes),
+		"bucket_id":     optionalUUIDField(body.BucketId),
 	}
 	withUnservedItemFields(body, in)
 
@@ -99,6 +100,11 @@ func (c *RestController) UpdateWorkItem(
 	if present["notes"] {
 		in["notes"] = stringOrEmpty(body.Notes)
 	}
+	if present["bucket_id"] {
+		// Null and the empty string are one instruction: take the entry off the board. That is what
+		// makes them a different request from omitting the field, which leaves the column alone.
+		in["bucket_id"] = uuidOrEmpty(body.BucketId)
+	}
 	withUnservedItemUpdateFields(body, present, in)
 
 	if version, ok := versionFromIfMatch(params.IfMatch); ok {
@@ -129,6 +135,16 @@ func stringOrEmpty(value *string) string {
 	return *value
 }
 
+// uuidOrEmpty is the identifier counterpart: null and an absent value are the empty string, which
+// the catalogue reads as "clear it". The difference between clearing and leaving alone is carried
+// by the presence map, not by the value.
+func uuidOrEmpty(value *openapi_types.UUID) string {
+	if value == nil {
+		return ""
+	}
+	return value.String()
+}
+
 // withUnservedItemUpdateFields passes on the members of WorkItemUpdate that no use case writes yet,
 // so that the catalogue refuses them by name.
 //
@@ -137,16 +153,13 @@ func stringOrEmpty(value *string) string {
 // reminder is gone. Presence rather than the value, because null is what clearing looks like and
 // dropping it would be exactly the silence this exists to prevent.
 //
-// Each entry disappears when its use case lands: the bucket with B-09, assignment and the cover in
-// 0.3.0, the due date in 0.4.0, the custom fields with theirs.
+// Each entry disappears when its use case lands: assignment and the cover in 0.3.0, the due date in
+// 0.4.0, the custom fields with theirs. The bucket left this list with B-09.
 func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[string]bool, in usecase.Input) {
-	for _, field := range []string{"bucket_id", "assignee_id", "due_at", "due_time_zone"} {
+	for _, field := range []string{"assignee_id", "due_at", "due_time_zone"} {
 		if present[field] {
 			in[field] = ""
 		}
-	}
-	if present["bucket_id"] && body.BucketId != nil {
-		in["bucket_id"] = body.BucketId.String()
 	}
 	if present["assignee_id"] && body.AssigneeId != nil {
 		in["assignee_id"] = body.AssigneeId.String()
@@ -182,12 +195,10 @@ func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[strin
 // A field is passed on only when the client actually sent it. Sending it always would refuse
 // every request, since the catalogue does not declare these names.
 //
-// Each entry disappears from this list when its use case lands: the bucket and the labels with
-// B-09, the ordering with B-08, assignment and the cover in 0.3.0, the due date in 0.4.0.
+// Each entry disappears from this list when its use case lands: the labels with B-09's own
+// endpoints, the ordering with B-08, assignment and the cover in 0.3.0, the due date in 0.4.0. The
+// bucket left this list with B-09.
 func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
-	if body.BucketId != nil {
-		in["bucket_id"] = body.BucketId.String()
-	}
 	if body.BeforeItemId != nil {
 		in["before_item_id"] = body.BeforeItemId.String()
 	}
@@ -259,6 +270,10 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	}
 	if notes := out.String("notes"); notes != "" {
 		item.Notes = &notes
+	}
+	if bucket := out.String("bucket_id"); bucket != "" {
+		bucketID := uuidValue(bucket)
+		item.BucketId = &bucketID
 	}
 	item.ArchivedAt, item.DeletedAt = optionalTimeField(out["archived_at"]), optionalTimeField(out["deleted_at"])
 	return item

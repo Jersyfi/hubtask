@@ -123,7 +123,7 @@ func TestMovingAnItemRewritesItsWholeSubtree(t *testing.T) {
 	var touched int
 	if err := write(background, t, tenantA, func(ctx context.Context) error {
 		var err error
-		touched, err = itemRepo().MoveSubtree(ctx, repository.Move{
+		touched, _, err = itemRepo().MoveSubtree(ctx, repository.Move{
 			Item:            pack,
 			TargetParentID:  destinationID,
 			CollectionID:    collection,
@@ -185,7 +185,7 @@ func TestASubtreeShiftsEveryDepthByTheSameAmount(t *testing.T) {
 	delta := (deeper.Depth + 1) - pack.Depth
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := itemRepo().MoveSubtree(ctx, repository.Move{
+		_, _, err := itemRepo().MoveSubtree(ctx, repository.Move{
 			Item: pack, TargetParentID: deeper.ID, CollectionID: collection,
 			OldPrefix: pack.Path, NewPrefix: newPrefix, DepthDelta: delta,
 			OrderKey: "c0", UpdatedAt: created.Add(time.Hour), ExpectedVersion: pack.Version,
@@ -227,7 +227,7 @@ func TestATrashedDescendantIsRewrittenWithTheSubtree(t *testing.T) {
 
 	newPrefix := destination.ChildPath(pack.ID)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := itemRepo().MoveSubtree(ctx, repository.Move{
+		_, _, err := itemRepo().MoveSubtree(ctx, repository.Move{
 			Item: pack, TargetParentID: destinationID, CollectionID: collection,
 			OldPrefix: pack.Path, NewPrefix: newPrefix, DepthDelta: 0,
 			OrderKey: "c0", UpdatedAt: created.Add(time.Hour), ExpectedVersion: pack.Version,
@@ -251,7 +251,7 @@ func TestAMoveWithAStaleVersionRewritesNothing(t *testing.T) {
 	_, pack, activity := movableSubtree(ctx, t, tenantA, authorA, collection)
 
 	err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := itemRepo().MoveSubtree(ctx, repository.Move{
+		_, _, err := itemRepo().MoveSubtree(ctx, repository.Move{
 			Item: pack, TargetParentID: pack.ParentID, CollectionID: collection,
 			OldPrefix: pack.Path, NewPrefix: pack.Path, DepthDelta: 0,
 			OrderKey: "c0", UpdatedAt: created.Add(time.Hour),
@@ -276,7 +276,7 @@ func TestAMoveCannotReachAnotherTenant(t *testing.T) {
 	_, pack, activity := movableSubtree(ctx, t, tenantA, authorA, collection)
 
 	err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		_, err := itemRepo().MoveSubtree(ctx, repository.Move{
+		_, _, err := itemRepo().MoveSubtree(ctx, repository.Move{
 			Item: pack, TargetParentID: pack.ParentID, CollectionID: collection,
 			OldPrefix: pack.Path, NewPrefix: pack.Path + "moved/", DepthDelta: 0,
 			OrderKey: "c0", UpdatedAt: created.Add(time.Hour), ExpectedVersion: pack.Version,

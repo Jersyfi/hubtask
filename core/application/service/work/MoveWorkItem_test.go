@@ -392,8 +392,9 @@ func TestACrossCollectionMoveAsksAboutBothCollections(t *testing.T) {
 	}
 }
 
-// `target_bucket_id` is in the contract with nothing behind it, and is refused by name.
-func TestABucketIsRefusedByName(t *testing.T) {
+// A board belongs to a collection, so only the entries directly in it have a place on one. A work
+// package is refused by the capability rather than by a placeholder (B-09, domain-model.md §2).
+func TestAWorkPackageHasNoPlaceOnABoard(t *testing.T) {
 	h := newPlacementHarness()
 	handler := MoveWorkItem{Placement: h.writer}
 
@@ -401,10 +402,10 @@ func TestABucketIsRefusedByName(t *testing.T) {
 		"item_id":          movedPackID.String(),
 		"target_bucket_id": shared.MustParseID("0192f000-0000-7000-8000-0000000006ec").String(),
 	})
-	if !errors.Is(err, shared.ErrValidation) {
+	if !errors.Is(err, shared.ErrCapabilityNotSupported) {
 		t.Fatalf("answered %v", err)
 	}
-	if got := shared.AsError(err).DetailCode; got != "items.bucket_not_supported" {
+	if got := shared.AsError(err).DetailCode; got != "items.capability_not_supported" {
 		t.Errorf("the detail code is %q", got)
 	}
 }
@@ -467,5 +468,75 @@ func TestAReorderMeasuresItsOwnLevel(t *testing.T) {
 	want := repository.Level{CollectionID: collectionID, ParentID: movedPackID}
 	if h.items.askedLevel != want {
 		t.Errorf("the neighbours were read at %+v, want %+v", h.items.askedLevel, want)
+	}
+}
+
+// otherCollection puts a second collection and a task in it into the harness, and hands back the
+// task: a move to another collection needs somewhere to move to.
+func (h *placementHarness) otherCollection() domain.WorkItem {
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000006ee")
+	h.containers.stored[elsewhere] = domain.Container{
+		ID: elsewhere, TenantID: tenantID, Type: domain.ContainerCollection, ParentID: hubID,
+		Name: "Elsewhere", OrderKey: "a1", CreatedBy: accountID, CreatedAt: now, Version: 1,
+	}
+	id := shared.MustParseID("0192f000-0000-7000-8000-0000000006ed")
+	far := placedItem(id, domain.ItemTask, "", domain.RootPath(id), 1)
+	far.CollectionID = elsewhere
+	h.items.stored[id] = far
+	return far
+}
+
+// A move to another collection takes the entry off the board it was on, and reports the loss: a
+// board that silently reassigned somebody's cards would be indistinguishable from one that lost
+// them (I-W6).
+func TestAMoveToAnotherCollectionReportsWhatItDropped(t *testing.T) {
+	h := newPlacementHarness()
+	h.items.previousKey = "a0"
+	far := h.otherCollection()
+
+	lost := shared.MustParseID("0192f000-0000-7000-8000-0000000006e1")
+	h.items.dropped = []domain.DroppedReference{domain.DroppedBucket(movedPackID, lost)}
+
+	// The entry was on the board of the collection it is leaving.
+	moving := h.items.stored[movedPackID]
+	moving.BucketID = lost
+	h.items.stored[movedPackID] = moving
+
+	result, err := (MoveWorkItem{Placement: h.writer}).Execute(
+		t.Context(), placementActor(), MoveWorkItemCommand{
+			ItemID: movedPackID, TargetParentID: far.ID, ParentGiven: true,
+		})
+	if err != nil {
+		t.Fatalf("the move was refused: %v", err)
+	}
+
+	if len(result.DroppedReferences) != 1 {
+		t.Fatalf("the losses are %+v, want the column", result.DroppedReferences)
+	}
+	if reference := result.DroppedReferences[0]; reference.Kind != domain.ReferenceBucket ||
+		reference.ID != lost || reference.ItemID != movedPackID {
+		t.Errorf("unexpected loss: %+v", reference)
+	}
+	if !result.Item.BucketID.IsZero() {
+		t.Errorf("the entry is still in column %s", result.Item.BucketID)
+	}
+}
+
+// A move that resolves everything reports an empty list rather than none: a client that iterates
+// the losses should not have to nil-check the field.
+func TestAMoveThatDropsNothingReportsAnEmptyList(t *testing.T) {
+	h := newPlacementHarness()
+	h.items.previousKey = "a0"
+	far := h.otherCollection()
+
+	result, err := (MoveWorkItem{Placement: h.writer}).Execute(
+		t.Context(), placementActor(), MoveWorkItemCommand{
+			ItemID: movedPackID, TargetParentID: far.ID, ParentGiven: true,
+		})
+	if err != nil {
+		t.Fatalf("the move was refused: %v", err)
+	}
+	if result.DroppedReferences == nil || len(result.DroppedReferences) != 0 {
+		t.Errorf("the losses are %+v, want an empty list", result.DroppedReferences)
 	}
 }

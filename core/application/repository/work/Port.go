@@ -108,7 +108,12 @@ type Move struct {
 	// DepthDelta is how far the whole subtree shifts.
 	DepthDelta int
 	OrderKey   string
-	UpdatedAt  time.Time
+	// BucketID is the column the moved item lands in, and empty for none. Decided by the use case
+	// rather than kept from the row: a move to another collection takes the item away from the
+	// board it was on, and a reference to a column of the collection it left would be one nothing
+	// renders (I-W6).
+	BucketID  shared.ID
+	UpdatedAt time.Time
 	// ExpectedVersion locks the moved item's own row. Zero means the caller read no version.
 	ExpectedVersion int
 }
@@ -236,14 +241,16 @@ type Items interface {
 	// reorder changes.
 	SetOrderKey(ctx context.Context, item work.WorkItem, expectedVersion int) error
 
-	// MoveSubtree rewrites where an item and everything below it sits, and returns how many rows it
-	// touched.
+	// MoveSubtree rewrites where an item and everything below it sits, drops the references the
+	// destination cannot resolve, and returns how many rows it touched together with what was lost.
 	//
-	// One method rather than two, because the two statements behind it must not be separable: an item
-	// whose parent moved and whose subtree's paths did not is a tree that no longer describes itself
-	// (I-W2). The count is the size of the subtree, which the event reports so that a client knows how
-	// much of its own copy to rewrite.
-	MoveSubtree(ctx context.Context, move Move) (int, error)
+	// One method rather than several, because the statements behind it must not be separable: an
+	// item whose parent moved and whose subtree's paths did not is a tree that no longer describes
+	// itself (I-W2), and one that kept a label of the collection it left is a reference nothing
+	// renders (I-W6). The count is the size of the subtree, which the event reports so that a
+	// client knows how much of its own copy to rewrite; the losses are what the answer names, since
+	// I-W6 asks for them to be reported rather than discovered.
+	MoveSubtree(ctx context.Context, move Move) (int, []work.DroppedReference, error)
 
 	// LastOrderKey returns the highest rank among the siblings of a new item, or the empty string
 	// when there are none. The siblings are the items with the same parent inside the same

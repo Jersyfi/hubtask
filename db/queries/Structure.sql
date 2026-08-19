@@ -250,3 +250,44 @@ SELECT element_id, add_tag, remove_tag
 FROM set_element
 WHERE item_id = sqlc.arg('item_id')::uuid AND set_name = sqlc.arg('set_name')
 ORDER BY element_id;
+
+-- name: ClearForeignSubtreeLabels :many
+-- Every label an entry in a moved subtree carries that its new collection does not define, removed
+-- and reported (invariant I-W6).
+--
+-- A move to another collection takes an entry away from the vocabulary it was tagged from, and a
+-- label from elsewhere would be a reference that resolves to a word nobody in the new collection
+-- chose. Deleting them in one statement rather than walking the subtree keeps the transaction's
+-- length independent of how many entries moved, and RETURNING is what lets the answer name what was
+-- lost - I-W6 asks for the losses to be reported, never silently dropped.
+--
+-- `LIKE prefix || '%'` rather than starts_with, for the reason MoveWorkItemSubtree gives: that is
+-- the form wi_path_idx serves as an index scan, and a path built from UUIDs and separators contains
+-- no LIKE metacharacter.
+DELETE FROM item_label il
+USING work_item wi, label l
+WHERE il.item_id = wi.id
+  AND il.label_id = l.id
+  AND wi.path LIKE sqlc.arg('path_prefix')::text || '%'
+  AND l.collection_id <> sqlc.arg('collection_id')::uuid
+RETURNING il.item_id, il.label_id;
+
+-- name: ClearForeignSubtreeBuckets :many
+-- Every entry in a moved subtree that still points at a column of the collection it left, taken off
+-- that board and reported (invariant I-W6).
+--
+-- Only a task carries a bucket and only the moved item itself can be one, so this touches at most
+-- one row today - it is written over the subtree all the same, because which types carry a board is
+-- a capability profile rather than a rule this query gets to assume (ADR-0006).
+--
+-- The version is deliberately not moved here. This runs as part of a move, and the two statements
+-- that move the subtree bump every row in it - including this one. Bumping it twice would make one
+-- move look like two to a client that caches versions, and would leave the moved item's own row on
+-- a version the optimistic lock in SetWorkItemPlacement no longer matches.
+UPDATE work_item wi SET
+  bucket_id = NULL
+FROM bucket b
+WHERE wi.bucket_id = b.id
+  AND wi.path LIKE sqlc.arg('path_prefix')::text || '%'
+  AND b.collection_id <> sqlc.arg('collection_id')::uuid
+RETURNING wi.id, b.id AS bucket_id;

@@ -56,10 +56,14 @@ type Completion struct {
 // every item may carry it - the profile decides, and Require refuses what it does not allow.
 //
 // What is deliberately absent, on the same reasoning that kept `policies` off Container: a field
-// nothing writes is a promise nothing keeps. `bucket_id` and the labels arrive with B-09, the
-// members and the assignee with the assignment use cases in 0.3.0, the due date with 0.4.0, and
-// the cover, the custom fields and the recurrence rule with the use cases that own them. Their
-// columns exist and carry NULL until then.
+// nothing writes is a promise nothing keeps. The members and the assignee arrive with the
+// assignment use cases in 0.3.0, the due date with 0.4.0, and the cover, the custom fields and the
+// recurrence rule with the use cases that own them. Their columns exist and carry NULL until then.
+//
+// The labels are absent too, and for a different reason: they are a set rather than a field. They
+// live in their own table with their own merge tags, because two devices adding two different
+// labels at once is the case last writer wins over an array gets wrong (offline-sync.md §4.2) - so
+// an item does not carry them, and AddLabel is what moves them.
 type WorkItem struct {
 	ID       shared.ID
 	TenantID shared.ID
@@ -84,6 +88,14 @@ type WorkItem struct {
 	// Notes is Markdown, unrendered on the server. Capability NOTES, so an activity has none.
 	Notes      string
 	Completion Completion
+	// BucketID is the column of the collection's board this item sits in, and empty for one that
+	// sits in none. Capability BUCKET, which only a task carries: a board is the collection's, so
+	// only the items directly in it have a place on it (domain-model.md §2).
+	//
+	// A scalar rather than a set, so it merges as last writer wins per field - two devices dragging
+	// the same card to two columns is a genuine conflict with one answer, unlike two devices adding
+	// two labels.
+	BucketID shared.ID
 	// OrderKey ranks the item among its siblings: a fractional index, so that two offline devices
 	// can insert into the same list without either one's order being discarded (offline-sync.md §4.2).
 	OrderKey     string
@@ -107,6 +119,9 @@ type NewWorkItemInput struct {
 
 	Title string
 	Notes string
+	// BucketID is the column the item starts in. Checked against the profile like every other
+	// optional field, so that a client cannot put a work package on a board.
+	BucketID shared.ID
 
 	// Profile is the capability profile in force for this type, which is data rather than code
 	// (ADR-0006) and therefore has to be handed in. It decides which of the optional fields above
@@ -150,6 +165,12 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		}
 	}
 
+	if !in.BucketID.IsZero() {
+		if err := in.Profile.Require(CapabilityBucket, "/bucket_id"); err != nil {
+			return WorkItem{}, err
+		}
+	}
+
 	if err := checkPlacement(in.ID, in.ParentID, in.Path, in.Depth); err != nil {
 		return WorkItem{}, err
 	}
@@ -173,6 +194,7 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		// completion is an event with a time and an actor, and inventing one at creation would
 		// put a lie in the history (I-W5, B-07).
 		Completion: Completion{},
+		BucketID:   in.BucketID,
 		OrderKey:   in.OrderKey,
 		CreatedBy:  in.CreatedBy,
 		CreatedAt:  in.Now,
@@ -257,8 +279,9 @@ func (i WorkItem) IsTrashed() bool { return i.DeletedAt != nil }
 // log, where a client matches them against the members it sent - so they are written once here
 // rather than as a literal at each of the three places that has to agree.
 const (
-	FieldTitle = "title"
-	FieldNotes = "notes"
+	FieldTitle    = "title"
+	FieldNotes    = "notes"
+	FieldBucketID = "bucket_id"
 )
 
 // ItemAttributes is what an update may change: the fields 0.2.0 owns.
@@ -275,10 +298,15 @@ const (
 type ItemAttributes struct {
 	Title *string
 	Notes *string
+	// BucketID is the column the item moves to, and a pointer to the zero identifier takes it off
+	// the board altogether - which is the same "empty is not set" the text fields keep.
+	BucketID *shared.ID
 }
 
 // IsEmpty reports whether the update asks for nothing at all.
-func (a ItemAttributes) IsEmpty() bool { return a.Title == nil && a.Notes == nil }
+func (a ItemAttributes) IsEmpty() bool {
+	return a.Title == nil && a.Notes == nil && a.BucketID == nil
+}
 
 // FieldChange is one field that moved, with the value on each side.
 //
@@ -312,6 +340,13 @@ func (i WorkItem) Updated(
 			return WorkItem{}, nil, err
 		}
 	}
+	// The same rule for the board: only a non-empty value needs the capability, because taking an
+	// item off a board it was never on asks for the state it is already in.
+	if attributes.BucketID != nil && !attributes.BucketID.IsZero() {
+		if err := profile.Require(CapabilityBucket, "/bucket_id"); err != nil {
+			return WorkItem{}, nil, err
+		}
+	}
 	if err := i.EnsureEditable(); err != nil {
 		return WorkItem{}, nil, err
 	}
@@ -335,6 +370,13 @@ func (i WorkItem) Updated(
 			changes = append(changes, FieldChange{Field: FieldNotes, From: i.Notes, To: notes})
 			i.Notes = notes
 		}
+	}
+
+	if attributes.BucketID != nil && *attributes.BucketID != i.BucketID {
+		changes = append(changes, FieldChange{
+			Field: FieldBucketID, From: i.BucketID.String(), To: attributes.BucketID.String(),
+		})
+		i.BucketID = *attributes.BucketID
 	}
 
 	if len(changes) == 0 {

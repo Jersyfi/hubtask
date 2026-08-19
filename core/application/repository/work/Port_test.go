@@ -69,7 +69,11 @@ func (itemDouble) Neighbours(context.Context, Level, shared.ID, shared.ID) (stri
 	return "", "", nil
 }
 func (itemDouble) SetOrderKey(context.Context, work.WorkItem, int) error { return nil }
-func (itemDouble) MoveSubtree(context.Context, Move) (int, error)        { return 0, nil }
+func (itemDouble) MoveSubtree(
+	context.Context, Move,
+) (int, []work.DroppedReference, error) {
+	return 0, nil, nil
+}
 func (itemDouble) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }

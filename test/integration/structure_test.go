@@ -11,6 +11,7 @@ import (
 	"slices"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -961,4 +962,156 @@ func bucketOf(ctx context.Context, t *testing.T, item shared.ID) string {
 		return ""
 	}
 	return *bucket
+}
+
+// Invariant I-W6 against a real database: a subtree that moves to another collection loses the
+// references the destination cannot resolve, and the answer names what was lost. Reported rather
+// than discovered - a board that silently reassigned somebody's cards would be indistinguishable
+// from one that lost them.
+func TestAMoveToAnotherCollectionDropsWhatTheDestinationCannotResolve(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, source := hubWithCollection(ctx, t, tenantA, authorA)
+
+	destinationID := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return containerRepo().Insert(ctx,
+			collectionIn(tenantA, authorA, destinationID, hub, freshName(t), "a1"))
+	}); err != nil {
+		t.Fatalf("seeding the destination: %v", err)
+	}
+
+	bucket := seedBucket(ctx, t, tenantA, source, "a0")
+	label := seedLabel(ctx, t, tenantA, source)
+	task := seedTask(ctx, t, tenantA, authorA, source)
+	putInBucket(ctx, t, task, bucket.ID)
+
+	added, err := shared.NewHLC(created, 1, "server")
+	if err != nil {
+		t.Fatalf("building the tag: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemLabelRepo().Add(ctx, task, label.ID, added)
+	}); err != nil {
+		t.Fatalf("adding the label: %v", err)
+	}
+
+	moved := findWorkItem(ctx, t, tenantA, task)
+	var dropped []work.DroppedReference
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		_, dropped, err = itemRepo().MoveSubtree(ctx, repository.Move{
+			Item: moved, CollectionID: destinationID,
+			OldPrefix: moved.Path, NewPrefix: moved.Path, DepthDelta: 0,
+			OrderKey: "a0", UpdatedAt: changedAt, ExpectedVersion: moved.Version,
+		})
+		return err
+	}); err != nil {
+		t.Fatalf("moving the subtree: %v", err)
+	}
+
+	kinds := map[work.ReferenceKind]shared.ID{}
+	for _, reference := range dropped {
+		if reference.ItemID != task {
+			t.Errorf("a loss is attributed to %s", reference.ItemID)
+		}
+		kinds[reference.Kind] = reference.ID
+	}
+	if kinds[work.ReferenceLabel] != label.ID {
+		t.Errorf("the label was not reported as lost: %+v", dropped)
+	}
+	if kinds[work.ReferenceBucket] != bucket.ID {
+		t.Errorf("the bucket was not reported as lost: %+v", dropped)
+	}
+
+	if carried := itemLabels(ctx, t, tenantA, task); len(carried) != 0 {
+		t.Errorf("the entry still carries a label of the collection it left: %v", carried)
+	}
+	if got := bucketOf(ctx, t, task); got != "" {
+		t.Errorf("the entry is still in bucket %s", got)
+	}
+}
+
+// A move inside one collection resolves everything, so nothing is dropped: the board and the
+// vocabulary are the same ones.
+func TestAMoveWithinOneCollectionDropsNothing(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+
+	bucket := seedBucket(ctx, t, tenantA, collection, "a0")
+	label := seedLabel(ctx, t, tenantA, collection)
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+	putInBucket(ctx, t, task, bucket.ID)
+
+	added, err := shared.NewHLC(created, 1, "server")
+	if err != nil {
+		t.Fatalf("building the tag: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemLabelRepo().Add(ctx, task, label.ID, added)
+	}); err != nil {
+		t.Fatalf("adding the label: %v", err)
+	}
+
+	moved := findWorkItem(ctx, t, tenantA, task)
+	var dropped []work.DroppedReference
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		_, dropped, err = itemRepo().MoveSubtree(ctx, repository.Move{
+			Item: moved, CollectionID: collection,
+			OldPrefix: moved.Path, NewPrefix: moved.Path, DepthDelta: 0,
+			OrderKey: "a1", BucketID: bucket.ID,
+			UpdatedAt: changedAt, ExpectedVersion: moved.Version,
+		})
+		return err
+	}); err != nil {
+		t.Fatalf("moving the subtree: %v", err)
+	}
+
+	if len(dropped) != 0 {
+		t.Errorf("a move inside one collection dropped %+v", dropped)
+	}
+	if got := bucketOf(ctx, t, task); got != bucket.ID.String() {
+		t.Errorf("the entry left its column: %s", got)
+	}
+	if carried := itemLabels(ctx, t, tenantA, task); len(carried) != 1 {
+		t.Errorf("the entry lost its label: %v", carried)
+	}
+}
+
+// The column an entry sits in is written and read back like any other field of its row.
+func TestAnEntryCarriesItsColumn(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	bucket := seedBucket(ctx, t, tenantA, collection, "a0")
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+
+	stored := findWorkItem(ctx, t, tenantA, task)
+	if !stored.BucketID.IsZero() {
+		t.Fatalf("a new entry starts in column %s", stored.BucketID)
+	}
+
+	stored.BucketID = bucket.ID
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetAttributes(ctx, stored, stored.Version)
+	}); err != nil {
+		t.Fatalf("writing the column: %v", err)
+	}
+	if after := findWorkItem(ctx, t, tenantA, task); after.BucketID != bucket.ID {
+		t.Errorf("the entry is in column %s, want %s", after.BucketID, bucket.ID)
+	}
+
+	// And taking it off the board is a write like any other, rather than a state nothing can express.
+	stored = findWorkItem(ctx, t, tenantA, task)
+	stored.BucketID = ""
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetAttributes(ctx, stored, stored.Version)
+	}); err != nil {
+		t.Fatalf("clearing the column: %v", err)
+	}
+	if after := findWorkItem(ctx, t, tenantA, task); !after.BucketID.IsZero() {
+		t.Errorf("the entry is still in column %s", after.BucketID)
+	}
 }
