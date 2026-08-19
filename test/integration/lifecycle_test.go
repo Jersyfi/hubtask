@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -260,3 +261,94 @@ func TestAnIncompleteRemovalIsRefused(t *testing.T) {
 }
 
 var _ repository.Removals = postgres.LifecycleRepository{}
+
+// The periods are data, seeded by the run rather than by a migration (ADR-0020): a migration covers
+// the tenants that existed when it ran and no others, so the first tenant created afterwards would
+// be one with no policy at all.
+func TestTheDefaultPeriodsAreSeededAndNotOverwritten(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	ensure := func(tenant shared.ID) {
+		t.Helper()
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			return lifecycleRepo().Ensure(ctx, domain.DefaultPolicies())
+		}); err != nil {
+			t.Fatalf("seeding the policies: %v", err)
+		}
+	}
+	ensure(tenantA)
+
+	policy := findPolicy(ctx, t, tenantA, domain.KindTrash)
+	if policy.RetainDays != 30 || policy.MinDays != 7 {
+		t.Errorf("the seeded period is %d days with a floor of %d, want 30 and 7",
+			policy.RetainDays, policy.MinDays)
+	}
+
+	// A tenant that has decided something has decided it. A sweep that reset the period every time
+	// it ran would be one that quietly overrode the tenant it is running for.
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE retention_policy SET retain_days = 14 WHERE tenant_id = $1 AND data_kind = 'TRASH'`,
+		tenantA.String()); err != nil {
+		t.Fatalf("changing the period: %v", err)
+	}
+	ensure(tenantA)
+
+	if policy := findPolicy(ctx, t, tenantA, domain.KindTrash); policy.RetainDays != 14 {
+		t.Errorf("the period was reset to %d days, want the tenant's 14", policy.RetainDays)
+	}
+}
+
+// A tenant with no policy is told so rather than answered with a zero, which would be a trash
+// emptied the moment something landed in it.
+func TestATenantWithNoPolicyIsToldSo(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		_, err := lifecycleRepo().Find(ctx, domain.DataKind("COMMENT"))
+		return err
+	})
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("a missing policy reported %v, want not found", err)
+	}
+}
+
+// The cross-tenant negative: one tenant's period is not another's, and seeding one does not seed the
+// other (gate SG-3).
+func TestAPeriodBelongsToOneTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return lifecycleRepo().Ensure(ctx, []domain.Policy{
+			{DataKind: domain.DataKind("SESSION"), RetainDays: 30, MinDays: 1},
+		})
+	}); err != nil {
+		t.Fatalf("seeding the policy: %v", err)
+	}
+
+	err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		_, err := lifecycleRepo().Find(ctx, domain.DataKind("SESSION"))
+		return err
+	})
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("another tenant's period is visible here: %v", err)
+	}
+}
+
+func findPolicy(
+	ctx context.Context, t *testing.T, tenant shared.ID, kind domain.DataKind,
+) domain.Policy {
+	t.Helper()
+
+	var policy domain.Policy
+	if err := read(ctx, t, tenant, func(ctx context.Context) error {
+		var err error
+		policy, err = lifecycleRepo().Find(ctx, kind)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the policy: %v", err)
+	}
+	return policy
+}

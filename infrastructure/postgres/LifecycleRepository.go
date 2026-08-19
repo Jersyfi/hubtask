@@ -32,6 +32,7 @@ var (
 	_ repository.LegalHolds = LifecycleRepository{}
 	_ repository.Removals   = LifecycleRepository{}
 	_ repository.Expired    = LifecycleRepository{}
+	_ repository.Policies   = LifecycleRepository{}
 )
 
 // Active returns the holds in force for this tenant.
@@ -243,3 +244,79 @@ func batchLimit(size int) int32 {
 // maxPurgeBatch is the ceiling on one read of what may be removed. data-retention.md §5 puts the
 // default at a thousand objects per transaction; this is the hard limit around that knob.
 const maxPurgeBatch = 10000
+
+// Ensure writes the documented defaults for a tenant that has none.
+func (r LifecycleRepository) Ensure(ctx context.Context, policies []domain.Policy) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, policy := range policies {
+		err := queries.EnsureRetentionPolicy(ctx, sqlc.EnsureRetentionPolicyParams{
+			DataKind:   string(policy.DataKind),
+			RetainDays: dayColumn(policy.RetainDays),
+			MinDays:    dayColumn(policy.MinDays),
+		})
+		if err != nil {
+			return shared.ErrUnavailable.
+				WithDetail("postgres.query_failed").
+				WithCause(fmt.Errorf("seeding the %s policy: %w", policy.DataKind, err))
+		}
+	}
+	return nil
+}
+
+// Find returns the period in force for one kind.
+func (r LifecycleRepository) Find(
+	ctx context.Context, kind domain.DataKind,
+) (domain.Policy, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.Policy{}, err
+	}
+
+	row, err := queries.FindRetentionPolicy(ctx, string(kind))
+	if err != nil {
+		if IsNoRows(err) {
+			// Also the answer when the row belongs to another tenant: row level security removed it
+			// from the result, and the caller must not be able to tell the two apart.
+			return domain.Policy{}, shared.ErrNotFound.WithDetail("retention.policy_not_found")
+		}
+		return domain.Policy{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the %s policy: %w", kind, err))
+	}
+
+	policy := domain.Policy{
+		DataKind:   domain.DataKind(row.DataKind),
+		RetainDays: int(row.RetainDays),
+		MinDays:    int(row.MinDays),
+	}
+	if row.MaxDays != nil {
+		maximum := int(*row.MaxDays)
+		policy.MaxDays = &maximum
+	}
+	return policy, nil
+}
+
+// dayColumn narrows a period for the column that holds it.
+//
+// Bounded rather than converted: a period is a number of days, and the column's own CHECK refuses a
+// negative one - but a value arriving from outside this process should not be able to become one by
+// overflowing on the way in. A century is far beyond any period a tenant would set and still nowhere
+// near the column's range.
+func dayColumn(days int) int32 {
+	switch {
+	case days < 0:
+		return 0
+	case days > maxRetainDays:
+		return maxRetainDays
+	default:
+		return int32(days)
+	}
+}
+
+// maxRetainDays is a hundred years. Not a policy limit but a safety one, like MaxPoolConns: a
+// four-digit period is a plan, and a six-digit one is a typo.
+const maxRetainDays = 36500

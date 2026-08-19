@@ -65,6 +65,33 @@ func (q *Queries) ActiveLegalHolds(ctx context.Context) ([]ActiveLegalHoldsRow, 
 	return items, nil
 }
 
+const ensureRetentionPolicy = `-- name: EnsureRetentionPolicy :exec
+INSERT INTO retention_policy (tenant_id, data_kind, retain_days, min_days)
+VALUES (current_tenant_id(), $1, $2, $3)
+ON CONFLICT (tenant_id, data_kind) DO NOTHING
+`
+
+type EnsureRetentionPolicyParams struct {
+	DataKind   string
+	RetainDays int32
+	MinDays    int32
+}
+
+// The default period for one kind, written for a tenant that has none.
+//
+// Seeded by the run rather than by a migration. A migration would cover the tenants that existed
+// when it ran and no others, so the first tenant created afterwards would be one with no policy -
+// and the defaults live in code either way, so a second copy of them in SQL would be a second place
+// for them to drift from the document (data-retention.md §3).
+//
+// DO NOTHING rather than an upsert: a tenant that has changed its period has decided something, and
+// a sweep that reset it to the default every time it ran would be a sweep that quietly overrode the
+// tenant it is running for.
+func (q *Queries) EnsureRetentionPolicy(ctx context.Context, arg EnsureRetentionPolicyParams) error {
+	_, err := q.db.Exec(ctx, ensureRetentionPolicy, arg.DataKind, arg.RetainDays, arg.MinDays)
+	return err
+}
+
 const expiredTrashContainers = `-- name: ExpiredTrashContainers :many
 SELECT c.id, c.type, c.parent_id, c.deleted_at
 FROM container c
@@ -181,6 +208,32 @@ func (q *Queries) ExpiredTrashItems(ctx context.Context, arg ExpiredTrashItemsPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const findRetentionPolicy = `-- name: FindRetentionPolicy :one
+SELECT data_kind, retain_days, min_days, max_days
+FROM retention_policy
+WHERE data_kind = $1
+`
+
+type FindRetentionPolicyRow struct {
+	DataKind   string
+	RetainDays int32
+	MinDays    int32
+	MaxDays    *int32
+}
+
+// The period in force for one kind.
+func (q *Queries) FindRetentionPolicy(ctx context.Context, dataKind string) (FindRetentionPolicyRow, error) {
+	row := q.db.QueryRow(ctx, findRetentionPolicy, dataKind)
+	var i FindRetentionPolicyRow
+	err := row.Scan(
+		&i.DataKind,
+		&i.RetainDays,
+		&i.MinDays,
+		&i.MaxDays,
+	)
+	return i, err
 }
 
 const recordDeletions = `-- name: RecordDeletions :exec

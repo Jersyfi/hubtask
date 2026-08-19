@@ -92,3 +92,24 @@ WHERE c.deleted_at IS NOT NULL
   AND c.deleted_at < sqlc.arg('cutoff')::timestamptz
 ORDER BY (c.type = 'HUB'), c.deleted_at, c.id
 LIMIT sqlc.arg('batch_size');
+
+-- name: EnsureRetentionPolicy :exec
+-- The default period for one kind, written for a tenant that has none.
+--
+-- Seeded by the run rather than by a migration. A migration would cover the tenants that existed
+-- when it ran and no others, so the first tenant created afterwards would be one with no policy -
+-- and the defaults live in code either way, so a second copy of them in SQL would be a second place
+-- for them to drift from the document (data-retention.md §3).
+--
+-- DO NOTHING rather than an upsert: a tenant that has changed its period has decided something, and
+-- a sweep that reset it to the default every time it ran would be a sweep that quietly overrode the
+-- tenant it is running for.
+INSERT INTO retention_policy (tenant_id, data_kind, retain_days, min_days)
+VALUES (current_tenant_id(), sqlc.arg('data_kind'), sqlc.arg('retain_days'), sqlc.arg('min_days'))
+ON CONFLICT (tenant_id, data_kind) DO NOTHING;
+
+-- name: FindRetentionPolicy :one
+-- The period in force for one kind.
+SELECT data_kind, retain_days, min_days, max_days
+FROM retention_policy
+WHERE data_kind = sqlc.arg('data_kind');

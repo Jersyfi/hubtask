@@ -91,3 +91,19 @@ type Expired interface {
 	// that hold them - which is the order `container.parent_id` being ON DELETE RESTRICT insists on.
 	Containers(ctx context.Context, cutoff time.Time, batchSize int) ([]ExpiredContainer, error)
 }
+
+// Policies stores the periods a tenant keeps things for (ADR-0020: periods are data, not code).
+type Policies interface {
+	// Ensure writes the documented defaults for a tenant that has none, and leaves a tenant that has
+	// decided something of its own alone.
+	//
+	// Called by the run rather than by a migration, because a migration covers the tenants that
+	// existed when it ran and no others - the first tenant created afterwards would be one with no
+	// policy at all.
+	Ensure(ctx context.Context, policies []domain.Policy) error
+
+	// Find returns the period in force for one kind, or ErrNotFound when the tenant has none. Not an
+	// error the caller should ever see after Ensure, and still an answer rather than a zero value: a
+	// period read as zero would be a trash emptied the moment something landed in it.
+	Find(ctx context.Context, kind domain.DataKind) (domain.Policy, error)
+}

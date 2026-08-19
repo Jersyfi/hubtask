@@ -219,6 +219,7 @@
   "shared.id_malformed": "{value} is not a valid identifier.",
   "shared.cursor_invalid": "This page link is no longer usable. Please start the list again.",
   "lifecycle.legal_hold": "This cannot be deleted for good: a legal hold is in force on the {scope}. Ask whoever placed it.",
+  "retention.policy_not_found": "No retention period is configured for that kind of data.",
   "lifecycle.removal_incomplete": "This installation is misconfigured and could not record that deletion.",
   "lifecycle.removal_reasons_mixed": "This installation is misconfigured and could not record that deletion.",
 
