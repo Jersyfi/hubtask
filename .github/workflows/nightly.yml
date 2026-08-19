@@ -140,7 +140,25 @@ jobs:
       - name: The image name in lower case
         # A Docker reference must be lower case; github.repository keeps the owner's spelling.
         run: echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+      - name: Is there a published build to scan?
+        id: published
+        # `:latest` is pushed by release.yml on a `v*` tag, and until the first release there is
+        # nothing under that name. Failing the nightly on that would be a red run that says
+        # "no release yet" - a signal nobody can act on, repeated every night, which is how a
+        # nightly stops being read. Skipping is only acceptable because it is announced: the
+        # notice below appears in the run summary, and govulncheck above still scans the source.
+        env:
+          # `docker manifest` is still gated behind the experimental flag on some CLI builds.
+          DOCKER_CLI_EXPERIMENTAL: enabled
+        run: |
+          if docker manifest inspect "ghcr.io/$IMAGE_NAME:latest" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No ghcr.io/$IMAGE_NAME:latest yet - the image scan is skipped until the first release."
+          fi
       - name: Image scan
+        if: steps.published.outputs.exists == 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/${{ env.IMAGE_NAME }}:latest
@@ -149,6 +167,7 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
       - uses: github/codeql-action/upload-sarif@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3.37.7
+        if: steps.published.outputs.exists == 'true'
         with:
           sarif_file: trivy.sarif
 
