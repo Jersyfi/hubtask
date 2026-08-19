@@ -55,9 +55,9 @@ const MaxContainerNameLength = 200
 // absent on the reasoning that kept this one absent until now: a field nothing reads and nothing
 // writes is a promise nothing keeps. They arrive with the use cases that own them.
 //
-// Nothing writes the completion policy yet either; UpdateContainerPolicies (B-06) does. It is read all
-// the same, and a collection that has never been configured reads as the default - which is why the
-// column starting as `{}` is a special case nowhere above the adapter.
+// UpdateContainerPolicies writes the completion policy, and a collection that has never been
+// configured reads as the default - which is why the column starting as `{}` is a special case
+// nowhere above the adapter.
 type Container struct {
 	ID       shared.ID
 	TenantID shared.ID
@@ -77,6 +77,14 @@ type Container struct {
 	// restoring then moves no data (domain-model.md §6).
 	ArchivedAt *time.Time
 	DeletedAt  *time.Time
+	// ParentArchivedAt is the hub's own stamp, read alongside the row rather than stored on it. That
+	// is invariant I-C3's second half: a collection in an archived hub is read-only without being
+	// archived itself, and the two facts stay separate so that unarchiving the hub restores exactly
+	// what it covered - a collection archived in its own right stays archived.
+	//
+	// Denormalising it onto the collection would mean archiving a hub wrote every collection under it,
+	// and unarchiving could no longer tell which of them had been archived before.
+	ParentArchivedAt *time.Time
 	// TrashBatchID ties every container trashed in one operation together, so that restoring a
 	// subtree is one decision rather than a walk (I-C2). Set by TrashContainer, which arrives
 	// with its own use case.
@@ -215,9 +223,40 @@ func hasControlCharacter(s string) bool {
 	return false
 }
 
-// IsArchived reports invariant I-C3's precondition: an archived container is read-only, and its
-// children inherit that.
+// IsArchived reports whether this container carries the archive stamp itself. The question
+// ArchiveContainer and UnarchiveContainer ask - not the one a write asks, which is the next method.
 func (c Container) IsArchived() bool { return c.ArchivedAt != nil }
+
+// IsEffectivelyArchived reports invariant I-C3 as a write sees it: archived itself, or sitting in an
+// archived hub. Every refusal of a write reads this rather than IsArchived, because "the hub above
+// this is archived" and "this is archived" are the same answer to a client that wanted to write.
+func (c Container) IsEffectivelyArchived() bool {
+	return c.ArchivedAt != nil || c.ParentArchivedAt != nil
+}
+
+// EffectiveArchivedAt is when the read-only state began: this container's own stamp, or the hub's.
+// The container's own wins when both carry one - it is the more specific decision, and the one
+// unarchiving this container would lift.
+func (c Container) EffectiveArchivedAt() *time.Time {
+	if c.ArchivedAt != nil {
+		return c.ArchivedAt
+	}
+	return c.ParentArchivedAt
+}
+
+// ArchivedRootID names the container a client would have to unarchive: this one, or the hub above
+// it. Carried in the refusal, because "it is archived" is unhelpful when the archived thing is not
+// the object the client named.
+func (c Container) ArchivedRootID() shared.ID {
+	switch {
+	case c.ArchivedAt != nil:
+		return c.ID
+	case c.ParentArchivedAt != nil:
+		return c.ParentID
+	default:
+		return ""
+	}
+}
 
 // IsTrashed reports whether the container is in the trash. Distinct from archived: the trash is
 // a deletion waiting out its retention period, archiving is a decision to keep something quietly.
@@ -234,10 +273,12 @@ func (c Container) EnsureAcceptsChildren(child ContainerType) error {
 			WithDetail("containers.parent_trashed").
 			WithParams(map[string]string{"parent_id": c.ID.String()})
 	}
-	if c.IsArchived() {
+	if c.IsEffectivelyArchived() {
 		return shared.ErrConflict.
 			WithDetail("containers.parent_archived").
-			WithParams(map[string]string{"parent_id": c.ID.String()})
+			WithParams(map[string]string{
+				"parent_id": c.ID.String(), "archived_id": c.ArchivedRootID().String(),
+			})
 	}
 	if !c.Type.AllowsChild(child) {
 		return shared.ErrValidation.
@@ -260,10 +301,14 @@ func (c Container) EnsureAcceptsItems() error {
 			WithDetail("items.collection_trashed").
 			WithParams(map[string]string{"collection_id": c.ID.String()})
 	}
-	if c.IsArchived() {
+	if c.IsEffectivelyArchived() {
+		// The hub's stamp counts here as much as the collection's own: I-C3 makes an archived subtree
+		// read-only, and an item under a collection whose hub was archived is inside one.
 		return shared.ErrConflict.
 			WithDetail("items.collection_archived").
-			WithParams(map[string]string{"collection_id": c.ID.String()})
+			WithParams(map[string]string{
+				"collection_id": c.ID.String(), "archived_id": c.ArchivedRootID().String(),
+			})
 	}
 	if c.Type != ContainerCollection {
 		return shared.ErrValidation.
@@ -272,4 +317,278 @@ func (c Container) EnsureAcceptsItems() error {
 			WithFields(shared.FieldError{Path: "/collection_id", Code: "items.collection_required"})
 	}
 	return nil
+}
+
+// Field names of a container, as the API spells them. They travel into the event's change set and
+// into the change log, where a client matches them against the members it sent - so they are
+// written once here rather than as a literal at each place that has to agree.
+const (
+	FieldName             = "name"
+	FieldDescription      = "description"
+	FieldIcon             = "icon"
+	FieldColorToken       = "color_token"
+	FieldCompletionPolicy = "completion_policy"
+	FieldParentID         = "parent_id"
+	FieldOrderKey         = "order_key"
+	FieldArchivedAt       = "archived_at"
+)
+
+// ContainerAttributes is what a rename may change: the container's own descriptive fields.
+//
+// A pointer per field, so that "set it to nothing" and "do not touch it" stay two different
+// requests all the way down from the merge patch that expressed them. A struct of plain strings
+// could not tell a caller that sent no icon from one that sent an empty one, and would clear the
+// icon of every client that only meant to rename something.
+//
+// The policies are not here. They are a different decision with a different endpoint and a
+// different audit entry - what a collection is called and how it works are not one field set.
+type ContainerAttributes struct {
+	Name        *string
+	Description *string
+	Icon        *string
+	ColorToken  *string
+}
+
+// IsEmpty reports whether the update asks for nothing at all.
+func (a ContainerAttributes) IsEmpty() bool {
+	return a.Name == nil && a.Description == nil && a.Icon == nil && a.ColorToken == nil
+}
+
+// Renamed applies a change to the container's own fields and reports which of them moved.
+//
+// Nothing that did not move is in the result, and a request that changes nothing returns the
+// container untouched with no changes at all. That is what makes a repeat harmless rather than
+// merely accepted: the caller writes nothing, spends no version and announces nothing - the same
+// contract WorkItem.Updated keeps, for the same reason.
+func (c Container) Renamed(attributes ContainerAttributes, at time.Time) (Container, []FieldChange, error) {
+	if err := c.EnsureEditable(); err != nil {
+		return Container{}, nil, err
+	}
+
+	var changes []FieldChange
+
+	if attributes.Name != nil {
+		name, err := containerName(*attributes.Name)
+		if err != nil {
+			return Container{}, nil, err
+		}
+		if name != c.Name {
+			changes = append(changes, FieldChange{Field: FieldName, From: c.Name, To: name})
+			c.Name = name
+		}
+	}
+
+	// The three optional fields, each trimmed and each free to become empty. Empty is "not set"
+	// rather than a value here, which is what lets `null` and `""` in a merge patch mean the one
+	// thing a person would expect them to mean: the field is gone.
+	for _, field := range []struct {
+		name  string
+		want  *string
+		value *string
+	}{
+		{FieldDescription, attributes.Description, &c.Description},
+		{FieldIcon, attributes.Icon, &c.Icon},
+		{FieldColorToken, attributes.ColorToken, &c.ColorToken},
+	} {
+		if field.want == nil {
+			continue
+		}
+		wanted := strings.TrimSpace(*field.want)
+		if wanted == *field.value {
+			continue
+		}
+		if hasControlCharacter(wanted) {
+			// The same rule the name keeps, for the same reason: these are single values that end up
+			// in a CSV export or a calendar summary, and a newline in one breaks whatever renders it.
+			return Container{}, nil, shared.ErrValidation.
+				WithDetail("containers.field_malformed").
+				WithParams(map[string]string{"field": field.name}).
+				WithFields(shared.FieldError{Path: "/" + field.name, Code: "containers.field_malformed"})
+		}
+		changes = append(changes, FieldChange{Field: field.name, From: *field.value, To: wanted})
+		*field.value = wanted
+	}
+
+	if len(changes) == 0 {
+		return c, nil, nil
+	}
+	c.UpdatedAt = at
+	return c, changes, nil
+}
+
+// ContainerPolicies is how a collection works, as the policies document carries it.
+//
+// A value type rather than pointers: this is a PUT, and a key that is not sent falls back to its
+// default rather than keeping what was stored. A configuration document that partly remembers what
+// it replaced is one nobody can reason about - and with one key today, it would be one key nobody
+// noticed getting that wrong.
+type ContainerPolicies struct {
+	CompletionPolicy CompletionPolicy
+}
+
+// WithPolicies replaces the container's policies and reports what moved.
+//
+// A hub is refused rather than accepted and ignored. A hub holds collections and no items, so a
+// completion policy on one decides nothing; storing it would be a setting a person could change
+// and never see take effect (domain-model.md §3.3).
+func (c Container) WithPolicies(policies ContainerPolicies, at time.Time) (Container, []FieldChange, error) {
+	if c.Type != ContainerCollection {
+		return Container{}, nil, shared.ErrValidation.
+			WithDetail("containers.policies_not_supported").
+			WithParams(map[string]string{"container_type": string(c.Type)}).
+			WithFields(shared.FieldError{Path: "/", Code: "containers.policies_not_supported"})
+	}
+	if err := c.EnsureEditable(); err != nil {
+		return Container{}, nil, err
+	}
+
+	policy := policies.CompletionPolicy
+	if policy == "" {
+		// The key was not sent. It falls back to the default, which is what a PUT means - not to
+		// whatever happens to be stored.
+		policy = DefaultCompletionPolicy
+	}
+	if !policy.Valid() {
+		return Container{}, nil, shared.ErrValidation.
+			WithDetail("containers.completion_policy_unknown").
+			WithParams(map[string]string{"value": string(policy)}).
+			WithFields(shared.FieldError{
+				Path: "/completion_policy", Code: "containers.completion_policy_unknown",
+			})
+	}
+	if policy == c.CompletionPolicy {
+		return c, nil, nil
+	}
+
+	changes := []FieldChange{{
+		Field: FieldCompletionPolicy, From: string(c.CompletionPolicy), To: string(policy),
+	}}
+	c.CompletionPolicy = policy
+	c.UpdatedAt = at
+	return c, changes, nil
+}
+
+// Archived stamps the container read-only, and reports whether that changed anything.
+//
+// Idempotent: archiving an archived container succeeds and writes nothing, which is what makes a
+// retry after a lost response harmless. The inherited state is a gate rather than a no-op - a
+// collection whose hub is archived is inside an archived subtree, and archiving it would be a write
+// into one (I-C3). Unarchive the hub first; the answer names it.
+func (c Container) Archived(at time.Time) (Container, bool, error) {
+	if err := c.ensureLifecycleChangeable(); err != nil {
+		return Container{}, false, err
+	}
+	if c.IsArchived() {
+		return c, false, nil
+	}
+	c.ArchivedAt = &at
+	c.UpdatedAt = at
+	return c, true, nil
+}
+
+// Unarchived lifts this container's own stamp, and reports whether that changed anything.
+//
+// Only its own. A collection archived in its own right stays archived when its hub is unarchived,
+// because unarchiving restores what was archived and not what was merely covered by it - which is
+// the whole reason the inherited stamp is never written onto the row.
+func (c Container) Unarchived(at time.Time) (Container, bool, error) {
+	if err := c.ensureLifecycleChangeable(); err != nil {
+		return Container{}, false, err
+	}
+	if !c.IsArchived() {
+		return c, false, nil
+	}
+	c.ArchivedAt = nil
+	c.UpdatedAt = at
+	return c, true, nil
+}
+
+// ensureLifecycleChangeable is what archiving and unarchiving both need: not in the trash, and not
+// inside somebody else's archived subtree.
+//
+// It reads the inherited stamp rather than EnsureEditable's effective one, because these two verbs
+// own the container's own stamp: a check that refused an archived container would make unarchiving
+// impossible.
+func (c Container) ensureLifecycleChangeable() error {
+	if c.IsTrashed() {
+		return shared.ErrConflict.
+			WithDetail("containers.trashed").
+			WithParams(map[string]string{"container_id": c.ID.String()})
+	}
+	if c.ParentArchivedAt != nil {
+		return shared.ErrConflict.
+			WithDetail("containers.archived").
+			WithParams(map[string]string{
+				"container_id": c.ID.String(), "archived_id": c.ParentID.String(),
+			})
+	}
+	return nil
+}
+
+// EnsureEditable refuses a container whose state makes it read-only (I-C2, I-C3).
+//
+// A conflict rather than a validation failure: the request is well formed and the state is what
+// makes it impossible, which is the distinction that tells a client whether unarchiving something
+// first would help (api-guidelines.md §6). `archived_id` says what that something is - this
+// container, or the hub above it.
+func (c Container) EnsureEditable() error {
+	if c.IsTrashed() {
+		return shared.ErrConflict.
+			WithDetail("containers.trashed").
+			WithParams(map[string]string{"container_id": c.ID.String()})
+	}
+	if c.IsEffectivelyArchived() {
+		return shared.ErrConflict.
+			WithDetail("containers.archived").
+			WithParams(map[string]string{
+				"container_id": c.ID.String(), "archived_id": c.ArchivedRootID().String(),
+			})
+	}
+	return nil
+}
+
+// MovedInto returns the container as it sits under a new parent, and reports whether it moved at
+// all.
+//
+// Everything a create refuses a move refuses too: the type under the new parent, a trashed or
+// archived destination (Container.EnsureAcceptsChildren). Re-checking rather than assuming is what
+// makes a narrowing visible - the destination may have been archived since the client read it.
+//
+// A hub is refused outright. It sits in the tenant and in nothing else (I-C1), so there is no
+// destination to name and a move would have to invent one.
+func (c Container) MovedInto(parent Container, orderKey string, at time.Time) (Container, bool, error) {
+	if c.Type != ContainerCollection {
+		return Container{}, false, shared.ErrValidation.
+			WithDetail("containers.hub_not_movable").
+			WithParams(map[string]string{"container_id": c.ID.String()}).
+			WithFields(shared.FieldError{Path: "/target_parent_id", Code: "containers.hub_not_movable"})
+	}
+	if err := c.EnsureEditable(); err != nil {
+		return Container{}, false, err
+	}
+	if parent.ID == c.ID {
+		// A container inside itself has no level and no path. Cheap to check and unrecoverable to
+		// store, which is the same reasoning the item hierarchy's cycle check rests on (I-W2).
+		return Container{}, false, shared.ErrValidation.
+			WithDetail("containers.parent_is_self").
+			WithParams(map[string]string{"container_id": c.ID.String()}).
+			WithFields(shared.FieldError{Path: "/target_parent_id", Code: "containers.parent_is_self"})
+	}
+	if err := parent.EnsureAcceptsChildren(c.Type); err != nil {
+		return Container{}, false, err
+	}
+	if orderKey == "" {
+		return Container{}, false, shared.ErrInternal.WithDetail("containers.identity_incomplete")
+	}
+
+	if parent.ID == c.ParentID && orderKey == c.OrderKey {
+		return c, false, nil
+	}
+	c.ParentID = parent.ID
+	c.OrderKey = orderKey
+	// The destination decides what the collection inherits. It has just been checked as accepting
+	// children, so it is not archived - which is what makes this a clear rather than a copy.
+	c.ParentArchivedAt = nil
+	c.UpdatedAt = at
+	return c, true, nil
 }
