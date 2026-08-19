@@ -42,14 +42,66 @@ func (q *Queries) ChildCompletion(ctx context.Context, parentID pgtype.UUID) (Ch
 	return i, err
 }
 
+const containerOrderKeyNeighbours = `-- name: ContainerOrderKeyNeighbours :one
+WITH level AS (
+  SELECT id, order_key
+  FROM container
+  WHERE parent_id IS NOT DISTINCT FROM $1::uuid
+    AND deleted_at IS NULL
+    AND id <> $2::uuid
+), anchor AS (
+  SELECT order_key FROM level WHERE id = $3::uuid
+)
+SELECT
+  coalesce((SELECT order_key FROM anchor), '')::text AS next_key,
+  coalesce((
+    SELECT max(order_key COLLATE "C")
+    FROM level
+    WHERE (SELECT order_key FROM anchor) IS NULL
+       OR order_key COLLATE "C" < (SELECT order_key FROM anchor) COLLATE "C"
+  ), '')::text AS previous_key
+`
+
+type ContainerOrderKeyNeighboursParams struct {
+	ParentID pgtype.UUID
+	MovingID pgtype.UUID
+	BeforeID pgtype.UUID
+}
+
+type ContainerOrderKeyNeighboursRow struct {
+	NextKey     string
+	PreviousKey string
+}
+
+// The two ranks a position sits between at one container level: the rank of the container to go
+// before, and the greatest rank below it.
+//
+// The counterpart of OrderKeyNeighbours for items, and the same shape for the same reasons: both
+// bounds in one row so that they are consistent as of the moment they are asked, the empty string for
+// "nothing there", and COLLATE "C" wherever two ranks are compared - a fractional index rests on byte
+// order, and a database created en_US.utf8 on glibc would order it differently from the domain that
+// produced it.
+//
+// The level is the parent, compared with IS NOT DISTINCT FROM so that an absent one means the hubs
+// rather than no filter at all. The moving container is excluded from its own level: a reorder would
+// otherwise measure a position against the rank it is leaving.
+func (q *Queries) ContainerOrderKeyNeighbours(ctx context.Context, arg ContainerOrderKeyNeighboursParams) (ContainerOrderKeyNeighboursRow, error) {
+	row := q.db.QueryRow(ctx, containerOrderKeyNeighbours, arg.ParentID, arg.MovingID, arg.BeforeID)
+	var i ContainerOrderKeyNeighboursRow
+	err := row.Scan(&i.NextKey, &i.PreviousKey)
+	return i, err
+}
+
 const findContainer = `-- name: FindContainer :one
 
 SELECT
-  id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
-  coalesce(policies->>'completion_policy', '')::text AS completion_policy,
-  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
-FROM container
-WHERE id = $1
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+FROM container c
+LEFT JOIN container parent ON parent.id = c.parent_id
+WHERE c.id = $1
 `
 
 type FindContainerRow struct {
@@ -64,6 +116,7 @@ type FindContainerRow struct {
 	OrderKey         string
 	CompletionPolicy string
 	ArchivedAt       pgtype.Timestamptz
+	ParentArchivedAt pgtype.Timestamptz
 	DeletedAt        pgtype.Timestamptz
 	TrashBatchID     pgtype.UUID
 	CreatedBy        pgtype.UUID
@@ -86,6 +139,12 @@ type FindContainerRow struct {
 // yields NULL for a collection that has never been configured, and coalesce turns that into the empty
 // string - which the domain reads as the default. Coalescing here rather than mapping a nil pointer in
 // the adapter keeps the generated field a plain string, and "unset" one concept instead of two.
+//
+// The hub's own archive stamp travels with the row as `parent_archived_at`, which is invariant I-C3's
+// second half: a collection in an archived hub is read-only without being archived itself. Read here
+// rather than stored on the collection, so that archiving a hub writes one row and unarchiving it
+// restores exactly what it covered - a collection archived in its own right stays archived. The join
+// is a primary key lookup, and it is NULL for a hub, which sits under nothing.
 func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContainerRow, error) {
 	row := q.db.QueryRow(ctx, findContainer, id)
 	var i FindContainerRow
@@ -101,6 +160,7 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.OrderKey,
 		&i.CompletionPolicy,
 		&i.ArchivedAt,
+		&i.ParentArchivedAt,
 		&i.DeletedAt,
 		&i.TrashBatchID,
 		&i.CreatedBy,
@@ -318,20 +378,22 @@ func (q *Queries) LastWorkItemOrderKey(ctx context.Context, arg LastWorkItemOrde
 
 const listContainers = `-- name: ListContainers :many
 SELECT
-  id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
-  coalesce(policies->>'completion_policy', '')::text AS completion_policy,
-  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
-FROM container
-WHERE parent_id IS NOT DISTINCT FROM $1::uuid
-  AND deleted_at IS NULL
-  AND ($2::container_type IS NULL OR type = $2::container_type)
-  AND ($3::boolean OR archived_at IS NULL)
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
+FROM container c
+LEFT JOIN container parent ON parent.id = c.parent_id
+WHERE c.parent_id IS NOT DISTINCT FROM $1::uuid
+  AND c.deleted_at IS NULL
+  AND ($2::container_type IS NULL OR c.type = $2::container_type)
+  AND ($3::boolean OR c.archived_at IS NULL)
   AND (
     $4::text IS NULL
-    OR (order_key COLLATE "C", id)
+    OR (c.order_key COLLATE "C", c.id)
        > ($4::text COLLATE "C", $5::uuid)
   )
-ORDER BY order_key COLLATE "C", id
+ORDER BY c.order_key COLLATE "C", c.id
 LIMIT $6
 `
 
@@ -356,6 +418,7 @@ type ListContainersRow struct {
 	OrderKey         string
 	CompletionPolicy string
 	ArchivedAt       pgtype.Timestamptz
+	ParentArchivedAt pgtype.Timestamptz
 	DeletedAt        pgtype.Timestamptz
 	TrashBatchID     pgtype.UUID
 	CreatedBy        pgtype.UUID
@@ -374,7 +437,10 @@ type ListContainersRow struct {
 // the filters agreeing, not a special case worth coding.
 //
 // Trashed rows are never here - the trash is its own view (B-10). Archived ones are, when the caller
-// asks: an archived collection is still a collection, and hiding it would make it unreachable.
+// asks: an archived collection is still a collection, and hiding it would make it unreachable. The
+// filter reads the row's own stamp rather than the effective one on purpose - a collection is not
+// hidden from the level because the hub above it was archived, since the client asking for that hub's
+// collections has just been told the hub is archived.
 //
 // The keyset is (order_key, id) rather than an offset, so a page boundary survives a concurrent
 // insert (api-guidelines.md §4). `id` is the tiebreak the guidelines require, and it is what makes
@@ -415,6 +481,7 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 			&i.OrderKey,
 			&i.CompletionPolicy,
 			&i.ArchivedAt,
+			&i.ParentArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,
 			&i.CreatedBy,
@@ -656,6 +723,172 @@ func (q *Queries) OrderKeyNeighbours(ctx context.Context, arg OrderKeyNeighbours
 	var i OrderKeyNeighboursRow
 	err := row.Scan(&i.NextKey, &i.PreviousKey)
 	return i, err
+}
+
+const setContainerArchived = `-- name: SetContainerArchived :execrows
+UPDATE container SET
+  archived_at = $1,
+  updated_at  = $2,
+  version     = version + 1
+WHERE id = $3::uuid AND version = $4
+`
+
+type SetContainerArchivedParams struct {
+	ArchivedAt      pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The archive stamp, set or cleared. One statement for both directions, because they differ in the
+// value and in nothing else.
+//
+// Only this row. A collection under an archived hub inherits the state through FindContainer's join
+// rather than through a stamp of its own, so archiving a hub writes one row here however many
+// collections sit in it - and unarchiving it restores exactly what it covered, leaving a collection
+// that was archived in its own right archived (I-C3).
+func (q *Queries) SetContainerArchived(ctx context.Context, arg SetContainerArchivedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setContainerArchived,
+		arg.ArchivedAt,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setContainerAttributes = `-- name: SetContainerAttributes :execrows
+UPDATE container SET
+  name        = normalize($1::text, NFC),
+  description = $2,
+  icon        = $3,
+  color_token = $4,
+  updated_at  = $5,
+  version     = version + 1
+WHERE id = $6::uuid AND version = $7
+`
+
+type SetContainerAttributesParams struct {
+	Name            string
+	Description     *string
+	Icon            *string
+	ColorToken      *string
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// A container's own descriptive fields: what RenameContainer may change (B-06).
+//
+// Every column is written on every call, not only the ones that moved. The application has already
+// decided what the row should say - it read the container, applied the update and refused what the
+// lifecycle does not allow - so this writes that decision whole. `description = COALESCE($1,
+// description)` would additionally make clearing a description unexpressible.
+//
+// The name is normalised here for the reason InsertContainer normalises it: the unique index has to
+// see two spellings of the same word as one name, and the domain may not import a Unicode library
+// (ADR-0001). A rename into a name already taken at this level therefore fails on `container_name_uq`
+// exactly as an insert does, which is what keeps one answer for one condition.
+//
+// Optimistic locking in the WHERE clause, as everywhere: the update matches nothing when somebody
+// else has moved the row on, and the caller learns that rather than overwriting them
+// (api-guidelines.md §5).
+func (q *Queries) SetContainerAttributes(ctx context.Context, arg SetContainerAttributesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setContainerAttributes,
+		arg.Name,
+		arg.Description,
+		arg.Icon,
+		arg.ColorToken,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setContainerPlacement = `-- name: SetContainerPlacement :execrows
+UPDATE container SET
+  parent_id  = $1::uuid,
+  order_key  = $2,
+  updated_at = $3,
+  version    = version + 1
+WHERE id = $4::uuid AND version = $5
+`
+
+type SetContainerPlacementParams struct {
+	ParentID        pgtype.UUID
+	OrderKey        string
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Where a collection sits and how it ranks there: the whole of what a move changes.
+//
+// No subtree statement beside it, unlike the item move. A container tree is two levels deep (I-C1), so
+// a collection has no containers below it whose path would have to follow - and the items it holds
+// reference their collection rather than a path through the hubs.
+//
+// A name already taken in the destination fails on `container_name_uq`, which is the same index that
+// decides an insert. Checking beforehand would be two statements with a gap, and two moves arriving
+// inside that gap would both pass the check (multi-tenancy.md §2.1).
+func (q *Queries) SetContainerPlacement(ctx context.Context, arg SetContainerPlacementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setContainerPlacement,
+		arg.ParentID,
+		arg.OrderKey,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setContainerPolicies = `-- name: SetContainerPolicies :execrows
+UPDATE container SET
+  policies   = jsonb_set(policies, '{completion_policy}',
+               to_jsonb($1::text), true),
+  updated_at = $2,
+  version    = version + 1
+WHERE id = $3::uuid AND version = $4
+`
+
+type SetContainerPoliciesParams struct {
+	CompletionPolicy string
+	UpdatedAt        pgtype.Timestamptz
+	ID               pgtype.UUID
+	ExpectedVersion  int32
+}
+
+// One key of the policies document, set in place.
+//
+// `jsonb_set` rather than replacing the column, because the column holds four documented keys and this
+// use case owns one of them. Overwriting the whole document would silently discard a default bucket or
+// a capability override the moment either of those arrives - a data loss nobody would see until the
+// feature that wrote them stopped working.
+//
+// The value is a parameter of the jsonb constructor rather than concatenated text: `to_jsonb` on a
+// bound parameter is what keeps this a parameterised statement, which rule 9 requires of every query
+// including the ones that build a document.
+func (q *Queries) SetContainerPolicies(ctx context.Context, arg SetContainerPoliciesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setContainerPolicies,
+		arg.CompletionPolicy,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setWorkItemAttributes = `-- name: SetWorkItemAttributes :execrows
