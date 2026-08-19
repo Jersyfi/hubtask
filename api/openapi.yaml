@@ -1354,6 +1354,52 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /containers/{containerId}/labels/{labelId}:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/LabelId"
+    patch:
+      tags: [structure]
+      operationId: updateLabel
+      description: >
+        Changes a label's own fields. A field that is not sent is left alone; sending description as
+        null clears it. The colour cannot be cleared - a label is rendered as a chip and nothing
+        else. The name stays unique in the collection.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/LabelUpdate"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Label"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [structure]
+      operationId: deleteLabel
+      description: >
+        Takes the label out of the collection's vocabulary. The entries that carried it are not
+        rewritten: they stop showing it because it is gone, which is what makes the deletion
+        undoable without having to remember who wore it.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1382,6 +1428,11 @@ components:
 
     ContainerId:
       name: containerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    LabelId:
+      name: labelId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1994,6 +2045,19 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
         color_token: { type: string, minLength: 1 }
+        description: { type: [string, "null"] }
+
+    LabelUpdate:
+      type: object
+      description: JSON Merge Patch; null deletes a field.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        color_token:
+          type: string
+          minLength: 1
+          description: >
+            Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a
+            client would have to invent one.
         description: { type: [string, "null"] }
 
     Comment:

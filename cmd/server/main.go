@@ -272,6 +272,14 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// Both verbs that change an existing label share one dependency set, for the reason the bucket
+	// verbs do (work.LabelWriter).
+	labelWriter := work.LabelWriter{
+		Labels: labels, Containers: containers, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -377,6 +385,8 @@ func run() error {
 		work.ListLabels{
 			Labels: labels, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.UpdateLabel{Writer: labelWriter}.Descriptor(),
+		work.DeleteLabel{Writer: labelWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),

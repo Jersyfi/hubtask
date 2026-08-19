@@ -325,3 +325,20 @@ func TestDeletingTheLastBucketAnswersWithANullTarget(t *testing.T) {
 		t.Errorf("target_bucket_id is %s, want null", raw)
 	}
 }
+
+// Null and the empty string are one instruction for the colour: clear it. That is what makes them
+// a different request from omitting the field, which leaves the colour alone.
+func TestANullColourClearsAColumnsColour(t *testing.T) {
+	registry := &catalogue{out: storedBucket("Doing", "a1")}
+
+	recorder := bucketRequest(t, registry, http.MethodPatch,
+		"/containers/"+boardCollection+"/buckets/"+firstBucket, `{"color_token":null}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	value, sent := registry.in["color_token"]
+	if !sent || value != "" {
+		t.Errorf("color_token reached the use case as %v, want the empty string", value)
+	}
+}

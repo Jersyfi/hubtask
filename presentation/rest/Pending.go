@@ -166,6 +166,14 @@ func (pending) CreateLabel(w http.ResponseWriter, r *http.Request, _ openapi.Con
 	notAvailable(w, r)
 }
 
+func (pending) UpdateLabel(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.LabelId, _ openapi.UpdateLabelParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteLabel(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.LabelId, _ openapi.DeleteLabelParams) {
+	notAvailable(w, r)
+}
+
 // CreateWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CreateWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.CreateWorkItemParams) {
 	notAvailable(w, r)

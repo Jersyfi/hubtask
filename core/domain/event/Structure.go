@@ -160,3 +160,39 @@ func labelPayload(label work.Label) map[string]any {
 
 // LabelSubject is what a label event is about.
 func LabelSubject(id shared.ID) string { return "label/" + id.String() }
+
+// NewLabelUpdated announces that a label's own fields changed.
+//
+// A snapshot and the change set beside it, as every change event in this system carries.
+func NewLabelUpdated(id shared.ID, label work.Label, changes []work.FieldChange,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if len(changes) == 0 {
+		// An event announcing that nothing changed. The writer does not write when nothing moved,
+		// so reaching this means the two disagree - a defect rather than something a client sent
+		// (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.change_set_empty")
+	}
+
+	changeSet := make(map[string]any, len(changes))
+	for _, change := range changes {
+		changeSet[change.Field] = map[string]any{"from": change.From, "to": change.To}
+	}
+
+	payload := labelPayload(label)
+	payload["change_set"] = changeSet
+	return NewEnvelope(id, LabelUpdated, label.TenantID,
+		LabelSubject(label.ID), actor, occurredAt, cause, payload)
+}
+
+// NewLabelDeleted announces that a label is out of a collection's vocabulary.
+//
+// The entries that carried it are not named: a collection's vocabulary is small and its entries are
+// not, so listing them would make the payload unbounded. A consumer that renders chips drops this
+// label from all of them, which is what the deletion means.
+func NewLabelDeleted(id shared.ID, label work.Label, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return NewEnvelope(id, LabelDeleted, label.TenantID,
+		LabelSubject(label.ID), actor, occurredAt, cause, labelPayload(label))
+}

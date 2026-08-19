@@ -1050,3 +1050,53 @@ func TestTheLabelCreatedEventMatchesItsSchema(t *testing.T) {
 		})
 	}
 }
+
+// The two remaining label events. A deletion carries a snapshot and no list of the entries that
+// carried the label: a collection's vocabulary is small and its entries are not, so listing them
+// would make the payload unbounded.
+func TestTheLabelChangeEventsMatchTheirSchemas(t *testing.T) {
+	deleted := time.Date(2026, 8, 19, 10, 0, 0, 0, time.UTC)
+	label := work.Label{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-0000000000c1"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Name:         "Blocked", ColorToken: "accent.amber", Version: 2,
+	}
+	by := event.Actor{
+		Kind: shared.ActorUser, ID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	}
+	eventID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e7")
+
+	for eventType, build := range map[event.Type]func() (event.Envelope, error){
+		event.LabelUpdated: func() (event.Envelope, error) {
+			return event.NewLabelUpdated(eventID, label,
+				[]work.FieldChange{{Field: work.FieldName, From: "Urgent", To: "Blocked"}},
+				by, deleted, event.Cause{})
+		},
+		event.LabelDeleted: func() (event.Envelope, error) {
+			gone := label
+			gone.DeletedAt = &deleted
+			return event.NewLabelDeleted(eventID, gone, by, deleted, event.Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}

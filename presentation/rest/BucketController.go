@@ -145,11 +145,15 @@ func (c *RestController) UpdateBucket(
 	// Only the fields the client sent. A merge patch says "leave it alone" by omission, and a
 	// handler that passed every field would clear the colour of every client that only meant to
 	// rename something.
-	if present["name"] && body.Name != nil {
-		in["name"] = *body.Name
+	if present["name"] {
+		// Null is not an instruction here: the contract types `name` as a plain string, a column
+		// without one cannot exist, and the catalogue refuses an empty one by name.
+		in["name"] = stringOrEmpty(body.Name)
 	}
 	if present["color_token"] {
-		in["color_token"] = optionalStringField(body.ColorToken)
+		// Null and the empty string are one instruction: clear it. That is what makes them a
+		// different request from omitting the field, which leaves the colour alone.
+		in["color_token"] = stringOrEmpty(body.ColorToken)
 	}
 	if present["wip_limit"] {
 		// Null and 0 are the same instruction - remove the limit - because zero is not a limit

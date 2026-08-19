@@ -239,3 +239,49 @@ func TestASetLabelValueTravelsAsItsValue(t *testing.T) {
 		t.Errorf("deleted_at is %v", envelope.Payload["deleted_at"])
 	}
 }
+
+// The update carries a change set beside the snapshot; the deletion carries the snapshot alone,
+// because a collection's vocabulary is small and its entries are not - listing the entries that
+// carried the label would make the payload unbounded.
+func TestTheLabelChangeEvents(t *testing.T) {
+	label := eventLabelIn(eventCollection)
+
+	t.Run("an update names what moved", func(t *testing.T) {
+		envelope, err := NewLabelUpdated(eventID, label,
+			[]work.FieldChange{{Field: work.FieldColorToken, From: "accent.red", To: "accent.amber"}},
+			by(), occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		changeSet, _ := envelope.Payload["change_set"].(map[string]any)
+		if len(changeSet) != 1 || changeSet[work.FieldColorToken] == nil {
+			t.Errorf("the change set is %+v", changeSet)
+		}
+	})
+
+	t.Run("an update with no change set is a defect", func(t *testing.T) {
+		if _, err := NewLabelUpdated(eventID, label, nil, by(), occurred, Cause{}); err == nil {
+			t.Fatal("an event with no change set was built")
+		}
+	})
+
+	t.Run("a deletion carries the snapshot alone", func(t *testing.T) {
+		deleted := occurred.Add(time.Hour)
+		gone := label
+		gone.DeletedAt = &deleted
+
+		envelope, err := NewLabelDeleted(eventID, gone, by(), occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		if envelope.Type != LabelDeleted {
+			t.Errorf("event type %s", envelope.Type)
+		}
+		if _, present := envelope.Payload["change_set"]; present {
+			t.Error("a deletion carries a change set")
+		}
+		if envelope.Payload["deleted_at"] != deleted.UTC() {
+			t.Errorf("deleted_at is %v", envelope.Payload["deleted_at"])
+		}
+	})
+}

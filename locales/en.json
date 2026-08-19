@@ -165,6 +165,8 @@
   "labels.identity_incomplete": "This installation is misconfigured and could not create that label.",
   "labels.deleted": "That label has been deleted.",
   "labels.not_found": "That label does not exist.",
+  "labels.label_id_required": "Say which label to change.",
+  "labels.update_empty": "Say what to change about that label.",
   "labels.name_taken": "A label called {name} already exists in this collection.",
   "labels.version_conflict": "Someone else changed that label in the meantime. Read it again and reapply.",
 

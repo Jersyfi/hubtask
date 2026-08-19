@@ -1855,6 +1855,14 @@ type LabelCreate struct {
 	Name        string  `json:"name"`
 }
 
+// LabelUpdate JSON Merge Patch; null deletes a field.
+type LabelUpdate struct {
+	// ColorToken Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a client would have to invent one.
+	ColorToken  *string `json:"color_token,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Name        *string `json:"name,omitempty"`
+}
+
 // Membership defines model for Membership.
 type Membership struct {
 	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
@@ -2234,6 +2242,9 @@ type IncludeArchived = bool
 // ItemId defines model for ItemId.
 type ItemId = openapi_types.UUID
 
+// LabelId defines model for LabelId.
+type LabelId = openapi_types.UUID
+
 // MembershipId defines model for MembershipId.
 type MembershipId = openapi_types.UUID
 
@@ -2326,6 +2337,18 @@ type ReorderBucketJSONBody struct {
 
 // ReorderBucketParams defines parameters for ReorderBucket.
 type ReorderBucketParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// DeleteLabelParams defines parameters for DeleteLabel.
+type DeleteLabelParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateLabelParams defines parameters for UpdateLabel.
+type UpdateLabelParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -2527,6 +2550,9 @@ type ReorderBucketJSONRequestBody ReorderBucketJSONBody
 // CreateLabelJSONRequestBody defines body for CreateLabel for application/json ContentType.
 type CreateLabelJSONRequestBody = LabelCreate
 
+// UpdateLabelApplicationMergePatchPlusJSONRequestBody defines body for UpdateLabel for application/merge-patch+json ContentType.
+type UpdateLabelApplicationMergePatchPlusJSONRequestBody = LabelUpdate
+
 // UpdateContainerPoliciesJSONRequestBody defines body for UpdateContainerPolicies for application/json ContentType.
 type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 
@@ -2649,6 +2675,12 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}/labels)
 	CreateLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+
+	// (DELETE /containers/{containerId}/labels/{labelId})
+	DeleteLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId, labelId LabelId, params DeleteLabelParams)
+
+	// (PATCH /containers/{containerId}/labels/{labelId})
+	UpdateLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId, labelId LabelId, params UpdateLabelParams)
 
 	// (PUT /containers/{containerId}/policies)
 	UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UpdateContainerPoliciesParams)
@@ -3635,6 +3667,124 @@ func (siw *ServerInterfaceWrapper) CreateLabel(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateLabel(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteLabel operation middleware
+func (siw *ServerInterfaceWrapper) DeleteLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "labelId" -------------
+	var labelId LabelId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "labelId", r.PathValue("labelId"), &labelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labelId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteLabelParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteLabel(w, r, containerId, labelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateLabel operation middleware
+func (siw *ServerInterfaceWrapper) UpdateLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "labelId" -------------
+	var labelId LabelId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "labelId", r.PathValue("labelId"), &labelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labelId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateLabelParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateLabel(w, r, containerId, labelId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5003,6 +5153,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}:reorder", wrapper.ReorderBucket)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.ListLabels)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.CreateLabel)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}", wrapper.DeleteLabel)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}", wrapper.UpdateLabel)
 
 	return m
 }

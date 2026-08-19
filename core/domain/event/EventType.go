@@ -108,6 +108,15 @@ const (
 	// LabelCreated announces a new label in a collection's vocabulary. Consumers: automation,
 	// search, clients that render a chip.
 	LabelCreated Type = "de.hubtask.work.label.created.v1"
+	// LabelUpdated announces that a label's own fields changed: what it is called, what colour it
+	// is, what it means. Consumers: automation, search, clients that render a chip.
+	LabelUpdated Type = "de.hubtask.work.label.updated.v1"
+	// LabelDeleted announces that a label is out of a collection's vocabulary.
+	//
+	// The entries that carried it are not named. A collection's vocabulary is small and its entries
+	// are not, so listing them would make the payload unbounded; a consumer that renders chips
+	// drops this label from all of them, which is what the deletion means.
+	LabelDeleted Type = "de.hubtask.work.label.deleted.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -119,7 +128,7 @@ var types = [...]Type{
 	ContainerArchived, ContainerUnarchived,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
-	LabelCreated,
+	LabelCreated, LabelUpdated, LabelDeleted,
 }
 
 // Types returns every defined event type.

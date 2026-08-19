@@ -139,3 +139,60 @@ func TestALabelRefusalIsReportedAsAProblem(t *testing.T) {
 		t.Fatalf("status %d, want 409: %s", recorder.Code, recorder.Body)
 	}
 }
+
+// A merge patch says "leave it alone" by omission, and the handler passes on only what arrived.
+func TestUpdatingALabelPassesOnOnlyWhatArrived(t *testing.T) {
+	registry := &catalogue{out: storedLabel("Blocked")}
+
+	recorder := labelRequest(t, registry, http.MethodPatch,
+		"/containers/"+boardCollection+"/labels/"+firstLabel, `{"name":"Blocked"}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != updateLabelUseCase {
+		t.Errorf("the handler invoked %q", registry.name)
+	}
+	if _, sent := registry.in["description"]; sent {
+		t.Error("a field the client did not send reached the use case")
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"1"` {
+		t.Errorf("ETag is %q", tag)
+	}
+}
+
+// Sending the description as null is a different request from omitting it: one clears it, the other
+// leaves it alone.
+func TestANullDescriptionClearsIt(t *testing.T) {
+	registry := &catalogue{out: storedLabel("Urgent")}
+
+	recorder := labelRequest(t, registry, http.MethodPatch,
+		"/containers/"+boardCollection+"/labels/"+firstLabel, `{"description":null}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	value, sent := registry.in["description"]
+	if !sent || value != "" {
+		t.Errorf("description reached the use case as %v, want the empty string", value)
+	}
+}
+
+// 204 rather than the 200 a deleted column answers with: nothing became of anything a client could
+// not work out for itself.
+func TestDeletingALabelAnswers204(t *testing.T) {
+	registry := &catalogue{out: storedLabel("Urgent")}
+
+	recorder := labelRequest(t, registry, http.MethodDelete,
+		"/containers/"+boardCollection+"/labels/"+firstLabel, "")
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status %d, want 204: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != deleteLabelUseCase {
+		t.Errorf("the handler invoked %q", registry.name)
+	}
+	if body := recorder.Body.String(); body != "" {
+		t.Errorf("a 204 carried a body: %q", body)
+	}
+}
