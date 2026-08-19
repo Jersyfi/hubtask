@@ -1,6 +1,6 @@
 # ADR-0025 — The status of a failed precondition
 
-**Status:** proposed · **Date:** 2026-08-19
+**Status:** accepted · **Date:** 2026-08-19
 
 ## Context
 
@@ -55,28 +55,28 @@ a request that carried no precondition — which is what RFC 9110 §15.5.13 is n
 
 ## Decision
 
-*Not yet taken. This ADR exists because the choice is not the implementer's to make: api-guidelines.md §5 and
-§6 are the governing documents, and CLAUDE.md reserves any deviation from a subject document — and any change
-to an existing error code — for a deliberate decision.*
+**Option A is accepted.** A failed `If-Match` answers `409 version_conflict`, exactly as api-guidelines.md §5
+and §6 document and as `ErrVersionConflict`, the contract test and `identity.UpdateGroup` already implement.
+`412` is not introduced, and the code does not change.
 
-The recommendation is **A**, for one reason that outweighs the RFC argument: the value of a distinct `412` is
-realised only by a client that can act differently on it, and the two branches of that action are the same —
-re-read the resource and reapply. A second status code that leads to the same recovery is a second thing to
-document, translate, test and support for no behavioural gain, and it arrives with a change to an operation
-(`UpdateGroup`) that is already shipped and working.
+The reason outweighs the RFC argument: a distinct `412` justifies itself only if a client can act differently
+on it, and the two branches of that action are the same — re-read the resource and reapply. A second status
+code that leads to the same recovery is a second thing to document, translate, test and support for no
+behavioural gain, and it would arrive with a change to an operation (`UpdateGroup`) that is already shipped
+and working.
 
-If the distinction is wanted for correctness on the wire rather than for client behaviour, **B** is the right
-shape and should be taken now rather than after 0.2.0 — every `PATCH` added between now and then is another
-call site to change.
+This decision does not foreclose `412`. Should a real client need for the distinction arise, it can be
+introduced additively at any time through a new ADR that supersedes this one — `precondition_failed` would be
+a new code beside `version_conflict`, not a replacement, so nothing decided here would have to break.
 
 ## Consequences
 
-**If A:** B-05 and B-06 implement `409 version_conflict` with the current version in the payload, which is what
+**A, as accepted:** B-05 and B-06 implement `409 version_conflict` with the current version in the payload, which is what
 `ErrVersionConflict` already does. The three acceptance criteria that say `412` (B-04's, and whatever B-05 and
 B-06 inherit) are corrected in the backlog and in the corresponding issues, so the next reader of those tasks
 is not sent looking for a status the API does not produce. Nothing in the code changes.
 
-**If B:** a new category and code, `412 precondition_failed`, joins the error model and the §6 table. The
+**B, not taken (kept for the record and for a possible successor ADR):** a new category and code, `412 precondition_failed`, joins the error model and the §6 table. The
 distinction has to be drawn where the version is compared, which is the application layer: a use case that
 received an explicit `expected_version` answers `precondition_failed`, one that fell back to the version it
 read answers `version_conflict`. `UpdateGroup` and its tests change with it, and the contract test gains the new
