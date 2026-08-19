@@ -224,7 +224,7 @@ and a business payload. Events are a public contract (webhooks, automation, n8n)
 
 | Event | Payload (core) | Consumers |
 |---|---|---|
-| `container.created` / `.renamed` / `.archived` / `.deleted` / `.restored` | A container snapshot | Automation, webhooks, search |
+| `container.created` / `.renamed` / `.policies_updated` / `.moved` / `.archived` / `.unarchived` / `.deleted` / `.restored` | A container snapshot, `effectiveArchived` included; `.renamed` and `.policies_updated` add a `changeSet`, `.moved` the hub it came from | Automation, webhooks, search |
 | `item.created` | An item snapshot, `parentRef` | Automation, search, SSE |
 | `item.updated` | `changeSet` (old/new per field) | Automation (field change triggers), history |
 | `item.completed` / `item.reopened` | `completedBy`, `completedAt` | Automation, roll-up, `ON_COMPLETION` recurrence |
@@ -243,6 +243,10 @@ and a business payload. Events are a public contract (webhooks, automation, n8n)
 | `automation.rule_run_started` / `.rule_run_finished` / `.rule_run_failed` | Run details | Monitoring, UI |
 | `tenant.provisioned` / `.suspended` / `.deleted` | The tenant | Control plane, metering |
 | `membership.granted` / `.revoked` | Scope, role | Audit, notification |
+
+`container.unarchived` is separate from `.restored`, which belongs to the trash: a rule written to
+react to something coming back from a deletion must not fire when somebody unarchives a hub. The same
+reasoning separates `item.reopened` from `item.completed`.
 
 **Compatibility rules:** fields may only be added; removing or reinterpreting one requires a `.v2`
 alongside continued delivery of `.v1` for at least two minor releases.

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.container.created.v1.json",
-  "title": "de.hubtask.work.container.created.v1",
-  "description": "A hub or a collection was created. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
+  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.container.renamed.v1.json",
+  "title": "de.hubtask.work.container.renamed.v1",
+  "description": "A container's own descriptive fields changed: what it is called, and how it is shown. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
   "type": "object",
   "required": [
     "specversion",
@@ -38,7 +38,7 @@
     "type": {
       "type": "string",
       "enum": [
-        "de.hubtask.work.container.created.v1"
+        "de.hubtask.work.container.renamed.v1"
       ]
     },
     "subject": {
@@ -95,7 +95,7 @@
     },
     "data": {
       "type": "object",
-      "description": "A snapshot of the container as it was created. A consumer that had to fetch it would produce one request per event and read a state that has already moved on.",
+      "description": "A snapshot of the container as it now stands, and the change set beside it. Both, because they answer different questions: the snapshot is what the container is, the change set is what moved.",
       "required": [
         "id",
         "type",
@@ -108,7 +108,8 @@
         "created_at",
         "created_by",
         "updated_at",
-        "version"
+        "version",
+        "change_set"
       ],
       "additionalProperties": true,
       "properties": {
@@ -182,6 +183,11 @@
         },
         "version": {
           "type": "integer"
+        },
+        "change_set": {
+          "type": "object",
+          "description": "The fields that moved, each with the value on both sides. A field change trigger is written against this: a rule fires on \"the name became X\" or on \"it stopped being Y\", and only the second needs the value that went. Fields that did not move are not here.",
+          "additionalProperties": true
         }
       }
     }

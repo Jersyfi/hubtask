@@ -690,3 +690,147 @@ func TestAMoveToTheTopLevelCarriesANullParent(t *testing.T) {
 		t.Errorf("to_parent_id is %v rather than null", data["to_parent_id"])
 	}
 }
+
+// The container lifecycle's five events, each judged against its own schema. A table rather than
+// five tests: they share a subject and an envelope, and what differs between them is the payload -
+// which is exactly what the schemas describe and this loop checks.
+func TestTheContainerLifecycleEventsMatchTheirSchemas(t *testing.T) {
+	hub := shared.MustParseID("0192f000-0000-7000-8000-00000000000c")
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-00000000001c")
+	actor := shared.MustParseID("0192f000-0000-7000-8000-00000000000d")
+	at := time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC)
+	archivedAt := at.Add(-time.Hour)
+
+	collection := work.Container{
+		ID:               shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		TenantID:         shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		Type:             work.ContainerCollection,
+		ParentID:         hub,
+		Name:             "Shopping",
+		OrderKey:         "a0",
+		CompletionPolicy: work.CompletionRollup,
+		CreatedBy:        actor,
+		CreatedAt:        at.Add(-24 * time.Hour),
+		UpdatedAt:        at,
+		Version:          4,
+	}
+	archived := collection
+	archived.ArchivedAt = &archivedAt
+
+	renamed := []work.FieldChange{{Field: work.FieldName, From: "Shopping", To: "Groceries"}}
+	reconfigured := []work.FieldChange{{Field: work.FieldCompletionPolicy, From: "MANUAL", To: "ROLLUP"}}
+
+	cases := []struct {
+		name  string
+		typed event.Type
+		build func(shared.ID) (event.Envelope, error)
+	}{
+		{
+			name: "renamed", typed: event.ContainerRenamed,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewContainerRenamed(id, collection, renamed,
+					event.Actor{Kind: shared.ActorUser, ID: actor}, at, event.Cause{})
+			},
+		},
+		{
+			name: "policies updated", typed: event.ContainerPoliciesUpdated,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewContainerPoliciesUpdated(id, collection, reconfigured,
+					event.Actor{Kind: shared.ActorUser, ID: actor}, at, event.Cause{})
+			},
+		},
+		{
+			name: "moved into another hub", typed: event.ContainerMoved,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewContainerMoved(id, collection, elsewhere,
+					event.Actor{Kind: shared.ActorUser, ID: actor}, at, event.Cause{})
+			},
+		},
+		{
+			name: "archived", typed: event.ContainerArchived,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewContainerArchived(id, archived,
+					event.Actor{Kind: shared.ActorUser, ID: actor}, at, event.Cause{})
+			},
+		},
+		{
+			name: "unarchived", typed: event.ContainerUnarchived,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewContainerUnarchived(id, collection,
+					event.Actor{Kind: shared.ActorUser, ID: actor}, at, event.Cause{})
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			envelope, err := c.build(shared.MustParseID("0192f000-0000-7000-8000-0000000000e7"))
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+			if envelope.Type != c.typed {
+				t.Fatalf("event type %s, want %s", envelope.Type, c.typed)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+			problems, err := loadEventSchema(t, c.typed).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// An archived hub makes its collections read-only without archiving them, so `archived_at` alone
+// cannot tell a subscriber whether a collection may be written to. `effective_archived` is what
+// answers that, and it has to be in the payload rather than derivable from it.
+func TestAContainerEventReportsTheInheritedArchive(t *testing.T) {
+	archivedAt := time.Date(2026, 8, 19, 8, 0, 0, 0, time.UTC)
+	collection := work.Container{
+		ID:               shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		TenantID:         shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		Type:             work.ContainerCollection,
+		ParentID:         shared.MustParseID("0192f000-0000-7000-8000-00000000000c"),
+		Name:             "Shopping",
+		OrderKey:         "a0",
+		CompletionPolicy: work.CompletionManual,
+		ParentArchivedAt: &archivedAt,
+		CreatedBy:        shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt:        archivedAt,
+		UpdatedAt:        archivedAt,
+		Version:          2,
+	}
+
+	envelope, err := event.NewContainerRenamed(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e8"), collection,
+		[]work.FieldChange{{Field: work.FieldName, From: "Shop", To: "Shopping"}},
+		event.Actor{Kind: shared.ActorUser, ID: collection.CreatedBy}, archivedAt, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Payload["effective_archived"] != true {
+		t.Errorf("effective_archived is %v, want true for a collection in an archived hub", envelope.Payload["effective_archived"])
+	}
+	if envelope.Payload["archived_at"] != nil {
+		t.Errorf("archived_at is %v, want null - the collection carries no stamp of its own", envelope.Payload["archived_at"])
+	}
+}
+
+// An event that announces nothing changed is a defect rather than something a client sent: the
+// writer does not write when nothing moved.
+func TestAChangeEventRefusesAnEmptyChangeSet(t *testing.T) {
+	_, err := event.NewContainerRenamed(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e9"),
+		work.Container{TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a")},
+		nil, event.Actor{Kind: shared.ActorSystem}, time.Now(), event.Cause{})
+	if err == nil {
+		t.Fatal("an event with no changes was built")
+	}
+}
