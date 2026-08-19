@@ -331,6 +331,13 @@ gate-kind: docker-build
 gate-docs:
 	$(GO) run ./tools/checkdocs
 
+## gate-action-pins: Every action pin resolves, and its comment names the right tag (needs network)
+.PHONY: gate-action-pins
+gate-action-pins:
+	@# Not in `make verify`: it asks github.com what a commit SHA is, and the local gates run
+	@# offline. The nightly carries it, which is where a pin that has rotted gets noticed.
+	scripts/check-action-pins.sh
+
 ## gate-selftest: Prove that every configured rule actually fails a build
 .PHONY: gate-selftest
 gate-selftest:
