@@ -55,6 +55,7 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 		Events:     postgres.NewOutbox(jobQueue(t)),
 		Changes:    postgres.NewChangeLog(),
 		Audit:      sink,
+		Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
 		UnitOfWork: unitOfWork,
 		Clock:      fixed,
 		IDs:        ids,
@@ -121,7 +122,7 @@ func TestTheThreeLevelsAreCreatedAgainstTheSeededProfiles(t *testing.T) {
 	}
 }
 
-// One write owes four things, proven against the database rather than against fakes.
+// One write owes five things, proven against the database rather than against fakes.
 func TestCreatingAnItemWritesEverythingInOneTransaction(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
@@ -155,6 +156,11 @@ func TestCreatingAnItemWritesEverythingInOneTransaction(t *testing.T) {
 		id); rows != 1 {
 		t.Errorf("%d audit entries for the new item", rows)
 	}
+	if rows := countIn(ctx, t,
+		`SELECT count(*) FROM activity_entry WHERE item_id = $1 AND verb = 'item.created'`,
+		id); rows != 1 {
+		t.Errorf("%d history steps for the new item", rows)
+	}
 
 	// The change is filed under the collection, which is the visibility filter a pull applies.
 	var container string
@@ -179,6 +185,19 @@ func TestCreatingAnItemWritesEverythingInOneTransaction(t *testing.T) {
 	}
 	if strings.Contains(changes, title) {
 		t.Errorf("the item title reached the trail: %s", changes)
+	}
+
+	// And the history the other way round: it is the product's record, readable by whoever may read
+	// the entry, so a step carries its collection and the actor's account rather than a name
+	// (audit.md §1).
+	var filedUnder, actorType string
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT container_id::text, actor_type FROM activity_entry WHERE item_id = $1`, id).
+		Scan(&filedUnder, &actorType); err != nil {
+		t.Fatalf("reading the history step: %v", err)
+	}
+	if filedUnder != collection.String() || actorType != "USER" {
+		t.Errorf("the step is filed under %s by a %s", filedUnder, actorType)
 	}
 }
 
