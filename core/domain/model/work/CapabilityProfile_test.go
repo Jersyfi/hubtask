@@ -95,3 +95,48 @@ func TestACapabilityOutsideTheProfileIsRefusedRatherThanIgnored(t *testing.T) {
 		t.Errorf("field errors = %v", refusal.Fields)
 	}
 }
+
+// The matrix's note "compact history for activities" (domain-model.md §2), derived from the matrix
+// rather than from the type name - so that a tenant which narrows a profile gets the form that goes
+// with what it narrowed to.
+func TestTheHistoryFormFollowsTheCapabilitiesRatherThanTheTypeName(t *testing.T) {
+	cases := map[string]struct {
+		profile CapabilityProfile
+		compact bool
+	}{
+		"a task keeps the detail": {
+			profile: CapabilityProfile{Type: ItemTask, Capabilities: []Capability{
+				CapabilityCompletion, CapabilityNotes, CapabilityLabels, CapabilityComments,
+				CapabilityCustomFields, CapabilityHistory,
+			}},
+			compact: false,
+		},
+		"a work package keeps the detail": {
+			profile: CapabilityProfile{Type: ItemWorkPackage, Capabilities: []Capability{
+				CapabilityCompletion, CapabilityNotes, CapabilityHistory,
+			}},
+			compact: false,
+		},
+		"an activity is compact": {
+			profile: CapabilityProfile{Type: ItemActivity, Capabilities: []Capability{
+				CapabilityCompletion, CapabilityDueDate, CapabilityReminder,
+				CapabilityAssignment, CapabilityHistory,
+			}},
+			compact: true,
+		},
+		"a task narrowed to an activity's fields is compact too": {
+			profile: CapabilityProfile{Type: ItemTask, Capabilities: []Capability{
+				CapabilityCompletion, CapabilityHistory,
+			}},
+			compact: true,
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := c.profile.HistoryIsCompact(); got != c.compact {
+				t.Errorf("HistoryIsCompact() = %v, want %v", got, c.compact)
+			}
+		})
+	}
+}

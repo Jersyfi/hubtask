@@ -241,6 +241,23 @@
   "audit.entry_unserialisable": "This installation could not record that action and therefore did not carry it out.",
   "audit.actor_kind_invalid": "This installation could not record that action and therefore did not carry it out.",
 
+  "activity.entry_incomplete": "This installation could not record that step in the history and therefore did not carry the change out.",
+  "activity.verb_unknown": "This installation could not record that step in the history and therefore did not carry the change out.",
+  "activity.actor_kind_invalid": "This installation could not record that step in the history and therefore did not carry the change out.",
+
+  "activity.item_created": "{actor} created this entry",
+  "activity.item_updated": "{actor} edited this entry",
+  "activity.item_completed": "{actor} marked this entry as done",
+  "activity.item_reopened": "{actor} reopened this entry",
+  "activity.item_moved": "{actor} moved this entry",
+  "activity.item_reordered": "{actor} changed the order of this entry",
+  "activity.item_archived": "{actor} archived this entry",
+  "activity.item_unarchived": "{actor} took this entry out of the archive",
+  "activity.item_trashed": "{actor} deleted this entry",
+  "activity.item_restored": "{actor} restored this entry",
+  "activity.item_label_added": "{actor} added a label",
+  "activity.item_label_removed": "{actor} removed a label",
+
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
   "sync.change_without_clock": "This installation could not record that change for offline devices.",
   "sync.hlc_malformed": "{value} is not a valid change timestamp.",

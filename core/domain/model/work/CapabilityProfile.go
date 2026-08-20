@@ -91,3 +91,24 @@ func (p CapabilityProfile) Require(capability Capability, field string) error {
 		}).
 		WithFields(shared.FieldError{Path: field, Code: "items.capability_not_supported"})
 }
+
+// HistoryIsCompact reports whether this type's history keeps the verb alone rather than the fields
+// that moved with it.
+//
+// The capability matrix gives every type HISTORY and notes "compact history for activities"
+// (domain-model.md §2), which leaves the form to be derived rather than declared - and derived from
+// the matrix itself, so that a tenant narrowing a profile gets the form that goes with what it
+// narrowed to. A type carrying none of the fields a diff would be about - notes, labels, comments,
+// custom fields - has, apart from its title, only state a client reads off the entry: done or open,
+// a date, an assignee. Recording a per-field diff of those would repeat what the reader already
+// has in front of them.
+func (p CapabilityProfile) HistoryIsCompact() bool {
+	for _, capability := range []Capability{
+		CapabilityNotes, CapabilityLabels, CapabilityComments, CapabilityCustomFields,
+	} {
+		if p.Allows(capability) {
+			return false
+		}
+	}
+	return true
+}
