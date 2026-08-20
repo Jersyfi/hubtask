@@ -1366,6 +1366,31 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/activity:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [items]
+      operationId: listActivity
+      description: >
+        The entry's own history, newest first: who did what, and when. It is the product's record
+        and not the audit trail - it is readable by whoever may read the entry, and it is deleted
+        with the entry (audit.md §1). Each step carries a message code rather than a sentence, and
+        the client renders it (ADR-0011). For an activity the history is compact: the code, the
+        actor and the time, without the fields that moved.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}/buckets:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -2521,6 +2546,58 @@ components:
             $ref: "#/components/schemas/TrashEntry"
         page:
           $ref: "#/components/schemas/PageInfo"
+
+    ActivityPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityEntry"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    ActivityEntry:
+      type: object
+      description: >
+        One step of an entry's history. Append-only: nothing edits one, and what removes one is the
+        deletion of the entry it belongs to.
+      required: [id, item_id, code, actor, occurred_at, change_set]
+      properties:
+        id: { type: string, format: uuid }
+        item_id: { type: string, format: uuid }
+        code:
+          type: string
+          description: >
+            The message the client renders, from locales/*.json - activity.item_completed and the
+            rest (i18n-l10n.md §1). A code rather than a sentence, so that one history reads in
+            whichever language each client is set to.
+          example: activity.item_completed
+        actor:
+          type: object
+          description: >
+            Who did it. The label is not here: the account is one request away and this record is
+            deleted with its entry, so there is nothing for a copy of somebody's name to outlive.
+          required: [type, id]
+          properties:
+            type:
+              type: string
+              enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM]
+            id: { type: [string, "null"], format: uuid }
+        occurred_at: { type: string, format: date-time }
+        change_set:
+          type: object
+          additionalProperties: true
+          description: >
+            The fields that moved, keyed by field name. A field the history keeps the values of
+            carries `from` and `to` - each present only where there was a value on that side - and
+            one it does not carries `changed: true`: a note is a page of text and its history is
+            that somebody edited it. Empty where the step moved no field at all, and empty for
+            every step of an activity's compact history.
+          example:
+            title: { from: Milk, to: Oat milk }
+            notes: { changed: true }
 
     TrashEntry:
       type: object

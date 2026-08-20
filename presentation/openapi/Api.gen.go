@@ -102,6 +102,33 @@ func (e AccountPreferencesWeekStart) Valid() bool {
 	}
 }
 
+// Defines values for ActivityEntryActorType.
+const (
+	ActivityEntryActorTypeAIAGENT        ActivityEntryActorType = "AI_AGENT"
+	ActivityEntryActorTypeAUTOMATION     ActivityEntryActorType = "AUTOMATION"
+	ActivityEntryActorTypeSERVICEACCOUNT ActivityEntryActorType = "SERVICE_ACCOUNT"
+	ActivityEntryActorTypeSYSTEM         ActivityEntryActorType = "SYSTEM"
+	ActivityEntryActorTypeUSER           ActivityEntryActorType = "USER"
+)
+
+// Valid indicates whether the value is a known member of the ActivityEntryActorType enum.
+func (e ActivityEntryActorType) Valid() bool {
+	switch e {
+	case ActivityEntryActorTypeAIAGENT:
+		return true
+	case ActivityEntryActorTypeAUTOMATION:
+		return true
+	case ActivityEntryActorTypeSERVICEACCOUNT:
+		return true
+	case ActivityEntryActorTypeSYSTEM:
+		return true
+	case ActivityEntryActorTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditEntryActorType.
 const (
 	AuditEntryActorTypeAIAGENT        AuditEntryActorType = "AI_AGENT"
@@ -1291,6 +1318,33 @@ type AccountPreferences struct {
 
 // AccountPreferencesWeekStart defines model for AccountPreferences.WeekStart.
 type AccountPreferencesWeekStart string
+
+// ActivityEntry One step of an entry's history. Append-only: nothing edits one, and what removes one is the deletion of the entry it belongs to.
+type ActivityEntry struct {
+	// Actor Who did it. The label is not here: the account is one request away and this record is deleted with its entry, so there is nothing for a copy of somebody's name to outlive.
+	Actor struct {
+		Id   *openapi_types.UUID    `json:"id"`
+		Type ActivityEntryActorType `json:"type"`
+	} `json:"actor"`
+
+	// ChangeSet The fields that moved, keyed by field name. A field the history keeps the values of carries `from` and `to` - each present only where there was a value on that side - and one it does not carries `changed: true`: a note is a page of text and its history is that somebody edited it. Empty where the step moved no field at all, and empty for every step of an activity's compact history.
+	ChangeSet map[string]interface{} `json:"change_set"`
+
+	// Code The message the client renders, from locales/*.json - activity.item_completed and the rest (i18n-l10n.md §1). A code rather than a sentence, so that one history reads in whichever language each client is set to.
+	Code       string             `json:"code"`
+	Id         openapi_types.UUID `json:"id"`
+	ItemId     openapi_types.UUID `json:"item_id"`
+	OccurredAt time.Time          `json:"occurred_at"`
+}
+
+// ActivityEntryActorType defines model for ActivityEntry.Actor.Type.
+type ActivityEntryActorType string
+
+// ActivityPage defines model for ActivityPage.
+type ActivityPage struct {
+	Data []ActivityEntry `json:"data"`
+	Page PageInfo        `json:"page"`
+}
 
 // AuditEntry Deliberately contains no user content (titles, notes, comments), so that the audit
 // stays unaffected by deletion obligations on content.
@@ -2522,6 +2576,12 @@ type UpdateWorkItemParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListActivityParams defines parameters for ListActivity.
+type ListActivityParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // ListCommentsParams defines parameters for ListComments.
 type ListCommentsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -2847,6 +2907,9 @@ type ServerInterface interface {
 
 	// (PATCH /items/{itemId})
 	UpdateWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params UpdateWorkItemParams)
+
+	// (GET /items/{itemId}/activity)
+	ListActivity(w http.ResponseWriter, r *http.Request, itemId ItemId, params ListActivityParams)
 
 	// (GET /items/{itemId}/comments)
 	ListComments(w http.ResponseWriter, r *http.Request, itemId ItemId, params ListCommentsParams)
@@ -4596,6 +4659,61 @@ func (siw *ServerInterfaceWrapper) UpdateWorkItem(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListActivity operation middleware
+func (siw *ServerInterfaceWrapper) ListActivity(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListActivityParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListActivity(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListComments operation middleware
 func (siw *ServerInterfaceWrapper) ListComments(w http.ResponseWriter, r *http.Request) {
 
@@ -5727,6 +5845,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.ListComments)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.AddComment)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/activity", wrapper.ListActivity)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.ListBuckets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.CreateBucket)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}", wrapper.DeleteBucket)
