@@ -293,6 +293,12 @@ CREATE INDEX wi_parent_idx   ON work_item (tenant_id, parent_id, order_key);
 CREATE INDEX wi_level_order_idx
   ON work_item (tenant_id, collection_id, parent_id, order_key COLLATE "C", id)
   WHERE deleted_at IS NULL;
+-- The query language's default order: one whole collection, in its manual order. Without the
+-- `parent_id` column of the index above, which a query spanning a collection does not constrain
+-- (B-12, ADR-0026).
+CREATE INDEX wi_query_order_idx
+  ON work_item (tenant_id, collection_id, order_key COLLATE "C", id)
+  WHERE deleted_at IS NULL;
 CREATE INDEX wi_path_idx     ON work_item (tenant_id, path text_pattern_ops);
 CREATE INDEX wi_search_idx   ON work_item USING gin (search_vector);
 CREATE INDEX wi_custom_idx   ON work_item USING gin (custom_fields jsonb_path_ops);

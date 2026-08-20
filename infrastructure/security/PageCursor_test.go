@@ -6,6 +6,7 @@ package security
 import (
 	"encoding/base64"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -26,13 +27,19 @@ const sampleID = "0192f000-0000-7000-8000-00000000000a"
 // compares against, so a codec that lost either half would page from the wrong place.
 func TestABoundarySurvivesTheRoundTrip(t *testing.T) {
 	cases := map[string]Position{
-		"an ordinary rank key":   {SortKey: "a0", ID: shared.MustParseID(sampleID)},
-		"a fractional key":       {SortKey: "a1V", ID: shared.MustParseID(sampleID)},
-		"a negative integer key": {SortKey: "A00000000000000000000000000", ID: shared.MustParseID(sampleID)},
+		"an ordinary rank key":   At("a0", shared.MustParseID(sampleID)),
+		"a fractional key":       At("a1V", shared.MustParseID(sampleID)),
+		"a negative integer key": At("A00000000000000000000000000", shared.MustParseID(sampleID)),
 		// Not a key the domain produces today, and the codec must not be what assumes it never
 		// will: the next thing paged on may be a timestamp or a name.
-		"a key with punctuation": {SortKey: "2026-08-18T00:00:00Z", ID: shared.MustParseID(sampleID)},
-		"an empty key":           {SortKey: "", ID: shared.MustParseID(sampleID)},
+		"a key with punctuation": At("2026-08-18T00:00:00Z", shared.MustParseID(sampleID)),
+		"an empty key":           At("", shared.MustParseID(sampleID)),
+		// The query language sorts by up to four fields at once, so a boundary is the whole tuple
+		// (api-guidelines.md §3). The one shape that has to survive is a key that is itself empty
+		// in the middle of others - which is how a sort by a field with no value records itself.
+		"several keys": {
+			Keys: []string{"vfalse", "", "v2026-08-18T00:00:00Z"}, ID: shared.MustParseID(sampleID),
+		},
 	}
 
 	for name, position := range cases {
@@ -41,7 +48,7 @@ func TestABoundarySurvivesTheRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("decoding what Encode produced: %v", err)
 			}
-			if decoded != position {
+			if !slices.Equal(decoded.Keys, position.Keys) || decoded.ID != position.ID {
 				t.Errorf("round trip gave %+v, want %+v", decoded, position)
 			}
 		})
@@ -51,7 +58,7 @@ func TestABoundarySurvivesTheRoundTrip(t *testing.T) {
 // "There is no next page" is the absence of a cursor. A cursor that decoded to nothing would make
 // every client's "is there more" check a two-step one.
 func TestTheEmptyPositionHasNoCursor(t *testing.T) {
-	if cursor := codec().Encode(Position{SortKey: "a0"}); cursor != "" {
+	if cursor := codec().Encode(Position{Keys: []string{"a0"}}); cursor != "" {
 		t.Errorf("a position with no identifier produced the cursor %q", cursor)
 	}
 }
@@ -60,7 +67,7 @@ func TestTheEmptyPositionHasNoCursor(t *testing.T) {
 // corruption, or a value from somewhere else, and all of them have to come back as one refusal -
 // saying which would tell whoever is probing how far their attempt got.
 func TestAnUnusableCursorIsRefused(t *testing.T) {
-	valid := codec().Encode(Position{SortKey: "a0", ID: shared.MustParseID(sampleID)})
+	valid := codec().Encode(At("a0", shared.MustParseID(sampleID)))
 
 	cases := map[string]string{
 		"empty":                 "",
@@ -95,7 +102,7 @@ func TestAnUnusableCursorIsRefused(t *testing.T) {
 // A cursor is bound to the installation that issued it, so a value from staging, or from before a
 // key rotation, is not honoured by whatever receives it.
 func TestACursorFromAnotherSecretIsRefused(t *testing.T) {
-	issued := codec().Encode(Position{SortKey: "a0", ID: shared.MustParseID(sampleID)})
+	issued := codec().Encode(At("a0", shared.MustParseID(sampleID)))
 
 	elsewhere := NewCursorCodec(secret.New("a different installation secret entirely"))
 	if _, err := elsewhere.Decode(issued); err == nil {
@@ -121,7 +128,7 @@ func TestTheCursorSharesNoDerivedKeyWithTheTokenHasher(t *testing.T) {
 // The cursor travels in a query string and has to survive one unescaped. The assertion is here so
 // that a switch to StdEncoding fails loudly rather than in a client's URL handling.
 func TestACursorIsSafeInAURL(t *testing.T) {
-	cursor := codec().Encode(Position{SortKey: "2026-08-18T00:00:00Z", ID: shared.MustParseID(sampleID)})
+	cursor := codec().Encode(At("2026-08-18T00:00:00Z", shared.MustParseID(sampleID)))
 
 	if strings.ContainsAny(cursor, "+/=&?#% ") {
 		t.Errorf("the cursor %q carries a character a URL would escape", cursor)

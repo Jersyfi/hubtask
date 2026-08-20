@@ -122,7 +122,7 @@ func (r ContainerRepository) List(
 
 	page.Containers, page.Info = pageOf(page.Containers, query.Page.Size, r.cursors,
 		func(last work.Container) security.Position {
-			return security.Position{SortKey: last.OrderKey, ID: last.ID}
+			return security.At(last.OrderKey, last.ID)
 		})
 	return page, nil
 }

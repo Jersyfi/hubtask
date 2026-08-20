@@ -306,7 +306,7 @@ func (r TrashRepository) List(
 	}
 
 	kept, info := pageOf(entries, page.Size, r.cursors, func(entry work.TrashEntry) security.Position {
-		return security.Position{SortKey: entry.DeletedAt.UTC().Format(time.RFC3339Nano), ID: entry.ID}
+		return security.At(entry.DeletedAt.UTC().Format(time.RFC3339Nano), entry.ID)
 	})
 	return repository.TrashPage{Entries: kept, Info: info}, nil
 }
@@ -393,7 +393,7 @@ func trashCursor(cursors security.CursorCodec, cursor string) (trashBoundary, er
 	if err != nil {
 		return trashBoundary{}, err
 	}
-	deletedAt, err := time.Parse(time.RFC3339Nano, position.SortKey)
+	deletedAt, err := time.Parse(time.RFC3339Nano, position.SortKey())
 	if err != nil {
 		return trashBoundary{}, shared.ErrValidation.WithDetail("shared.cursor_invalid").WithCause(err)
 	}

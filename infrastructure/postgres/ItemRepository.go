@@ -109,7 +109,7 @@ func (r ItemRepository) List(ctx context.Context, query repository.ItemQuery) (r
 
 	page.Items, page.Info = pageOf(page.Items, query.Page.Size, r.cursors,
 		func(last work.WorkItem) security.Position {
-			return security.Position{SortKey: last.OrderKey, ID: last.ID}
+			return security.At(last.OrderKey, last.ID)
 		})
 	return page, nil
 }

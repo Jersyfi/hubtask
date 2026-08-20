@@ -8,6 +8,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -26,23 +27,43 @@ const cursorInfo = "hubtask/page-cursor/v1"
 // paged URL. 128 bits is the length the standard truncation guidance settles on (RFC 2104 §5).
 const cursorTagLength = 16
 
-// cursorSeparator ends the sort key inside the payload.
+// cursorSeparator ends each sort key inside the payload.
 //
-// NUL, because it is the one byte neither part can contain: a rank key is base 62 (Ordering.go) and
-// an identifier is a UUID in its canonical spelling. The split looks for the *last* one all the
-// same - the identifier is the half whose alphabet is certain, so anchoring on it is what keeps a
-// sort key that somehow carried the separator from being read as an identifier.
+// NUL, because it is the one byte no part can contain: a rank key is base 62 (Ordering.go), a title
+// may hold no control character (work.WorkItem), and an identifier is a UUID in its canonical
+// spelling. The identifier is the last field, and is read as the piece after the *last* separator -
+// the half whose alphabet is certain, so anchoring on it is what keeps a sort key that somehow
+// carried the separator from being read as an identifier.
 const cursorSeparator = 0x00
 
-// Position is a page boundary: the sort key of the last row of a page, and that row's identifier.
+// Position is a page boundary: the sort keys of the last row of a page, and that row's identifier.
+//
+// Keys rather than one key, because a query may be sorted by several fields at once
+// (api-guidelines.md §3) and a boundary in such a walk is the whole tuple. Every list that sorts by
+// one thing carries one key, which is what At builds.
 //
 // The identifier is not decoration. A sort key alone is only a boundary if it is unique, and a
 // fractional index is unique in practice rather than by constraint; the pair is what
 // api-guidelines.md §4 means by "the sort key plus id", and what lets the comparison be a strict
 // `>` on a total order.
 type Position struct {
-	SortKey string
-	ID      shared.ID
+	Keys []string
+	ID   shared.ID
+}
+
+// At is the boundary of a walk with a single sort key - every list in the product but the query
+// language's.
+func At(sortKey string, id shared.ID) Position {
+	return Position{Keys: []string{sortKey}, ID: id}
+}
+
+// SortKey is the single key of a one-key boundary, and the empty string for a boundary that has
+// none. A walk that sorts by several fields reads Keys instead.
+func (p Position) SortKey() string {
+	if len(p.Keys) == 0 {
+		return ""
+	}
+	return p.Keys[0]
 }
 
 // CursorCodec turns a page boundary into an opaque cursor and back.
@@ -74,9 +95,17 @@ func (c CursorCodec) Encode(position Position) string {
 		return ""
 	}
 
-	payload := make([]byte, 0, len(position.SortKey)+1+len(position.ID))
-	payload = append(payload, position.SortKey...)
-	payload = append(payload, cursorSeparator)
+	payload := make([]byte, 0, len(position.ID)+16)
+	for _, key := range position.Keys {
+		payload = append(payload, key...)
+		payload = append(payload, cursorSeparator)
+	}
+	if len(position.Keys) == 0 {
+		// A boundary with no sort key at all still needs one separator: decoding finds the
+		// identifier after the last one, and a payload without any would have no identifier. It
+		// then reads back as one empty key, which is the same boundary by any comparison.
+		payload = append(payload, cursorSeparator)
+	}
 	payload = append(payload, position.ID...)
 
 	// The tag first, so that decoding can cut it off without knowing either half's length.
@@ -110,7 +139,12 @@ func (c CursorCodec) Decode(cursor string) (Position, error) {
 	if err != nil {
 		return Position{}, errCursorInvalid
 	}
-	return Position{SortKey: string(payload[:end]), ID: id}, nil
+
+	// A payload of one empty piece is a boundary with one empty key, which is a real boundary: a
+	// list sorted by a field whose value is the empty string ends in exactly that. It is
+	// indistinguishable from a boundary with no keys at all, and that is not a shape anything
+	// produces - every walk in this system sorts by something.
+	return Position{Keys: strings.Split(string(payload[:end]), string(rune(cursorSeparator))), ID: id}, nil
 }
 
 func (c CursorCodec) tag(payload []byte) []byte {

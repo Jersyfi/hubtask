@@ -34,6 +34,11 @@ type items struct {
 	// page is what List answers with, and asked is what it was asked (B-04's read side).
 	page  repository.ItemPage
 	asked repository.ItemQuery
+	// result is what Query answers with, and searched is every specification it was handed
+	// (B-12's query language).
+	result   repository.ItemQueryResult
+	searched []repository.ItemSearch
+	queryErr error
 	// children is what ChildCompletion answers, per parent, and completions records every write
 	// SetCompletion took - the roll-up tests care about both: one is the state it decided from, the
 	// other is what it decided.
@@ -228,6 +233,19 @@ func (i *items) TrashSubtree(_ context.Context, trash repository.ItemTrash) (int
 		moved++
 	}
 	return moved, nil
+}
+
+// Query records the specification the use case compiled and answers with what the test staged.
+//
+// The specification is what a service test has an opinion about: whether the scope was resolved,
+// whether the placeholders were replaced, whether the page was clamped. What that specification
+// becomes in SQL is the adapter's business, and is proved against a real database instead.
+func (i *items) Query(_ context.Context, search repository.ItemSearch) (repository.ItemQueryResult, error) {
+	i.searched = append(i.searched, search)
+	if i.queryErr != nil {
+		return repository.ItemQueryResult{}, i.queryErr
+	}
+	return i.result, nil
 }
 
 // RestoreBatch clears the stamp on every row of one deletion, keyed on the batch rather than on the

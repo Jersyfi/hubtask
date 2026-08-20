@@ -125,6 +125,21 @@ linters:
             - pkg: io/ioutil
               desc: "deprecated"
 
+        # T-06 and ADR-0026: the query DSL is the one place that assembles SQL at run time, and it
+        # may assemble it only from constants of its own. `fmt` is the tool that would make a value
+        # part of the text - Sprintf into a fragment is exactly the mistake - so it is not
+        # importable here, which is what T-06 asks for by name. The driver is denied for a second
+        # reason: this package produces a statement and never executes one, so a connection has no
+        # business in it.
+        query-builder:
+          files:
+            - "**/infrastructure/postgres/query/**"
+          deny:
+            - pkg: fmt
+              desc: "the query builder writes constants and binds parameters - never a formatted string (T-06, ADR-0026)"
+            - pkg: github.com/jackc/pgx
+              desc: "this package compiles statements and executes none (ADR-0026)"
+
         # Rule 3 from CLAUDE.md: every query goes through the transaction wrapper, which is the
         # only place that sets `SET LOCAL app.tenant_id`. The driver therefore stays inside the
         # PostgreSQL adapter - and out of its tests, so that nothing bypasses the wrapper.
