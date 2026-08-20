@@ -102,7 +102,7 @@ var errHelpRequested = errors.New("help requested")
 
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
-	return []group{authGroup(), containerGroup()}
+	return []group{authGroup(), containerGroup(), itemGroup()}
 }
 
 // Run is main without the process. It returns the exit code rather than calling os.Exit, which is
@@ -275,6 +275,35 @@ func parseCommand(flags *flag.FlagSet, args []string) error {
 			return errHelpRequested
 		}
 		return usageError{error: err}
+	}
+	return nil
+}
+
+// takeID reads the identifier a command operates on and hands back the flags that follow it.
+//
+// The identifier comes first, before any flag, because the standard library's flag package stops
+// at the first argument that is not a flag: `hubctl item complete <id> --cascade` would otherwise
+// leave --cascade unparsed and silently ignored. Reading it first makes the order a rule rather
+// than a trap.
+func (cli *CLI) takeID(args []string, usage string) (openapitypes.UUID, []string, error) {
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return openapitypes.UUID{}, nil, usagef("an identifier comes first: hubctl %s", usage)
+	}
+	parsed, err := cli.parseID("the identifier", args[0])
+	if err != nil {
+		return openapitypes.UUID{}, nil, err
+	}
+	return parsed, args[1:], nil
+}
+
+// parseOnlyFlags parses what follows the identifier and refuses anything left over. A second
+// identifier is a mistake worth naming rather than ignoring.
+func parseOnlyFlags(flags *flag.FlagSet, args []string, usage string) error {
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if flags.NArg() > 0 {
+		return usagef("unexpected argument %q: hubctl %s takes one identifier", flags.Arg(0), usage)
 	}
 	return nil
 }
