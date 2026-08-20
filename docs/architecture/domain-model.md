@@ -201,6 +201,21 @@ stateDiagram-v2
 | `AutomationRule` | See [automation.md](./automation.md) | |
 | `WebhookSubscription` | `tenantId`, `targetUrl`, `eventTypes[]`, `secret`, `state`, `failureCount` | HMAC-SHA256 signature, auto-disable after sustained failure |
 
+**The `ActivityEntry` verbs.** The verb is a message code and the catalogue key is that verb in the
+`activity` namespace: `item.completed` is stored, `activity.item_completed` is what a client renders
+(`i18n-l10n.md` §1, ADR-0011). The vocabulary of milestone 0.2.0 is `item.created`, `item.updated`,
+`item.completed`, `item.reopened`, `item.moved`, `item.reordered`, `item.archived`,
+`item.unarchived`, `item.trashed`, `item.restored`, `item.label_added` and `item.label_removed`.
+
+The `changeSet` keeps the field names always and the values only where the product needs them: a
+rename carries both titles, a note carries `changed: true` and none of its text. Where the type's
+`HISTORY` capability is compact — an activity, per the matrix in §2 — the verb, the actor and the
+time are the whole of the step and the change set is empty.
+
+A container has no `ActivityEntry`: the entity is keyed on `itemId`, and `/items/{id}/activity` is
+the only reader the API declares. What a hub or a collection changed is in the audit trail and in
+the change log.
+
 ### 3.6 Automatic assignment
 
 | Strategy | Behaviour | Determinism in tests |

@@ -122,6 +122,15 @@ That is also why the write side distinguishes an absent field from an empty one 
 from the merge patch that expressed it (`api-guidelines.md` §"Partial updates"): "leave the notes
 alone" must not reach the log as "set the notes to nothing".
 
+**The item history is not merged, and it does not travel in the change log.** An `activity_entry` is
+written by the server, in the transaction that accepted the change, for a change the server has
+already decided — so there is nothing for two devices to disagree about, and the "appending lists"
+row above means exactly that there is no merge. It is also not a change log entry: a device that
+pulled one would be reading a second description of a change it is being sent anyway, in a different
+shape and with its own merge question. The history is read through `ListActivity`
+(`GET /items/{id}/activity`), which is an ordinary page request and is available offline only as far
+as a client cached it.
+
 ### 4.3 What the server always decides itself
 
 Permissions, the tenant boundary, the invariants of the capability matrix (which type may sit under
