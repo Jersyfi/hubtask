@@ -349,7 +349,10 @@ func (w PlacementWriter) perform(
 			return err
 		}
 
-		profile, err := w.profileFor(ctx, fresh.item.Type)
+		// Off the hierarchy that was already built rather than through a second read of the
+		// profiles: it is the same two queries, and asking twice inside one transaction for an
+		// answer that cannot have changed is a round trip on every move.
+		profile, err := hierarchy.Profile(fresh.item.Type)
 		if err != nil {
 			return err
 		}
