@@ -16,6 +16,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -675,7 +676,8 @@ func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemMovedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemMoved},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -704,7 +706,8 @@ func (h ReorderWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemMovedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemReordered},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

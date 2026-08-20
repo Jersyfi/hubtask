@@ -15,6 +15,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -411,7 +412,8 @@ func (h AddLabel) Descriptor() usecase.Descriptor {
 			Action: ItemLabelAddedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemLabelAdded},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -455,7 +457,8 @@ func (h RemoveLabel) Descriptor() usecase.Descriptor {
 			Action: ItemLabelRemovedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemLabelRemoved},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -463,7 +464,8 @@ func (h ArchiveWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemArchivedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemArchived},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -480,7 +482,8 @@ func (h UnarchiveWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemUnarchivedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemUnarchived},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

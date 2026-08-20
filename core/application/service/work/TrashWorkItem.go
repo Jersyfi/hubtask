@@ -12,6 +12,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -145,7 +146,8 @@ func (h TrashWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemTrashedAction, TargetType: itemTarget,
 			Severity: audit.SeverityNotice, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemTrashed},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -166,7 +168,8 @@ func (h RestoreWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemRestoredAction, TargetType: itemTarget,
 			Severity: audit.SeverityNotice, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemRestored},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

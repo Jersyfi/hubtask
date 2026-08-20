@@ -47,10 +47,10 @@ func TestAnIncompleteEntryIsRefused(t *testing.T) {
 		"no time":       func(e *activity.Entry) { e.OccurredAt = time.Time{} },
 	}
 
-	for name, break_ := range cases {
+	for name, damage := range cases {
 		t.Run(name, func(t *testing.T) {
 			e := entry()
-			break_(&e)
+			damage(&e)
 
 			err := e.Validate()
 			if !errors.Is(err, shared.ErrInternal) {

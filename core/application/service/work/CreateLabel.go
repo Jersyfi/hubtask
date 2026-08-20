@@ -284,6 +284,10 @@ func (h CreateLabel) Descriptor() usecase.Descriptor {
 			Action: LabelCreatedAction, TargetType: labelTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "a collection's vocabulary is its configuration. Deleting a label does not rewrite " +
+				"the entries that carried it, so nothing happened to any of them.",
+		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
 }

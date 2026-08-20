@@ -16,6 +16,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -421,7 +422,8 @@ func (h CompleteWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemCompletedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemCompleted},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -439,7 +441,8 @@ func (h ReopenWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemReopenedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemReopened},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

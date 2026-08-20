@@ -120,6 +120,11 @@ func (h ArchiveContainer) Descriptor() usecase.Descriptor {
 			Action: ContainerArchivedAction, TargetType: containerTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "a container is not an item, and the history is an item's: `ActivityEntry` is " +
+				"keyed on `itemId` (domain-model.md §3.5) and `/items/{id}/activity` is its only " +
+				"reader. A container's own history has nowhere to be read from yet.",
+		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
 }
@@ -163,6 +168,11 @@ func (h UnarchiveContainer) Descriptor() usecase.Descriptor {
 		Audit: usecase.AuditDeclaration{
 			Action: ContainerUnarchivedAction, TargetType: containerTarget,
 			Severity: audit.SeverityInfo, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "a container is not an item, and the history is an item's: `ActivityEntry` is " +
+				"keyed on `itemId` (domain-model.md §3.5) and `/items/{id}/activity` is its only " +
+				"reader. A container's own history has nowhere to be read from yet.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
