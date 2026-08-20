@@ -619,6 +619,56 @@ func TestGroupingAnswersOneColumnPerValue(t *testing.T) {
 	}
 }
 
+// Every field that may be grouped by, with a count: the key comes back from a different column type
+// each time - a uuid, an enum, a boolean - and the counted query has to render all three the same
+// way the rows are keyed, or a column's total lands on the wrong column or on none.
+func TestEveryGroupableFieldAnswersItsColumnsAndCounts(t *testing.T) {
+	ctx := context.Background()
+	f := queryFixture(ctx, t)
+
+	tests := map[string]struct {
+		field  string
+		groups int
+		keys   []string
+	}{
+		"a board column": {view.FieldBucketID, 2, []string{f.bucket.ID.String(), ""}},
+		"an item type":   {view.FieldType, 2, []string{"TASK", "WORK_PACKAGE"}},
+		"done and open":  {view.FieldIsCompleted, 2, []string{"false", "true"}},
+		"the author":     {view.FieldCreatedBy, 1, []string{authorA.String()}},
+		"the collection": {view.FieldCollection, 1, []string{f.collection.String()}},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			group, err := view.ParseGroupBy(map[string]any{"field": test.field}, "/group_by")
+			if err != nil {
+				t.Fatalf("the grammar refused the grouping: %v", err)
+			}
+
+			result := queried(ctx, t, tenantA, searchIn(t, f.collection, nil, view.Spec{
+				GroupBy: group, Count: view.CountExact,
+			}))
+			if len(result.Groups) != test.groups {
+				t.Fatalf("%s answered %d groups, want %d", test.field, len(result.Groups), test.groups)
+			}
+
+			counted := 0
+			for index, answered := range result.Groups {
+				if index < len(test.keys) && answered.Key != test.keys[index] {
+					t.Errorf("group %d is keyed %q, want %q", index, answered.Key, test.keys[index])
+				}
+				if answered.Total == 0 {
+					t.Errorf("group %q was counted as none - the count did not reach it", answered.Key)
+				}
+				counted += answered.Total
+			}
+			if counted != 4 || result.Total != 4 {
+				t.Errorf("the columns count %d and the result %d, want 4 and 4", counted, result.Total)
+			}
+		})
+	}
+}
+
 // A group's cursor continues that group: the client sends it back with the group's key as a filter,
 // which is what the contract says and what has to actually work.
 func TestAGroupsCursorContinuesThatGroup(t *testing.T) {

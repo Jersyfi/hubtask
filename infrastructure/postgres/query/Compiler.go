@@ -118,7 +118,10 @@ func Count(search repository.ItemSearch) (Statement, error) {
 	b := &builder{}
 
 	if group, ok := column(search.Spec.GroupBy.Field, itemPrefix); ok {
-		b.write(`SELECT `, group, `, count(*)::bigint FROM work_item wi WHERE `)
+		// The key comes back as text whatever the column holds, because a group key is text
+		// everywhere above this line: a uuid, an item type and a boolean all become the string the
+		// rows themselves are keyed by, and the caller matches the two against each other.
+		b.write(`SELECT `, group, `::text, count(*)::bigint FROM work_item wi WHERE `)
 		b.predicates(search)
 		b.write(` GROUP BY 1`)
 		return b.statement()

@@ -378,7 +378,7 @@ func TestTheCountIsTheSameFilterWithoutThePage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compilation failed: %v", err)
 	}
-	if !strings.HasPrefix(grouped.SQL, `SELECT wi.bucket_id, count(*)::bigint `) ||
+	if !strings.HasPrefix(grouped.SQL, `SELECT wi.bucket_id::text, count(*)::bigint `) ||
 		!strings.HasSuffix(grouped.SQL, ` GROUP BY 1`) {
 		t.Errorf("the grouped count reads %s", grouped.SQL)
 	}
