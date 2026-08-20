@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -60,6 +61,13 @@ type items struct {
 	dropped     []domain.DroppedReference
 	moveErr     error
 	subtreeSize int
+	// The trash side (B-10): what each call was asked to do, and the stamps it left on `stored`.
+	// Both are needed - one proves the use case passed the batch and the version it read, the other
+	// is what a second pass over the same item reads, which is what makes an idempotence test mean
+	// anything.
+	trashed  []repository.ItemTrash
+	restored []repository.ItemTrash
+	trashErr error
 }
 
 // rankWrite is one call to SetOrderKey: the item as it would be stored, and the version it was written
@@ -175,6 +183,78 @@ func (i *items) SetAttributes(_ context.Context, item domain.WorkItem, expectedV
 	i.attributes = append(i.attributes, attributeWrite{item: item, expectedVersion: expectedVersion})
 	i.stored[item.ID] = item
 	return nil
+}
+
+// SetArchived writes the stamp and moves the version on, as `version = version + 1` in the statement
+// does. The stored version has to move: a use case that archived twice would otherwise read the
+// pre-write version on its second pass, and an idempotence test would be measuring the fake.
+func (i *items) SetArchived(_ context.Context, item domain.WorkItem, expectedVersion int) error {
+	if i.setErr != nil {
+		return i.setErr
+	}
+	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
+		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.attributes = append(i.attributes, attributeWrite{item: item, expectedVersion: expectedVersion})
+	item.Version = expectedVersion + 1
+	i.stored[item.ID] = item
+	return nil
+}
+
+// TrashSubtree stamps the item and everything below it, the way the statement behind it does -
+// including the part that matters: a row already in the trash keeps its own deletion and is not
+// counted (I-C2).
+func (i *items) TrashSubtree(_ context.Context, trash repository.ItemTrash) (int, error) {
+	if i.trashErr != nil {
+		return 0, i.trashErr
+	}
+	if trash.Item.ID == i.conflictOn || i.stored[trash.Item.ID].Version != trash.ExpectedVersion {
+		return 0, shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.trashed = append(i.trashed, trash)
+	stamped := trash.Item
+	stamped.Version = trash.ExpectedVersion + 1
+	i.stored[trash.Item.ID] = stamped
+
+	moved := 1
+	for id, stored := range i.stored {
+		if id == trash.Item.ID || stored.IsTrashed() || !strings.HasPrefix(stored.Path, trash.Prefix) {
+			continue
+		}
+		stored.DeletedAt, stored.TrashBatchID = trash.Item.DeletedAt, trash.BatchID
+		stored.Version++
+		i.stored[id] = stored
+		moved++
+	}
+	return moved, nil
+}
+
+// RestoreBatch clears the stamp on every row of one deletion, keyed on the batch rather than on the
+// path - which is the whole point of the batch, and what a test about a younger deletion inside the
+// same subtree measures.
+func (i *items) RestoreBatch(_ context.Context, restore repository.ItemTrash) (int, error) {
+	if i.trashErr != nil {
+		return 0, i.trashErr
+	}
+	if restore.Item.ID == i.conflictOn || i.stored[restore.Item.ID].Version != restore.ExpectedVersion {
+		return 0, shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.restored = append(i.restored, restore)
+	cleared := restore.Item
+	cleared.Version = restore.ExpectedVersion + 1
+	i.stored[restore.Item.ID] = cleared
+
+	moved := 1
+	for id, stored := range i.stored {
+		if id == restore.Item.ID || stored.TrashBatchID != restore.BatchID {
+			continue
+		}
+		stored.DeletedAt, stored.TrashBatchID = nil, ""
+		stored.Version++
+		i.stored[id] = stored
+		moved++
+	}
+	return moved, nil
 }
 
 func (i *items) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {

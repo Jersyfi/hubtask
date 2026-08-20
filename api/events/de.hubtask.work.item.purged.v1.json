@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.item.purged.v1.json",
+  "title": "de.hubtask.work.item.purged.v1",
+  "description": "An entry is gone for good. The one item event whose payload is not a snapshot, and it cannot be: the row it would describe no longer exists. What it carries is what a consumer needs in order to clean up after the entry - which one, of what type, where it was, and why it went - and no title and no notes: a purge that left the entry's content in an event stream would not be a deletion (ADR-0018, data-retention.md §5). Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
+  "type": "object",
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "type",
+    "subject",
+    "time",
+    "datacontenttype",
+    "tenantid",
+    "actortype",
+    "causationdepth",
+    "correlationid",
+    "data"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "specversion": {
+      "type": "string",
+      "enum": [
+        "1.0"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv7. Stable across delivery attempts, so a consumer deduplicates on it (at-least-once delivery)."
+    },
+    "source": {
+      "type": "string",
+      "description": "The installation and the bounded context that produced the event."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "de.hubtask.work.item.purged.v1"
+      ]
+    },
+    "subject": {
+      "type": "string",
+      "description": "What the event is about, so that a consumer can filter without parsing the payload."
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "datacontenttype": {
+      "type": "string",
+      "enum": [
+        "application/json"
+      ]
+    },
+    "tenantid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actortype": {
+      "type": "string",
+      "enum": [
+        "USER",
+        "SERVICE_ACCOUNT",
+        "AUTOMATION",
+        "AI_AGENT",
+        "SYSTEM"
+      ]
+    },
+    "actorid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Absent when the system itself acts. No label: an event leaves the installation, and a name is personal data a subscriber does not need in order to react (ADR-0018)."
+    },
+    "onbehalfof": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The principal an automation rule or an agent runs as."
+    },
+    "correlationid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Everything that came out of one original action carries the same value. A root event is its own correlation."
+    },
+    "causationid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The event that caused this one. Absent for an action a person took."
+    },
+    "causationdepth": {
+      "type": "integer",
+      "description": "Distance from the original action. The rule engine stops at 5 and marks the run ABORTED_LOOP (automation.md §2)."
+    },
+    "data": {
+      "type": "object",
+      "description": "What is left to say about an entry that no longer exists.",
+      "required": [
+        "id",
+        "type",
+        "collection_id",
+        "path",
+        "purged_at",
+        "reason"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "TASK",
+            "WORK_PACKAGE",
+            "ACTIVITY"
+          ]
+        },
+        "collection_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "path": {
+          "type": "string",
+          "description": "The materialised path the entry had. Everything under it went too, and the prefix is how that is expressed without an event per row (invariant I-W2)."
+        },
+        "purged_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "USER",
+            "RETENTION"
+          ],
+          "description": "Whether a person asked for this - emptying a trash, purging one entry - or the tenant's retention policy did. An operator reading a cleanup log has to be able to tell those apart."
+        }
+      }
+    }
+  }
+}

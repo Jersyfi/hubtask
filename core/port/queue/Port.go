@@ -43,6 +43,16 @@ const (
 	// delivered by a worker, so an unreachable mail server never fails the request that invited
 	// them (observability-reliability.md §7).
 	KindInvitationEmail Kind = "notification.invitation"
+
+	// KindRetentionSweep removes what one tenant's retention periods say may go (ADR-0020).
+	//
+	// One job per tenant, which reschedules itself forever: a poller lives as one row rather than
+	// as a new row per round (Result.Repeat). It is created by a deletion rather than by a
+	// scheduler enumerating tenants, because nothing in this system may enumerate them - the
+	// `tenant` table is behind row level security with no bypass for the application role, and
+	// tenant administration runs through the control plane (db/migrations/0001_init.sql). A
+	// deletion scheduling its own cleanup is also the more honest statement of what has to happen.
+	KindRetentionSweep Kind = "retention.sweep"
 )
 
 func (k Kind) String() string { return string(k) }

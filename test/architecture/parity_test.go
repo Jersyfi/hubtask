@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -49,6 +50,8 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.ArchiveContainer{}.Descriptor(),
 		work.UnarchiveContainer{}.Descriptor(),
 		work.MoveContainer{}.Descriptor(),
+		work.TrashContainer{}.Descriptor(),
+		work.RestoreContainer{}.Descriptor(),
 		work.CreateBucket{}.Descriptor(),
 		work.ListBuckets{}.Descriptor(),
 		work.UpdateBucket{}.Descriptor(),
@@ -68,6 +71,13 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.ReopenWorkItem{}.Descriptor(),
 		work.MoveWorkItem{}.Descriptor(),
 		work.ReorderWorkItem{}.Descriptor(),
+		work.ArchiveWorkItem{}.Descriptor(),
+		work.UnarchiveWorkItem{}.Descriptor(),
+		work.TrashWorkItem{}.Descriptor(),
+		work.RestoreWorkItem{}.Descriptor(),
+		work.ListTrash{}.Descriptor(),
+		lifecycle.PurgeWorkItem{}.Descriptor(),
+		lifecycle.EmptyTrash{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.GrantMembership{}.Descriptor(),

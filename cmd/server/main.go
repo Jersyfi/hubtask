@@ -27,6 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -225,12 +226,14 @@ func run() error {
 	// placement is permitted, so what an installation advertises and what it accepts cannot
 	// drift apart (ADR-0006).
 	//
-	// The cursor codec is shared by both list repositories rather than derived twice: it is keyed on
-	// the installation secret, and one derivation means one place where that key comes from
+	// The cursor codec is shared by every list repository rather than derived once each: it is keyed
+	// on the installation secret, and one derivation means one place where that key comes from
 	// (api-guidelines.md §4).
 	cursors := security.NewCursorCodec(cfg.SecretKey)
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
+	trash := postgres.NewTrashRepository(cursors)
+	lifecycleStore := postgres.NewLifecycleRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
@@ -255,10 +258,30 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// One engine behind every path that removes for good: a person purging an entry, a person
+	// emptying a trash, and the retention job. They differ in what they select and in whether a
+	// refusal is an error or a number - not in what removing owes (lifecycle.Purger).
+	purger := lifecycle.Purger{
+		Trash: trash, Expired: lifecycleStore, Holds: lifecycleStore, Removals: lifecycleStore,
+		Events: outbox, Audit: auditSink, Clock: clockadapter.System{}, IDs: ids,
+		TombstoneWindow: cfg.Retention.TombstoneWindow, BatchSize: cfg.Retention.BatchSize,
+	}
+
+	// Every verb that moves an entry between the archive and the trash shares one dependency set.
+	// They are the same walk with a different transition in the middle, and wiring them separately
+	// would be one more place for "restoring records what trashing records" to stop being true
+	// (work.LifecycleWriter).
+	itemLifecycle := work.LifecycleWriter{
+		Items: items, Containers: containers, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Queue: jobs,
+	}
+
 	// Every verb that changes an existing container shares one dependency set: they read the same
 	// container, ask the same permission question, and owe the same four writes
 	// (work.ContainerWriter).
 	containerWriter := work.ContainerWriter{
+		Queue:      jobs,
 		Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -366,6 +389,8 @@ func run() error {
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.MoveContainer{Writer: containerWriter}.Descriptor(),
+		work.TrashContainer{Writer: containerWriter}.Descriptor(),
+		work.RestoreContainer{Writer: containerWriter}.Descriptor(),
 		work.CreateBucket{
 			Buckets:    buckets,
 			Containers: containers,
@@ -426,6 +451,18 @@ func run() error {
 
 		work.MoveWorkItem{Placement: placement}.Descriptor(),
 		work.ReorderWorkItem{Placement: placement}.Descriptor(),
+		work.ArchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
+		work.UnarchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
+		work.TrashWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
+		work.RestoreWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
+		work.ListTrash{Trash: trash, Reader: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
+		lifecycle.PurgeWorkItem{
+			Items: items, Containers: containers, Purger: purger,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		lifecycle.EmptyTrash{
+			Purger: purger, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process
@@ -552,7 +589,22 @@ func run() error {
 
 	// The kinds this build knows. The scheduler publishes a zero for each of them, so that the
 	// backlog gauge exists before there is a backlog.
-	handlers := map[queueport.Kind]queueport.Handler{queueport.KindOutboxDispatch: dispatcher}
+	// The retention run, and the queue's way into it. One pass per job execution, because the
+	// handler runs inside the transaction the runner opened - the job comes back for the next pass
+	// rather than looping inside one transaction (data-retention.md §5).
+	retention := worker.RetentionSweep{
+		Retention: lifecycle.RunRetention{
+			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
+			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+		},
+		Interval:     cfg.Retention.Interval,
+		Continuation: cfg.Queue.OutboxMinInterval,
+	}
+
+	handlers := map[queueport.Kind]queueport.Handler{
+		queueport.KindOutboxDispatch: dispatcher,
+		queueport.KindRetentionSweep: retention,
+	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {
 		kinds = append(kinds, kind)

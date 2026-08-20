@@ -7,6 +7,7 @@ package contract
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
@@ -1163,5 +1165,181 @@ func TestAnItemLabelEventNeedsALabel(t *testing.T) {
 		time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC), event.Cause{})
 	if err == nil {
 		t.Fatal("an event naming no label was built")
+	}
+}
+
+// The lifecycle events of both aggregates, against the schemas they are published under (B-10).
+//
+// Built from real transitions rather than from hand-written fixtures: the stamp a payload carries is
+// the one the domain wrote, so a builder that reported the wrong state would fail here rather than
+// in a subscriber's log.
+func TestTheTrashAndArchiveEventsMatchTheirSchemas(t *testing.T) {
+	tenant := shared.MustParseID("0192f000-0000-7000-8000-00000000000a")
+	collectionID := shared.MustParseID("0192f000-0000-7000-8000-00000000000b")
+	hubID := shared.MustParseID("0192f000-0000-7000-8000-00000000000c")
+	actor := shared.MustParseID("0192f000-0000-7000-8000-00000000000d")
+	batch := shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	at := time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC)
+
+	task := work.WorkItem{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-000000000001"), TenantID: tenant,
+		CollectionID: collectionID, Type: work.ItemTask, Path: "/0192f000-0000-7000-8000-000000000001/",
+		Depth: 1, Title: "Weekly shop", OrderKey: "a0", CreatedBy: actor,
+		CreatedAt: at.Add(-24 * time.Hour), UpdatedAt: at, Version: 3,
+	}
+	archived, _, err := task.Archived(at)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+	trashed, _, err := task.Trashed(at, batch)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+
+	hub := work.Container{
+		ID: hubID, TenantID: tenant, Type: work.ContainerHub, Name: "Private", OrderKey: "a0",
+		CompletionPolicy: work.CompletionManual, CreatedBy: actor,
+		CreatedAt: at.Add(-24 * time.Hour), UpdatedAt: at, Version: 2,
+	}
+	deleted, _, err := hub.Trashed(at, batch)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+	cascade := event.Cascade{Collections: 2, Items: 17}
+	who := event.Actor{Kind: shared.ActorUser, ID: actor}
+
+	cases := []struct {
+		name  string
+		typed event.Type
+		build func(shared.ID) (event.Envelope, error)
+	}{
+		{
+			name: "an entry archived", typed: event.ItemArchived,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewItemArchived(id, archived, who, at, event.Cause{})
+			},
+		},
+		{
+			name: "an entry unarchived", typed: event.ItemUnarchived,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewItemUnarchived(id, task, who, at, event.Cause{})
+			},
+		},
+		{
+			name: "an entry trashed with its subtree", typed: event.ItemTrashed,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewItemTrashed(id, trashed, 4, who, at, event.Cause{})
+			},
+		},
+		{
+			name: "an entry restored", typed: event.ItemRestored,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewItemRestored(id, task, 4, who, at, event.Cause{})
+			},
+		},
+		{
+			name: "an entry purged", typed: event.ItemPurged,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewItemPurged(id, event.Purge{
+					TenantID: tenant, ItemID: task.ID, Type: task.Type,
+					CollectionID: collectionID, Path: task.Path, Reason: lifecycle.DeletedByRetention,
+				}, who, at, event.Cause{})
+			},
+		},
+		{
+			name: "a hub deleted with its subtree", typed: event.ContainerDeleted,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewContainerDeleted(id, deleted, cascade, who, at, event.Cause{})
+			},
+		},
+		{
+			name: "a hub restored", typed: event.ContainerRestored,
+			build: func(id shared.ID) (event.Envelope, error) {
+				return event.NewContainerRestored(id, hub, cascade, who, at, event.Cause{})
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			envelope, err := c.build(shared.MustParseID("0192f000-0000-7000-8000-0000000000e8"))
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+			if envelope.Type != c.typed {
+				t.Fatalf("event type %s, want %s", envelope.Type, c.typed)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+			problems, err := loadEventSchema(t, c.typed).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// A lifecycle event that said the opposite of its own name would be a subscriber acting on a state
+// that never existed. Each builder refuses the item whose stamp contradicts it - a defect in this
+// process rather than something a client sent, so an internal error and never advice to a caller.
+func TestALifecycleEventCannotContradictItsOwnName(t *testing.T) {
+	tenant := shared.MustParseID("0192f000-0000-7000-8000-00000000000a")
+	actor := shared.MustParseID("0192f000-0000-7000-8000-00000000000d")
+	at := time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC)
+	who := event.Actor{Kind: shared.ActorUser, ID: actor}
+
+	task := work.WorkItem{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-000000000001"), TenantID: tenant,
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemTask, Path: "/0192f000-0000-7000-8000-000000000001/", Depth: 1,
+		Title: "Weekly shop", OrderKey: "a0", CreatedBy: actor, CreatedAt: at, UpdatedAt: at,
+		Version: 1,
+	}
+	archived, _, err := task.Archived(at)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+	trashed, _, err := task.Trashed(at, shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"))
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+	hub := work.Container{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-00000000000c"), TenantID: tenant,
+		Type: work.ContainerHub, Name: "Private", OrderKey: "a0", CreatedBy: actor,
+		CreatedAt: at, UpdatedAt: at, Version: 1,
+	}
+
+	for _, c := range []struct {
+		name  string
+		build func() (event.Envelope, error)
+	}{
+		{"archived, on an entry that is not", func() (event.Envelope, error) {
+			return event.NewItemArchived("0192f000-0000-7000-8000-0000000000e9", task, who, at, event.Cause{})
+		}},
+		{"unarchived, on an entry that is archived", func() (event.Envelope, error) {
+			return event.NewItemUnarchived("0192f000-0000-7000-8000-0000000000e9", archived, who, at, event.Cause{})
+		}},
+		{"trashed, on an entry that is not", func() (event.Envelope, error) {
+			return event.NewItemTrashed("0192f000-0000-7000-8000-0000000000e9", task, 1, who, at, event.Cause{})
+		}},
+		{"restored, on an entry still in the trash", func() (event.Envelope, error) {
+			return event.NewItemRestored("0192f000-0000-7000-8000-0000000000e9", trashed, 1, who, at, event.Cause{})
+		}},
+		{"deleted, on a container that is not", func() (event.Envelope, error) {
+			return event.NewContainerDeleted("0192f000-0000-7000-8000-0000000000e9", hub,
+				event.Cascade{}, who, at, event.Cause{})
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if _, err := c.build(); !errors.Is(err, shared.ErrInternal) {
+				t.Errorf("the builder reported %v, want an internal error", err)
+			}
+		})
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -378,5 +379,157 @@ func TestTheItemLabelEventsCarryTheReference(t *testing.T) {
 func TestAnItemLabelEventRefusesAnEmptyLabel(t *testing.T) {
 	if _, err := NewItemLabelRemoved(eventID, task(), "", by(), occurred, Cause{}); err == nil {
 		t.Fatal("an event naming no label was built")
+	}
+}
+
+// The lifecycle payloads carry both stamps, always, and the batch that names the deletion. Both on
+// every one of them rather than only the stamp that moved: an entry can be archived and in the trash
+// at once (domain-model.md §3.4), and a consumer reading one stamp could not tell what state the
+// entry is now in.
+func TestTheLifecyclePayloadsCarryBothStampsAndTheBatch(t *testing.T) {
+	batch := shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	archived, _, err := task().Archived(occurred)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+	trashed, _, err := archived.Trashed(occurred, batch)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+	who := Actor{Kind: shared.ActorUser, ID: eventAuthor}
+
+	t.Run("archived", func(t *testing.T) {
+		envelope, err := NewItemArchived(eventID, archived, who, occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		if envelope.Type != ItemArchived {
+			t.Errorf("type = %s, want %s", envelope.Type, ItemArchived)
+		}
+		if envelope.Payload["archived_at"] == nil {
+			t.Error("the archive stamp is missing")
+		}
+		for _, field := range []string{"deleted_at", "trash_batch_id"} {
+			if envelope.Payload[field] != nil {
+				t.Errorf("%s is %v on an entry that is not in the trash", field, envelope.Payload[field])
+			}
+		}
+	})
+
+	t.Run("trashed while archived", func(t *testing.T) {
+		envelope, err := NewItemTrashed(eventID, trashed, 4, who, occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		for _, field := range []string{"archived_at", "deleted_at", "trash_batch_id"} {
+			if envelope.Payload[field] == nil {
+				t.Errorf("%s is null on an entry that is archived and in the trash", field)
+			}
+		}
+		if envelope.Payload["trash_batch_id"] != batch.String() {
+			t.Errorf("the batch is %v, want %q", envelope.Payload["trash_batch_id"], batch)
+		}
+		// The size a consumer cannot derive: nothing below the entry is announced separately.
+		if envelope.Payload["subtree_size"] != 4 {
+			t.Errorf("subtree_size = %v, want 4", envelope.Payload["subtree_size"])
+		}
+	})
+
+	t.Run("unarchived and restored carry no stamp", func(t *testing.T) {
+		for _, c := range []struct {
+			name  string
+			build func() (Envelope, error)
+			typed Type
+		}{
+			{"unarchived", func() (Envelope, error) {
+				return NewItemUnarchived(eventID, task(), who, occurred, Cause{})
+			}, ItemUnarchived},
+			{"restored", func() (Envelope, error) {
+				return NewItemRestored(eventID, task(), 4, who, occurred, Cause{})
+			}, ItemRestored},
+		} {
+			envelope, err := c.build()
+			if err != nil {
+				t.Fatalf("building the %s event: %v", c.name, err)
+			}
+			if envelope.Type != c.typed {
+				t.Errorf("type = %s, want %s", envelope.Type, c.typed)
+			}
+			for _, field := range []string{"archived_at", "deleted_at", "trash_batch_id"} {
+				if envelope.Payload[field] != nil {
+					t.Errorf("%s carries %v after the stamp was lifted", field, envelope.Payload[field])
+				}
+			}
+		}
+	})
+}
+
+// A lifecycle event that said the opposite of its own name would be a subscriber acting on a state
+// that never existed. A defect in this process rather than something a client sent, so an internal
+// error - which is what keeps it out of a client's advice.
+func TestALifecycleEventRefusesAnItemThatContradictsIt(t *testing.T) {
+	batch := shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	archived, _, err := task().Archived(occurred)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+	trashed, _, err := task().Trashed(occurred, batch)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+	who := Actor{Kind: shared.ActorUser, ID: eventAuthor}
+
+	for _, c := range []struct {
+		name  string
+		build func() (Envelope, error)
+	}{
+		{"archived, on an entry that is not", func() (Envelope, error) {
+			return NewItemArchived(eventID, task(), who, occurred, Cause{})
+		}},
+		{"unarchived, on an archived entry", func() (Envelope, error) {
+			return NewItemUnarchived(eventID, archived, who, occurred, Cause{})
+		}},
+		{"trashed, on an entry that is not", func() (Envelope, error) {
+			return NewItemTrashed(eventID, task(), 1, who, occurred, Cause{})
+		}},
+		{"restored, on an entry still in the trash", func() (Envelope, error) {
+			return NewItemRestored(eventID, trashed, 1, who, occurred, Cause{})
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if _, err := c.build(); !errors.Is(err, shared.ErrInternal) {
+				t.Errorf("the builder reported %v, want an internal error", err)
+			}
+		})
+	}
+}
+
+// The purge is the one item event whose payload is not a snapshot, and it must not become one: a
+// purge that left the entry's title in an event stream would not be a deletion (ADR-0018).
+func TestThePurgeEventCarriesNoContentOfWhatWasDeleted(t *testing.T) {
+	item := task()
+
+	envelope, err := NewItemPurged(eventID, Purge{
+		TenantID: eventTenant, ItemID: item.ID, Type: item.Type,
+		CollectionID: eventCollection, Path: item.Path, Reason: lifecycle.DeletedByRetention,
+	}, Actor{Kind: shared.ActorSystem}, occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Type != ItemPurged {
+		t.Errorf("type = %s, want %s", envelope.Type, ItemPurged)
+	}
+	for _, field := range []string{"title", "notes", "completion", "version"} {
+		if _, present := envelope.Payload[field]; present {
+			t.Errorf("the purge event carries %s", field)
+		}
+	}
+	if envelope.Payload["path"] != item.Path {
+		t.Errorf("path = %v, want %q - it is how a consumer finds what went with the entry",
+			envelope.Payload["path"], item.Path)
+	}
+	if envelope.Payload["reason"] != string(lifecycle.DeletedByRetention) {
+		t.Errorf("reason = %v, want %s", envelope.Payload["reason"], lifecycle.DeletedByRetention)
 	}
 }

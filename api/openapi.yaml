@@ -296,6 +296,57 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
 
+  /trash:
+    get:
+      tags: [items, containers]
+      operationId: listTrash
+      summary: What is in the trash
+      description: >
+        One entry per deletion, newest first - not one per deleted row. A hub with two hundred
+        entries under it went into the trash as one act and comes back as one act, so what is listed
+        is the root of each deletion: the thing somebody deleted. The batch beside it is what took
+        the rest, and restoring the root brings all of it back.
+
+        The list spans hubs, so it is narrowed to what the caller may see rather than refused: an
+        entry deleted out of a hub the caller has no access to is not in the page. Pages can
+        therefore be shorter than the requested size; walk on until has_more is false.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The trash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrashPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /trash:empty:
+    post:
+      tags: [items, containers]
+      operationId: emptyTrash
+      summary: Remove everything in the trash for good
+      description: >
+        Irreversible, and it reaches hubs and collections as readily as entries - which is why it
+        needs the owner's right to delete a container rather than the right to write entries.
+
+        Anything under a legal hold stays, and is counted in the answer rather than failing the call.
+        A large trash takes more than one pass: `matched` says how many rows this pass considered, and
+        calling again continues where it left off.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: What the pass removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurgeSummary"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /retention-policies:
     get:
       tags: [retention]
@@ -692,7 +743,13 @@ paths:
     delete:
       tags: [containers]
       operationId: trashContainer
-      description: A soft delete; the entire subtree moves to the trash for 30 days.
+      description: >
+        A soft delete: the hub or collection and everything under it move to the trash under one
+        deletion - a hub takes its collections, and every collection takes its entries. It all stays
+        for the tenant's trash retention period, 30 days by default, and comes back as one act
+        through :restore until the retention job removes it for good. Anything already in the trash
+        from an earlier deletion keeps that deletion rather than joining this one. Needs the owner's
+        right to delete a container. Idempotent.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       responses:
@@ -766,6 +823,33 @@ paths:
       responses:
         "200":
           description: Moved
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}:restore:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [containers]
+      operationId: restoreContainer
+      description: >
+        Takes one container deletion back out of the trash, whole: the hub, its collections, and
+        every entry that went in with them. Exactly what went in together comes back - a separate,
+        younger deletion inside the same subtree stays where it is, because a restore is keyed on the
+        deletion rather than on the subtree. A container archived when it was deleted comes back
+        archived. Needs the same right as the deletion, which is the owner's. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Restored
           headers:
             ETag:
               schema: { type: string }
@@ -995,6 +1079,105 @@ paths:
       responses:
         "200":
           description: Reopened
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:purge:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: purgeWorkItem
+      description: >
+        Removes an entry in the trash and everything under it for good, before its retention period
+        is up. Irreversible: no restore brings it back, and a backup taken before it does not either
+        - the deletion journal sees to that. Refused for an entry that is not in the trash; delete
+        it first, which is reversible. Refused while a legal hold is in force over it, and the answer
+        says at which level.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: Removed for good
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:restore:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: restoreWorkItem
+      description: >
+        Takes one deletion back out of the trash, whole. Exactly the entries that went in together
+        come back: a separate, younger deletion inside the same subtree stays where it is, because a
+        restore is keyed on the deletion rather than on the subtree. An entry that was archived when
+        it was deleted comes back archived - restoring undoes the deletion and nothing else. Refused
+        while the entry above it, or its collection, is still in the trash; the answer names what to
+        restore first. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Restored
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:archive:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: archiveWorkItem
+      description: >
+        Archives the entry: it is kept and becomes read-only. Distinct from the trash, which is a
+        deletion with a retention period running against it - an archived entry stays until somebody
+        says otherwise. Nothing below it is archived with it: an entry's children are entries in
+        their own right, unlike the collections of a hub. Idempotent - archiving an archived entry
+        succeeds and changes nothing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Archived
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:unarchive:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: unarchiveWorkItem
+      description: >
+        Makes an archived entry writable again. Refused for an entry in the trash: restore it first,
+        and the answer says so. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Unarchived
           headers:
             ETag:
               schema: { type: string }
@@ -2309,6 +2492,85 @@ components:
         confirmation:
           type: [string, "null"]
           description: For destructive modes, the exact tenant name.
+
+    PurgeSummary:
+      type: object
+      description: What one pass of a removal did.
+      required: [matched, removed, blocked]
+      properties:
+        matched:
+          type: integer
+          description: How many rows the pass considered, whether or not they went.
+        removed:
+          type: integer
+          description: How many actually went.
+        blocked:
+          type: object
+          additionalProperties: { type: integer }
+          description: >
+            What was kept, counted by reason - `legal_hold`, `tombstone_window`. An object rather
+            than a total, so that a client can say why rather than only how many.
+
+    TrashPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrashEntry"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    TrashEntry:
+      type: object
+      description: >
+        One deletion, as the trash lists it. A projection rather than the object: it carries what the
+        view shows and what restoring it needs, and reading the entry back in full is a second
+        request to the object's own endpoint.
+      required:
+        [kind, id, trash_batch_id, deleted_at, title, subtype, hub_id, collection_id, parent_id, version]
+      properties:
+        kind:
+          type: string
+          enum: [CONTAINER, ITEM]
+          description: Which of the two endpoints restores it.
+        id: { type: string, format: uuid }
+        trash_batch_id:
+          type: string
+          format: uuid
+          description: >
+            The deletion every row of one act shares. It is what a restore is keyed on, and what
+            tells a client that two entries went together.
+        deleted_at:
+          type: string
+          format: date-time
+          description: When it went in, and the moment the retention period runs from.
+        title:
+          type: string
+          description: The container's name or the entry's title.
+        subtype:
+          type: string
+          description: HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
+        hub_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The hub it sits under. Null for a hub, which is its own level. Required and nullable
+            rather than optional, like the two below it: this list mixes containers and entries by
+            design, so a field that appeared only for some rows would be one a client could not read
+            unconditionally.
+        collection_id:
+          type: [string, "null"]
+          format: uuid
+          description: The collection an entry belongs to. Null for a container.
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: Where it would go back to - the hub of a collection, the entry above an entry.
+        version:
+          type: integer
+          description: The row's version, so a restore can be sent with the version it was read at.
 
     RetentionPolicy:
       type: object

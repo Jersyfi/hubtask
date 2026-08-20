@@ -186,6 +186,9 @@ Everything else has a self-hosting default:
 | `HUBTASK_SCHEDULER_TICK_INTERVAL` | `10s` | How often the scheduler leader acts, and therefore how quickly a standby notices the leader is gone (ADR-0008) |
 | `HUBTASK_OUTBOX_BATCH_SIZE` | `100` | Events delivered per dispatch round |
 | `HUBTASK_OUTBOX_MIN_INTERVAL` / `HUBTASK_OUTBOX_MAX_INTERVAL` | `1s` / `15s` | The dispatcher's adaptive poll: the first after a round that delivered something, the second for a quiet tenant. The maximum is the worst case for SLO-4 and stays well under its 30 seconds |
+| `HUBTASK_TOMBSTONE_WINDOW` | `2160h` (90 days) | The maximum offline window (offline-sync.md §7). Two things at once: how long the marker of a removal outlives it, and the lower bound an automatic deletion observes before removing at all. Lowering it lets an automatic deletion outrun a device that has not checked in, which is how a deleted object comes back |
+| `HUBTASK_RETENTION_BATCH_SIZE` | `1000` | Rows one pass of a deletion run reads. Batches so that a large deletion does not hold one transaction open across the whole of it (data-retention.md §5) |
+| `HUBTASK_RETENTION_INTERVAL` | `1h` | Wait after a pass that reached the end of a tenant's trash. A pass that filled its batch comes back at once instead — there is known work left |
 | `HUBTASK_DEFAULT_LOCALE` | `en` | BCP 47; the last link in the chain request → account → tenant → installation |
 | `HUBTASK_DEFAULT_TIMEZONE` | `UTC` | IANA name, never a fixed offset — an offset cannot represent daylight saving |
 

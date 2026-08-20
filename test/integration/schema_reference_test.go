@@ -17,6 +17,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/Jersyfi/hubtask/test/dbtest"
 )
 
 // db/schema.sql says of itself that the migrations are the source and it is "the readable reference
@@ -79,7 +81,7 @@ func TestSchemaReferenceMatchesTheMigrations(t *testing.T) {
 // roles it grants to are cluster-wide, so they exist because the migrations created them.
 func applySchemaReference(ctx context.Context, t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	db := testDatabase(t)
+	db := dbtest.Start(t)
 
 	if _, err := adminPool(ctx, t).Exec(ctx, `DROP DATABASE IF EXISTS schema_reference`); err != nil {
 		t.Fatalf("dropping the reference database: %v", err)
@@ -88,13 +90,13 @@ func applySchemaReference(ctx context.Context, t *testing.T) *pgxpool.Pool {
 		t.Fatalf("creating the reference database: %v", err)
 	}
 
-	dsn := regexp.MustCompile(`/[^/?]+(\?|$)`).ReplaceAllString(db.adminDSN, "/schema_reference$1")
+	dsn := regexp.MustCompile(`/[^/?]+(\?|$)`).ReplaceAllString(db.AdminDSN, "/schema_reference$1")
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		t.Fatalf("connecting to the reference database: %v", err)
 	}
 
-	root, err := repositoryRoot()
+	root, err := dbtest.RepositoryRoot()
 	if err != nil {
 		t.Fatalf("repository root: %v", err)
 	}

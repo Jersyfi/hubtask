@@ -6,6 +6,7 @@ package event
 import (
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -253,4 +254,130 @@ func newItemLabelChange(id shared.ID, eventType Type, item work.WorkItem, labelI
 			"collection_id": item.CollectionID.String(),
 			"label_id":      labelID.String(),
 		})
+}
+
+// The lifecycle events: archived, trashed, restored, purged.
+//
+// All but the last carry the ordinary item snapshot with the stamp that moved added to it. The
+// stamp is not in itemPayload because it is not part of what every item event is about - the same
+// reasoning that puts `from_parent_id` on the move alone - and a field that appeared on some
+// snapshots and not others would be one a subscriber cannot rely on.
+
+// NewItemArchived announces that an entry is kept and read-only.
+func NewItemArchived(id shared.ID, item work.WorkItem, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if item.ArchivedAt == nil {
+		// The event would say the opposite of its own name. A defect in whatever built it, not
+		// something a client did (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.lifecycle_inconsistent")
+	}
+	return NewEnvelope(id, ItemArchived, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, lifecyclePayload(item))
+}
+
+// NewItemUnarchived announces that an archived entry is writable again.
+func NewItemUnarchived(id shared.ID, item work.WorkItem, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if item.ArchivedAt != nil {
+		return Envelope{}, shared.ErrInternal.WithDetail("events.lifecycle_inconsistent")
+	}
+	return NewEnvelope(id, ItemUnarchived, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, lifecyclePayload(item))
+}
+
+// NewItemTrashed announces that an entry and everything under it are in the trash.
+//
+// `subtree_size` is how many rows went, the entry itself included. A consumer cannot derive it -
+// the descendants get no event of their own - and it is the number that tells a client whether the
+// deletion it just made was the small thing it looked like.
+func NewItemTrashed(id shared.ID, item work.WorkItem, subtreeSize int, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if item.DeletedAt == nil {
+		return Envelope{}, shared.ErrInternal.WithDetail("events.lifecycle_inconsistent")
+	}
+	payload := lifecyclePayload(item)
+	payload["subtree_size"] = subtreeSize
+	return NewEnvelope(id, ItemTrashed, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, payload)
+}
+
+// NewItemRestored announces that a deletion has been reversed, whole.
+func NewItemRestored(id shared.ID, item work.WorkItem, subtreeSize int, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if item.DeletedAt != nil {
+		return Envelope{}, shared.ErrInternal.WithDetail("events.lifecycle_inconsistent")
+	}
+	payload := lifecyclePayload(item)
+	payload["subtree_size"] = subtreeSize
+	return NewEnvelope(id, ItemRestored, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, payload)
+}
+
+// Purge is what is left to say about an entry that no longer exists.
+//
+// Passed as a value rather than read off a WorkItem, because by the time this event is built the
+// row is gone and the aggregate that described it is a copy nobody should be encouraged to keep.
+// The fields are the ones a consumer needs in order to clean up after the entry: which one, of what
+// type, where it was, and why it went.
+type Purge struct {
+	TenantID     shared.ID
+	ItemID       shared.ID
+	Type         work.ItemType
+	CollectionID shared.ID
+	// Path is what a consumer holding derived data below the entry matches on: everything under it
+	// went too, and the prefix is how that is expressed without an event per row (I-W2).
+	Path string
+	// Reason says whether a person asked for this or a retention rule did. An operator reading a
+	// cleanup log needs to be able to tell those apart, and a consumer may want to react to only one.
+	//
+	// The lifecycle context's vocabulary rather than one of this package's own: the journal, this
+	// event and the metric are asking the same question, and two enumerations would eventually
+	// answer it with two different words.
+	Reason lifecycle.DeletionReason
+}
+
+// NewItemPurged announces that an entry is gone for good.
+//
+// No title, no notes, no snapshot. A purge that left the entry's content in an event stream would
+// not be a deletion, and the consumers this event exists for - media garbage collection, the search
+// index, vector stores - need an identifier and a path rather than the thing that was deleted
+// (ADR-0018, data-retention.md §5).
+func NewItemPurged(id shared.ID, purge Purge, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return NewEnvelope(id, ItemPurged, purge.TenantID,
+		ItemSubject(purge.ItemID), actor, occurredAt, cause, map[string]any{
+			"id":            purge.ItemID.String(),
+			"type":          string(purge.Type),
+			"collection_id": purge.CollectionID.String(),
+			"path":          purge.Path,
+			"purged_at":     occurredAt.UTC(),
+			"reason":        string(purge.Reason),
+		})
+}
+
+// lifecyclePayload is the item snapshot with both lifecycle stamps on it.
+//
+// Both, on every lifecycle event, rather than only the one that moved: an entry can be archived and
+// in the trash at once (domain-model.md §3.4 draws that edge), so a consumer reading only the stamp
+// that changed would not be able to tell what state the entry is now in.
+func lifecyclePayload(item work.WorkItem) map[string]any {
+	payload := itemPayload(item)
+	payload["archived_at"] = nil
+	payload["deleted_at"] = nil
+	payload["trash_batch_id"] = nil
+	if item.ArchivedAt != nil {
+		payload["archived_at"] = item.ArchivedAt.UTC()
+	}
+	if item.DeletedAt != nil {
+		payload["deleted_at"] = item.DeletedAt.UTC()
+	}
+	if !item.TrashBatchID.IsZero() {
+		payload["trash_batch_id"] = item.TrashBatchID.String()
+	}
+	return payload
 }

@@ -1215,6 +1215,24 @@ func (e SyncPullRequestScopesDepth) Valid() bool {
 	}
 }
 
+// Defines values for TrashEntryKind.
+const (
+	TrashEntryKindCONTAINER TrashEntryKind = "CONTAINER"
+	TrashEntryKindITEM      TrashEntryKind = "ITEM"
+)
+
+// Valid indicates whether the value is a known member of the TrashEntryKind enum.
+func (e TrashEntryKind) Valid() bool {
+	switch e {
+	case TrashEntryKindCONTAINER:
+		return true
+	case TrashEntryKindITEM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -1935,6 +1953,18 @@ type Problem struct {
 	Type      *string                 `json:"type,omitempty"`
 }
 
+// PurgeSummary What one pass of a removal did.
+type PurgeSummary struct {
+	// Blocked What was kept, counted by reason - `legal_hold`, `tombstone_window`. An object rather than a total, so that a client can say why rather than only how many.
+	Blocked map[string]int `json:"blocked"`
+
+	// Matched How many rows the pass considered, whether or not they went.
+	Matched int `json:"matched"`
+
+	// Removed How many actually went.
+	Removed int `json:"removed"`
+}
+
 // RestoreRequest defines model for RestoreRequest.
 type RestoreRequest struct {
 	ArchiveId string `json:"archive_id"`
@@ -2128,6 +2158,46 @@ type SyncPushResponse struct {
 	Cursor     *string              `json:"cursor,omitempty"`
 	Results    []SyncMutationResult `json:"results"`
 	ServerTime *time.Time           `json:"server_time,omitempty"`
+}
+
+// TrashEntry One deletion, as the trash lists it. A projection rather than the object: it carries what the view shows and what restoring it needs, and reading the entry back in full is a second request to the object's own endpoint.
+type TrashEntry struct {
+	// CollectionId The collection an entry belongs to. Null for a container.
+	CollectionId *openapi_types.UUID `json:"collection_id"`
+
+	// DeletedAt When it went in, and the moment the retention period runs from.
+	DeletedAt time.Time `json:"deleted_at"`
+
+	// HubId The hub it sits under. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes containers and entries by design, so a field that appeared only for some rows would be one a client could not read unconditionally.
+	HubId *openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID  `json:"id"`
+
+	// Kind Which of the two endpoints restores it.
+	Kind TrashEntryKind `json:"kind"`
+
+	// ParentId Where it would go back to - the hub of a collection, the entry above an entry.
+	ParentId *openapi_types.UUID `json:"parent_id"`
+
+	// Subtype HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
+	Subtype string `json:"subtype"`
+
+	// Title The container's name or the entry's title.
+	Title string `json:"title"`
+
+	// TrashBatchId The deletion every row of one act shares. It is what a restore is keyed on, and what tells a client that two entries went together.
+	TrashBatchId openapi_types.UUID `json:"trash_batch_id"`
+
+	// Version The row's version, so a restore can be sent with the version it was read at.
+	Version int `json:"version"`
+}
+
+// TrashEntryKind Which of the two endpoints restores it.
+type TrashEntryKind string
+
+// TrashPage defines model for TrashPage.
+type TrashPage struct {
+	Data []TrashEntry `json:"data"`
+	Page PageInfo     `json:"page"`
 }
 
 // WorkItem defines model for WorkItem.
@@ -2392,6 +2462,12 @@ type MoveContainerParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// RestoreContainerParams defines parameters for RestoreContainer.
+type RestoreContainerParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // UnarchiveContainerParams defines parameters for UnarchiveContainer.
 type UnarchiveContainerParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -2464,6 +2540,12 @@ type AddCommentParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ArchiveWorkItemParams defines parameters for ArchiveWorkItem.
+type ArchiveWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // CompleteWorkItemJSONBody defines parameters for CompleteWorkItem.
 type CompleteWorkItemJSONBody struct {
 	CascadeChildren *bool `json:"cascade_children,omitempty"`
@@ -2488,6 +2570,12 @@ type MoveWorkItemJSONBody struct {
 	TargetParentId *openapi_types.UUID `json:"target_parent_id,omitempty"`
 }
 
+// PurgeWorkItemParams defines parameters for PurgeWorkItem.
+type PurgeWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ReopenWorkItemParams defines parameters for ReopenWorkItem.
 type ReopenWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -2502,6 +2590,18 @@ type ReorderWorkItemJSONBody struct {
 
 // ReorderWorkItemParams defines parameters for ReorderWorkItem.
 type ReorderWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// RestoreWorkItemParams defines parameters for RestoreWorkItem.
+type RestoreWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UnarchiveWorkItemParams defines parameters for UnarchiveWorkItem.
+type UnarchiveWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -2530,6 +2630,18 @@ type ListRetentionPoliciesParams struct {
 
 	// Effective Only the rules actually in force
 	Effective *bool `form:"effective,omitempty" json:"effective,omitempty"`
+}
+
+// ListTrashParams defines parameters for ListTrash.
+type ListTrashParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// EmptyTrashParams defines parameters for EmptyTrash.
+type EmptyTrashParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UpdateAccountPreferencesJSONRequestBody defines body for UpdateAccountPreferences for application/json ContentType.
@@ -2706,6 +2818,9 @@ type ServerInterface interface {
 	// (POST /containers/{containerId}:move)
 	MoveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params MoveContainerParams)
 
+	// (POST /containers/{containerId}:restore)
+	RestoreContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params RestoreContainerParams)
+
 	// (POST /containers/{containerId}:unarchive)
 	UnarchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UnarchiveContainerParams)
 	// CreateGroup Create a group
@@ -2745,20 +2860,32 @@ type ServerInterface interface {
 	// (PUT /items/{itemId}/labels/{labelId})
 	AddLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
 
+	// (POST /items/{itemId}:archive)
+	ArchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ArchiveWorkItemParams)
+
 	// (POST /items/{itemId}:complete)
 	CompleteWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params CompleteWorkItemParams)
 
 	// (POST /items/{itemId}:move)
 	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
+	// (POST /items/{itemId}:purge)
+	PurgeWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params PurgeWorkItemParams)
+
 	// (POST /items/{itemId}:reopen)
 	ReopenWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ReopenWorkItemParams)
 
 	// (POST /items/{itemId}:reorder)
 	ReorderWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ReorderWorkItemParams)
+
+	// (POST /items/{itemId}:restore)
+	RestoreWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params RestoreWorkItemParams)
 	// RetainItem Take an object out of the running retention period
 	// (POST /items/{itemId}:retain)
 	RetainItem(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
+
+	// (POST /items/{itemId}:unarchive)
+	UnarchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params UnarchiveWorkItemParams)
 
 	// (POST /items:bulk)
 	BulkItems(w http.ResponseWriter, r *http.Request, params BulkItemsParams)
@@ -2798,6 +2925,12 @@ type ServerInterface interface {
 	// SyncPush Transmit local mutations
 	// (POST /sync:push)
 	SyncPush(w http.ResponseWriter, r *http.Request)
+	// ListTrash What is in the trash
+	// (GET /trash)
+	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
+	// EmptyTrash Remove everything in the trash for good
+	// (POST /trash:empty)
+	EmptyTrash(w http.ResponseWriter, r *http.Request, params EmptyTrashParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -3965,6 +4098,56 @@ func (siw *ServerInterfaceWrapper) MoveContainer(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// RestoreContainer operation middleware
+func (siw *ServerInterfaceWrapper) RestoreContainer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RestoreContainerParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreContainer(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // UnarchiveContainer operation middleware
 func (siw *ServerInterfaceWrapper) UnarchiveContainer(w http.ResponseWriter, r *http.Request) {
 
@@ -4588,6 +4771,56 @@ func (siw *ServerInterfaceWrapper) AddLabel(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ArchiveWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) ArchiveWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ArchiveWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ArchiveWorkItem(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CompleteWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) CompleteWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -4655,6 +4888,56 @@ func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.MoveWorkItem(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PurgeWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) PurgeWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PurgeWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PurgeWorkItem(w, r, itemId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4764,6 +5047,56 @@ func (siw *ServerInterfaceWrapper) ReorderWorkItem(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// RestoreWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) RestoreWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RestoreWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreWorkItem(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RetainItem operation middleware
 func (siw *ServerInterfaceWrapper) RetainItem(w http.ResponseWriter, r *http.Request) {
 
@@ -4781,6 +5114,56 @@ func (siw *ServerInterfaceWrapper) RetainItem(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RetainItem(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnarchiveWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) UnarchiveWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UnarchiveWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnarchiveWorkItem(w, r, itemId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5082,6 +5465,93 @@ func (siw *ServerInterfaceWrapper) SyncPush(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ListTrash operation middleware
+func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTrashParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTrash(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EmptyTrash operation middleware
+func (siw *ServerInterfaceWrapper) EmptyTrash(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params EmptyTrashParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EmptyTrash(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -5214,6 +5684,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups", wrapper.StartBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups/{backupId}:verify", wrapper.VerifyBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/restores", wrapper.StartRestore)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/trash", wrapper.ListTrash)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/trash:empty", wrapper.EmptyTrash)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/retention-policies", wrapper.ListRetentionPolicies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies", wrapper.CreateRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies/{policyId}:preview", wrapper.PreviewRetentionPolicy)
@@ -5235,6 +5707,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move", wrapper.MoveContainer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:restore", wrapper.RestoreContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:archive", wrapper.ArchiveContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:unarchive", wrapper.UnarchiveContainer)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items", wrapper.ListWorkItems)
@@ -5245,6 +5718,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:purge", wrapper.PurgeWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:restore", wrapper.RestoreWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:archive", wrapper.ArchiveWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:unarchive", wrapper.UnarchiveWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reorder", wrapper.ReorderWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:move", wrapper.MoveWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkItems)

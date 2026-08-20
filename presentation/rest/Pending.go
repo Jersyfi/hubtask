@@ -194,6 +194,7 @@ func (pending) ListWorkItems(w http.ResponseWriter, r *http.Request, _ openapi.L
 	notAvailable(w, r)
 }
 
+// TrashWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) TrashWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.TrashWorkItemParams) {
 	notAvailable(w, r)
 }
@@ -233,6 +234,37 @@ func (pending) MoveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.It
 
 // ReorderWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ReorderWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ReorderWorkItemParams) {
+	notAvailable(w, r)
+}
+
+// The lifecycle actions are overridden by RestController, for the reason given at CreateContainer.
+func (pending) RestoreWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.RestoreWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RestoreContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.RestoreContainerParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListTrash(w http.ResponseWriter, r *http.Request, _ openapi.ListTrashParams) {
+	notAvailable(w, r)
+}
+
+func (pending) PurgeWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.PurgeWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) EmptyTrash(w http.ResponseWriter, r *http.Request, _ openapi.EmptyTrashParams) {
+	notAvailable(w, r)
+}
+
+// ArchiveWorkItem and UnarchiveWorkItem are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) ArchiveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ArchiveWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UnarchiveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.UnarchiveWorkItemParams) {
 	notAvailable(w, r)
 }
 

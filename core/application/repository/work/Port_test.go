@@ -29,6 +29,12 @@ func (double) SetAttributes(context.Context, work.Container, int) error { return
 func (double) SetPolicies(context.Context, work.Container, int) error   { return nil }
 func (double) SetArchived(context.Context, work.Container, int) error   { return nil }
 func (double) SetPlacement(context.Context, work.Container, int) error  { return nil }
+func (double) TrashSubtree(context.Context, ContainerTrash) (Cascade, error) {
+	return Cascade{}, nil
+}
+func (double) RestoreBatch(context.Context, ContainerTrash) (Cascade, error) {
+	return Cascade{}, nil
+}
 func (double) Neighbours(context.Context, shared.ID, shared.ID, shared.ID) (string, string, error) {
 	return "", "", nil
 }
@@ -77,7 +83,10 @@ func (itemDouble) MoveSubtree(
 func (itemDouble) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }
-func (itemDouble) Insert(context.Context, work.WorkItem) error { return nil }
+func (itemDouble) Insert(context.Context, work.WorkItem) error           { return nil }
+func (itemDouble) SetArchived(context.Context, work.WorkItem, int) error { return nil }
+func (itemDouble) TrashSubtree(context.Context, ItemTrash) (int, error)  { return 0, nil }
+func (itemDouble) RestoreBatch(context.Context, ItemTrash) (int, error)  { return 0, nil }
 
 var _ Items = itemDouble{}
 

@@ -48,6 +48,25 @@ const (
 	// not fire when somebody unarchives a hub. The same reasoning separates ItemReopened from
 	// ItemCompleted.
 	ContainerUnarchived Type = "de.hubtask.work.container.unarchived.v1"
+	// ContainerDeleted announces that a container and everything under it are in the trash: a soft
+	// delete waiting out its retention period (I-C2). Consumers: automation, webhooks, search, SSE.
+	//
+	// The subtree gets no event per row. The payload carries the batch every row of the deletion
+	// shares, which is what a consumer needs to know that "everything under this" went with it - and
+	// the alternative, an event per deleted entry, would put a hub's two hundred entries into every
+	// subscriber's log for one act.
+	//
+	// `.deleted` rather than `.trashed`, which is the name domain-model.md §4 gives the container
+	// half of this. The item half is called `.trashed` there, and the two names are kept as the
+	// document writes them rather than harmonised: a public event name is a contract, and the place
+	// to change it is the document.
+	ContainerDeleted Type = "de.hubtask.work.container.deleted.v1"
+	// ContainerRestored announces that a container's deletion has been reversed, whole. Consumers:
+	// automation, webhooks, search, SSE.
+	//
+	// Distinct from ContainerUnarchived for the reason given there: a rule written to react to
+	// something coming back from a deletion must not fire when somebody unarchives a hub.
+	ContainerRestored Type = "de.hubtask.work.container.restored.v1"
 	// ItemCreated announces a new task, work package or activity. One type for all three levels,
 	// because they are one aggregate (ADR-0006): a subscriber filters on the payload's `type`
 	// rather than on three event names, and a fifth level reaches it without a new subscription.
@@ -82,6 +101,38 @@ const (
 	// event to a rule. A consumer that cares only about reparenting compares `from_parent_id` with
 	// `to_parent_id`.
 	ItemMoved Type = "de.hubtask.work.item.moved.v1"
+	// ItemArchived announces that an entry is kept and read-only. Consumers: automation, search
+	// (an archived entry drops out of the default index), SSE.
+	//
+	// Separate from ItemTrashed, which is the distinction the whole lifecycle rests on: archiving is
+	// a decision about how work is kept, and trashing is a deletion with a clock running against it.
+	// A rule that tidies an archive must not fire on something on its way out of the system.
+	ItemArchived Type = "de.hubtask.work.item.archived.v1"
+	// ItemUnarchived announces that an archived entry is writable again.
+	//
+	// Its own type rather than the `.restored` domain-model.md §4 pairs with `.archived`, on exactly
+	// the reasoning that separates ContainerUnarchived from ContainerRestored: `.restored` belongs to
+	// the trash, and a rule reacting to something coming back from a deletion must not fire when
+	// somebody unarchives an entry.
+	ItemUnarchived Type = "de.hubtask.work.item.unarchived.v1"
+	// ItemTrashed announces that an entry and everything under it are in the trash. Consumers:
+	// automation, search, SSE, and anything holding a reference that is about to stop resolving.
+	//
+	// The subtree gets no event per row: the payload carries the batch and the path, and a consumer
+	// that holds the subtree removes it under that prefix - the same contract ItemMoved uses for the
+	// same reason (I-W2).
+	ItemTrashed Type = "de.hubtask.work.item.trashed.v1"
+	// ItemRestored announces that a deletion has been reversed, whole.
+	ItemRestored Type = "de.hubtask.work.item.restored.v1"
+	// ItemPurged announces that an entry is gone for good. Consumers: cleanup, media garbage
+	// collection, search (the index entry has to go with it), vector stores.
+	//
+	// The one item event whose payload is not a snapshot, and it cannot be: the row it would
+	// describe no longer exists. What it carries is what a consumer needs in order to clean up after
+	// it - which entry, of what type, in which collection, and under which path - and nothing that
+	// would amount to keeping a copy of the deleted entry in every subscriber's log. A purge that
+	// left the title in an event stream would not be a deletion (ADR-0018).
+	ItemPurged Type = "de.hubtask.work.item.purged.v1"
 	// BucketCreated announces a new column on a collection's board. Consumers: kanban clients,
 	// automation, search.
 	//
@@ -134,8 +185,9 @@ const (
 // a subscriber.
 var types = [...]Type{
 	ContainerCreated, ContainerRenamed, ContainerPoliciesUpdated, ContainerMoved,
-	ContainerArchived, ContainerUnarchived,
+	ContainerArchived, ContainerUnarchived, ContainerDeleted, ContainerRestored,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
+	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemPurged,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted,
 	ItemLabelAdded, ItemLabelRemoved,
