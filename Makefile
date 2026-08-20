@@ -11,6 +11,9 @@ LDFLAGS     := -s -w \
 	-X main.commit=$(COMMIT) \
 	-X main.buildDate=$(BUILD_DATE)
 GO          ?= go
+# The executable suffix of the platform being built for. `go env` knows it; a hand-rolled check
+# for Windows would be a second place to be wrong about it.
+GOEXE       := $(shell $(GO) env GOEXE)
 # The container engine. Podman is a supported runtime and takes the same arguments; the matrix job
 # sets both this and HUBTASK_COMPOSE (docs/architecture/support-matrix.md).
 DOCKER      ?= docker
@@ -314,6 +317,19 @@ gate-chart:
 .PHONY: gate-compose
 gate-compose: docker-build
 	scripts/compose-smoke.sh $(VERSION)
+
+## gate-cli: Build hubctl on the platform it will run on, test it, and start it
+# The support matrix rows for the CLI (support-matrix.md §4) are about a binary on somebody's own
+# machine rather than a container, so the question they ask is one only a native runner answers:
+# does the binary this platform produces start. Cross-compilation proves that it links.
+#
+# Without the race detector, deliberately. That is what gate-unit is for, on a runner with a C
+# toolchain; this target has to run where a contributor's laptop runs.
+.PHONY: gate-cli
+gate-cli:
+	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/hubctl$(GOEXE) ./cmd/hubctl
+	$(call go_test,,./cmd/hubctl/...,)
+	./bin/hubctl$(GOEXE) --version
 
 ## gate-e2e: The hubctl end-to-end session against the reference Compose stack
 # The other half of gate-compose. That one asks whether the stack starts; this one asks whether a
