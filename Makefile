@@ -315,6 +315,14 @@ gate-chart:
 gate-compose: docker-build
 	scripts/compose-smoke.sh $(VERSION)
 
+## gate-e2e: The hubctl end-to-end session against the reference Compose stack
+# The other half of gate-compose. That one asks whether the stack starts; this one asks whether a
+# person can do anything with it - sign in, build a hierarchy, complete, delete, restore - through
+# the client rather than through curl.
+.PHONY: gate-e2e
+gate-e2e: docker-build
+	scripts/hubctl-e2e.sh $(VERSION)
+
 ## gate-observability: The shipped alert rules, checked by Prometheus itself
 .PHONY: gate-observability
 gate-observability:
