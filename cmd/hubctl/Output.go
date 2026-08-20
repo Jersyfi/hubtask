@@ -93,6 +93,16 @@ func text(value *string) string {
 	return *value
 }
 
+// optional turns a flag that was not typed into a field that is not sent. The API distinguishes
+// an absent field from an empty one - a merge patch is built on that distinction - so a CLI that
+// sent "" for every flag nobody used would be asking for something else entirely.
+func optional(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
 // yesNo renders an optional flag. Absent means the server did not say, which is not the same as
 // false.
 func yesNo(value *bool) string {

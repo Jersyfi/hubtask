@@ -14,6 +14,9 @@ import (
 	"text/tabwriter"
 	"time"
 
+	openapitypes "github.com/oapi-codegen/runtime/types"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 )
 
@@ -99,7 +102,7 @@ var errHelpRequested = errors.New("help requested")
 
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
-	return []group{}
+	return []group{authGroup(), containerGroup()}
 }
 
 // Run is main without the process. It returns the exit code rather than calling os.Exit, which is
@@ -238,13 +241,69 @@ Environment:
 
 Commands:
 `)
-	tabbed := tabwriter.NewWriter(w, 0, 0, 4, ' ', 0)
+	// A tabwriter per group. One for the whole tree would align a group's summary against the
+	// longest argument list anywhere in it, which pushes every description off the right of an
+	// eighty-column terminal.
 	for _, g := range groups() {
-		printf(tabbed, "  %s\t%s\n", g.name, g.summary)
+		printf(w, "  %s - %s\n", g.name, g.summary)
+		tabbed := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 		for _, c := range g.commands {
-			printf(tabbed, "    %s %s\t%s\n", c.name, c.usage, c.summary)
+			printf(tabbed, "      %s\t%s\n", strings.TrimSpace(c.name+" "+c.usage), c.summary)
 		}
+		_ = tabbed.Flush()
 	}
-	printf(tabbed, "  help\tprint this text\n")
-	_ = tabbed.Flush()
+	printf(w, "  help - print this text\n")
 }
+
+// commandFlags builds a flag set that reports its mistakes under the command's own name, so that
+// `hubctl container create --nonsense` says which command was meant rather than which binary.
+func commandFlags(cli *CLI, group, name, usage string) *flag.FlagSet {
+	flags := flag.NewFlagSet(group+" "+name, flag.ContinueOnError)
+	flags.SetOutput(cli.Err)
+	flags.Usage = func() {
+		printf(cli.Err, "Usage:\n  hubctl %s %s %s\n\nFlags:\n", group, name, usage)
+		flags.PrintDefaults()
+	}
+	return flags
+}
+
+// parseCommand parses a command's flags and turns any complaint into a usage error, so that a
+// mistyped flag exits 2 like every other mistake in an invocation. `-h` is not a mistake.
+func parseCommand(flags *flag.FlagSet, args []string) error {
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return errHelpRequested
+		}
+		return usageError{error: err}
+	}
+	return nil
+}
+
+// client builds the API client for the commands that make a call. Built here rather than in
+// prepare, so that `hubctl auth logout` needs neither an address nor a credential.
+func (cli *CLI) client() (*Client, error) {
+	return NewClient(cli.Profile, cli.Catalogue, cli.Timeout)
+}
+
+// parseID checks an identifier before it becomes part of a request path or a payload.
+//
+// It goes through the domain's own parser, so that what hubctl accepts is exactly what the server
+// accepts - down to the refusal of upper-case hex, which the domain rejects rather than folds -
+// and so that the complaint is the catalogue's sentence rather than a second wording of it.
+func (cli *CLI) parseID(what, raw string) (openapitypes.UUID, error) {
+	if _, err := shared.ParseID(raw); err != nil {
+		message, _ := cli.Catalogue.Message("shared.id_malformed", map[string]string{"value": raw})
+		return openapitypes.UUID{}, usageError{error: fmt.Errorf("%s: %s", what, message)}
+	}
+	// Cannot fail: the domain's parser has already established the canonical form, and this is
+	// the same 8-4-4-4-12 read into the type the generated payloads use.
+	var parsed openapitypes.UUID
+	if err := parsed.UnmarshalText([]byte(raw)); err != nil {
+		return openapitypes.UUID{}, fmt.Errorf("%s: %w", what, err)
+	}
+	return parsed, nil
+}
+
+// errorString is errors.New under a name that says what it is for: a sentence that has already
+// been rendered from the catalogue and only needs to become an error.
+func errorString(message string) error { return errors.New(message) }
