@@ -64,6 +64,7 @@ func (h RestoreWorkItem) Execute(
 var (
 	trashing = itemVerb{
 		action: ItemTrashedAction,
+		step:   activity.ItemTrashed,
 		// A fresh identifier per deletion, from the generator port rather than from time or chance
 		// (arc42 §8.13). It is what the whole subtree is stamped with and what a restore is keyed on.
 		batch: func(_ domain.WorkItem, ids clock.IDGenerator) shared.ID { return ids.NewID() },
@@ -82,6 +83,7 @@ var (
 	}
 	restoring = itemVerb{
 		action: ItemRestoredAction,
+		step:   activity.ItemRestored,
 		// The batch already on the row, read before the transition clears it. Restoring is an act on
 		// the deletion rather than on the entry, and the deletion is what the batch names.
 		batch: func(item domain.WorkItem, _ clock.IDGenerator) shared.ID { return item.TrashBatchID },

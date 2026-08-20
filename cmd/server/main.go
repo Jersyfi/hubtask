@@ -254,16 +254,17 @@ func run() error {
 	// wrong (work.CompletionWriter).
 	completion := work.CompletionWriter{
 		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
-		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
 	// reorder is a move that keeps its parent (work.PlacementWriter).
 	placement := work.PlacementWriter{
-		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles, Authorizer: authorizer,
-		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
+		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		HLC: hybrid,
 	}
 
 	// One engine behind every path that removes for good: a person purging an entry, a person
@@ -281,8 +282,8 @@ func run() error {
 	// (work.LifecycleWriter).
 	itemLifecycle := work.LifecycleWriter{
 		Items: items, Containers: containers, Authorizer: authorizer,
-		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Queue: jobs,
+		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Queue: jobs,
 	}
 
 	// Every verb that changes an existing container shares one dependency set: they read the same

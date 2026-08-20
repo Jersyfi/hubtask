@@ -11,6 +11,7 @@ import (
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -26,6 +27,7 @@ type lifecycleHarness struct {
 	events     *events
 	changes    *changes
 	audit      *sink
+	history    *journal
 	authorizer *authorizer
 	uow        *unitOfWork
 	jobs       *jobs
@@ -40,13 +42,15 @@ func newLifecycleHarness() *lifecycleHarness {
 
 	h := &lifecycleHarness{
 		items: store, containers: containerStore,
-		events: &events{}, changes: &changes{}, audit: &sink{},
+		events: &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
 		authorizer: &authorizer{}, uow: &unitOfWork{}, jobs: &jobs{},
 	}
 	h.writer = LifecycleWriter{
 		Items: store, Containers: containerStore, Authorizer: h.authorizer,
-		Events: h.events, Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
-		Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{}, Queue: h.jobs,
+		Events: h.events, Changes: h.changes, Audit: h.audit,
+		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		Queue: h.jobs,
 	}
 
 	containerStore.stored[hubID] = domain.Container{
@@ -342,5 +346,94 @@ func TestTheArchiveVerbsAreReachableThroughTheCatalogue(t *testing.T) {
 				t.Errorf("the answer is about %q, want %q", out.String("id"), taskID)
 			}
 		})
+	}
+}
+
+// The four lifecycle verbs each leave their own step. Four verbs rather than two with a direction,
+// because a person reading a history has to be able to tell an archive from its undoing without
+// opening the change set.
+func TestEachLifecycleVerbLeavesItsOwnStepInTheHistory(t *testing.T) {
+	cases := []struct {
+		name string
+		run  func(*testing.T, *lifecycleHarness) error
+		want activity.Verb
+	}{
+		{"archived", func(t *testing.T, h *lifecycleHarness) error {
+			_, err := h.archive().Execute(t.Context(), itemActor(), LifecycleCommand{ItemID: taskID})
+			return err
+		}, activity.ItemArchived},
+		{"unarchived", func(t *testing.T, h *lifecycleHarness) error {
+			if _, err := h.archive().Execute(
+				t.Context(), itemActor(), LifecycleCommand{ItemID: taskID}); err != nil {
+				return err
+			}
+			_, err := h.unarchive().Execute(t.Context(), itemActor(), LifecycleCommand{ItemID: taskID})
+			return err
+		}, activity.ItemUnarchived},
+		{"trashed", func(t *testing.T, h *lifecycleHarness) error {
+			_, err := h.trash().Execute(t.Context(), itemActor(), LifecycleCommand{ItemID: taskID})
+			return err
+		}, activity.ItemTrashed},
+		{"restored", func(t *testing.T, h *lifecycleHarness) error {
+			if _, err := h.trash().Execute(
+				t.Context(), itemActor(), LifecycleCommand{ItemID: taskID}); err != nil {
+				return err
+			}
+			_, err := h.restore().Execute(t.Context(), itemActor(), LifecycleCommand{ItemID: taskID})
+			return err
+		}, activity.ItemRestored},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newLifecycleHarness()
+			if err := c.run(t, h); err != nil {
+				t.Fatalf("%s was refused: %v", c.name, err)
+			}
+
+			last := h.history.entries[len(h.history.entries)-1]
+			if last.Verb != c.want {
+				t.Errorf("the history reads %v, want %s last", h.history.verbs(), c.want)
+			}
+			// The verb is the whole of it: a diff of the stamp it wrote would say the same thing a
+			// second time in a worse way.
+			if len(last.ChangeSet) != 0 {
+				t.Errorf("the step carries %v, want the verb alone", last.ChangeSet)
+			}
+		})
+	}
+}
+
+// A deletion is one act and is recorded once, on the entry somebody deleted. One step on each of
+// four hundred descendants would be four hundred steps nobody performed.
+func TestADeletedSubtreeLeavesOneStepAndNotOnePerDescendant(t *testing.T) {
+	h := newLifecycleHarness()
+	h.withSubtree()
+
+	if _, err := h.trash().Execute(
+		t.Context(), itemActor(), LifecycleCommand{ItemID: taskID}); err != nil {
+		t.Fatalf("trashing was refused: %v", err)
+	}
+
+	step := h.history.only(t)
+	if step.ItemID != taskID {
+		t.Errorf("the step is about %s, want the entry the deletion named", step.ItemID)
+	}
+}
+
+// A verb that changes nothing announces nothing, and that includes the history: archiving something
+// twice is a retry, not a second act.
+func TestArchivingTwiceLeavesOneStepInTheHistory(t *testing.T) {
+	h := newLifecycleHarness()
+
+	for range 2 {
+		if _, err := h.archive().Execute(
+			t.Context(), itemActor(), LifecycleCommand{ItemID: taskID}); err != nil {
+			t.Fatalf("archiving was refused: %v", err)
+		}
+	}
+
+	if step := h.history.only(t); step.Verb != activity.ItemArchived {
+		t.Errorf("the history recorded %s", step.Verb)
 	}
 }
