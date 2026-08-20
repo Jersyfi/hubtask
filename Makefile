@@ -183,16 +183,20 @@ gate-quick:
 			exit 1; \
 		fi
 
-## gate-unit: Domain, application, adapter and presentation tests with coverage thresholds
+## gate-unit: Domain, application, adapter, presentation and CLI tests with coverage thresholds
 # The race detector needs cgo, so this one target overrides the CGO_ENABLED=0 of the build.
 #
 # infrastructure is in the list because its adapters carry rules no other gate checks - metric
 # label cardinality, log redaction, the tenant wrapper. Anything needing a container lives behind
 # the `integration` build tag in test/integration and stays out of this target.
+#
+# cmd joined the list with hubctl (B-13). A composition root has little to test, but a CLI is not
+# one: its flags, its exit codes and the sentences it prints are the contract a script depends on,
+# and the end-to-end session only reaches them once the whole stack is up.
 .PHONY: gate-unit
 gate-unit: export CGO_ENABLED = 1
 gate-unit:
-	$(call go_test,,./core/... ./infrastructure/... ./presentation/...,-race -covermode=atomic -coverprofile=coverage.out)
+	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/...,-race -covermode=atomic -coverprofile=coverage.out)
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/application/... MIN=75
 
