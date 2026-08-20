@@ -183,11 +183,16 @@ func ChangeSet(form Form, fields ...Field) map[string]any {
 			set[field.Name] = map[string]any{"changed": true}
 			continue
 		}
-		entry := map[string]any{"to": field.To}
+		// An absent side is a field that had no value on it, recorded as absent rather than as an
+		// empty string so that a client can tell "it was empty" from "it was set". Both sides
+		// absent leaves the name alone in the set, which is still the fact that it changed - names
+		// always, values where they exist.
+		entry := map[string]any{}
 		if field.From != "" {
-			// An absent "from" is a field that had no value before. Recorded as absent rather than
-			// as an empty string, so that a client can tell "it was empty" from "it was set".
 			entry["from"] = field.From
+		}
+		if field.To != "" {
+			entry["to"] = field.To
 		}
 		set[field.Name] = entry
 	}

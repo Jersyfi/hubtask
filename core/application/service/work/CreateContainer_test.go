@@ -15,6 +15,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -231,6 +232,37 @@ func (s *sink) Append(_ context.Context, entry audit.Entry) error {
 	}
 	s.entries = append(s.entries, entry)
 	return nil
+}
+
+// journal is the item history the writers append to. It validates the way the adapter does, so an
+// entry this system would not be able to write fails here rather than in integration.
+type journal struct{ entries []activity.Entry }
+
+func (j *journal) Record(_ context.Context, entry activity.Entry) error {
+	if err := entry.Validate(); err != nil {
+		return err
+	}
+	j.entries = append(j.entries, entry)
+	return nil
+}
+
+// verbs is what the history recorded, in order.
+func (j *journal) verbs() []activity.Verb {
+	written := make([]activity.Verb, 0, len(j.entries))
+	for _, entry := range j.entries {
+		written = append(written, entry.Verb)
+	}
+	return written
+}
+
+// only returns the single entry the history holds, and fails the test when it holds anything else -
+// which is the assertion nearly every one of these tests wants to make.
+func (j *journal) only(t *testing.T) activity.Entry {
+	t.Helper()
+	if len(j.entries) != 1 {
+		t.Fatalf("the history holds %v, want exactly one entry", j.verbs())
+	}
+	return j.entries[0]
 }
 
 type unitOfWork struct {

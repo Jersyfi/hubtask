@@ -246,6 +246,7 @@
   "activity.actor_kind_invalid": "This installation could not record that step in the history and therefore did not carry the change out.",
   "activity.tenant_mismatch": "This installation could not record that step in the history and therefore did not carry the change out.",
   "activity.change_set_unserialisable": "This installation could not record that step in the history and therefore did not carry the change out.",
+  "activity.journal_missing": "This installation could not record that step in the history and therefore did not carry the change out.",
   "activity.change_set_unreadable": "Part of this entry's history could not be read.",
 
   "activity.item_created": "{actor} created this entry",

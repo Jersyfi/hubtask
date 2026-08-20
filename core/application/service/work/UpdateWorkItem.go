@@ -53,6 +53,7 @@ type UpdateWorkItem struct {
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
+	Activity   ActivityJournal
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -148,7 +149,7 @@ func (h UpdateWorkItem) Execute(
 			return nil
 		}
 
-		updated, err = h.write(ctx, actor, wanted, changes, cmd.ExpectedVersion, item.Version, now)
+		updated, err = h.write(ctx, actor, wanted, changes, profile, cmd.ExpectedVersion, item.Version, now)
 		return err
 	})
 	if err != nil {
@@ -161,7 +162,8 @@ func (h UpdateWorkItem) Execute(
 // offline clients, and the audit entry - all inside the caller's transaction (test AT-5).
 func (h UpdateWorkItem) write(
 	ctx context.Context, actor appshared.ActorContext, after domain.WorkItem,
-	changes []domain.FieldChange, expectedVersion, currentVersion int, now time.Time,
+	changes []domain.FieldChange, profile domain.CapabilityProfile,
+	expectedVersion, currentVersion int, now time.Time,
 ) (domain.WorkItem, error) {
 	expected := expectedVersion
 	if expected == 0 {
@@ -192,7 +194,24 @@ func (h UpdateWorkItem) write(
 	if err := h.recordAudit(ctx, after, actor, changes, now); err != nil {
 		return domain.WorkItem{}, err
 	}
+	if err := h.recordActivity(ctx, after, actor, changes, profile, now); err != nil {
+		return domain.WorkItem{}, err
+	}
 	return after, nil
+}
+
+// recordActivity writes the step of the entry's own history.
+//
+// Unlike the audit trail, this one keeps the two titles: a rename with both sides hashed out would
+// be an entry saying "something changed", which is what the trail is for and not what a person
+// opening the history is looking for (audit.md §1). The note is the other way round - it is kept as
+// "changed", because a note is a page of text and its history is that somebody edited it.
+func (h UpdateWorkItem) recordActivity(
+	ctx context.Context, item domain.WorkItem, actor appshared.ActorContext,
+	changes []domain.FieldChange, profile domain.CapabilityProfile, now time.Time,
+) error {
+	changeSet := activity.ChangeSet(historyForm(profile), historyFields(changes)...)
+	return h.Activity.record(ctx, actor, item, activity.ItemUpdated, changeSet, now)
 }
 
 // recordChanges writes what an offline client has to be told: one entry per field that moved.

@@ -140,11 +140,20 @@ func TestTheChangeSetKeepsNamesAlwaysAndValuesWhereItIsTold(t *testing.T) {
 		t.Errorf("the note's text reached the history: %v", notes)
 	}
 
-	// A field that had no value before is recorded as having none, so that a client can tell "it
-	// was empty" from "it was set".
+	// A field that had no value on one side is recorded as having none, so that a client can tell
+	// "it was empty" from "it was set".
 	bucket, _ := set["bucket_id"].(map[string]any)
 	if _, present := bucket["from"]; present {
 		t.Errorf("the empty previous value was recorded: %v", bucket)
+	}
+	if bucket["to"] != "b1" {
+		t.Errorf("the new value reads %v, want b1", bucket["to"])
+	}
+
+	cleared := activity.ChangeSet(activity.Full,
+		activity.Field{Name: "bucket_id", Detail: activity.WithValues, From: "b1"})
+	if entry, _ := cleared["bucket_id"].(map[string]any); entry["from"] != "b1" || len(entry) != 1 {
+		t.Errorf("clearing a field reads %v, want the value it lost and nothing else", entry)
 	}
 }
 

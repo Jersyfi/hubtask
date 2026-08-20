@@ -11,6 +11,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -137,6 +138,7 @@ type itemLabelHarness struct {
 	events     *events
 	changes    *changes
 	audit      *sink
+	history    *journal
 	authorizer *authorizer
 	uow        *unitOfWork
 }
@@ -149,15 +151,16 @@ func newItemLabelHarness(t *testing.T) *itemLabelHarness {
 		itemLabels: newItemLabels(),
 		labels:     &labels{stored: map[shared.ID]domain.Label{}},
 		containers: &containers{stored: map[shared.ID]domain.Container{}},
-		events:     &events{}, changes: &changes{}, audit: &sink{},
+		events:     &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
 		authorizer: &authorizer{}, uow: &unitOfWork{},
 	}
 
 	writer := ItemLabelWriter{
 		Items: h.items, ItemLabels: h.itemLabels, Labels: h.labels, Containers: h.containers,
 		Profiles: &profiles{rows: labelProfiles()}, Authorizer: h.authorizer, Events: h.events,
-		Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
-		Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		Changes: h.changes, Audit: h.audit,
+		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 	}
 	h.add = AddLabel{Writer: writer}
 	h.remove = RemoveLabel{Writer: writer}
@@ -549,5 +552,51 @@ func TestTheLabelSetOutputNamesTheEntryAndItsLabels(t *testing.T) {
 	ids, _ := out["label_ids"].([]string)
 	if len(ids) != 1 || ids[0] != urgentLabel.String() {
 		t.Errorf("label_ids is %v", out["label_ids"])
+	}
+}
+
+// The label travels as the side it moved to, so that the change set reads the same way round as the
+// verb: "added" puts it in `to`, "removed" puts it in `from`.
+func TestBothLabelDirectionsLeaveTheirStepInTheHistory(t *testing.T) {
+	h := newItemLabelHarness(t)
+	h.withItem(domain.ItemTask)
+
+	if _, err := h.add.Execute(t.Context(), actor(), labelCmd()); err != nil {
+		t.Fatalf("adding the label failed: %v", err)
+	}
+	if _, err := h.remove.Execute(t.Context(), actor(), labelCmd()); err != nil {
+		t.Fatalf("removing the label failed: %v", err)
+	}
+
+	written := h.history.verbs()
+	want := []activity.Verb{activity.ItemLabelAdded, activity.ItemLabelRemoved}
+	if !slices.Equal(written, want) {
+		t.Fatalf("the history reads %v, want %v", written, want)
+	}
+
+	added, _ := h.history.entries[0].ChangeSet["label_id"].(map[string]any)
+	if added["to"] != urgentLabel.String() || added["from"] != nil {
+		t.Errorf("the addition reads %v, want the label it gained", added)
+	}
+	removed, _ := h.history.entries[1].ChangeSet["label_id"].(map[string]any)
+	if removed["from"] != urgentLabel.String() || removed["to"] != nil {
+		t.Errorf("the removal reads %v, want the label it lost", removed)
+	}
+}
+
+// The set did not move, so nothing happened to the entry - and a history that recorded it would
+// fill up with steps a retry made rather than steps somebody took.
+func TestALabelAddedTwiceLeavesOneStepInTheHistory(t *testing.T) {
+	h := newItemLabelHarness(t)
+	h.withItem(domain.ItemTask)
+
+	for range 2 {
+		if _, err := h.add.Execute(t.Context(), actor(), labelCmd()); err != nil {
+			t.Fatalf("adding the label failed: %v", err)
+		}
+	}
+
+	if step := h.history.only(t); step.Verb != activity.ItemLabelAdded {
+		t.Errorf("the history recorded %s", step.Verb)
 	}
 }
