@@ -159,26 +159,53 @@ HUB_ID="$(hubctl container create --type HUB --name 'The end-to-end hub' | first
 COLLECTION_ID="$(hubctl container create --type COLLECTION --parent "$HUB_ID" --name 'Errands' | first_id)"
 [ -n "$COLLECTION_ID" ] || { echo "FAILED: creating the collection produced no identifier"; exit 1; }
 
-containers="$(hubctl container ls)"
-expect_contains "container ls" "$containers" "$HUB_ID"
-expect_contains "container ls" "$containers" "Errands"
+# A listing is one level, here as everywhere: without --parent it is the top of the tree, which
+# is the hubs. The collection is one level down.
+top_level="$(hubctl container ls)"
+expect_contains "container ls" "$top_level" "$HUB_ID"
+expect_missing "container ls" "$top_level" "Errands"
+expect_contains "container ls --parent" "$(hubctl container ls --parent "$HUB_ID")" "Errands"
 
-echo "--- two entries, one of them under the other ---"
+echo "--- three levels of work: a task, a work package, an activity ---"
+# The levels are what the capability profiles allow: a task takes work packages, a work package
+# takes activities, an activity takes nothing (db/migrations/0002_capability_profiles.sql).
 TASK_ID="$(hubctl item create --collection "$COLLECTION_ID" --type TASK --title 'Buy milk' | first_id)"
 [ -n "$TASK_ID" ] || { echo "FAILED: creating the task produced no identifier"; exit 1; }
-STEP_ID="$(hubctl item create --parent "$TASK_ID" --type ACTIVITY --title 'Find the shop' | first_id)"
+PACKAGE_ID="$(hubctl item create --parent "$TASK_ID" --type WORK_PACKAGE --title 'Go to the shop' | first_id)"
+[ -n "$PACKAGE_ID" ] || { echo "FAILED: creating the work package produced no identifier"; exit 1; }
+STEP_ID="$(hubctl item create --parent "$PACKAGE_ID" --type ACTIVITY --title 'Find the aisle' | first_id)"
 [ -n "$STEP_ID" ] || { echo "FAILED: creating the activity produced no identifier"; exit 1; }
 
 items="$(hubctl item ls --collection "$COLLECTION_ID")"
 expect_contains "item ls" "$items" "Buy milk"
-# The listing is one level, so the activity under the task is not in it.
-expect_missing "item ls" "$items" "Find the shop"
-expect_contains "item ls --parent" "$(hubctl item ls --collection "$COLLECTION_ID" --parent "$TASK_ID")" "Find the shop"
+expect_missing "item ls" "$items" "Go to the shop"
+expect_contains "item ls --parent" \
+	"$(hubctl item ls --collection "$COLLECTION_ID" --parent "$TASK_ID")" "Go to the shop"
 
-echo "--- completing, with the subtree ---"
-hubctl item complete "$TASK_ID" --cascade >/dev/null
-completed="$(hubctl --json item ls --collection "$COLLECTION_ID" --parent "$TASK_ID")"
+echo "--- completing ---"
+# The contract declares cascade_children and this installation does not serve it yet (B-07). That
+# split is the right one and worth checking from the outside: the client offers what the contract
+# offers, and what an installation can actually do is the installation's to say - in a sentence
+# from the catalogue rather than in a document.
+set +e
+cascade="$(hubctl item complete "$TASK_ID" --cascade 2>&1 >/dev/null)"
+cascade_code=$?
+set -e
+if [ "$cascade_code" -ne 1 ]; then
+	fail "the refused cascade exited $cascade_code, want 1"
+fi
+expect_contains "the cascade refusal" "$cascade" "cannot complete a whole subtree"
+expect_missing "the cascade refusal" "$cascade" '{'
+
+# So the levels are completed one at a time, from the bottom. The collection's policy is MANUAL by
+# default, so nothing rolls up and each level is completed because somebody completed it.
+hubctl item complete "$STEP_ID" >/dev/null
+hubctl item complete "$PACKAGE_ID" >/dev/null
+hubctl item complete "$TASK_ID" >/dev/null
+completed="$(hubctl --json item ls --collection "$COLLECTION_ID" --parent "$PACKAGE_ID")"
 expect_contains "the activity is done" "$completed" '"is_completed": true'
+expect_contains "the task is done" \
+	"$(hubctl --json item ls --collection "$COLLECTION_ID")" '"is_completed": true'
 
 echo "--- to the trash, and back ---"
 hubctl item rm "$TASK_ID" 2>/dev/null
@@ -194,7 +221,7 @@ restored="$(hubctl item ls --collection "$COLLECTION_ID")"
 expect_contains "item ls after the restore" "$restored" "$TASK_ID"
 # The whole deletion comes back, not only its root.
 expect_contains "the subtree came back too" \
-	"$(hubctl item ls --collection "$COLLECTION_ID" --parent "$TASK_ID")" "Find the shop"
+	"$(hubctl item ls --collection "$COLLECTION_ID" --parent "$PACKAGE_ID")" "Find the aisle"
 
 echo "--- what a pipe gets ---"
 page="$(hubctl --json item ls --collection "$COLLECTION_ID")"

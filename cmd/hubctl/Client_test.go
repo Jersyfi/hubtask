@@ -182,6 +182,56 @@ func TestFieldErrorsAreRenderedUnderTheMessage(t *testing.T) {
 	}
 }
 
+// The server puts the parameters on the problem and the code on the field, so a field error
+// rendered from its own parameters alone would print its placeholders at a user. This is the case
+// the end-to-end session caught: "A {item_type} cannot sit in a {parent_type}."
+func TestAFieldErrorBorrowsTheProblemsParameters(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		problemJSON(w, http.StatusUnprocessableEntity, map[string]any{
+			"status": 422, "code": "capability_not_supported",
+			"detail_code": "items.parent_type_invalid",
+			"params":      map[string]any{"item_type": "ACTIVITY", "parent_type": "TASK"},
+			"field_errors": []map[string]any{
+				{"path": "/parent_id", "code": "items.parent_item_required"},
+			},
+		})
+	})
+
+	err := clientFor(t, stub).Get(context.Background(), "/items", nil, nil)
+	if err == nil {
+		t.Fatal("a validation failure came back as a success")
+	}
+	if strings.Contains(err.Error(), "{") {
+		t.Errorf("a placeholder reached the message: %q", err.Error())
+	}
+	// The field line is rendered from the problem's parameters, which is where the server puts
+	// them - so it names the type rather than printing the placeholder for it.
+	if !strings.Contains(err.Error(), "parent_id: ") || !strings.Contains(err.Error(), "ACTIVITY") {
+		t.Errorf("the field line is missing or empty: %q", err.Error())
+	}
+}
+
+// Two identical sentences read as a bug in the client rather than as detail: the field line adds
+// only the field's name, and the sentence above it has already named the problem.
+func TestAFieldErrorThatRepeatsTheMessageIsNotPrintedTwice(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		problemJSON(w, http.StatusNotFound, map[string]any{
+			"status": 404, "code": "not_found", "detail_code": "items.collection_not_found",
+			"field_errors": []map[string]any{
+				{"path": "/collection_id", "code": "items.collection_not_found"},
+			},
+		})
+	})
+
+	err := clientFor(t, stub).Get(context.Background(), "/items", nil, nil)
+	if err == nil {
+		t.Fatal("a refusal came back as a success")
+	}
+	if strings.Contains(err.Error(), "\n") {
+		t.Errorf("the message was printed twice: %q", err.Error())
+	}
+}
+
 // A proxy, a captive portal or a load balancer answers with HTML. Echoing that at a user would
 // be printing somebody else's page into their terminal.
 func TestAnAnswerThatIsNotAProblemDocumentIsReportedByItsStatus(t *testing.T) {

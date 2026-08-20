@@ -89,9 +89,19 @@ func (c *Client) problem(response port.Response) error {
 	if document.FieldErrors != nil {
 		for _, field := range *document.FieldErrors {
 			code := value(field.Code)
-			text, ok := c.message(code, stringParams(field.Params))
+			// A field error usually carries a code and no parameters: the use cases that build
+			// one put the parameters on the problem, where the main message needs them. Filling
+			// them in from there is what keeps "{item_type} cannot sit in a {parent_type}" from
+			// reaching a terminal with its braces still on.
+			text, ok := c.message(code, overlay(params, stringParams(field.Params)))
 			if !ok {
 				text = code
+			}
+			// A field line that says exactly what the line above it says carries only the field's
+			// name, and the sentence has already named the problem. Two identical sentences read
+			// as a bug in the client rather than as detail.
+			if text == failure.message {
+				continue
 			}
 			failure.fields = append(failure.fields, strings.TrimPrefix(value(field.Path), "/")+": "+text)
 		}
@@ -116,6 +126,21 @@ func stringParams(params *map[string]any) map[string]string {
 		flattened[name] = fmt.Sprint(raw)
 	}
 	return flattened
+}
+
+// overlay puts one parameter set on top of another; the overlay wins where it has a value.
+func overlay(base, top map[string]string) map[string]string {
+	if len(top) == 0 {
+		return base
+	}
+	combined := make(map[string]string, len(base)+len(top))
+	for name, value := range base {
+		combined[name] = value
+	}
+	for name, value := range top {
+		combined[name] = value
+	}
+	return combined
 }
 
 func header(headers map[string][]string, name string) string {
