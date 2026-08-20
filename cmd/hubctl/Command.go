@@ -311,7 +311,16 @@ func parseOnlyFlags(flags *flag.FlagSet, args []string, usage string) error {
 // client builds the API client for the commands that make a call. Built here rather than in
 // prepare, so that `hubctl auth logout` needs neither an address nor a credential.
 func (cli *CLI) client() (*Client, error) {
-	return NewClient(cli.Profile, cli.Catalogue, cli.Timeout)
+	client, err := NewClient(cli.Profile, cli.Catalogue, cli.Timeout)
+	if err != nil {
+		return nil, err
+	}
+	// On standard error, like every other diagnostic: a pause the user did not ask for should be
+	// visible, and it is not part of the answer a pipe is reading.
+	client.Notice = func(format string, args ...any) {
+		printf(cli.Err, "hubctl: "+format+"\n", args...)
+	}
+	return client, nil
 }
 
 // parseID checks an identifier before it becomes part of a request path or a payload.

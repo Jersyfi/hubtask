@@ -94,8 +94,11 @@ func authLogin(ctx context.Context, cli *CLI, args []string) error {
 		return cli.renderDomainError(err)
 	}
 
-	profile := Profile{BaseURL: normalised, Token: secret.New(raw)}
-	client, err := NewClient(profile, cli.Catalogue, cli.Timeout)
+	// Built from the profile being signed in with rather than from the resolved one, which is
+	// the whole point: the credential being verified is the one that was just typed.
+	verifying := *cli
+	verifying.Profile = Profile{BaseURL: normalised, Token: secret.New(raw)}
+	client, err := verifying.client()
 	if err != nil {
 		return err
 	}
@@ -106,7 +109,7 @@ func authLogin(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 
-	if err := SaveProfile(cli.ProfilePath, profile); err != nil {
+	if err := SaveProfile(cli.ProfilePath, verifying.Profile); err != nil {
 		return err
 	}
 	// On standard error: signing in produces no payload, and a script that pipes standard output

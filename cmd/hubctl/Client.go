@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -33,6 +35,18 @@ const maxResponseBytes = 32 << 20
 // that accepts nothing fails quickly rather than consuming the whole timeout.
 const connectTimeout = 10 * time.Second
 
+// rateLimitRetries is how often a refused call waits and asks again.
+//
+// Retrying a 429 is safe in a way that retrying a 500 is not: the limiter refuses the request
+// before anything runs it, so nothing was half-done and a repeated POST creates nothing twice.
+// Bounded all the same - three waits and the answer stands, because a client that waits for ever
+// is a client nobody can interrupt.
+const rateLimitRetries = 3
+
+// defaultRetryAfter is what a refusal without a Retry-After header is taken to mean. The server
+// always sends one (presentation/rest/RateLimit.go); a proxy in between might not.
+const defaultRetryAfter = time.Second
+
 // Client is hubctl's half of the API contract.
 //
 // It goes through GuardedClient like everything else that leaves a process here (rule 6), with
@@ -44,6 +58,12 @@ type Client struct {
 	token     secret.Secret
 	transport port.Port
 	catalogue i18n.Catalogue
+
+	// Notice reports something the user should know that is not the answer - so far, that a call
+	// is waiting out a rate limit. Optional: nil says nothing.
+	Notice func(format string, args ...any)
+	// sleep is time.Sleep, injectable so a test of the retry does not take seconds.
+	sleep func(ctx context.Context, d time.Duration) bool
 }
 
 // NewClient builds the client for one invocation.
@@ -72,6 +92,7 @@ func NewClient(profile Profile, catalogue i18n.Catalogue, timeout time.Duration)
 		token:     profile.Token,
 		transport: httpclient.NewGuardedClient(cfg, httpclient.NewGuard(cfg)),
 		catalogue: catalogue,
+		sleep:     waitOrGiveUp,
 	}, nil
 }
 
@@ -128,9 +149,9 @@ func (c *Client) call(
 		request.Header["Content-Type"] = []string{"application/json"}
 	}
 
-	response, err := c.transport.Do(ctx, request)
+	response, err := c.send(ctx, request)
 	if err != nil {
-		return c.transportError(err)
+		return err
 	}
 	if response.Status >= http.StatusBadRequest {
 		return c.problem(response)
@@ -142,6 +163,64 @@ func (c *Client) call(
 		return fmt.Errorf("the installation answered with something that is not the documented payload: %w", err)
 	}
 	return nil
+}
+
+// send makes the call and waits out a rate limit rather than handing it to the user.
+//
+// The server reports the budget on every answer and a Retry-After on a refusal, "so that a
+// well-behaved client can slow down before it is refused rather than after"
+// (presentation/rest/RateLimit.go). This is what being that client costs: a script doing a dozen
+// things in a second is not abuse, and it should not have to know the burst size of the
+// installation it is talking to.
+func (c *Client) send(ctx context.Context, request port.Request) (port.Response, error) {
+	for attempt := 0; ; attempt++ {
+		response, err := c.transport.Do(ctx, request)
+		if err != nil {
+			return port.Response{}, c.transportError(err)
+		}
+		if response.Status != http.StatusTooManyRequests || attempt >= rateLimitRetries {
+			return response, nil
+		}
+
+		wait := retryAfter(response.Header)
+		if c.Notice != nil {
+			c.Notice("the installation is limiting this credential; waiting %s", wait)
+		}
+		if !c.sleep(ctx, wait) {
+			// The deadline would run out first, so the refusal is the answer.
+			return response, nil
+		}
+	}
+}
+
+// retryAfter reads RFC 9110's Retry-After in its delay-seconds form, which is the one the server
+// sends. A header that cannot be read is treated as absent rather than as zero: no wait at all
+// would turn the retry into the hammering the limit exists to stop.
+func retryAfter(headers map[string][]string) time.Duration {
+	raw := ""
+	for name, values := range headers {
+		if strings.EqualFold(name, "Retry-After") && len(values) > 0 {
+			raw = values[0]
+			break
+		}
+	}
+	seconds, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || seconds <= 0 {
+		return defaultRetryAfter
+	}
+	return time.Duration(seconds) * time.Second
+}
+
+// waitOrGiveUp sleeps unless the context would end first, in which case there is no point.
+func waitOrGiveUp(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
 
 // transportError turns the guard's own refusals into a sentence. They are domain errors carrying

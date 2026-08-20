@@ -289,6 +289,90 @@ func TestABodyIsSentAsJSON(t *testing.T) {
 	}
 }
 
+// The server reports a Retry-After on a refusal so that a well-behaved client can wait rather
+// than hand the refusal to a person. A script doing a dozen things in a second is not abuse, and
+// it should not have to know the burst size of the installation it is talking to.
+func TestARateLimitIsWaitedOutRatherThanReported(t *testing.T) {
+	calls := 0
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls == 1 {
+			w.Header().Set("Retry-After", "2")
+			problemJSON(w, http.StatusTooManyRequests, map[string]any{
+				"status": 429, "code": "rate_limited", "detail_code": "access.rate_limit_exceeded",
+				"params": map[string]any{"level": "credential"},
+			})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	})
+
+	client := clientFor(t, stub)
+	var waited []time.Duration
+	client.sleep = func(_ context.Context, d time.Duration) bool {
+		waited = append(waited, d)
+		return true
+	}
+
+	var payload struct{ Data []any }
+	if err := client.Get(context.Background(), "/containers", nil, &payload); err != nil {
+		t.Fatalf("the refusal was not waited out: %v", err)
+	}
+	if calls != 2 {
+		t.Errorf("%d calls, want the refused one and the one that succeeded", calls)
+	}
+	if len(waited) != 1 || waited[0] != 2*time.Second {
+		t.Errorf("waited %v, want the two seconds the header asked for", waited)
+	}
+}
+
+// Three waits and the answer stands: a client that waits for ever is one nobody can interrupt.
+func TestARateLimitThatNeverLiftsIsEventuallyReported(t *testing.T) {
+	calls := 0
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		problemJSON(w, http.StatusTooManyRequests, map[string]any{
+			"status": 429, "code": "rate_limited", "detail_code": "access.rate_limit_exceeded",
+			"params": map[string]any{"level": "credential"},
+		})
+	})
+
+	client := clientFor(t, stub)
+	client.sleep = func(context.Context, time.Duration) bool { return true }
+
+	err := client.Get(context.Background(), "/containers", nil, nil)
+	if err == nil {
+		t.Fatal("a refusal that never lifted came back as a success")
+	}
+	if calls != rateLimitRetries+1 {
+		t.Errorf("%d calls, want %d", calls, rateLimitRetries+1)
+	}
+	expected, _ := catalogue(t).Message("access.rate_limit_exceeded", map[string]string{"level": "credential"})
+	if err.Error() != expected {
+		t.Errorf("message %q, want %q", err.Error(), expected)
+	}
+}
+
+// A refusal with no usable Retry-After still waits: no wait at all would turn the retry into the
+// hammering the limit exists to stop.
+func TestARefusalWithoutARetryAfterStillWaits(t *testing.T) {
+	for _, header := range []string{"", "not a number", "0", "-1"} {
+		t.Run("Retry-After: "+header, func(t *testing.T) {
+			headers := map[string][]string{}
+			if header != "" {
+				headers["Retry-After"] = []string{header}
+			}
+			if got := retryAfter(headers); got != defaultRetryAfter {
+				t.Errorf("%v, want %v", got, defaultRetryAfter)
+			}
+		})
+	}
+	if got := retryAfter(map[string][]string{"retry-after": {"5"}}); got != 5*time.Second {
+		t.Errorf("%v, want the header read case-insensitively", got)
+	}
+}
+
 func TestAClientNeedsAnAddressAndACredential(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
