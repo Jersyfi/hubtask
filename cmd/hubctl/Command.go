@@ -102,7 +102,7 @@ var errHelpRequested = errors.New("help requested")
 
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
-	return []group{authGroup(), containerGroup(), itemGroup()}
+	return []group{authGroup(), containerGroup(), itemGroup(), trashGroup()}
 }
 
 // Run is main without the process. It returns the exit code rather than calling os.Exit, which is
