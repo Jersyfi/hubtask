@@ -32,3 +32,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0023](./ADR-0023-deployment-strategy.md) | Push-based deployment with approval, GitOps-ready | accepted | Operations, delivery |
 | [0024](./ADR-0024-tenant-scoped-foreign-keys.md) | Tenant-scoped foreign keys | accepted | Security, persistence |
 | [0025](./ADR-0025-precondition-failures.md) | The status of a failed precondition | accepted | Interfaces, API |
+| [0026](./ADR-0026-query-dsl-sql-construction.md) | How the query DSL turns into SQL | accepted | Security, persistence, API |

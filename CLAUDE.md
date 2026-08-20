@@ -37,7 +37,7 @@ that instead of breaking the rule.
 | 6 | Every outbound HTTP call goes through `infrastructure/httpclient.GuardedClient`. Never `http.DefaultClient`. | ADR-0015, T-07 |
 | 7 | No call without a timeout or a context deadline. | ADR-0016 |
 | 8 | No display text in the backend. Message codes plus parameters only. | ADR-0011 |
-| 9 | SQL only parameterised, through sqlc. Never string concatenation to build a query, not even for filters. | ADR-0015, T-06 |
+| 9 | SQL only parameterised, through sqlc. Never string concatenation to build a query, not even for filters. No byte from a request may ever become SQL text — the query DSL's one exception is bounded by ADR-0026. | ADR-0015, T-06, ADR-0026 |
 | 10 | No user content (titles, notes, comments) in logs, metrics, traces, or audit entries. | ADR-0017, ADR-0018 |
 | 11 | `openapi.yaml` is the source, not the result. Change the specification first, then `make generate`, then implement. Never hand-edit generated code. | ADR-0004 |
 | 12 | Migrations are forward-only and safe for rolling updates (expand/contract). Never change an existing migration. | ADR-0003 |
