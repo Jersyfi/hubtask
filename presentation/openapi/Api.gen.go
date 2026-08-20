@@ -1959,15 +1959,13 @@ type ItemQueryGroup struct {
 	Page PageInfo `json:"page"`
 }
 
-// ItemQueryResult `data` carries the rows of an ungrouped query and `groups` those of a grouped one. Both are always present, so that a client reads them unconditionally; the one that does not apply is empty.
+// ItemQueryResult `data` carries the rows of an ungrouped query and `groups` those of a grouped one. Both are always present, so that a client reads them unconditionally; the one that does not apply is empty. `page` is the walk of an ungrouped query - a grouped one has no single walk, so it then reports no successor and each group carries its own.
 type ItemQueryResult struct {
 	Data []WorkItem `json:"data"`
 
 	// Groups One entry per distinct value of the grouping field, in the field's own order with the group of entries that have no value last. Empty without `group_by`.
 	Groups []ItemQueryGroup `json:"groups"`
-
-	// Page The walk of an ungrouped query. A grouped one has no single walk: this then reports no successor, and each group carries its own.
-	Page PageInfo `json:"page"`
+	Page   PageInfo         `json:"page"`
 
 	// Total The size of the whole result with `count=exact`, null otherwise.
 	Total *int `json:"total"`
