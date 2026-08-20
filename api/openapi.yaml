@@ -2225,6 +2225,25 @@ components:
             because it costs a second pass. `estimated` is not served and is refused by name rather
             than answered with a null total.
 
+    ItemQueryGroup:
+      type: object
+      required: [key, count, data, page]
+      description: >
+        One column of a grouped result. Its `page` continues this group and nothing else: a client
+        pages a column by asking again for that column - the key as a filter, this cursor as the
+        cursor.
+      properties:
+        key:
+          type: [string, "null"]
+          description: The grouping value, null for the entries that have none.
+        count:
+          type: [integer, "null"]
+          description: How many entries the group holds in total, with `count=exact`.
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/WorkItem" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
     ItemQueryResult:
       type: object
       required: [data, groups, page, total]
@@ -2241,20 +2260,7 @@ components:
           description: >
             One entry per distinct value of the grouping field, in the field's own order with the
             group of entries that have no value last. Empty without `group_by`.
-          items:
-            type: object
-            required: [key, count, data, page]
-            properties:
-              key:
-                type: [string, "null"]
-                description: The grouping value, null for the entries that have none.
-              count:
-                type: [integer, "null"]
-                description: How many entries the group holds in total, with `count=exact`.
-              data:
-                type: array
-                items: { $ref: "#/components/schemas/WorkItem" }
-              page: { $ref: "#/components/schemas/PageInfo" }
+          items: { $ref: "#/components/schemas/ItemQueryGroup" }
         page:
           allOf:
             - $ref: "#/components/schemas/PageInfo"

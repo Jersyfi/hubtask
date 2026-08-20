@@ -1965,20 +1965,23 @@ type ItemQuerySortDir string
 // ItemQuerySortNulls defines model for ItemQuery.Sort.Nulls.
 type ItemQuerySortNulls string
 
+// ItemQueryGroup One column of a grouped result. Its `page` continues this group and nothing else: a client pages a column by asking again for that column - the key as a filter, this cursor as the cursor.
+type ItemQueryGroup struct {
+	// Count How many entries the group holds in total, with `count=exact`.
+	Count *int       `json:"count"`
+	Data  []WorkItem `json:"data"`
+
+	// Key The grouping value, null for the entries that have none.
+	Key  *string  `json:"key"`
+	Page PageInfo `json:"page"`
+}
+
 // ItemQueryResult `data` carries the rows of an ungrouped query and `groups` those of a grouped one. Both are always present, so that a client reads them unconditionally; the one that does not apply is empty.
 type ItemQueryResult struct {
 	Data []WorkItem `json:"data"`
 
 	// Groups One entry per distinct value of the grouping field, in the field's own order with the group of entries that have no value last. Empty without `group_by`.
-	Groups []struct {
-		// Count How many entries the group holds in total, with `count=exact`.
-		Count *int       `json:"count"`
-		Data  []WorkItem `json:"data"`
-
-		// Key The grouping value, null for the entries that have none.
-		Key  *string  `json:"key"`
-		Page PageInfo `json:"page"`
-	} `json:"groups"`
+	Groups []ItemQueryGroup `json:"groups"`
 
 	// Page The walk of an ungrouped query. A grouped one has no single walk: this then reports no successor, and each group carries its own.
 	Page PageInfo `json:"page"`
