@@ -5,7 +5,6 @@ package work
 
 import (
 	"context"
-	"errors"
 
 	activityrepo "github.com/Jersyfi/hubtask/core/application/repository/activity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -112,12 +111,10 @@ func (h ListActivity) collectionOf(
 		if err != nil {
 			return err
 		}
-		collection, err = h.Containers.Find(ctx, item.CollectionID)
-		if err != nil && errors.Is(err, shared.ErrNotFound) {
-			// Unreachable through a tenant-scoped foreign key (ADR-0024), and therefore a defect
-			// rather than a 404 for an entry that does exist.
-			return shared.ErrInternal.WithDetail("items.collection_missing").WithCause(err)
-		}
+		// A missing collection under an entry that exists is a defect rather than a 404 for the
+		// entry that does exist: a tenant-scoped foreign key makes it unreachable (ADR-0024). That
+		// distinction is findCollection's, so that this read and every writer's answer the same way.
+		collection, err = findCollection(ctx, h.Containers, item.CollectionID)
 		return err
 	})
 	if err != nil {
