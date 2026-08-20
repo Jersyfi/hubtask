@@ -6,6 +6,7 @@ package view
 import (
 	"testing"
 	"time"
+
 	// The zone database, embedded so that this test proves the same thing on a machine that has no
 	// system tzdata - which is every container this project ships (i18n-l10n.md §2).
 	_ "time/tzdata"
