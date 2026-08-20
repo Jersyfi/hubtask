@@ -9,6 +9,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -20,15 +21,22 @@ const APIVersion = "v1"
 // Capabilities is the self-description clients configure themselves from instead of hard-coding
 // values (api-guidelines.md §1).
 //
-// What is deliberately absent: view layouts, query fields, automation triggers and event types.
-// They are declared in the schema and will be answered by the tasks that build them. An empty
-// list would read as "this installation has none", which is a different statement from "this part
-// of the contract is not implemented yet" - and the first of those is a lie a client would act on.
+// What is deliberately absent: view layouts, automation triggers and event types. They are
+// declared in the schema and will be answered by the tasks that build them. An empty list would
+// read as "this installation has none", which is a different statement from "this part of the
+// contract is not implemented yet" - and the first of those is a lie a client would act on.
 type Capabilities struct {
 	ProductVersion string
 	APIVersion     string
 	TenancyMode    string
 	ItemTypes      []work.CapabilityProfile
+	// QueryFields is what POST /items:query accepts: which fields may be filtered, ordered and
+	// grouped by, and with which operators (B-12, api-guidelines.md §3).
+	//
+	// The catalogue itself rather than a copy of it, for the reason the item types come from the
+	// database: a manifest that listed a field the grammar refuses would send a client to build a
+	// filter editor for a query that cannot run.
+	QueryFields []view.Field
 	// Limits are the numbers a client has to respect to avoid being refused.
 	Limits map[string]int64
 	// Features says which optional parts of the installation are configured.
@@ -73,6 +81,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		APIVersion:     APIVersion,
 		TenancyMode:    string(g.Config.Tenancy),
 		ItemTypes:      profiles,
+		QueryFields:    view.Fields(),
 		Limits: map[string]int64{
 			"max_body_bytes":            g.Config.Request.MaxBodyBytes,
 			"max_upload_bytes":          g.Config.Request.MaxUploadBytes,

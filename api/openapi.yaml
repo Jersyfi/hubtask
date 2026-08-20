@@ -2995,6 +2995,34 @@ components:
           type: array
           items: { $ref: "#/components/schemas/HealthWarning" }
 
+    QueryField:
+      type: object
+      required: [field, kind, operators, nullable, sortable, groupable]
+      description: One field `POST /items:query` accepts, and what may be asked of it.
+      properties:
+        field: { type: string }
+        kind:
+          type: string
+          enum: [string, text, id, boolean, integer, timestamp, enum, id_set]
+          description: >
+            What a value for this field looks like. `text` is free text a full-text operator
+            reads, `id_set` a relation an entry has several of.
+        operators:
+          type: array
+          description: >
+            The comparisons this field permits, exhaustively. Empty for a field that may only be
+            ordered or grouped by.
+          items: { type: string }
+        values:
+          type: array
+          description: The permitted values, for a field of kind `enum`.
+          items: { type: string }
+        nullable:
+          type: boolean
+          description: Whether the field can be absent, and `IS_NULL` therefore means something.
+        sortable: { type: boolean }
+        groupable: { type: boolean }
+
     Capabilities:
       type: object
       description: Self-description; clients configure themselves from this.
@@ -3025,29 +3053,7 @@ components:
             than from a hard-coded list, because the set grows with the installation's features -
             a field whose use case this version does not have is not in it, and filtering on it is
             refused rather than silently matching nothing.
-          items:
-            type: object
-            required: [field, kind, operators, sortable, groupable]
-            properties:
-              field: { type: string }
-              kind:
-                type: string
-                enum: [string, text, id, boolean, integer, timestamp, enum, id_set]
-                description: >
-                  What a value for this field looks like. `text` is free text a full-text operator
-                  reads, `id_set` a relation an entry has several of.
-              operators:
-                type: array
-                items: { type: string }
-              values:
-                type: array
-                description: The permitted values, for a field of kind `enum`.
-                items: { type: string }
-              nullable:
-                type: boolean
-                description: Whether the field can be absent, and `IS_NULL` therefore means something.
-              sortable: { type: boolean }
-              groupable: { type: boolean }
+          items: { $ref: "#/components/schemas/QueryField" }
         supported_locales:
           type: array
           items:

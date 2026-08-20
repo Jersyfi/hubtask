@@ -492,42 +492,6 @@ func (e BulkOperationOp) Valid() bool {
 	}
 }
 
-// Defines values for CapabilitiesQueryFieldsKind.
-const (
-	Boolean   CapabilitiesQueryFieldsKind = "boolean"
-	Enum      CapabilitiesQueryFieldsKind = "enum"
-	Id        CapabilitiesQueryFieldsKind = "id"
-	IdSet     CapabilitiesQueryFieldsKind = "id_set"
-	Integer   CapabilitiesQueryFieldsKind = "integer"
-	String    CapabilitiesQueryFieldsKind = "string"
-	Text      CapabilitiesQueryFieldsKind = "text"
-	Timestamp CapabilitiesQueryFieldsKind = "timestamp"
-)
-
-// Valid indicates whether the value is a known member of the CapabilitiesQueryFieldsKind enum.
-func (e CapabilitiesQueryFieldsKind) Valid() bool {
-	switch e {
-	case Boolean:
-		return true
-	case Enum:
-		return true
-	case Id:
-		return true
-	case IdSet:
-		return true
-	case Integer:
-		return true
-	case String:
-		return true
-	case Text:
-		return true
-	case Timestamp:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for CapabilitiesSupportedLocalesDirection.
 const (
 	Ltr CapabilitiesSupportedLocalesDirection = "ltr"
@@ -975,6 +939,42 @@ func (e MembershipScope) Valid() bool {
 	case MembershipScopeITEM:
 		return true
 	case MembershipScopeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QueryFieldKind.
+const (
+	Boolean   QueryFieldKind = "boolean"
+	Enum      QueryFieldKind = "enum"
+	Id        QueryFieldKind = "id"
+	IdSet     QueryFieldKind = "id_set"
+	Integer   QueryFieldKind = "integer"
+	String    QueryFieldKind = "string"
+	Text      QueryFieldKind = "text"
+	Timestamp QueryFieldKind = "timestamp"
+)
+
+// Valid indicates whether the value is a known member of the QueryFieldKind enum.
+func (e QueryFieldKind) Valid() bool {
+	switch e {
+	case Boolean:
+		return true
+	case Enum:
+		return true
+	case Id:
+		return true
+	case IdSet:
+		return true
+	case Integer:
+		return true
+	case String:
+		return true
+	case Text:
+		return true
+	case Timestamp:
 		return true
 	default:
 		return false
@@ -1644,21 +1644,7 @@ type Capabilities struct {
 	ProductVersion *string                 `json:"product_version,omitempty"`
 
 	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
-	QueryFields *[]struct {
-		Field     string `json:"field"`
-		Groupable bool   `json:"groupable"`
-
-		// Kind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
-		Kind CapabilitiesQueryFieldsKind `json:"kind"`
-
-		// Nullable Whether the field can be absent, and `IS_NULL` therefore means something.
-		Nullable  *bool    `json:"nullable,omitempty"`
-		Operators []string `json:"operators"`
-		Sortable  bool     `json:"sortable"`
-
-		// Values The permitted values, for a field of kind `enum`.
-		Values *[]string `json:"values,omitempty"`
-	} `json:"query_fields,omitempty"`
+	QueryFields      *[]QueryField `json:"query_fields,omitempty"`
 	SupportedLocales *[]struct {
 		Direction *CapabilitiesSupportedLocalesDirection `json:"direction,omitempty"`
 		Locale    *string                                `json:"locale,omitempty"`
@@ -1667,9 +1653,6 @@ type Capabilities struct {
 	TenancyMode *CapabilitiesTenancyMode `json:"tenancy_mode,omitempty"`
 	ViewLayouts *[]string                `json:"view_layouts,omitempty"`
 }
-
-// CapabilitiesQueryFieldsKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
-type CapabilitiesQueryFieldsKind string
 
 // CapabilitiesSupportedLocalesDirection defines model for Capabilities.SupportedLocales.Direction.
 type CapabilitiesSupportedLocalesDirection string
@@ -2109,6 +2092,28 @@ type PurgeSummary struct {
 	// Removed How many actually went.
 	Removed int `json:"removed"`
 }
+
+// QueryField One field `POST /items:query` accepts, and what may be asked of it.
+type QueryField struct {
+	Field     string `json:"field"`
+	Groupable bool   `json:"groupable"`
+
+	// Kind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
+	Kind QueryFieldKind `json:"kind"`
+
+	// Nullable Whether the field can be absent, and `IS_NULL` therefore means something.
+	Nullable bool `json:"nullable"`
+
+	// Operators The comparisons this field permits, exhaustively. Empty for a field that may only be ordered or grouped by.
+	Operators []string `json:"operators"`
+	Sortable  bool     `json:"sortable"`
+
+	// Values The permitted values, for a field of kind `enum`.
+	Values *[]string `json:"values,omitempty"`
+}
+
+// QueryFieldKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
+type QueryFieldKind string
 
 // RestoreRequest defines model for RestoreRequest.
 type RestoreRequest struct {
