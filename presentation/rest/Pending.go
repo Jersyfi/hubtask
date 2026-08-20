@@ -277,11 +277,12 @@ func (pending) RetainItem(w http.ResponseWriter, r *http.Request, _ openapi_type
 	notAvailable(w, r)
 }
 
+// QueryItems is overridden by RestController, for the reason given at CreateContainer.
+func (pending) QueryItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) BulkItems(w http.ResponseWriter, r *http.Request, _ openapi.BulkItemsParams) {
 	notAvailable(w, r)
 }
-
-func (pending) QueryItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) GetCapabilities(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

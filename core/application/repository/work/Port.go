@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -200,6 +201,76 @@ type Containers interface {
 	Neighbours(ctx context.Context, parentID, beforeID, movingID shared.ID) (previous, next string, err error)
 }
 
+// AnchorKind says what a query is anchored to. The three shapes need three different scope
+// predicates, and which one applies is something the use case has already established: it read the
+// container or the item in order to ask the permission question about it.
+type AnchorKind string
+
+const (
+	// AnchorHub is a whole hub: everything in every collection under it.
+	AnchorHub AnchorKind = "HUB"
+	// AnchorCollection is one collection.
+	AnchorCollection AnchorKind = "COLLECTION"
+	// AnchorItem is one entry, and with descendants its subtree.
+	AnchorItem AnchorKind = "ITEM"
+)
+
+// Anchor is the resolved scope of a query.
+//
+// Resolved rather than repeated: view.Scope says what the client asked for, and this says what the
+// use case found when it looked - which collection, which path, whether the container was a hub.
+// An adapter that worked it out for itself would read the same rows a second time, and would be a
+// second place where "what a hub contains" is decided.
+type Anchor struct {
+	Kind AnchorKind
+	// CollectionID is the collection to look in, for a collection or an item anchor.
+	CollectionID shared.ID
+	// HubID is the hub, for a hub anchor.
+	HubID shared.ID
+	// ItemID is the entry, for an item anchor.
+	ItemID shared.ID
+	// PathPrefix is that entry's own path, which every row of its subtree begins with (I-W2).
+	PathPrefix string
+	// IncludeDescendants searches the subtree rather than one level below the anchor.
+	IncludeDescendants bool
+}
+
+// ItemSearch is one query as the adapter receives it: the validated request and its resolved
+// anchor.
+type ItemSearch struct {
+	Anchor Anchor
+	Spec   view.Spec
+}
+
+// ItemGroup is one column of a grouped result: the entries that share a value of the grouping
+// field, with a walk of their own.
+type ItemGroup struct {
+	// Key is the shared value, rendered as text - an identifier, an item type, a boolean.
+	Key string
+	// Absent marks the one group whose entries have no value at all: the entries on no board
+	// column, for instance. It is a group rather than an omission, because a board draws it.
+	Absent bool
+	Items  []work.WorkItem
+	Info   PageInfo
+	// Total is how many entries the group holds altogether, with an exact count asked for.
+	Total int
+}
+
+// ItemQueryResult is what a query answers: rows, or groups of rows, and a total when one was
+// asked for.
+//
+// One type for both shapes rather than two methods, because they are one question with one filter
+// and one permission check - and because a client that switched between them would otherwise be
+// switching between two code paths that have to stay in step.
+type ItemQueryResult struct {
+	Items  []work.WorkItem
+	Info   PageInfo
+	Groups []ItemGroup
+	// Total is the size of the whole result, and is meaningful only when the query asked for an
+	// exact count.
+	Total int
+}
+
 // Items stores work items: tasks, work packages, and activities.
 //
 // One repository for all three levels, because they are one aggregate (ADR-0006). A repository
@@ -299,6 +370,18 @@ type Items interface {
 	// back. It serves a container's deletion as well as an item's: the items of a trashed
 	// collection carry the container's batch.
 	RestoreBatch(ctx context.Context, restore ItemTrash) (int, error)
+
+	// Query answers the query language: an arbitrary filter over one anchored scope, sorted,
+	// paged, and optionally grouped (B-12, api-guidelines.md §3).
+	//
+	// The only method here whose statement is not written in advance, and the reason ADR-0026
+	// exists. What arrives has been through the grammar in core/domain/model/view, so every field
+	// and every operator in it is one this installation declared; the adapter still emits nothing
+	// but constants of its own and binds every value as a parameter.
+	//
+	// It judges no further than the query asks, as List does: whether the actor may see the scope
+	// is decided in the application layer, once, before this runs (ADR-0005).
+	Query(ctx context.Context, search ItemSearch) (ItemQueryResult, error)
 }
 
 // Buckets stores the columns of a collection's board.

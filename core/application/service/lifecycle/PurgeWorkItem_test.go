@@ -64,6 +64,12 @@ func (s *itemStore) RestoreBatch(context.Context, workrepo.ItemTrash) (int, erro
 	return 0, nil
 }
 
+func (s *itemStore) Query(
+	context.Context, workrepo.ItemSearch,
+) (workrepo.ItemQueryResult, error) {
+	return workrepo.ItemQueryResult{}, nil
+}
+
 type containerStore struct{ stored map[shared.ID]work.Container }
 
 func (s *containerStore) Find(_ context.Context, id shared.ID) (work.Container, error) {

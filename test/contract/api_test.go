@@ -501,6 +501,109 @@ func TestTheReadResponsesMatchTheirSchemas(t *testing.T) {
 	}
 }
 
+// The query language's wire format, pinned in both of its shapes (B-12).
+//
+// Both matter separately. The ungrouped answer is a page like any other; the grouped one is the
+// board projection, and it is the only response in this contract that nests a page inside a row -
+// a shape that a client renders columns from, and that has to keep meaning what it means.
+func TestTheQueryResponsesMatchTheSchema(t *testing.T) {
+	spec := contractSpec(t)
+	collection := "0192f000-0000-7000-8000-00000000000b"
+	body := `{"scope": {"container_id": "` + collection + `"}}`
+
+	cases := map[string]catalogue.Output{
+		"a page of entries": {
+			"data":   []catalogue.Output{itemProjection()},
+			"groups": []catalogue.Output{},
+			"page":   map[string]any{"next_cursor": "an-opaque-cursor", "has_more": true},
+			"total":  nil,
+		},
+		"a board": {
+			"data": []catalogue.Output{},
+			"groups": []catalogue.Output{
+				{
+					"key":   "0192f000-0000-7000-8000-0000000000b1",
+					"count": 12,
+					"data":  []catalogue.Output{itemProjection()},
+					"page":  map[string]any{"next_cursor": "an-opaque-cursor", "has_more": true},
+				},
+				{
+					// The entries on no column at all: a group with a null key, which a board draws
+					// at the end.
+					"key":   nil,
+					"count": 0,
+					"data":  []catalogue.Output{},
+					"page":  map[string]any{"next_cursor": nil, "has_more": false},
+				},
+			},
+			"page":  map[string]any{"next_cursor": nil, "has_more": false},
+			"total": 12,
+		},
+	}
+
+	for name, out := range cases {
+		t.Run(name, func(t *testing.T) {
+			status, answered := queryResponse(t, body, out)
+			if status != http.StatusOK {
+				t.Fatalf("status %d: %s", status, answered)
+			}
+
+			problems, err := spec.validateAgainst("ItemQueryResult", answered)
+			if err != nil {
+				t.Fatalf("%v", err)
+			}
+			for _, problem := range problems {
+				t.Errorf("ItemQueryResult: %s", problem)
+			}
+		})
+	}
+}
+
+// Both collections are always present, and always arrays: the schema requires them, and a client
+// that had to check for null before iterating would check on every response for a case that arises
+// in only one of them.
+func TestAQueryAnswersBothCollectionsWhicheverShapeItTook(t *testing.T) {
+	collection := "0192f000-0000-7000-8000-00000000000b"
+
+	_, answered := queryResponse(t, `{"scope": {"container_id": "`+collection+`"}}`, catalogue.Output{
+		"data":   []catalogue.Output{itemProjection()},
+		"groups": []catalogue.Output{},
+		"page":   map[string]any{"next_cursor": nil, "has_more": false},
+		"total":  nil,
+	})
+
+	body := decode(t, answered)
+	for _, field := range []string{"data", "groups"} {
+		if _, ok := body[field].([]any); !ok {
+			t.Errorf("%s is %v, want an array", field, body[field])
+		}
+	}
+	if value, present := body["total"]; !present || value != nil {
+		t.Errorf("total is %v, want an explicit null", body["total"])
+	}
+}
+
+func queryResponse(t *testing.T, body string, out catalogue.Output) (int, []byte) {
+	t.Helper()
+
+	controller := rest.NewRestController()
+	controller.UseCases = fixedCatalogue{out: out}
+
+	ctx := appshared.ContextWithActor(context.Background(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+
+	request := httptest.NewRequestWithContext(
+		ctx, http.MethodPost, rest.APIBasePath+"/items:query", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+
+	response := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(response, request)
+	return response.Code, response.Body.Bytes()
+}
+
 // PageInfo requires both of its fields, so the last page carries an explicit null rather than no
 // field: a client reads next_cursor unconditionally, and an omitted one would make "no more pages"
 // indistinguishable from "this server does not page".

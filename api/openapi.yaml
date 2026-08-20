@@ -1017,6 +1017,15 @@ paths:
       tags: [items]
       operationId: queryItems
       summary: The generic query - the basis for list, kanban, and timeline
+      description: |
+        One filter grammar behind every view. A `POST` because the query is a document rather than
+        a set of parameters, and it reads: nothing is written, and the same request may be repeated.
+
+        The query is always anchored to a scope the caller names, and the permission is checked
+        against that scope once - a refusal is a refusal rather than an empty result. Which fields
+        may be filtered, sorted and grouped, and with which operators, is answered by
+        `GET /meta/capabilities` under `query_fields`; a field that is not in that list is refused
+        with `query.field_unknown` rather than ignored.
       requestBody:
         required: true
         content:
@@ -1031,6 +1040,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ItemQueryResult"
         "422":
+          $ref: "#/components/responses/Problem"
+        "4XX":
           $ref: "#/components/responses/Problem"
 
   /items/{itemId}:complete:
@@ -2109,42 +2120,94 @@ components:
 
     FilterNode:
       type: object
-      description: Either a leaf (field/op/value) or a combination (op/nodes).
+      required: [op]
+      description: |
+        Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
+        `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
+        `nodes`, is refused rather than half-read.
+
+        Combinations nest at most five deep and a filter holds at most fifty nodes in total - the
+        bound that keeps a query's cost a function of the data rather than of the request.
       properties:
         op:
           type: string
           enum: [AND, OR, NOT, EQ, NEQ, IN, NOT_IN, LT, LTE, GT, GTE, BETWEEN, IS_NULL, CONTAINS, CONTAINS_ANY, CONTAINS_ALL, STARTS_WITH, MATCHES]
-        field: { type: string }
-        value: {}
+        field:
+          type: string
+          description: >
+            On a leaf, the field to compare. One of the names `GET /meta/capabilities` lists under
+            `query_fields`; anything else is `query.field_unknown`. Absent on a combination.
+        value:
+          description: >
+            On a leaf, what to compare against - a scalar for most operators, an array for `IN`,
+            `NOT_IN`, `CONTAINS_ANY`, `CONTAINS_ALL` and `BETWEEN` (two elements, the bounds), and
+            absent for `IS_NULL`. A string beginning with `@` is a placeholder resolved on the
+            server in the caller's time zone: `@me`, `@now`, `@today`, `@end_of_day`,
+            `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me`
+            optionally with a signed ISO 8601 offset (`@today+P3D`, `@start_of_week-P1W`). An end
+            is the last instant of its period, so `LTE @end_of_month` means what it says.
         nodes:
           type: array
+          description: On a combination, the nodes it joins. `NOT` takes exactly one.
           items: { $ref: "#/components/schemas/FilterNode" }
 
     ItemQuery:
       type: object
+      required: [scope]
       properties:
         scope:
           type: object
+          description: >
+            Where to look. Exactly one of `container_id` and `item_id`, and it is required: an
+            unanchored query is a scan of the whole tenant, and the permission is checked against
+            this scope once for the whole result.
           properties:
-            container_id: { type: string, format: uuid }
-            item_id: { type: string, format: uuid }
-            include_descendants: { type: boolean, default: true }
+            container_id:
+              type: string
+              format: uuid
+              description: >
+                A collection, or a hub - with `include_descendants`, a hub covers the items of
+                every collection in it.
+            item_id:
+              type: string
+              format: uuid
+              description: An entry, whose subtree is searched with `include_descendants`.
+            include_descendants:
+              type: boolean
+              default: true
+              description: >
+                False narrows the scope to one level: the entries directly in the collection, or
+                the direct children of the entry. Ignored for a hub, whose items always sit at
+                least one collection down.
         filter: { $ref: "#/components/schemas/FilterNode" }
         sort:
           type: array
+          maxItems: 4
+          description: >
+            Ordered, most significant first, and always completed by `id ASC` so that a cursor is
+            unambiguous. Defaults to the manual order (`order_key ASC`).
           items:
             type: object
+            required: [field]
             properties:
               field: { type: string }
               dir: { type: string, enum: [ASC, DESC], default: ASC }
               nulls: { type: string, enum: [FIRST, LAST], default: LAST }
         group_by:
           type: object
+          required: [field]
+          description: >
+            The board projection: one group per distinct value, each with its own rows and its own
+            cursor. A group's cursor continues that group and is sent back with the group's key as
+            a filter.
           properties:
             field: { type: string }
             limit_per_group: { type: integer, minimum: 1, maximum: 200, default: 50 }
         expand:
           type: array
+          description: >
+            Relations to include, as on `GET /items`. `labels` is served; anything else is
+            `items.expand_not_supported`.
           items: { type: string }
         page:
           type: object
@@ -2153,28 +2216,56 @@ components:
             size: { type: integer, minimum: 1, maximum: 200, default: 50 }
         include_archived: { type: boolean, default: false }
         include_trashed: { type: boolean, default: false }
-        count: { type: string, enum: [none, estimated, exact], default: none }
+        count:
+          type: string
+          enum: [none, estimated, exact]
+          default: none
+          description: >
+            `exact` counts the whole result with a second query and answers `total`; it is opt-in
+            because it costs a second pass. `estimated` is not served and is refused by name rather
+            than answered with a null total.
+
+    ItemQueryGroup:
+      type: object
+      required: [key, count, data, page]
+      description: >
+        One column of a grouped result. Its `page` continues this group and nothing else: a client
+        pages a column by asking again for that column - the key as a filter, this cursor as the
+        cursor.
+      properties:
+        key:
+          type: [string, "null"]
+          description: The grouping value, null for the entries that have none.
+        count:
+          type: [integer, "null"]
+          description: How many entries the group holds in total, with `count=exact`.
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/WorkItem" }
+        page: { $ref: "#/components/schemas/PageInfo" }
 
     ItemQueryResult:
       type: object
+      required: [data, groups, page, total]
+      description: >
+        `data` carries the rows of an ungrouped query and `groups` those of a grouped one. Both are
+        always present, so that a client reads them unconditionally; the one that does not apply is
+        empty. `page` is the walk of an ungrouped query - a grouped one has no single walk, so it
+        then reports no successor and each group carries its own.
       properties:
         data:
           type: array
           items: { $ref: "#/components/schemas/WorkItem" }
         groups:
           type: array
-          description: Only with group_by; each group has its own cursor.
-          items:
-            type: object
-            properties:
-              key: { type: [string, "null"] }
-              count: { type: [integer, "null"] }
-              data:
-                type: array
-                items: { $ref: "#/components/schemas/WorkItem" }
-              page: { $ref: "#/components/schemas/PageInfo" }
+          description: >
+            One entry per distinct value of the grouping field, in the field's own order with the
+            group of entries that have no value last. Empty without `group_by`.
+          items: { $ref: "#/components/schemas/ItemQueryGroup" }
         page: { $ref: "#/components/schemas/PageInfo" }
-        total: { type: [integer, "null"] }
+        total:
+          type: [integer, "null"]
+          description: The size of the whole result with `count=exact`, null otherwise.
 
     BulkOperation:
       type: object
@@ -2900,6 +2991,34 @@ components:
           type: array
           items: { $ref: "#/components/schemas/HealthWarning" }
 
+    QueryField:
+      type: object
+      required: [field, kind, operators, nullable, sortable, groupable]
+      description: One field `POST /items:query` accepts, and what may be asked of it.
+      properties:
+        field: { type: string }
+        kind:
+          type: string
+          enum: [string, text, id, boolean, integer, timestamp, enum, id_set]
+          description: >
+            What a value for this field looks like. `text` is free text a full-text operator
+            reads, `id_set` a relation an entry has several of.
+        operators:
+          type: array
+          description: >
+            The comparisons this field permits, exhaustively. Empty for a field that may only be
+            ordered or grouped by.
+          items: { type: string }
+        values:
+          type: array
+          description: The permitted values, for a field of kind `enum`.
+          items: { type: string }
+        nullable:
+          type: boolean
+          description: Whether the field can be absent, and `IS_NULL` therefore means something.
+        sortable: { type: boolean }
+        groupable: { type: boolean }
+
     Capabilities:
       type: object
       description: Self-description; clients configure themselves from this.
@@ -2925,13 +3044,12 @@ components:
           items: { type: string }
         query_fields:
           type: array
-          items:
-            type: object
-            properties:
-              field: { type: string }
-              operators:
-                type: array
-                items: { type: string }
+          description: >
+            What `POST /items:query` accepts. A client builds its filter editor from this rather
+            than from a hard-coded list, because the set grows with the installation's features -
+            a field whose use case this version does not have is not in it, and filtering on it is
+            refused rather than silently matching nothing.
+          items: { $ref: "#/components/schemas/QueryField" }
         supported_locales:
           type: array
           items:

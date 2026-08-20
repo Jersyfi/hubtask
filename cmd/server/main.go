@@ -457,6 +457,10 @@ func run() error {
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.QueryItems{
+			Items: items, ItemLabels: itemLabels, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		work.ListActivity{
 			History: history, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

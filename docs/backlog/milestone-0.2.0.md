@@ -232,7 +232,17 @@ rule 9 does not bend for a query language.
 query cost is bounded (a filter on an unindexed custom field is either refused or visibly slower
 but capped); the contract test pins the wire format; cross-tenant negative test on the query path.
 
-**Read:** `api-guidelines.md` §query, `security.md` §T-06, `domain-model.md` §6
+What v1 serves, decided while implementing it: the fields 0.2.0 actually writes — type, parent,
+bucket, completion, title, notes, depth, author, the four timestamps, labels, and full text over
+the search vector. `due_at`, `start_at`, `assignee_id`, the members and the custom fields have had
+columns and indexes since `0001_init` and no use case fills any of them, so a filter on them would
+match nothing and a client could not tell that from an empty collection; they are refused by name
+(`query.field_unknown`) until the milestone that writes them, which is the acceptance criterion's
+"refused" branch. `count=exact` runs a second `COUNT(*)` over the same predicate; `count=estimated`
+is refused by name rather than answered with a null total. How the compiler stays inside rule 9 is
+[ADR-0026](../adr/ADR-0026-query-dsl-sql-construction.md).
+
+**Read:** `api-guidelines.md` §query, `security.md` §T-06, `domain-model.md` §6, ADR-0026
 
 ---
 

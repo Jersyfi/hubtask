@@ -126,6 +126,14 @@ expect_lint_failure "math/rand anywhere" infrastructure depguard \
 
 import _ "math/rand"'
 
+# T-06 and ADR-0026: the query builder is the one package that assembles SQL, and `fmt` is the
+# tool that would put a value into it. The rule is scoped to that package, so the violation has
+# to be written there.
+expect_lint_failure "fmt in the query builder" infrastructure/postgres/query depguard \
+'package selftest
+
+import _ "fmt"'
+
 # Four depguard rules cannot be proven through the linter yet, because the package they forbid
 # does not exist: third-party libraries in the core, the database driver outside
 # infrastructure/postgres, an adapter importing core/application/service, and the domain

@@ -945,6 +945,42 @@ func (e MembershipScope) Valid() bool {
 	}
 }
 
+// Defines values for QueryFieldKind.
+const (
+	Boolean   QueryFieldKind = "boolean"
+	Enum      QueryFieldKind = "enum"
+	Id        QueryFieldKind = "id"
+	IdSet     QueryFieldKind = "id_set"
+	Integer   QueryFieldKind = "integer"
+	String    QueryFieldKind = "string"
+	Text      QueryFieldKind = "text"
+	Timestamp QueryFieldKind = "timestamp"
+)
+
+// Valid indicates whether the value is a known member of the QueryFieldKind enum.
+func (e QueryFieldKind) Valid() bool {
+	switch e {
+	case Boolean:
+		return true
+	case Enum:
+		return true
+	case Id:
+		return true
+	case IdSet:
+		return true
+	case Integer:
+		return true
+	case String:
+		return true
+	case Text:
+		return true
+	case Timestamp:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RestoreRequestConflictRule.
 const (
 	DUPLICATE RestoreRequestConflictRule = "DUPLICATE"
@@ -1606,10 +1642,9 @@ type Capabilities struct {
 	} `json:"item_types,omitempty"`
 	Limits         *map[string]interface{} `json:"limits,omitempty"`
 	ProductVersion *string                 `json:"product_version,omitempty"`
-	QueryFields    *[]struct {
-		Field     *string   `json:"field,omitempty"`
-		Operators *[]string `json:"operators,omitempty"`
-	} `json:"query_fields,omitempty"`
+
+	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
+	QueryFields      *[]QueryField `json:"query_fields,omitempty"`
 	SupportedLocales *[]struct {
 		Direction *CapabilitiesSupportedLocalesDirection `json:"direction,omitempty"`
 		Locale    *string                                `json:"locale,omitempty"`
@@ -1759,12 +1794,22 @@ type DroppedReference struct {
 // DroppedReferenceKind defines model for DroppedReference.Kind.
 type DroppedReferenceKind string
 
-// FilterNode Either a leaf (field/op/value) or a combination (op/nodes).
+// FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
+// `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
+// `nodes`, is refused rather than half-read.
+//
+// Combinations nest at most five deep and a filter holds at most fifty nodes in total - the
+// bound that keeps a query's cost a function of the data rather than of the request.
 type FilterNode struct {
-	Field *string       `json:"field,omitempty"`
+	// Field On a leaf, the field to compare. One of the names `GET /meta/capabilities` lists under `query_fields`; anything else is `query.field_unknown`. Absent on a combination.
+	Field *string `json:"field,omitempty"`
+
+	// Nodes On a combination, the nodes it joins. `NOT` takes exactly one.
 	Nodes *[]FilterNode `json:"nodes,omitempty"`
-	Op    *FilterNodeOp `json:"op,omitempty"`
-	Value interface{}   `json:"value,omitempty"`
+	Op    FilterNodeOp  `json:"op"`
+
+	// Value On a leaf, what to compare against - a scalar for most operators, an array for `IN`, `NOT_IN`, `CONTAINS_ANY`, `CONTAINS_ALL` and `BETWEEN` (two elements, the bounds), and absent for `IS_NULL`. A string beginning with `@` is a placeholder resolved on the server in the caller's time zone: `@me`, `@now`, `@today`, `@end_of_day`, `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me` optionally with a signed ISO 8601 offset (`@today+P3D`, `@start_of_week-P1W`). An end is the last instant of its period, so `LTE @end_of_month` means what it says.
+	Value interface{} `json:"value,omitempty"`
 }
 
 // FilterNodeOp defines model for FilterNode.Op.
@@ -1848,14 +1893,24 @@ type ItemLabels struct {
 
 // ItemQuery defines model for ItemQuery.
 type ItemQuery struct {
-	Count  *ItemQueryCount `json:"count,omitempty"`
-	Expand *[]string       `json:"expand,omitempty"`
+	// Count `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass. `estimated` is not served and is refused by name rather than answered with a null total.
+	Count *ItemQueryCount `json:"count,omitempty"`
 
-	// Filter Either a leaf (field/op/value) or a combination (op/nodes).
-	Filter  *FilterNode `json:"filter,omitempty"`
+	// Expand Relations to include, as on `GET /items`. `labels` is served; anything else is `items.expand_not_supported`.
+	Expand *[]string `json:"expand,omitempty"`
+
+	// Filter Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
+	// `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
+	// `nodes`, is refused rather than half-read.
+	//
+	// Combinations nest at most five deep and a filter holds at most fifty nodes in total - the
+	// bound that keeps a query's cost a function of the data rather than of the request.
+	Filter *FilterNode `json:"filter,omitempty"`
+
+	// GroupBy The board projection: one group per distinct value, each with its own rows and its own cursor. A group's cursor continues that group and is sent back with the group's key as a filter.
 	GroupBy *struct {
-		Field         *string `json:"field,omitempty"`
-		LimitPerGroup *int    `json:"limit_per_group,omitempty"`
+		Field         string `json:"field"`
+		LimitPerGroup *int   `json:"limit_per_group,omitempty"`
 	} `json:"group_by,omitempty"`
 	IncludeArchived *bool `json:"include_archived,omitempty"`
 	IncludeTrashed  *bool `json:"include_trashed,omitempty"`
@@ -1863,19 +1918,28 @@ type ItemQuery struct {
 		Cursor *string `json:"cursor,omitempty"`
 		Size   *int    `json:"size,omitempty"`
 	} `json:"page,omitempty"`
-	Scope *struct {
-		ContainerId        *openapi_types.UUID `json:"container_id,omitempty"`
-		IncludeDescendants *bool               `json:"include_descendants,omitempty"`
-		ItemId             *openapi_types.UUID `json:"item_id,omitempty"`
-	} `json:"scope,omitempty"`
+
+	// Scope Where to look. Exactly one of `container_id` and `item_id`, and it is required: an unanchored query is a scan of the whole tenant, and the permission is checked against this scope once for the whole result.
+	Scope struct {
+		// ContainerId A collection, or a hub - with `include_descendants`, a hub covers the items of every collection in it.
+		ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
+
+		// IncludeDescendants False narrows the scope to one level: the entries directly in the collection, or the direct children of the entry. Ignored for a hub, whose items always sit at least one collection down.
+		IncludeDescendants *bool `json:"include_descendants,omitempty"`
+
+		// ItemId An entry, whose subtree is searched with `include_descendants`.
+		ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+	} `json:"scope"`
+
+	// Sort Ordered, most significant first, and always completed by `id ASC` so that a cursor is unambiguous. Defaults to the manual order (`order_key ASC`).
 	Sort *[]struct {
 		Dir   *ItemQuerySortDir   `json:"dir,omitempty"`
-		Field *string             `json:"field,omitempty"`
+		Field string              `json:"field"`
 		Nulls *ItemQuerySortNulls `json:"nulls,omitempty"`
 	} `json:"sort,omitempty"`
 }
 
-// ItemQueryCount defines model for ItemQuery.Count.
+// ItemQueryCount `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass. `estimated` is not served and is refused by name rather than answered with a null total.
 type ItemQueryCount string
 
 // ItemQuerySortDir defines model for ItemQuery.Sort.Dir.
@@ -1884,19 +1948,27 @@ type ItemQuerySortDir string
 // ItemQuerySortNulls defines model for ItemQuery.Sort.Nulls.
 type ItemQuerySortNulls string
 
-// ItemQueryResult defines model for ItemQueryResult.
-type ItemQueryResult struct {
-	Data *[]WorkItem `json:"data,omitempty"`
+// ItemQueryGroup One column of a grouped result. Its `page` continues this group and nothing else: a client pages a column by asking again for that column - the key as a filter, this cursor as the cursor.
+type ItemQueryGroup struct {
+	// Count How many entries the group holds in total, with `count=exact`.
+	Count *int       `json:"count"`
+	Data  []WorkItem `json:"data"`
 
-	// Groups Only with group_by; each group has its own cursor.
-	Groups *[]struct {
-		Count *int        `json:"count,omitempty"`
-		Data  *[]WorkItem `json:"data,omitempty"`
-		Key   *string     `json:"key,omitempty"`
-		Page  *PageInfo   `json:"page,omitempty"`
-	} `json:"groups,omitempty"`
-	Page  *PageInfo `json:"page,omitempty"`
-	Total *int      `json:"total,omitempty"`
+	// Key The grouping value, null for the entries that have none.
+	Key  *string  `json:"key"`
+	Page PageInfo `json:"page"`
+}
+
+// ItemQueryResult `data` carries the rows of an ungrouped query and `groups` those of a grouped one. Both are always present, so that a client reads them unconditionally; the one that does not apply is empty. `page` is the walk of an ungrouped query - a grouped one has no single walk, so it then reports no successor and each group carries its own.
+type ItemQueryResult struct {
+	Data []WorkItem `json:"data"`
+
+	// Groups One entry per distinct value of the grouping field, in the field's own order with the group of entries that have no value last. Empty without `group_by`.
+	Groups []ItemQueryGroup `json:"groups"`
+	Page   PageInfo         `json:"page"`
+
+	// Total The size of the whole result with `count=exact`, null otherwise.
+	Total *int `json:"total"`
 }
 
 // ItemType Extensible; /meta/capabilities returns the valid values.
@@ -2018,6 +2090,28 @@ type PurgeSummary struct {
 	// Removed How many actually went.
 	Removed int `json:"removed"`
 }
+
+// QueryField One field `POST /items:query` accepts, and what may be asked of it.
+type QueryField struct {
+	Field     string `json:"field"`
+	Groupable bool   `json:"groupable"`
+
+	// Kind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
+	Kind QueryFieldKind `json:"kind"`
+
+	// Nullable Whether the field can be absent, and `IS_NULL` therefore means something.
+	Nullable bool `json:"nullable"`
+
+	// Operators The comparisons this field permits, exhaustively. Empty for a field that may only be ordered or grouped by.
+	Operators []string `json:"operators"`
+	Sortable  bool     `json:"sortable"`
+
+	// Values The permitted values, for a field of kind `enum`.
+	Values *[]string `json:"values,omitempty"`
+}
+
+// QueryFieldKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
+type QueryFieldKind string
 
 // RestoreRequest defines model for RestoreRequest.
 type RestoreRequest struct {

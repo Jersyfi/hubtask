@@ -40,6 +40,15 @@ const (
 	// of the list identically, and a JSON Schema, an OpenAPI array and a CEL list all express it
 	// without a translation table.
 	KindIDList Kind = "id_list"
+	// KindObject and KindList are nested documents: the filter tree of a query and its ordering.
+	//
+	// They are the exception to "deliberately few", and only one use case has them. A filter is a
+	// grammar rather than a field list - what may go in it depends on what this installation
+	// serves, and is answered by /meta/capabilities rather than pinned by a schema - so the
+	// catalogue checks that a document arrived and leaves what is in it to the grammar that owns
+	// it (core/domain/model/view, ADR-0026).
+	KindObject Kind = "object"
+	KindList   Kind = "list"
 )
 
 // Field declares one input field of a use case.
@@ -271,6 +280,14 @@ func checkField(field Field, value any) (shared.FieldError, bool) {
 				return wrongType, false
 			}
 		default:
+			return wrongType, false
+		}
+	case KindObject:
+		if _, ok := value.(map[string]any); !ok {
+			return wrongType, false
+		}
+	case KindList:
+		if _, ok := value.([]any); !ok {
 			return wrongType, false
 		}
 	}

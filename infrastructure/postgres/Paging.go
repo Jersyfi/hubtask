@@ -66,7 +66,7 @@ func cursorAfter(cursors security.CursorCodec, cursor string) (after, error) {
 	}
 	// Taken by address because the column is nullable in the query and the generated parameter is
 	// therefore a pointer. The value is a copy, so the loop variable of no caller can reach it.
-	sortKey := position.SortKey
+	sortKey := position.SortKey()
 	return after{sortKey: &sortKey, id: id}, nil
 }
 

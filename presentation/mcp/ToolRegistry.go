@@ -69,8 +69,13 @@ func InputSchema(fields []usecase.Field) map[string]any {
 
 	for _, field := range fields {
 		property := map[string]any{"type": jsonType(field.Kind)}
-		if field.Kind == usecase.KindID {
+		switch field.Kind {
+		case usecase.KindID:
 			property["format"] = "uuid"
+		case usecase.KindIDList:
+			property["items"] = map[string]any{"type": "string", "format": "uuid"}
+		case usecase.KindList:
+			property["items"] = map[string]any{"type": "object"}
 		}
 		if len(field.Enum) > 0 {
 			property["enum"] = field.Enum
@@ -99,12 +104,20 @@ func InputSchema(fields []usecase.Field) map[string]any {
 // jsonType maps a declared kind onto the JSON Schema type. An identifier is a string with a
 // format rather than a type of its own - JSON Schema has no uuid type, and an agent that only
 // reads `type` still gets something it can satisfy.
+//
+// A list of identifiers is an array, and said so from here on. It was a string until B-12, which is
+// a shape no caller could satisfy: an agent that read the schema for `member_ids` was told to send
+// text and then refused for sending it.
 func jsonType(kind usecase.Kind) string {
 	switch kind {
 	case usecase.KindBool:
 		return "boolean"
 	case usecase.KindInt:
 		return "integer"
+	case usecase.KindObject:
+		return "object"
+	case usecase.KindIDList, usecase.KindList:
+		return "array"
 	default:
 		return "string"
 	}

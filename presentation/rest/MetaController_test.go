@@ -13,6 +13,7 @@ import (
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -38,8 +39,70 @@ func manifest() usecase.Capabilities {
 			AllowedChildTypes: []work.ItemType{work.ItemWorkPackage},
 			MaxDepth:          3,
 		}},
-		Limits:   map[string]int64{"max_body_bytes": 1 << 20},
-		Features: map[string]bool{"mail": false},
+		QueryFields: view.Fields(),
+		Limits:      map[string]int64{"max_body_bytes": 1 << 20},
+		Features:    map[string]bool{"mail": false},
+	}
+}
+
+// The manifest is what a client builds its filter editor from, so what it publishes has to be what
+// the grammar accepts: a field in the list that the grammar refuses would send a client to build a
+// query that cannot run (api-guidelines.md §3).
+func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
+	response := serveCapabilities(t, &capabilities{result: manifest()})
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
+	}
+
+	var body struct {
+		QueryFields []struct {
+			Field     string   `json:"field"`
+			Kind      string   `json:"kind"`
+			Operators []string `json:"operators"`
+			Values    []string `json:"values"`
+			Nullable  bool     `json:"nullable"`
+			Sortable  bool     `json:"sortable"`
+			Groupable bool     `json:"groupable"`
+		} `json:"query_fields"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("the manifest is not JSON: %v", err)
+	}
+	if len(body.QueryFields) != len(view.Fields()) {
+		t.Fatalf("%d fields published, %d in the grammar", len(body.QueryFields), len(view.Fields()))
+	}
+
+	published := map[string]bool{}
+	for _, field := range body.QueryFields {
+		published[field.Field] = true
+
+		declared, known := view.FieldByName(field.Field)
+		if !known {
+			t.Errorf("%s is published and the grammar refuses it", field.Field)
+			continue
+		}
+		if field.Kind != string(declared.Kind) || len(field.Operators) != len(declared.Operators) {
+			t.Errorf("%s is published as %+v", field.Field, field)
+		}
+		for _, operator := range field.Operators {
+			if !declared.Permits(view.Operator(operator)) {
+				t.Errorf("%s is published as accepting %s, and does not", field.Field, operator)
+			}
+		}
+	}
+
+	// The two shapes a client cannot guess: an enum's values, and a field that may only be ordered
+	// by. Both are in the manifest so that a filter editor does not have to hard-code them.
+	for _, field := range body.QueryFields {
+		if field.Field == view.FieldType && len(field.Values) != 3 {
+			t.Errorf("the item types are published as %v", field.Values)
+		}
+		if field.Field == view.FieldOrderKey && (len(field.Operators) != 0 || !field.Sortable) {
+			t.Errorf("the manual order is published as %+v", field)
+		}
+	}
+	if !published[view.FieldLabels] {
+		t.Error("the labels are missing from the manifest")
 	}
 }
 

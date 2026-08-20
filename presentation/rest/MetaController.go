@@ -84,6 +84,28 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		})
 	}
 
+	queryFields := make([]openapi.QueryField, 0, len(source.QueryFields))
+	for _, field := range source.QueryFields {
+		operators := make([]string, 0, len(field.Operators))
+		for _, operator := range field.Operators {
+			operators = append(operators, string(operator))
+		}
+
+		rendered := openapi.QueryField{
+			Field:     field.Name,
+			Kind:      openapi.QueryFieldKind(field.Kind),
+			Operators: operators,
+			Nullable:  field.Nullable,
+			Sortable:  field.Sortable,
+			Groupable: field.Groupable,
+		}
+		if len(field.Values) > 0 {
+			values := field.Values
+			rendered.Values = &values
+		}
+		queryFields = append(queryFields, rendered)
+	}
+
 	limits := make(map[string]any, len(source.Limits))
 	for name, value := range source.Limits {
 		limits[name] = value
@@ -99,6 +121,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		ApiVersion:     &apiVersion,
 		TenancyMode:    &tenancy,
 		ItemTypes:      &itemTypes,
+		QueryFields:    &queryFields,
 		Limits:         &limits,
 		Features:       &features,
 	}

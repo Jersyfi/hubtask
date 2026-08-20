@@ -160,9 +160,7 @@ func (r ActivityRepository) List(
 	}
 
 	kept, info := pageOf(entries, page.Size, r.cursors, func(entry domain.Entry) security.Position {
-		return security.Position{
-			SortKey: entry.OccurredAt.UTC().Format(time.RFC3339Nano), ID: entry.ID,
-		}
+		return security.At(entry.OccurredAt.UTC().Format(time.RFC3339Nano), entry.ID)
 	})
 	return repository.EntryPage{Entries: kept, Info: repository.PageInfo(info)}, nil
 }
@@ -187,7 +185,7 @@ func activityCursor(cursors security.CursorCodec, cursor string) (activityBounda
 	if err != nil {
 		return activityBoundary{}, err
 	}
-	occurredAt, err := time.Parse(time.RFC3339Nano, position.SortKey)
+	occurredAt, err := time.Parse(time.RFC3339Nano, position.SortKey())
 	if err != nil {
 		return activityBoundary{}, shared.ErrValidation.
 			WithDetail("shared.cursor_invalid").WithCause(err)

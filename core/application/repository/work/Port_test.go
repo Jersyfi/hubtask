@@ -87,6 +87,9 @@ func (itemDouble) Insert(context.Context, work.WorkItem) error           { retur
 func (itemDouble) SetArchived(context.Context, work.WorkItem, int) error { return nil }
 func (itemDouble) TrashSubtree(context.Context, ItemTrash) (int, error)  { return 0, nil }
 func (itemDouble) RestoreBatch(context.Context, ItemTrash) (int, error)  { return 0, nil }
+func (itemDouble) Query(context.Context, ItemSearch) (ItemQueryResult, error) {
+	return ItemQueryResult{}, nil
+}
 
 var _ Items = itemDouble{}
 
