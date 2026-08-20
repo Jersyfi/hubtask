@@ -493,6 +493,10 @@ func (h UpdateBucket) Descriptor() usecase.Descriptor {
 			Action: BucketUpdatedAction, TargetType: bucketTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "a board's columns are the collection's configuration. Nothing happened to any " +
+				"entry: what moved is where the columns sit, not what somebody did to their work.",
+		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
 }
@@ -572,6 +576,10 @@ func (h ReorderBucket) Descriptor() usecase.Descriptor {
 		Audit: usecase.AuditDeclaration{
 			Action: BucketReorderedAction, TargetType: bucketTarget,
 			Severity: audit.SeverityInfo, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "a board's columns are the collection's configuration. Nothing happened to any " +
+				"entry: what moved is where the columns sit, not what somebody did to their work.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

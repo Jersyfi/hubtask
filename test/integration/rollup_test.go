@@ -54,6 +54,7 @@ func completionCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry
 		Events:     postgres.NewOutbox(jobQueue(t)),
 		Changes:    postgres.NewChangeLog(),
 		Audit:      sink,
+		Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
 		UnitOfWork: unitOfWork,
 		Clock:      fixed,
 		IDs:        ids,

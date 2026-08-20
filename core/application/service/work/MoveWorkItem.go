@@ -16,6 +16,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -49,6 +50,7 @@ type PlacementWriter struct {
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
+	Activity   ActivityJournal
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -121,7 +123,7 @@ func (h MoveWorkItem) Execute(
 	if err != nil {
 		return MoveResult{}, err
 	}
-	return h.Placement.perform(ctx, actor, plan)
+	return h.Placement.perform(ctx, actor, plan, activity.ItemMoved)
 }
 
 // Execute reorders the item and returns it.
@@ -146,7 +148,7 @@ func (h ReorderWorkItem) Execute(
 		return domain.WorkItem{}, err
 	}
 
-	result, err := h.Placement.perform(ctx, actor, plan)
+	result, err := h.Placement.perform(ctx, actor, plan, activity.ItemReordered)
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
@@ -296,8 +298,12 @@ func (w PlacementWriter) read(ctx context.Context, cmd MoveWorkItemCommand) (pla
 }
 
 // perform writes the move inside one transaction.
+//
+// The verb comes from the use case rather than from what the plan turns out to change. A move that
+// happens to keep its parent is still somebody asking to move something, and a history that decided
+// the word for itself would tell a reader something different from what they did.
 func (w PlacementWriter) perform(
-	ctx context.Context, actor appshared.ActorContext, plan placement,
+	ctx context.Context, actor appshared.ActorContext, plan placement, verb activity.Verb,
 ) (MoveResult, error) {
 	var result MoveResult
 
@@ -343,7 +349,15 @@ func (w PlacementWriter) perform(
 			return err
 		}
 
-		result, err = w.write(ctx, actor, fresh, spot, orderKey, now)
+		// Off the hierarchy that was already built rather than through a second read of the
+		// profiles: it is the same two queries, and asking twice inside one transaction for an
+		// answer that cannot have changed is a round trip on every move.
+		profile, err := hierarchy.Profile(fresh.item.Type)
+		if err != nil {
+			return err
+		}
+
+		result, err = w.write(ctx, actor, fresh, spot, orderKey, verb, profile, now)
 		return err
 	})
 	if err != nil {
@@ -428,7 +442,8 @@ func (w PlacementWriter) rankAt(
 // the audit entry - all inside the caller's transaction (test AT-5).
 func (w PlacementWriter) write(
 	ctx context.Context, actor appshared.ActorContext, plan placement,
-	spot service.Placement, orderKey string, now time.Time,
+	spot service.Placement, orderKey string, verb activity.Verb,
+	profile domain.CapabilityProfile, now time.Time,
 ) (MoveResult, error) {
 	before := plan.item
 	expected := plan.command.ExpectedVersion
@@ -500,6 +515,9 @@ func (w PlacementWriter) write(
 	if err := w.recordAudit(ctx, before, after, actor, now); err != nil {
 		return MoveResult{}, err
 	}
+	if err := w.recordActivity(ctx, before, after, actor, verb, profile, now); err != nil {
+		return MoveResult{}, err
+	}
 
 	// Always present, and empty for a move that resolved everything: a client that iterates the
 	// losses should not have to nil-check the field (I-W6).
@@ -561,6 +579,38 @@ func (w PlacementWriter) recordAudit(
 			},
 		),
 	})
+}
+
+// recordActivity writes the step of the item's own history.
+//
+// Only what moved. A reorder that stayed put in every other respect records its rank and nothing
+// else, and a move that changed collection records the collection - so that the history of an entry
+// somebody drags around a board does not read as four identical steps.
+//
+// All of it is structure: identifiers and a rank, none of it the user's own text. The values
+// therefore travel, and what suppresses them is the compact form of a type that has no diff worth
+// showing (domain-model.md §2).
+func (w PlacementWriter) recordActivity(
+	ctx context.Context, before, after domain.WorkItem, actor appshared.ActorContext,
+	verb activity.Verb, profile domain.CapabilityProfile, now time.Time,
+) error {
+	moved := []domain.FieldChange{}
+	for _, field := range []struct {
+		name     string
+		from, to string
+	}{
+		{domain.FieldParentID, before.ParentID.String(), after.ParentID.String()},
+		{domain.FieldCollectionID, before.CollectionID.String(), after.CollectionID.String()},
+		{domain.FieldBucketID, before.BucketID.String(), after.BucketID.String()},
+		{domain.FieldOrderKey, before.OrderKey, after.OrderKey},
+	} {
+		if field.from != field.to {
+			moved = append(moved, domain.FieldChange{Field: field.name, From: field.from, To: field.to})
+		}
+	}
+
+	changeSet := activity.ChangeSet(historyForm(profile), historyFields(moved)...)
+	return w.Activity.record(ctx, actor, after, verb, changeSet, now)
 }
 
 // hierarchy builds the rules in force, the same way CreateWorkItem does and for the same reason: read off a
@@ -675,7 +725,8 @@ func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemMovedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemMoved},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -704,7 +755,8 @@ func (h ReorderWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemMovedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemReordered},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

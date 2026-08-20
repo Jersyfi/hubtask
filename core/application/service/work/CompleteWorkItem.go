@@ -16,6 +16,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -33,6 +34,11 @@ const (
 	// them and a SIEM rule matches on them (audit.md §2).
 	ItemCompletedAction audit.Action = "item.completed"
 	ItemReopenedAction  audit.Action = "item.reopened"
+
+	// rolledUp is what the history says of a completion that was a consequence rather than an act.
+	// A value rather than a second verb, because what happened is the same thing - the difference
+	// is who asked for it (I-W5).
+	rolledUp = "ROLL_UP"
 )
 
 // CompletionWriter is what both directions of completion need.
@@ -50,6 +56,7 @@ type CompletionWriter struct {
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
+	Activity   ActivityJournal
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -296,7 +303,37 @@ func (w CompletionWriter) write(
 	if err := w.recordAudit(ctx, before, after, actor, want, now); err != nil {
 		return domain.WorkItem{}, event.Envelope{}, err
 	}
+	if err := w.recordActivity(ctx, after, actor, want, cause, now); err != nil {
+		return domain.WorkItem{}, event.Envelope{}, err
+	}
 	return after, announcement, nil
+}
+
+// recordActivity writes the step of the item's own history.
+//
+// The change set carries one thing and only for the items above: whether this completion was
+// somebody's act or the consequence of one. "Why did this task become done?" is the question the
+// roll-up makes worth asking, and without it the history of a parent would show a completion its
+// reader never performed and cannot account for (observability-reliability.md §4).
+//
+// No form question here. A direct completion moves no field, so a compact history and a full one
+// would record the same thing - and a roll-up never reaches an activity, which has no children to
+// be rolled up from (domain-model.md §2).
+func (w CompletionWriter) recordActivity(
+	ctx context.Context, item domain.WorkItem, actor appshared.ActorContext,
+	want direction, cause event.Cause, now time.Time,
+) error {
+	verb := activity.ItemCompleted
+	if want == reopening {
+		verb = activity.ItemReopened
+	}
+
+	changeSet := verbIsTheChange()
+	if !cause.CausationID.IsZero() {
+		changeSet = activity.ChangeSet(activity.Full,
+			activity.Field{Name: "cause", Detail: activity.WithValues, To: rolledUp})
+	}
+	return w.Activity.record(ctx, actor, item, verb, changeSet, now)
 }
 
 func (w CompletionWriter) announce(
@@ -421,7 +458,8 @@ func (h CompleteWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemCompletedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemCompleted},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -439,7 +477,8 @@ func (h ReopenWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemReopenedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemReopened},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

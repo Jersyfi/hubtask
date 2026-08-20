@@ -12,6 +12,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -63,6 +64,7 @@ func (h RestoreWorkItem) Execute(
 var (
 	trashing = itemVerb{
 		action: ItemTrashedAction,
+		step:   activity.ItemTrashed,
 		// A fresh identifier per deletion, from the generator port rather than from time or chance
 		// (arc42 §8.13). It is what the whole subtree is stamped with and what a restore is keyed on.
 		batch: func(_ domain.WorkItem, ids clock.IDGenerator) shared.ID { return ids.NewID() },
@@ -81,6 +83,7 @@ var (
 	}
 	restoring = itemVerb{
 		action: ItemRestoredAction,
+		step:   activity.ItemRestored,
 		// The batch already on the row, read before the transition clears it. Restoring is an act on
 		// the deletion rather than on the entry, and the deletion is what the batch names.
 		batch: func(item domain.WorkItem, _ clock.IDGenerator) shared.ID { return item.TrashBatchID },
@@ -145,7 +148,8 @@ func (h TrashWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemTrashedAction, TargetType: itemTarget,
 			Severity: audit.SeverityNotice, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemTrashed},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -166,7 +170,8 @@ func (h RestoreWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemRestoredAction, TargetType: itemTarget,
 			Severity: audit.SeverityNotice, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemRestored},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

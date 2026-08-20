@@ -359,6 +359,11 @@ func (h TrashContainer) Descriptor() usecase.Descriptor {
 			Action: ContainerDeletedAction, TargetType: containerTarget,
 			Severity: audit.SeverityNotice, Required: true,
 		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "a container is not an item (domain-model.md §3.5), and its deletion is one act " +
+				"on the container. Written into every entry of the subtree it took with it, one " +
+				"act would become a thousand steps of history that all say the same thing.",
+		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
 }
@@ -378,6 +383,11 @@ func (h RestoreContainer) Descriptor() usecase.Descriptor {
 		Audit: usecase.AuditDeclaration{
 			Action: ContainerRestoredAction, TargetType: containerTarget,
 			Severity: audit.SeverityNotice, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "a container is not an item (domain-model.md §3.5), and its deletion is one act " +
+				"on the container. Written into every entry of the subtree it took with it, one " +
+				"act would become a thousand steps of history that all say the same thing.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

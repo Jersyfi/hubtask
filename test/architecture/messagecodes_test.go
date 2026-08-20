@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -53,7 +54,7 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 // error model, the health report's degradation reasons, or the load shedder's capacity refusals.
 // Narrow on purpose: only the prefixes that exist today, so that an example in a test comment
 // does not turn into a false alarm.
-var messageCode = regexp.MustCompile(`"((?:route|request|access|accounts|groups|memberships|idempotency|config|errors|dependency|capacity|containers|items|buckets|labels|ordering|events|sync|audit|usecase|shared|automation|lifecycle)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
+var messageCode = regexp.MustCompile(`"((?:route|request|access|accounts|groups|memberships|idempotency|config|errors|dependency|capacity|containers|items|buckets|labels|ordering|events|sync|audit|usecase|shared|automation|lifecycle|activity)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
 
 // TestEveryUsedMessageCodeIsInTheCatalogue reads the source rather than a registry: a code is
 // used where it is written, and a registry would only be a second place to forget.
@@ -171,4 +172,19 @@ func readAllSources(t *testing.T) string {
 		}
 	}
 	return b.String()
+}
+
+// The history's verbs are message codes too, and derived ones: `item.completed` is stored and
+// `activity.item_completed` is what a client renders (i18n-l10n.md §1). Derived means the literal
+// never appears in the source, so the check above cannot see them - and a verb whose key is
+// missing would reach a user as the key itself.
+func TestEveryActivityVerbHasItsMessage(t *testing.T) {
+	messages := loadCatalogue(t)
+
+	for _, verb := range activity.Verbs() {
+		if _, ok := messages[verb.MessageCode()]; !ok {
+			t.Errorf("the history verb %s has no message %s in locales/en.json",
+				verb, verb.MessageCode())
+		}
+	}
 }

@@ -282,6 +282,9 @@ const (
 	FieldTitle    = "title"
 	FieldNotes    = "notes"
 	FieldBucketID = "bucket_id"
+	// FieldCollectionID is not something an update may set - an item changes collection by being
+	// moved - but it is a field that moves, and the records of a move name it.
+	FieldCollectionID = "collection_id"
 )
 
 // ItemAttributes is what an update may change: the fields 0.2.0 owns.

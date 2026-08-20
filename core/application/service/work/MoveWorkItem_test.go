@@ -11,6 +11,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -32,6 +33,7 @@ type placementHarness struct {
 	events     *events
 	changes    *changes
 	audit      *sink
+	history    *journal
 	authorizer *authorizer
 	uow        *unitOfWork
 }
@@ -42,12 +44,13 @@ func newPlacementHarness() *placementHarness {
 
 	h := &placementHarness{
 		items: store, containers: containerStore,
-		events: &events{}, changes: &changes{}, audit: &sink{},
+		events: &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
 		authorizer: &authorizer{}, uow: &unitOfWork{},
 	}
 	h.writer = PlacementWriter{
 		Items: store, Containers: containerStore, Profiles: &profiles{rows: systemProfiles()},
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 	}
 
@@ -538,5 +541,85 @@ func TestAMoveThatDropsNothingReportsAnEmptyList(t *testing.T) {
 	}
 	if result.DroppedReferences == nil || len(result.DroppedReferences) != 0 {
 		t.Errorf("the losses are %+v, want an empty list", result.DroppedReferences)
+	}
+}
+
+// Only what moved. A reorder that stayed put in every other respect records its rank and nothing
+// else - a history of an entry somebody drags around a board should not read as four identical
+// steps naming the same parent each time.
+func TestAReorderRecordsTheRankAloneInTheHistory(t *testing.T) {
+	h := newPlacementHarness()
+	h.items.previousKey, h.items.nextKey = "a0", "a1"
+
+	if _, err := (ReorderWorkItem{Placement: h.writer}).
+		Execute(t.Context(), placementActor(), ReorderWorkItemCommand{ItemID: movedPackID}); err != nil {
+		t.Fatalf("reordering: %v", err)
+	}
+
+	step := h.history.only(t)
+	if step.Verb != activity.ItemReordered {
+		t.Fatalf("the history recorded %s, want %s", step.Verb, activity.ItemReordered)
+	}
+	if len(step.ChangeSet) != 1 || step.ChangeSet[domain.FieldOrderKey] == nil {
+		t.Errorf("the change set holds %v, want the rank alone", step.ChangeSet)
+	}
+}
+
+// And the same reorder on an activity keeps the verb and drops the detail: an activity has no field
+// a diff would be about, so its history says what happened and leaves the reading to the entry
+// itself (domain-model.md §2, "compact history for activities").
+func TestReorderingAnActivityRecordsACompactStep(t *testing.T) {
+	h := newPlacementHarness()
+	h.items.previousKey, h.items.nextKey = "a0", "a1"
+
+	if _, err := (ReorderWorkItem{Placement: h.writer}).
+		Execute(t.Context(), placementActor(), ReorderWorkItemCommand{ItemID: leafID}); err != nil {
+		t.Fatalf("reordering: %v", err)
+	}
+
+	step := h.history.only(t)
+	if step.Verb != activity.ItemReordered {
+		t.Fatalf("the history recorded %s", step.Verb)
+	}
+	if len(step.ChangeSet) != 0 {
+		t.Errorf("the compact step holds %v, want the verb alone", step.ChangeSet)
+	}
+}
+
+// A move across collections records the collection it went to, beside the parent - which is what
+// makes "where did this go?" answerable from the entry's own history rather than from the trail.
+//
+// The verb is the use case's rather than a reading of what changed: somebody asked to move this,
+// and a history that called it a reorder because the parent happened to stay would be telling them
+// something other than what they did.
+func TestAMoveRecordsWhatChangedUnderTheMoveVerb(t *testing.T) {
+	h := newPlacementHarness()
+	h.items.previousKey = "a0"
+	far := h.otherCollection()
+
+	before := h.items.stored[movedPackID]
+	if _, err := (MoveWorkItem{Placement: h.writer}).Execute(
+		t.Context(), placementActor(), MoveWorkItemCommand{
+			ItemID: movedPackID, TargetParentID: far.ID, ParentGiven: true,
+		}); err != nil {
+		t.Fatalf("the move was refused: %v", err)
+	}
+
+	step := h.history.only(t)
+	if step.Verb != activity.ItemMoved {
+		t.Fatalf("the history recorded %s, want %s", step.Verb, activity.ItemMoved)
+	}
+
+	parent, _ := step.ChangeSet[domain.FieldParentID].(map[string]any)
+	if parent["from"] != before.ParentID.String() || parent["to"] != far.ID.String() {
+		t.Errorf("the parent reads %v, want the two ends of the move", parent)
+	}
+	collection, _ := step.ChangeSet[domain.FieldCollectionID].(map[string]any)
+	if collection["to"] != far.CollectionID.String() {
+		t.Errorf("the collection reads %v, want the one it moved into", collection)
+	}
+	// The entry sits under a new parent, so its rank was worked out again at the destination.
+	if step.ChangeSet[domain.FieldOrderKey] == nil {
+		t.Errorf("the change set holds %v, want the rank the destination gave it", step.ChangeSet)
 	}
 }

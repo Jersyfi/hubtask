@@ -17,6 +17,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -75,6 +76,7 @@ type CreateWorkItem struct {
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
+	Activity   ActivityJournal
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -141,6 +143,12 @@ func (h CreateWorkItem) Execute(
 			return err
 		}
 		if err := h.recordAudit(ctx, item, actor, now); err != nil {
+			return err
+		}
+		// The first step of the entry's own history. No change set: nothing moved, the entry came
+		// into being, and everything a reader would want beside the verb is on the entry itself.
+		err = h.Activity.record(ctx, actor, item, activity.ItemCreated, verbIsTheChange(), now)
+		if err != nil {
 			return err
 		}
 
@@ -510,7 +518,8 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemCreatedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemCreated},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -30,6 +31,7 @@ type updateHarness struct {
 	events     *events
 	changes    *changes
 	audit      *sink
+	history    *journal
 	authorizer *authorizer
 	uow        *unitOfWork
 }
@@ -44,13 +46,14 @@ func newUpdateHarness() *updateHarness {
 	board := &buckets{stored: map[shared.ID]domain.Bucket{}}
 	h := &updateHarness{
 		items: store, buckets: board, containers: containerStore,
-		events: &events{}, changes: &changes{}, audit: &sink{},
+		events: &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
 		authorizer: &authorizer{}, uow: &unitOfWork{},
 	}
 	h.handler = UpdateWorkItem{
 		Items: store, Buckets: board, Containers: containerStore,
 		Profiles:   &profiles{rows: systemProfiles()},
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(updateNow), IDs: &ids{}, HLC: &hlcSource{},
 	}
 
@@ -679,5 +682,79 @@ func TestADeletedColumnCannotTakeAnEntry(t *testing.T) {
 	})
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Fatalf("a deleted column took an entry: %v", err)
+	}
+}
+
+// The history keeps what the audit trail deliberately does not. A rename means nothing without both
+// titles, and the trail records them as hashes because it outlives the item; the history is deleted
+// with the item and can therefore say what a person opening it wants to read (audit.md §1).
+func TestTheHistoryKeepsBothTitlesAndOnlyThatTheNoteChanged(t *testing.T) {
+	h := newUpdateHarness()
+
+	_, err := h.handler.Execute(t.Context(), actorFixture(), UpdateCommand{
+		ItemID: packageID,
+		Attributes: domain.ItemAttributes{
+			Title: said("Order the longer cable"),
+			Notes: said("Five metres, and the right connector this time."),
+		},
+	})
+	if err != nil {
+		t.Fatalf("the update was refused: %v", err)
+	}
+
+	step := h.history.only(t)
+	if step.Verb != activity.ItemUpdated || step.ItemID != packageID {
+		t.Fatalf("the history recorded %s about %s", step.Verb, step.ItemID)
+	}
+
+	title, _ := step.ChangeSet[domain.FieldTitle].(map[string]any)
+	if title["from"] != "Order the cable" || title["to"] != "Order the longer cable" {
+		t.Errorf("the rename reads %v, want both titles", title)
+	}
+
+	// The other way round for the note: a note can be a page of text, and its history is that
+	// somebody edited it.
+	notes, _ := step.ChangeSet[domain.FieldNotes].(map[string]any)
+	if notes["changed"] != true || len(notes) != 1 {
+		t.Errorf("the note reads %v, want that it changed and nothing else", notes)
+	}
+}
+
+// "Compact history for activities" (the capability matrix, domain-model.md §2): the verb, the actor
+// and the time, without the fields that moved. An activity carries none of the fields a diff would
+// be about, so its history says what happened and leaves the reading of it to the entry itself.
+func TestAnActivitysHistoryIsCompact(t *testing.T) {
+	h := newUpdateHarness()
+
+	if _, err := h.handler.Execute(t.Context(), actorFixture(), UpdateCommand{
+		ItemID:     activityID,
+		Attributes: domain.ItemAttributes{Title: said("Semi-skimmed, two litres")},
+	}); err != nil {
+		t.Fatalf("the update was refused: %v", err)
+	}
+
+	step := h.history.only(t)
+	if step.Verb != activity.ItemUpdated {
+		t.Fatalf("the history recorded %s", step.Verb)
+	}
+	if len(step.ChangeSet) != 0 {
+		t.Errorf("the compact history holds %v, want the verb alone", step.ChangeSet)
+	}
+}
+
+// An update that asks for what is already stored writes nothing, and that includes the history: a
+// client echoing the whole object back must not fill a history with steps in which nothing happened.
+func TestAnUpdateThatChangesNothingLeavesNoStepInTheHistory(t *testing.T) {
+	h := newUpdateHarness()
+
+	stored := h.items.stored[packageID]
+	if _, err := h.handler.Execute(t.Context(), actorFixture(), UpdateCommand{
+		ItemID: packageID, Attributes: domain.ItemAttributes{Title: said(stored.Title)},
+	}); err != nil {
+		t.Fatalf("the update was refused: %v", err)
+	}
+
+	if len(h.history.entries) != 0 {
+		t.Errorf("the history holds %v, want nothing", h.history.verbs())
 	}
 }

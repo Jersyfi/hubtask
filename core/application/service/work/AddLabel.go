@@ -15,6 +15,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -50,6 +51,7 @@ type ItemLabelWriter struct {
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
+	Activity   ActivityJournal
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -247,7 +249,30 @@ func (w ItemLabelWriter) announce(
 	if err := w.recordChange(ctx, item, collection, actor, labelID, want, tag); err != nil {
 		return err
 	}
-	return w.recordAudit(ctx, item, actor, labelID, want, now)
+	if err := w.recordAudit(ctx, item, actor, labelID, want, now); err != nil {
+		return err
+	}
+	return w.recordActivity(ctx, item, actor, labelID, want, now)
+}
+
+// recordActivity writes the step of the entry's own history.
+//
+// The label travels as the side it moved to: `to` for an addition, `from` for a removal, so that
+// the change set reads the same way round as the verb. No form question here - a type without the
+// LABELS capability has no labels to add, so an entry that reaches this point is one whose history
+// keeps its detail (domain-model.md §2).
+func (w ItemLabelWriter) recordActivity(
+	ctx context.Context, item domain.WorkItem, actor appshared.ActorContext,
+	labelID shared.ID, want labelDirection, now time.Time,
+) error {
+	field := activity.Field{Name: "label_id", Detail: activity.WithValues, To: labelID.String()}
+	verb := activity.ItemLabelAdded
+	if want == removing {
+		field = activity.Field{Name: "label_id", Detail: activity.WithValues, From: labelID.String()}
+		verb = activity.ItemLabelRemoved
+	}
+
+	return w.Activity.record(ctx, actor, item, verb, activity.ChangeSet(activity.Full, field), now)
 }
 
 // recordChange writes what an offline client has to be told.
@@ -411,7 +436,8 @@ func (h AddLabel) Descriptor() usecase.Descriptor {
 			Action: ItemLabelAddedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemLabelAdded},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -455,7 +481,8 @@ func (h RemoveLabel) Descriptor() usecase.Descriptor {
 			Action: ItemLabelRemovedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemLabelRemoved},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

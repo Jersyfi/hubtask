@@ -209,6 +209,11 @@ func (pending) UpdateWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// ListActivity is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ListActivity(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ListActivityParams) {
+	notAvailable(w, r)
+}
+
 func (pending) ListComments(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ListCommentsParams) {
 	notAvailable(w, r)
 }

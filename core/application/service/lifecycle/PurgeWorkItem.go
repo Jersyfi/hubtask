@@ -230,6 +230,11 @@ func (h PurgeWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemPurgedAction, TargetType: itemTarget,
 			Severity: audit.SeverityWarning, Required: true,
 		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "the history goes with what it describes. `activity_entry` cascades on the item, so " +
+				"a purge removes an entry's history in the same statement - there is nothing left " +
+				"to write a step to.",
+		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
 }
@@ -252,6 +257,11 @@ func (h EmptyTrash) Descriptor() usecase.Descriptor {
 		Audit: usecase.AuditDeclaration{
 			Action: TrashEmptiedAction, TargetType: trashTarget,
 			Severity: audit.SeverityWarning, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "the history goes with what it describes. `activity_entry` cascades on the item, so " +
+				"a purge removes an entry's history in the same statement - there is nothing left " +
+				"to write a step to.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}

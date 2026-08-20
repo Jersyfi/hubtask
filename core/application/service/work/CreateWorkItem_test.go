@@ -12,6 +12,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -330,6 +331,7 @@ type itemHarness struct {
 	events     *events
 	changes    *changes
 	audit      *sink
+	history    *journal
 	authorizer *authorizer
 	uow        *unitOfWork
 }
@@ -344,12 +346,14 @@ func newItemHarness() *itemHarness {
 		events:     &events{},
 		changes:    &changes{},
 		audit:      &sink{},
+		history:    &journal{},
 		authorizer: &authorizer{},
 		uow:        &unitOfWork{},
 	}
 	h.handler = CreateWorkItem{
 		Items: store, Containers: containerStore, Profiles: h.profiles,
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 	}
 
@@ -429,22 +433,22 @@ func TestTheThreeLevelsCanAllBeCreated(t *testing.T) {
 		t.Errorf("unexpected work package: %+v", pkg)
 	}
 
-	activity, err := h.handler.Execute(ctx, itemActor(), CreateWorkItemCommand{
+	leaf, err := h.handler.Execute(ctx, itemActor(), CreateWorkItemCommand{
 		Type: domain.ItemActivity, CollectionID: collectionID, ParentID: pkg.ID,
 		Title: "Semi-skimmed, two litres",
 	})
 	if err != nil {
 		t.Fatalf("the activity: %v", err)
 	}
-	if activity.Depth != 3 || activity.ParentID != pkg.ID {
-		t.Errorf("unexpected activity: %+v", activity)
+	if leaf.Depth != 3 || leaf.ParentID != pkg.ID {
+		t.Errorf("unexpected activity: %+v", leaf)
 	}
 
 	// The subtree is what the paths say it is, and that is what every later query rests on.
-	if !hasPrefix(pkg.Path, task.Path) || !hasPrefix(activity.Path, pkg.Path) {
-		t.Errorf("the paths do not nest: %q, %q, %q", task.Path, pkg.Path, activity.Path)
+	if !hasPrefix(pkg.Path, task.Path) || !hasPrefix(leaf.Path, pkg.Path) {
+		t.Errorf("the paths do not nest: %q, %q, %q", task.Path, pkg.Path, leaf.Path)
 	}
-	if task.CollectionID != collectionID || activity.CollectionID != collectionID {
+	if task.CollectionID != collectionID || leaf.CollectionID != collectionID {
 		t.Error("the collection is not carried down the subtree")
 	}
 }
@@ -453,8 +457,8 @@ func hasPrefix(path, prefix string) bool {
 	return len(path) > len(prefix) && path[:len(prefix)] == prefix
 }
 
-// One write owes four things, and this is the test that says so.
-func TestCreatingAnItemWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
+// One write owes five things, and this is the test that says so.
+func TestCreatingAnItemWritesTheRowTheEventTheChangeTheEntryAndTheHistory(t *testing.T) {
 	h := newItemHarness()
 	ctx := correlation.ContextWithRequestID(context.Background(), "01J9REQUEST")
 
@@ -511,6 +515,23 @@ func TestCreatingAnItemWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 	if entry.Context.RequestID != "01J9REQUEST" {
 		t.Errorf("request id = %q", entry.Context.RequestID)
 	}
+
+	// The first step of the entry's own history. No change set: nothing moved, the entry came into
+	// being, and a diff of every field against nothing would be the item written out twice.
+	step := h.history.only(t)
+	switch {
+	case step.Verb != activity.ItemCreated:
+		t.Errorf("the history recorded %s, want %s", step.Verb, activity.ItemCreated)
+	case step.ItemID != item.ID || step.TenantID != tenantID:
+		t.Errorf("the step is about %s in %s", step.ItemID, step.TenantID)
+	case step.CollectionID != collectionID:
+		t.Errorf("the step is filed under %s rather than the collection", step.CollectionID)
+	case step.Actor.ID != accountID || step.Actor.Kind != shared.ActorUser:
+		t.Errorf("the actor reads %+v", step.Actor)
+	case len(step.ChangeSet) != 0:
+		t.Errorf("the change set holds %v, want nothing", step.ChangeSet)
+	}
+
 	if !h.uow.committed {
 		t.Error("the transaction did not commit")
 	}

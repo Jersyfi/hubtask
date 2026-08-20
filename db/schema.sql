@@ -364,6 +364,8 @@ CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
 CREATE TABLE activity_entry (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  -- nullable, and the key below is MATCH SIMPLE: container_id is there for a container's own
+  -- history, which has no reader yet. An entry without an item is refused by the domain.
   item_id      uuid,
   container_id uuid,
   actor_type   text NOT NULL CHECK (actor_type IN ('USER','SERVICE_ACCOUNT','AUTOMATION','AI_AGENT','SYSTEM')),
@@ -372,9 +374,14 @@ CREATE TABLE activity_entry (
   change_set   jsonb NOT NULL DEFAULT '{}'::jsonb,
   occurred_at  timestamptz NOT NULL DEFAULT now(),
   correlation_id uuid,
-  causation_id   uuid
+  causation_id   uuid,
+  -- The deletion path the data catalogue declares: the history goes with the item it is about.
+  CONSTRAINT activity_entry_item_id_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
-CREATE INDEX activity_item_idx ON activity_entry (tenant_id, item_id, occurred_at DESC);
+-- A page is read newest first within one item and continues after a boundary, so the tie-break
+-- belongs in the index rather than in a sort.
+CREATE INDEX activity_page_idx ON activity_entry (tenant_id, item_id, occurred_at DESC, id DESC);
 
 CREATE TABLE media_object (
   id          uuid PRIMARY KEY,

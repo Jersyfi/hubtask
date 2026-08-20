@@ -14,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -48,6 +49,7 @@ type LifecycleWriter struct {
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
+	Activity   ActivityJournal
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -105,6 +107,11 @@ func (h UnarchiveWorkItem) Execute(
 // true)` would say nothing about either.
 type itemVerb struct {
 	action audit.Action
+	// step is what the entry's own history records. Beside the audit code rather than derived from
+	// it: the two vocabularies are different by design - the trail is filtered on by an auditor, the
+	// history is rendered to a person - and a mapping between them would be a third place for them
+	// to drift (audit.md §1).
+	step activity.Verb
 	// batch names the deletion this verb acts on: a fresh identifier on the way into the trash, the
 	// one already on the row on the way out, and none at all for the archive verbs, which are not
 	// about a deletion. Nil where there is none - the writer then passes the zero identifier, and
@@ -133,6 +140,7 @@ type itemVerb struct {
 var (
 	archiving = itemVerb{
 		action: ItemArchivedAction,
+		step:   activity.ItemArchived,
 		apply: func(item domain.WorkItem, now time.Time, _ shared.ID) (domain.WorkItem, []domain.FieldChange, error) {
 			return item.Archived(now)
 		},
@@ -142,6 +150,7 @@ var (
 	}
 	unarchiving = itemVerb{
 		action: ItemUnarchivedAction,
+		step:   activity.ItemUnarchived,
 		apply: func(item domain.WorkItem, now time.Time, _ shared.ID) (domain.WorkItem, []domain.FieldChange, error) {
 			return item.Unarchived(now)
 		},
@@ -318,6 +327,9 @@ func (w LifecycleWriter) write(
 	if err := w.recordAudit(ctx, after, actor, verb, touched, now); err != nil {
 		return domain.WorkItem{}, err
 	}
+	if err := w.recordActivity(ctx, after, actor, verb, now); err != nil {
+		return domain.WorkItem{}, err
+	}
 	if verb.schedulesRetention {
 		if err := scheduleRetention(ctx, w.Queue, after.TenantID); err != nil {
 			return domain.WorkItem{}, err
@@ -372,6 +384,23 @@ func (w LifecycleWriter) recordChange(
 		HLC:         w.HLC.Next(),
 		Payload:     snapshot,
 	})
+}
+
+// recordActivity writes the step of the entry's own history.
+//
+// The verb is the whole of it: archiving an entry is what happened, and a diff of the stamp it
+// wrote would say the same thing a second time in a worse way. That also makes the form question
+// moot - a compact history and a full one record the same step here (domain-model.md §2).
+//
+// One step for the entry the caller named, and none for the subtree a deletion took with it. The
+// subtree went as one act, and a history entry on each of four hundred descendants would be four
+// hundred steps nobody performed - the entry above them is where the act is recorded, and it is
+// the one somebody will look at.
+func (w LifecycleWriter) recordActivity(
+	ctx context.Context, item domain.WorkItem, actor appshared.ActorContext,
+	verb itemVerb, now time.Time,
+) error {
+	return w.Activity.record(ctx, actor, item, verb.step, verbIsTheChange(), now)
 }
 
 // recordAudit writes the evidence.
@@ -463,7 +492,8 @@ func (h ArchiveWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemArchivedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemArchived},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 
@@ -480,7 +510,8 @@ func (h UnarchiveWorkItem) Descriptor() usecase.Descriptor {
 			Action: ItemUnarchivedAction, TargetType: itemTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
-		Handler: usecase.HandlerFunc(h.invoke),
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemUnarchived},
+		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
 

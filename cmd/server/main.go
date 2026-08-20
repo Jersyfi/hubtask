@@ -233,6 +233,9 @@ func run() error {
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
 	trash := postgres.NewTrashRepository(cursors)
+	// The item history. One repository for both halves of the port - the append every writer makes
+	// and the page ListActivity reads (B-11).
+	history := postgres.NewActivityRepository(cursors)
 	lifecycleStore := postgres.NewLifecycleRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
@@ -241,21 +244,27 @@ func run() error {
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
+	// What every writer of an entry needs in order to leave a step in its history. Held as one
+	// value rather than two fields per writer, so that what the history says about a change cannot
+	// depend on which use case made it (work.ActivityJournal).
+	journal := work.ActivityJournal{Entries: history, IDs: ids}
+
 	// Both directions of completion share one dependency set. The two operations are the same walk in
 	// opposite directions, and wiring them separately would be two places to get one of eleven fields
 	// wrong (work.CompletionWriter).
 	completion := work.CompletionWriter{
 		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
-		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
 	// reorder is a move that keeps its parent (work.PlacementWriter).
 	placement := work.PlacementWriter{
-		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles, Authorizer: authorizer,
-		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
+		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		HLC: hybrid,
 	}
 
 	// One engine behind every path that removes for good: a person purging an entry, a person
@@ -273,8 +282,8 @@ func run() error {
 	// (work.LifecycleWriter).
 	itemLifecycle := work.LifecycleWriter{
 		Items: items, Containers: containers, Authorizer: authorizer,
-		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Queue: jobs,
+		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Queue: jobs,
 	}
 
 	// Every verb that changes an existing container shares one dependency set: they read the same
@@ -311,8 +320,8 @@ func run() error {
 	itemLabelWriter := work.ItemLabelWriter{
 		Items: items, ItemLabels: itemLabels, Labels: labels, Containers: containers,
 		Profiles: profiles, Authorizer: authorizer, Events: outbox, Changes: changes,
-		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-		HLC: hybrid,
+		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
 	useCases, err := usecase.NewRegistry(
@@ -365,6 +374,7 @@ func run() error {
 			Events:     outbox,
 			Changes:    changes,
 			Audit:      auditSink,
+			Activity:   journal,
 			UnitOfWork: unitOfWork,
 			Clock:      clockadapter.System{},
 			IDs:        ids,
@@ -379,6 +389,7 @@ func run() error {
 			Events:     outbox,
 			Changes:    changes,
 			Audit:      auditSink,
+			Activity:   journal,
 			UnitOfWork: unitOfWork,
 			Clock:      clockadapter.System{},
 			IDs:        ids,
@@ -444,6 +455,10 @@ func run() error {
 		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListActivity{
+			History: history, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),

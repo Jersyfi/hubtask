@@ -21,6 +21,7 @@ import (
 	"unicode"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
@@ -56,6 +57,20 @@ type AuditDeclaration struct {
 	Required   bool
 }
 
+// ActivityDeclaration is what the item's own history records for this use case
+// (domain-model.md §3.5, audit.md §1).
+//
+// Every work-management use case that writes declares one of the two, and the architecture gate
+// refuses a third state. A verb is what the history records; an exemption is a reason, in prose,
+// that this change leaves no step in an item's history - and it is a field rather than a list in a
+// test file because the reason belongs where the use case is, next to the person adding the next
+// one.
+type ActivityDeclaration struct {
+	Verb activity.Verb
+	// Exempt is why this use case writes no history entry. Empty where it writes one.
+	Exempt string
+}
+
 // Descriptor is one entry of the catalogue.
 type Descriptor struct {
 	// Name is the stable use case name in PascalCase, as the catalogue in domain-model.md §5
@@ -74,9 +89,10 @@ type Descriptor struct {
 	ReadOnly    bool
 	Destructive bool
 
-	Input   []Field
-	Audit   AuditDeclaration
-	Handler Handler
+	Input    []Field
+	Audit    AuditDeclaration
+	Activity ActivityDeclaration
+	Handler  Handler
 }
 
 // RESTOperation is the operationId in api/openapi.yaml: the name in lowerCamelCase.
@@ -147,6 +163,13 @@ func check(d Descriptor) error {
 	case d.Audit.Required && (d.Audit.Action == "" || d.Audit.TargetType == ""):
 		// Gate SG-13, at the earliest moment it can be checked.
 		return incomplete("audit")
+	case d.Activity.Verb != "" && d.Activity.Exempt != "":
+		// A use case that both writes a history entry and explains why it writes none has had two
+		// people answer the same question. Which of the two is true is not for the registry to
+		// guess, so it refuses at startup rather than picking one.
+		return incomplete("activity")
+	case d.Activity.Verb != "" && !d.Activity.Verb.Valid():
+		return incomplete("activity verb " + string(d.Activity.Verb))
 	}
 
 	seen := make(map[string]bool, len(d.Input))

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -31,6 +32,7 @@ type completionHarness struct {
 	events     *events
 	changes    *changes
 	audit      *sink
+	history    *journal
 	authorizer *authorizer
 	uow        *unitOfWork
 }
@@ -44,12 +46,13 @@ func newCompletionHarness(policy domain.CompletionPolicy) *completionHarness {
 
 	h := &completionHarness{
 		items: store, containers: containerStore,
-		events: &events{}, changes: &changes{}, audit: &sink{},
+		events: &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
 		authorizer: &authorizer{}, uow: &unitOfWork{},
 	}
 	h.writer = CompletionWriter{
 		Items: store, Containers: containerStore, Profiles: &profiles{rows: systemProfiles()},
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 	}
 
@@ -517,5 +520,62 @@ func TestBothDirectionsDeclareTheirAudit(t *testing.T) {
 	forward, back := CompleteWorkItem{}.Descriptor(), ReopenWorkItem{}.Descriptor()
 	if forward.Audit.Action == back.Audit.Action {
 		t.Error("both directions record the same audit action")
+	}
+}
+
+// "Why did this task become done?" is the question a roll-up makes worth asking, and the history is
+// where it is answered: the entry somebody completed reads as their act, and the ones above it say
+// they followed from it (observability-reliability.md §4, I-W5).
+func TestARollUpSaysSoInTheHistoryOfTheEntriesAbove(t *testing.T) {
+	h := newCompletionHarness(domain.CompletionRollup)
+	h.alreadyDone(otherActID)
+	h.summarise(packageID, 2, 2)
+	h.summarise(taskID, 1, 1)
+
+	if _, err := (CompleteWorkItem{Completion: h.writer}).
+		Execute(t.Context(), actorFixture(), CompletionCommand{ItemID: activityID}); err != nil {
+		t.Fatalf("completing the activity: %v", err)
+	}
+
+	if len(h.history.entries) != 3 {
+		t.Fatalf("the history holds %d steps for %v, want one per entry touched",
+			len(h.history.entries), h.touched())
+	}
+
+	// The act itself, and then the two consequences.
+	act := h.history.entries[0]
+	if act.Verb != activity.ItemCompleted || act.ItemID != activityID {
+		t.Errorf("the first step is %s about %s", act.Verb, act.ItemID)
+	}
+	if len(act.ChangeSet) != 0 {
+		t.Errorf("the act carries %v, want the verb alone", act.ChangeSet)
+	}
+
+	for _, step := range h.history.entries[1:] {
+		cause, _ := step.ChangeSet["cause"].(map[string]any)
+		if cause["to"] != "ROLL_UP" {
+			t.Errorf("the step about %s reads %v, want a roll-up", step.ItemID, step.ChangeSet)
+		}
+		// Attributed to whoever completed the child: the roll-up is their action's consequence, and
+		// a step naming the system would hide who caused it.
+		if step.Actor.ID != accountID {
+			t.Errorf("the roll-up is attributed to %s", step.Actor.ID)
+		}
+	}
+}
+
+// Reopening is the same walk in the other direction, and the history says which way it went - a
+// verb that covered both would leave a reader unable to tell a completion from its undoing.
+func TestReopeningRecordsItsOwnVerb(t *testing.T) {
+	h := newCompletionHarness(domain.CompletionManual)
+	h.alreadyDone(activityID)
+
+	if _, err := (ReopenWorkItem{Completion: h.writer}).
+		Execute(t.Context(), actorFixture(), CompletionCommand{ItemID: activityID}); err != nil {
+		t.Fatalf("reopening: %v", err)
+	}
+
+	if step := h.history.only(t); step.Verb != activity.ItemReopened {
+		t.Errorf("the history recorded %s, want %s", step.Verb, activity.ItemReopened)
 	}
 }

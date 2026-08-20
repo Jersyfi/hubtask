@@ -27,14 +27,14 @@ func (h *lifecycleHarness) withSubtree() (domain.WorkItem, domain.WorkItem) {
 		ParentID: taskID, Path: task.ChildPath(packageID), Depth: 2, Title: "Dairy aisle",
 		OrderKey: "a0", CreatedBy: accountID, CreatedAt: now, UpdatedAt: now, Version: 1,
 	}
-	activity := domain.WorkItem{
+	leaf := domain.WorkItem{
 		ID: activityID, TenantID: tenantID, CollectionID: collectionID, Type: domain.ItemActivity,
 		ParentID: packageID, Path: pack.ChildPath(activityID), Depth: 3, Title: "Milk",
 		OrderKey: "a0", CreatedBy: accountID, CreatedAt: now, UpdatedAt: now, Version: 1,
 	}
 	h.items.stored[packageID] = pack
-	h.items.stored[activityID] = activity
-	return pack, activity
+	h.items.stored[activityID] = leaf
+	return pack, leaf
 }
 
 // One deletion takes the subtree with it under one batch, and says how much it took (I-C2).

@@ -293,6 +293,11 @@ func (h MoveContainer) Descriptor() usecase.Descriptor {
 			Action: ContainerMovedAction, TargetType: containerTarget,
 			Severity: audit.SeverityInfo, Required: true,
 		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "a container is not an item, and the history is an item's: `ActivityEntry` is " +
+				"keyed on `itemId` (domain-model.md §3.5) and `/items/{id}/activity` is its only " +
+				"reader. A container's own history has nowhere to be read from yet.",
+		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
 }
