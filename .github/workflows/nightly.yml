@@ -177,26 +177,34 @@ jobs:
         run: echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - name: Is there a published build to scan?
         id: published
-        # `:latest` is pushed by release.yml on a `v*` tag, and until the first release there is
-        # nothing under that name. Failing the nightly on that would be a red run that says
-        # "no release yet" - a signal nobody can act on, repeated every night, which is how a
-        # nightly stops being read. Skipping is only acceptable because it is announced: the
-        # notice below appears in the run summary, and govulncheck above still scans the source.
+        # The floating tags are two audiences (versioning-release.md §5): `latest` is the stable
+        # release, `:rc` is the candidate somebody asks for on purpose. The scan wants whichever
+        # published image is newest, and a repository that has only ever cut a pre-release has an
+        # image under `:rc` and nothing under `:latest` - which is the state this repository was
+        # in when the scan quietly skipped its first night after the first published build.
+        #
+        # Skipping when neither exists stays right, and stays announced: failing the nightly on
+        # "no release yet" would be a red run nobody can act on, repeated every night, which is
+        # how a nightly stops being read. `govulncheck` above scans the source either way.
         env:
           # `docker manifest` is still gated behind the experimental flag on some CLI builds.
           DOCKER_CLI_EXPERIMENTAL: enabled
         run: |
-          if docker manifest inspect "ghcr.io/$IMAGE_NAME:latest" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No ghcr.io/$IMAGE_NAME:latest yet - the image scan is skipped until the first release."
-          fi
+          for tag in latest rc; do
+            if docker manifest inspect "ghcr.io/$IMAGE_NAME:$tag" >/dev/null 2>&1; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "reference=ghcr.io/$IMAGE_NAME:$tag" >> "$GITHUB_OUTPUT"
+              echo "::notice::Scanning ghcr.io/$IMAGE_NAME:$tag."
+              exit 0
+            fi
+          done
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::Neither ghcr.io/$IMAGE_NAME:latest nor :rc exists yet - the image scan is skipped until the first release."
       - name: Image scan
         if: steps.published.outputs.exists == 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ghcr.io/${{ env.IMAGE_NAME }}:latest
+          image-ref: ${{ steps.published.outputs.reference }}
           format: sarif
           output: trivy.sarif
           severity: CRITICAL,HIGH
