@@ -43,6 +43,29 @@ Let's Encrypt validates.
 * **No production hardening of PostgreSQL.** It is a container with a local volume and
   `sslmode=disable` inside the cluster. Production is D-1 and D-2, and both are open on purpose.
 
+## What an RT-8 run leaves behind
+
+RT-8 needs an empty database at the previous schema, and it gets one by adding rather than
+deleting — the environment's own database is never touched. So a run leaves these behind, and they
+are listed here because state nobody wrote down is state nobody dares remove:
+
+| | |
+|---|---|
+| `hubtask_rt8` | a second database in the same PostgreSQL, holding the run's items |
+| `hubtask-secrets-rt8` | the secret pointing at it |
+| `ghcr.io/jersyfi/hubtask:rt8-*` | images imported into containerd for the run, never pushed anywhere |
+
+They are the fixtures for the next run, so leaving them is reasonable. Removing them is:
+
+```bash
+kubectl -n hubtask exec -i hubtask-db-0 -- psql -U hubtask -d postgres -c 'DROP DATABASE hubtask_rt8'
+kubectl -n hubtask delete secret hubtask-secrets-rt8
+k3s ctr images ls -q | grep ':rt8-' | xargs -r k3s ctr images rm
+```
+
+The environment itself is unaffected either way: it runs against `hubtask`, and the values file is
+what says so.
+
 ## Rotating the deploy credential
 
 The token in GitHub is the only credential this environment hands out, and it is one object:
