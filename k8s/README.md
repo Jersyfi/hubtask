@@ -63,9 +63,19 @@ rolling update under load is not, because it needs a cluster. It stays a manual 
 release, and observability-reliability.md §12 keeps it in the nightly column rather than the
 per-pull-request one.
 
+The load generator is [`test/resilience/rt8`](../test/resilience/rt8/main.go). It writes, reads
+back what it wrote, and looks for all of it again at the end, because "no 5xx" and "no data loss"
+are two questions and only the first one can be answered by watching.
+
 ```bash
-# 1. A load generator against the API, for the length of the rollout.
-# 2. The rollout itself:
+# 1. The load, for longer than the rollout will take. It needs a collection to write into and
+#    several tokens, each of which carries its own rate budget (deployment.md §6.1) - one
+#    credential would spend its budget in seconds and be refused for the rest of the run.
+HUBTASK_TOKEN="<token>,<token>,..." go run ./test/resilience/rt8 \
+  --url https://api.integration.hubtask.eu --collection <uuid> \
+  --duration 6m --workers 8 --rate 40 --out rt8.json &
+
+# 2. The rollout, while that runs.
 helm upgrade hubtask oci://ghcr.io/jersyfi/charts/hubtask --version <new> --reuse-values
 kubectl rollout status deployment/hubtask-api --timeout=10m
 
@@ -74,6 +84,12 @@ kubectl exec deploy/hubtask-api -- wget -qO- localhost:9090/metrics \
   | grep 'hubtask_http_requests_total{.*status_class="5xx"'
 kubectl get pods -l app.kubernetes.io/instance=hubtask
 ```
+
+The run is only worth anything if the two versions differ in their schema. A rollout between two
+builds of the same migration state exercises the readiness gate and the grace period and says
+nothing at all about expand/contract — which is the property the whole thing exists to check.
+
+Results live in [`docs/evidence/`](../docs/evidence/), dated, one file per run.
 
 The three things that make it pass are in the chart already: `maxUnavailable: 0` with a readiness
 gate, a `PodDisruptionBudget`, and a grace period longer than the longest job. What it proves is
