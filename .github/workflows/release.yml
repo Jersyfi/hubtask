@@ -35,9 +35,13 @@ jobs:
 
       - name: Whether this tag is a pre-release, and the tags that follow from it
         # A semver pre-release carries a hyphen: v0.2.0-rc.1. It is built, signed and published
-        # like any other version — what it must not do is move a floating tag. `latest` is what
-        # somebody gets who pins nothing (deployment.md §1), and handing a release candidate to
-        # that person is how an environment ends up on a version nobody chose.
+        # like any other version, and it moves a floating tag — just not the same one.
+        #
+        # versioning-release.md §5: a pre-release is `X.Y.Z-rc.N` with the image tag `:rc`. The two
+        # floating tags are two audiences. `latest` is what somebody gets who pins nothing
+        # (deployment.md §1), and handing that person a release candidate is how an installation
+        # ends up on a version nobody chose. `:rc` is what somebody asks for on purpose, and
+        # leaving it unset would mean the convention exists on paper and nowhere else.
         run: |
           if [ "${GITHUB_REF_NAME#*-}" != "${GITHUB_REF_NAME}" ]; then
             echo "PRERELEASE=true" >> "$GITHUB_ENV"
@@ -49,6 +53,8 @@ jobs:
             echo "ghcr.io/${IMAGE_NAME}:${GITHUB_REF_NAME}"
             if [ "${GITHUB_REF_NAME#*-}" = "${GITHUB_REF_NAME}" ]; then
               echo "ghcr.io/${IMAGE_NAME}:latest"
+            else
+              echo "ghcr.io/${IMAGE_NAME}:rc"
             fi
             echo TAGS
           } >> "$GITHUB_ENV"
