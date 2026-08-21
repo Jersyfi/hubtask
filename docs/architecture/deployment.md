@@ -184,6 +184,7 @@ Everything else has a self-hosting default:
 | `HUBTASK_TENANCY_MODE` | `single` | `single` for self-hosting, `multi` for provider operation (ADR-0010) |
 | `HUBTASK_LOG_FORMAT` / `HUBTASK_LOG_LEVEL` | `json` / `info` | `json` or `text`; `debug`, `info`, `warn`, `error` |
 | `HUBTASK_SHUTDOWN_GRACE_SECONDS` | `30` | Deadline for in-flight requests after `SIGTERM` |
+| `HUBTASK_SHUTDOWN_DEREGISTER_SECONDS` | `15` | How long the process keeps serving after marking itself not ready, before it stops accepting connections. Removing a pod from a load balancer is not synchronous with stopping it, so a process that closes its listener at once is still sent requests it can no longer answer — RT-8 measured that as 502s during a rollout ([evidence](../evidence/RT-8-2026-08-21.md)). It is a property of whatever routes the traffic: `0` is right where nothing does |
 | `HUBTASK_DB_APP_PASSWORD` (`_FILE`) | — | Read by `hubtask-migrate`, not the server: grants `hubtask_app` its login after the migrations, so the application never connects as the owner. URL-safe characters (it travels inside the DSN) |
 | `HUBTASK_DB_MAX_CONNS` / `HUBTASK_DB_MIN_CONNS` | `10` / `2` | Pool size **per process**; several roles mean several pools |
 | `HUBTASK_DB_CONNECT_TIMEOUT` | `5s` | Connection deadline |

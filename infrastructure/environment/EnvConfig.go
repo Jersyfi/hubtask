@@ -47,6 +47,10 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		LogLevel:             get("HUBTASK_LOG_LEVEL", "info"),
 		Tenancy:              env.TenancyMode(get("HUBTASK_TENANCY_MODE", "single")),
 		ShutdownGraceSeconds: getInt("HUBTASK_SHUTDOWN_GRACE_SECONDS", 30),
+		// Longer than it usually needs to be, because the cost of being wrong is asymmetric: a
+		// few seconds of a slower shutdown against requests refused during every rollout (RT-8,
+		// docs/evidence/RT-8-2026-08-21.md).
+		ShutdownDeregisterSeconds: getInt("HUBTASK_SHUTDOWN_DEREGISTER_SECONDS", 15),
 
 		Database: env.DatabaseConfig{
 			MaxConns:               getInt("HUBTASK_DB_MAX_CONNS", 10),
@@ -227,6 +231,11 @@ func validate(cfg env.Config) error {
 	}
 	if cfg.ShutdownGraceSeconds <= 0 {
 		errs = append(errs, configError("config.shutdown_grace_invalid", "HUBTASK_SHUTDOWN_GRACE_SECONDS"))
+	}
+	// Zero is allowed and negative is not: "do not wait" is a real answer for an installation
+	// with nothing in front of it, and a negative wait is a typo.
+	if cfg.ShutdownDeregisterSeconds < 0 {
+		errs = append(errs, configError("config.shutdown_deregister_invalid", "HUBTASK_SHUTDOWN_DEREGISTER_SECONDS"))
 	}
 
 	errs = append(errs, validateLogging(cfg)...)

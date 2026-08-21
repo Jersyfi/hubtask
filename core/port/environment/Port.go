@@ -84,6 +84,19 @@ type Config struct {
 
 	// ShutdownGraceSeconds is the deadline for in-flight requests after SIGTERM.
 	ShutdownGraceSeconds int
+
+	// ShutdownDeregisterSeconds is how long the process keeps serving after it has marked itself
+	// not ready, before it stops accepting connections.
+	//
+	// It exists because removing a pod from a load balancer is not synchronous with stopping it.
+	// Kubernetes sends SIGTERM and updates the endpoint list at the same time, and whatever routes
+	// traffic learns about the second one a moment later - so a process that closes its listener
+	// the instant it is asked to stop is still being sent requests it can no longer answer. The
+	// client sees them as 502.
+	//
+	// The value is therefore a property of what sits in front of the process, not of the process:
+	// zero is right where nothing does.
+	ShutdownDeregisterSeconds int
 }
 
 // MaxPoolConns bounds the configured pool size. Not a tuning limit but a safety one: the value
