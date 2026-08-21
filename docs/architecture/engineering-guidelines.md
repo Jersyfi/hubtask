@@ -112,7 +112,7 @@ The full concept including the threat model and the gates: [security.md](./secur
 decision [ADR-0015](../adr/ADR-0015-security-baseline.md).
 
 * A threat model per bounded context (STRIDE short form) at the first design, and thereafter on any security-relevant change.
-* Dependency updates automated (Renovate), `govulncheck` in CI, a container scan in the release.
+* Dependency updates automated (Dependabot), `govulncheck` in CI, a container scan in the release.
 * Secrets never in the repository; secret scanning active (push rule).
 * Security-relevant changes need a second reviewer.
 * Responsible disclosure per `SECURITY.md`, advisories with CVSS and affected versions.
