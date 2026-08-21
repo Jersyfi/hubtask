@@ -11,6 +11,9 @@ LDFLAGS     := -s -w \
 	-X main.commit=$(COMMIT) \
 	-X main.buildDate=$(BUILD_DATE)
 GO          ?= go
+# The executable suffix of the platform being built for. `go env` knows it; a hand-rolled check
+# for Windows would be a second place to be wrong about it.
+GOEXE       := $(shell $(GO) env GOEXE)
 # The container engine. Podman is a supported runtime and takes the same arguments; the matrix job
 # sets both this and HUBTASK_COMPOSE (docs/architecture/support-matrix.md).
 DOCKER      ?= docker
@@ -183,16 +186,20 @@ gate-quick:
 			exit 1; \
 		fi
 
-## gate-unit: Domain, application, adapter and presentation tests with coverage thresholds
+## gate-unit: Domain, application, adapter, presentation and CLI tests with coverage thresholds
 # The race detector needs cgo, so this one target overrides the CGO_ENABLED=0 of the build.
 #
 # infrastructure is in the list because its adapters carry rules no other gate checks - metric
 # label cardinality, log redaction, the tenant wrapper. Anything needing a container lives behind
 # the `integration` build tag in test/integration and stays out of this target.
+#
+# cmd joined the list with hubctl (B-13). A composition root has little to test, but a CLI is not
+# one: its flags, its exit codes and the sentences it prints are the contract a script depends on,
+# and the end-to-end session only reaches them once the whole stack is up.
 .PHONY: gate-unit
 gate-unit: export CGO_ENABLED = 1
 gate-unit:
-	$(call go_test,,./core/... ./infrastructure/... ./presentation/...,-race -covermode=atomic -coverprofile=coverage.out)
+	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/...,-race -covermode=atomic -coverprofile=coverage.out)
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/application/... MIN=75
 
@@ -310,6 +317,27 @@ gate-chart:
 .PHONY: gate-compose
 gate-compose: docker-build
 	scripts/compose-smoke.sh $(VERSION)
+
+## gate-cli: Build hubctl on the platform it will run on, test it, and start it
+# The support matrix rows for the CLI (support-matrix.md §4) are about a binary on somebody's own
+# machine rather than a container, so the question they ask is one only a native runner answers:
+# does the binary this platform produces start. Cross-compilation proves that it links.
+#
+# Without the race detector, deliberately. That is what gate-unit is for, on a runner with a C
+# toolchain; this target has to run where a contributor's laptop runs.
+.PHONY: gate-cli
+gate-cli:
+	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/hubctl$(GOEXE) ./cmd/hubctl
+	$(call go_test,,./cmd/hubctl/...,)
+	./bin/hubctl$(GOEXE) --version
+
+## gate-e2e: The hubctl end-to-end session against the reference Compose stack
+# The other half of gate-compose. That one asks whether the stack starts; this one asks whether a
+# person can do anything with it - sign in, build a hierarchy, complete, delete, restore - through
+# the client rather than through curl.
+.PHONY: gate-e2e
+gate-e2e: docker-build
+	scripts/hubctl-e2e.sh $(VERSION)
 
 ## gate-observability: The shipped alert rules, checked by Prometheus itself
 .PHONY: gate-observability

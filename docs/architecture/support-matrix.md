@@ -50,13 +50,23 @@ gets tested, is the **container runtime**, the **CPU architecture**, and the **P
 
 ## 4. `hubctl` (the CLI)
 
-The rows arrive with B-13, when the client exists. It is the one artefact that runs **natively** on
-a user's machine rather than in a container, so its matrix is about operating systems in a way the
-server's is not.
+It is the one artefact that runs **natively** on a user's machine rather than in a container, so
+its matrix is about operating systems in a way the server's is not. What a job here proves is not
+that the binary compiles — cross-compilation does that for every platform on every release — but
+that the binary a platform produces *starts* on it.
 
-| Platform | Status | Proven by |
-|---|---|---|
-| — | — | — arrives with B-13 |
+| Platform | Architecture | Status | Proven by |
+|---|---|---|---|
+| Linux | amd64 | `supported` | `ci.yml:e2e` |
+| Linux | arm64 | `supported` | `nightly.yml:matrix-hubctl` |
+| macOS | arm64 (Apple silicon) | `supported` | `nightly.yml:matrix-hubctl` |
+| Windows | amd64 | `supported` | `nightly.yml:matrix-hubctl` |
+| macOS | amd64 (Intel) | `best effort` | — cross-compiled and published; GitHub's Intel macOS runners are on their way out, and a row may not rest on a runner that is being withdrawn |
+| Windows | arm64 | `best effort` | — cross-compiled and published; no ARM Windows runner exists on the free tier this project builds on |
+
+The Linux amd64 row points at `ci.yml:e2e` rather than at a nightly job on purpose: that job runs
+the whole end-to-end session through the binary against the reference stack, which is a stronger
+claim than a smoke test and it runs on every pull request.
 
 ---
 
