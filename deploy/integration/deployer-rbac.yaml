@@ -1,0 +1,81 @@
+# The identity CI deploys with.
+#
+# ADR-0023 accepts cluster access as a credential in GitHub and names the countermeasure in the
+# same breath: "separate credentials per environment, tightly bounded rights (our own namespace
+# only)". This is that countermeasure, literally. What GitHub holds is not the k3s admin
+# certificate — that one is cluster-admin over everything, cannot be scoped, and cannot be revoked
+# without re-issuing the cluster's CA. It is this ServiceAccount, which can do exactly what a
+# `helm upgrade` of this chart does in one namespace, and which is revoked by deleting one Secret.
+#
+# The verbs are what Helm needs, not what would be convenient:
+#   - secrets, because that is where Helm keeps release history (and it is also why this token is
+#     namespace-bound: release secrets are readable by whoever can read secrets there)
+#   - the objects the chart renders, each by name in its own group
+#   - pods, replicasets and events read-only, because `--wait` and `rollout status` watch them and
+#     a failed rollout is unreadable without the events
+#
+# Not here, on purpose: namespaces (bootstrap creates it, so CI never needs --create-namespace),
+# CRDs, anything cluster-scoped, and any verb on nodes.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-deployer
+  namespace: hubtask
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: github-deployer
+  namespace: hubtask
+rules:
+  - apiGroups: [""]
+    resources: [secrets, configmaps, services, serviceaccounts, persistentvolumeclaims]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods, pods/log, events]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses, networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [policy]
+    resources: [poddisruptionbudgets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-deployer
+  namespace: hubtask
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: github-deployer
+subjects:
+  - kind: ServiceAccount
+    name: github-deployer
+    namespace: hubtask
+---
+# A long-lived token, because a GitHub secret cannot refresh a bound one. It is the single object
+# that has to be rotated: delete it, let this manifest recreate it, and put the new token in the
+# environment secret (README.md, "Rotating the deploy credential").
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-deployer-token
+  namespace: hubtask
+  annotations:
+    kubernetes.io/service-account.name: github-deployer
+type: kubernetes.io/service-account-token

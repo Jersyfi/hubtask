@@ -1,0 +1,68 @@
+# Helm values for the integration environment (deployment.md §3.1).
+#
+# The image tag is deliberately absent: CI sets it per commit with `--set image.tag=...`, so this
+# file never has to be touched to deploy, and a deploy is never a file edit somebody forgot to
+# push. Everything else here is the environment's shape, and it is small on purpose — an
+# environment that overrides half the chart stops testing the chart.
+
+roles:
+  # Two API replicas, because that is the whole point of the environment: RT-8 asks whether a
+  # rolling update stays quiet, and there is nothing to answer with one replica.
+  api:
+    replicas: 2
+  # Two schedulers, one of them a standby. The leader lock is the thing under test here, not
+  # throughput (ADR-0008).
+  scheduler:
+    replicas: 2
+  # One each. The bulkhead is what matters (ADR-0016) and a bulkhead exists at one replica; a
+  # second would only spend the node's memory on load nobody is generating.
+  worker:
+    replicas: 1
+  automation:
+    replicas: 1
+
+config:
+  # Provider-shaped, because that is the operating profile the chart is for
+  # (observability-reliability.md §13). Self-hosting is what the Compose stack covers.
+  tenancyMode: multi
+  baseUrl: https://api.integration.hubtask.eu
+  logFormat: json
+  logLevel: info
+
+# The names are in bootstrap.sh, and the values were generated on the host and never left it.
+existingSecret: hubtask-secrets
+
+migration:
+  # The owner runs the migrations; the application never gets this DSN (multi-tenancy.md §2.1).
+  dsnSecretKey: db-dsn-owner
+  # And the migrator grants hubtask_app its login, so the credential is the operator's rather
+  # than the migration's (A-11).
+  appPasswordSecretKey: db-app-password
+
+ingress:
+  enabled: true
+  className: traefik
+  host: api.integration.hubtask.eu
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+  tls:
+    enabled: true
+
+storage:
+  # A volume on the node rather than S3: there is no object storage here to point at, and standing
+  # one up would be testing MinIO. The claim is created by bootstrap.sh.
+  kind: local
+  persistence:
+    enabled: true
+    existingClaim: hubtask-media
+
+networkPolicy:
+  enabled: true
+  # Left at the default (from anywhere the cluster allows) and not narrowed to Traefik's
+  # namespace: the second consumer, the metrics scraper, does not exist here yet, and a rule
+  # written for one of two callers is a rule that breaks when the other arrives.
+  ingressFrom: []
+  # Also the default. There is no webhook target and no backup target in this environment yet, so
+  # an allowlist would be a list of nothing that reads like a decision. Link-local stays excluded
+  # either way — that exclusion is in the template, not in this list.
+  allowedEgressCIDRs: []
