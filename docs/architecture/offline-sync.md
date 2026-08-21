@@ -108,6 +108,28 @@ minutes by default); values beyond that are set to server time and the event is 
 | Appending lists | Comments, activities | Append-only, no conflicts |
 | Counters | Progress, derived values | Computed server-side, never set by a client |
 | Free text edited concurrently | Long notes | LWW plus preservation of the displaced version as a comment attachment (§5). Character-level merging (CRDT text) is deliberately **not** part of 1.0 — see the ADR |
+| Lifecycle stamps | `archived_at`, `deleted_at`, `trash_batch_id` | Server-side, and not a field merge at all. A deletion reaches a client as a `DELETE` op with no payload and a restore as an `UPSERT`, so a client applies a state rather than merging a timestamp — and a subtree deletion is announced by its root alone, which the client applies to the subtree it holds by path prefix. The batch identifier is the server's: it names one deletion, and a client that invented one would be claiming two deletions were the same act |
+
+**How "per field" is written down.** A scalar update records **one change log entry per field that
+moved**, each taking its own HLC and carrying only that field. One entry listing several fields
+would give the pair a single HLC, and the merge would then decide them together — silently
+discarding whichever field a second device had written concurrently, which is the exact failure
+this row exists to prevent. Fields the caller did not touch are not in the log at all: a payload
+repeating them would let a stale value win a merge it should never have entered. `version` and
+`updated_at` are derived and never merged.
+
+That is also why the write side distinguishes an absent field from an empty one all the way down
+from the merge patch that expressed it (`api-guidelines.md` §"Partial updates"): "leave the notes
+alone" must not reach the log as "set the notes to nothing".
+
+**The item history is not merged, and it does not travel in the change log.** An `activity_entry` is
+written by the server, in the transaction that accepted the change, for a change the server has
+already decided — so there is nothing for two devices to disagree about, and the "appending lists"
+row above means exactly that there is no merge. It is also not a change log entry: a device that
+pulled one would be reading a second description of a change it is being sent anyway, in a different
+shape and with its own merge question. The history is read through `ListActivity`
+(`GET /items/{id}/activity`), which is an ordinary page request and is available offline only as far
+as a client cached it.
 
 ### 4.3 What the server always decides itself
 

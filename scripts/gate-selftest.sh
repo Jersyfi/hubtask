@@ -126,6 +126,14 @@ expect_lint_failure "math/rand anywhere" infrastructure depguard \
 
 import _ "math/rand"'
 
+# T-06 and ADR-0026: the query builder is the one package that assembles SQL, and `fmt` is the
+# tool that would put a value into it. The rule is scoped to that package, so the violation has
+# to be written there.
+expect_lint_failure "fmt in the query builder" infrastructure/postgres/query depguard \
+'package selftest
+
+import _ "fmt"'
+
 # Four depguard rules cannot be proven through the linter yet, because the package they forbid
 # does not exist: third-party libraries in the core, the database driver outside
 # infrastructure/postgres, an adapter importing core/application/service, and the domain
@@ -304,6 +312,20 @@ expect_gate_failure "domain imports the application layer" gate-architecture cor
 
 import _ "github.com/Jersyfi/hubtask/core/application/usecase"'
 
+expect_gate_failure "outbound call without the guard" gate-architecture infrastructure \
+'package selftest
+
+import "net/http"
+
+func Selftest() *http.Client { return http.DefaultClient }'
+
+expect_gate_failure "a second HTTP client" gate-architecture infrastructure \
+'package selftest
+
+import "net/http"
+
+func Selftest() *http.Client { return &http.Client{} }'
+
 header "Formatting and generation (make gate-quick)"
 
 expect_gate_failure "unformatted source" gate-quick infrastructure \
@@ -333,6 +355,129 @@ func Selftest(n int) int {
 	}
 	return -n
 }'
+
+header "Licence headers (make gate-architecture)"
+
+expect_gate_failure "a source file without its licence header" gate-architecture core/domain \
+'package selftest
+
+// Selftest is a file nobody gave a licence.
+func Selftest() {}'
+
+header "Documentation (make gate-docs)"
+
+# The documentation gate does not take a Go package, so it gets a probe of its own: a document
+# that points at a file that is not there, at a heading that does not exist, and at an ADR nobody
+# ever wrote. All three are mistakes that have been made in this repository already.
+expect_docs_failure() {
+	local name="$1" content="$2"
+	CHECKS=$((CHECKS + 1))
+
+	local probe="docs/gate_selftest_probe.md"
+	printf '%s\n' "$content" > "$probe"
+	if make --no-print-directory gate-docs >/dev/null 2>&1; then
+		printf '  FAILED  %-44s make gate-docs stayed green\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	else
+		printf '  ok      %-44s caught by make gate-docs\n' "$name"
+	fi
+	rm -f "$probe"
+}
+
+expect_docs_failure "a link to a file that is not there" \
+'# Probe
+
+[nowhere](./nowhere-at-all.md)'
+
+expect_docs_failure "a link to a heading that is not there" \
+'# Probe
+
+[a section that moved](./architecture/arc42.md#a-heading-nobody-wrote)'
+
+expect_docs_failure "a citation of an ADR nobody wrote" \
+'# Probe
+
+The reasoning is in ADR-0099.'
+
+header "Observability artefacts (make gate-observability)"
+
+# An alert without a runbook is the one mistake §11 names explicitly, so it is the one the gate
+# has to be shown catching. The probe adds a sixth alert pointing at a runbook nobody wrote.
+CHECKS=$((CHECKS + 1))
+RULES="deploy/observability/alerts/prometheus-rules.yaml"
+cp "$RULES" "$RULES.selftest-backup"
+cat >> "$RULES" <<'PROBE'
+
+      - alert: HubtaskSelftestProbe
+        expr: vector(1)
+        labels:
+          severity: ticket
+          alert_id: A-99
+        annotations:
+          summary: "A probe that ships without a runbook"
+          runbook: RB-A99-nobody-wrote-this.md
+PROBE
+if make --no-print-directory gate-observability >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-observability stayed green
+' "an alert without a runbook"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-observability
+' "an alert without a runbook"
+fi
+mv "$RULES.selftest-backup" "$RULES"
+
+header "Support matrix (make gate-docs)"
+
+# The matrix is only worth anything if it cannot drift. Both directions are shown to bite: a row
+# claiming a job nobody wrote, and a matrix job no row claims.
+# The probe has to go into the matrix itself: the gate reads that one document, and a row in any
+# other file is correctly none of its business.
+CHECKS=$((CHECKS + 1))
+MATRIX="docs/architecture/support-matrix.md"
+cp "$MATRIX" "$MATRIX.selftest-backup"
+printf '\n| Probe | `supported` | `nightly.yml:matrix-nobody-wrote-this` |\n' >> "$MATRIX"
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a matrix row claiming a job nobody wrote"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "a matrix row claiming a job nobody wrote"
+fi
+mv "$MATRIX.selftest-backup" "$MATRIX"
+
+CHECKS=$((CHECKS + 1))
+WORKFLOW=".github/workflows/gate-selftest-probe.yml"
+cat > "$WORKFLOW" <<'PROBE'
+name: Selftest probe
+on: workflow_dispatch
+jobs:
+  matrix-unclaimed:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "a matrix job no row in the support matrix claims"
+PROBE
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a matrix job without a row"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "a matrix job without a row"
+fi
+rm -f "$WORKFLOW"
+
+header "Licences (make gate-licenses)"
+
+# The licence gate cannot be shown a GPL dependency without adding one, so it is shown the other
+# side of the same switch: with the permissive types declared disallowed, every dependency this
+# project has becomes a finding. What that proves is that the tool runs, that the flag reaches it,
+# and that a disallowed type turns the gate red - not that any particular licence is classified
+# correctly.
+CHECKS=$((CHECKS + 1))
+if .tools/go-licenses check ./... --disallowed_types=notice >/dev/null 2>&1; then
+	printf '  FAILED  %-44s a disallowed type stayed green\n' "a dependency of a refused licence type"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by go-licenses\n' "a dependency of a refused licence type"
+fi
 
 printf '\n%d checks, %d failures\n' "$CHECKS" "$FAILURES"
 test "$FAILURES" -eq 0

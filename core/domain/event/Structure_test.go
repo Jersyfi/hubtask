@@ -1,0 +1,287 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package event
+
+import (
+	"testing"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
+)
+
+var (
+	eventBucket = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	eventLabel  = shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+)
+
+func eventBucketIn(collection shared.ID) work.Bucket {
+	return work.Bucket{
+		ID: eventBucket, TenantID: eventTenant, CollectionID: collection,
+		Name: "Doing", OrderKey: "a1", Version: 1,
+	}
+}
+
+// The snapshot is what a consumer reacts to. A consumer that had to fetch the column would produce
+// one request per event and read a state that has already moved on.
+func TestTheBucketCreatedEventCarriesTheColumn(t *testing.T) {
+	bucket := eventBucketIn(eventCollection)
+
+	envelope, err := NewBucketCreated(eventID, bucket, by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Type != BucketCreated {
+		t.Errorf("event type %s", envelope.Type)
+	}
+	if envelope.Subject != BucketSubject(eventBucket) {
+		t.Errorf("subject %q", envelope.Subject)
+	}
+	if envelope.TenantID != eventTenant {
+		t.Errorf("the event names tenant %s", envelope.TenantID)
+	}
+
+	payload := envelope.Payload
+	if payload["id"] != eventBucket.String() || payload["collection_id"] != eventCollection.String() {
+		t.Errorf("the event describes another column: %+v", payload)
+	}
+	if payload["name"] != "Doing" || payload["order_key"] != "a1" {
+		t.Errorf("unexpected payload: %+v", payload)
+	}
+	if payload["is_done_bucket"] != false {
+		t.Errorf("is_done_bucket is %v", payload["is_done_bucket"])
+	}
+}
+
+// The values a board renders travel as explicit nulls rather than as omissions: a subscriber that
+// had to tell "no limit" from "this producer does not know about limits" would have to fetch the
+// column, which is what the snapshot exists to avoid.
+func TestAnUnsetBoardValueTravelsAsNull(t *testing.T) {
+	envelope, err := NewBucketCreated(eventID, eventBucketIn(eventCollection), by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	for _, field := range []string{"wip_limit", "color_token", "deleted_at"} {
+		value, present := envelope.Payload[field]
+		if !present {
+			t.Errorf("%s is absent rather than null", field)
+		}
+		if value != nil {
+			t.Errorf("%s is %v, want null", field, value)
+		}
+	}
+}
+
+func TestASetBoardValueTravelsAsItsValue(t *testing.T) {
+	limit := 4
+	deleted := occurred.Add(time.Hour)
+
+	bucket := eventBucketIn(eventCollection)
+	bucket.WipLimit, bucket.IsDoneBucket = &limit, true
+	bucket.ColorToken, bucket.DeletedAt = "surface.green", &deleted
+
+	envelope, err := NewBucketCreated(eventID, bucket, by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	payload := envelope.Payload
+	switch {
+	case payload["wip_limit"] != 4:
+		t.Errorf("wip_limit is %v", payload["wip_limit"])
+	case payload["color_token"] != "surface.green":
+		t.Errorf("color_token is %v", payload["color_token"])
+	case payload["is_done_bucket"] != true:
+		t.Errorf("is_done_bucket is %v", payload["is_done_bucket"])
+	case payload["deleted_at"] != deleted.UTC():
+		t.Errorf("deleted_at is %v", payload["deleted_at"])
+	}
+}
+
+// The snapshot and the change set answer different questions: the snapshot is what the column now
+// is, and the change set is what a field change trigger is written against - a rule fires on "it
+// became the done column" or on "it stopped being one", and only the second needs the value that
+// went.
+func TestTheBucketChangeEventsCarryBothTheSnapshotAndTheChangeSet(t *testing.T) {
+	bucket := eventBucketIn(eventCollection)
+	renamed := []work.FieldChange{{Field: work.FieldName, From: "Doing", To: "In progress"}}
+
+	events := map[Type]func() (Envelope, error){
+		BucketUpdated: func() (Envelope, error) {
+			return NewBucketUpdated(eventID, bucket, renamed, by(), occurred, Cause{})
+		},
+		BucketReordered: func() (Envelope, error) {
+			return NewBucketReordered(eventID, bucket,
+				[]work.FieldChange{{Field: work.FieldOrderKey, From: "a0", To: "a1"}},
+				by(), occurred, Cause{})
+		},
+	}
+
+	for eventType, build := range events {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+			if envelope.Type != eventType {
+				t.Errorf("event type %s", envelope.Type)
+			}
+			if envelope.Payload["id"] != eventBucket.String() {
+				t.Errorf("the event describes another column: %v", envelope.Payload["id"])
+			}
+			changeSet, _ := envelope.Payload["change_set"].(map[string]any)
+			if len(changeSet) != 1 {
+				t.Fatalf("the change set is %+v, want one field", changeSet)
+			}
+		})
+	}
+}
+
+// An event announcing that nothing changed means the writer and the event disagree, which is a
+// defect rather than something a client sent.
+func TestABucketEventRefusesAnEmptyChangeSet(t *testing.T) {
+	if _, err := NewBucketReordered(
+		eventID, eventBucketIn(eventCollection), nil, by(), occurred, Cause{}); err == nil {
+		t.Fatal("an event with no change set was built")
+	}
+}
+
+// The destination and the count are in the payload because a consumer cannot derive them: the
+// entries moved to the leftmost remaining column, and a kanban client that only learned the column
+// was gone would have to reload the board to find out where its cards are.
+func TestTheBucketDeletedEventSaysWhereTheEntriesWent(t *testing.T) {
+	deleted := occurred.Add(time.Hour)
+	bucket := eventBucketIn(eventCollection)
+	bucket.DeletedAt = &deleted
+	target := shared.MustParseID("0192f000-0000-7000-8000-0000000000b2")
+
+	envelope, err := NewBucketDeleted(eventID, bucket, target, 3, by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Type != BucketDeleted {
+		t.Errorf("event type %s", envelope.Type)
+	}
+	if envelope.Payload["target_bucket_id"] != target.String() {
+		t.Errorf("target_bucket_id is %v", envelope.Payload["target_bucket_id"])
+	}
+	if envelope.Payload["moved_items"] != 3 {
+		t.Errorf("moved_items is %v", envelope.Payload["moved_items"])
+	}
+	if envelope.Payload["deleted_at"] != deleted.UTC() {
+		t.Errorf("deleted_at is %v", envelope.Payload["deleted_at"])
+	}
+}
+
+// The last column of a board has nowhere to send its entries, and the payload says so with a null:
+// the entries then carry none, which is the state the collection was in before anybody made a board.
+func TestTheBucketDeletedEventCarriesANullTargetForTheLastColumn(t *testing.T) {
+	envelope, err := NewBucketDeleted(eventID, eventBucketIn(eventCollection), "", 0,
+		by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	value, present := envelope.Payload["target_bucket_id"]
+	if !present || value != nil {
+		t.Errorf("target_bucket_id is %v, want null", value)
+	}
+}
+
+func eventLabelIn(collection shared.ID) work.Label {
+	return work.Label{
+		ID: eventLabel, TenantID: eventTenant, CollectionID: collection,
+		Name: "Urgent", ColorToken: "accent.red", Version: 1,
+	}
+}
+
+// The description travels as an explicit null rather than as an omission, for the reason a bucket's
+// limit does: a client renders the label from this snapshot.
+func TestTheLabelCreatedEventCarriesTheLabel(t *testing.T) {
+	envelope, err := NewLabelCreated(eventID, eventLabelIn(eventCollection), by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Type != LabelCreated || envelope.Subject != LabelSubject(eventLabel) {
+		t.Errorf("unexpected envelope: %+v", envelope)
+	}
+	payload := envelope.Payload
+	if payload["name"] != "Urgent" || payload["color_token"] != "accent.red" {
+		t.Errorf("unexpected payload: %+v", payload)
+	}
+	for _, field := range []string{"description", "deleted_at"} {
+		value, present := payload[field]
+		if !present || value != nil {
+			t.Errorf("%s is %v, want null", field, value)
+		}
+	}
+}
+
+func TestASetLabelValueTravelsAsItsValue(t *testing.T) {
+	deleted := occurred.Add(time.Hour)
+	label := eventLabelIn(eventCollection)
+	label.Description, label.DeletedAt = "Needs a decision today", &deleted
+
+	envelope, err := NewLabelCreated(eventID, label, by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Payload["description"] != "Needs a decision today" {
+		t.Errorf("description is %v", envelope.Payload["description"])
+	}
+	if envelope.Payload["deleted_at"] != deleted.UTC() {
+		t.Errorf("deleted_at is %v", envelope.Payload["deleted_at"])
+	}
+}
+
+// The update carries a change set beside the snapshot; the deletion carries the snapshot alone,
+// because a collection's vocabulary is small and its entries are not - listing the entries that
+// carried the label would make the payload unbounded.
+func TestTheLabelChangeEvents(t *testing.T) {
+	label := eventLabelIn(eventCollection)
+
+	t.Run("an update names what moved", func(t *testing.T) {
+		envelope, err := NewLabelUpdated(eventID, label,
+			[]work.FieldChange{{Field: work.FieldColorToken, From: "accent.red", To: "accent.amber"}},
+			by(), occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		changeSet, _ := envelope.Payload["change_set"].(map[string]any)
+		if len(changeSet) != 1 || changeSet[work.FieldColorToken] == nil {
+			t.Errorf("the change set is %+v", changeSet)
+		}
+	})
+
+	t.Run("an update with no change set is a defect", func(t *testing.T) {
+		if _, err := NewLabelUpdated(eventID, label, nil, by(), occurred, Cause{}); err == nil {
+			t.Fatal("an event with no change set was built")
+		}
+	})
+
+	t.Run("a deletion carries the snapshot alone", func(t *testing.T) {
+		deleted := occurred.Add(time.Hour)
+		gone := label
+		gone.DeletedAt = &deleted
+
+		envelope, err := NewLabelDeleted(eventID, gone, by(), occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		if envelope.Type != LabelDeleted {
+			t.Errorf("event type %s", envelope.Type)
+		}
+		if _, present := envelope.Payload["change_set"]; present {
+			t.Error("a deletion carries a change set")
+		}
+		if envelope.Payload["deleted_at"] != deleted.UTC() {
+			t.Errorf("deleted_at is %v", envelope.Payload["deleted_at"])
+		}
+	})
+}

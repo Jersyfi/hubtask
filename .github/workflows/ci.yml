@@ -73,6 +73,85 @@ jobs:
       # use case parity across REST/MCP/automation, observability and audit completeness.
       - run: make gate-architecture
 
+  resilience:
+    name: Resilience RT-1..RT-12
+    needs: quick
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      # goose, because the RT tests that need a database migrate their own container the way
+      # production does - a schema loaded any other way would be a schema nobody deploys.
+      - run: make tools
+      # The RT series is a PR gate wherever it can be (observability-reliability.md §12); the
+      # three that need hours of load - RT-6, RT-8, RT-11 - live in the load suite and stay
+      # nightly.
+      - run: make gate-resilience
+
+  observability:
+    name: Alert rules and runbooks
+    needs: quick
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      # promtool only - the rest of the toolchain is not needed here, and this job exists to be
+      # fast enough that nobody minds it running on documentation changes.
+      - run: make tools-promtool
+      - run: make gate-observability
+
+  chart:
+    name: Helm chart
+    needs: quick
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      # helm comes through the module proxy like every other tool, so the gate is the same
+      # command here and on a laptop (ADR-0022, ci-cd.md).
+      - run: make tools
+      - run: make gate-chart
+
+  compose:
+    name: Self-hosting stack (Compose)
+    needs: quick
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      # The Compose file is what a self-hoster runs, and the only deployment path nobody else
+      # exercises. It builds the image from this commit rather than pulling a published one, so a
+      # pull request that breaks the start of the stack is red before the release is.
+      - run: make gate-compose
+
+  e2e:
+    name: The hubctl session (Compose)
+    needs: quick
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      # The other half of the Compose job. That one asks whether the stack starts; this one runs
+      # a person's first hour through hubctl against it - sign in, build a hierarchy, complete,
+      # delete, restore - which is the only check that the specification and the server agree
+      # about the paths and fields a client actually uses (B-13).
+      - run: make gate-e2e
+
   selftest:
     name: The gates catch their own violations
     needs: quick
@@ -177,7 +256,7 @@ jobs:
       - run: make gate-data
 
   docs:
-    name: Documentation
+    name: Documentation and licences
     needs: quick
     runs-on: ubuntu-latest
     steps:
@@ -185,4 +264,9 @@ jobs:
       - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - run: make tools
       - run: make gate-docs
+      # A copyleft dependency would make the conversion to Apache-2.0 and the commercial licence
+      # impossible, so it is refused here rather than discovered at a release (ADR-0013).
+      - run: make gate-licenses

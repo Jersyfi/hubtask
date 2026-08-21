@@ -1,6 +1,6 @@
 # Role separation in the cluster (ADR-0014): one image, several deployments.
 image:
-  repository: ghcr.io/Jersyfi/hubtask
+  repository: ghcr.io/jersyfi/hubtask
   tag: ""            # empty = appVersion from Chart.yaml
   pullPolicy: IfNotPresent
 
@@ -41,22 +41,55 @@ config:
   tenancyMode: multi
   baseUrl: ""
   logFormat: json
+  logLevel: info
   metricsTenantLabel: false   # cardinality in provider operation (ADR-0016)
   aiEnabled: false            # opt-in per tenant (ADR-0018)
+  # The application's own drain budget after SIGTERM. It has to fit inside
+  # terminationGracePeriodSeconds below, or the pod is killed mid-drain.
+  shutdownGraceSeconds: 30
+  # The deadline for one background job. terminationGracePeriodSeconds is derived from it:
+  # no job is cut off mid-work (deployment.md §5).
+  jobTimeout: 60s
+  # The egress allowlist for outbound calls - webhooks, AI, OIDC. Mandatory in provider
+  # operation (T-07); empty raises a warning in /meta/health rather than failing the start.
+  egressAllowedHosts: []
+  # Anything HUBTASK_* this chart does not model yet. A map, so that a new variable is a value
+  # rather than a template change.
+  extraEnv: {}
 
 # Secrets come from an existing secret, not from values.yaml.
 existingSecret: ""            # expects the keys: db-dsn, secret-key, smtp-password
 database:
   createSecret: false
 
+smtp:
+  # The key inside existingSecret that holds the SMTP password. Empty means no SMTP: notifications
+  # queue up and /meta/health says so.
+  existingSecretKey: ""
+
 migration:
   # A dedicated job before the rollout, with an advisory lock against parallel runs.
   enabled: true
   backoffLimit: 3
+  # The key inside existingSecret holding the DSN the migration runs under. Point it at an owner
+  # role and give db-dsn the application role (hubtask_app, no BYPASSRLS) - migrations create
+  # objects, the application must not be able to (multi-tenancy.md §2.1).
+  dsnSecretKey: db-dsn
+  # The key holding the password for hubtask_app. Set it and the migrator grants that role its
+  # login after migrating, so the application never has to connect as the owner (A-11). Leave it
+  # empty where the cluster manages database roles itself.
+  appPasswordSecretKey: ""
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { memory: 256Mi }
 
 serviceAccount:
   create: true
   annotations: {}
+
+service:
+  type: ClusterIP
+  port: 8080
 
 podSecurityContext:
   runAsNonRoot: true
@@ -75,21 +108,45 @@ updateStrategy:
   maxUnavailable: 0
   maxSurge: 1
 
+# At least the job deadline plus the drain budget: the process stops claiming work on SIGTERM and
+# finishes what it holds, and the pod must not be killed while it does (deployment.md §5).
+terminationGracePeriodSeconds: 120
+
 ingress:
   enabled: false
   className: ""
   host: ""
-  tls: { enabled: true }
+  annotations: {}
+  tls: { enabled: true, secretName: "" }
 
 networkPolicy:
   enabled: true
+  # Who may reach the pods. Empty means every source the cluster allows - narrowing it needs to
+  # know where the ingress controller and the scraper live, which is the operator's knowledge.
+  # Example: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } } }]
+  ingressFrom: []
   # Egress deliberately restricted: webhook and backup targets only through an allowlist
-  # (ADR-0015, ADR-0019).
+  # (ADR-0015, ADR-0019). Empty still excludes link-local, where a cloud provider keeps the
+  # credentials an SSRF would go looking for.
   allowedEgressCIDRs: []
 
 serviceMonitor:
   enabled: false     # for prometheus-operator
+  interval: 30s
+  labels: {}         # what the operator's serviceMonitorSelector looks for
 
 storage:
   kind: s3           # s3 | local
-  existingSecret: ""
+  existingSecret: "" # expects the keys: access-key, secret-key
+  bucket: ""
+  region: us-east-1
+  endpoint: ""       # for MinIO, Garage and other S3-compatible services
+  persistence:
+    # Only for kind=local. Media on an ephemeral disk disappears with the pod, so the chart
+    # refuses that combination rather than losing attachments quietly.
+    enabled: false
+    existingClaim: ""
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

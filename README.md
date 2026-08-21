@@ -78,6 +78,30 @@ helm upgrade --install hubtask ./k8s -f ./k8s/values.yaml
 
 ---
 
+## The command line client
+
+`hubctl` signs in with a personal access token and speaks the published contract — its types are
+generated from `api/openapi.yaml`. Every command prints a table for a person, or, with `--json`,
+the API's own payload for a pipe: exactly one document on standard output and every diagnostic on
+standard error.
+
+```bash
+make build                                   # bin/hubctl
+echo "$TOKEN" | bin/hubctl auth login --url http://localhost:8080
+HUB=$(bin/hubctl container create --type HUB --name "Personal" | awk 'NR==2 {print $1}')
+bin/hubctl container create --type COLLECTION --parent "$HUB" --name "Errands"
+bin/hubctl item create --collection "$COLLECTION" --type TASK --title "Buy milk"
+bin/hubctl item complete "$ITEM"
+bin/hubctl trash ls
+```
+
+Errors are the message catalogue's sentences rather than the problem document behind them — the
+server emits codes, never display text ([ADR-0011](docs/adr/ADR-0011-i18n-message-codes.md)).
+Which platforms the binary is supported on is in
+[support-matrix.md](docs/architecture/support-matrix.md) §4.
+
+---
+
 ## Technology
 
 | Area | Choice |

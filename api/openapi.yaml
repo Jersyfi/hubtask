@@ -29,6 +29,7 @@ security:
 
 tags:
   - name: meta
+  - name: identity
   - name: containers
   - name: items
   - name: structure
@@ -295,6 +296,57 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
 
+  /trash:
+    get:
+      tags: [items, containers]
+      operationId: listTrash
+      summary: What is in the trash
+      description: >
+        One entry per deletion, newest first - not one per deleted row. A hub with two hundred
+        entries under it went into the trash as one act and comes back as one act, so what is listed
+        is the root of each deletion: the thing somebody deleted. The batch beside it is what took
+        the rest, and restoring the root brings all of it back.
+
+        The list spans hubs, so it is narrowed to what the caller may see rather than refused: an
+        entry deleted out of a hub the caller has no access to is not in the page. Pages can
+        therefore be shorter than the requested size; walk on until has_more is false.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The trash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrashPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /trash:empty:
+    post:
+      tags: [items, containers]
+      operationId: emptyTrash
+      summary: Remove everything in the trash for good
+      description: >
+        Irreversible, and it reaches hubs and collections as readily as entries - which is why it
+        needs the owner's right to delete a container rather than the right to write entries.
+
+        Anything under a legal hold stays, and is counted in the answer rather than failing the call.
+        A large trash takes more than one pass: `matched` says how many rows this pass considered, and
+        calling again continues where it left off.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: What the pass removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurgeSummary"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /retention-policies:
     get:
       tags: [retention]
@@ -436,6 +488,168 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/SyncDevice" }
 
+  /accounts:invite:
+    post:
+      tags: [identity]
+      operationId: inviteAccount
+      summary: Invite a person into this workspace
+      description: |
+        Creates an account in `INVITED` status. Permissions can be granted to it immediately;
+        it cannot act until the invitation is accepted, which needs the sign-in flow (`0.6.0`).
+        The notification is queued as a job — this call does not wait for an email.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountInvite"
+      responses:
+        "201":
+          description: Invited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/{accountId}/preferences:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    patch:
+      tags: [identity]
+      operationId: updateAccountPreferences
+      summary: Set how the product speaks to an account
+      description: |
+        Locale, time zone and the first day of the week. An empty value clears the preference,
+        which means the workspace default applies again — the second link of the resolution chain
+        request → account → tenant → installation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountPreferences"
+      responses:
+        "200":
+          description: The account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /memberships:
+    post:
+      tags: [identity]
+      operationId: grantMembership
+      summary: Grant a role at a scope
+      description: |
+        To an account or to a group, never both. The role applies downwards from the scope:
+        a role at a hub applies to its collections and their items.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembershipGrant"
+      responses:
+        "201":
+          description: Granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Membership"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /memberships/{membershipId}:
+    parameters:
+      - $ref: "#/components/parameters/MembershipId"
+    delete:
+      tags: [identity]
+      operationId: revokeMembership
+      summary: Take a role away
+      description: |
+        Takes effect on the next request. What the account holds through a group is unaffected —
+        that is the group's membership, revoked separately.
+      responses:
+        "204":
+          description: Revoked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /groups:
+    post:
+      tags: [identity]
+      operationId: createGroup
+      summary: Create a group
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupCreate"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /groups/{groupId}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    patch:
+      tags: [identity]
+      operationId: updateGroup
+      summary: Rename a group or change its description
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupUpdate"
+      responses:
+        "200":
+          description: The group
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [identity]
+      operationId: deleteGroup
+      summary: Delete a group
+      description: |
+        Its memberships go with it: what the group granted, nobody holds afterwards. Members of
+        the group keep whatever they hold in their own right.
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers:
     get:
       tags: [containers]
@@ -452,15 +666,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [data, page]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Container"
-                  page:
-                    $ref: "#/components/schemas/PageInfo"
+                $ref: "#/components/schemas/ContainerPage"
         "4XX":
           $ref: "#/components/responses/Problem"
     post:
@@ -507,7 +713,13 @@ paths:
           $ref: "#/components/responses/Problem"
     patch:
       tags: [containers]
-      operationId: updateContainer
+      operationId: renameContainer
+      description: >
+        Changes a container's own descriptive fields. A field that is not sent is left alone;
+        sending description, icon or color_token as null clears it. The name stays unique among the
+        containers at the same level. The policies are not here - they are their own sub-resource,
+        so that a rename and a change of the way a collection works are two operations with two
+        audit entries.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       requestBody:
@@ -519,6 +731,9 @@ paths:
       responses:
         "200":
           description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
           content:
             application/json:
               schema:
@@ -528,7 +743,13 @@ paths:
     delete:
       tags: [containers]
       operationId: trashContainer
-      description: A soft delete; the entire subtree moves to the trash for 30 days.
+      description: >
+        A soft delete: the hub or collection and everything under it move to the trash under one
+        deletion - a hub takes its collections, and every collection takes its entries. It all stays
+        for the tenant's trash retention period, 30 days by default, and comes back as one act
+        through :restore until the retention job removes it for good. Anything already in the trash
+        from an earlier deletion keeps that deletion rather than joining this one. Needs the owner's
+        right to delete a container. Idempotent.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       responses:
@@ -537,7 +758,183 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /containers/{containerId}/policies:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    put:
+      tags: [containers]
+      operationId: updateContainerPolicies
+      description: >
+        Replaces a collection's policies - the way it works, as opposed to what it is called. A key
+        that is not sent falls back to its default rather than keeping the stored value: this is a
+        PUT, and a document that partly remembers what it replaced is one nobody can reason about.
+        A hub carries no policies and is refused.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContainerPolicies"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}:move:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [containers]
+      operationId: moveContainer
+      description: >
+        Moves a collection into another hub, and ranks it there. The name has to be free at the
+        destination; a collision is refused rather than resolved. A hub sits in nothing and cannot
+        be moved.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_parent_id]
+              properties:
+                target_parent_id:
+                  type: string
+                  format: uuid
+                  description: The hub the collection moves into. Naming the one it is in reorders it there.
+                before_container_id:
+                  type: [string, "null"]
+                  format: uuid
+                  description: >
+                    The sibling to place this collection before at the destination. Null or omitted
+                    appends to the end of the level.
+      responses:
+        "200":
+          description: Moved
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}:restore:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [containers]
+      operationId: restoreContainer
+      description: >
+        Takes one container deletion back out of the trash, whole: the hub, its collections, and
+        every entry that went in with them. Exactly what went in together comes back - a separate,
+        younger deletion inside the same subtree stays where it is, because a restore is keyed on the
+        deletion rather than on the subtree. A container archived when it was deleted comes back
+        archived. Needs the same right as the deletion, which is the owner's. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Restored
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}:archive:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [containers]
+      operationId: archiveContainer
+      description: >
+        Archives the container. An archived container is read-only, and everything below it inherits
+        that: a collection in an archived hub refuses writes without being archived itself, which is
+        what effective_archived reports. Idempotent - archiving an archived container changes
+        nothing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Archived
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}:unarchive:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [containers]
+      operationId: unarchiveContainer
+      description: >
+        Makes the container writable again. A collection that was archived in its own right stays
+        archived when its hub is unarchived - unarchiving restores what was archived, not what was
+        merely covered by it. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Unarchived
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items:
+    get:
+      tags: [items]
+      operationId: listWorkItems
+      description: |
+        The items of one level, in their manual order: the items directly in the collection when
+        `parent_id` is omitted, and the children of that item when it is given. A whole subtree,
+        and every other filter, is what `POST /items:query` is for.
+      parameters:
+        - $ref: "#/components/parameters/CollectionId"
+        - $ref: "#/components/parameters/ParentId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/IncludeArchived"
+        - $ref: "#/components/parameters/Expand"
+      responses:
+        "200":
+          description: A page of items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItemPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
     post:
       tags: [items]
       operationId: createWorkItem
@@ -569,14 +966,7 @@ paths:
       tags: [items]
       operationId: getWorkItem
       parameters:
-        - name: expand
-          in: query
-          description: "Include relations, e.g. children:1, labels, assignee, cover"
-          schema:
-            type: array
-            items: { type: string }
-          style: form
-          explode: false
+        - $ref: "#/components/parameters/Expand"
       responses:
         "200":
           description: The item
@@ -627,6 +1017,15 @@ paths:
       tags: [items]
       operationId: queryItems
       summary: The generic query - the basis for list, kanban, and timeline
+      description: |
+        One filter grammar behind every view. A `POST` because the query is a document rather than
+        a set of parameters, and it reads: nothing is written, and the same request may be repeated.
+
+        The query is always anchored to a scope the caller names, and the permission is checked
+        against that scope once - a refusal is a refusal rather than an empty result. Which fields
+        may be filtered, sorted and grouped, and with which operators, is answered by
+        `GET /meta/capabilities` under `query_fields`; a field that is not in that list is refused
+        with `query.field_unknown` rather than ignored.
       requestBody:
         required: true
         content:
@@ -641,6 +1040,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ItemQueryResult"
         "422":
+          $ref: "#/components/responses/Problem"
+        "4XX":
           $ref: "#/components/responses/Problem"
 
   /items/{itemId}:complete:
@@ -664,6 +1065,172 @@ paths:
       responses:
         "200":
           description: Completed
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:reopen:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: reopenWorkItem
+      description: >
+        Marks a completed item open again. Idempotent: reopening an item that is already open
+        succeeds and changes nothing. Where the collection's completion policy rolls up, reopening an
+        item also reopens the completed items above it.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Reopened
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:purge:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: purgeWorkItem
+      description: >
+        Removes an entry in the trash and everything under it for good, before its retention period
+        is up. Irreversible: no restore brings it back, and a backup taken before it does not either
+        - the deletion journal sees to that. Refused for an entry that is not in the trash; delete
+        it first, which is reversible. Refused while a legal hold is in force over it, and the answer
+        says at which level.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: Removed for good
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:restore:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: restoreWorkItem
+      description: >
+        Takes one deletion back out of the trash, whole. Exactly the entries that went in together
+        come back: a separate, younger deletion inside the same subtree stays where it is, because a
+        restore is keyed on the deletion rather than on the subtree. An entry that was archived when
+        it was deleted comes back archived - restoring undoes the deletion and nothing else. Refused
+        while the entry above it, or its collection, is still in the trash; the answer names what to
+        restore first. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Restored
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:archive:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: archiveWorkItem
+      description: >
+        Archives the entry: it is kept and becomes read-only. Distinct from the trash, which is a
+        deletion with a retention period running against it - an archived entry stays until somebody
+        says otherwise. Nothing below it is archived with it: an entry's children are entries in
+        their own right, unlike the collections of a hub. Idempotent - archiving an archived entry
+        succeeds and changes nothing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Archived
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:unarchive:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: unarchiveWorkItem
+      description: >
+        Makes an archived entry writable again. Refused for an entry in the trash: restore it first,
+        and the answer says so. Idempotent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Unarchived
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:reorder:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: reorderWorkItem
+      description: >
+        Moves the item within its own level. The position is given as the item to place it before;
+        omitting it appends to the end. The rank is a fractional index, so an insertion between two
+        neighbours renumbers nothing else and two offline devices can insert into the same list without
+        either one's order being discarded.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                before_item_id:
+                  type: [string, "null"]
+                  format: uuid
+                  description: >
+                    The sibling to place this item before. Null or omitted appends to the end of the
+                    level.
+      responses:
+        "200":
+          description: Reordered
+          headers:
+            ETag:
+              schema: { type: string }
           content:
             application/json:
               schema:
@@ -688,18 +1255,29 @@ paths:
                 target_parent_id:
                   type: [string, "null"]
                   format: uuid
+                  description: >
+                    The item to move this one under. Null moves it to the top level of a collection,
+                    which then has to be named by target_collection_id.
                 target_collection_id:
                   type: string
                   format: uuid
+                  description: >
+                    The destination collection. May be omitted when target_parent_id is given: an
+                    item's collection is the one its parent is in.
                 target_bucket_id:
                   type: [string, "null"]
                   format: uuid
                 before_item_id:
                   type: [string, "null"]
                   format: uuid
+                  description: >
+                    The sibling to place this item before at the destination. Null or omitted appends.
       responses:
         "200":
           description: Moved
+          headers:
+            ETag:
+              schema: { type: string }
           content:
             application/json:
               schema:
@@ -799,6 +1377,31 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/activity:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [items]
+      operationId: listActivity
+      description: >
+        The entry's own history, newest first: who did what, and when. It is the product's record
+        and not the audit trail - it is readable by whoever may read the entry, and it is deleted
+        with the entry (audit.md §1). Each step carries a message code rather than a sentence, and
+        the client renders it (ADR-0011). For an activity the history is compact: the code, the
+        actor and the time, without the fields that moved.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}/buckets:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -835,6 +1438,92 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /containers/{containerId}/buckets/{bucketId}:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/BucketId"
+    patch:
+      tags: [structure]
+      operationId: updateBucket
+      description: >
+        Changes a column's own fields. A field that is not sent is left alone; sending color_token
+        as null clears it, and sending wip_limit as null or 0 removes the limit. The name stays
+        unique in the collection. Where the column sits is not here - that is :reorder, so that a
+        rename and a rearrangement are two operations with two audit entries.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/BucketUpdate"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [structure]
+      operationId: deleteBucket
+      description: >
+        Takes the column off the board. Its entries are not deleted with it: they move to the
+        leftmost remaining column, or out of any column when this was the last one. What became of
+        them is in the answer rather than left to be discovered.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Deleted, with what became of the entries that were in it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BucketDeletion"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}/buckets/{bucketId}:reorder:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/BucketId"
+    post:
+      tags: [structure]
+      operationId: reorderBucket
+      description: >
+        Moves a column along its board. An absent before_bucket_id moves it to the right hand end.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                before_bucket_id:
+                  type: [string, "null"]
+                  format: uuid
+                  description: The column this one goes to the left of. Absent is the right hand end.
+      responses:
+        "200":
+          description: Moved
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bucket"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}/labels:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -843,13 +1532,119 @@ paths:
       operationId: listLabels
       responses:
         "200":
-          description: The collection's labels
+          description: The collection's labels, by name
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/Label"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [structure]
+      operationId: createLabel
+      description: >
+        Adds a label to a collection's vocabulary. The name has to be free in the collection,
+        compared without regard to case or accents. The colour is required: a label is rendered as
+        a chip and nothing else, so with none a client would have to invent one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LabelCreate"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Label"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}/labels/{labelId}:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/LabelId"
+    patch:
+      tags: [structure]
+      operationId: updateLabel
+      description: >
+        Changes a label's own fields. A field that is not sent is left alone; sending description as
+        null clears it. The colour cannot be cleared - a label is rendered as a chip and nothing
+        else. The name stays unique in the collection.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/LabelUpdate"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Label"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [structure]
+      operationId: deleteLabel
+      description: >
+        Takes the label out of the collection's vocabulary. The entries that carried it are not
+        rewritten: they stop showing it because it is gone, which is what makes the deletion
+        undoable without having to remember who wore it.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/labels/{labelId}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+      - $ref: "#/components/parameters/LabelId"
+    put:
+      tags: [items]
+      operationId: addLabel
+      description: >
+        Puts a label on an entry. Idempotent: an entry that already carries it succeeds. The label
+        has to belong to the entry's own collection - a label is a vocabulary one collection agreed
+        on - and the entry's type has to carry the LABELS capability.
+      responses:
+        "200":
+          description: The labels the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemLabels"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: removeLabel
+      description: >
+        Takes a label off an entry. Idempotent: an entry that does not carry it succeeds.
+      responses:
+        "200":
+          description: The labels the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemLabels"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -861,14 +1656,47 @@ components:
       bearerFormat: "An OIDC access token, hbt_pat_…, or a service account token"
 
   parameters:
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+    MembershipId:
+      name: membershipId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     ContainerId:
       name: containerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    LabelId:
+      name: labelId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    BucketId:
+      name: bucketId
       in: path
       required: true
       schema: { type: string, format: uuid }
     ItemId:
       name: itemId
       in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CollectionId:
+      name: collection_id
+      in: query
       required: true
       schema: { type: string, format: uuid }
     ParentId:
@@ -892,6 +1720,19 @@ components:
       name: include_archived
       in: query
       schema: { type: boolean, default: false }
+    Expand:
+      name: expand
+      in: query
+      description: >
+        Relations to include, e.g. children:1, labels, assignee, cover. A relation this
+        installation does not serve is refused by name rather than ignored: an entry that came back
+        without its labels because they were not implemented is indistinguishable from one that
+        carries none.
+      schema:
+        type: array
+        items: { type: string }
+      style: form
+      explode: false
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -946,9 +1787,36 @@ components:
 
     PageInfo:
       type: object
+      required: [next_cursor, has_more]
       properties:
-        next_cursor: { type: [string, "null"] }
+        next_cursor:
+          type: [string, "null"]
+          description: >
+            The cursor for the next page, null on the last one. Opaque and signed: it is produced by
+            the server and is neither to be constructed nor parsed by a client.
         has_more: { type: boolean }
+
+    ContainerPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Container"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    WorkItemPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkItem"
+        page:
+          $ref: "#/components/schemas/PageInfo"
 
     ContainerType:
       type: string
@@ -958,6 +1826,98 @@ components:
       type: string
       description: Extensible; /meta/capabilities returns the valid values.
       enum: [TASK, WORK_PACKAGE, ACTIVITY]
+
+    Account:
+      type: object
+      required: [id, kind, display_name, status]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [USER, SERVICE_ACCOUNT] }
+        email: { type: [string, "null"], format: email }
+        display_name: { type: string, minLength: 1, maxLength: 200 }
+        status: { type: string, enum: [ACTIVE, INVITED, DISABLED] }
+        locale: { type: [string, "null"] }
+        time_zone: { type: [string, "null"] }
+        week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+
+    AccountInvite:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        display_name: { type: [string, "null"], maxLength: 200 }
+
+    AccountPreferences:
+      type: object
+      description: |
+        Every field is optional, and an empty string clears the preference rather than setting it
+        to nothing — the workspace default applies again.
+      properties:
+        locale: { type: [string, "null"] }
+        time_zone: { type: [string, "null"] }
+        week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+
+    Group:
+      type: object
+      required: [id, name, version]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        version: { type: integer }
+
+    GroupCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        members:
+          type: array
+          description: Accounts to put in the group straight away.
+          items: { type: string, format: uuid }
+
+    GroupUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        members:
+          type: array
+          description: The complete membership after the change; omitted leaves it as it is.
+          items: { type: string, format: uuid }
+
+    MembershipScope:
+      type: string
+      enum: [TENANT, HUB, COLLECTION, ITEM]
+
+    MembershipRole:
+      type: string
+      enum: [OWNER, ADMIN, MEMBER, CONTRIBUTOR, VIEWER, GUEST]
+
+    Membership:
+      type: object
+      required: [id, scope_type, role]
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: [string, "null"], format: uuid }
+        group_id: { type: [string, "null"], format: uuid }
+        scope_type: { $ref: "#/components/schemas/MembershipScope" }
+        scope_id: { type: [string, "null"], format: uuid }
+        role: { $ref: "#/components/schemas/MembershipRole" }
+
+    MembershipGrant:
+      type: object
+      required: [scope_type, role]
+      description: |
+        Exactly one of `account_id` and `group_id`. Neither grants to nobody; both would leave no
+        answer to whose right it is when one of the two is removed.
+      properties:
+        account_id: { type: [string, "null"], format: uuid }
+        group_id: { type: [string, "null"], format: uuid }
+        scope_type: { $ref: "#/components/schemas/MembershipScope" }
+        scope_id: { type: [string, "null"], format: uuid }
+        role: { $ref: "#/components/schemas/MembershipRole" }
 
     Container:
       type: object
@@ -972,9 +1932,14 @@ components:
         color_token: { type: [string, "null"] }
         order_key: { type: string }
         policies:
-          type: object
-          additionalProperties: true
+          $ref: "#/components/schemas/ContainerPolicies"
         archived_at: { type: [string, "null"], format: date-time }
+        effective_archived:
+          type: boolean
+          description: >
+            Whether this container is read-only: archived itself, or sitting in an archived hub
+            (I-C3). archived_at says which of the two - it is null for a collection that only
+            inherits it.
         deleted_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -998,9 +1963,24 @@ components:
         description: { type: [string, "null"] }
         icon: { type: [string, "null"] }
         color_token: { type: [string, "null"] }
-        policies:
-          type: object
-          additionalProperties: true
+
+    ContainerPolicies:
+      type: object
+      description: >
+        How a collection works, as opposed to what it is called. One key today; the others the data
+        model names - the default bucket, capability overrides, automatic assignment - arrive with
+        the use cases that own them, and a key nothing reads would be a promise nothing keeps.
+      properties:
+        completion_policy: { $ref: "#/components/schemas/CompletionPolicy" }
+
+    CompletionPolicy:
+      type: string
+      description: >
+        Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP
+        completes it when its last open child is completed and reopens it when any child is
+        reopened. /meta/capabilities returns the valid values.
+      enum: [MANUAL, ROLLUP]
+      default: MANUAL
 
     Completion:
       type: object
@@ -1112,56 +2092,122 @@ components:
 
     MoveResult:
       type: object
+      required: [item, dropped_references]
       properties:
         item: { $ref: "#/components/schemas/WorkItem" }
         dropped_references:
           type: array
-          description: Labels/buckets/members that could not be resolved when changing collection.
+          description: >
+            Labels, buckets, members or custom fields that could not be resolved in the destination
+            collection and were therefore removed (invariant I-W6: unresolvable references are reported
+            back, never silently dropped). Always present; empty when nothing was lost.
           items:
-            type: object
-            properties:
-              kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
-              id: { type: string }
-              code: { type: string }
+            $ref: "#/components/schemas/DroppedReference"
+
+    DroppedReference:
+      type: object
+      required: [kind, id, code]
+      properties:
+        item_id:
+          type: string
+          format: uuid
+          description: >
+            The entry that lost it. A move carries a whole subtree, so one operation can drop
+            references from several entries at once.
+        kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
+        id: { type: string, description: The reference that could not be carried over. }
+        code: { type: string, description: A stable message code saying why. }
 
     FilterNode:
       type: object
-      description: Either a leaf (field/op/value) or a combination (op/nodes).
+      required: [op]
+      description: |
+        Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
+        `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
+        `nodes`, is refused rather than half-read.
+
+        Combinations nest at most five deep and a filter holds at most fifty nodes in total - the
+        bound that keeps a query's cost a function of the data rather than of the request.
       properties:
         op:
           type: string
           enum: [AND, OR, NOT, EQ, NEQ, IN, NOT_IN, LT, LTE, GT, GTE, BETWEEN, IS_NULL, CONTAINS, CONTAINS_ANY, CONTAINS_ALL, STARTS_WITH, MATCHES]
-        field: { type: string }
-        value: {}
+        field:
+          type: string
+          description: >
+            On a leaf, the field to compare. One of the names `GET /meta/capabilities` lists under
+            `query_fields`; anything else is `query.field_unknown`. Absent on a combination.
+        value:
+          description: >
+            On a leaf, what to compare against - a scalar for most operators, an array for `IN`,
+            `NOT_IN`, `CONTAINS_ANY`, `CONTAINS_ALL` and `BETWEEN` (two elements, the bounds), and
+            absent for `IS_NULL`. A string beginning with `@` is a placeholder resolved on the
+            server in the caller's time zone: `@me`, `@now`, `@today`, `@end_of_day`,
+            `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me`
+            optionally with a signed ISO 8601 offset (`@today+P3D`, `@start_of_week-P1W`). An end
+            is the last instant of its period, so `LTE @end_of_month` means what it says.
         nodes:
           type: array
+          description: On a combination, the nodes it joins. `NOT` takes exactly one.
           items: { $ref: "#/components/schemas/FilterNode" }
 
     ItemQuery:
       type: object
+      required: [scope]
       properties:
         scope:
           type: object
+          description: >
+            Where to look. Exactly one of `container_id` and `item_id`, and it is required: an
+            unanchored query is a scan of the whole tenant, and the permission is checked against
+            this scope once for the whole result.
           properties:
-            container_id: { type: string, format: uuid }
-            item_id: { type: string, format: uuid }
-            include_descendants: { type: boolean, default: true }
+            container_id:
+              type: string
+              format: uuid
+              description: >
+                A collection, or a hub - with `include_descendants`, a hub covers the items of
+                every collection in it.
+            item_id:
+              type: string
+              format: uuid
+              description: An entry, whose subtree is searched with `include_descendants`.
+            include_descendants:
+              type: boolean
+              default: true
+              description: >
+                False narrows the scope to one level: the entries directly in the collection, or
+                the direct children of the entry. Ignored for a hub, whose items always sit at
+                least one collection down.
         filter: { $ref: "#/components/schemas/FilterNode" }
         sort:
           type: array
+          maxItems: 4
+          description: >
+            Ordered, most significant first, and always completed by `id ASC` so that a cursor is
+            unambiguous. Defaults to the manual order (`order_key ASC`).
           items:
             type: object
+            required: [field]
             properties:
               field: { type: string }
               dir: { type: string, enum: [ASC, DESC], default: ASC }
               nulls: { type: string, enum: [FIRST, LAST], default: LAST }
         group_by:
           type: object
+          required: [field]
+          description: >
+            The board projection: one group per distinct value, each with its own rows and its own
+            cursor. A group's cursor continues that group and is sent back with the group's key as
+            a filter.
           properties:
             field: { type: string }
             limit_per_group: { type: integer, minimum: 1, maximum: 200, default: 50 }
         expand:
           type: array
+          description: >
+            Relations to include, as on `GET /items`. `labels` is served; anything else is
+            `items.expand_not_supported`.
           items: { type: string }
         page:
           type: object
@@ -1170,28 +2216,56 @@ components:
             size: { type: integer, minimum: 1, maximum: 200, default: 50 }
         include_archived: { type: boolean, default: false }
         include_trashed: { type: boolean, default: false }
-        count: { type: string, enum: [none, estimated, exact], default: none }
+        count:
+          type: string
+          enum: [none, estimated, exact]
+          default: none
+          description: >
+            `exact` counts the whole result with a second query and answers `total`; it is opt-in
+            because it costs a second pass. `estimated` is not served and is refused by name rather
+            than answered with a null total.
+
+    ItemQueryGroup:
+      type: object
+      required: [key, count, data, page]
+      description: >
+        One column of a grouped result. Its `page` continues this group and nothing else: a client
+        pages a column by asking again for that column - the key as a filter, this cursor as the
+        cursor.
+      properties:
+        key:
+          type: [string, "null"]
+          description: The grouping value, null for the entries that have none.
+        count:
+          type: [integer, "null"]
+          description: How many entries the group holds in total, with `count=exact`.
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/WorkItem" }
+        page: { $ref: "#/components/schemas/PageInfo" }
 
     ItemQueryResult:
       type: object
+      required: [data, groups, page, total]
+      description: >
+        `data` carries the rows of an ungrouped query and `groups` those of a grouped one. Both are
+        always present, so that a client reads them unconditionally; the one that does not apply is
+        empty. `page` is the walk of an ungrouped query - a grouped one has no single walk, so it
+        then reports no successor and each group carries its own.
       properties:
         data:
           type: array
           items: { $ref: "#/components/schemas/WorkItem" }
         groups:
           type: array
-          description: Only with group_by; each group has its own cursor.
-          items:
-            type: object
-            properties:
-              key: { type: [string, "null"] }
-              count: { type: [integer, "null"] }
-              data:
-                type: array
-                items: { $ref: "#/components/schemas/WorkItem" }
-              page: { $ref: "#/components/schemas/PageInfo" }
+          description: >
+            One entry per distinct value of the grouping field, in the field's own order with the
+            group of entries that have no value last. Empty without `group_by`.
+          items: { $ref: "#/components/schemas/ItemQueryGroup" }
         page: { $ref: "#/components/schemas/PageInfo" }
-        total: { type: [integer, "null"] }
+        total:
+          type: [integer, "null"]
+          description: The size of the whole result with `count=exact`, null otherwise.
 
     BulkOperation:
       type: object
@@ -1215,15 +2289,34 @@ components:
 
     Bucket:
       type: object
-      required: [id, name]
+      description: >
+        A column of a collection's board - the "list" of the requirements. It belongs to exactly one
+        collection, and its name is unique there, compared without regard to case or accents.
+      required: [id, collection_id, name, order_key, wip_limit, is_done_bucket, color_token, version]
       properties:
         id: { type: string, format: uuid }
         collection_id: { type: string, format: uuid }
         name: { type: string, minLength: 1, maxLength: 120 }
-        order_key: { type: string }
-        wip_limit: { type: [integer, "null"] }
+        order_key:
+          type: string
+          description: >
+            The rank on the board - a fractional index rather than a number (offline-sync.md §4.2).
+        wip_limit:
+          type: [integer, "null"]
+          minimum: 1
+          description: >
+            How many entries the people using this board agreed to have in the column at once.
+            Advisory: nothing refuses the drop that exceeds it, because the requirement is that the
+            column turns red rather than that the work becomes impossible. Null is no limit.
         is_done_bucket: { type: boolean, default: false }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            Always present, as null when unset - like wip_limit. A board renders both, and a field
+            that appeared only once somebody had set it is one a client cannot read unconditionally.
+        version:
+          type: integer
+          description: The optimistic lock, returned as the ETag and sent back as If-Match.
 
     BucketCreate:
       type: object
@@ -1235,14 +2328,96 @@ components:
         is_done_bucket: { type: boolean, default: false }
         color_token: { type: [string, "null"] }
 
+    BucketUpdate:
+      type: object
+      description: JSON Merge Patch; null deletes a field.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        wip_limit:
+          type: [integer, "null"]
+          minimum: 0
+          description: >
+            Null and 0 both remove the limit. Zero is not a limit anybody could satisfy, so nothing
+            is lost by reading it that way, and it saves a client from a second field beside the
+            number.
+        is_done_bucket: { type: boolean }
+        color_token: { type: [string, "null"] }
+
+    BucketDeletion:
+      type: object
+      description: >
+        What became of the entries that were in a deleted column. Reported rather than left to be
+        discovered: a board that silently reassigned a person's cards would be indistinguishable
+        from one that lost them.
+      required: [bucket_id, target_bucket_id, moved_items]
+      properties:
+        bucket_id: { type: string, format: uuid }
+        target_bucket_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The column the entries moved to - the leftmost remaining one. Null when this was the
+            last column on the board, in which case the entries now carry none.
+        moved_items:
+          type: integer
+          description: How many entries were moved.
+
     Label:
       type: object
-      required: [id, name, color_token]
+      description: >
+        A tag a collection defines and its entries carry. Defined on the collection rather than on
+        the workspace: a label is a vocabulary the people working in one collection agree on, and a
+        workspace-wide list would make every collection pay for every other's.
+      required: [id, collection_id, name, color_token, description, version]
       properties:
         id: { type: string, format: uuid }
         collection_id: { type: string, format: uuid }
         name: { type: string, minLength: 1, maxLength: 120 }
-        color_token: { type: string }
+        color_token:
+          type: string
+          minLength: 1
+          description: >
+            A theme token rather than a colour value, so clients render it in their own palette.
+            Required: a label is rendered as a chip and nothing else.
+        description:
+          type: [string, "null"]
+          description: Always present, as null when unset.
+        version:
+          type: integer
+          description: The optimistic lock, returned as the ETag and sent back as If-Match.
+
+    LabelCreate:
+      type: object
+      required: [name, color_token]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        color_token: { type: string, minLength: 1 }
+        description: { type: [string, "null"] }
+
+    ItemLabels:
+      type: object
+      description: >
+        The labels one entry carries. Returned by adding and removing rather than the entry itself,
+        because neither touches the entry's own row: a label lives beside it, and an entry whose
+        version had moved would tell a client its title had changed too.
+      required: [item_id, label_ids]
+      properties:
+        item_id: { type: string, format: uuid }
+        label_ids:
+          type: array
+          items: { type: string, format: uuid }
+
+    LabelUpdate:
+      type: object
+      description: JSON Merge Patch; null deletes a field.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        color_token:
+          type: string
+          minLength: 1
+          description: >
+            Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a
+            client would have to invent one.
         description: { type: [string, "null"] }
 
     Comment:
@@ -1433,6 +2608,137 @@ components:
         confirmation:
           type: [string, "null"]
           description: For destructive modes, the exact tenant name.
+
+    PurgeSummary:
+      type: object
+      description: What one pass of a removal did.
+      required: [matched, removed, blocked]
+      properties:
+        matched:
+          type: integer
+          description: How many rows the pass considered, whether or not they went.
+        removed:
+          type: integer
+          description: How many actually went.
+        blocked:
+          type: object
+          additionalProperties: { type: integer }
+          description: >
+            What was kept, counted by reason - `legal_hold`, `tombstone_window`. An object rather
+            than a total, so that a client can say why rather than only how many.
+
+    TrashPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrashEntry"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    ActivityPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityEntry"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    ActivityEntry:
+      type: object
+      description: >
+        One step of an entry's history. Append-only: nothing edits one, and what removes one is the
+        deletion of the entry it belongs to.
+      required: [id, item_id, code, actor, occurred_at, change_set]
+      properties:
+        id: { type: string, format: uuid }
+        item_id: { type: string, format: uuid }
+        code:
+          type: string
+          description: >
+            The message the client renders, from locales/*.json - activity.item_completed and the
+            rest (i18n-l10n.md §1). A code rather than a sentence, so that one history reads in
+            whichever language each client is set to.
+          example: activity.item_completed
+        actor:
+          type: object
+          description: >
+            Who did it. The label is not here: the account is one request away and this record is
+            deleted with its entry, so there is nothing for a copy of somebody's name to outlive.
+          required: [type, id]
+          properties:
+            type:
+              type: string
+              enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM]
+            id: { type: [string, "null"], format: uuid }
+        occurred_at: { type: string, format: date-time }
+        change_set:
+          type: object
+          additionalProperties: true
+          description: >
+            The fields that moved, keyed by field name. A field the history keeps the values of
+            carries `from` and `to` - each present only where there was a value on that side - and
+            one it does not carries `changed: true`: a note is a page of text and its history is
+            that somebody edited it. Empty where the step moved no field at all, and empty for
+            every step of an activity's compact history.
+          example:
+            title: { from: Milk, to: Oat milk }
+            notes: { changed: true }
+
+    TrashEntry:
+      type: object
+      description: >
+        One deletion, as the trash lists it. A projection rather than the object: it carries what the
+        view shows and what restoring it needs, and reading the entry back in full is a second
+        request to the object's own endpoint.
+      required:
+        [kind, id, trash_batch_id, deleted_at, title, subtype, hub_id, collection_id, parent_id, version]
+      properties:
+        kind:
+          type: string
+          enum: [CONTAINER, ITEM]
+          description: Which of the two endpoints restores it.
+        id: { type: string, format: uuid }
+        trash_batch_id:
+          type: string
+          format: uuid
+          description: >
+            The deletion every row of one act shares. It is what a restore is keyed on, and what
+            tells a client that two entries went together.
+        deleted_at:
+          type: string
+          format: date-time
+          description: When it went in, and the moment the retention period runs from.
+        title:
+          type: string
+          description: The container's name or the entry's title.
+        subtype:
+          type: string
+          description: HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
+        hub_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The hub it sits under. Null for a hub, which is its own level. Required and nullable
+            rather than optional, like the two below it: this list mixes containers and entries by
+            design, so a field that appeared only for some rows would be one a client could not read
+            unconditionally.
+        collection_id:
+          type: [string, "null"]
+          format: uuid
+          description: The collection an entry belongs to. Null for a container.
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: Where it would go back to - the hub of a collection, the entry above an entry.
+        version:
+          type: integer
+          description: The row's version, so a restore can be sent with the version it was read at.
 
     RetentionPolicy:
       type: object
@@ -1685,6 +2991,34 @@ components:
           type: array
           items: { $ref: "#/components/schemas/HealthWarning" }
 
+    QueryField:
+      type: object
+      required: [field, kind, operators, nullable, sortable, groupable]
+      description: One field `POST /items:query` accepts, and what may be asked of it.
+      properties:
+        field: { type: string }
+        kind:
+          type: string
+          enum: [string, text, id, boolean, integer, timestamp, enum, id_set]
+          description: >
+            What a value for this field looks like. `text` is free text a full-text operator
+            reads, `id_set` a relation an entry has several of.
+        operators:
+          type: array
+          description: >
+            The comparisons this field permits, exhaustively. Empty for a field that may only be
+            ordered or grouped by.
+          items: { type: string }
+        values:
+          type: array
+          description: The permitted values, for a field of kind `enum`.
+          items: { type: string }
+        nullable:
+          type: boolean
+          description: Whether the field can be absent, and `IS_NULL` therefore means something.
+        sortable: { type: boolean }
+        groupable: { type: boolean }
+
     Capabilities:
       type: object
       description: Self-description; clients configure themselves from this.
@@ -1710,13 +3044,12 @@ components:
           items: { type: string }
         query_fields:
           type: array
-          items:
-            type: object
-            properties:
-              field: { type: string }
-              operators:
-                type: array
-                items: { type: string }
+          description: >
+            What `POST /items:query` accepts. A client builds its filter editor from this rather
+            than from a hard-coded list, because the set grows with the installation's features -
+            a field whose use case this version does not have is not in it, and filtering on it is
+            refused rather than silently matching nothing.
+          items: { $ref: "#/components/schemas/QueryField" }
         supported_locales:
           type: array
           items:

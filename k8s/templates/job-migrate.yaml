@@ -1,0 +1,76 @@
+{{/*
+The migration, as a hook before the rollout (deployment.md §2.2).
+
+It runs before the new pods start and it runs once: migrations are expand/contract-safe
+(CLAUDE.md rule 12), so the old version keeps working against the new schema while the rollout
+proceeds. Doing it the other way round - migrating from inside the application at startup - would
+have as many migrators as replicas and no order between them.
+
+The job is idempotent and takes an advisory lock of its own (cmd/migrate), so a retry after a
+failed hook, or a second cluster operation started by mistake, waits rather than corrupts.
+*/}}
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "hubtask.fullname" . }}-migrate
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "migrate") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    # Before everything else the hook phase does; there is nothing else today, and the weight says
+    # what the order has to be when there is.
+    "helm.sh/hook-weight": "-5"
+    # The failed job is kept: a migration that did not work is the one thing an operator needs the
+    # logs of. before-hook-creation clears the previous one at the next attempt.
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  template:
+    metadata:
+      labels: {{- include "hubtask.labels" (dict "root" . "role" "migrate") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      # Deliberately the namespace default, and with no token mounted.
+      #
+      # A hook runs before the release's own objects exist, so naming the chart's ServiceAccount
+      # here makes the job unschedulable on a first install - the job controller looks it up and
+      # does not find it, forever. The job needs no Kubernetes identity in any case: it talks to
+      # PostgreSQL and to nothing else, which is the same reason the ServiceAccount itself mounts
+      # no token (ADR-0015).
+      automountServiceAccountToken: false
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "hubtask.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/usr/local/bin/hubtask-migrate", "up"]
+          env:
+            # The migration's DSN may be a different key from the application's: migrations run
+            # as the owner, the application as hubtask_app, and the two must not be the same role
+            # (multi-tenancy.md §2.1). The default keeps both on db-dsn for installations that
+            # have not made the split yet.
+            - name: HUBTASK_DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "hubtask.secretName" . }}
+                  key: {{ .Values.migration.dsnSecretKey }}
+            {{- if .Values.migration.appPasswordSecretKey }}
+            # The migrator is the operator that grants hubtask_app its login (A-11): the migration
+            # creates the role without one, because a credential has no business in a migration.
+            # Only installations that hand it the password get the grant - a cluster that manages
+            # the role itself leaves this unset.
+            - name: HUBTASK_DB_APP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "hubtask.secretName" . }}
+                  key: {{ .Values.migration.appPasswordSecretKey }}
+            {{- end }}
+          resources: {{- toYaml .Values.migration.resources | nindent 12 }}
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

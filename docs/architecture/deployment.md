@@ -22,6 +22,12 @@ uses `HUBTASK_VERSION` as a variable, so self-hosters can pin.
 
 ---
 
+Which runtimes, architectures and PostgreSQL majors are supported — and the CI job that proves
+each one — is [support-matrix.md](./support-matrix.md). It is enforced rather than described: a
+row without a job fails the build, and so does a matrix job without a row.
+
+---
+
 ## 2. Modes of operation
 
 ### 2.1 Self-hosting (Docker/Podman)
@@ -30,6 +36,15 @@ Two containers plus a migration job. The Compose file under `deploy/docker/compo
 reference: the database is not published externally, the application runs with `read_only` and
 `no-new-privileges`, there are volumes for media and backups, and the migration is a separate
 service gated on `service_completed_successfully`.
+
+The application connects as `hubtask_app` — the role the migration creates without `SUPERUSER` or
+`BYPASSRLS` — never as the database owner, so row level security is the last boundary in
+self-hosting too. The migrator grants that role its login (`HUBTASK_DB_APP_PASSWORD`); the
+migration itself deliberately does not, because a credential has no business in a migration.
+
+The operations port is published on loopback only (`127.0.0.1:9090`). It carries the metrics and
+the health report — `curl localhost:9090/readyz` after an update, and a Prometheus on the same
+host — and neither belongs on the network (observability-reliability.md §3.2).
 
 Updating:
 
@@ -68,6 +83,36 @@ migration state report themselves not ready rather than writing inconsistently.
 The approval hangs off the GitHub `production` environment, not off a convention. That way even an
 accidentally created tag cannot trigger anything without a human agreeing — and the AI path never
 gets anywhere near a release ([ADR-0022](../adr/ADR-0022-github-platform.md)).
+
+### 3.1 Where `integration` runs
+
+*Decided 2026-08-21 (open point D-4, and the `integration` half of D-1).*
+
+| | |
+|---|---|
+| Host | One Hetzner vServer, 4 vCPU / 8 GB / 75 GB, Ubuntu 26.04 LTS, amd64 |
+| Kubernetes | k3s, single node |
+| Ingress | Traefik, the controller k3s already ships |
+| TLS | cert-manager with Let's Encrypt, `HTTP-01`, one certificate per host |
+| Database | PostgreSQL in the cluster, on a local volume — the environment is rebuildable, not precious |
+| Host names | `<service>.<environment>.hubtask.eu`, so `api.integration.hubtask.eu` today and `app.integration.hubtask.eu` when the web client arrives |
+
+**Why an own server rather than managed Kubernetes.** What `integration` has to prove is that the
+chart, the migration hook and the rolling update behave — none of which needs a control plane
+somebody else operates. A managed cluster would add a bill and a provider-shaped path that
+production might not take anyway, and it would not make a single one of those answers more true. A
+single node is honest about what this environment is: dogfooding, load tests and migration
+rehearsals for one operator.
+
+**What that costs, and why it is acceptable here.** One node means no node failure is ever
+rehearsed, and the database shares a disk with the workload. Both are fine for `integration` and
+neither may be carried into production unexamined — which is exactly what D-1's remaining half and
+D-2 are for.
+
+**Why the host names carry the environment.** `api.integration.hubtask.eu` leaves production the
+shorter `api.hubtask.eu`, and a new service is a new prefix rather than a rename. A wildcard record
+covers the whole environment, so adding one is a deployment and not a DNS change. The operations
+port is not among them: it stays unrouted, inside the cluster ([observability-reliability.md](./observability-reliability.md)).
 
 ---
 
@@ -116,6 +161,70 @@ There is **no default value for a secret**. If one is missing, the process does 
 why. An automatically generated key would be worse than a startup error: after a restart, every
 piece of data encrypted with it would be unreadable.
 
+A configuration error names its variable through a message code (`config.db_dsn_missing`), and all
+problems are reported at once — an operator setting up an installation wants the whole list, not
+one problem per restart.
+
+### 6.1 Reference
+
+Required, no default:
+
+| Variable | Meaning |
+|---|---|
+| `HUBTASK_DB_DSN` | PostgreSQL connection |
+| `HUBTASK_SECRET_KEY` | Master key for envelope encryption, at least 32 characters |
+
+Everything else has a self-hosting default:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `HUBTASK_ROLES` | `api,worker,scheduler,automation` | Which roles this process starts (ADR-0014) |
+| `HUBTASK_HTTP_ADDR` / `HUBTASK_OPS_ADDR` | `:8080` / `:9090` | Public and operations port |
+| `HUBTASK_BASE_URL` | — | Absolute URL of the installation; without it links in emails and feeds are wrong (warning) |
+| `HUBTASK_TENANCY_MODE` | `single` | `single` for self-hosting, `multi` for provider operation (ADR-0010) |
+| `HUBTASK_LOG_FORMAT` / `HUBTASK_LOG_LEVEL` | `json` / `info` | `json` or `text`; `debug`, `info`, `warn`, `error` |
+| `HUBTASK_SHUTDOWN_GRACE_SECONDS` | `30` | Deadline for in-flight requests after `SIGTERM` |
+| `HUBTASK_SHUTDOWN_DEREGISTER_SECONDS` | `15` | How long the process keeps serving after marking itself not ready, before it stops accepting connections. Removing a pod from a load balancer is not synchronous with stopping it, so a process that closes its listener at once is still sent requests it can no longer answer — RT-8 measured that as 502s during a rollout ([evidence](../evidence/RT-8-2026-08-21.md)). It is a property of whatever routes the traffic: `0` is right where nothing does |
+| `HUBTASK_DB_APP_PASSWORD` (`_FILE`) | — | Read by `hubtask-migrate`, not the server: grants `hubtask_app` its login after the migrations, so the application never connects as the owner. URL-safe characters (it travels inside the DSN) |
+| `HUBTASK_DB_MAX_CONNS` / `HUBTASK_DB_MIN_CONNS` | `10` / `2` | Pool size **per process**; several roles mean several pools |
+| `HUBTASK_DB_CONNECT_TIMEOUT` | `5s` | Connection deadline |
+| `HUBTASK_DB_STATEMENT_TIMEOUT` | `5s` | Query budget on the interactive path |
+| `HUBTASK_DB_WORKER_STATEMENT_TIMEOUT` | `60s` | Query budget for background work |
+| `HUBTASK_DB_MAX_CONN_LIFETIME` / `HUBTASK_DB_MAX_CONN_IDLE_TIME` | `1h` / `30m` | Bounds reuse, so a failover reaches the pool |
+| `HUBTASK_STORAGE_KIND` | `local` | `local` or `s3` |
+| `HUBTASK_STORAGE_LOCAL_PATH` | `/var/lib/hubtask/media` | Media directory for `local` |
+| `HUBTASK_S3_ENDPOINT`, `_REGION`, `_BUCKET`, `_ACCESS_KEY`, `_SECRET_KEY`, `_USE_PATH_STYLE` | — / `us-east-1` / — / — / — / `true` | S3 or an S3-compatible service; with `kind=s3` the bucket and both keys are mandatory |
+| `HUBTASK_SMTP_HOST`, `_PORT`, `_USER`, `_PASSWORD`, `_FROM`, `_SECURITY`, `_TIMEOUT` | — / `587` / — / — / — / `starttls` / `10s` | Without a host, email degrades (warning). With one, `_FROM` is mandatory |
+| `HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE` | `60` | Per IP, unauthenticated |
+| `HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE` | `600` | Per token |
+| `HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE` | `3000` | Per tenant |
+| `HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE` | `10` | Login, password reset, invitation |
+| `HUBTASK_RATE_LIMIT_BURST` | `20` | How much of a budget may be spent at once |
+| `HUBTASK_MAX_BODY_BYTES` / `HUBTASK_MAX_UPLOAD_BYTES` | `1 MiB` / `64 MiB` | Request and upload limit (T-17) |
+| `HUBTASK_REQUEST_TIMEOUT` | `30s` | Server-side deadline every handler inherits |
+| `HUBTASK_CORS_ALLOWED_ORIGINS` | — | Complete origins (`https://app.example.com`), comma-separated. Empty closes the browser side entirely; a bare host name or a trailing slash fails startup rather than silently matching nothing. `*` is allowed on its own and stays safe because credentials are never sent (security.md §9) |
+| `HUBTASK_CORS_MAX_AGE` | `10m` | How long a browser may cache the preflight answer |
+| `HUBTASK_HTTP_TIMEOUT` / `HUBTASK_HTTP_CONNECT_TIMEOUT` | `10s` / `5s` | Budget for one outbound call, and for its connection attempt (T-07) |
+| `HUBTASK_HTTP_MAX_RESPONSE_BYTES` | `1 MiB` | Cap on what is read from an outbound response (T-17) |
+| `HUBTASK_HTTP_MAX_REDIRECTS` | `3` | Hops followed, each re-checked from scratch; `0` follows none, `10` is the maximum |
+| `HUBTASK_HTTP_ALLOWED_HOSTS` | — | Egress allowlist, comma-separated host names. Empty means every public address; in multi-tenant operation an empty list warns (T-07) |
+| `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` | `false` | Allows outbound calls into RFC 1918, loopback and link-local. Warns when set — it turns a webhook into a port scanner of the host network |
+| `HUBTASK_QUEUE_POLL_INTERVAL` | `2s` | Wait after a round that found no job. It is the floor under how late a job scheduled without a wake-up can start |
+| `HUBTASK_QUEUE_BATCH_SIZE` | `10` | Jobs claimed per round. A full batch is followed by the next round without waiting |
+| `HUBTASK_JOB_TIMEOUT` | `60s` | Deadline for one job. The claim's lease is this plus 30s, derived rather than configured: a lease that expires while its job runs is a job two workers are doing |
+| `HUBTASK_JOB_MAX_ATTEMPTS` | `8` | Attempts before a job goes to the dead letter with the code of its last failure (alert A-07) |
+| `HUBTASK_JOB_RETRY_BASE` / `HUBTASK_JOB_RETRY_MAX` | `5s` / `15m` | Exponential backoff with full jitter between attempts |
+| `HUBTASK_SCHEDULER_TICK_INTERVAL` | `10s` | How often the scheduler leader acts, and therefore how quickly a standby notices the leader is gone (ADR-0008) |
+| `HUBTASK_OUTBOX_BATCH_SIZE` | `100` | Events delivered per dispatch round |
+| `HUBTASK_OUTBOX_MIN_INTERVAL` / `HUBTASK_OUTBOX_MAX_INTERVAL` | `1s` / `15s` | The dispatcher's adaptive poll: the first after a round that delivered something, the second for a quiet tenant. The maximum is the worst case for SLO-4 and stays well under its 30 seconds |
+| `HUBTASK_TOMBSTONE_WINDOW` | `2160h` (90 days) | The maximum offline window (offline-sync.md §7). Two things at once: how long the marker of a removal outlives it, and the lower bound an automatic deletion observes before removing at all. Lowering it lets an automatic deletion outrun a device that has not checked in, which is how a deleted object comes back |
+| `HUBTASK_RETENTION_BATCH_SIZE` | `1000` | Rows one pass of a deletion run reads. Batches so that a large deletion does not hold one transaction open across the whole of it (data-retention.md §5) |
+| `HUBTASK_RETENTION_INTERVAL` | `1h` | Wait after a pass that reached the end of a tenant's trash. A pass that filled its batch comes back at once instead — there is known work left |
+| `HUBTASK_DEFAULT_LOCALE` | `en` | BCP 47; the last link in the chain request → account → tenant → installation |
+| `HUBTASK_DEFAULT_TIMEZONE` | `UTC` | IANA name, never a fixed offset — an offset cannot represent daylight saving |
+
+Durations are Go syntax (`30s`, `5m`, `1h30m`). A bare number is rejected rather than guessed at.
+
 ---
 
 ## 7. What happens during a release
@@ -138,7 +247,7 @@ signature, or without approval.
 
 | # | Point | Needed by |
 |---|---|---|
-| D-1 | Decide the target environment for `integration` and `production` (own server, managed Kubernetes, Hetzner/Scaleway/hyperscaler) | `0.2.0` |
+| D-1 | Decide the target environment for `production`. `integration` is decided and running ([§3.1](#31-where-integration-runs)); production is deliberately not the same decision, because it is the one coupled to D-2 | `0.6.0` |
 | D-2 | Database: own container, operator, or managed service — affects PITR and the restore drill | `0.6.0` |
 | D-3 | Evaluate moving to GitOps once there is more than one cluster or more than one operator | `0.9.0` |
-| D-4 | Domain, TLS approach, and ingress controller | `0.2.0` |
+| ~~D-4~~ | ~~Domain, TLS approach, and ingress controller~~ — decided in [§3.1](#31-where-integration-runs): `<service>.<environment>.hubtask.eu`, cert-manager with Let's Encrypt, and Traefik | `0.2.0` |

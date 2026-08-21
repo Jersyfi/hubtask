@@ -1,0 +1,21 @@
+# Generation of the query layer (CLAUDE.md rule 9: SQL is parameterised and goes through sqlc,
+# never assembled from strings). Paths are relative to this file.
+#
+# The schema sqlc reads is db/migrations, not db/schema.sql: the migrations are what runs against
+# a real database, and a generator that read the reference file would keep compiling against a
+# schema nobody has applied.
+version: "2"
+
+sql:
+  - engine: postgresql
+    schema: migrations
+    queries: queries
+    gen:
+      go:
+        package: sqlc
+        out: ../infrastructure/postgres/sqlc
+        sql_package: pgx/v5
+        # A nullable column becomes a pointer rather than a wrapper type, so that the mapping to
+        # the domain is a nil check instead of a driver type leaking into it.
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true

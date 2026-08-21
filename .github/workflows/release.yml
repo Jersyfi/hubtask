@@ -26,6 +26,39 @@ jobs:
         with:
           go-version: "1.25"
 
+      - name: The image name in lower case
+        # A Docker reference must be lower case, and github.repository keeps the owner's spelling.
+        # The push failed on that with an error about the repository name, not about the case.
+        run: |
+          echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+          echo "OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Whether this tag is a pre-release, and the tags that follow from it
+        # A semver pre-release carries a hyphen: v0.2.0-rc.1. It is built, signed and published
+        # like any other version, and it moves a floating tag — just not the same one.
+        #
+        # versioning-release.md §5: a pre-release is `X.Y.Z-rc.N` with the image tag `:rc`. The two
+        # floating tags are two audiences. `latest` is what somebody gets who pins nothing
+        # (deployment.md §1), and handing that person a release candidate is how an installation
+        # ends up on a version nobody chose. `:rc` is what somebody asks for on purpose, and
+        # leaving it unset would mean the convention exists on paper and nowhere else.
+        run: |
+          if [ "${GITHUB_REF_NAME#*-}" != "${GITHUB_REF_NAME}" ]; then
+            echo "PRERELEASE=true" >> "$GITHUB_ENV"
+          else
+            echo "PRERELEASE=false" >> "$GITHUB_ENV"
+          fi
+          {
+            echo 'IMAGE_TAGS<<TAGS'
+            echo "ghcr.io/${IMAGE_NAME}:${GITHUB_REF_NAME}"
+            if [ "${GITHUB_REF_NAME#*-}" = "${GITHUB_REF_NAME}" ]; then
+              echo "ghcr.io/${IMAGE_NAME}:latest"
+            else
+              echo "ghcr.io/${IMAGE_NAME}:rc"
+            fi
+            echo TAGS
+          } >> "$GITHUB_ENV"
+
       - name: Run the gates again
         run: make tools && make verify
 
@@ -48,40 +81,47 @@ jobs:
           push: true
           provenance: mode=max
           sbom: true
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository }}:latest
+          tags: ${{ env.IMAGE_TAGS }}
           build-args: |
             VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}
 
       - name: Produce the SBOM (CycloneDX)
-        uses: anchore/sbom-action@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0 # v0.17.4
+        uses: anchore/sbom-action@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0 # v0.18.0
         with:
-          image: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          image: ghcr.io/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           format: cyclonedx-json
           output-file: sbom.cdx.json
 
       - uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
       - name: Sign the image (keyless)
-        run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+        run: cosign sign --yes ghcr.io/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
 
       - name: Provenance-Attestation
         uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6f3abbf17002c # v1.4.3
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ghcr.io/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
+      - name: The third-party licences of this release
+        # Regenerated rather than taken from the repository: what ships has to be the list of what
+        # this build actually links (ADR-0013, licensing-editions.md §3).
+        run: make licenses
+
       - name: Package the Helm chart
         run: |
-          helm package k8s --version "${GITHUB_REF_NAME#v}" --app-version "${GITHUB_REF_NAME#v}" -d dist/
-          helm push dist/*.tgz "oci://ghcr.io/${{ github.repository_owner }}/charts"
+          .tools/helm package k8s --version "${GITHUB_REF_NAME#v}" --app-version "${GITHUB_REF_NAME#v}" -d dist/
+          .tools/helm push dist/*.tgz "oci://ghcr.io/${{ env.OWNER }}/charts"
 
       - name: GitHub Release
         uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
         with:
           generate_release_notes: true
+          # Otherwise a release candidate appears on the repository front page as the current
+          # version, which is the same mistake as the `latest` tag in a second place.
+          prerelease: ${{ env.PRERELEASE }}
           files: |
             sbom.cdx.json
             dist/*.tgz
+            THIRD-PARTY-LICENSES.md

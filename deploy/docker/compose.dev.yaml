@@ -1,0 +1,27 @@
+# The development database. Not the deployment file - that is compose.yaml.
+#
+# Deliberately without the application: `make db-up` starts what a test or a locally running
+# server needs, nothing more.
+name: hubtask-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hubtask
+      POSTGRES_PASSWORD: hubtask-dev
+      POSTGRES_DB: hubtask
+      # Faster startup for a database whose data nobody mourns.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hubtask -d hubtask"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

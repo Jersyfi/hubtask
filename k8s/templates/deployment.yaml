@@ -1,0 +1,92 @@
+{{/*
+One deployment per role from one image (ADR-0014).
+
+The separation is a bulkhead, not tidiness: an automation storm or a worker that holds every
+connection it can get must not reach the interactive path, and in a cluster the cheapest way to
+guarantee that is a different set of pods with a different set of limits (ADR-0016).
+*/}}
+{{- if and (eq .Values.storage.kind "local") (not .Values.storage.persistence.enabled) }}
+{{- fail "storage.kind=local needs storage.persistence.enabled: media on an ephemeral disk is media that disappears with the pod. Use kind=s3, or give the deployment a volume." }}
+{{- end }}
+{{- range $role, $spec := .Values.roles }}
+{{- if $spec.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hubtask.fullname" $ }}-{{ $role }}
+  labels: {{- include "hubtask.labels" (dict "root" $ "role" $role) | nindent 4 }}
+spec:
+  {{- if not (and $spec.autoscaling $spec.autoscaling.enabled) }}
+  replicas: {{ $spec.replicas }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # No capacity is given up during a rollout: the replacement is ready before anything else
+      # goes (deployment.md §5).
+      maxUnavailable: {{ $.Values.updateStrategy.maxUnavailable }}
+      maxSurge: {{ $.Values.updateStrategy.maxSurge }}
+  selector:
+    matchLabels: {{- include "hubtask.selectorLabels" (dict "root" $ "role" $role) | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+      labels: {{- include "hubtask.labels" (dict "root" $ "role" $role) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "hubtask.serviceAccountName" $ }}
+      securityContext: {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      # Long enough for the longest job to finish: the process stops claiming on SIGTERM, and what
+      # it already holds runs to its own deadline before the pod is killed (deployment.md §5).
+      terminationGracePeriodSeconds: {{ $.Values.terminationGracePeriodSeconds }}
+      containers:
+        - name: hubtask
+          image: {{ include "hubtask.image" $ }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            {{- if eq $role "api" }}
+            - name: http
+              containerPort: 8080
+            {{- end }}
+            # Every role serves the operations port: metrics and health are not the API's alone,
+            # and a worker nobody can scrape is a worker nobody can see (§3.2).
+            - name: ops
+              containerPort: 9090
+          # The ConfigMap by reference, the two secrets by key: the first is one object to change
+          # for every role, and the second never becomes a value in a release history.
+          envFrom:
+            - configMapRef:
+                name: {{ include "hubtask.fullname" $ }}
+          env: {{- include "hubtask.env" (dict "root" $ "role" $role) | nindent 12 }}
+          {{- include "hubtask.probes" . | nindent 10 }}
+          resources: {{- toYaml $spec.resources | nindent 12 }}
+          securityContext: {{- toYaml $.Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            # The root filesystem is read-only, so the one directory the process writes to is
+            # mounted rather than granted.
+            - name: tmp
+              mountPath: /tmp
+            {{- if and (eq $.Values.storage.kind "local") $.Values.storage.persistence.enabled }}
+            - name: media
+              mountPath: /var/lib/hubtask/media
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if and (eq $.Values.storage.kind "local") $.Values.storage.persistence.enabled }}
+        - name: media
+          persistentVolumeClaim:
+            claimName: {{ $.Values.storage.persistence.existingClaim | default (printf "%s-media" (include "hubtask.fullname" $)) }}
+        {{- end }}
+      {{- with $.Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}

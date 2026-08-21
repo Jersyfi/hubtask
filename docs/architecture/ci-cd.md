@@ -63,7 +63,12 @@ permissions:
   contents: read          # the default for every workflow, widened only where necessary
 ```
 
-* Actions are referenced by **commit SHA**, not by tag (`actions/checkout@<sha> # v4.2.2`).
+* Actions are referenced by **commit SHA**, not by tag (`actions/checkout@<sha> # v4.2.2`),
+  and `make gate-action-pins` — a nightly job, because it needs the network — asks GitHub whether
+  each pin is a commit that exists and whether the tag in the comment points at it. Half of the
+  rule is invisible in a diff: a hex string looks equally correct whether it is the right commit,
+  a stale one, or none at all, and a pin nothing can resolve is not a stricter pin but a step that
+  never runs.
 * Repository setting "Allow select actions" with an allowlist.
 * No `pull_request_target`; contributions from forks run without secrets.
 * Publishing only through a GitHub **environment** (`production`) with an approval rule.
@@ -133,3 +138,24 @@ for that (open point CI-1).
 | CI-1 | Self-hosted runner for load tests | `0.6.0` |
 | CI-2 | Whether to enable the merge queue (worthwhile once several contributors work in parallel) | As needed |
 | CI-3 | Enforce image signature verification at deployment (Kyverno/Sigstore policy) | `0.9.0` |
+
+---
+
+## The support matrix
+
+The `matrix-*` jobs in `nightly.yml` are the evidence behind
+[support-matrix.md](./support-matrix.md): the full suite natively on arm64, the integration suite
+against every PostgreSQL major the table claims, the Compose stack under Podman, and the chart
+installed into a throwaway kind cluster. Their names are load-bearing — `make gate-docs`
+reconciles them with the table in both directions, so renaming a job without its row turns the
+build red, and deleting one does too.
+
+A failing nightly job files an issue with the `claude:task` label rather than staying a red run in
+a tab nobody opens; one issue per job, reopened rather than duplicated, so a platform that has been
+broken for a week is one thread instead of seven.
+
+The nightly image scan targets `ghcr.io/<repo>:latest`, which only exists once `release.yml` has
+run on a `v*` tag. Before the first release the scan is skipped rather than failed, with a notice
+in the run summary — `govulncheck` scans the source every night regardless. A red run whose only
+message is "no release yet" trains people to stop reading the nightly, which costs more than the
+scan it stands in for.

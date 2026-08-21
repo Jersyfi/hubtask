@@ -1,4 +1,4 @@
-# Self-Hosting-Referenz: zwei Container, voller Funktionsumfang.
+# Self-hosting reference: two containers, the full feature set.
 # Start:  cp .env.example .env  &&  docker compose up -d
 name: hubtask
 
@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-hubtask}
       POSTGRES_USER: ${POSTGRES_USER:-hubtask}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -20,24 +20,32 @@ services:
     # Not published externally: the database is not a public interface.
 
   migrate:
-    image: ${HUBTASK_IMAGE:-ghcr.io/Jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
+    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
     entrypoint: ["/usr/local/bin/hubtask-migrate", "up"]
     environment:
+      # The owner's DSN: migrations create and alter objects. The application below deliberately
+      # does not get this one.
       HUBTASK_DB_DSN: postgres://${POSTGRES_USER:-hubtask}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
+      # The migrator is the operator that grants hubtask_app its login (multi-tenancy.md §2.1):
+      # the migration itself creates the role without one, because a credential has no business
+      # in a migration.
+      HUBTASK_DB_APP_PASSWORD: ${HUBTASK_DB_APP_PASSWORD:?HUBTASK_DB_APP_PASSWORD must be set}
     depends_on:
       db:
         condition: service_healthy
     restart: "no"          # the migration runs once, not continuously (ADR-0016)
 
   app:
-    image: ${HUBTASK_IMAGE:-ghcr.io/Jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
+    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
     restart: unless-stopped
     environment:
       HUBTASK_ROLES: api,worker,scheduler,automation
-      HUBTASK_DB_DSN: postgres://${POSTGRES_USER:-hubtask}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
+      # The application role, not the owner: no SUPERUSER, no BYPASSRLS, not an owner - which is
+      # what makes row level security the last, unbypassable boundary here too (ADR-0010).
+      HUBTASK_DB_DSN: postgres://hubtask_app:${HUBTASK_DB_APP_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
       HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:-http://localhost:8080}
       HUBTASK_TENANCY_MODE: single
-      HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY muss gesetzt sein}
+      HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}
       HUBTASK_LOG_FORMAT: json
       # Backup target: the default is a local volume. Further targets are configured in the
       # application, not here (see docs/architecture/backup-restore.md).
@@ -47,6 +55,11 @@ services:
       - backups:/var/lib/hubtask/backups
     ports:
       - "${HUBTASK_PORT:-8080}:8080"
+      # The operations port on loopback only. It carries the metrics and the health report, which
+      # say what runs, how much of it and how slowly - not something to publish
+      # (observability-reliability.md §3.2). Bound here so that `curl localhost:9090/readyz` and a
+      # Prometheus on the same host work without opening anything to the network.
+      - "127.0.0.1:${HUBTASK_OPS_PORT:-9090}:9090"
     depends_on:
       db:
         condition: service_healthy

@@ -88,11 +88,13 @@ hubtask/
 │   ├── sse/                        # StreamController.go
 │   ├── calendar/                   # IcsController.go, CalDavController.go
 │   ├── intake/                     # MailIntake.go, WebhookIntake.go
+│   ├── worker/                     # Runner.go, Scheduler.go — the queue as an inbound channel
 │   ├── admin/                      # AdminController.go (tenants, quotas, metering)
 │   └── openapi/                    # generated server types (never edit by hand)
 │
 ├── infrastructure/                 # outbound adapters
-│   ├── postgres/                   # repositories, sqlc output, Outbox.go, Queue.go, Tenant.go (RLS)
+│   ├── postgres/                   # repositories, sqlc output, Outbox.go, ChangeLog.go, AuditSink.go,
+│   │                               # Queue.go, Tenant.go (RLS)
 │   ├── storage/                    # S3Storage.go, LocalStorage.go
 │   ├── mail/                       # SmtpSender.go, ImapPoller.go
 │   ├── httpclient/                 # GuardedClient.go (SSRF, timeouts, retry)
@@ -108,7 +110,8 @@ hubtask/
 │   ├── backupstorage/              # LocalTarget.go, S3Target.go, SftpTarget.go, FtpTarget.go,
 │   │                               # WebdavTarget.go, SmbTarget.go, RcloneTarget.go, HttpPutTarget.go
 │   ├── archive/                    # Writer.go, Reader.go, Manifest.go, Encryption.go, Migrate.go
-│   ├── audit/                      # PostgresAuditSink.go, HashChain.go, SiemExporter.go
+│   ├── audit/                      # HashChain.go, SiemExporter.go (the sink itself is in
+│   │                               # postgres/, where rule 3 keeps the driver)
 │   └── automation/                 # CelEvaluator.go, ActionDispatcher.go
 │
 ├── api/
@@ -142,7 +145,7 @@ hubtask/
 │   ├── resilience/                 # RT-1…RT-12 (dependency failure, process death, overload, chaos)
 │   └── fixtures/
 ├── docs/                           # arc42, ADRs, roadmap (this repository)
-├── tools/                          # generate.go, lint configuration
+├── tools/                          # checkdocs/ (make gate-docs), licenses.md.tpl (make licenses)
 ├── .github/workflows/              # CI/CD (ADR-0022, docs/architecture/ci-cd.md)
 ├── go.mod                          # module github.com/Jersyfi/hubtask
 ├── Makefile
@@ -203,6 +206,11 @@ process without a code change:
 | `worker` | Outbox dispatcher, webhook delivery, mail, media GC, indexing | Database queue |
 | `scheduler` | Reminders, occurrences, retention | Database queue + advisory lock |
 | `automation` | The rule engine | Consumes events, calls use cases directly (in-process) or over HTTP when deployed separately |
+
+The loops that make `worker` and `scheduler` real live in `presentation/worker/`, beside `rest` and
+`mcp` rather than in `infrastructure/`. A job arriving and a handler running differs from a request
+arriving and a handler running in who asked, not in what the layer does with it — so the queue is
+an inbound adapter, and like every inbound adapter it reaches the outbound side through ports only.
 
 A later genuine service split means only this: its own `cmd/automation/main.go`, and swapping the
 in-process use case call for an HTTP/Connect client behind the same interface.

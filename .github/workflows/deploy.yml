@@ -1,0 +1,130 @@
+name: Deploy
+
+# Every push to main reaches the integration environment (deployment.md §3). Nothing here needs an
+# approval: main is protected, a change arrives through a pull request, and the four required
+# checks have already run on it — so what this deploys is code the gates have seen. `production` is
+# the environment with the human in front of it, and it is reached by a tag, not by this workflow.
+on:
+  push:
+    branches: [main]
+  # A redeploy without a commit: after a credential rotation, or to put the environment back where
+  # main is when somebody has been experimenting in it.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One rollout at a time, and never a cancelled one. `helm upgrade` interrupted halfway leaves the
+# release in pending-upgrade, which the next run cannot proceed past without being told to — so a
+# queued deploy waits rather than taking the environment down with it.
+concurrency:
+  group: deploy-integration
+  cancel-in-progress: false
+
+env:
+  GO_VERSION: "1.25"
+  # The environment's own values live in the repository, not in this file: a deploy is then never a
+  # workflow edit, and the values are reviewable in the diff that changes them.
+  VALUES: deploy/integration/values.yaml
+  API_URL: https://api.integration.hubtask.eu
+
+jobs:
+  deploy:
+    name: Deploy to integration
+    runs-on: ubuntu-latest
+    environment:
+      name: integration
+      url: https://api.integration.hubtask.eu
+    permissions:
+      contents: read
+      packages: write                # push the per-commit image to ghcr.io
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: The image name in lower case
+        # A Docker reference must be lower case, and github.repository keeps the owner's spelling.
+        run: echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: helm, pinned like every other tool
+        run: make tools-helm
+
+      - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+      - uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the image for this commit
+        # linux/amd64 only, and deliberately: the node is amd64, arm64 is proven by
+        # nightly.yml:matrix-arm64 (support-matrix.md §2), and building a second architecture on
+        # every push to main would double the wait for a platform nothing here runs on.
+        #
+        # No SBOM, no signature, no provenance either. Those belong to what people install —
+        # release.yml attaches all three to every published version. This image exists for one
+        # cluster and one commit. Enforcing signature verification at deployment is CI-3
+        # (ci-cd.md), and when it arrives this is the workflow that grows the signing step.
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ env.IMAGE_NAME }}:main-${{ github.sha }}
+            ghcr.io/${{ env.IMAGE_NAME }}:main
+          build-args: |
+            VERSION=main-${{ github.sha }}
+            COMMIT=${{ github.sha }}
+
+      - name: The cluster credential
+        # Through the environment rather than through interpolation: a secret expanded into a shell
+        # script is a secret one quotation mark away from being a command (ADR-0015).
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          install -m 600 /dev/null "${RUNNER_TEMP}/kubeconfig"
+          printf '%s' "$KUBE_CONFIG" > "${RUNNER_TEMP}/kubeconfig"
+          echo "KUBECONFIG=${RUNNER_TEMP}/kubeconfig" >> "$GITHUB_ENV"
+
+      - name: helm upgrade
+        # No --create-namespace: the deploy identity cannot create namespaces, on purpose
+        # (deploy/integration/deployer-rbac.yaml). Bootstrap made it.
+        #
+        # No --atomic either. A rollout that fails with maxUnavailable: 0 leaves the previous pods
+        # serving — the environment stays up by itself — and the failed migration job and its logs
+        # stay where an operator can read them. --atomic would roll back and delete exactly the
+        # evidence needed to find out why (deployment.md §5).
+        run: |
+          .tools/helm upgrade --install hubtask k8s \
+            --namespace hubtask \
+            --values "$VALUES" \
+            --set image.tag="main-${GITHUB_SHA}" \
+            --wait --timeout 10m
+
+      - name: The public path answers
+        # `helm --wait` proves the pods are ready, and readiness is checked on the operations port,
+        # which is not routed. So it says nothing about DNS, about Traefik, or about the
+        # certificate. This does, and on a first install it waits for cert-manager: an ACME order
+        # takes a minute, and failing on that would be reporting a broken deploy that is not.
+        #
+        # Any status below 500 passes. 401 is a correct answer from a healthy API — what is being
+        # asked here is whether the request reaches the application at all.
+        run: |
+          for attempt in $(seq 1 30); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
+              "${API_URL}/api/v1/meta/capabilities" || echo 000)"
+            if [ "$code" != "000" ] && [ "$code" -lt 500 ]; then
+              echo "the public path answers ${code}"
+              exit 0
+            fi
+            echo "attempt ${attempt}: ${code}"
+            sleep 10
+          done
+          echo "the public path never answered below 500" >&2
+          exit 1

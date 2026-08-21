@@ -162,6 +162,15 @@ func TestDriverStaysInThePostgresAdapter(t *testing.T) {
 	allowed := []string{
 		filepath.Clean("../../infrastructure/postgres"),
 		filepath.Clean("../../cmd/migrate"),
+		// The suites that run against a real database connect as the raw application role,
+		// without the wrapper - that is how they prove the database enforces the boundary rather
+		// than the code. Testing the wrapper through the wrapper would prove nothing.
+		//
+		// Named one by one rather than as `test/`: a suite that reaches for the driver should have
+		// to say so here, which is a line in a review rather than a silent inheritance.
+		filepath.Clean("../../test/dbtest"),
+		filepath.Clean("../../test/integration"),
+		filepath.Clean("../../test/retention"),
 	}
 
 	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd", "../../test"},

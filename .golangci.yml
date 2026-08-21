@@ -8,6 +8,13 @@ version: "2"
 
 run:
   tests: true
+  # Without these, every file behind a build tag is invisible to the linter - which is most of
+  # the test suite, and the part that talks to a real database.
+  build-tags:
+    - integration
+    - contract
+    - resilience
+    - load
 
 linters:
   default: none
@@ -118,6 +125,21 @@ linters:
             - pkg: io/ioutil
               desc: "deprecated"
 
+        # T-06 and ADR-0026: the query DSL is the one place that assembles SQL at run time, and it
+        # may assemble it only from constants of its own. `fmt` is the tool that would make a value
+        # part of the text - Sprintf into a fragment is exactly the mistake - so it is not
+        # importable here, which is what T-06 asks for by name. The driver is denied for a second
+        # reason: this package produces a statement and never executes one, so a connection has no
+        # business in it.
+        query-builder:
+          files:
+            - "**/infrastructure/postgres/query/**"
+          deny:
+            - pkg: fmt
+              desc: "the query builder writes constants and binds parameters - never a formatted string (T-06, ADR-0026)"
+            - pkg: github.com/jackc/pgx
+              desc: "this package compiles statements and executes none (ADR-0026)"
+
         # Rule 3 from CLAUDE.md: every query goes through the transaction wrapper, which is the
         # only place that sets `SET LOCAL app.tenant_id`. The driver therefore stays inside the
         # PostgreSQL adapter - and out of its tests, so that nothing bypasses the wrapper.
@@ -126,6 +148,16 @@ linters:
             - $all
             - "!**/infrastructure/postgres/**"
             - "!**/cmd/migrate/**"
+            # The suites that run against a real database are the deliberate exception: they
+            # connect as the raw application role, without the wrapper, because that is how they
+            # prove the database enforces the boundary. Restricting them would mean testing the
+            # wrapper with the wrapper.
+            #
+            # Named one by one rather than as `test/**`: a suite that talks to the driver should
+            # have to say so here, which is a line in a review rather than a silent inheritance.
+            - "!**/test/dbtest/**"
+            - "!**/test/integration/**"
+            - "!**/test/retention/**"
           deny:
             - pkg: github.com/jackc/pgx
               desc: "the driver belongs to infrastructure/postgres - go through the transaction wrapper (ADR-0010)"

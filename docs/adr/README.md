@@ -30,3 +30,6 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0021](./ADR-0021-offline-sync.md) | Offline sync: server-authoritative, per-field merging | accepted | API, domain, clients |
 | [0022](./ADR-0022-github-platform.md) | GitHub as the platform, Actions as the pipeline, GHCR as the registry | accepted | Operations, process, supply chain |
 | [0023](./ADR-0023-deployment-strategy.md) | Push-based deployment with approval, GitOps-ready | accepted | Operations, delivery |
+| [0024](./ADR-0024-tenant-scoped-foreign-keys.md) | Tenant-scoped foreign keys | accepted | Security, persistence |
+| [0025](./ADR-0025-precondition-failures.md) | The status of a failed precondition | accepted | Interfaces, API |
+| [0026](./ADR-0026-query-dsl-sql-construction.md) | How the query DSL turns into SQL | accepted | Security, persistence, API |

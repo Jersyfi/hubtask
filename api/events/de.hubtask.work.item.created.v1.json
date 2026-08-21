@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.item.created.v1.json",
+  "title": "de.hubtask.work.item.created.v1",
+  "description": "A task, a work package or an activity was created. One event for all three levels rather than one per level: they are one aggregate (ADR-0006), so a subscriber that wants only activities filters on `data.type`, and a level configured later reaches it without a new subscription. Single-value enums stand in for `const`, and the bounds of a value are stated in its description rather than as keywords: the contract test validates against this file with the subset of JSON Schema the project implements, and a keyword it silently ignored would be a promise nobody checks. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes, whose names are lower case without separators as the specification requires. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
+  "type": "object",
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "type",
+    "subject",
+    "time",
+    "datacontenttype",
+    "tenantid",
+    "actortype",
+    "causationdepth",
+    "correlationid",
+    "data"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "specversion": {
+      "type": "string",
+      "enum": [
+        "1.0"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv7. Stable across delivery attempts, so a consumer deduplicates on it (at-least-once delivery)."
+    },
+    "source": {
+      "type": "string",
+      "description": "The installation and the bounded context that produced the event."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "de.hubtask.work.item.created.v1"
+      ]
+    },
+    "subject": {
+      "type": "string",
+      "description": "What the event is about, so that a consumer can filter without parsing the payload."
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "datacontenttype": {
+      "type": "string",
+      "enum": [
+        "application/json"
+      ]
+    },
+    "tenantid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actortype": {
+      "type": "string",
+      "enum": [
+        "USER",
+        "SERVICE_ACCOUNT",
+        "AUTOMATION",
+        "AI_AGENT",
+        "SYSTEM"
+      ]
+    },
+    "actorid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Absent when the system itself acts. No label: an event leaves the installation, and a name is personal data a subscriber does not need in order to react (ADR-0018)."
+    },
+    "onbehalfof": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The principal an automation rule or an agent runs as."
+    },
+    "correlationid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Everything that came out of one original action carries the same value. A root event is its own correlation."
+    },
+    "causationid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The event that caused this one. Absent for an action a person took."
+    },
+    "causationdepth": {
+      "type": "integer",
+      "description": "Distance from the original action. The rule engine stops at 5 and marks the run ABORTED_LOOP (automation.md §2)."
+    },
+    "data": {
+      "type": "object",
+      "description": "A snapshot of the item as it was created, in the field names of the API (schema WorkItem), so that a webhook payload and a REST response describe the same object in the same words.",
+      "required": [
+        "id",
+        "type",
+        "collection_id",
+        "parent_id",
+        "path",
+        "depth",
+        "title",
+        "completion",
+        "order_key",
+        "created_at",
+        "created_by",
+        "version"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "TASK",
+            "WORK_PACKAGE",
+            "ACTIVITY"
+          ],
+          "description": "The level. Extensible by configuration: a consumer that switches on it must tolerate a value it does not know rather than fail (domain-model.md §1)."
+        },
+        "collection_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The collection the item belongs to. Sent on every level, because the parent alone does not say which collection an item is in until the whole chain has been walked."
+        },
+        "parent_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "description": "The item above; null for one that sits directly under the collection (invariant I-W1). Sent even when null - it is the parent reference a consumer places the item by, and inferring it from the type would break the day a level is added."
+        },
+        "path": {
+          "type": "string",
+          "description": "The materialised path, `/<id>/<id>/…/`, including the item itself and closed by a separator (invariant I-W2)."
+        },
+        "depth": {
+          "type": "integer",
+          "description": "The level below the collection, counting from 1. Bounded by the capability profile of the type."
+        },
+        "title": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Markdown, unrendered by the server. Absent when unset, and absent on a type whose profile does not carry the NOTES capability."
+        },
+        "completion": {
+          "type": "object",
+          "description": "The done/open state. Always sent, though a created item is always open: a rule that reads it should not need a special case for the one event where it happens to be absent.",
+          "required": [
+            "is_completed"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "is_completed": {
+              "type": "boolean"
+            },
+            "completed_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "completed_by": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            }
+          }
+        },
+        "order_key": {
+          "type": "string",
+          "description": "The rank among the siblings: a fractional index, not a number (offline-sync.md §4.2)."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "created_by": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the item last changed. Equal to created_at on this event; the completion and move events are about a change, and a consumer ordering two of them needs it."
+        }
+      }
+    }
+  }
+}

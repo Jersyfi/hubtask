@@ -1,0 +1,528 @@
+{
+  "url": "https://api.integration.hubtask.eu",
+  "started_at": "2026-08-21T08:59:43.085307Z",
+  "ended_at": "2026-08-21T09:05:43.089335Z",
+  "workers": 8,
+  "requests": 14334,
+  "by_status": {
+    "200": 9551,
+    "201": 4781,
+    "502": 2
+  },
+  "transport_errors": 0,
+  "latency_ms": {
+    "p50": 66,
+    "p95": 118,
+    "max": 507
+  },
+  "timeline": [
+    {
+      "seconds_in": 0,
+      "requests": 190,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 5,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 10,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 15,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 20,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 25,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 30,
+      "requests": 187,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 35,
+      "requests": 203,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 40,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 45,
+      "requests": 197,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 50,
+      "requests": 202,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 55,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 60,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 65,
+      "requests": 193,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 70,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 75,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 80,
+      "requests": 202,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 85,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 90,
+      "requests": 198,
+      "non_success": 1,
+      "server_errors": 1,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 95,
+      "requests": 201,
+      "non_success": 1,
+      "server_errors": 1,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 100,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 105,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 110,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 115,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 120,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 125,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 130,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 135,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 140,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 145,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 150,
+      "requests": 190,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 155,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 160,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 165,
+      "requests": 202,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 170,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 175,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 180,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 185,
+      "requests": 202,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 190,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 195,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 200,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 205,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 210,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 215,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 220,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 225,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 230,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 235,
+      "requests": 188,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 240,
+      "requests": 197,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 245,
+      "requests": 202,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 250,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 255,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 260,
+      "requests": 202,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 265,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 270,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 275,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 280,
+      "requests": 202,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 285,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 290,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 295,
+      "requests": 202,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 300,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 305,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 310,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 315,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 320,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 325,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 330,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 335,
+      "requests": 198,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 340,
+      "requests": 196,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 345,
+      "requests": 201,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 350,
+      "requests": 199,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    },
+    {
+      "seconds_in": 355,
+      "requests": 200,
+      "non_success": 0,
+      "server_errors": 0,
+      "transport_errors": 0
+    }
+  ],
+  "items_created": 4781,
+  "items_missing_afterwards": 0,
+  "verdict_no_failed_requests": false,
+  "verdict_no_data_loss": true
+}

@@ -1,0 +1,107 @@
+# PostgreSQL for the integration environment.
+#
+# Deliberately the same shape as the self-hosting reference (deploy/docker/compose.yaml): one
+# database, one owner role that the migration runs as, and hubtask_app created by the migration
+# without a login until the migrator grants it one (multi-tenancy.md §2.1). What integration adds
+# over that reference is only that it runs in the cluster.
+#
+# Two choices here differ from CI on purpose, so that this environment covers what CI cannot:
+#
+#   - PostgreSQL 17, where ci.yml:integration runs 16. Both are supported (support-matrix.md §3),
+#     and a dogfooding environment that repeats CI's major proves nothing CI has not proven.
+#   - The Debian image rather than Alpine, so the cluster is glibc with an en_US.utf8 database.
+#     The rank keys the query order rests on are byte-ordered and compare under COLLATE "C"
+#     (db/migrations/0010): a musl image with C.UTF-8 cannot tell whether that is right, because
+#     under it every collation agrees. This one can.
+#
+# Not a hardened deployment, and not backed up: the environment is rebuildable by design, and
+# nothing in it is anybody's data. Production is a separate decision (deployment.md, D-1 and D-2).
+apiVersion: v1
+kind: Service
+metadata:
+  name: hubtask-db
+  namespace: hubtask
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/part-of: hubtask
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/part-of: hubtask
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hubtask-db
+  namespace: hubtask
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/part-of: hubtask
+spec:
+  serviceName: hubtask-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/part-of: hubtask
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgresql
+        app.kubernetes.io/part-of: hubtask
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: postgres
+          image: postgres:17
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: hubtask
+            - name: POSTGRES_USER
+              value: hubtask
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hubtask-db
+                  key: owner-password
+            # The data directory is a subdirectory of the mount, not the mount itself: a volume
+            # root can carry a lost+found, and initdb refuses a directory that is not empty.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "hubtask", "-d", "hubtask"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "hubtask", "-d", "hubtask"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 20Gi

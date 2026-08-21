@@ -1,0 +1,1134 @@
+-- Hubtask, initial schema. Generated once from db/schema.sql, which was the reference while the
+-- model was being designed; from here on the migrations are the source and schema.sql is
+-- regenerated from them (project-structure.md §1).
+--
+-- Migrations are forward-only and safe for rolling updates (CLAUDE.md rule 12, ADR-0003).
+-- There is no Down for this one: rolling back the initial schema would delete every tenant's
+-- data, and the answer to a bad deploy is a restore, not a down migration.
+--
+-- The two roles carry the tenant boundary (multi-tenancy.md §2.1):
+--   hubtask_migrator  owns the objects and runs the migrations
+--   hubtask_app       the application role - no BYPASSRLS, no SUPERUSER, not an owner
+-- Both are created without LOGIN. The operator grants login and a password separately, so that
+-- no credential is ever written into a migration.
+
+-- +goose Up
+
+-- +goose StatementBegin
+DO $roles$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hubtask_migrator') THEN
+    CREATE ROLE hubtask_migrator NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hubtask_app') THEN
+    CREATE ROLE hubtask_app NOLOGIN;
+  END IF;
+EXCEPTION
+  -- A managed PostgreSQL may forbid CREATE ROLE. In that case the operator creates the two
+  -- roles beforehand; the grants below then still apply, and the migration fails loudly if
+  -- they are missing rather than silently skipping the tenant boundary.
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'roles must be created by the operator: %', SQLERRM;
+END $roles$;
+-- +goose StatementEnd
+-- Hubtask - the reference schema (the target state of the first migrations)
+-- Creates the core tables including tenant isolation through row level security.
+-- Conventions: UUIDv7 (generated in the application), timestamptz in UTC, tenant_id in every
+-- business table, soft delete through deleted_at, optimistic locking through version.
+-- See docs/architecture/{domain-model,multi-tenancy}.md
+
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS unaccent;
+-- CREATE EXTENSION IF NOT EXISTS vector;   -- optional, semantic search
+
+-- ---------------------------------------------------------------------------
+-- Roles (created once, outside the migration)
+--   hubtask_migrator : owns the objects, runs the migrations
+--   hubtask_app      : the application role, NO BYPASSRLS, not an owner
+-- ---------------------------------------------------------------------------
+
+-- unaccent() is only STABLE and therefore not indexable -> an IMMUTABLE wrapper
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION imm_unaccent(text) RETURNS text
+  LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS
+$$ SELECT public.unaccent('public.unaccent'::regdictionary, $1) $$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION current_tenant_id() RETURNS uuid
+  LANGUAGE sql STABLE AS
+$$ SELECT nullif(current_setting('app.tenant_id', true), '')::uuid $$;
+-- +goose StatementEnd
+
+-- ============================ Identity & Access ============================
+
+CREATE TYPE tenant_status AS ENUM ('ACTIVE', 'SUSPENDED', 'PENDING_DELETION');
+
+CREATE TABLE tenant (
+  id                 uuid PRIMARY KEY,
+  slug               text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9][a-z0-9-]{2,39}$'),
+  display_name       text NOT NULL CHECK (length(display_name) BETWEEN 1 AND 200),
+  status             tenant_status NOT NULL DEFAULT 'ACTIVE',
+  default_locale     text NOT NULL DEFAULT 'en',
+  default_time_zone  text NOT NULL DEFAULT 'UTC',
+  settings           jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  updated_at         timestamptz NOT NULL DEFAULT now(),
+  deleted_at         timestamptz,
+  version            integer NOT NULL DEFAULT 1
+);
+
+CREATE TYPE account_kind   AS ENUM ('USER', 'SERVICE_ACCOUNT');
+CREATE TYPE account_status AS ENUM ('ACTIVE', 'INVITED', 'DISABLED');
+
+CREATE TABLE account (
+  id                uuid PRIMARY KEY,
+  tenant_id         uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  kind              account_kind NOT NULL DEFAULT 'USER',
+  email             text,
+  display_name      text NOT NULL,
+  external_subject  text,
+  password_hash     text,                      -- local accounts only (argon2id)
+  locale            text,
+  time_zone         text,
+  week_start        text,
+  status            account_status NOT NULL DEFAULT 'ACTIVE',
+  ai_consent        boolean NOT NULL DEFAULT false,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  deleted_at        timestamptz,
+  version           integer NOT NULL DEFAULT 1
+);
+CREATE UNIQUE INDEX account_email_uq ON account (tenant_id, lower(email))
+  WHERE email IS NOT NULL AND deleted_at IS NULL;
+CREATE UNIQUE INDEX account_subject_uq ON account (tenant_id, external_subject)
+  WHERE external_subject IS NOT NULL;
+
+CREATE TABLE account_group (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  name         text NOT NULL,
+  description  text,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  version      integer NOT NULL DEFAULT 1
+);
+CREATE UNIQUE INDEX account_group_name_uq ON account_group (tenant_id, lower(name));
+
+CREATE TABLE account_group_member (
+  tenant_id  uuid NOT NULL,
+  group_id   uuid NOT NULL REFERENCES account_group(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  PRIMARY KEY (group_id, account_id)
+);
+
+CREATE TYPE membership_scope AS ENUM ('TENANT', 'HUB', 'COLLECTION', 'ITEM');
+CREATE TYPE membership_role  AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST');
+
+CREATE TABLE membership (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id  uuid REFERENCES account(id) ON DELETE CASCADE,
+  group_id    uuid REFERENCES account_group(id) ON DELETE CASCADE,
+  scope_type  membership_scope NOT NULL,
+  scope_id    uuid,                              -- NULL when scope_type = TENANT
+  role        membership_role NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  CHECK ((account_id IS NULL) <> (group_id IS NULL)),
+  CHECK ((scope_type = 'TENANT') = (scope_id IS NULL))
+);
+CREATE INDEX membership_lookup_idx ON membership (tenant_id, account_id, scope_type, scope_id);
+CREATE INDEX membership_scope_idx  ON membership (tenant_id, scope_type, scope_id);
+
+CREATE TABLE access_token (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id    uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  name          text NOT NULL,
+  token_hash    bytea NOT NULL,
+  token_prefix  text NOT NULL,
+  scopes        text[] NOT NULL DEFAULT '{}',
+  expires_at    timestamptz,
+  last_used_at  timestamptz,
+  revoked_at    timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX access_token_hash_uq ON access_token (token_hash);
+
+-- ============================ Work Management ==============================
+
+CREATE TYPE container_type AS ENUM ('HUB', 'COLLECTION');
+
+CREATE TABLE container (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  type         container_type NOT NULL,
+  parent_id    uuid REFERENCES container(id) ON DELETE RESTRICT,
+  name         text NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
+  description  text,
+  icon         text,
+  color_token  text,
+  order_key    text NOT NULL,
+  policies     jsonb NOT NULL DEFAULT '{}'::jsonb,
+  archived_at  timestamptz,
+  deleted_at   timestamptz,
+  trash_batch_id uuid,
+  created_by   uuid NOT NULL,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  version      integer NOT NULL DEFAULT 1,
+  CHECK ((type = 'HUB') = (parent_id IS NULL))
+);
+CREATE UNIQUE INDEX container_name_uq
+  ON container (tenant_id, coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid), lower(imm_unaccent(name)))
+  WHERE deleted_at IS NULL;
+CREATE INDEX container_parent_idx ON container (tenant_id, parent_id, order_key)
+  WHERE deleted_at IS NULL;
+
+CREATE TABLE bucket (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id  uuid NOT NULL REFERENCES container(id) ON DELETE CASCADE,
+  name           text NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
+  order_key      text NOT NULL,
+  wip_limit      integer CHECK (wip_limit IS NULL OR wip_limit > 0),
+  is_done_bucket boolean NOT NULL DEFAULT false,
+  color_token    text,
+  deleted_at     timestamptz,
+  version        integer NOT NULL DEFAULT 1
+);
+CREATE UNIQUE INDEX bucket_name_uq ON bucket (tenant_id, collection_id, lower(imm_unaccent(name)))
+  WHERE deleted_at IS NULL;
+CREATE INDEX bucket_order_idx ON bucket (tenant_id, collection_id, order_key);
+
+CREATE TABLE label (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id  uuid NOT NULL REFERENCES container(id) ON DELETE CASCADE,
+  name           text NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
+  color_token    text NOT NULL,
+  description    text,
+  deleted_at     timestamptz,
+  version        integer NOT NULL DEFAULT 1
+);
+CREATE UNIQUE INDEX label_name_uq ON label (tenant_id, collection_id, lower(imm_unaccent(name)))
+  WHERE deleted_at IS NULL;
+
+-- Extensible: new item types are added here, the capability profile lives in the code
+-- or in item_capability_profile.
+CREATE TYPE item_type AS ENUM ('TASK', 'WORK_PACKAGE', 'ACTIVITY');
+
+CREATE TABLE item_capability_profile (
+  tenant_id           uuid,                      -- NULL = a system default
+  type                item_type NOT NULL,
+  capabilities        text[] NOT NULL,
+  allowed_child_types item_type[] NOT NULL DEFAULT '{}',
+  max_depth           integer NOT NULL
+);
+CREATE UNIQUE INDEX icp_uq ON item_capability_profile
+  (coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), type);
+
+CREATE TABLE work_item (
+  id                 uuid PRIMARY KEY,
+  tenant_id          uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id      uuid NOT NULL REFERENCES container(id) ON DELETE CASCADE,
+  type               item_type NOT NULL,
+  parent_id          uuid REFERENCES work_item(id) ON DELETE CASCADE,
+  path               text NOT NULL,              -- '/<uuid>/<uuid>/…', materialised
+  depth              integer NOT NULL CHECK (depth >= 0),
+  title              text NOT NULL CHECK (length(btrim(title)) BETWEEN 1 AND 500),
+  notes              text,
+  is_completed       boolean NOT NULL DEFAULT false,
+  completed_at       timestamptz,
+  completed_by       uuid,
+  bucket_id          uuid REFERENCES bucket(id) ON DELETE SET NULL,
+  order_key          text NOT NULL,
+  start_at           timestamptz,
+  due_at             timestamptz,
+  due_date_only      boolean NOT NULL DEFAULT false,
+  due_time_zone      text,
+  assignee_id        uuid REFERENCES account(id) ON DELETE SET NULL,
+  cover_kind         text CHECK (cover_kind IN ('COLOR', 'IMAGE')),
+  cover_color_token  text,
+  cover_media_id     uuid,
+  custom_fields      jsonb NOT NULL DEFAULT '{}'::jsonb,
+  recurrence_rule_id uuid,
+  origin_jumble_id   uuid,
+  content_language   text,
+  search_vector      tsvector GENERATED ALWAYS AS
+                       (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(notes, ''))) STORED,
+  archived_at        timestamptz,
+  deleted_at         timestamptz,
+  trash_batch_id     uuid,
+  created_by         uuid NOT NULL,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  updated_at         timestamptz NOT NULL DEFAULT now(),
+  version            integer NOT NULL DEFAULT 1,
+  CHECK (is_completed = (completed_at IS NOT NULL)),
+  CHECK ((type = 'TASK') = (parent_id IS NULL)),
+  CHECK (bucket_id IS NULL OR type = 'TASK')
+);
+CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, order_key)
+  WHERE deleted_at IS NULL AND archived_at IS NULL;
+CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
+  WHERE deleted_at IS NULL AND archived_at IS NULL AND is_completed = false;
+CREATE INDEX wi_assignee_idx ON work_item (tenant_id, assignee_id, is_completed, due_at)
+  WHERE deleted_at IS NULL;
+CREATE INDEX wi_parent_idx   ON work_item (tenant_id, parent_id, order_key);
+CREATE INDEX wi_path_idx     ON work_item (tenant_id, path text_pattern_ops);
+CREATE INDEX wi_search_idx   ON work_item USING gin (search_vector);
+CREATE INDEX wi_custom_idx   ON work_item USING gin (custom_fields jsonb_path_ops);
+CREATE INDEX wi_trash_idx    ON work_item (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
+
+CREATE TABLE item_label (
+  tenant_id uuid NOT NULL,
+  item_id   uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
+  label_id  uuid NOT NULL REFERENCES label(id) ON DELETE CASCADE,
+  PRIMARY KEY (item_id, label_id)
+);
+CREATE INDEX item_label_reverse_idx ON item_label (tenant_id, label_id, item_id);
+
+CREATE TABLE item_member (
+  tenant_id  uuid NOT NULL,
+  item_id    uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  PRIMARY KEY (item_id, account_id)
+);
+CREATE INDEX item_member_reverse_idx ON item_member (tenant_id, account_id, item_id);
+
+CREATE TABLE custom_field_definition (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id uuid REFERENCES container(id) ON DELETE CASCADE,   -- NULL = tenant-wide
+  key           text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  kind          text NOT NULL CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL')),
+  options       jsonb NOT NULL DEFAULT '[]'::jsonb,
+  is_required   boolean NOT NULL DEFAULT false,
+  applies_to    item_type[] NOT NULL DEFAULT '{TASK}',
+  deleted_at    timestamptz
+);
+CREATE UNIQUE INDEX cfd_key_uq
+  ON custom_field_definition (tenant_id, coalesce(collection_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
+  WHERE deleted_at IS NULL;
+
+CREATE TABLE comment (
+  id                uuid PRIMARY KEY,
+  tenant_id         uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id           uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
+  author_id         uuid NOT NULL,
+  parent_comment_id uuid REFERENCES comment(id) ON DELETE CASCADE,
+  body              text NOT NULL CHECK (length(body) BETWEEN 1 AND 20000),
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  edited_at         timestamptz,
+  deleted_at        timestamptz,
+  version           integer NOT NULL DEFAULT 1
+);
+CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
+
+CREATE TABLE activity_entry (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id      uuid,
+  container_id uuid,
+  actor_type   text NOT NULL CHECK (actor_type IN ('USER','SERVICE_ACCOUNT','AUTOMATION','AI_AGENT','SYSTEM')),
+  actor_id     uuid,
+  verb         text NOT NULL,                    -- a message code, e.g. 'item.completed'
+  change_set   jsonb NOT NULL DEFAULT '{}'::jsonb,
+  occurred_at  timestamptz NOT NULL DEFAULT now(),
+  correlation_id uuid,
+  causation_id   uuid
+);
+CREATE INDEX activity_item_idx ON activity_entry (tenant_id, item_id, occurred_at DESC);
+
+CREATE TABLE media_object (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  storage_key text NOT NULL,
+  mime_type   text NOT NULL,
+  byte_size   bigint NOT NULL CHECK (byte_size >= 0),
+  checksum    text,
+  usage       text NOT NULL CHECK (usage IN ('COVER','ATTACHMENT','IMPORT','EXPORT')),
+  ref_count   integer NOT NULL DEFAULT 0,
+  created_by  uuid NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  deleted_at  timestamptz
+);
+
+CREATE TABLE item_attachment (
+  tenant_id uuid NOT NULL,
+  item_id   uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
+  media_id  uuid NOT NULL REFERENCES media_object(id) ON DELETE RESTRICT,
+  PRIMARY KEY (item_id, media_id)
+);
+
+-- ============================== Scheduling =================================
+
+CREATE TABLE recurrence_rule (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  source_item_id uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
+  rrule         text NOT NULL,                   -- RFC 5545
+  time_zone     text NOT NULL,
+  mode          text NOT NULL CHECK (mode IN ('ON_SCHEDULE','ON_COMPLETION')),
+  horizon_days  integer NOT NULL DEFAULT 90,
+  ends_at       timestamptz,
+  max_count     integer,
+  last_materialized_at timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  version       integer NOT NULL DEFAULT 1
+);
+
+CREATE TABLE reminder (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id      uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
+  offset_spec  text NOT NULL,                    -- 'REL:-PT1H' | 'ABS:2026-09-01T08:00:00Z'
+  channels     text[] NOT NULL DEFAULT '{EMAIL}',
+  recipients   uuid[] NOT NULL DEFAULT '{}',     -- empty = assignee/members
+  state        text NOT NULL DEFAULT 'PENDING' CHECK (state IN ('PENDING','SENT','CANCELLED')),
+  fire_at      timestamptz,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX reminder_due_idx ON reminder (tenant_id, state, fire_at);
+
+-- ======================== Views, Templates, Jumble =========================
+
+CREATE TABLE saved_view (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  scope_type    text NOT NULL CHECK (scope_type IN ('TENANT','HUB','COLLECTION','ACCOUNT')),
+  scope_id      uuid,
+  owner_id      uuid,
+  name          text NOT NULL,
+  layout        text NOT NULL,                   -- LIST_COLLAPSED | LIST_EXPANDED | KANBAN | TIMELINE | …
+  query         jsonb NOT NULL,
+  grouping      jsonb NOT NULL DEFAULT '{}'::jsonb,
+  visible_fields text[] NOT NULL DEFAULT '{}',
+  sharing       text NOT NULL DEFAULT 'PRIVATE' CHECK (sharing IN ('PRIVATE','SCOPE','PUBLIC_LINK')),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  version       integer NOT NULL DEFAULT 1
+);
+
+CREATE TABLE template (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  scope_type  text NOT NULL CHECK (scope_type IN ('TENANT','HUB','COLLECTION')),
+  scope_id    uuid,
+  name        text NOT NULL,
+  description text,
+  root_type   item_type NOT NULL DEFAULT 'TASK',
+  nodes       jsonb NOT NULL,                    -- the tree including relative due dates (+P3D)
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  deleted_at  timestamptz,
+  version     integer NOT NULL DEFAULT 1
+);
+
+CREATE TABLE jumble_entry (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  channel      text NOT NULL CHECK (channel IN ('EMAIL','WEBHOOK','QUICK_CAPTURE','API')),
+  sender       text,
+  raw_subject  text,
+  raw_body     text,
+  attachments  uuid[] NOT NULL DEFAULT '{}',
+  suggestion   jsonb,
+  status       text NOT NULL DEFAULT 'NEW' CHECK (status IN ('NEW','PROCESSED','DISMISSED')),
+  target_item_id uuid,
+  received_at  timestamptz NOT NULL DEFAULT now(),
+  processed_at timestamptz
+);
+CREATE INDEX jumble_status_idx ON jumble_entry (tenant_id, status, received_at DESC);
+
+CREATE TABLE auto_assign_policy (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  scope_type  text NOT NULL CHECK (scope_type IN ('COLLECTION','HUB')),
+  scope_id    uuid NOT NULL,
+  strategy    text NOT NULL CHECK (strategy IN ('FIXED','RANDOM_MEMBER','RANDOM_GROUP_MEMBER','ROUND_ROBIN','LEAST_LOADED')),
+  candidates  jsonb NOT NULL DEFAULT '[]'::jsonb,
+  state       jsonb NOT NULL DEFAULT '{}'::jsonb,
+  enabled     boolean NOT NULL DEFAULT true,
+  version     integer NOT NULL DEFAULT 1
+);
+
+-- =============================== Automation ================================
+
+CREATE TABLE automation_rule (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  scope_type  text NOT NULL CHECK (scope_type IN ('TENANT','HUB','COLLECTION')),
+  scope_id    uuid,
+  name        text NOT NULL,
+  enabled     boolean NOT NULL DEFAULT true,
+  run_as      uuid NOT NULL REFERENCES account(id) ON DELETE RESTRICT,
+  trigger     jsonb NOT NULL,
+  conditions  jsonb NOT NULL DEFAULT '[]'::jsonb,
+  actions     jsonb NOT NULL,
+  throttle    jsonb NOT NULL DEFAULT '{}'::jsonb,
+  on_error    text NOT NULL DEFAULT 'STOP' CHECK (on_error IN ('STOP','CONTINUE','RETRY')),
+  failure_count integer NOT NULL DEFAULT 0,
+  created_by  uuid NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  deleted_at  timestamptz,
+  version     integer NOT NULL DEFAULT 1
+);
+CREATE INDEX rule_trigger_idx ON automation_rule (tenant_id, enabled)
+  WHERE deleted_at IS NULL;
+
+CREATE TABLE rule_run (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  rule_id      uuid NOT NULL REFERENCES automation_rule(id) ON DELETE CASCADE,
+  event_id     uuid,
+  status       text NOT NULL CHECK (status IN ('RUNNING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
+  condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
+  action_results    jsonb NOT NULL DEFAULT '[]'::jsonb,
+  error_code   text,
+  started_at   timestamptz NOT NULL DEFAULT now(),
+  finished_at  timestamptz,
+  causation_depth integer NOT NULL DEFAULT 0
+);
+CREATE INDEX rule_run_idx ON rule_run (tenant_id, rule_id, started_at DESC);
+
+-- ============================== Integration ================================
+
+CREATE TABLE webhook_subscription (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  target_url    text NOT NULL,
+  event_types   text[] NOT NULL,
+  filter_expr   text,
+  secret_enc    bytea NOT NULL,
+  state         text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE','PAUSED','DISABLED')),
+  failure_count integer NOT NULL DEFAULT 0,
+  created_by    uuid NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  version       integer NOT NULL DEFAULT 1
+);
+
+CREATE TABLE webhook_delivery (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  subscription_id uuid NOT NULL REFERENCES webhook_subscription(id) ON DELETE CASCADE,
+  event_id        uuid NOT NULL,
+  attempt         integer NOT NULL DEFAULT 1,
+  status          text NOT NULL CHECK (status IN ('PENDING','SUCCEEDED','FAILED','DEAD_LETTER')),
+  response_status integer,
+  error_code      text,
+  next_attempt_at timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX delivery_retry_idx ON webhook_delivery (tenant_id, status, next_attempt_at);
+
+CREATE TABLE calendar_feed (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id  uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  view_id     uuid REFERENCES saved_view(id) ON DELETE SET NULL,
+  token_hash  bytea NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  revoked_at  timestamptz
+);
+CREATE UNIQUE INDEX calendar_feed_token_uq ON calendar_feed (token_hash);
+
+-- ========================= Events, jobs, idempotency =======================
+
+CREATE TABLE outbox_event (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL,
+  event_type      text NOT NULL,                 -- de.hubtask.work.item.created.v1
+  subject         text,
+  payload         jsonb NOT NULL,
+  actor_type      text NOT NULL,
+  actor_id        uuid,
+  correlation_id  uuid,
+  causation_id    uuid,
+  causation_depth integer NOT NULL DEFAULT 0,
+  occurred_at     timestamptz NOT NULL DEFAULT now(),
+  dispatched_at   timestamptz,
+  attempts        integer NOT NULL DEFAULT 0,
+  locked_until    timestamptz
+);
+CREATE INDEX outbox_pending_idx ON outbox_event (occurred_at)
+  WHERE dispatched_at IS NULL;
+
+CREATE TABLE job (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid,
+  kind         text NOT NULL,
+  payload      jsonb NOT NULL DEFAULT '{}'::jsonb,
+  dedupe_key   text,
+  run_at       timestamptz NOT NULL DEFAULT now(),
+  state        text NOT NULL DEFAULT 'PENDING' CHECK (state IN ('PENDING','RUNNING','SUCCEEDED','FAILED','DEAD_LETTER','CANCELLED')),
+  attempts     integer NOT NULL DEFAULT 0,
+  max_attempts integer NOT NULL DEFAULT 8,
+  locked_until timestamptz,
+  last_error   text,
+  priority     smallint NOT NULL DEFAULT 5,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  finished_at  timestamptz
+);
+CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
+CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)
+  WHERE dedupe_key IS NOT NULL AND state IN ('PENDING','RUNNING');
+
+CREATE TABLE idempotency_key (
+  tenant_id     uuid NOT NULL,
+  key           text NOT NULL,
+  endpoint      text NOT NULL,
+  request_hash  bytea NOT NULL,
+  response_code integer,
+  response_body jsonb,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, key, endpoint)
+);
+CREATE INDEX idempotency_gc_idx ON idempotency_key (created_at);
+
+CREATE TABLE usage_record (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  period     date NOT NULL,
+  metric     text NOT NULL,
+  value      bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (tenant_id, period, metric)
+);
+
+
+-- ===================== Audit, data protection, compliance ===================
+-- See docs/architecture/audit.md and docs/architecture/data-protection.md.
+
+-- The audit trail: append-only, a hashed chain per tenant, no content.
+-- Deliberately WITHOUT foreign keys to account/work_item: entries must survive deletions,
+-- which is why actor_label/target_label are denormalised.
+CREATE TABLE audit_log (
+  id              uuid NOT NULL,
+  tenant_id       uuid NOT NULL,
+  seq             bigint NOT NULL,                  -- gapless per tenant
+  occurred_at     timestamptz NOT NULL DEFAULT now(),
+  action          text NOT NULL,                    -- 'item.deleted', 'auth.login_failed', ...
+  outcome         text NOT NULL CHECK (outcome IN ('SUCCESS','DENIED','FAILED')),
+  severity        text NOT NULL DEFAULT 'INFO'
+                    CHECK (severity IN ('INFO','NOTICE','WARNING','CRITICAL')),
+  actor_type      text NOT NULL
+                    CHECK (actor_type IN ('USER','SERVICE_ACCOUNT','AUTOMATION','AI_AGENT','SYSTEM')),
+  actor_id        uuid,
+  actor_label     text,                             -- the label at the time of the event
+  on_behalf_of_id uuid,                             -- the run_as principal for automation/agents
+  target_type     text,
+  target_id       uuid,
+  target_label    text,
+  context         jsonb NOT NULL DEFAULT '{}'::jsonb, -- request_id, trace_id, ip_truncated, ...
+  changes         jsonb NOT NULL DEFAULT '{}'::jsonb, -- masked per the field classification
+  legal_basis     text,                             -- e.g. 'dsr.erasure'
+  prev_hash       bytea,
+  hash            bytea NOT NULL,
+  -- The partition key must be part of every unique constraint.
+  PRIMARY KEY (tenant_id, occurred_at, seq)
+) PARTITION BY RANGE (occurred_at);
+
+-- The initial partitions; the retention/maintenance job creates further ones.
+CREATE TABLE audit_log_2026_08 PARTITION OF audit_log
+  FOR VALUES FROM ('2026-08-01') TO ('2026-09-01');
+CREATE TABLE audit_log_default PARTITION OF audit_log DEFAULT;
+
+CREATE UNIQUE INDEX audit_id_uq   ON audit_log (tenant_id, occurred_at, id);
+-- The absence of gaps in the chain per tenant is additionally checked in the application
+-- (audit:verify), because a global UNIQUE (tenant_id, seq) across partitions
+-- cannot be enforced.
+CREATE UNIQUE INDEX audit_seq_uq  ON audit_log (tenant_id, occurred_at, seq);
+CREATE INDEX audit_time_idx       ON audit_log (tenant_id, occurred_at DESC);
+CREATE INDEX audit_action_idx     ON audit_log (tenant_id, action, occurred_at DESC);
+CREATE INDEX audit_actor_idx      ON audit_log (tenant_id, actor_id, occurred_at DESC);
+CREATE INDEX audit_target_idx     ON audit_log (tenant_id, target_id, occurred_at DESC);
+
+-- Immutability, level 2 (level 1 = the absent GRANTs, level 3 = the hash chain).
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION audit_log_immutable() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'audit_log is append-only (attempted %)', TG_OP
+    USING ERRCODE = 'insufficient_privilege';
+END $$;
+-- +goose StatementEnd
+
+CREATE TRIGGER audit_log_no_update BEFORE UPDATE ON audit_log
+  FOR EACH ROW EXECUTE FUNCTION audit_log_immutable();
+CREATE TRIGGER audit_log_no_delete BEFORE DELETE ON audit_log
+  FOR EACH ROW EXECUTE FUNCTION audit_log_immutable();
+-- Note: the retention job removes whole partitions only (DETACH/DROP),
+-- never individual rows. Creating and removing partitions happens with the
+-- maintenance role, not with hubtask_app.
+
+-- External anchoring of the hash chain (optional, see audit.md §3).
+CREATE TABLE audit_anchor (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  anchored_at timestamptz NOT NULL DEFAULT now(),
+  last_seq    bigint NOT NULL,
+  chain_hash  bytea NOT NULL,
+  destination text,                                 -- 'worm_bucket', 'mail', ...
+  receipt     text,
+  PRIMARY KEY (tenant_id, last_seq)
+);
+
+-- Retention periods are data, not code.
+CREATE TABLE retention_policy (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  data_kind     text NOT NULL,                      -- 'trash','session','audit','rule_run', ...
+  retain_days   integer NOT NULL CHECK (retain_days >= 0),
+  min_days      integer NOT NULL DEFAULT 0,         -- the documented lower bound
+  max_days      integer,                            -- the documented upper bound
+  justification text,                               -- mandatory when extending beyond the default
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  updated_by    uuid,
+  PRIMARY KEY (tenant_id, data_kind),
+  CHECK (max_days IS NULL OR retain_days <= max_days),
+  CHECK (retain_days >= min_days)
+);
+
+-- Data subject requests (GDPR Art. 15-21) as a tracked case with a deadline.
+CREATE TABLE data_subject_request (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  subject_account_id uuid,                          -- may be NULL once fulfilled
+  subject_email  text,                              -- for requests without an account
+  kind           text NOT NULL
+                   CHECK (kind IN ('ACCESS','ERASURE','PORTABILITY','RESTRICTION','OBJECTION','RECTIFICATION')),
+  status         text NOT NULL DEFAULT 'RECEIVED'
+                   CHECK (status IN ('RECEIVED','IN_PROGRESS','COMPLETED','REJECTED')),
+  erasure_mode   text CHECK (erasure_mode IN ('ANONYMIZE','FULL_DELETE')),
+  received_at    timestamptz NOT NULL DEFAULT now(),
+  due_at         timestamptz NOT NULL,              -- the statutory deadline, +30 days by default
+  completed_at   timestamptz,
+  handled_by     uuid,
+  rejection_reason text,
+  result_media_id  uuid,                            -- the export archive for ACCESS/PORTABILITY
+  notes          text
+);
+CREATE INDEX dsr_open_idx ON data_subject_request (tenant_id, status, due_at)
+  WHERE status IN ('RECEIVED','IN_PROGRESS');
+
+-- Consents for optional processing (AI, metering, notification channels).
+CREATE TABLE consent_record (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id   uuid REFERENCES account(id) ON DELETE CASCADE,
+  purpose      text NOT NULL,                       -- 'ai_processing','metering','email_content'
+  granted      boolean NOT NULL,
+  granted_at   timestamptz NOT NULL DEFAULT now(),
+  revoked_at   timestamptz,
+  source       text,                                -- 'user','tenant_admin','config'
+  UNIQUE (tenant_id, account_id, purpose, granted_at)
+);
+
+-- Documented data breaches (Art. 33/34) - evidence, not automated notification.
+CREATE TABLE privacy_incident (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid REFERENCES tenant(id) ON DELETE SET NULL,  -- NULL = installation-wide
+  detected_at    timestamptz NOT NULL,
+  reported_at    timestamptz,
+  severity       text NOT NULL CHECK (severity IN ('LOW','MEDIUM','HIGH','CRITICAL')),
+  data_categories text[] NOT NULL DEFAULT '{}',
+  affected_count integer,
+  description    text NOT NULL,
+  measures       text,
+  authority_notified boolean NOT NULL DEFAULT false,
+  subjects_notified  boolean NOT NULL DEFAULT false,
+  closed_at      timestamptz
+);
+
+
+-- =========================== Backup & Restore ==============================
+-- Targets are the operator's business (see ADR-0019); tenant-owned targets are optional.
+
+CREATE TABLE backup_target (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid REFERENCES tenant(id) ON DELETE CASCADE,   -- NULL = instance-wide
+  name          text NOT NULL,
+  kind          text NOT NULL
+                  CHECK (kind IN ('LOCAL','S3','SFTP','FTPS','FTP','WEBDAV','SMB',
+                                  'AZURE_BLOB','GCS','RCLONE','HTTP_PUT')),
+  config        jsonb NOT NULL DEFAULT '{}'::jsonb,   -- endpoint, bucket, path, region
+  credential_enc bytea,                               -- AES-256-GCM, envelope (the key ID is in config)
+  credential_key_id text,
+  encryption_mode text NOT NULL DEFAULT 'AES256_GCM'
+                  CHECK (encryption_mode IN ('AES256_GCM','NONE')),
+  encryption_key_id text,
+  region_note   text,                                 -- data residency, GDPR chapter V
+  insecure_ack_by uuid,                               -- the confirmation for FTP/unencrypted
+  insecure_ack_at timestamptz,
+  enabled       boolean NOT NULL DEFAULT true,
+  last_test_at  timestamptz,
+  last_test_ok  boolean,
+  last_test_error text,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  created_by    uuid,
+  version       integer NOT NULL DEFAULT 1,
+  CHECK (encryption_mode <> 'NONE' OR insecure_ack_at IS NOT NULL),
+  CHECK (kind <> 'FTP' OR insecure_ack_at IS NOT NULL)
+);
+CREATE UNIQUE INDEX backup_target_name_uq
+  ON backup_target (coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), lower(name));
+
+CREATE TABLE backup_schedule (
+  id            uuid PRIMARY KEY,
+  target_id     uuid NOT NULL REFERENCES backup_target(id) ON DELETE CASCADE,
+  tenant_id     uuid REFERENCES tenant(id) ON DELETE CASCADE,  -- NULL = a system backup
+  scope_kind    text NOT NULL CHECK (scope_kind IN ('INSTANCE','TENANT','HUB','COLLECTION')),
+  scope_id      uuid,
+  rrule         text NOT NULL,                        -- RFC 5545, the same engine as recurrence
+  time_zone     text NOT NULL DEFAULT 'UTC',
+  mode          text NOT NULL DEFAULT 'INCREMENTAL' CHECK (mode IN ('FULL','INCREMENTAL')),
+  full_rrule    text,                                 -- e.g. a weekly full backup
+  include_media boolean NOT NULL DEFAULT true,
+  include_audit boolean NOT NULL DEFAULT true,
+  retention     jsonb NOT NULL
+                  DEFAULT '{"keep_last":7,"keep_daily":14,"keep_weekly":8,
+                            "keep_monthly":12,"keep_yearly":3,"min_keep":3}'::jsonb,
+  notify_on     text[] NOT NULL DEFAULT ARRAY['FAILURE'],
+  enabled       boolean NOT NULL DEFAULT true,
+  next_run_at   timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  version       integer NOT NULL DEFAULT 1,
+  CHECK ((scope_kind = 'INSTANCE') = (tenant_id IS NULL))
+);
+CREATE INDEX backup_schedule_due_idx ON backup_schedule (next_run_at) WHERE enabled;
+
+-- One run. The authoritative truth about existing archives is the manifest at the target;
+-- this table is a log and an accelerator, not a prerequisite for a restore.
+CREATE TABLE backup_run (
+  id            uuid PRIMARY KEY,
+  schedule_id   uuid REFERENCES backup_schedule(id) ON DELETE SET NULL,
+  target_id     uuid NOT NULL REFERENCES backup_target(id) ON DELETE CASCADE,
+  tenant_id     uuid REFERENCES tenant(id) ON DELETE CASCADE,
+  parent_run_id uuid REFERENCES backup_run(id) ON DELETE SET NULL,   -- the chain when incremental
+  trigger       text NOT NULL CHECK (trigger IN ('SCHEDULE','MANUAL','PRE_RESTORE','API')),
+  mode          text NOT NULL CHECK (mode IN ('FULL','INCREMENTAL')),
+  status        text NOT NULL DEFAULT 'RUNNING'
+                  CHECK (status IN ('RUNNING','SUCCEEDED','FAILED','CANCELLED','EXPIRED')),
+  archive_path  text,                                 -- the path/key at the target
+  manifest      jsonb,                                -- a copy of the manifest
+  size_bytes    bigint,
+  item_count    integer,
+  media_count   integer,
+  checksum      text,
+  snapshot_at   timestamptz,                          -- the consistency point (REPEATABLE READ)
+  started_at    timestamptz NOT NULL DEFAULT now(),
+  finished_at   timestamptz,
+  error_code    text,
+  expires_at    timestamptz,                          -- from the retention plan
+  verified_at   timestamptz,
+  verify_ok     boolean
+);
+CREATE INDEX backup_run_target_idx ON backup_run (target_id, started_at DESC);
+CREATE INDEX backup_run_expiry_idx ON backup_run (expires_at) WHERE status = 'SUCCEEDED';
+
+CREATE TABLE restore_run (
+  id             uuid PRIMARY KEY,
+  target_id      uuid NOT NULL REFERENCES backup_target(id) ON DELETE RESTRICT,
+  source_archive text NOT NULL,                       -- the path at the target, possible even without a backup_run
+  tenant_id      uuid REFERENCES tenant(id) ON DELETE CASCADE,   -- the target tenant
+  mode           text NOT NULL
+                   CHECK (mode IN ('INSPECT','SELECTIVE','MERGE','REPLACE_TENANT','NEW_TENANT','INSTANCE')),
+  conflict_rule  text NOT NULL DEFAULT 'SKIP' CHECK (conflict_rule IN ('SKIP','OVERWRITE','DUPLICATE')),
+  selection      jsonb,                               -- the container/item selection for SELECTIVE
+  dry_run        boolean NOT NULL DEFAULT true,
+  safety_backup_run_id uuid REFERENCES backup_run(id),
+  status         text NOT NULL DEFAULT 'PENDING'
+                   CHECK (status IN ('PENDING','VALIDATING','RUNNING','SUCCEEDED','FAILED','CANCELLED')),
+  report         jsonb,                               -- new/overwritten/skipped/conflicts
+  requested_by   uuid NOT NULL,
+  approved_by    uuid,
+  started_at     timestamptz,
+  finished_at    timestamptz,
+  error_code     text
+);
+CREATE INDEX restore_run_tenant_idx ON restore_run (tenant_id, started_at DESC);
+
+-- The deletion journal: prevents deleted objects returning through a restore.
+CREATE TABLE deletion_journal (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  entity       text NOT NULL,
+  entity_id    uuid NOT NULL,
+  deleted_at   timestamptz NOT NULL DEFAULT now(),
+  reason       text NOT NULL CHECK (reason IN ('USER','RETENTION','DSR_ERASURE','ADMIN')),
+  PRIMARY KEY (tenant_id, entity, entity_id)
+);
+CREATE INDEX deletion_journal_time_idx ON deletion_journal (tenant_id, deleted_at);
+
+-- The log of retention runs (the rules themselves: retention_policy, above).
+CREATE TABLE retention_run (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  policy_id     uuid,
+  data_kind     text NOT NULL,
+  phase         text NOT NULL CHECK (phase IN ('MARK','EXECUTE','PREVIEW')),
+  matched       integer NOT NULL DEFAULT 0,
+  affected      integer NOT NULL DEFAULT 0,
+  blocked       integer NOT NULL DEFAULT 0,
+  blocked_reasons jsonb NOT NULL DEFAULT '{}'::jsonb,  -- legal_hold, restriction, tombstone_window
+  started_at    timestamptz NOT NULL DEFAULT now(),
+  finished_at   timestamptz,
+  status        text NOT NULL DEFAULT 'RUNNING'
+                  CHECK (status IN ('RUNNING','SUCCEEDED','FAILED'))
+);
+CREATE INDEX retention_run_idx ON retention_run (tenant_id, data_kind, started_at DESC);
+
+CREATE TABLE legal_hold (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  scope_kind   text NOT NULL CHECK (scope_kind IN ('TENANT','CONTAINER','ITEM','ACCOUNT')),
+  scope_id     uuid,
+  reason       text NOT NULL,
+  placed_by    uuid NOT NULL,
+  placed_at    timestamptz NOT NULL DEFAULT now(),
+  released_by  uuid,
+  released_at  timestamptz
+);
+CREATE INDEX legal_hold_active_idx ON legal_hold (tenant_id, scope_kind, scope_id)
+  WHERE released_at IS NULL;
+
+-- ============================ Sync (offline) ===============================
+
+-- The monotonic change sequence per tenant. The basis for :pull; separate from outbox_event,
+-- because the recipients, retention, and compatibility commitments differ (ADR-0021).
+CREATE TABLE change_log (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  seq          bigint GENERATED ALWAYS AS IDENTITY,
+  entity       text NOT NULL,
+  entity_id    uuid NOT NULL,
+  op           text NOT NULL CHECK (op IN ('UPSERT','DELETE','ACCESS_REVOKED')),
+  container_id uuid,                                  -- the visibility filter on pull
+  actor_id     uuid,
+  device_id    uuid,
+  hlc          text NOT NULL,                         -- physical:counter:device
+  occurred_at  timestamptz NOT NULL DEFAULT now(),
+  payload      jsonb,                                 -- the changed fields; NULL on DELETE
+  -- The partition key belongs in the key; the cursor stays logical (tenant_id, seq).
+  PRIMARY KEY (tenant_id, occurred_at, seq)
+) PARTITION BY RANGE (occurred_at);
+
+CREATE TABLE change_log_2026_08 PARTITION OF change_log
+  FOR VALUES FROM ('2026-08-01') TO ('2026-09-01');
+CREATE TABLE change_log_default PARTITION OF change_log DEFAULT;
+CREATE INDEX change_log_pull_idx ON change_log (tenant_id, seq) INCLUDE (entity, entity_id, op);
+CREATE INDEX change_log_container_idx ON change_log (tenant_id, container_id, seq);
+
+-- Deletion markers with a minimum lifetime: a hard delete is only allowed after it elapses,
+-- otherwise devices that were offline for a long time recreate deleted objects.
+CREATE TABLE tombstone (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  entity       text NOT NULL,
+  entity_id    uuid NOT NULL,
+  deleted_at   timestamptz NOT NULL DEFAULT now(),
+  purge_after  timestamptz NOT NULL,                  -- deleted_at + the offline window
+  PRIMARY KEY (tenant_id, entity, entity_id)
+);
+CREATE INDEX tombstone_purge_idx ON tombstone (purge_after);
+
+CREATE TABLE sync_device (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id    uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  platform      text,
+  display_name  text,
+  last_cursor   bigint,
+  last_seen_at  timestamptz,
+  scopes        jsonb NOT NULL DEFAULT '[]'::jsonb,   -- the subscribed containers
+  push_token    text,
+  blocked       boolean NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX sync_device_account_idx ON sync_device (tenant_id, account_id);
+
+-- Idempotency of the push mutations (30 days).
+CREATE TABLE sync_op_log (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  op_id        uuid NOT NULL,
+  device_id    uuid,
+  result       text NOT NULL CHECK (result IN ('APPLIED','MERGED','REJECTED','CONFLICT')),
+  entity_id    uuid,
+  applied_at   timestamptz NOT NULL DEFAULT now(),
+  response     jsonb,
+  PRIMARY KEY (tenant_id, op_id)
+);
+CREATE INDEX sync_op_log_ttl_idx ON sync_op_log (applied_at);
+
+-- OR-set tags for set fields (labels, members): additions and removals each carry
+-- their own tag, so that a concurrent add/remove does not discard whole lists through LWW.
+CREATE TABLE set_element (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id      uuid NOT NULL,
+  set_name     text NOT NULL CHECK (set_name IN ('labels','members','watchers')),
+  element_id   uuid NOT NULL,
+  add_tag      text,                                  -- the HLC of the addition
+  remove_tag   text,                                  -- the HLC of the removal
+  PRIMARY KEY (tenant_id, item_id, set_name, element_id)
+);
+
+-- ============================ Row Level Security ===========================
+-- For every tenant-scoped table: a policy on current_tenant_id().
+-- +goose StatementBegin
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'account','account_group','account_group_member','membership','access_token',
+    'container','bucket','label','work_item','item_label','item_member',
+    'custom_field_definition','comment','activity_entry','media_object','item_attachment',
+    'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
+    'automation_rule','rule_run','webhook_subscription','webhook_delivery','calendar_feed',
+    'outbox_event','idempotency_key','usage_record',
+    'audit_anchor','retention_policy','data_subject_request','consent_record',
+    'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
+    'legal_hold','tombstone','sync_device','sync_op_log','set_element'
+  ]
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+    EXECUTE format($f$
+      CREATE POLICY tenant_isolation ON %I
+        USING (tenant_id = current_tenant_id())
+        WITH CHECK (tenant_id = current_tenant_id())
+    $f$, t);
+  END LOOP;
+END $$;
+-- +goose StatementEnd
+
+-- tenant itself: access only to its own row (the admin role deliberately does not bypass this;
+-- tenant administration runs through the control plane role).
+ALTER TABLE tenant ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_self ON tenant
+  USING (id = current_tenant_id())
+  WITH CHECK (id = current_tenant_id());
+
+-- audit_log: RLS applies to the partitioned table and is inherited by every partition.
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON audit_log
+  USING (tenant_id = current_tenant_id())
+  WITH CHECK (tenant_id = current_tenant_id());
+
+-- privacy_incident can be installation-wide (tenant_id IS NULL) and is then visible only to
+-- the instance administration.
+ALTER TABLE privacy_incident ENABLE ROW LEVEL SECURITY;
+ALTER TABLE privacy_incident FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON privacy_incident
+  USING (tenant_id = current_tenant_id())
+  WITH CHECK (tenant_id = current_tenant_id());
+
+
+-- change_log: RLS on the partitioned table.
+ALTER TABLE change_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE change_log FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON change_log
+  USING (tenant_id = current_tenant_id())
+  WITH CHECK (tenant_id = current_tenant_id());
+
+-- A policy on the parent is NOT inherited when a partition is addressed directly: PostgreSQL
+-- applies the policies of the relation named in the query. Measured on PostgreSQL 16 - through
+-- audit_log one tenant's row, through audit_log_2026_08 both. So every partition carries the
+-- policy itself, and every partition created later has to do the same (the retention job in
+-- A-08 and the maintenance role that creates partitions).
+-- +goose StatementBegin
+DO $partitions$
+DECLARE p record;
+BEGIN
+  FOR p IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_inherits i ON i.inhrelid = c.oid
+    JOIN pg_class parent ON parent.oid = i.inhparent
+    WHERE parent.relname IN ('audit_log', 'change_log')
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', p.relname);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', p.relname);
+    EXECUTE format($p$
+      CREATE POLICY tenant_isolation ON %I
+        USING (tenant_id = current_tenant_id())
+        WITH CHECK (tenant_id = current_tenant_id())
+    $p$, p.relname);
+  END LOOP;
+END $partitions$;
+-- +goose StatementEnd
+
+-- backup_target can be instance-wide (tenant_id IS NULL) and is then visible only to
+-- the instance administration - not to tenant users.
+ALTER TABLE backup_target ENABLE ROW LEVEL SECURITY;
+ALTER TABLE backup_target FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON backup_target
+  USING (tenant_id = current_tenant_id())
+  WITH CHECK (tenant_id = current_tenant_id());
+
+-- item_capability_profile: the system defaults (tenant_id IS NULL) are readable by everyone,
+-- overrides only for the tenant concerned. Never write to the system defaults.
+ALTER TABLE item_capability_profile ENABLE ROW LEVEL SECURITY;
+ALTER TABLE item_capability_profile FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON item_capability_profile
+  USING (tenant_id IS NULL OR tenant_id = current_tenant_id())
+  WITH CHECK (tenant_id = current_tenant_id());
+
+-- job is partly tenant-less (system jobs) and is read only by worker roles:
+-- deliberately without RLS, with access restricted through role privileges.
+
+
+-- ======================= Grants for the application role ====================
+-- hubtask_app works through the tables, never around them: no ownership, no BYPASSRLS, and
+-- therefore subject to every policy above. The audit exception follows below and must stay
+-- after this block, because a blanket grant would otherwise undo it.
+GRANT USAGE ON SCHEMA public TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hubtask_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hubtask_app;
+GRANT EXECUTE ON FUNCTION current_tenant_id() TO hubtask_app;
+GRANT EXECUTE ON FUNCTION imm_unaccent(text) TO hubtask_app;
+
+-- Tables a later migration adds - partitions above all - are covered without a follow-up grant,
+-- as long as the migrator creates them.
+ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hubtask_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO hubtask_app;
+-- ===================== Grants: immutability, level 1 ========================
+-- The application role may only create and read audit entries.
+-- Checked by gate SG-4 / test AT-1.
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM hubtask_app;
+GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
+
+-- The same for the partitions: the REVOKE above covers the parent, and a partition addressed
+-- directly is a table of its own.
+-- +goose StatementBegin
+DO $audit_partitions$
+DECLARE p record;
+BEGIN
+  FOR p IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_inherits i ON i.inhrelid = c.oid
+    JOIN pg_class parent ON parent.oid = i.inhparent
+    WHERE parent.relname = 'audit_log'
+  LOOP
+    EXECUTE format('REVOKE UPDATE, DELETE, TRUNCATE ON %I FROM hubtask_app', p.relname);
+  END LOOP;
+END $audit_partitions$;
+-- +goose StatementEnd
+
+-- The migration ledger is not application data. Without this, the app role could rewrite the
+-- record of which migrations ran - the blanket grant above reaches it too.
+-- +goose StatementBegin
+DO $ledger$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'goose_db_version') THEN
+    REVOKE ALL ON goose_db_version FROM hubtask_app;
+  END IF;
+END $ledger$;
+-- +goose StatementEnd
+
+
+-- +goose Down
+-- +goose StatementBegin
+DO $forward_only$
+BEGIN
+  RAISE EXCEPTION 'migrations are forward-only (CLAUDE.md rule 12); recovery is a restore, not a down migration'
+    USING ERRCODE = 'feature_not_supported';
+END $forward_only$;
+-- +goose StatementEnd

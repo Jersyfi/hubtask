@@ -1,7 +1,12 @@
--- Hubtask - the reference schema (the target state of the first migrations)
+-- Hubtask - the reference schema.
+-- Was the target state while the model was designed; since db/migrations/0001_init.sql exists,
+-- the migrations are the source and this file is the readable reference of the same state.
 -- Creates the core tables including tenant isolation through row level security.
 -- Conventions: UUIDv7 (generated in the application), timestamptz in UTC, tenant_id in every
 -- business table, soft delete through deleted_at, optimistic locking through version.
+-- Every table a tenant-scoped foreign key points at carries UNIQUE (tenant_id, id) beside its
+-- primary key: a composite key needs a unique index on exactly the columns it references, and
+-- the tenant-first index is what row level security compares first anyway (ADR-0024, ADR-0010).
 -- See docs/architecture/{domain-model,multi-tenancy}.md
 
 BEGIN;
@@ -64,6 +69,7 @@ CREATE TABLE account (
   deleted_at        timestamptz,
   version           integer NOT NULL DEFAULT 1
 );
+CREATE UNIQUE INDEX account_tenant_id_uq ON account (tenant_id, id);
 CREATE UNIQUE INDEX account_email_uq ON account (tenant_id, lower(email))
   WHERE email IS NOT NULL AND deleted_at IS NULL;
 CREATE UNIQUE INDEX account_subject_uq ON account (tenant_id, external_subject)
@@ -77,13 +83,18 @@ CREATE TABLE account_group (
   created_at   timestamptz NOT NULL DEFAULT now(),
   version      integer NOT NULL DEFAULT 1
 );
+CREATE UNIQUE INDEX account_group_tenant_id_uq ON account_group (tenant_id, id);
 CREATE UNIQUE INDEX account_group_name_uq ON account_group (tenant_id, lower(name));
 
 CREATE TABLE account_group_member (
   tenant_id  uuid NOT NULL,
-  group_id   uuid NOT NULL REFERENCES account_group(id) ON DELETE CASCADE,
-  account_id uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-  PRIMARY KEY (group_id, account_id)
+  group_id   uuid NOT NULL,
+  account_id uuid NOT NULL,
+  PRIMARY KEY (group_id, account_id),
+  CONSTRAINT account_group_member_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT account_group_member_group_id_fkey
+    FOREIGN KEY (tenant_id, group_id) REFERENCES account_group (tenant_id, id) ON DELETE CASCADE
 );
 
 CREATE TYPE membership_scope AS ENUM ('TENANT', 'HUB', 'COLLECTION', 'ITEM');
@@ -92,14 +103,18 @@ CREATE TYPE membership_role  AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR',
 CREATE TABLE membership (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  account_id  uuid REFERENCES account(id) ON DELETE CASCADE,
-  group_id    uuid REFERENCES account_group(id) ON DELETE CASCADE,
+  account_id  uuid,
+  group_id    uuid,
   scope_type  membership_scope NOT NULL,
   scope_id    uuid,                              -- NULL when scope_type = TENANT
   role        membership_role NOT NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
   CHECK ((account_id IS NULL) <> (group_id IS NULL)),
-  CHECK ((scope_type = 'TENANT') = (scope_id IS NULL))
+  CHECK ((scope_type = 'TENANT') = (scope_id IS NULL)),
+  CONSTRAINT membership_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT membership_group_id_fkey
+    FOREIGN KEY (tenant_id, group_id) REFERENCES account_group (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX membership_lookup_idx ON membership (tenant_id, account_id, scope_type, scope_id);
 CREATE INDEX membership_scope_idx  ON membership (tenant_id, scope_type, scope_id);
@@ -107,7 +122,7 @@ CREATE INDEX membership_scope_idx  ON membership (tenant_id, scope_type, scope_i
 CREATE TABLE access_token (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  account_id    uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  account_id    uuid NOT NULL,
   name          text NOT NULL,
   token_hash    bytea NOT NULL,
   token_prefix  text NOT NULL,
@@ -115,7 +130,9 @@ CREATE TABLE access_token (
   expires_at    timestamptz,
   last_used_at  timestamptz,
   revoked_at    timestamptz,
-  created_at    timestamptz NOT NULL DEFAULT now()
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT access_token_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX access_token_hash_uq ON access_token (token_hash);
 
@@ -127,12 +144,20 @@ CREATE TABLE container (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   type         container_type NOT NULL,
-  parent_id    uuid REFERENCES container(id) ON DELETE RESTRICT,
+  parent_id    uuid,
   name         text NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
   description  text,
   icon         text,
   color_token  text,
   order_key    text NOT NULL,
+  -- policies keys (domain-model.md §3.3): completion_policy (MANUAL | ROLLUP, read since B-07),
+  -- default_bucket_id, capability_overrides, auto_assign. An absent key means the default; the column
+  -- starts as {} and UpdateContainerPolicies (B-06) is what writes into it.
+  --
+  -- default_bucket_id has no writer and is not read. B-09 needed a column for a deleted bucket's
+  -- items to fall back to and derived it instead - the collection's leftmost remaining bucket -
+  -- because a stored default is a value nothing keeps up to date: a column deleted while the key
+  -- still named it would send items into a bucket that is no longer on the board.
   policies     jsonb NOT NULL DEFAULT '{}'::jsonb,
   archived_at  timestamptz,
   deleted_at   timestamptz,
@@ -143,24 +168,36 @@ CREATE TABLE container (
   version      integer NOT NULL DEFAULT 1,
   CHECK ((type = 'HUB') = (parent_id IS NULL))
 );
+CREATE UNIQUE INDEX container_tenant_id_uq ON container (tenant_id, id);
+ALTER TABLE container ADD CONSTRAINT container_parent_id_fkey
+    FOREIGN KEY (tenant_id, parent_id) REFERENCES container (tenant_id, id) ON DELETE RESTRICT;
 CREATE UNIQUE INDEX container_name_uq
   ON container (tenant_id, coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid), lower(imm_unaccent(name)))
   WHERE deleted_at IS NULL;
 CREATE INDEX container_parent_idx ON container (tenant_id, parent_id, order_key)
   WHERE deleted_at IS NULL;
+-- The trash view and the way back out of it. Every other index on this table is partial on
+-- `deleted_at IS NULL` and therefore describes exactly what the trash is not (B-10).
+CREATE INDEX container_trash_idx ON container (tenant_id, deleted_at)
+  WHERE deleted_at IS NOT NULL;
+CREATE INDEX container_trash_batch_idx ON container (tenant_id, trash_batch_id)
+  WHERE trash_batch_id IS NOT NULL;
 
 CREATE TABLE bucket (
   id             uuid PRIMARY KEY,
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  collection_id  uuid NOT NULL REFERENCES container(id) ON DELETE CASCADE,
+  collection_id  uuid NOT NULL,
   name           text NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
   order_key      text NOT NULL,
   wip_limit      integer CHECK (wip_limit IS NULL OR wip_limit > 0),
   is_done_bucket boolean NOT NULL DEFAULT false,
   color_token    text,
   deleted_at     timestamptz,
-  version        integer NOT NULL DEFAULT 1
+  version        integer NOT NULL DEFAULT 1,
+  CONSTRAINT bucket_collection_id_fkey
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
+CREATE UNIQUE INDEX bucket_tenant_id_uq ON bucket (tenant_id, id);
 CREATE UNIQUE INDEX bucket_name_uq ON bucket (tenant_id, collection_id, lower(imm_unaccent(name)))
   WHERE deleted_at IS NULL;
 CREATE INDEX bucket_order_idx ON bucket (tenant_id, collection_id, order_key);
@@ -168,13 +205,16 @@ CREATE INDEX bucket_order_idx ON bucket (tenant_id, collection_id, order_key);
 CREATE TABLE label (
   id             uuid PRIMARY KEY,
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  collection_id  uuid NOT NULL REFERENCES container(id) ON DELETE CASCADE,
+  collection_id  uuid NOT NULL,
   name           text NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
   color_token    text NOT NULL,
   description    text,
   deleted_at     timestamptz,
-  version        integer NOT NULL DEFAULT 1
+  version        integer NOT NULL DEFAULT 1,
+  CONSTRAINT label_collection_id_fkey
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
+CREATE UNIQUE INDEX label_tenant_id_uq ON label (tenant_id, id);
 CREATE UNIQUE INDEX label_name_uq ON label (tenant_id, collection_id, lower(imm_unaccent(name)))
   WHERE deleted_at IS NULL;
 
@@ -195,9 +235,9 @@ CREATE UNIQUE INDEX icp_uq ON item_capability_profile
 CREATE TABLE work_item (
   id                 uuid PRIMARY KEY,
   tenant_id          uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  collection_id      uuid NOT NULL REFERENCES container(id) ON DELETE CASCADE,
+  collection_id      uuid NOT NULL,
   type               item_type NOT NULL,
-  parent_id          uuid REFERENCES work_item(id) ON DELETE CASCADE,
+  parent_id          uuid,
   path               text NOT NULL,              -- '/<uuid>/<uuid>/…', materialised
   depth              integer NOT NULL CHECK (depth >= 0),
   title              text NOT NULL CHECK (length(btrim(title)) BETWEEN 1 AND 500),
@@ -205,13 +245,13 @@ CREATE TABLE work_item (
   is_completed       boolean NOT NULL DEFAULT false,
   completed_at       timestamptz,
   completed_by       uuid,
-  bucket_id          uuid REFERENCES bucket(id) ON DELETE SET NULL,
+  bucket_id          uuid,
   order_key          text NOT NULL,
   start_at           timestamptz,
   due_at             timestamptz,
   due_date_only      boolean NOT NULL DEFAULT false,
   due_time_zone      text,
-  assignee_id        uuid REFERENCES account(id) ON DELETE SET NULL,
+  assignee_id        uuid,
   cover_kind         text CHECK (cover_kind IN ('COLOR', 'IMAGE')),
   cover_color_token  text,
   cover_media_id     uuid,
@@ -230,8 +270,17 @@ CREATE TABLE work_item (
   version            integer NOT NULL DEFAULT 1,
   CHECK (is_completed = (completed_at IS NOT NULL)),
   CHECK ((type = 'TASK') = (parent_id IS NULL)),
-  CHECK (bucket_id IS NULL OR type = 'TASK')
+  CHECK (bucket_id IS NULL OR type = 'TASK'),
+  CONSTRAINT work_item_assignee_id_fkey
+    FOREIGN KEY (tenant_id, assignee_id) REFERENCES account (tenant_id, id) ON DELETE SET NULL (assignee_id),
+  CONSTRAINT work_item_bucket_id_fkey
+    FOREIGN KEY (tenant_id, bucket_id) REFERENCES bucket (tenant_id, id) ON DELETE SET NULL (bucket_id),
+  CONSTRAINT work_item_collection_id_fkey
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
+CREATE UNIQUE INDEX work_item_tenant_id_uq ON work_item (tenant_id, id);
+ALTER TABLE work_item ADD CONSTRAINT work_item_parent_id_fkey
+    FOREIGN KEY (tenant_id, parent_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, order_key)
   WHERE deleted_at IS NULL AND archived_at IS NULL;
 CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
@@ -239,37 +288,61 @@ CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
 CREATE INDEX wi_assignee_idx ON work_item (tenant_id, assignee_id, is_completed, due_at)
   WHERE deleted_at IS NULL;
 CREATE INDEX wi_parent_idx   ON work_item (tenant_id, parent_id, order_key);
+-- The plain item list of GET /items: one level of one collection, in its manual order. `id` last,
+-- because the cursor is a keyset over (order_key, id) (B-04, api-guidelines.md §4).
+CREATE INDEX wi_level_order_idx
+  ON work_item (tenant_id, collection_id, parent_id, order_key COLLATE "C", id)
+  WHERE deleted_at IS NULL;
+-- The query language's default order: one whole collection, in its manual order. Without the
+-- `parent_id` column of the index above, which a query spanning a collection does not constrain
+-- (B-12, ADR-0026).
+CREATE INDEX wi_query_order_idx
+  ON work_item (tenant_id, collection_id, order_key COLLATE "C", id)
+  WHERE deleted_at IS NULL;
 CREATE INDEX wi_path_idx     ON work_item (tenant_id, path text_pattern_ops);
 CREATE INDEX wi_search_idx   ON work_item USING gin (search_vector);
 CREATE INDEX wi_custom_idx   ON work_item USING gin (custom_fields jsonb_path_ops);
 CREATE INDEX wi_trash_idx    ON work_item (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
+-- Restoring a deletion is one statement keyed on the batch every row of it shares (B-10, I-C2).
+CREATE INDEX wi_trash_batch_idx ON work_item (tenant_id, trash_batch_id)
+  WHERE trash_batch_id IS NOT NULL;
 
 CREATE TABLE item_label (
   tenant_id uuid NOT NULL,
-  item_id   uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
-  label_id  uuid NOT NULL REFERENCES label(id) ON DELETE CASCADE,
-  PRIMARY KEY (item_id, label_id)
+  item_id   uuid NOT NULL,
+  label_id  uuid NOT NULL,
+  PRIMARY KEY (item_id, label_id),
+  CONSTRAINT item_label_item_id_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT item_label_label_id_fkey
+    FOREIGN KEY (tenant_id, label_id) REFERENCES label (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX item_label_reverse_idx ON item_label (tenant_id, label_id, item_id);
 
 CREATE TABLE item_member (
   tenant_id  uuid NOT NULL,
-  item_id    uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
-  account_id uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-  PRIMARY KEY (item_id, account_id)
+  item_id    uuid NOT NULL,
+  account_id uuid NOT NULL,
+  PRIMARY KEY (item_id, account_id),
+  CONSTRAINT item_member_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT item_member_item_id_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX item_member_reverse_idx ON item_member (tenant_id, account_id, item_id);
 
 CREATE TABLE custom_field_definition (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  collection_id uuid REFERENCES container(id) ON DELETE CASCADE,   -- NULL = tenant-wide
+  collection_id uuid,   -- NULL = tenant-wide
   key           text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
   kind          text NOT NULL CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL')),
   options       jsonb NOT NULL DEFAULT '[]'::jsonb,
   is_required   boolean NOT NULL DEFAULT false,
   applies_to    item_type[] NOT NULL DEFAULT '{TASK}',
-  deleted_at    timestamptz
+  deleted_at    timestamptz,
+  CONSTRAINT custom_field_definition_collection_id_fkey
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX cfd_key_uq
   ON custom_field_definition (tenant_id, coalesce(collection_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
@@ -278,20 +351,27 @@ CREATE UNIQUE INDEX cfd_key_uq
 CREATE TABLE comment (
   id                uuid PRIMARY KEY,
   tenant_id         uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  item_id           uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
+  item_id           uuid NOT NULL,
   author_id         uuid NOT NULL,
-  parent_comment_id uuid REFERENCES comment(id) ON DELETE CASCADE,
+  parent_comment_id uuid,
   body              text NOT NULL CHECK (length(body) BETWEEN 1 AND 20000),
   created_at        timestamptz NOT NULL DEFAULT now(),
   edited_at         timestamptz,
   deleted_at        timestamptz,
-  version           integer NOT NULL DEFAULT 1
+  version           integer NOT NULL DEFAULT 1,
+  CONSTRAINT comment_item_id_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
+CREATE UNIQUE INDEX comment_tenant_id_uq ON comment (tenant_id, id);
+ALTER TABLE comment ADD CONSTRAINT comment_parent_comment_id_fkey
+    FOREIGN KEY (tenant_id, parent_comment_id) REFERENCES comment (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
 
 CREATE TABLE activity_entry (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  -- nullable, and the key below is MATCH SIMPLE: container_id is there for a container's own
+  -- history, which has no reader yet. An entry without an item is refused by the domain.
   item_id      uuid,
   container_id uuid,
   actor_type   text NOT NULL CHECK (actor_type IN ('USER','SERVICE_ACCOUNT','AUTOMATION','AI_AGENT','SYSTEM')),
@@ -300,9 +380,14 @@ CREATE TABLE activity_entry (
   change_set   jsonb NOT NULL DEFAULT '{}'::jsonb,
   occurred_at  timestamptz NOT NULL DEFAULT now(),
   correlation_id uuid,
-  causation_id   uuid
+  causation_id   uuid,
+  -- The deletion path the data catalogue declares: the history goes with the item it is about.
+  CONSTRAINT activity_entry_item_id_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
-CREATE INDEX activity_item_idx ON activity_entry (tenant_id, item_id, occurred_at DESC);
+-- A page is read newest first within one item and continues after a boundary, so the tie-break
+-- belongs in the index rather than in a sort.
+CREATE INDEX activity_page_idx ON activity_entry (tenant_id, item_id, occurred_at DESC, id DESC);
 
 CREATE TABLE media_object (
   id          uuid PRIMARY KEY,
@@ -317,12 +402,17 @@ CREATE TABLE media_object (
   created_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz
 );
+CREATE UNIQUE INDEX media_object_tenant_id_uq ON media_object (tenant_id, id);
 
 CREATE TABLE item_attachment (
   tenant_id uuid NOT NULL,
-  item_id   uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
-  media_id  uuid NOT NULL REFERENCES media_object(id) ON DELETE RESTRICT,
-  PRIMARY KEY (item_id, media_id)
+  item_id   uuid NOT NULL,
+  media_id  uuid NOT NULL,
+  PRIMARY KEY (item_id, media_id),
+  CONSTRAINT item_attachment_item_id_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT item_attachment_media_id_fkey
+    FOREIGN KEY (tenant_id, media_id) REFERENCES media_object (tenant_id, id) ON DELETE RESTRICT
 );
 
 -- ============================== Scheduling =================================
@@ -330,7 +420,7 @@ CREATE TABLE item_attachment (
 CREATE TABLE recurrence_rule (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  source_item_id uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
+  source_item_id uuid NOT NULL,
   rrule         text NOT NULL,                   -- RFC 5545
   time_zone     text NOT NULL,
   mode          text NOT NULL CHECK (mode IN ('ON_SCHEDULE','ON_COMPLETION')),
@@ -339,19 +429,23 @@ CREATE TABLE recurrence_rule (
   max_count     integer,
   last_materialized_at timestamptz,
   created_at    timestamptz NOT NULL DEFAULT now(),
-  version       integer NOT NULL DEFAULT 1
+  version       integer NOT NULL DEFAULT 1,
+  CONSTRAINT recurrence_rule_source_item_id_fkey
+    FOREIGN KEY (tenant_id, source_item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 
 CREATE TABLE reminder (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  item_id      uuid NOT NULL REFERENCES work_item(id) ON DELETE CASCADE,
+  item_id      uuid NOT NULL,
   offset_spec  text NOT NULL,                    -- 'REL:-PT1H' | 'ABS:2026-09-01T08:00:00Z'
   channels     text[] NOT NULL DEFAULT '{EMAIL}',
   recipients   uuid[] NOT NULL DEFAULT '{}',     -- empty = assignee/members
   state        text NOT NULL DEFAULT 'PENDING' CHECK (state IN ('PENDING','SENT','CANCELLED')),
   fire_at      timestamptz,
-  created_at   timestamptz NOT NULL DEFAULT now()
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT reminder_item_id_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX reminder_due_idx ON reminder (tenant_id, state, fire_at);
 
@@ -372,6 +466,7 @@ CREATE TABLE saved_view (
   created_at    timestamptz NOT NULL DEFAULT now(),
   version       integer NOT NULL DEFAULT 1
 );
+CREATE UNIQUE INDEX saved_view_tenant_id_uq ON saved_view (tenant_id, id);
 
 CREATE TABLE template (
   id          uuid PRIMARY KEY,
@@ -424,7 +519,7 @@ CREATE TABLE automation_rule (
   scope_id    uuid,
   name        text NOT NULL,
   enabled     boolean NOT NULL DEFAULT true,
-  run_as      uuid NOT NULL REFERENCES account(id) ON DELETE RESTRICT,
+  run_as      uuid NOT NULL,
   trigger     jsonb NOT NULL,
   conditions  jsonb NOT NULL DEFAULT '[]'::jsonb,
   actions     jsonb NOT NULL,
@@ -435,15 +530,18 @@ CREATE TABLE automation_rule (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
-  version     integer NOT NULL DEFAULT 1
+  version     integer NOT NULL DEFAULT 1,
+  CONSTRAINT automation_rule_run_as_fkey
+    FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
 );
+CREATE UNIQUE INDEX automation_rule_tenant_id_uq ON automation_rule (tenant_id, id);
 CREATE INDEX rule_trigger_idx ON automation_rule (tenant_id, enabled)
   WHERE deleted_at IS NULL;
 
 CREATE TABLE rule_run (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  rule_id      uuid NOT NULL REFERENCES automation_rule(id) ON DELETE CASCADE,
+  rule_id      uuid NOT NULL,
   event_id     uuid,
   status       text NOT NULL CHECK (status IN ('RUNNING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
   condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -451,7 +549,9 @@ CREATE TABLE rule_run (
   error_code   text,
   started_at   timestamptz NOT NULL DEFAULT now(),
   finished_at  timestamptz,
-  causation_depth integer NOT NULL DEFAULT 0
+  causation_depth integer NOT NULL DEFAULT 0,
+  CONSTRAINT rule_run_rule_id_fkey
+    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX rule_run_idx ON rule_run (tenant_id, rule_id, started_at DESC);
 
@@ -470,29 +570,36 @@ CREATE TABLE webhook_subscription (
   created_at    timestamptz NOT NULL DEFAULT now(),
   version       integer NOT NULL DEFAULT 1
 );
+CREATE UNIQUE INDEX webhook_subscription_tenant_id_uq ON webhook_subscription (tenant_id, id);
 
 CREATE TABLE webhook_delivery (
   id              uuid PRIMARY KEY,
   tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  subscription_id uuid NOT NULL REFERENCES webhook_subscription(id) ON DELETE CASCADE,
+  subscription_id uuid NOT NULL,
   event_id        uuid NOT NULL,
   attempt         integer NOT NULL DEFAULT 1,
   status          text NOT NULL CHECK (status IN ('PENDING','SUCCEEDED','FAILED','DEAD_LETTER')),
   response_status integer,
   error_code      text,
   next_attempt_at timestamptz,
-  created_at      timestamptz NOT NULL DEFAULT now()
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT webhook_delivery_subscription_id_fkey
+    FOREIGN KEY (tenant_id, subscription_id) REFERENCES webhook_subscription (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX delivery_retry_idx ON webhook_delivery (tenant_id, status, next_attempt_at);
 
 CREATE TABLE calendar_feed (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  account_id  uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-  view_id     uuid REFERENCES saved_view(id) ON DELETE SET NULL,
+  account_id  uuid NOT NULL,
+  view_id     uuid,
   token_hash  bytea NOT NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
-  revoked_at  timestamptz
+  revoked_at  timestamptz,
+  CONSTRAINT calendar_feed_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT calendar_feed_view_id_fkey
+    FOREIGN KEY (tenant_id, view_id) REFERENCES saved_view (tenant_id, id) ON DELETE SET NULL (view_id)
 );
 CREATE UNIQUE INDEX calendar_feed_token_uq ON calendar_feed (token_hash);
 
@@ -536,6 +643,17 @@ CREATE TABLE job (
 CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
 CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)
   WHERE dedupe_key IS NOT NULL AND state IN ('PENDING','RUNNING');
+
+-- What a subscriber has already seen. The outbox delivers at-least-once, so a consumer asks here
+-- before it reacts; the insert is the question (ADR-0007, db/migrations/0003).
+CREATE TABLE event_consumption (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  consumer    text NOT NULL,
+  event_id    uuid NOT NULL,
+  consumed_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, consumer, event_id)
+);
+CREATE INDEX event_consumption_gc_idx ON event_consumption (consumed_at);
 
 CREATE TABLE idempotency_key (
   tenant_id     uuid NOT NULL,
@@ -673,13 +791,15 @@ CREATE INDEX dsr_open_idx ON data_subject_request (tenant_id, status, due_at)
 CREATE TABLE consent_record (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  account_id   uuid REFERENCES account(id) ON DELETE CASCADE,
+  account_id   uuid,
   purpose      text NOT NULL,                       -- 'ai_processing','metering','email_content'
   granted      boolean NOT NULL,
   granted_at   timestamptz NOT NULL DEFAULT now(),
   revoked_at   timestamptz,
   source       text,                                -- 'user','tenant_admin','config'
-  UNIQUE (tenant_id, account_id, purpose, granted_at)
+  UNIQUE (tenant_id, account_id, purpose, granted_at),
+  CONSTRAINT consent_record_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 
 -- Documented data breaches (Art. 33/34) - evidence, not automated notification.
@@ -890,7 +1010,7 @@ CREATE INDEX tombstone_purge_idx ON tombstone (purge_after);
 CREATE TABLE sync_device (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  account_id    uuid NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  account_id    uuid NOT NULL,
   platform      text,
   display_name  text,
   last_cursor   bigint,
@@ -898,7 +1018,9 @@ CREATE TABLE sync_device (
   scopes        jsonb NOT NULL DEFAULT '[]'::jsonb,   -- the subscribed containers
   push_token    text,
   blocked       boolean NOT NULL DEFAULT false,
-  created_at    timestamptz NOT NULL DEFAULT now()
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT sync_device_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX sync_device_account_idx ON sync_device (tenant_id, account_id);
 
@@ -938,7 +1060,7 @@ BEGIN
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
     'automation_rule','rule_run','webhook_subscription','webhook_delivery','calendar_feed',
-    'outbox_event','idempotency_key','usage_record',
+    'outbox_event','event_consumption','idempotency_key','usage_record',
     'audit_anchor','retention_policy','data_subject_request','consent_record',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element'
@@ -962,7 +1084,8 @@ CREATE POLICY tenant_self ON tenant
   USING (id = current_tenant_id())
   WITH CHECK (id = current_tenant_id());
 
--- audit_log: RLS applies to the partitioned table and is inherited by every partition.
+-- audit_log: RLS on the partitioned table. A partition addressed directly is NOT covered by
+-- the parent policy - see the partition block further down.
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON audit_log
@@ -978,7 +1101,7 @@ CREATE POLICY tenant_isolation ON privacy_incident
   WITH CHECK (tenant_id = current_tenant_id());
 
 
--- change_log: RLS on the partitioned table, inherited by every partition.
+-- change_log: RLS on the partitioned table; the partitions carry the policy themselves.
 ALTER TABLE change_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE change_log FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON change_log
@@ -1004,10 +1127,62 @@ CREATE POLICY tenant_isolation ON item_capability_profile
 -- job is partly tenant-less (system jobs) and is read only by worker roles:
 -- deliberately without RLS, with access restricted through role privileges.
 
+-- A policy on the parent is NOT inherited when a partition is addressed directly: PostgreSQL
+-- applies the policies of the relation named in the query. Measured on PostgreSQL 16 - through
+-- audit_log one tenant's row, through audit_log_2026_08 both. Every partition created later
+-- (retention and maintenance jobs) has to carry the policy as well.
+DO $partitions$
+DECLARE p record;
+BEGIN
+  FOR p IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_inherits i ON i.inhrelid = c.oid
+    JOIN pg_class parent ON parent.oid = i.inhparent
+    WHERE parent.relname IN ('audit_log', 'change_log')
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', p.relname);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', p.relname);
+    EXECUTE format($p$
+      CREATE POLICY tenant_isolation ON %I
+        USING (tenant_id = current_tenant_id())
+        WITH CHECK (tenant_id = current_tenant_id())
+    $p$, p.relname);
+  END LOOP;
+END $partitions$;
+
+-- ======================= Grants for the application role ====================
+-- hubtask_app works through the tables, never around them: no ownership, no BYPASSRLS, and
+-- therefore subject to every policy above.
+GRANT USAGE ON SCHEMA public TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hubtask_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hubtask_app;
+GRANT EXECUTE ON FUNCTION current_tenant_id() TO hubtask_app;
+GRANT EXECUTE ON FUNCTION imm_unaccent(text) TO hubtask_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hubtask_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO hubtask_app;
+
 -- ===================== Grants: immutability, level 1 ========================
 -- The application role may only create and read audit entries.
 -- Checked by gate SG-4 / test AT-1.
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM hubtask_app;
 GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
+
+-- The same for the partitions: a partition addressed directly is a table of its own.
+DO $audit_partitions$
+DECLARE p record;
+BEGIN
+  FOR p IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_inherits i ON i.inhrelid = c.oid
+    JOIN pg_class parent ON parent.oid = i.inhparent
+    WHERE parent.relname = 'audit_log'
+  LOOP
+    EXECUTE format('REVOKE UPDATE, DELETE, TRUNCATE ON %I FROM hubtask_app', p.relname);
+  END LOOP;
+END $audit_partitions$;
 
 COMMIT;

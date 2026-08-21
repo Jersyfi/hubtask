@@ -75,7 +75,7 @@ rule fired, and what did it do? That view is part of the product, not just of op
 |---|---|---|---|
 | `hubtask_http_requests_total` | Counter | `route`, `method`, `status_class` | RED rate/errors |
 | `hubtask_http_request_duration_seconds` | Histogram | `route`, `method` | RED duration, SLO-2/3 |
-| `hubtask_usecase_total` | Counter | `use_case`, `result` (`ok`/`validation`/`conflict`/`forbidden`/`internal`) | The business error rate per use case |
+| `hubtask_usecase_total` | Counter | `use_case`, `result` (see below) | The business error rate per use case |
 | `hubtask_inflight_requests` | Gauge | `role` | Overload detection |
 | `hubtask_db_pool_connections` | Gauge | `state` (`in_use`/`idle`) | Saturation |
 | `hubtask_db_query_duration_seconds` | Histogram | `query_name` (from sqlc) | Slow queries |
@@ -103,6 +103,41 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_build_info` | Gauge (1) | `version`, `commit`, `go_version` | The version situation across the cluster |
 | `hubtask_migration_version` | Gauge | — | Makes schema drift between pods visible |
 | `hubtask_tenant_quota_usage_ratio` | Gauge | `quota` | Approaching a quota |
+
+### 4.1 The `result` label
+
+`result` is `ok`, or **the error category of the domain error model in lower case** — one label
+value per category, never a summary of several. Today that is `validation`, `not_found`,
+`conflict`, `forbidden`, `unauthenticated`, `gone`, `rate_limited`, `unavailable`, `internal`. The
+set is defined by `core/domain/model/shared.Category`, not by this table: it grows when the error
+model grows a category, which is a deliberate act rather than an accident, and the code derives
+the label rather than translating it.
+
+The rule follows from §1. **No silent failure** says every discarded operation produces a signal —
+and a throttled request counted as `internal` does produce one, it just reports a defect that did
+not happen. **Alert on symptoms** then makes that concrete: an alert on "our fault" would page
+when a tenant hits the rate limit it was given, which is a system working exactly as configured.
+And a use case is not finished without an *error classification*; a classification that contradicts
+the domain's own is a second, competing truth about the same failure.
+
+Coarser views are a query, not a label:
+
+```promql
+# Our fault - the error budget of SLO-1
+sum(rate(hubtask_usecase_total{result=~"internal|unavailable"}[5m])) by (use_case)
+
+# The caller's fault - expected business outcomes, never an alert
+sum(rate(hubtask_usecase_total{result=~"validation|not_found|gone|conflict|forbidden|unauthenticated"}[5m]))
+```
+
+Aggregating at read time costs a regular expression. Aggregating at write time costs the
+information, permanently — a label written coarsely cannot be refined afterwards, and the incident
+that needed the distinction is the one where nobody can go back and get it.
+
+Cardinality stays bounded, which is the constraint this rule has to respect (§3.2): ten values is
+a closed set fixed by the domain, and a counter series exists only once it has been incremented,
+so outcomes that never occur cost nothing. The enemy of cardinality is the unbounded label — an
+item ID, a raw path — not the tenth value of an enumeration.
 
 ---
 
@@ -242,13 +277,19 @@ without Prometheus.
 
 Shipped under `deploy/observability/`:
 
-* `dashboards/overview.json` — RED per route, SLO burn, saturation, version situation
-* `dashboards/pipeline.json` — outbox, jobs, automation, webhooks, reminders
-* `dashboards/tenant.json` — quotas, top tenants (only with the tenant label enabled)
-* `alerts/prometheus-rules.yaml` — the alert catalogue as rules
-* `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up
+* `dashboards/overview.json` — RED per route, SLO burn, saturation, version situation *(shipped)*
+* `dashboards/pipeline.json` — outbox, jobs, automation, webhooks, reminders *(shipped; automation,
+  webhooks and reminders join it as those features arrive)*
+* `dashboards/tenant.json` — quotas, top tenants (only with the tenant label enabled) *(with
+  multi-tenant operation, `0.6.0`)*
+* `alerts/prometheus-rules.yaml` — the alert catalogue as rules *(shipped: the reduced
+  self-hosting set A-03, A-04, A-05, A-07, A-12; the full catalogue with provider operation)*
+* `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up *(shipped, one per shipped alert)*
 
-Any alert without a runbook does not ship.
+Any alert without a runbook does not ship. That is `make gate-observability`, which checks it in
+both directions — an alert whose runbook is missing, and a runbook no alert points at — and
+`promtool check rules` for the expressions themselves. `make gate-selftest` proves it catches an
+alert added without one.
 
 ---
 
