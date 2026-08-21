@@ -1,0 +1,41 @@
+# The certificate issuers for the integration environment (deployment.md §3.1).
+#
+# HTTP-01 rather than DNS-01: the environment answers on port 80 already, and DNS-01 would mean a
+# DNS provider credential in the cluster for no gain — we issue per host, never a wildcard.
+#
+# No ACME account email. It is optional, it is only used for expiry notices, and cert-manager
+# renews on its own well before expiry; putting a person's address into a third party's account
+# database to receive a warning about something that does not happen is not a trade worth making
+# (data-protection.md). A cluster that wants the notices adds `email:` here.
+#
+# Both issuers exist on purpose. Let's Encrypt's rate limits are per registered domain and per
+# week, and a misconfiguration retried a few times against production spends them; staging has the
+# same code path and untrusted certificates. Point an Ingress at letsencrypt-staging while
+# something is wrong, and back at letsencrypt when it is not.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik

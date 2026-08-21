@@ -172,6 +172,7 @@ func TestTheDefaultsAreTheDocumentedOnes(t *testing.T) {
 		{"log format", cfg.LogFormat, "json"},
 		{"tenancy", cfg.Tenancy, env.TenancySingle},
 		{"shutdown grace", cfg.ShutdownGraceSeconds, 30},
+		{"shutdown deregister", cfg.ShutdownDeregisterSeconds, 15},
 		{"pool size", cfg.Database.MaxConns, 10},
 		{"statement timeout", cfg.Database.StatementTimeout, 5 * time.Second},
 		{"worker statement timeout", cfg.Database.WorkerStatementTimeout, 60 * time.Second},

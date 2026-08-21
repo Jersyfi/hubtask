@@ -84,6 +84,36 @@ The approval hangs off the GitHub `production` environment, not off a convention
 accidentally created tag cannot trigger anything without a human agreeing — and the AI path never
 gets anywhere near a release ([ADR-0022](../adr/ADR-0022-github-platform.md)).
 
+### 3.1 Where `integration` runs
+
+*Decided 2026-08-21 (open point D-4, and the `integration` half of D-1).*
+
+| | |
+|---|---|
+| Host | One Hetzner vServer, 4 vCPU / 8 GB / 75 GB, Ubuntu 26.04 LTS, amd64 |
+| Kubernetes | k3s, single node |
+| Ingress | Traefik, the controller k3s already ships |
+| TLS | cert-manager with Let's Encrypt, `HTTP-01`, one certificate per host |
+| Database | PostgreSQL in the cluster, on a local volume — the environment is rebuildable, not precious |
+| Host names | `<service>.<environment>.hubtask.eu`, so `api.integration.hubtask.eu` today and `app.integration.hubtask.eu` when the web client arrives |
+
+**Why an own server rather than managed Kubernetes.** What `integration` has to prove is that the
+chart, the migration hook and the rolling update behave — none of which needs a control plane
+somebody else operates. A managed cluster would add a bill and a provider-shaped path that
+production might not take anyway, and it would not make a single one of those answers more true. A
+single node is honest about what this environment is: dogfooding, load tests and migration
+rehearsals for one operator.
+
+**What that costs, and why it is acceptable here.** One node means no node failure is ever
+rehearsed, and the database shares a disk with the workload. Both are fine for `integration` and
+neither may be carried into production unexamined — which is exactly what D-1's remaining half and
+D-2 are for.
+
+**Why the host names carry the environment.** `api.integration.hubtask.eu` leaves production the
+shorter `api.hubtask.eu`, and a new service is a new prefix rather than a rename. A wildcard record
+covers the whole environment, so adding one is a deployment and not a DNS change. The operations
+port is not among them: it stays unrouted, inside the cluster ([observability-reliability.md](./observability-reliability.md)).
+
 ---
 
 ## 4. Push or pull?
@@ -154,6 +184,7 @@ Everything else has a self-hosting default:
 | `HUBTASK_TENANCY_MODE` | `single` | `single` for self-hosting, `multi` for provider operation (ADR-0010) |
 | `HUBTASK_LOG_FORMAT` / `HUBTASK_LOG_LEVEL` | `json` / `info` | `json` or `text`; `debug`, `info`, `warn`, `error` |
 | `HUBTASK_SHUTDOWN_GRACE_SECONDS` | `30` | Deadline for in-flight requests after `SIGTERM` |
+| `HUBTASK_SHUTDOWN_DEREGISTER_SECONDS` | `15` | How long the process keeps serving after marking itself not ready, before it stops accepting connections. Removing a pod from a load balancer is not synchronous with stopping it, so a process that closes its listener at once is still sent requests it can no longer answer — RT-8 measured that as 502s during a rollout ([evidence](../evidence/RT-8-2026-08-21.md)). It is a property of whatever routes the traffic: `0` is right where nothing does |
 | `HUBTASK_DB_APP_PASSWORD` (`_FILE`) | — | Read by `hubtask-migrate`, not the server: grants `hubtask_app` its login after the migrations, so the application never connects as the owner. URL-safe characters (it travels inside the DSN) |
 | `HUBTASK_DB_MAX_CONNS` / `HUBTASK_DB_MIN_CONNS` | `10` / `2` | Pool size **per process**; several roles mean several pools |
 | `HUBTASK_DB_CONNECT_TIMEOUT` | `5s` | Connection deadline |
@@ -216,7 +247,7 @@ signature, or without approval.
 
 | # | Point | Needed by |
 |---|---|---|
-| D-1 | Decide the target environment for `integration` and `production` (own server, managed Kubernetes, Hetzner/Scaleway/hyperscaler) | `0.2.0` |
+| D-1 | Decide the target environment for `production`. `integration` is decided and running ([§3.1](#31-where-integration-runs)); production is deliberately not the same decision, because it is the one coupled to D-2 | `0.6.0` |
 | D-2 | Database: own container, operator, or managed service — affects PITR and the restore drill | `0.6.0` |
 | D-3 | Evaluate moving to GitOps once there is more than one cluster or more than one operator | `0.9.0` |
-| D-4 | Domain, TLS approach, and ingress controller | `0.2.0` |
+| ~~D-4~~ | ~~Domain, TLS approach, and ingress controller~~ — decided in [§3.1](#31-where-integration-runs): `<service>.<environment>.hubtask.eu`, cert-manager with Let's Encrypt, and Traefik | `0.2.0` |

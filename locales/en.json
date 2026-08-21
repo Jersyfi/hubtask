@@ -25,6 +25,7 @@
   "config.roles_empty": "{variable} names no role. At least one of api, worker, scheduler, automation is required.",
   "config.role_unknown": "{variable} names the unknown role {value}.",
   "config.shutdown_grace_invalid": "{variable} must be greater than zero.",
+  "config.shutdown_deregister_invalid": "{variable} must not be negative.",
   "config.log_format_invalid": "{variable} must be either json or text.",
   "config.log_level_invalid": "{variable} must be one of debug, info, warn, error.",
   "config.db_pool_invalid": "{variable} is outside the valid range. The minimum pool size cannot exceed the maximum.",

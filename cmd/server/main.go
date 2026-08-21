@@ -699,8 +699,13 @@ func run() error {
 	// The order matters: deregister from /readyz first, then wait out a grace period so
 	// the load balancer stops sending new requests, and only then drain the in-flight
 	// ones.
+	//
+	// How long that wait has to be is the load balancer's property, not this process's, which is
+	// why it is configuration rather than a constant. It was two seconds, and RT-8 found what two
+	// seconds buys: an ingress still holding the endpoint, and two requests answered with 502
+	// during a rollout that was otherwise clean (docs/evidence/RT-8-2026-08-21.md).
 	registry.MarkClosing()
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Duration(cfg.ShutdownDeregisterSeconds) * time.Second)
 
 	grace := time.Duration(cfg.ShutdownGraceSeconds) * time.Second
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), grace)
