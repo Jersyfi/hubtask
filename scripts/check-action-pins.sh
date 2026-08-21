@@ -17,6 +17,11 @@
 #
 # It needs the network and a token, which is why it runs in the nightly rather than in
 # `make verify` - the local gates stay offline.
+#
+# The half of the rule that needs no network lives with the other repository-wide consistency
+# rules: `test/architecture/actionpins_test.go` refuses two `uses:` of one repository at different
+# commits. That one has to bite on the pull request, because #16 was a mixture in which every pin
+# resolved and every comment was right.
 
 set -euo pipefail
 

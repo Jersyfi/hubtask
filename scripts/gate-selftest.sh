@@ -464,6 +464,31 @@ else
 fi
 rm -f "$WORKFLOW"
 
+header "Action pins (make gate-architecture)"
+
+# The nightly script asks GitHub whether each pin resolves; this rule is the other half, and it is
+# the half #16 walked through: two `uses:` of one repository at different versions, every pin
+# resolving and every comment correct. A second pin of an action already used elsewhere is the
+# whole probe.
+CHECKS=$((CHECKS + 1))
+PIN_PROBE=".github/workflows/gate-selftest-pin-probe.yml"
+cat > "$PIN_PROBE" <<'PROBE'
+name: Selftest probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1111111111111111111111111111111111111111 # v4.2.2
+PROBE
+if make --no-print-directory gate-architecture >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-architecture stayed green\n' "one repository pinned to two commits"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-architecture\n' "one repository pinned to two commits"
+fi
+rm -f "$PIN_PROBE"
+
 header "Licences (make gate-licenses)"
 
 # The licence gate cannot be shown a GPL dependency without adding one, so it is shown the other
