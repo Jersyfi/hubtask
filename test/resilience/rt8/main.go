@@ -158,6 +158,18 @@ func (r *recorder) bucketAt(now time.Time) *Bucket {
 	return b
 }
 
+// lastClosed is the interval that has just ended, and it never creates one. The ticker fires on
+// the boundary, so the interval that is current at that moment is always the one nobody has
+// written to yet - reporting it printed a run of zeroes through a run that was working.
+func (r *recorder) lastClosed(now time.Time) Bucket {
+	resolution := int(tick.Seconds())
+	seconds := int(now.Sub(r.start).Seconds())/resolution*resolution - resolution
+	if b, known := r.buckets[seconds]; known {
+		return *b
+	}
+	return Bucket{SecondsIn: seconds}
+}
+
 func (r *recorder) observe(status int, took time.Duration, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -427,9 +439,9 @@ func progress(ctx context.Context, rec *recorder, start time.Time) {
 			return
 		case <-ticker.C:
 			rec.mu.Lock()
-			b := rec.bucketAt(time.Now())
+			b := rec.lastClosed(time.Now())
 			fmt.Fprintf(os.Stderr, "  %4ds  requests=%-6d non-2xx=%-4d 5xx=%-4d transport=%d\n",
-				int(time.Since(start).Seconds()), b.Requests, b.NonSuccess, b.ServerErrors, b.TransportErrors)
+				b.SecondsIn, b.Requests, b.NonSuccess, b.ServerErrors, b.TransportErrors)
 			rec.mu.Unlock()
 		}
 	}
