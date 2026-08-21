@@ -86,9 +86,17 @@ tools:
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
-	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install helm.sh/helm/v3/cmd/helm@$(HELM_VERSION)
+	@$(MAKE) --no-print-directory tools-helm
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
 	@$(MAKE) --no-print-directory tools-promtool
+
+## tools-helm: helm on its own, for a job that deploys rather than builds
+# The deploy workflow needs one of these tools and none of the others. Installing the linter and
+# the code generators to run `helm upgrade` would put minutes onto every push to main.
+.PHONY: tools-helm
+tools-helm:
+	@mkdir -p $(TOOLS_DIR)
+	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install helm.sh/helm/v3/cmd/helm@$(HELM_VERSION)
 
 # promtool, verified against the checksum above before anything is unpacked. Separated from the
 # `go install` block only because its acquisition differs, not its status: it is as pinned as the

@@ -9,7 +9,7 @@ this directory is how it is built and how it is rebuilt.
 | API | `https://api.integration.hubtask.eu` |
 | Kubernetes API | `https://k8s.integration.hubtask.eu:6443` |
 | Namespace | `hubtask` |
-| Deployed by | `.github/workflows/deploy.yml`, on every push to `main` |
+| Deployed by | [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml), on every push to `main` |
 
 ## Rebuilding it
 
