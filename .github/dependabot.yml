@@ -33,16 +33,15 @@ updates:
     commit-message:
       prefix: "ci(deps)"
 
-  # The pnpm workspace. One entry with `directories` rather than one per package: the lockfile is
-  # at the root and a bump touches it once, so four entries would open four pull requests to change
-  # the same file four times (ADR-0027).
+  # The pnpm workspace, as ONE entry rooted at the repository root.
+  #
+  # `directories:` with the five manifest locations looked tidier and was wrong: Dependabot opens
+  # a pull request per directory, so a single TypeScript bump arrived five times, each one editing
+  # the same root pnpm-lock.yaml, each one conflicting with the other four (#108-#112). The npm
+  # ecosystem understands a pnpm workspace from its root - it reads pnpm-workspace.yaml and updates
+  # the member manifests together, in one pull request, against the one lockfile that exists.
   - package-ecosystem: npm
-    directories:
-      - /
-      - /apps/webapp
-      - /apps/website
-      - /packages/api-client
-      - /packages/design-system
+    directory: /
     schedule:
       interval: weekly
       day: monday
