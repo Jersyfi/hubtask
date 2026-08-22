@@ -49,6 +49,16 @@ upload), media and attachments with presigned upload, custom fields, full-text s
 (email), the SSE stream, and bulk plus duplicate — the two item operations the specification has
 declared since `0.1.0` and no milestone owned.
 
+### `0.3.5` The workspace
+The repository becomes a monorepo: `apps/webapp` (the to-do application), `apps/website`
+(hubtask.eu), `packages/design-system` and `packages/api-client`, plus the design tokens every
+client draws from and a pipeline that runs only where a change actually landed. No use case is
+added — the milestone is measured by what still works afterwards. It sits here because phase 5
+starts in parallel from `0.4.0`, and the house has to exist before anybody moves in
+([ADR-0027](./adr/ADR-0027-monorepo-structure.md),
+[ADR-0028](./adr/ADR-0028-embedded-web-ui.md),
+[ADR-0029](./adr/ADR-0029-design-system-tokens.md)).
+
 ### `0.4.0` Time
 Due dates (including all-day, time zones), reminders (predefined + custom), recurrence (RRULE, both
 modes, DST tests), the scheduler role, the job queue, the retention job, the ICS calendar feed,
@@ -121,8 +131,9 @@ Prerequisites for `1.0.0`:
 
 ## Phase 5 — Frontend (in parallel from `0.4.0`, with its own versioning)
 
-The design and feature set are open; the backend supplies only building blocks. What is settled in
-preparation:
+The design and feature set are open; the backend supplies only building blocks. The place it will
+live, the way it will be delivered and the values it will be drawn in are settled by `0.3.5`; what
+is settled in preparation beyond that:
 
 * The contract: an OpenAPI-generated SDK, `/meta/capabilities` for configuration, saved views with a
   `layout` hint, SSE for live updates.
@@ -140,7 +151,10 @@ preparation:
 * As an interim solution, `hubctl` (the CLI) plus a minimal reference client serve for dogfooding —
   not a product decision, just a tool (risk R-08).
 
-A dedicated ADR and a dedicated arc42 document are created once the frontend decision is taken.
+The choice of framework is the one thing deliberately still open, and it needs its own ADR — the
+content security policy [ADR-0028](./adr/ADR-0028-embedded-web-ui.md) settles is already a
+constraint on it: no `'unsafe-inline'`, no `'unsafe-eval'`. A dedicated arc42 document is created
+once that decision is taken.
 
 ---
 
