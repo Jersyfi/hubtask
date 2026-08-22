@@ -186,3 +186,6 @@ matrix that contains states explodes.
   measured. This belongs in CI as an automated test, not in a one-off check.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
 - **Voice and tone** — one page of writing rules for buttons, errors and empty states.
+
+<!-- A throwaway change, to prove that a documentation-only pull request runs the
+     documentation gate and the always-on jobs and nothing else. Closed unmerged. -->
