@@ -46,7 +46,8 @@ buckets, labels, ordering (drag and drop), query DSL v1, trash/archive, activity
 ### `0.3.0` Collaboration and content
 Comments, members and assignment, automatic assignment (every strategy), covers (colour/image
 upload), media and attachments with presigned upload, custom fields, full-text search, notifications
-(email), the SSE stream.
+(email), the SSE stream, and bulk plus duplicate — the two item operations the specification has
+declared since `0.1.0` and no milestone owned.
 
 ### `0.4.0` Time
 Due dates (including all-day, time zones), reminders (predefined + custom), recurrence (RRULE, both
