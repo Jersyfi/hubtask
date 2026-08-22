@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hubtask</title>
+  </head>
+  <body>
+    <h1>No user interface was built into this binary.</h1>
+    <p>
+      The API is unaffected and is serving at /api/v1. This page is the placeholder that lets the
+      Go build succeed without a JavaScript toolchain: //go:embed refuses to compile against a
+      directory that is not there, so one file has to be committed (ADR-0028).
+    </p>
+    <p>
+      The released container image replaces it with the built application. To do the same locally:
+      pnpm --filter @hubtask/webapp build, then copy apps/webapp/dist into presentation/webui/dist.
+    </p>
+  </body>
+</html>

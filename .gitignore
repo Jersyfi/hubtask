@@ -39,3 +39,9 @@ coverage.*
 .vscode/
 *.swp
 .DS_Store
+
+# The embedded UI bundle. Everything the frontend build writes here is generated - except
+# index.html, which is committed as a placeholder so that //go:embed resolves and `go build ./...`
+# succeeds without Node.js (ADR-0028).
+/presentation/webui/dist/*
+!/presentation/webui/dist/index.html
