@@ -1168,6 +1168,61 @@ func TestAnItemLabelEventNeedsALabel(t *testing.T) {
 	}
 }
 
+// The four events of C-01, against the schemas they are published under. All four carry a reference
+// and no snapshot of the entry, which is what the schemas declare and what a subscriber writes
+// against.
+func TestTheAssignmentAndMemberEventsMatchTheirSchemas(t *testing.T) {
+	item := work.WorkItem{
+		ID:           shared.MustParseID("0192f000-0000-7000-8000-00000000000e"),
+		TenantID:     shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		Type:         work.ItemTask,
+		Path:         work.RootPath(shared.MustParseID("0192f000-0000-7000-8000-00000000000e")),
+		Depth:        1, Title: "Buy oat milk", OrderKey: "a0",
+		CreatedBy: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		Version:   1,
+	}
+	accountID := shared.MustParseID("0192f000-0000-7000-8000-0000000000a1")
+	by := event.Actor{Kind: shared.ActorUser, ID: item.CreatedBy}
+	at := time.Date(2026, 8, 22, 9, 0, 0, 0, time.UTC)
+	eventID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e9")
+
+	for eventType, build := range map[event.Type]func() (event.Envelope, error){
+		event.ItemAssigned: func() (event.Envelope, error) {
+			return event.NewItemAssigned(eventID, item, accountID, by, at, event.Cause{})
+		},
+		event.ItemUnassigned: func() (event.Envelope, error) {
+			return event.NewItemUnassigned(eventID, item, accountID, by, at, event.Cause{})
+		},
+		event.ItemMemberAdded: func() (event.Envelope, error) {
+			return event.NewItemMemberAdded(eventID, item, accountID, by, at, event.Cause{})
+		},
+		event.ItemMemberRemoved: func() (event.Envelope, error) {
+			return event.NewItemMemberRemoved(eventID, item, accountID, by, at, event.Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
 // The lifecycle events of both aggregates, against the schemas they are published under (B-10).
 //
 // Built from real transitions rather than from hand-written fixtures: the stamp a payload carries is

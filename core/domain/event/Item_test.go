@@ -382,6 +382,77 @@ func TestAnItemLabelEventRefusesAnEmptyLabel(t *testing.T) {
 	}
 }
 
+// The four events of C-01 carry a reference and no snapshot, for the reason the label pair does:
+// an entry snapshot would have to carry the member list to be useful, and that list is exactly what
+// merges separately.
+func TestTheAssignmentEventsCarryTheReference(t *testing.T) {
+	item := task()
+	accountID := shared.MustParseID("0192f000-0000-7000-8000-0000000000a1")
+
+	for _, c := range []struct {
+		eventType Type
+		field     string
+		build     func() (Envelope, error)
+	}{
+		{ItemAssigned, "assignee_id", func() (Envelope, error) {
+			return NewItemAssigned(eventID, item, accountID, by(), occurred, Cause{})
+		}},
+		{ItemUnassigned, "assignee_id", func() (Envelope, error) {
+			return NewItemUnassigned(eventID, item, accountID, by(), occurred, Cause{})
+		}},
+		{ItemMemberAdded, "account_id", func() (Envelope, error) {
+			return NewItemMemberAdded(eventID, item, accountID, by(), occurred, Cause{})
+		}},
+		{ItemMemberRemoved, "account_id", func() (Envelope, error) {
+			return NewItemMemberRemoved(eventID, item, accountID, by(), occurred, Cause{})
+		}},
+	} {
+		t.Run(string(c.eventType), func(t *testing.T) {
+			envelope, err := c.build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+			if envelope.Type != c.eventType || envelope.Subject != ItemSubject(item.ID) {
+				t.Errorf("unexpected envelope: %+v", envelope)
+			}
+			if envelope.Payload[c.field] != accountID.String() {
+				t.Errorf("the event does not name the account: %+v", envelope.Payload)
+			}
+			if envelope.Payload["collection_id"] != item.CollectionID.String() {
+				t.Errorf("the event does not name the collection: %+v", envelope.Payload)
+			}
+			if _, snapshot := envelope.Payload["title"]; snapshot {
+				t.Error("the event carries a snapshot of the entry")
+			}
+		})
+	}
+}
+
+// The former assignee travels on the unassignment rather than a null: an event carrying nobody
+// could only tell everybody or nobody at all, and there is no third reading of it.
+func TestAnAssignmentEventRefusesAnEmptyAccount(t *testing.T) {
+	for name, build := range map[string]func() (Envelope, error){
+		"assigned": func() (Envelope, error) {
+			return NewItemAssigned(eventID, task(), "", by(), occurred, Cause{})
+		},
+		"unassigned": func() (Envelope, error) {
+			return NewItemUnassigned(eventID, task(), "", by(), occurred, Cause{})
+		},
+		"member added": func() (Envelope, error) {
+			return NewItemMemberAdded(eventID, task(), "", by(), occurred, Cause{})
+		},
+		"member removed": func() (Envelope, error) {
+			return NewItemMemberRemoved(eventID, task(), "", by(), occurred, Cause{})
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := build(); err == nil {
+				t.Fatal("an event naming no account was built")
+			}
+		})
+	}
+}
+
 // The lifecycle payloads carry both stamps, always, and the batch that names the deletion. Both on
 // every one of them rather than only the stamp that moved: an entry can be archived and in the trash
 // at once (domain-model.md §3.4), and a consumer reading one stamp could not tell what state the

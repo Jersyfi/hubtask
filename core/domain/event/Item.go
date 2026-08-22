@@ -256,6 +256,80 @@ func newItemLabelChange(id shared.ID, eventType Type, item work.WorkItem, labelI
 		})
 }
 
+// NewItemAssigned announces that an entry is on somebody (domain-model.md §4).
+//
+// The payload is the reference §4 names rather than a snapshot of the entry, which is what the four
+// events of this task have in common with the label pair. For the members the reason is the label
+// pair's verbatim - a set is not a field, and a snapshot would carry one another device may already
+// have merged differently. For the assignee it is the second half of the same sentence: what a
+// notification reacts to is who it is now, `item_id` is what it reads the rest from, and an entry
+// snapshot would have to say something about the member list beside it.
+func NewItemAssigned(id shared.ID, item work.WorkItem, assigneeID shared.ID, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newItemAssignment(id, ItemAssigned, item, assigneeID, actor, occurredAt, cause)
+}
+
+// NewItemUnassigned announces that an entry is on nobody, and names who it was.
+//
+// The former assignee travels rather than a null, because that is what the event is about: a
+// notification tells the person they have been taken off, and an event carrying nobody could only
+// tell everybody or nobody at all.
+func NewItemUnassigned(id shared.ID, item work.WorkItem, assigneeID shared.ID, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newItemAssignment(id, ItemUnassigned, item, assigneeID, actor, occurredAt, cause)
+}
+
+func newItemAssignment(id shared.ID, eventType Type, item work.WorkItem, assigneeID shared.ID,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if assigneeID.IsZero() {
+		// An event about nobody. Both directions are about a person - the one who now carries the
+		// entry, or the one who no longer does - so this is the writer and the event disagreeing,
+		// which is a defect rather than something a client sent (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.assignee_missing")
+	}
+
+	return NewEnvelope(id, eventType, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, map[string]any{
+			"item_id":       item.ID.String(),
+			"collection_id": item.CollectionID.String(),
+			"assignee_id":   assigneeID.String(),
+		})
+}
+
+// NewItemMemberAdded announces that an account is on an entry's member list (domain-model.md §4).
+func NewItemMemberAdded(id shared.ID, item work.WorkItem, accountID shared.ID, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newItemMemberChange(id, ItemMemberAdded, item, accountID, actor, occurredAt, cause)
+}
+
+// NewItemMemberRemoved announces that an account is off an entry's member list.
+func NewItemMemberRemoved(id shared.ID, item work.WorkItem, accountID shared.ID, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newItemMemberChange(id, ItemMemberRemoved, item, accountID, actor, occurredAt, cause)
+}
+
+func newItemMemberChange(id shared.ID, eventType Type, item work.WorkItem, accountID shared.ID,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if accountID.IsZero() {
+		// An event about no account at all, which is the label pair's `events.label_missing` one
+		// set over: a defect rather than input.
+		return Envelope{}, shared.ErrInternal.WithDetail("events.account_missing")
+	}
+
+	return NewEnvelope(id, eventType, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, map[string]any{
+			"item_id":       item.ID.String(),
+			"collection_id": item.CollectionID.String(),
+			"account_id":    accountID.String(),
+		})
+}
+
 // The lifecycle events: archived, trashed, restored, purged.
 //
 // All but the last carry the ordinary item snapshot with the stamp that moved added to it. The

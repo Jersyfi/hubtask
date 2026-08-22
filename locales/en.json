@@ -132,6 +132,8 @@
   "items.not_trashed": "That entry is not in the trash. Delete it first - that can be undone, and this cannot.",
   "items.archived": "That entry is archived. Unarchive it before changing it.",
   "items.item_id_required": "Say which entry to change.",
+  "items.account_id_required": "Say which account. An assignment and a member list are both about somebody.",
+  "items.account_without_access": "That account cannot see this entry, so it cannot be given it. Give them access to the hub or the collection first.",
   "items.update_empty": "Say what to change about that entry.",
   "items.version_conflict": "Someone else changed that entry in the meantime. Read it again and reapply.",
   "items.cascade_not_supported": "This installation cannot complete a whole subtree in one step yet.",
@@ -216,6 +218,8 @@
   "events.change_set_empty": "This installation could not announce that change.",
   "events.lifecycle_inconsistent": "Something went wrong on our side while recording that change.",
   "events.label_missing": "This installation could not announce that change.",
+  "events.assignee_missing": "This installation could not announce that change.",
+  "events.account_missing": "This installation could not announce that change.",
 
   "shared.id_malformed": "{value} is not a valid identifier.",
   "shared.cursor_invalid": "This page link is no longer usable. Please start the list again.",
@@ -262,6 +266,10 @@
   "activity.item_restored": "{actor} restored this entry",
   "activity.item_label_added": "{actor} added a label",
   "activity.item_label_removed": "{actor} removed a label",
+  "activity.item_assigned": "{actor} assigned this entry",
+  "activity.item_unassigned": "{actor} took the assignee off this entry",
+  "activity.item_member_added": "{actor} added a member",
+  "activity.item_member_removed": "{actor} removed a member",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
   "sync.change_without_clock": "This installation could not record that change for offline devices.",

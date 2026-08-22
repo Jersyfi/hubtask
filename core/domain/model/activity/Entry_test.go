@@ -88,8 +88,8 @@ func TestAnAnonymousActorIsRefused(t *testing.T) {
 }
 
 func TestEveryVerbIsValidAndNothingElseIs(t *testing.T) {
-	if len(activity.Verbs()) != 12 {
-		t.Fatalf("%d verbs, want the twelve of this milestone", len(activity.Verbs()))
+	if len(activity.Verbs()) != 16 {
+		t.Fatalf("%d verbs, want the sixteen the history knows", len(activity.Verbs()))
 	}
 	for _, verb := range activity.Verbs() {
 		if !verb.Valid() {
