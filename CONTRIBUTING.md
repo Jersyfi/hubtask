@@ -66,6 +66,42 @@ The template lists the Definition of Done. Two items are missed most often:
 * **A merge rule** for every new field on `WorkItem` (LWW, OR-set, fractional index, or
   server-side) — otherwise the behaviour on offline conflicts is undefined.
 
+## The pipeline: one required check
+
+Every workflow runs on every pull request, but most jobs decide for themselves that they have
+nothing to do. A documentation change does not run twelve security gates, and a change to the
+design system does not run the Helm chart lint.
+
+**`CI required` is the only required status check.** It waits for every other job and fails if any
+of them failed or was cancelled; a job that was skipped because its part of the tree did not change
+counts as passing. So a green `CI required` means "everything that had something to say about this
+change said it".
+
+Two consequences worth knowing:
+
+* A pull request that shows most jobs as *skipped* is normal, not broken.
+* If you add a job to `.github/workflows/ci.yml`, add it to `ci-required`'s `needs` list — and to
+  nothing else. Making a job required on its own re-creates the deadlock this design avoids: a
+  required check that gets skipped never reports, so it stays pending forever and the pull request
+  can never merge. The reasoning is in
+  [ci-cd.md](docs/architecture/ci-cd.md) §3.2.
+
+## Working on the frontend
+
+`apps/` and `packages/` need Node.js and pnpm; `core/`, `cmd/` and the rest of the Go tree do not,
+and must never start to ([ADR-0027](docs/adr/ADR-0027-monorepo-structure.md)).
+
+```bash
+make tools-node                 # pnpm into .tools, from the version package.json pins
+pnpm install --frozen-lockfile
+pnpm -r build
+make tokens                     # regenerate the design tokens after editing tokens.json
+```
+
+Two rules that a gate enforces rather than a reviewer: no colour, spacing, radius or duration value
+is written anywhere but `packages/design-system/tokens/tokens.json`, and the generated
+`core/domain/model/shared/LabelTokens.go` is committed but never edited by hand.
+
 ## Language
 
 Everything is in English: documentation, code, identifiers, code comments, commit titles, and

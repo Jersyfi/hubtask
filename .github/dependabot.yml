@@ -33,6 +33,28 @@ updates:
     commit-message:
       prefix: "ci(deps)"
 
+  # The pnpm workspace. One entry with `directories` rather than one per package: the lockfile is
+  # at the root and a bump touches it once, so four entries would open four pull requests to change
+  # the same file four times (ADR-0027).
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /apps/webapp
+      - /apps/website
+      - /packages/api-client
+      - /packages/design-system
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Grouped for the same reason as the Go side: ten pull requests a week is a list nobody
+      # reads. A major stays on its own, because a major is a decision.
+      patch-and-minor:
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "chore(deps)"
+
   - package-ecosystem: docker
     directory: /deploy/docker
     schedule:
