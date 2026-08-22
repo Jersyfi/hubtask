@@ -112,7 +112,12 @@ func (i *items) SetAssignee(_ context.Context, item domain.WorkItem, expectedVer
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.assignments = append(i.assignments, attributeWrite{item: item, expectedVersion: expectedVersion})
-	i.stored[item.ID] = item
+	// Stored with the version the statement behind it produces: `version = version + 1` runs in the
+	// database, so a second pass over the same entry reads the version the first pass left. Without
+	// that, an idempotence test and an If-Match test would both be reading a row that never moved.
+	written := item
+	written.Version = expectedVersion + 1
+	i.stored[item.ID] = written
 	return nil
 }
 

@@ -184,9 +184,8 @@ func (pending) RemoveLabel(w http.ResponseWriter, r *http.Request, _ openapi.Ite
 	notAvailable(w, r)
 }
 
-// The four routes C-01 fills in: the entry's assignee and its member list. Declared here first,
-// so that the contract test compares the router against api/openapi.yaml as a whole while the use
-// cases behind them are still being written.
+// AssignWorkItem and UnassignWorkItem are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) AssignWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AssignWorkItemParams) {
 	notAvailable(w, r)
 }
@@ -194,6 +193,10 @@ func (pending) AssignWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.
 func (pending) UnassignWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.UnassignWorkItemParams) {
 	notAvailable(w, r)
 }
+
+// AddMember and RemoveMember land with the member half of C-01. Declared here first, so that the
+// contract test compares the router against api/openapi.yaml as a whole while the use cases behind
+// them are still being written.
 
 func (pending) AddMember(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AccountId) {
 	notAvailable(w, r)

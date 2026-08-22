@@ -153,8 +153,14 @@ func uuidOrEmpty(value *openapi_types.UUID) string {
 // reminder is gone. Presence rather than the value, because null is what clearing looks like and
 // dropping it would be exactly the silence this exists to prevent.
 //
-// Each entry disappears when its use case lands: assignment and the cover in 0.3.0, the due date in
-// 0.4.0, the custom fields with theirs. The bucket left this list with B-09.
+// `assignee_id` stays here now that C-01 has landed, and for a different reason from the rest: an
+// assignment is not a field of a merge patch, it is `POST /items/{id}:assign`. Two ways to write one
+// column would be two places deciding whether the person being given the entry may see it, which is
+// the check that makes the assignment mean anything. Refused by name here, so that a client sending
+// it is told where to send it instead rather than believing it was stored.
+//
+// The others disappear when their use case lands: the cover in 0.3.0, the due date in 0.4.0, the
+// custom fields with theirs. The bucket left this list with B-09.
 func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[string]bool, in usecase.Input) {
 	for _, field := range []string{"assignee_id", "due_at", "due_time_zone"} {
 		if present[field] {
@@ -195,9 +201,11 @@ func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[strin
 // A field is passed on only when the client actually sent it. Sending it always would refuse
 // every request, since the catalogue does not declare these names.
 //
-// Each entry disappears from this list when its use case lands: the labels with B-09's own
-// endpoints, the ordering with B-08, assignment and the cover in 0.3.0, the due date in 0.4.0. The
-// bucket left this list with B-09.
+// Each entry disappears from this list when the create path serves it. `assignee_id` and
+// `member_ids` stay after C-01 for the reason `label_ids` stayed after B-09: the endpoints that own
+// them are their own - `:assign` and `/items/{id}/members/{accountId}` - and creating an entry
+// already assigned is the create path's own decision, which C-02 takes together with `auto_assign`.
+// The cover follows in 0.3.0, the due date in 0.4.0. The bucket left this list with B-09.
 func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
 	if body.BeforeItemId != nil {
 		in["before_item_id"] = body.BeforeItemId.String()
@@ -274,6 +282,10 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	if bucket := out.String("bucket_id"); bucket != "" {
 		bucketID := uuidValue(bucket)
 		item.BucketId = &bucketID
+	}
+	if assignee := out.String("assignee_id"); assignee != "" {
+		assigneeID := uuidValue(assignee)
+		item.AssigneeId = &assigneeID
 	}
 	// Present only when the caller asked for it with `expand=labels`, and then an empty array when
 	// the entry carries none: absent means "not asked for", which is a different answer from "none".

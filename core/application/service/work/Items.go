@@ -10,12 +10,13 @@ import (
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
-// The four questions every writer in this package asks before it writes, in one place.
+// The questions every writer in this package asks before it writes, in one place.
 //
 // They were a copy per writer, identical to the character, which is the state where a fix reaches
 // one of them: "the item is missing" and "the collection under it is missing" are answered
@@ -121,4 +122,32 @@ func ensureBucketOnBoard(
 			WithFields(shared.FieldError{Path: "/bucket_id", Code: "buckets.not_in_collection"})
 	}
 	return bucket.EnsureEditable()
+}
+
+// ensureAccountCanSee refuses an account that cannot reach the entry.
+//
+// Assignment and membership are both decisions about a second person, and one made about somebody
+// who gets a 404 on the entry is a piece of work nobody can do - and, once C-04 lands, a
+// contributor's write right pointing at nothing. So the account has to hold a membership somewhere
+// along the entry's path (domain-model.md §3.2).
+//
+// One refusal for three situations, deliberately: no membership, another tenant's account, and an
+// account that does not exist all come back as `items.account_without_access`. Separating them
+// would be an oracle for which identifiers exist in which tenant, which is exactly what T-04
+// forbids (multi-tenancy.md §2) - and the fix a client needs is the same in all three cases.
+func ensureAccountCanSee(
+	ctx context.Context, visibility Visibility, actor appshared.ActorContext,
+	accountID shared.ID, collection domain.Container,
+) error {
+	permitted, err := visibility.CanSee(ctx, actor, accountID, containerPath(collection))
+	if err != nil {
+		return err
+	}
+	if permitted {
+		return nil
+	}
+	return shared.ErrValidation.
+		WithDetail("items.account_without_access").
+		WithParams(map[string]string{"account_id": accountID.String()}).
+		WithFields(shared.FieldError{Path: "/account_id", Code: "items.account_without_access"})
 }

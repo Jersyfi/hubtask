@@ -449,7 +449,11 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 		},
 		// Always present, as null for an entry on no board. A field that appeared only once
 		// somebody had dragged the card into a column is one a client cannot read unconditionally.
-		"bucket_id":   idOrNil(item.BucketID),
+		"bucket_id": idOrNil(item.BucketID),
+		// The same, for the same reason: null for an entry nobody is on. The member list is not
+		// here - it is a set beside the row, read through its own endpoint, exactly as the labels
+		// are (C-01).
+		"assignee_id": idOrNil(item.AssigneeID),
 		"order_key":   item.OrderKey,
 		"archived_at": timeOrNil(item.ArchivedAt),
 		"deleted_at":  timeOrNil(item.DeletedAt),
