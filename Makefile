@@ -176,6 +176,17 @@ tokens:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter @hubtask/design-system build
 
+## website: Build the project website into apps/website/dist
+# It is not embedded into the binary and never will be: it has no API contract with the server and
+# no reason to be in it (ADR-0028). This produces a directory of static files; where that directory
+# is deployed is not decided here.
+.PHONY: website
+website:
+	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
+	$(PNPM) --filter @hubtask/design-system build
+	$(PNPM) --filter @hubtask/website build
+	@echo "apps/website/dist is ready to deploy"
+
 ## api-client: Regenerate the TypeScript API client from api/openapi.yaml
 # The same source as the Go server types above (ADR-0004): the specification is changed first, and
 # both sides are regenerated from it in the same pull request.

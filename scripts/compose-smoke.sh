@@ -86,6 +86,41 @@ if ! curl -fsS -o /dev/null "http://127.0.0.1:$HTTP_PORT/api/v1/meta/capabilitie
 	echo "FAILED: the API did not answer on $HTTP_PORT"
 	failures=$((failures + 1))
 fi
+# The web interface, served from the same binary and the same port as the API (ADR-0028). Two
+# things are worth asserting and neither is visible from a unit test: that the image really
+# contains a bundle rather than the committed placeholder, and that serving it at "/" did not
+# shadow the API.
+index="$(curl -fsS "http://127.0.0.1:$HTTP_PORT/" || true)"
+if ! grep -qi "<!doctype html" <<< "$index"; then
+	echo "FAILED: / did not serve a document"
+	failures=$((failures + 1))
+elif grep -q "No user interface was built into this binary" <<< "$index"; then
+	echo "FAILED: / served the placeholder - the image was built without a frontend build"
+	failures=$((failures + 1))
+fi
+
+# A route only the client knows about has to survive a reload rather than 404 - the application
+# owns its own paths (ADR-0028).
+if ! curl -fsS -o /dev/null "http://127.0.0.1:$HTTP_PORT/containers/01JBXR3TESTONLY"; then
+	echo "FAILED: a deep link into the application did not resolve to the document"
+	failures=$((failures + 1))
+fi
+
+# The interface is an optional part of the installation, so a client discovers it the same way it
+# discovers every other one, instead of asking for "/" and guessing from the answer.
+if ! curl -fsS "http://127.0.0.1:$HTTP_PORT/api/v1/meta/capabilities" | grep -q '"web_ui":true'; then
+	echo "FAILED: /meta/capabilities does not report the web interface"
+	failures=$((failures + 1))
+fi
+
+# Exactly two containers keep running. The README promises self-hosting in two, the migration is
+# a job that finishes, and this is the line that stops a third from appearing unnoticed.
+running="$($COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" ps --status running --format '{{.Service}}' | sort | tr '\n' ' ')"
+if [ "$running" != "app db " ]; then
+	echo "FAILED: the running services are '$running', expected 'app db '"
+	failures=$((failures + 1))
+fi
+
 metrics="$(curl -fsS "http://127.0.0.1:$OPS_PORT/metrics" || true)"
 for series in hubtask_build_info hubtask_job_queue_depth hubtask_panics_recovered_total; do
 	if ! grep -q "^$series" <<< "$metrics"; then
