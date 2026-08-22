@@ -96,6 +96,18 @@ tools:
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
 	@$(MAKE) --no-print-directory tools-promtool
 
+## tools-licenses: Install only go-licenses
+# The narrow counterpart to `make tools`, for the one job that runs unconditionally.
+#
+# gate-licenses needs one tool and takes about twenty seconds; `make tools` installs eight and
+# takes over three minutes. On a documentation-only pull request that was the whole run - three
+# minutes of installing a Helm binary and a linter to answer a question about licences. The point
+# of filtering the pipeline by what changed is lost if the jobs that always run are the slow ones.
+.PHONY: tools-licenses
+tools-licenses:
+	@mkdir -p $(TOOLS_DIR)
+	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
+
 ## tools-node: Install pnpm into .tools (only needed to work on apps/ or packages/)
 # Deliberately not a dependency of `make tools`. A backend-only contributor never needs a
 # JavaScript toolchain, and a `make tools` that fails without Node would say otherwise
