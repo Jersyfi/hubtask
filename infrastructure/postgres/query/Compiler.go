@@ -228,12 +228,15 @@ func (b *builder) combination(node view.Node) {
 	}
 }
 
-// leaf writes one comparison. The two fields with no column of their own are answered first, then
-// the ordinary ones by operator.
+// leaf writes one comparison. The fields with no column of their own are answered first, then the
+// ordinary ones by operator.
 func (b *builder) leaf(node view.Node) {
 	switch node.Field.Name {
 	case view.FieldLabels:
 		b.labels(node)
+		return
+	case view.FieldMembers:
+		b.members(node)
 		return
 	case view.FieldText:
 		// The same text search configuration the generated column was built with. A query parsed
@@ -324,6 +327,35 @@ func (b *builder) labels(node view.Node) {
 		b.write(`(SELECT count(DISTINCT il.label_id) FROM item_label il `,
 			`JOIN label l ON l.id = il.label_id `,
 			`WHERE il.item_id = wi.id AND l.deleted_at IS NULL AND il.label_id = ANY(`)
+		b.array(node.Field, node.Values)
+		b.write(`)) = `)
+		b.param(int64(len(node.Values)))
+
+	default:
+		b.fail(errOperatorNotCompilable(node.Op))
+	}
+}
+
+// members is the second relation a filter reaches into: the accounts an entry carries.
+//
+// The labels' shape without the join. A label has a deletion stamp and stops filtering the moment
+// it is deleted; an account has none - it is disabled or it is gone, and a gone one takes its rows
+// with it through the tenant-scoped foreign key - so there is no second table whose state could
+// hide a row here.
+func (b *builder) members(node view.Node) {
+	switch node.Op {
+	case view.OpContains, view.OpContainsAny:
+		b.write(`EXISTS (SELECT 1 FROM item_member im `,
+			`WHERE im.item_id = wi.id AND im.account_id = ANY(`)
+		b.array(node.Field, node.Values)
+		b.write(`))`)
+
+	case view.OpContainsAll:
+		// Counted rather than one EXISTS per account, for the reason the labels are counted: the
+		// number of members is data, and a predicate whose size follows the request is one a client
+		// can make expensive.
+		b.write(`(SELECT count(DISTINCT im.account_id) FROM item_member im `,
+			`WHERE im.item_id = wi.id AND im.account_id = ANY(`)
 		b.array(node.Field, node.Values)
 		b.write(`)) = `)
 		b.param(int64(len(node.Values)))

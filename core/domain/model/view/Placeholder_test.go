@@ -163,6 +163,40 @@ func TestResolveTheActor(t *testing.T) {
 	}
 }
 
+// "my items" is the query api-guidelines.md §3 writes out in its own example, and half of it is a
+// set: `members CONTAINS @me`. The placeholder stands for one identifier either way - whether the
+// field holds one of them or several is the operator's business rather than the value's.
+func TestTheActorResolvesOnASetOfIdentifiersToo(t *testing.T) {
+	at := Resolution{Now: time.Now(), ActorID: actor}
+
+	// Not through resolveValue: that one asks with EQ, and a set does not answer EQ - which is
+	// exactly the pairing this test is about.
+	node, err := ParseFilter(leaf("members", "CONTAINS", "@me"), filterPath)
+	if err != nil {
+		t.Fatalf("@me on a set was refused: %v", err)
+	}
+	resolved, err := node.Resolve(at, filterPath)
+	if err != nil {
+		t.Fatalf("@me on a set did not resolve: %v", err)
+	}
+
+	got := resolved.Values[0]
+	if got.ID != actor || got.Kind != KindID {
+		t.Errorf("@me on a set resolved to %+v", got)
+	}
+}
+
+// A moment on a set of identifiers is as wrong as a moment on one, and is refused by the same line.
+func TestAMomentOnASetOfIdentifiersIsRefused(t *testing.T) {
+	node, err := ParseFilter(leaf("members", "CONTAINS", "@today"), filterPath)
+	if err == nil {
+		t.Fatalf("@today was accepted on a set: %+v", node)
+	}
+	if detail := detailOf(t, err); detail != "query.placeholder_not_applicable" {
+		t.Errorf("detail %q", detail)
+	}
+}
+
 // Without a zone the server has to pick one, and it must not be the machine's: two replicas of one
 // deployment would otherwise disagree about when today began.
 func TestResolveFallsBackToUTC(t *testing.T) {

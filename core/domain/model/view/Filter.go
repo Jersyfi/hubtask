@@ -305,13 +305,17 @@ func parseList(raw any, target Field, path string, minimum, maximum int) ([]Valu
 
 // parseValue types one value against the field's kind.
 //
-// A placeholder is recognised for the two kinds that can have one - an identifier and a moment -
-// and nowhere else: on a text field an `@` is the first character of somebody's title, and reading
-// it as a placeholder would make a legitimate search unexpressible.
+// A placeholder is recognised for the kinds that can have one - an identifier, a set of
+// identifiers, and a moment - and nowhere else: on a text field an `@` is the first character of
+// somebody's title, and reading it as a placeholder would make a legitimate search unexpressible.
+//
+// A set takes one because `members CONTAINS @me` is the query api-guidelines.md §3 names in its own
+// example: what the placeholder stands for is one identifier either way, and whether the field
+// holds one of them or several is the operator's business rather than the value's.
 func parseValue(raw any, target Field, path string) (Value, error) {
 	if text, ok := raw.(string); ok && strings.HasPrefix(text, placeholderPrefix) {
 		switch target.Kind {
-		case KindID, KindTimestamp:
+		case KindID, KindIDSet, KindTimestamp:
 			placeholder, err := parsePlaceholder(text, target.Kind, path)
 			if err != nil {
 				return Value{}, err

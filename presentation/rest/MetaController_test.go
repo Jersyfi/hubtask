@@ -104,6 +104,13 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 	if !published[view.FieldLabels] {
 		t.Error("the labels are missing from the manifest")
 	}
+	// A client builds its filter editor from this list, so a field a use case now writes and the
+	// manifest does not name is a field nobody can filter on (C-01).
+	for _, field := range []string{view.FieldAssigneeID, view.FieldMembers} {
+		if !published[field] {
+			t.Errorf("%s is missing from the manifest", field)
+		}
+	}
 }
 
 func serveCapabilities(t *testing.T, reader CapabilityReader) *httptest.ResponseRecorder {

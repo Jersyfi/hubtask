@@ -64,11 +64,12 @@ func (f Field) Permits(op Operator) bool { return slices.Contains(f.Operators, o
 
 // The fields this version serves.
 //
-// Deliberately not every column `work_item` has. `due_at`, `start_at`, `assignee_id`, the members
-// and the custom fields have had columns and indexes since the first migration, and no use case
-// writes any of them before 0.3.0 - a filter on them would match nothing, and a client could not
-// tell that from a collection in which nothing is due. They are refused by name until the
-// milestone that fills them, which is the honest answer and the one a client can act on.
+// Deliberately not every column `work_item` has. `due_at`, `start_at` and the custom fields have
+// had columns and indexes since the first migration, and no use case writes any of them yet - a
+// filter on them would match nothing, and a client could not tell that from a collection in which
+// nothing is due. They are refused by name until the milestone that fills them, which is the honest
+// answer and the one a client can act on. The assignee and the members left this sentence with
+// C-01, which is the task that gave them use cases.
 const (
 	FieldType        = "type"
 	FieldParentID    = "parent_id"
@@ -85,6 +86,8 @@ const (
 	FieldCompletedAt = "completed_at"
 	FieldArchivedAt  = "archived_at"
 	FieldLabels      = "labels"
+	FieldAssigneeID  = "assignee_id"
+	FieldMembers     = "members"
 	// FieldText is the one field with no column of its own: the full-text index over an entry's
 	// title and notes, which is what MATCHES reads. A virtual name rather than `title` or `notes`,
 	// because the vector covers both and a client that searched `title` and matched a word in the
@@ -176,6 +179,21 @@ var catalogue = []Field{
 		// `labels EQ x` would have to mean either "carries x" or "carries exactly x" - two
 		// different questions behind one spelling.
 		Name: FieldLabels, Kind: KindIDSet,
+		Operators: []Operator{OpContains, OpContainsAny, OpContainsAll},
+	},
+	{
+		// A scalar, so equality rather than the set operators: an entry has one assignee, and
+		// `assignee_id EQ x` has exactly one meaning. IS_NULL is what "nobody is on this" is asked
+		// as, and grouping by it is the board every "by person" view is drawn from.
+		Name: FieldAssigneeID, Kind: KindID,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
+		Nullable:  true, Groupable: true,
+	},
+	{
+		// A set, like the labels and for the same reason: an entry carries several members, and
+		// `members EQ x` would have to mean either "carries x" or "carries exactly x" - two
+		// different questions behind one spelling.
+		Name: FieldMembers, Kind: KindIDSet,
 		Operators: []Operator{OpContains, OpContainsAny, OpContainsAll},
 	},
 	{
