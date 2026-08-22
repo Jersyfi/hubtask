@@ -101,6 +101,32 @@ const (
 	// event to a rule. A consumer that cares only about reparenting compares `from_parent_id` with
 	// `to_parent_id`.
 	ItemMoved Type = "de.hubtask.work.item.moved.v1"
+	// ItemAssigned announces that an entry is on somebody. Consumers: notification.
+	//
+	// The payload is the reference domain-model.md §4 names - `assigneeId` and, once C-02 lands, the
+	// strategy that chose them - rather than a snapshot of the entry. What a rule and a notification
+	// react to is who it is now, and `itemId` is what they read the rest from; an entry snapshot
+	// would additionally have to say something about the member list, which merges separately and
+	// which another device may already have merged differently (offline-sync.md §4.2).
+	ItemAssigned Type = "de.hubtask.work.item.assigned.v1"
+	// ItemUnassigned announces that an entry is on nobody, and names who it was.
+	//
+	// Its own type rather than an assignment naming nobody, on the reasoning that separates
+	// ItemReopened from ItemCompleted: a rule that reacts to work being handed to somebody must not
+	// fire when it is taken off them, and a subscriber filtering on a null payload field to avoid
+	// that is a subscriber that will eventually not.
+	ItemUnassigned Type = "de.hubtask.work.item.unassigned.v1"
+	// ItemMemberAdded announces that an account is on an entry's member list. Consumers:
+	// notification.
+	//
+	// The reference rather than a snapshot, for the reason given at ItemLabelAdded and in the same
+	// words: a set is not a field. The member list merges as an OR-set, so a snapshot of the entry
+	// would carry a set another device may already have merged differently; `account_id` is what a
+	// rule reacts to and `item_id` is what it reads the rest from.
+	ItemMemberAdded Type = "de.hubtask.work.item.member_added.v1"
+	// ItemMemberRemoved announces that an account is off an entry's member list. Consumers:
+	// notification.
+	ItemMemberRemoved Type = "de.hubtask.work.item.member_removed.v1"
 	// ItemArchived announces that an entry is kept and read-only. Consumers: automation, search
 	// (an archived entry drops out of the default index), SSE.
 	//
@@ -187,6 +213,7 @@ var types = [...]Type{
 	ContainerCreated, ContainerRenamed, ContainerPoliciesUpdated, ContainerMoved,
 	ContainerArchived, ContainerUnarchived, ContainerDeleted, ContainerRestored,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
+	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemPurged,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted,

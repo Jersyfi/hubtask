@@ -4,7 +4,7 @@ A record of every data category the system processes, with its purpose, classifi
 locations, retention, and deletion path. The basis for the record of processing activities
 (GDPR Art. 30) that every operator keeps for themselves.
 
-* **Version:** 0.2.0 · **As of:** 2026-08-18 · **Maintenance:** by pull request, so changes are traceable
+* **Version:** 0.3.0 · **As of:** 2026-08-22 · **Maintenance:** by pull request, so changes are traceable
 * **Concept:** [../architecture/data-protection.md](../architecture/data-protection.md)
 * **Consistency check:** gate PG-7 compares this record against the database schema; a table with personal content that is missing here fails the build.
 
@@ -57,7 +57,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 |---|---|---|---|---|---|
 | Title, description, notes | `work_item` | `PERSONAL_CONTENT` | The core feature | Until deleted by the user | `CASCADE` (trash 30 days) |
 | Due date, status, ordering, path | `work_item` | `NON_PERSONAL` | The core feature | As above | `CASCADE` |
-| Assignments | `item_member` | `PERSONAL_BASIC` | Work organisation | As above | `CASCADE` / `ANONYMIZE` |
+| Assignments | `item_member`, `work_item.assignee_id` | `PERSONAL_BASIC` | Work organisation | As above | `CASCADE` (the member link, with the entry) / `ANONYMIZE` (the assignee: the account's deletion clears the reference and leaves the entry) |
 | Comments | `comment` | `PERSONAL_CONTENT` | Collaboration | As above | `CASCADE` / `ANONYMIZE` (the author) |
 | Activity history | `activity_entry` | `PERSONAL_CONTENT` | Traceability within the product | With the item | `CASCADE` |
 | Attachments (file, name, checksum) | `media_object`, object storage | `PERSONAL_CONTENT` | The core feature | As above | `CASCADE` + object deletion after reference counting |

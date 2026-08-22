@@ -70,6 +70,14 @@ activity vocabulary in §3.5 grows `item.assigned`, `item.unassigned`, `item.mem
 
 **Read:** `domain-model.md` §2, §3.4, §3.5, §4; `offline-sync.md` §4.2; ADR-0005, ADR-0024
 
+*Decided while implementing:* only the query language's exemption ended here. `assignee_id` on
+`POST /items` and `PATCH /items/{id}`, and `member_ids` on `POST /items`, are still refused by name
+— the same place B-09 left `label_ids` after `AddLabel` landed, and for the same reason: the create
+path is one use case's business, and C-02 is the task that opens it together with `auto_assign`. The
+routes are `POST /items/{id}:assign` and `:unassign` for the scalar and
+`PUT`/`DELETE /items/{id}/members/{accountId}` for the set, which is the split between the two merge
+rules.
+
 ---
 
 ## C-02 — Automatic assignment: every strategy **[G]**

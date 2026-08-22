@@ -241,6 +241,7 @@ func run() error {
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
 	itemLabels := postgres.NewItemLabelRepository()
+	itemMembers := postgres.NewItemMemberRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
@@ -320,6 +321,28 @@ func run() error {
 	itemLabelWriter := work.ItemLabelWriter{
 		Items: items, ItemLabels: itemLabels, Labels: labels, Containers: containers,
 		Profiles: profiles, Authorizer: authorizer, Events: outbox, Changes: changes,
+		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
+	// Both directions of an entry's assignee share one dependency set, for the reason the completion
+	// pair does: they are the same write in opposite directions, and the only thing that differs is
+	// whether a person arrives or leaves (work.AssignmentWriter). `authorizer` appears twice on
+	// purpose - the actor's own permission and the question about the second person are two
+	// different questions answered by the same service.
+	assignment := work.AssignmentWriter{
+		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Visibility: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
+		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		HLC: hybrid,
+	}
+
+	// Both directions of an entry's member list share one dependency set, for the reason the label
+	// pair does: they are the same write in opposite directions, and wiring them separately would
+	// be two places to get one of fourteen fields wrong (work.ItemMemberWriter).
+	itemMemberWriter := work.ItemMemberWriter{
+		Items: items, ItemMembers: itemMembers, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
@@ -439,6 +462,10 @@ func run() error {
 		work.DeleteLabel{Writer: labelWriter}.Descriptor(),
 		work.AddLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.RemoveLabel{Writer: itemLabelWriter}.Descriptor(),
+		work.AssignWorkItem{Assignment: assignment}.Descriptor(),
+		work.UnassignWorkItem{Assignment: assignment}.Descriptor(),
+		work.AddMember{Writer: itemMemberWriter}.Descriptor(),
+		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),

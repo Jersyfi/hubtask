@@ -328,6 +328,15 @@ type Items interface {
 	// reorder changes.
 	SetOrderKey(ctx context.Context, item work.WorkItem, expectedVersion int) error
 
+	// SetAssignee writes the one person an entry is on, set or cleared, or reports a version
+	// conflict.
+	//
+	// Its own method rather than a field of SetAttributes, for the reason SetCompletion is its own:
+	// an assignment is one decision about one field, and writing it through the statement that also
+	// writes the title would make handing an entry to somebody spend the version of a rename nobody
+	// asked for. Whether that account may be assigned is decided before this runs (ADR-0005).
+	SetAssignee(ctx context.Context, item work.WorkItem, expectedVersion int) error
+
 	// MoveSubtree rewrites where an item and everything below it sits, drops the references the
 	// destination cannot resolve, and returns how many rows it touched together with what was lost.
 	//
@@ -498,6 +507,36 @@ type ItemLabels interface {
 	ListFor(ctx context.Context, itemIDs []shared.ID) (map[shared.ID][]shared.ID, error)
 
 	// Elements returns every tag of one item's label set: what a merge compares a client's tags
+	// against.
+	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)
+}
+
+// ItemMembers stores which accounts an item carries, and the tags that decide it after a merge.
+//
+// The same two-tables-behind-one-interface as ItemLabels, and for the same reason: `item_member` is
+// the membership every read goes through and `set_element` is the OR-set tag that survives an
+// offline merge (offline-sync.md §4.2, §10). Writing one without the other is the failure mode -
+// membership with no tag merges as last writer wins and loses a concurrent change, a tag with no
+// membership is invisible to every read - so neither is separately callable.
+//
+// Its own interface rather than a second set of methods on ItemLabels. The two sets share their
+// merge machinery and nothing else: a label belongs to a collection's vocabulary and an account to
+// the tenant, and the questions asked before writing one are not the questions asked before writing
+// the other.
+type ItemMembers interface {
+	// List returns the accounts an item carries.
+	List(ctx context.Context, itemID shared.ID) ([]shared.ID, error)
+
+	// Add puts an account on an item and records the addition's tag. Adding one the item already
+	// carries is the state the caller asked for and succeeds, writing a fresh tag.
+	Add(ctx context.Context, itemID, accountID shared.ID, tag shared.HLC) error
+
+	// Remove takes an account off an item, records the removal's tag, and reports whether the item
+	// carried it at all. The tag is written either way: a device that removes somebody this replica
+	// never saw added has still made a decision that another replica has to merge.
+	Remove(ctx context.Context, itemID, accountID shared.ID, tag shared.HLC) (bool, error)
+
+	// Elements returns every tag of one item's member set: what a merge compares a client's tags
 	// against.
 	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)
 }

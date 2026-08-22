@@ -24,7 +24,7 @@ import (
 // the message catalogue is keyed by - renaming one is a breaking change to every translation.
 type Verb string
 
-// The verbs of this milestone: the twelve things that can happen to an entry.
+// The verbs of the history: the sixteen things that can happen to an entry.
 //
 // Item-level throughout. `ActivityEntry` is keyed on the item (domain-model.md §3.5) and
 // `/items/{id}/activity` is the only reader the contract declares (api-guidelines.md §2), so a hub
@@ -42,11 +42,19 @@ const (
 	ItemRestored     Verb = "item.restored"
 	ItemLabelAdded   Verb = "item.label_added"
 	ItemLabelRemoved Verb = "item.label_removed"
+	// The assignment four. `item.assigned` covers being handed on as well as being taken up: the
+	// field is a scalar, so replacing one person with another is one step rather than a removal and
+	// an addition, and the change set carries both sides of it.
+	ItemAssigned      Verb = "item.assigned"
+	ItemUnassigned    Verb = "item.unassigned"
+	ItemMemberAdded   Verb = "item.member_added"
+	ItemMemberRemoved Verb = "item.member_removed"
 )
 
 var verbs = [...]Verb{
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved, ItemReordered,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemLabelAdded, ItemLabelRemoved,
+	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

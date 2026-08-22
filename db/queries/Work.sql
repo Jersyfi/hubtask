@@ -212,7 +212,7 @@ SELECT
 -- returns them: the repository reports what is stored and judges none of it (I-W4).
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, bucket_id, order_key,
+  is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE id = $1;
@@ -264,7 +264,7 @@ INSERT INTO work_item (
 -- and for the same reasons.
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, bucket_id, order_key,
+  is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE collection_id = sqlc.arg('collection_id')::uuid
@@ -311,6 +311,26 @@ UPDATE work_item SET
   updated_at   = sqlc.arg('updated_at'),
   version      = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+-- name: SetWorkItemAssignee :execrows
+-- The one person an entry is on, set or cleared, under the same optimistic lock every write to
+-- this row takes: the update matches nothing when somebody else has moved the row on, and the
+-- caller learns that rather than overwriting them (api-guidelines.md §5).
+--
+-- Its own statement rather than a column added to SetWorkItemAttributes. An assignment is one
+-- decision about one field, and a statement that wrote the title alongside it would make handing
+-- an entry to somebody spend the version of a rename nobody asked for - which is the same reason
+-- the completion has a statement of its own.
+--
+-- Whether that account may be assigned at all is not asked here. It is a question about a
+-- membership somewhere above the entry, decided in the application layer before this runs
+-- (ADR-0005); the tenant-scoped foreign key is what stops the identifier pointing outside the
+-- tenant, and it is the database's rather than this statement's (ADR-0024).
+UPDATE work_item SET
+  assignee_id = sqlc.narg('assignee_id'),
+  updated_at  = sqlc.arg('updated_at'),
+  version     = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
 -- name: SetWorkItemAttributes :execrows
 -- The item's own fields: what UpdateWorkItem may change in 0.2.0 (B-05).
 --

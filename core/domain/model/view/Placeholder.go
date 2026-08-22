@@ -101,7 +101,12 @@ func parsePlaceholder(raw string, kind Kind, path string) (Placeholder, error) {
 	}
 	// `@me` on a date is as wrong as `@today` on an identifier, and both are worth saying plainly:
 	// the alternative is a query that parses and then compares an account against a moment.
-	if (placeholder.Kind == PlaceholderMe) != (kind == KindID) {
+	//
+	// A set of identifiers counts as identifiers. `members CONTAINS @me` is the query
+	// api-guidelines.md §3 writes out in its own example, and the kind says "an identifier" rather
+	// than "an account" - the same latitude `parent_id` already has, where `@me` parses and then
+	// matches nothing.
+	if (placeholder.Kind == PlaceholderMe) != (kind == KindID || kind == KindIDSet) {
 		return Placeholder{}, fieldError(path, "query.placeholder_not_applicable", map[string]string{
 			"placeholder": anchor, "kind": string(kind),
 		})

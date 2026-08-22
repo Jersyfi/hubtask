@@ -293,6 +293,70 @@ func TestEveryOperatorAnswersAgainstTheDatabase(t *testing.T) {
 // withFixtureIDs replaces the empty identifier placeholders in a filter document with the fixture's
 // own. Written this way so that the table above reads as a list of filters rather than as a list of
 // closures.
+// The two fields C-01 gave use cases, asked of a real column and a real join table. The assignee is
+// a scalar and the members are a relation, which is the whole difference between them - and a
+// filter that compiles and then fails to plan shows up here and nowhere earlier.
+func TestTheAssigneeAndTheMembersAnswerAgainstTheDatabase(t *testing.T) {
+	ctx := context.Background()
+	f := queryFixture(ctx, t)
+	account := seedAccount(ctx, t, tenantA)
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		assigned := f.tasks[0].Assigned(account, changedAt)
+		if err := itemRepo().SetAssignee(ctx, assigned, f.tasks[0].Version); err != nil {
+			return err
+		}
+		// A different entry carries the member, so that a filter answering both would be visible as
+		// one answering neither.
+		return itemMemberRepo().Add(ctx, f.tasks[3].ID, account, shared.HLC{})
+	}); err != nil {
+		t.Fatalf("seeding the assignment: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		filter any
+		want   []string
+	}{
+		{
+			"the entry one person is on",
+			map[string]any{"field": "assignee_id", "op": "EQ", "value": account.String()},
+			[]string{"Alpha milk"},
+		},
+		{
+			"the entries nobody is on",
+			map[string]any{"field": "assignee_id", "op": "IS_NULL"},
+			[]string{"Beta bread", "Delta cheese", "Epsilon detail"},
+		},
+		{
+			"the entries somebody is a member of",
+			map[string]any{"field": "members", "op": "CONTAINS", "value": account.String()},
+			[]string{"Delta cheese"},
+		},
+		{
+			"all of a set of members",
+			map[string]any{"field": "members", "op": "CONTAINS_ALL", "value": []any{account.String()}},
+			[]string{"Delta cheese"},
+		},
+		{
+			// "my items" as api-guidelines.md §3 writes it: the scalar and the set, joined by OR.
+			"assigned to me or a member of it",
+			map[string]any{"op": "OR", "nodes": []any{
+				map[string]any{"field": "assignee_id", "op": "EQ", "value": account.String()},
+				map[string]any{"field": "members", "op": "CONTAINS", "value": account.String()},
+			}},
+			[]string{"Alpha milk", "Delta cheese"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := queried(ctx, t, tenantA, searchIn(t, f.collection, test.filter, view.Spec{}))
+			assertTitles(t, titlesOf(result.Items), test.want)
+		})
+	}
+}
+
 func withFixtureIDs(filter any, f fixture) any {
 	document, ok := filter.(map[string]any)
 	if !ok {

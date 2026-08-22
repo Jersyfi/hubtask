@@ -192,6 +192,35 @@ func TestTheOperatorsCompile(t *testing.T) {
 			}},
 			`AND il.label_id = ANY($2::uuid[])) = $3`, []any{[]string{label.String(), task.String()}, int64(2)},
 		},
+		{
+			// The assignee is a scalar, so it is a column comparison rather than a relation - which
+			// is the whole difference between it and the members beside it (C-01).
+			"the assignee is a column",
+			map[string]any{"field": "assignee_id", "op": "EQ", "value": task.String()},
+			`(wi.assignee_id = $2::uuid)`, []any{task.String()},
+		},
+		{
+			"nobody is on it",
+			map[string]any{"field": "assignee_id", "op": "IS_NULL"},
+			`(wi.assignee_id IS NULL)`, nil,
+		},
+		{
+			// No join against `account`: an account has no deletion stamp a filter could read, so
+			// there is no second table whose state could hide a row.
+			"one member",
+			map[string]any{"field": "members", "op": "CONTAINS", "value": task.String()},
+			`(EXISTS (SELECT 1 FROM item_member im ` +
+				`WHERE im.item_id = wi.id AND im.account_id = ANY($2::uuid[])))`,
+			nil,
+		},
+		{
+			"all of several members",
+			map[string]any{"field": "members", "op": "CONTAINS_ALL", "value": []any{
+				label.String(), task.String(),
+			}},
+			`AND im.account_id = ANY($2::uuid[])) = $3`,
+			[]any{[]string{label.String(), task.String()}, int64(2)},
+		},
 	}
 
 	for _, test := range tests {

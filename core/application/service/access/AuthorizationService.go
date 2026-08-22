@@ -147,6 +147,49 @@ func (s Service) Permitted(
 	return allowed, nil
 }
 
+// CanSee answers the same membership question about somebody other than the actor: is there a role
+// anywhere on this path that this account holds?
+//
+// It exists because an assignment is a decision about a second person. Giving an entry to somebody
+// who gets a 404 on it is a piece of work nobody can do, and - once C-04 lands - a contributor's
+// write right pointing at nothing, so the account has to hold a membership along the path
+// (domain-model.md §3.2, service.EffectiveRole). Read rather than write, because that is what
+// "can see it" means; every role in the matrix reads, so this is in practice "holds a role at all",
+// and it is asked as the permission rather than as the presence of a row so that a role added later
+// without a read right does not silently become assignable.
+//
+// It is here rather than in the use case for the reason this whole package exists: an answer about
+// who may reach what is one answer, and a second implementation of it in a work-management service
+// is a second place for it to be wrong (ADR-0005).
+//
+// The transaction is the actor's, so what it can see is the actor's tenant. An account of another
+// tenant therefore holds no memberships this query can find and comes back false - which is the
+// same answer as an account that does not exist, and deliberately: the caller must not be able to
+// tell the two apart (T-04, multi-tenancy.md §2).
+//
+// Nothing is audited. Nobody was refused anything - the actor's own permission was decided by
+// Authorize before this runs, and this is a question about an argument they passed (audit.md §4).
+func (s Service) CanSee(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []identity.Scope,
+) (bool, error) {
+	if accountID.IsZero() {
+		return false, nil
+	}
+
+	var memberships []identity.Membership
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		memberships, err = s.Memberships.Along(ctx, accountID, path)
+		return err
+	})
+	if err != nil {
+		// Not an answer of "no": the question could not be asked. Reporting it as a refusal would
+		// send a client off to grant a permission that is not the problem.
+		return false, err
+	}
+	return service.Allows(memberships, path, service.PermissionRead), nil
+}
+
 // union flattens the paths into the scopes to ask about, without duplicates. The resolution ignores
 // whatever is not on the path it is checking, so asking about all of them at once is safe - and it is
 // the difference between one query per page and one per row.

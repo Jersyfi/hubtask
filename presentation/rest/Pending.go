@@ -184,6 +184,27 @@ func (pending) RemoveLabel(w http.ResponseWriter, r *http.Request, _ openapi.Ite
 	notAvailable(w, r)
 }
 
+// AssignWorkItem and UnassignWorkItem are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) AssignWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AssignWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UnassignWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.UnassignWorkItemParams) {
+	notAvailable(w, r)
+}
+
+// AddMember and RemoveMember are overridden by RestController, for the reason given at
+// CreateContainer.
+
+func (pending) AddMember(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveMember(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
 // CreateWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CreateWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.CreateWorkItemParams) {
 	notAvailable(w, r)

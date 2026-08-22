@@ -182,6 +182,8 @@ func column(field view.Field, prefix string) (string, bool) {
 		return prefix + `completed_at`, true
 	case view.FieldArchivedAt:
 		return prefix + `archived_at`, true
+	case view.FieldAssigneeID:
+		return prefix + `assignee_id`, true
 	}
 	return "", false
 }

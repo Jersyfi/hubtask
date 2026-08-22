@@ -206,6 +206,10 @@ stateDiagram-v2
 (`i18n-l10n.md` §1, ADR-0011). The vocabulary of milestone 0.2.0 is `item.created`, `item.updated`,
 `item.completed`, `item.reopened`, `item.moved`, `item.reordered`, `item.archived`,
 `item.unarchived`, `item.trashed`, `item.restored`, `item.label_added` and `item.label_removed`.
+Milestone 0.3.0 adds `item.assigned`, `item.unassigned`, `item.member_added` and
+`item.member_removed`. Handing an entry from one person to another is `item.assigned` and not a
+removal followed by an addition: the assignee is a scalar, so it is one step, and both sides of it
+are in the change set.
 
 The `changeSet` keeps the field names always and the values only where the product needs them: a
 rename carries both titles, a note carries `changed: true` and none of its text. Where the type's
