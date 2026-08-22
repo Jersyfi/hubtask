@@ -46,7 +46,7 @@ gets tested, is the **container runtime**, the **CPU architecture**, and the **P
 | PostgreSQL | 16 | `supported` | `ci.yml:integration` |
 | PostgreSQL | 17 | `supported` | `nightly.yml:matrix-postgres` |
 | PostgreSQL | ≤ 15 | `unsupported` | — the schema uses what 16 offers; nothing checks 15, so nothing may claim it. The hard floor is 15, which added `ON DELETE SET NULL (column)`; the tenant-scoped foreign keys need it ([ADR-0024](../adr/ADR-0024-tenant-scoped-foreign-keys.md)) |
-| Go (building from source) | 1.25 | `supported` | `ci.yml:quick` and every other job |
+| Go (building from source) | 1.26 | `supported` | `ci.yml:quick` and every other job |
 
 ## 4. `hubctl` (the CLI)
 

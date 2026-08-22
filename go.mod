@@ -1,11 +1,12 @@
 module github.com/Jersyfi/hubtask
 
-go 1.25.7
-
-// The toolchain is pinned to a patched release, not just to a major version: gate-security runs
-// govulncheck, and an unpatched standard library is a finding there. Whoever builds with an older
-// Go gets this toolchain fetched automatically.
-toolchain go1.25.13
+// Pinned to a patched release, not just to a major version: gate-security runs govulncheck, and
+// an unpatched standard library is a finding there. Whoever builds with an older Go gets this
+// toolchain fetched automatically, which is why no separate `toolchain` directive is needed - the
+// minimum and the pin are the same statement.
+//
+// 1.25 left Go's support window when 1.27 shipped; Go patches only the two most recent majors.
+go 1.26.7
 
 // Dependencies are added step by step from milestone 0.1.0 onwards.
 // The core (core/domain, core/port, core/shared) stays permanently free of
