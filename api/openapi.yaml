@@ -1100,6 +1100,65 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:assign:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: assignWorkItem
+      description: >
+        Gives the entry an assignee. Every type carries one, an activity exactly this and no member
+        list. The account has to be able to see the entry - it has to hold a membership somewhere on
+        the path above it - and one that cannot is refused rather than stored, with the same answer
+        for an account of another tenant and one that does not exist. Idempotent: assigning the
+        person who is already assigned succeeds and announces nothing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Assignment"
+      responses:
+        "200":
+          description: Assigned
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:unassign:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: unassignWorkItem
+      description: >
+        Takes the assignee off the entry. Idempotent: an entry nobody is assigned to succeeds and
+        announces nothing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Unassigned
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:purge:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -1645,6 +1704,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ItemLabels"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/members/{accountId}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+      - $ref: "#/components/parameters/AccountId"
+    put:
+      tags: [items]
+      operationId: addMember
+      description: >
+        Puts an account on an entry's member list. Idempotent: an entry that already carries it
+        succeeds. The account has to be able to see the entry - it has to hold a membership somewhere
+        on the path above it - and the entry's type has to carry the MEMBERS capability, which an
+        activity does not: an activity has one assignee and no member list.
+      responses:
+        "200":
+          description: The members the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemMembers"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: removeMember
+      description: >
+        Takes an account off an entry's member list. Idempotent: an entry that does not carry it
+        succeeds.
+      responses:
+        "200":
+          description: The members the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemMembers"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -2406,6 +2502,31 @@ components:
         label_ids:
           type: array
           items: { type: string, format: uuid }
+
+    ItemMembers:
+      type: object
+      description: >
+        The members one entry carries. Returned by adding and removing rather than the entry itself,
+        for the reason ItemLabels is: neither touches the entry's own row, and an entry whose version
+        had moved would tell a client its title had changed too.
+      required: [item_id, member_ids]
+      properties:
+        item_id: { type: string, format: uuid }
+        member_ids:
+          type: array
+          items: { type: string, format: uuid }
+
+    Assignment:
+      type: object
+      description: Who the entry is assigned to.
+      required: [account_id]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+          description: >
+            The account to assign. It has to hold a membership on the path above the entry; one that
+            does not is refused with the same answer as an account that does not exist.
 
     LabelUpdate:
       type: object
