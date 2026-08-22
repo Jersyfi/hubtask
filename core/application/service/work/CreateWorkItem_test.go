@@ -74,6 +74,9 @@ type items struct {
 	trashed  []repository.ItemTrash
 	restored []repository.ItemTrash
 	trashErr error
+	// The assignment side (C-01): every call to SetAssignee, so that a test can say which version
+	// the write was made against as well as what it wrote.
+	assignments []attributeWrite
 }
 
 // rankWrite is one call to SetOrderKey: the item as it would be stored, and the version it was written
@@ -95,6 +98,20 @@ func (i *items) SetOrderKey(_ context.Context, item domain.WorkItem, expectedVer
 		return i.rankErr
 	}
 	i.ranks = append(i.ranks, rankWrite{item: item, expectedVersion: expectedVersion})
+	i.stored[item.ID] = item
+	return nil
+}
+
+func (i *items) SetAssignee(_ context.Context, item domain.WorkItem, expectedVersion int) error {
+	if i.setErr != nil {
+		return i.setErr
+	}
+	// The same optimistic lock SetAttributes models, and for the same reason: a use case that
+	// passed the wrong version would otherwise look correct at this level.
+	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
+		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.assignments = append(i.assignments, attributeWrite{item: item, expectedVersion: expectedVersion})
 	i.stored[item.ID] = item
 	return nil
 }

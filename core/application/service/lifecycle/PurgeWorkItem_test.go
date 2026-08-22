@@ -49,6 +49,7 @@ func (s *itemStore) Neighbours(
 	return "", "", nil
 }
 func (s *itemStore) SetOrderKey(context.Context, work.WorkItem, int) error { return nil }
+func (s *itemStore) SetAssignee(context.Context, work.WorkItem, int) error { return nil }
 func (s *itemStore) MoveSubtree(context.Context, workrepo.Move) (int, []work.DroppedReference, error) {
 	return 0, nil, nil
 }

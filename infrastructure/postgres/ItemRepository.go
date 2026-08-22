@@ -300,6 +300,43 @@ func (r ItemRepository) SetOrderKey(ctx context.Context, item work.WorkItem, exp
 	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
 }
 
+// SetAssignee writes the one person the entry is on, set or cleared, or reports a version conflict.
+//
+// The whole item is passed and the identifier read off it, as everywhere else in this adapter: the
+// decision about what the row should say has already been taken, and an adapter handed the account
+// alone would have to be trusted to put it on the right row.
+func (r ItemRepository) SetAssignee(ctx context.Context, item work.WorkItem, expectedVersion int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+	// The zero identifier is nobody, and reaches the column as NULL rather than as a zero UUID:
+	// `assignee_id` is a nullable foreign key, and a row of zeroes would be a reference to an
+	// account that cannot exist.
+	assignee, err := optionalUUID(item.AssigneeID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetWorkItemAssignee(ctx, sqlc.SetWorkItemAssigneeParams{
+		AssigneeID: assignee,
+		UpdatedAt:  timestampOf(item.UpdatedAt),
+		ID:         id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the assignee of %s: %w", item.ID, err))
+	}
+	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
+}
+
 // MoveSubtree rewrites the item's placement and its subtree's paths, and returns the subtree's size.
 //
 // Two statements in the order that matters. The placement carries the optimistic lock, so it runs first and a
@@ -618,6 +655,10 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 	if err != nil {
 		return work.WorkItem{}, err
 	}
+	assigneeID, err := optionalID(row.AssigneeID)
+	if err != nil {
+		return work.WorkItem{}, err
+	}
 
 	return work.WorkItem{
 		ID:           id,
@@ -636,6 +677,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		},
 		BucketID:     bucketID,
 		OrderKey:     row.OrderKey,
+		AssigneeID:   assigneeID,
 		ArchivedAt:   optionalTime(row.ArchivedAt),
 		DeletedAt:    optionalTime(row.DeletedAt),
 		TrashBatchID: trashBatchID,

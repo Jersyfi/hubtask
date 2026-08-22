@@ -174,7 +174,7 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 const findWorkItem = `-- name: FindWorkItem :one
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, bucket_id, order_key,
+  is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE id = $1
@@ -195,6 +195,7 @@ type FindWorkItemRow struct {
 	CompletedBy  pgtype.UUID
 	BucketID     pgtype.UUID
 	OrderKey     string
+	AssigneeID   pgtype.UUID
 	ArchivedAt   pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
 	TrashBatchID pgtype.UUID
@@ -224,6 +225,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.CompletedBy,
 		&i.BucketID,
 		&i.OrderKey,
+		&i.AssigneeID,
 		&i.ArchivedAt,
 		&i.DeletedAt,
 		&i.TrashBatchID,
@@ -506,7 +508,7 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 const listWorkItems = `-- name: ListWorkItems :many
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, bucket_id, order_key,
+  is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE collection_id = $1::uuid
@@ -546,6 +548,7 @@ type ListWorkItemsRow struct {
 	CompletedBy  pgtype.UUID
 	BucketID     pgtype.UUID
 	OrderKey     string
+	AssigneeID   pgtype.UUID
 	ArchivedAt   pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
 	TrashBatchID pgtype.UUID
@@ -597,6 +600,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.CompletedBy,
 			&i.BucketID,
 			&i.OrderKey,
+			&i.AssigneeID,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,
@@ -887,6 +891,47 @@ type SetContainerPoliciesParams struct {
 func (q *Queries) SetContainerPolicies(ctx context.Context, arg SetContainerPoliciesParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setContainerPolicies,
 		arg.CompletionPolicy,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setWorkItemAssignee = `-- name: SetWorkItemAssignee :execrows
+UPDATE work_item SET
+  assignee_id = $1,
+  updated_at  = $2,
+  version     = version + 1
+WHERE id = $3::uuid AND version = $4
+`
+
+type SetWorkItemAssigneeParams struct {
+	AssigneeID      pgtype.UUID
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The one person an entry is on, set or cleared, under the same optimistic lock every write to
+// this row takes: the update matches nothing when somebody else has moved the row on, and the
+// caller learns that rather than overwriting them (api-guidelines.md §5).
+//
+// Its own statement rather than a column added to SetWorkItemAttributes. An assignment is one
+// decision about one field, and a statement that wrote the title alongside it would make handing
+// an entry to somebody spend the version of a rename nobody asked for - which is the same reason
+// the completion has a statement of its own.
+//
+// Whether that account may be assigned at all is not asked here. It is a question about a
+// membership somewhere above the entry, decided in the application layer before this runs
+// (ADR-0005); the tenant-scoped foreign key is what stops the identifier pointing outside the
+// tenant, and it is the database's rather than this statement's (ADR-0024).
+func (q *Queries) SetWorkItemAssignee(ctx context.Context, arg SetWorkItemAssigneeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemAssignee,
+		arg.AssigneeID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

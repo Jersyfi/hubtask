@@ -45,12 +45,13 @@ func (b Boundary) IsZero() bool { return b.ID.IsZero() }
 const (
 	itemColumns = `wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, ` +
 		`wi.depth, wi.title, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, ` +
-		`wi.bucket_id, wi.order_key, wi.archived_at, wi.deleted_at, wi.trash_batch_id, ` +
+		`wi.bucket_id, wi.order_key, wi.assignee_id, wi.archived_at, wi.deleted_at, ` +
+		`wi.trash_batch_id, ` +
 		`wi.created_by, wi.created_at, wi.updated_at, wi.version`
 
 	groupedColumns = `id, tenant_id, collection_id, type, parent_id, path, depth, title, notes, ` +
-		`is_completed, completed_at, completed_by, bucket_id, order_key, archived_at, deleted_at, ` +
-		`trash_batch_id, created_by, created_at, updated_at, version`
+		`is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id, ` +
+		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version`
 )
 
 // The two prefixes a column expression can carry: the table alias inside the query, and nothing at
