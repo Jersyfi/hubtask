@@ -79,6 +79,7 @@ type Config struct {
 	Locale    LocaleConfig
 	Metrics   MetricsConfig
 	Tracing   TracingConfig
+	UI        UIConfig
 
 	SecretKey secret.Secret
 
@@ -301,6 +302,17 @@ type TracingConfig struct {
 	// SampleRatio is the share of ordinary traces kept, between 0 and 1. Errors and slow
 	// requests are kept regardless (§3.3).
 	SampleRatio float64
+}
+
+// UIConfig is the embedded web interface (ADR-0028).
+type UIConfig struct {
+	// Enabled serves the built application at "/". Default true: a self-hoster who starts the
+	// image expects to be able to open it.
+	//
+	// False is for an installation that is an API and nothing else - somebody else's frontend in
+	// front of it, or a deployment that only serves integrations. Then "/" is 404 and the API is
+	// untouched, which is the honest answer: there is nothing there.
+	Enabled bool
 }
 
 // LocaleConfig is the installation-wide fallback, the last link in the resolution chain

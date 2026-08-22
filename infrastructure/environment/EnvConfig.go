@@ -132,6 +132,9 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			DefaultLocale:   get("HUBTASK_DEFAULT_LOCALE", "en"),
 			DefaultTimeZone: get("HUBTASK_DEFAULT_TIMEZONE", "UTC"),
 		},
+		UI: env.UIConfig{
+			Enabled: getBool("HUBTASK_UI_ENABLED", true),
+		},
 	}
 
 	roles, err := parseRoles(get("HUBTASK_ROLES", "api,worker,scheduler,automation"))

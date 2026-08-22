@@ -95,6 +95,10 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			"mail":    g.Config.Mail.Host != "",
 			"storage": g.Config.Storage.Kind != "",
 			"tracing": g.Config.Tracing.Enabled,
+			// Whether this installation serves the web interface at "/" (ADR-0028). A client
+			// discovers it here rather than by asking for "/" and reading the answer, which is
+			// the same reason every other optional part of the installation is in this map.
+			"web_ui": g.Config.UI.Enabled,
 		},
 	}, nil
 }
