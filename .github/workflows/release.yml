@@ -98,7 +98,19 @@ jobs:
         run: cosign sign --yes ghcr.io/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
 
       - name: Provenance-Attestation
-        uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6f3abbf17002c # v1.4.3
+        # `actions/attest` with no SBOM and no predicate input generates SLSA build provenance -
+        # documented as its default mode, and all that `attest-build-provenance` does since its v4,
+        # which is a composite forwarding every input to this action plus the header size below.
+        #
+        # Called directly, the commit our own pin gate checks is the commit that signs. Through the
+        # wrapper it is not: the code doing the signing came from a pin inside somebody else's
+        # action.yml, which `scripts/check-action-pins.sh` never reads because it only scans
+        # `.github/workflows` (ci-cd.md §4).
+        env:
+          # The attestations API answers with headers larger than Node's default accepts; the
+          # wrapper set this, and dropping the wrapper means carrying it.
+          NODE_OPTIONS: "--max-http-header-size=32768"
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ghcr.io/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
