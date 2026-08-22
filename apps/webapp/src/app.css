@@ -1,0 +1,31 @@
+/* SPDX-License-Identifier: BUSL-1.1
+   Copyright (c) 2026 Jérôme Bastian Winkel
+
+   Every value here is a token. A colour, a spacing or a duration written literally in this file
+   is a value that will disagree with tokens.json sooner or later (ADR-0029), and `pnpm lint`
+   fails on one. */
+
+body {
+  margin: 0;
+  padding: var(--sp-600);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-100);
+  font-weight: var(--fw-text);
+  line-height: var(--lh-normal);
+}
+
+h1 {
+  margin: 0 0 var(--sp-200);
+  font-family: var(--font-display);
+  font-size: var(--fs-600);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+}
+
+p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--text-secondary);
+}

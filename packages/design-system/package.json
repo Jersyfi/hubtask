@@ -1,0 +1,35 @@
+{
+  "name": "@hubtask/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hubtask design tokens and the CSS layer generated from them. One origin: tokens/tokens.json.",
+  "license": "BUSL-1.1",
+  "exports": {
+    ".": "./dist/tokens.ts",
+    "./tokens.css": "./dist/tokens.css",
+    "./fonts.css": "./dist/fonts.css",
+    "./fonts/*": "./dist/fonts/*",
+    "./tokens.json": "./tokens/tokens.json"
+  },
+  "files": [
+    "dist",
+    "tokens"
+  ],
+  "scripts": {
+    "build": "node build/build.js",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node build/lint-no-literals.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "style-dictionary": "^5.5.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans-condensed": "^5.3.0"
+  }
+}

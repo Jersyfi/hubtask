@@ -1,0 +1,17 @@
+{
+  "name": "@hubtask/workspace",
+  "private": true,
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm --recursive build",
+    "clean": "pnpm --recursive clean",
+    "lint": "pnpm --recursive lint",
+    "typecheck": "pnpm --recursive typecheck",
+    "test": "pnpm --recursive test",
+    "tokens": "pnpm --filter @hubtask/design-system build",
+    "api-client": "pnpm --filter @hubtask/api-client build"
+  }
+}

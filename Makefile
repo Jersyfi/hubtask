@@ -27,6 +27,10 @@ OAPI_CODEGEN_VERSION  := v2.8.0
 SQLC_VERSION          := v1.31.1
 GOOSE_VERSION         := v3.27.3
 GOVULNCHECK_VERSION   := v1.7.0
+# pnpm is pinned in package.json (`packageManager`) and installed into .tools by corepack, so the
+# workspace and the Makefile cannot disagree about the version. `PNPM` resolves to whichever comes
+# first: a .tools install for the repeatable case, the one on PATH for the convenient one.
+PNPM        ?= $(shell test -x $(TOOLS_DIR)/pnpm && echo $(PWD)/$(TOOLS_DIR)/pnpm || command -v pnpm)
 # helm is installed the same way as every other tool - through the module proxy, with the Go
 # checksum database vouching for it. A tarball from a release page would be a second trust
 # anchor for no reason (ADR-0015).
@@ -90,6 +94,20 @@ tools:
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
 	@$(MAKE) --no-print-directory tools-promtool
 
+## tools-node: Install pnpm into .tools (only needed to work on apps/ or packages/)
+# Deliberately not a dependency of `make tools`. A backend-only contributor never needs a
+# JavaScript toolchain, and a `make tools` that fails without Node would say otherwise
+# (ADR-0027).
+.PHONY: tools-node
+tools-node:
+	@mkdir -p $(TOOLS_DIR)
+	@command -v corepack >/dev/null || { echo "corepack is missing - install Node.js $$(cat .nvmrc)"; exit 1; }
+	@version=$$(sed -n 's/.*"packageManager": "pnpm@\([^"]*\)".*/\1/p' package.json); \
+		echo "corepack prepare pnpm@$$version"; \
+		corepack prepare pnpm@$$version --activate >/dev/null; \
+		corepack enable pnpm --install-directory $(PWD)/$(TOOLS_DIR)
+	@$(TOOLS_DIR)/pnpm --version
+
 ## tools-helm: helm on its own, for a job that deploys rather than builds
 # The deploy workflow needs one of these tools and none of the others. Installing the linter and
 # the code generators to run `helm upgrade` would put minutes onto every push to main.
@@ -148,6 +166,23 @@ generate:
 	$(TOOLS_DIR)/oapi-codegen --config api/oapi-codegen.yaml api/openapi.yaml
 	$(call require_tool,sqlc)
 	$(TOOLS_DIR)/sqlc -f db/sqlc.yaml generate
+
+## tokens: Regenerate the design tokens (CSS, TypeScript, and the Go label token names)
+# Separate from `make generate` on purpose: that target must keep working without Node.js, and a
+# go:generate directive here would put a JavaScript toolchain in the path of `make gate-quick`
+# (ADR-0029). The Go half of the output is committed, so CI regenerates and fails on a diff.
+.PHONY: tokens
+tokens:
+	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
+	$(PNPM) --filter @hubtask/design-system build
+
+## api-client: Regenerate the TypeScript API client from api/openapi.yaml
+# The same source as the Go server types above (ADR-0004): the specification is changed first, and
+# both sides are regenerated from it in the same pull request.
+.PHONY: api-client
+api-client:
+	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
+	$(PNPM) --filter @hubtask/api-client build
 
 ## build: Build the server, the migrator and the CLI
 # cmd/migrate arrives with A-03 and cmd/hubctl later; until then their directories are empty and

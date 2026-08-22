@@ -1,0 +1,25 @@
+{
+  "name": "@hubtask/webapp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Hubtask to-do application in the browser. Embedded into the server binary (ADR-0028).",
+  "license": "BUSL-1.1",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node ../../packages/design-system/build/lint-no-literals.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test src/*.test.ts"
+  },
+  "dependencies": {
+    "@hubtask/api-client": "workspace:*",
+    "@hubtask/design-system": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2"
+  }
+}
