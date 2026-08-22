@@ -139,7 +139,10 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - run: make tools
+      # Only go-licenses, not the whole tool set. This job runs on every pull request including
+      # a documentation-only one, and `make tools` took three minutes to prepare a check that
+      # takes twenty seconds.
+      - run: make tools-licenses
       - run: make gate-licenses
 
   # ---------------------------------------------------------------------------
