@@ -2,6 +2,10 @@
 .github
 .tools
 bin
+# Build output. `dist` matches at every level, which is what keeps apps/*/dist and packages/*/dist
+# out of the context - they are built inside the image. It also keeps presentation/webui/dist out,
+# and that is deliberate: the placeholder must not reach the build stage, so that a failed
+# frontend build cannot quietly ship a binary that says no interface was built into it.
 dist
 docs
 test/golden-archives

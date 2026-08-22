@@ -58,8 +58,14 @@ type Secured struct {
 	CORS env.CORSConfig
 }
 
-func (s Secured) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	header := w.Header()
+// WriteSecurityHeaders writes the response header set of security.md §9, with the caller's
+// content security policy.
+//
+// The policy is a parameter because there are two origins in this process and they need different
+// ones: the API answers JSON and gets `default-src 'none'`, the embedded UI answers a document
+// and would be unable to load its own script under that (ADR-0028). Everything else is identical
+// and stays defined once, here, so that adding a header adds it to both.
+func WriteSecurityHeaders(header http.Header, contentSecurityPolicy string) {
 	header.Set("Strict-Transport-Security", hstsValue)
 	header.Set("X-Content-Type-Options", "nosniff")
 	header.Set("Referrer-Policy", "no-referrer")
@@ -67,6 +73,11 @@ func (s Secured) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	header.Set("Content-Security-Policy", contentSecurityPolicy)
 	header.Set("Permissions-Policy", permissionsPolicy)
 	header.Set("Server", serverName)
+}
+
+func (s Secured) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	header := w.Header()
+	WriteSecurityHeaders(header, contentSecurityPolicy)
 
 	// Vary goes on before the allowlist is consulted, not after. An answer that differs by origin
 	// differs whether or not this particular origin was allowed, and a cache told only about the

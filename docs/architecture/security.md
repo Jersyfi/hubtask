@@ -171,7 +171,7 @@ missing, the process does not start (fail closed, with a clear error message and
 
 | Measure | Requirement |
 |---|---|
-| Security headers | `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: same-site`, a minimal `Permissions-Policy`; a `Content-Security-Policy` for the media origin |
+| Security headers | `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: same-site`, a minimal `Permissions-Policy`; a `Content-Security-Policy` per origin — see below |
 | CORS | Empty by default; an allowlist explicitly configurable; never `*` in combination with credentials |
 | Rate limits | Multi-level: per IP (unauthenticated), per token, per tenant; stricter limits for login, password reset, invitation, search, and bulk; a `429` response with `Retry-After` and `RateLimit-*` |
 | Request sizes | A global body limit (1 MiB by default), a separate upload limit, a header limit |
@@ -179,6 +179,21 @@ missing, the process does not start (fail closed, with a clear error message and
 | Methods | State-changing operations never over `GET`; `OPTIONS` only for CORS |
 | Error responses | RFC 9457 with a stable `code` and a `request_id`; **no** stack traces, query fragments, versions, or paths |
 | Version disclosure | The `Server` header without a version; the version only through the authenticated `/meta` endpoint |
+
+**Three origins, three policies.** The header set above is identical everywhere; the
+`Content-Security-Policy` is not, because the three things this process serves are not the same
+kind of thing.
+
+| Origin | Policy | Why |
+|---|---|---|
+| The API (`/api/*`, `/mcp`) | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | It answers JSON and nothing else. If a body ever did reach a browser as HTML, this leaves it with no way to load or send anything |
+| The web interface (everything else, when it is enabled) | `default-src 'none'`, then `'self'` for script, style, font, connect, manifest and worker; `img-src 'self' data: blob:`; no `'unsafe-inline'`, no `'unsafe-eval'` | It answers a document, and under the API's policy that document could not load its own script. Every source is `'self'` because the bundle and the API come from one origin ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
+| The media origin | `sandbox` | T-11: an uploaded SVG or HTML file is served from a separate origin, as a download, with no ability to execute |
+
+The absence of `'unsafe-inline'` and `'unsafe-eval'` from the interface's policy is a **constraint
+on the frontend framework**, decided before the framework was, rather than a consequence of the one
+that gets chosen. `presentation/webui` sets the policy on every answer it produces, including its
+404 and its 405.
 
 ---
 

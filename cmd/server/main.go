@@ -45,6 +45,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
+	"github.com/Jersyfi/hubtask/presentation/webui"
 	"github.com/Jersyfi/hubtask/presentation/worker"
 )
 
@@ -553,17 +554,46 @@ func run() error {
 		// presented string - so a flood of invalid tokens costs no lookups.
 		limiter := rest.NewRateLimiter()
 
+		// The web interface, when this installation serves one (ADR-0028). It is built from the
+		// bundle embedded at link time, so it is the same version as the API by construction -
+		// there is no second artefact that could be a release behind.
+		var ui http.Handler
+		if cfg.UI.Enabled {
+			files, fsErr := webui.FS()
+			if fsErr != nil {
+				return fmt.Errorf("web interface: %w", fsErr)
+			}
+			handler, uiErr := webui.NewHandler(files, rest.WriteSecurityHeaders)
+			if uiErr != nil {
+				return fmt.Errorf("web interface: %w", uiErr)
+			}
+			ui = handler
+			if webui.IsPlaceholder(files) {
+				// Worth saying once at startup rather than leaving somebody to discover it in a
+				// browser: this binary was built without a frontend build, so "/" answers the
+				// placeholder. It is the normal state of a `go build` and a defect in an image.
+				slog.Warn("no user interface bundle was built into this binary; / serves the placeholder")
+			}
+		}
+
 		// The chain, from the outside in. Observed stays outermost: a panic anywhere below it
 		// still becomes a problem document, and every answer carries a request ID and a metric -
 		// including the ones no handler produced. Authentication sits inside the bounds and
 		// inside the first limit, so neither an oversized body nor a flood reaches a database
 		// lookup.
+		//
+		// Fallback sits directly beneath it, above everything else, because the interface is
+		// static: it needs no actor, no tenant and no idempotency key, and a page load that spent
+		// six requests of the anonymous budget would make the first visit the last one. The API
+		// keeps every path it owns; the interface gets what is left.
 		api = &http.Server{
 			Addr: cfg.HTTPAddr,
 			Handler: rest.Observed{
-				Router: rest.Chain{
-					Routes: apiRoutes,
-					Entry: rest.Secured{CORS: cfg.CORS, Next: rest.Bounded{
+				Router: rest.Fallback{
+					API:      apiRoutes,
+					Reserved: []string{rest.APIBasePath + "/", mcp.Path},
+					UI:       ui,
+					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Bounded{
 						MaxBodyBytes: cfg.Request.MaxBodyBytes,
 						Timeout:      cfg.Request.Timeout,
 						Next: rest.Limited{
