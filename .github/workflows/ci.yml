@@ -201,8 +201,11 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      # Checks: layer boundaries, the bare-goroutine ban, mandatory authorisation,
-      # use case parity across REST/MCP/automation, observability and audit completeness.
+      # actionlint is one of the pinned tools now, because this gate also reads the workflows.
+      - run: make tools
+      # Checks: layer boundaries, the bare-goroutine ban, mandatory authorisation, use case
+      # parity across REST/MCP/automation, observability and audit completeness, and that every
+      # workflow expression parses.
       - run: make gate-architecture
 
   resilience:
