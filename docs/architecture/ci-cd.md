@@ -49,6 +49,55 @@ Staggered by runtime: whatever fails fastest runs first.
 
 `integration`, `security`, and `data` run in parallel; `quick` is a prerequisite for all of them.
 
+### 3.1 Where a job runs, and where it does not
+
+One repository holds the Go core, two clients and the design system ([ADR-0027](../adr/ADR-0027-monorepo-structure.md)),
+so most jobs have nothing to say about most pull requests. A `changes` job
+(`dorny/paths-filter`) classifies what a pull request touches; every other job decides from its
+outputs whether it has work to do.
+
+| Changed | What runs |
+|---|---|
+| `go`, `openapi`, `db`, `deploy` | The whole Go pipeline, including all twelve security gates |
+| `openapi` | Additionally: `packages/api-client` is regenerated and the workspace typechecks against it |
+| `design_system` | Additionally: all token targets are regenerated and the committed `LabelTokens.go` must not move |
+| `webapp`, `website`, `design_system`, `api_client` | Lint, typecheck, test and build — for the affected packages and the packages they consume |
+| `webapp`, `design_system`, `api_client`, `go`, `deploy` | The container build, because the image contains both halves ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
+| documentation only | The documentation gate, and nothing else |
+| `.github/**` | Everything, no exceptions |
+
+Three jobs are behind no filter at all — `secrets`, `dependencies` and `licences`. A key and a
+copyleft dependency get in through any path, including a stylesheet and a README, so a filter that
+could skip them is a filter that will.
+
+On a push to `main` and on a tag every filter output is `true` and the whole pipeline runs. There
+is no filtering on the branch that gets released.
+
+### 3.2 `ci-required` is the only required status check
+
+**This is the trap the design exists to avoid**, and it is worth stating plainly because getting
+it wrong blocks every merge in the repository until somebody notices.
+
+A required status check that never reports is not "skipped", it is **pending** — and a pull
+request with a pending required check can never merge. So the filtering must never happen in a
+workflow-level `paths:` or `paths-ignore:` trigger, because a workflow that does not trigger
+produces no check at all. Every workflow here triggers on every pull request, and the filtering
+happens inside jobs, in `if:` conditions. A job skipped by an `if:` *does* report.
+
+`ci-required` is what turns that into a single answer:
+
+```yaml
+ci-required:
+  name: CI required
+  if: always()
+  needs: [ …every other job… ]
+```
+
+It fails if any dependency ended as `failure` or `cancelled`, and passes when they all ended as
+`success` or `skipped`. **Branch protection names `CI required` and nothing else.** Adding an
+individual job to the required list re-introduces exactly the deadlock above, so a new job is
+added to `ci-required`'s `needs` and nowhere else.
+
 A gate whose subject does not exist yet (no migrations, no contract tests) reports that it is
 skipping and stays green. It starts biting the moment the first package appears - which is what
 lets the milestone build all gates up front and fill them in task by task. What must never happen
@@ -75,8 +124,8 @@ permissions:
 * Publishing only through a GitHub **environment** (`production`) with an approval rule.
 * `cosign` keyless via the workflow's OIDC token — no private key in the repository.
 * `GITHUB_TOKEN` with `id-token: write` only in the release job.
-* Branch protection on `main`: linear history, mandatory reviews, all gates green, signed commits
-  recommended.
+* Branch protection on `main`: linear history, mandatory reviews, **`CI required` as the only
+  required status check** (§3.2), signed commits recommended.
 
 ---
 

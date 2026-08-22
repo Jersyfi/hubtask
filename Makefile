@@ -27,6 +27,7 @@ OAPI_CODEGEN_VERSION  := v2.8.0
 SQLC_VERSION          := v1.31.1
 GOOSE_VERSION         := v3.27.3
 GOVULNCHECK_VERSION   := v1.7.0
+ACTIONLINT_VERSION    := v1.7.7
 # pnpm is pinned in package.json (`packageManager`) and installed into .tools by corepack, so the
 # workspace and the Makefile cannot disagree about the version. `PNPM` resolves to whichever comes
 # first: a .tools install for the repeatable case, the one on PATH for the convenient one.
@@ -90,6 +91,7 @@ tools:
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 	@$(MAKE) --no-print-directory tools-helm
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
 	@$(MAKE) --no-print-directory tools-promtool
@@ -290,6 +292,12 @@ gate-contract:
 .PHONY: gate-architecture
 gate-architecture:
 	$(call go_test,,./test/architecture/...,)
+	@# The workflows, checked as source rather than as text. A `${{ }}` expression is only parsed
+	@# when GitHub runs it, and an invalid one fails the whole run before a single job starts -
+	@# with no job in the list to point at, which is a needle-in-a-haystack way to learn that a
+	@# string literal used double quotes. actionlint reads them here instead.
+	$(call require_tool,actionlint)
+	$(TOOLS_DIR)/actionlint
 
 ## gate-security: SG-1..SG-12
 .PHONY: gate-security
