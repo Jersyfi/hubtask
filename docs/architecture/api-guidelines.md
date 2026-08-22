@@ -27,9 +27,11 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | Groups | `/groups` | CRUD |
 | Memberships | `/memberships` | `GET`, `POST`, `DELETE` |
 | Containers (hub/collection) | `/containers` | CRUD, `:move`, `:archive`, `:unarchive`, `:restore` |
-| Items | `/items` | CRUD, `:query`, `:move`, `:complete`, `:reopen`, `:reorder`, `:duplicate`, `:bulk`, `:archive`, `:restore` |
+| Items | `/items` | CRUD, `:query`, `:move`, `:complete`, `:reopen`, `:reorder`, `:duplicate`, `:bulk`, `:archive`, `:restore`, `:assign`, `:unassign` |
 | Buckets | `/containers/{id}/buckets` | CRUD, `:reorder` |
 | Labels | `/containers/{id}/labels` | CRUD |
+| An entry's labels | `/items/{id}/labels/{labelId}` | `PUT`, `DELETE` |
+| An entry's members | `/items/{id}/members/{accountId}` | `PUT`, `DELETE` |
 | Custom fields | `/custom-fields` | CRUD |
 | Comments | `/items/{id}/comments` | CRUD |
 | History | `/items/{id}/activity` | `GET` |
