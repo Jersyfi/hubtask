@@ -1,3 +1,10 @@
+# Path-based ownership.
+#
+# There is one maintainer, so nothing here changes who gets asked. It is written down anyway
+# because it is the only machine-readable statement of where the boundaries in this repository
+# are - and because the day a second person arrives, the boundaries should already exist rather
+# than be invented under time pressure.
+
 # Default: everything goes to the owners.
 *                                   @Jersyfi
 
@@ -9,3 +16,24 @@
 /core/domain/                       @Jersyfi
 /LICENSE                            @Jersyfi
 /CLAUDE.md                          @Jersyfi
+
+# The clients and what they share (ADR-0027). Separate entries rather than one `/apps/` line:
+# the two applications are unrelated to each other, and the design system governs both.
+/apps/webapp/                       @Jersyfi
+/apps/website/                      @Jersyfi
+/packages/design-system/            @Jersyfi
+/packages/api-client/               @Jersyfi
+
+# The single source for every colour, spacing and duration in the product (ADR-0029). A change
+# here changes what every client renders.
+/packages/design-system/tokens/     @Jersyfi
+
+# Generated into the core from the design system, and committed. A hand edit here is the drift
+# the generator exists to prevent - CI catches it, and this makes it visible in review too.
+/core/domain/model/shared/LabelTokens.go   @Jersyfi
+
+# The interface adapter and the placeholder that keeps `go build` working without Node.js.
+/presentation/webui/                @Jersyfi
+
+# The container build now has a frontend stage; the promise it keeps is two containers.
+/deploy/docker/                     @Jersyfi

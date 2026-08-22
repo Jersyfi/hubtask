@@ -8,6 +8,66 @@ Hubtask is a task management system with five levels (Hub → Collection → Tas
 Activity), multi-tenant, offline-capable, Go + PostgreSQL, hexagonal architecture.
 **The architecture is fully decided and documented.** It gets implemented, not redesigned.
 
+## The map
+
+One repository holds the Go core, both first-party clients, and the design system
+([ADR-0027](docs/adr/ADR-0027-monorepo-structure.md)).
+
+```text
+core/          the domain and the application layer — technology-free
+presentation/  inbound adapters: rest, mcp, sse, calendar, worker, webui
+infrastructure/outbound adapters: postgres, storage, mail, httpclient, …
+cmd/           the binaries; the composition root is cmd/server/main.go
+api/           openapi.yaml — the source of the contract, not its result
+db/            migrations (forward only) and sqlc queries
+apps/webapp/   the to-do application in the browser — the product UI
+apps/website/  the project website hubtask.eu — information only
+packages/design-system/  tokens/tokens.json and the CSS generated from it
+packages/api-client/     TypeScript types generated from api/openapi.yaml
+```
+
+**`apps/web` is not a name in this project.** There are two clients and it does not say which.
+
+**Dependencies point inwards, on both sides.**
+
+```
+cmd → presentation, infrastructure, core        apps/* → packages/*
+presentation, infrastructure → core             packages/* → nothing here
+core/application → core/domain, core/port       apps/* ↛ apps/*
+core/domain → itself and pure ports             packages/* ↛ apps/*
+```
+
+Three rules that are easy to break and expensive to undo:
+
+1. **`core/` must not learn that a frontend exists.** The UI is an inbound adapter like REST or
+   MCP — `presentation/webui` embeds the bundle, and nothing inwards of that knows about it.
+2. **No `.go` file is committed under `apps/` or `packages/`.** The traffic runs the other way:
+   the design system generates one Go file *into* the core.
+3. **No colour, spacing, radius or duration value is written outside
+   `packages/design-system/tokens/tokens.json`.** Anywhere. If you need a value that does not
+   exist, add it there — or you do not need it ([ADR-0029](docs/adr/ADR-0029-design-system-tokens.md)).
+
+Nested `CLAUDE.md` files in `core/`, `presentation/`, both apps and both packages say what applies
+where. They load when work happens in that directory.
+
+## Which command checks what
+
+| Changed | Run |
+|---|---|
+| Anything in the Go tree | `make verify` — the local equivalent of the pull request check |
+| A single concern while iterating | `make gate-quick`, `gate-unit`, `gate-architecture`, `gate-security` |
+| `api/openapi.yaml`, `db/queries/` | `make generate`, then `make verify` — it must produce no diff |
+| `packages/design-system/tokens/tokens.json` | `make tokens`, then commit the regenerated `core/domain/model/shared/LabelTokens.go` |
+| `api/openapi.yaml` (client side) | `make api-client` |
+| Anything under `apps/` or `packages/` | `pnpm -r build && pnpm -r lint && pnpm -r typecheck && pnpm -r test` |
+| `deploy/docker/` | `make gate-compose` — it builds the image and starts the stack |
+| Any document | `make gate-docs` |
+
+`make tools` installs the Go tools and needs no Node.js. `make tools-node` installs pnpm and is
+only needed for `apps/` and `packages/`. **`go build ./...`, `go test ./...` and `make generate`
+must keep working in a checkout where Node was never installed** — that is what the committed
+`presentation/webui/dist/index.html` placeholder is for.
+
 ## Reading order
 
 1. `docs/architecture/arc42.md` — chapters 1, 4, 5, 8
@@ -42,6 +102,8 @@ that instead of breaking the rule.
 | 11 | `openapi.yaml` is the source, not the result. Change the specification first, then `make generate`, then implement. Never hand-edit generated code. | ADR-0004 |
 | 12 | Migrations are forward-only and safe for rolling updates (expand/contract). Never change an existing migration. | ADR-0003 |
 | 13 | English everywhere: documentation, code, identifiers, code comments, commit titles, and commit bodies. | Project convention |
+| 14 | `core/` knows nothing about a frontend. The UI is an adapter in `presentation/webui`, and no `.go` file is committed under `apps/` or `packages/`. | ADR-0027, ADR-0028 |
+| 15 | No colour, spacing, radius or duration value outside `packages/design-system/tokens/tokens.json`. The generated `LabelTokens.go` is committed and never hand-edited. | ADR-0029 |
 
 ## The loop for every task
 
