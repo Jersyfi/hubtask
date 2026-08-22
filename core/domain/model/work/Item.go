@@ -56,14 +56,16 @@ type Completion struct {
 // every item may carry it - the profile decides, and Require refuses what it does not allow.
 //
 // What is deliberately absent, on the same reasoning that kept `policies` off Container: a field
-// nothing writes is a promise nothing keeps. The members and the assignee arrive with the
-// assignment use cases in 0.3.0, the due date with 0.4.0, and the cover, the custom fields and the
-// recurrence rule with the use cases that own them. Their columns exist and carry NULL until then.
+// nothing writes is a promise nothing keeps. The due date arrives with 0.4.0, and the cover, the
+// custom fields and the recurrence rule with the use cases that own them. Their columns exist and
+// carry NULL until then.
 //
-// The labels are absent too, and for a different reason: they are a set rather than a field. They
-// live in their own table with their own merge tags, because two devices adding two different
-// labels at once is the case last writer wins over an array gets wrong (offline-sync.md §4.2) - so
-// an item does not carry them, and AddLabel is what moves them.
+// The labels and the members are absent too, and for a different reason: they are sets rather than
+// fields. They live in their own tables with their own merge tags, because two devices adding two
+// different labels at once is the case last writer wins over an array gets wrong (offline-sync.md
+// §4.2) - so an item does not carry them, and AddLabel and AddMember are what move them. The
+// assignee is here rather than beside them because it is not a set: exactly one person carries an
+// entry, and two devices naming two different people is a genuine conflict with one answer.
 type WorkItem struct {
 	ID       shared.ID
 	TenantID shared.ID
@@ -98,7 +100,16 @@ type WorkItem struct {
 	BucketID shared.ID
 	// OrderKey ranks the item among its siblings: a fractional index, so that two offline devices
 	// can insert into the same list without either one's order being discarded (offline-sync.md §4.2).
-	OrderKey     string
+	OrderKey string
+	// AssigneeID is the one person the entry is on, and empty for one nobody is on. Capability
+	// ASSIGNMENT, which every type carries - an activity carries this and no member list, which is
+	// the one row of the matrix where the two set fields and this scalar part company
+	// (domain-model.md §2).
+	//
+	// A scalar rather than a set, so it merges as last writer wins per field: two devices naming two
+	// different people is a genuine conflict with one answer, unlike two devices adding two members.
+	AssigneeID shared.ID
+
 	ArchivedAt   *time.Time
 	DeletedAt    *time.Time
 	TrashBatchID shared.ID
@@ -279,9 +290,10 @@ func (i WorkItem) IsTrashed() bool { return i.DeletedAt != nil }
 // log, where a client matches them against the members it sent - so they are written once here
 // rather than as a literal at each of the three places that has to agree.
 const (
-	FieldTitle    = "title"
-	FieldNotes    = "notes"
-	FieldBucketID = "bucket_id"
+	FieldTitle      = "title"
+	FieldNotes      = "notes"
+	FieldBucketID   = "bucket_id"
+	FieldAssigneeID = "assignee_id"
 	// FieldCollectionID is not something an update may set - an item changes collection by being
 	// moved - but it is a field that moves, and the records of a move name it.
 	FieldCollectionID = "collection_id"
@@ -461,6 +473,51 @@ func (i WorkItem) Reopened(at time.Time) WorkItem {
 	}
 
 	i.Completion = Completion{}
+	i.UpdatedAt = at
+	return i
+}
+
+// EnsureAssignable refuses what cannot have its assignee changed at all.
+//
+// The same two answers EnsureCompletable gives, in the same order and for the same reason. A type
+// whose profile does not carry ASSIGNMENT has no assignee for anybody to set, which is the
+// capability matrix and comes back naming the type and the capability; a trashed or archived entry
+// cannot be edited, which is I-W4 and a conflict. Asking the capability first is what stops a
+// client being sent off to unarchive an entry whose assignee would still be refused afterwards.
+func (i WorkItem) EnsureAssignable(profile CapabilityProfile) error {
+	if err := profile.Require(CapabilityAssignment, "/account_id"); err != nil {
+		return err
+	}
+	return i.EnsureEditable()
+}
+
+// Assigned returns the item with the account on it.
+//
+// Idempotent, for the reason Completed is: an entry already on that person comes back untouched, so
+// that nothing is written, no version is spent and nothing is announced. Which is what makes a
+// repeat harmless rather than merely accepted - and it is the whole of what makes assigning the
+// same person twice from two devices converge.
+//
+// Whether that account may be assigned at all is not decided here. It is a question about a
+// membership somewhere above the entry, and the domain holds no memberships; the use case asks it
+// before it gets this far (ADR-0005).
+func (i WorkItem) Assigned(accountID shared.ID, at time.Time) WorkItem {
+	if i.AssigneeID == accountID {
+		return i
+	}
+
+	i.AssigneeID = accountID
+	i.UpdatedAt = at
+	return i
+}
+
+// Unassigned returns the item with nobody on it. Idempotent for the reason Assigned is.
+func (i WorkItem) Unassigned(at time.Time) WorkItem {
+	if i.AssigneeID.IsZero() {
+		return i
+	}
+
+	i.AssigneeID = ""
 	i.UpdatedAt = at
 	return i
 }
