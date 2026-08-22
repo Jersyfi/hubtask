@@ -570,7 +570,7 @@ jobs:
     steps:
       - name: Every job that ran must have passed
         run: |
-          results='${{ join(needs.*.result, " ") }}'
+          results='${{ join(needs.*.result, ' ') }}'
           echo "results: $results"
           for result in $results; do
             case "$result" in

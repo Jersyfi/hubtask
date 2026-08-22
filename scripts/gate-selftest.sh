@@ -497,6 +497,31 @@ else
 fi
 rm -f "$WORKFLOW"
 
+header "Workflow syntax (make gate-architecture)"
+
+# A `${{ }}` expression is only parsed when GitHub runs it, and an invalid one fails the whole run
+# before a single job starts - with an empty job list to look at. That is how `join(needs.*.result,
+# " ")` got pushed: double quotes are not string delimiters in an expression, and nothing local
+# said so. The probe is that exact mistake.
+CHECKS=$((CHECKS + 1))
+PROBE_WORKFLOW=".github/workflows/gate-selftest-expression.yml"
+cat > "$PROBE_WORKFLOW" <<'PROBE'
+name: Selftest probe
+on: workflow_dispatch
+jobs:
+  bad-expression:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ join(github.event.commits.*.id, ", ") }}"
+PROBE
+if make --no-print-directory gate-architecture >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-architecture stayed green\n' "an invalid workflow expression"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-architecture\n' "an invalid workflow expression"
+fi
+rm -f "$PROBE_WORKFLOW"
+
 header "Action pins (make gate-architecture)"
 
 # The nightly script asks GitHub whether each pin resolves; this rule is the other half, and it is
