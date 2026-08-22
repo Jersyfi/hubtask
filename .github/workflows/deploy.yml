@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GO_VERSION: "1.25"
+  GO_VERSION: "1.26"
   # The environment's own values live in the repository, not in this file: a deploy is then never a
   # workflow edit, and the values are reviewable in the diff that changes them.
   VALUES: deploy/integration/values.yaml

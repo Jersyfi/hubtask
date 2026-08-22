@@ -22,7 +22,7 @@ IMAGE       ?= ghcr.io/jersyfi/hubtask
 
 # Every tool is pinned. An unpinned tool version turns a gate into a moving target and is a
 # supply chain decision made by whoever runs make (ADR-0015).
-GOLANGCI_LINT_VERSION := v2.12.2
+GOLANGCI_LINT_VERSION := v2.13.1
 OAPI_CODEGEN_VERSION  := v2.8.0
 SQLC_VERSION          := v1.31.1
 GOOSE_VERSION         := v3.27.3

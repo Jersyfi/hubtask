@@ -497,6 +497,37 @@ else
 fi
 rm -f "$WORKFLOW"
 
+header "The Go version (make gate-docs)"
+
+# The Go version stands in seventeen places across eight files, and nothing kept them in step. A
+# Dependabot pull request bumping only the base image (#107) would have left the released binary
+# built by a compiler no gate had ever run - which is the probe: move the image and nothing else.
+CHECKS=$((CHECKS + 1))
+DOCKERFILE="deploy/docker/Dockerfile"
+cp "$DOCKERFILE" "$DOCKERFILE.selftest-backup"
+sed -i.tmp 's/^FROM golang:[0-9]*\.[0-9]*-alpine/FROM golang:1.99-alpine/' "$DOCKERFILE" && rm -f "$DOCKERFILE.tmp"
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a base image ahead of go.mod"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "a base image ahead of go.mod"
+fi
+mv "$DOCKERFILE.selftest-backup" "$DOCKERFILE"
+
+# The other direction: a statement reworded past the pattern would make the check silently stop
+# covering it, which is the failure mode a "does everything agree" check is prone to.
+CHECKS=$((CHECKS + 1))
+MATRIX_DOC="docs/architecture/support-matrix.md"
+cp "$MATRIX_DOC" "$MATRIX_DOC.selftest-backup"
+sed -i.tmp 's/| Go (building from source) |/| Go (from source) |/' "$MATRIX_DOC" && rm -f "$MATRIX_DOC.tmp"
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a version statement reworded away"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "a version statement reworded away"
+fi
+mv "$MATRIX_DOC.selftest-backup" "$MATRIX_DOC"
+
 header "Workflow syntax (make gate-architecture)"
 
 # A `${{ }}` expression is only parsed when GitHub runs it, and an invalid one fails the whole run

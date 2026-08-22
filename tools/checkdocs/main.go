@@ -18,6 +18,9 @@
 //     and a typo there points a reader at nothing.
 //   - arc42 §9 lists every ADR the index lists, with the same status. It repeats the decision list,
 //     and a repetition nobody checks drifts - this one stood three decisions behind.
+//   - Every statement of the Go version agrees with go.mod. It is repeated in seventeen places
+//     across eight files, and a base image bumped on its own would have the release built by a
+//     compiler no gate ever ran.
 //   - Every document CLAUDE.md's reading order names exists, because that list is what a new
 //     session is told to read.
 //   - The support matrix and the workflows agree in both directions, so that support can neither
@@ -51,6 +54,7 @@ func main() {
 	problems = append(problems, checkADRIndex(root)...)
 	problems = append(problems, checkADRReferences(root)...)
 	problems = append(problems, checkArc42ADRTable(root)...)
+	problems = append(problems, checkGoVersion(root)...)
 	problems = append(problems, checkSupportMatrix(root)...)
 
 	if len(problems) > 0 {
