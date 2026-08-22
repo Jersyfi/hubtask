@@ -33,3 +33,6 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0024](./ADR-0024-tenant-scoped-foreign-keys.md) | Tenant-scoped foreign keys | accepted | Security, persistence |
 | [0025](./ADR-0025-precondition-failures.md) | The status of a failed precondition | accepted | Interfaces, API |
 | [0026](./ADR-0026-query-dsl-sql-construction.md) | How the query DSL turns into SQL | accepted | Security, persistence, API |
+| [0027](./ADR-0027-monorepo-structure.md) | One repository for the core, the clients, and the design system | accepted | Structure, process |
+| [0028](./ADR-0028-embedded-web-ui.md) | The web UI ships inside the binary, as an adapter | accepted | Deployment, security, clients |
+| [0029](./ADR-0029-design-system-tokens.md) | The design system is code, and `tokens.json` is its only origin | accepted | Design system, domain |
