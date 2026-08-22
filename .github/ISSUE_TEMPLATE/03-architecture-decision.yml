@@ -29,3 +29,21 @@ body:
       description: The negative ones too — each with a countermeasure.
     validations:
       required: true
+
+  - type: checkboxes
+    id: areas
+    attributes:
+      label: Affected areas
+      description: >
+        This is a personal repository, so organisation-level issue types and fields are not
+        available and the `area:` labels carry that dimension instead. Tick what the work touches;
+        the labels are applied from this.
+      options:
+        - label: "area:core — the domain, the application layer, the ports"
+        - label: "area:api — the OpenAPI contract, REST, MCP, the generated client"
+        - label: "area:webapp — the to-do application in the browser"
+        - label: "area:website — the project website hubtask.eu"
+        - label: "area:design-system — tokens, the CSS layer, the visual reference"
+        - label: "area:infra — persistence, storage, mail, outbound adapters, deployment"
+        - label: "area:ci — workflows, gates, release"
+        - label: "area:docs — arc42, ADRs, the backlog, the guides"
