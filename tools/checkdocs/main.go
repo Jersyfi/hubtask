@@ -16,6 +16,8 @@
 //     nobody finds; an index entry without a file is a decision that looks recorded and is not.
 //   - Every ADR-xxxx named anywhere in the repository exists. Code cites ADR numbers in comments,
 //     and a typo there points a reader at nothing.
+//   - arc42 §9 lists every ADR the index lists, with the same status. It repeats the decision list,
+//     and a repetition nobody checks drifts - this one stood three decisions behind.
 //   - Every document CLAUDE.md's reading order names exists, because that list is what a new
 //     session is told to read.
 //   - The support matrix and the workflows agree in both directions, so that support can neither
@@ -48,6 +50,7 @@ func main() {
 	problems = append(problems, checkLinks(root, docs)...)
 	problems = append(problems, checkADRIndex(root)...)
 	problems = append(problems, checkADRReferences(root)...)
+	problems = append(problems, checkArc42ADRTable(root)...)
 	problems = append(problems, checkSupportMatrix(root)...)
 
 	if len(problems) > 0 {

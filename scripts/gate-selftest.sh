@@ -399,6 +399,39 @@ expect_docs_failure "a citation of an ADR nobody wrote" \
 
 The reasoning is in ADR-0099.'
 
+header "The decision list in arc42 §9 (make gate-docs)"
+
+# arc42 §9 repeats what docs/adr/README.md owns, and a repetition nobody checks drifts - this one
+# stood three decisions behind before the check existed. Both directions are shown to bite: a
+# decision the index has and §9 does not, and a status the two disagree about.
+ARC42="docs/architecture/arc42.md"
+
+CHECKS=$((CHECKS + 1))
+cp "$ARC42" "$ARC42.selftest-backup"
+# Drop the last ADR row of the table, whichever it is - the probe must not name a number, or it
+# rots the next time an ADR is written.
+LAST_ADR_ROW=$(grep -n '^| [0-9]\{4\} |' "$ARC42" | tail -1 | cut -d: -f1)
+sed -i.tmp "${LAST_ADR_ROW}d" "$ARC42" && rm -f "$ARC42.tmp"
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "an ADR missing from arc42 §9"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "an ADR missing from arc42 §9"
+fi
+mv "$ARC42.selftest-backup" "$ARC42"
+
+CHECKS=$((CHECKS + 1))
+cp "$ARC42" "$ARC42.selftest-backup"
+LAST_ADR_ROW=$(grep -n '^| [0-9]\{4\} |' "$ARC42" | tail -1 | cut -d: -f1)
+sed -i.tmp "${LAST_ADR_ROW}s/| accepted |/| superseded |/" "$ARC42" && rm -f "$ARC42.tmp"
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a status arc42 and the index disagree on"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "a status arc42 and the index disagree on"
+fi
+mv "$ARC42.selftest-backup" "$ARC42"
+
 header "Observability artefacts (make gate-observability)"
 
 # An alert without a runbook is the one mistake §11 names explicitly, so it is the one the gate

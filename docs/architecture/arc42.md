@@ -733,6 +733,12 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0021 | Offline sync: server-authoritative, per-field merging | accepted |
 | 0022 | GitHub as the platform, Actions as the pipeline, GHCR as the registry | accepted |
 | 0023 | Push-based deployment with approval, GitOps-ready | accepted |
+| 0024 | Tenant-scoped foreign keys | accepted |
+| 0025 | The status of a failed precondition | accepted |
+| 0026 | How the query DSL turns into SQL | accepted |
+| 0027 | One repository for the core, the clients, and the design system | accepted |
+| 0028 | The web UI ships inside the binary, as an adapter | accepted |
+| 0029 | The design system is code, and `tokens.json` is its only origin | accepted |
 
 ---
 
