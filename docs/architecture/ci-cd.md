@@ -20,13 +20,14 @@ Which means:
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `ci.yml` | Pull request, push to `main` | The PR gates: format, lint, generation, build, tests, security, architecture |
-| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load test, resilience/chaos tests, rolling update simulation, memory leak test |
+| `ci.yml` | Pull request, push to `main` | The PR gates: format, lint, generation, build, tests, security, architecture, data, chart, Compose, documentation and licences |
+| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
 | `release.yml` | Tag `v*` | Compute the version, build the multi-arch image, SBOM, signature, provenance, Helm chart, GitHub release |
+| `deploy.yml` | Push to `main`, manual dispatch | `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
 | `codeql.yml` | PR, schedule | Static security analysis |
 | `scorecard.yml` | Schedule | OpenSSF supply chain scorecard |
-| `ai-assist.yml` | PR (label `ai-review`), issue comment `/ai` | Advisory AI assistance (§5) |
-| `docs.yml` | PR touching `docs/**` | Link and structure check of the architecture documentation, ADR index reconciliation |
+| `claude-review.yml` | Pull request, unless it is a draft or Dependabot's | Advisory architecture review as a comment (§5) |
+| `claude.yml` | `@claude` in an issue, comment or review; the label `claude:task` on an issue | Claude works on a branch and opens a pull request — never on `main` (§5) |
 
 ---
 
@@ -111,7 +112,7 @@ Rules:
 
 | Name | Kind | Purpose | Required |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | Secret | AI assistance in `ai-assist.yml` | Only if AI is used |
+| `ANTHROPIC_API_KEY` | Secret | AI assistance in `claude-review.yml` and `claude.yml` | Only if AI is used |
 | `COSIGN_EXPERIMENTAL` | Variable (`1`) | Keyless signing | Yes (release) |
 | `HELM_REPO_TOKEN` | Secret | Publishing the chart (if external) | Optional |
 | `SLACK_WEBHOOK` / `MATRIX_WEBHOOK` | Secret | Notification on release or failure | Optional |

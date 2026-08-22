@@ -200,7 +200,7 @@ agents write. The rules:
 
 | Control | Implementation |
 |---|---|
-| Dependencies | Renovate with grouping; `go.sum` mandatory; no `replace` directives onto forks without an ADR |
+| Dependencies | Dependabot ([ADR-0022](../adr/ADR-0022-github-platform.md)): grouped version updates weekly, ungrouped security updates on the advisory; `go.sum` mandatory; no `replace` directives onto forks without an ADR |
 | Vulnerabilities | `govulncheck` in every pipeline run (a gate), a container scan (Trivy/Grype) in the release gate |
 | Static analysis | `gosec` as part of `golangci-lint`; `depguard` enforces layer boundaries and forbids risky packages |
 | Secret scanning | A push rule plus a history scan (gitleaks) |
