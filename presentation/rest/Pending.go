@@ -194,9 +194,8 @@ func (pending) UnassignWorkItem(w http.ResponseWriter, r *http.Request, _ openap
 	notAvailable(w, r)
 }
 
-// AddMember and RemoveMember land with the member half of C-01. Declared here first, so that the
-// contract test compares the router against api/openapi.yaml as a whole while the use cases behind
-// them are still being written.
+// AddMember and RemoveMember are overridden by RestController, for the reason given at
+// CreateContainer.
 
 func (pending) AddMember(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AccountId) {
 	notAvailable(w, r)

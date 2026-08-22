@@ -241,6 +241,7 @@ func run() error {
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
 	itemLabels := postgres.NewItemLabelRepository()
+	itemMembers := postgres.NewItemMemberRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
@@ -334,6 +335,16 @@ func run() error {
 		Visibility: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,
+	}
+
+	// Both directions of an entry's member list share one dependency set, for the reason the label
+	// pair does: they are the same write in opposite directions, and wiring them separately would
+	// be two places to get one of fourteen fields wrong (work.ItemMemberWriter).
+	itemMemberWriter := work.ItemMemberWriter{
+		Items: items, ItemMembers: itemMembers, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
+		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
 	useCases, err := usecase.NewRegistry(
@@ -453,6 +464,8 @@ func run() error {
 		work.RemoveLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.AssignWorkItem{Assignment: assignment}.Descriptor(),
 		work.UnassignWorkItem{Assignment: assignment}.Descriptor(),
+		work.AddMember{Writer: itemMemberWriter}.Descriptor(),
+		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
