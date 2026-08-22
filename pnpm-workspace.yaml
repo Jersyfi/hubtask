@@ -1,0 +1,6 @@
+# The workspace of ADR-0027: two first-party clients and the packages they share.
+# Nothing here is importable from Go, and nothing under packages/ may depend on anything
+# under apps/.
+packages:
+  - apps/*
+  - packages/*

@@ -7,6 +7,17 @@
 
 # Dependencies
 /vendor/
+node_modules/
+.pnpm-store/
+
+# JavaScript build output (ADR-0027). The two deliberate exceptions are un-ignored where they
+# stand: presentation/webui/dist/index.html, so that go:embed resolves without a frontend build
+# (ADR-0028), and core/domain/model/shared/LabelTokens.go, which is generated into the core and
+# is not under any of these paths at all (ADR-0029).
+apps/*/dist/
+packages/*/dist/
+.vite/
+*.tsbuildinfo
 
 # Environment and secrets
 .env
