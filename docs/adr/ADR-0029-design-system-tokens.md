@@ -83,11 +83,21 @@ of exactly two generated files this project commits on purpose; the other is ADR
 placeholder. Both are committed for the same reason: `go build ./...` must succeed in a checkout
 where Node has never been installed.
 
-Committing it makes it hand-editable, so the drift check is the safeguard: regeneration in CI must
-produce no diff, and a pull request that edits it by hand fails. It carries a generated-file header
-saying so. The file follows this project's PascalCase file convention rather than the lower-case
-name the design system document uses for the Style Dictionary target — the naming convention of the
-tree it lands in wins over the naming convention of the tree it came from.
+Concretely it is `core/domain/model/shared/LabelTokens.go`, written there by Style Dictionary
+directly rather than produced in `dist/` and copied. A copy step would put the same content in two
+places, which is the failure mode this whole ADR exists to prevent, and it would leave a `.go` file
+under `packages/` that `go build ./...` compiles while ADR-0027 rule 4 says nothing there is
+importable — a contradiction the file system would have to be trusted to keep. `dist/` therefore
+holds only `tokens.css` and `tokens.ts` and is ignored in its entirety. The name follows this
+project's PascalCase convention rather than the lower-case spelling `design-system.md` §1 uses for
+the Style Dictionary target: the convention of the tree a file lands in wins over the convention of
+the tree it came from.
+
+Committing it makes it hand-editable, so two safeguards stand in for the compiler. It carries the
+`// Code generated … DO NOT EDIT.` line Go tooling recognises, and CI regenerates it and fails on
+any difference. Generation is a separate `make` target from `make generate`, which must keep
+working for a contributor who has no Node.js — a `go:generate` directive here would put a
+JavaScript toolchain in the path of `make gate-quick`.
 
 **Typography is self-hosted.** IBM Plex Sans, Sans Condensed and Mono (OFL-1.1) ship as files in the
 repository and are recorded in `THIRD-PARTY-LICENSES.md`. Not for convenience: a self-hosted
