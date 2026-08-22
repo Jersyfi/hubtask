@@ -1,0 +1,27 @@
+{
+  "name": "@hubtask/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript types generated from api/openapi.yaml. Generated output only - never hand-edited.",
+  "license": "BUSL-1.1",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./dist/schema.d.ts"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "node scripts/generate.js",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node scripts/check-generated.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/check-generated.js"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3"
+  }
+}

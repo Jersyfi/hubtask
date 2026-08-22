@@ -1,0 +1,24 @@
+{
+  "name": "@hubtask/website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Hubtask project website (hubtask.eu). Deployed as static files, never embedded.",
+  "license": "BUSL-1.1",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node ../../packages/design-system/build/lint-no-literals.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test src/*.test.ts"
+  },
+  "dependencies": {
+    "@hubtask/design-system": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2"
+  }
+}

@@ -31,7 +31,8 @@ hubtask/
 │   │   │   ├── integration/        # WebhookSubscription.go, Delivery.go, CalendarFeed.go
 │   │   │   ├── media/              # MediaObject.go
 │   │   │   ├── audit/              # ActivityEntry.go, AuditLog.go
-│   │   │   └── shared/             # ID.go, Locale.go, TimeZone.go, ColorToken.go, Errors.go
+│   │   │   └── shared/             # ID.go, Locale.go, TimeZone.go, ColorToken.go, Errors.go,
+│   │   │                           # LabelTokens.go (generated - see §6)
 │   │   ├── service/                # pure domain services
 │   │   │   ├── Hierarchy.go        # permitted parents/children, depth, move, cycle check
 │   │   │   ├── Capabilities.go     # evaluation of the capability profiles
@@ -90,6 +91,7 @@ hubtask/
 │   ├── intake/                     # MailIntake.go, WebhookIntake.go
 │   ├── worker/                     # Runner.go, Scheduler.go — the queue as an inbound channel
 │   ├── admin/                      # AdminController.go (tenants, quotas, metering)
+│   ├── webui/                      # embed.go - the built apps/webapp bundle, served at / (ADR-0028)
 │   └── openapi/                    # generated server types (never edit by hand)
 │
 ├── infrastructure/                 # outbound adapters
@@ -130,6 +132,16 @@ hubtask/
 │   ├── observability/              # dashboards/, alerts/prometheus-rules.yaml, runbooks/RB-xx.md
 │   ├── privacy/                    # DPA template, sub-processor list, TOM description
 │   └── k8s/ → k8s/                 # Helm chart per the template (Chart.yaml, values*.yaml)
+│
+├── apps/                           # first-party clients (ADR-0027) - no Go code, ever
+│   ├── webapp/                     # the to-do application in the browser; embedded (ADR-0028)
+│   └── website/                    # the project website hubtask.eu; static, never embedded
+├── packages/                       # what the clients share (ADR-0027)
+│   ├── design-system/              # tokens/tokens.json + the CSS layer (ADR-0029)
+│   └── api-client/                 # generated from api/openapi.yaml; generated output only
+├── pnpm-workspace.yaml             # apps/* and packages/*
+├── package.json                    # workspace root: private, scripts and packageManager only
+├── .nvmrc
 │
 ├── locales/                        # en.json (source), de.json, … (ICU MessageFormat)
 ├── test/
@@ -173,6 +185,32 @@ Forbidden, and checked by test (`test/architecture`):
 
 Tooling: `go-arch-lint` or `depguard` (golangci-lint) with an explicit allowlist.
 
+### 2.1 The workspace side
+
+The JavaScript half has its own direction of dependency, and it points the same way — inwards,
+towards what is shared:
+
+```
+apps/webapp  → packages/design-system, packages/api-client
+apps/website → packages/design-system
+packages/*   → nothing in this repository
+```
+
+Forbidden:
+
+* **`packages/*` depending on `apps/*`.** A package that knows about an application is not a
+  shared package, it is that application with an extra directory in the path.
+* **`apps/*` depending on `apps/*`.** The two clients have nothing in common that is not a
+  package; the webapp is a task manager and the website is a brochure.
+* **Any Go code under `apps/` or `packages/`.** Nothing there is importable from Go, and no `.go`
+  file is committed under either. The traffic runs the other way: the design system *generates*
+  one Go file into the core (§6).
+* **A JavaScript toolchain in the path of a Go build.** `go build ./...`, `go test ./...`,
+  `golangci-lint run` and `make generate` work in a checkout where Node.js was never installed. A
+  change that breaks that is a change that has to be reverted, not documented — which is why
+  `presentation/webui/dist/index.html` is committed (ADR-0028) and why `make tokens` is a separate
+  target from `make generate` (ADR-0029).
+
 ---
 
 ## 3. Conventions
@@ -189,7 +227,7 @@ Tooling: `go-arch-lint` or `depguard` (golangci-lint) with an explicit allowlist
 | Logging | `log/slog`, structured, no PII in logs, always with `request_id`/`trace_id` |
 | Transactions | Exclusively in the application layer through `UnitOfWork`; repositories never open transactions |
 | DTOs | The application layer owns its own input/output types; domain objects do not leave the core |
-| Generated code | `presentation/openapi`, `infrastructure/postgres/sqlc`, `api/mcp` — never change by hand, generation lives in `make generate` |
+| Generated code | `presentation/openapi`, `infrastructure/postgres/sqlc`, `api/mcp` — never change by hand, generation lives in `make generate`. Two more live outside it: `core/domain/model/shared/LabelTokens.go` (`make tokens`) and `packages/api-client/dist` (`make api-client`), because both need Node.js and `make generate` must not (§6) |
 | Tests | Domain = table tests without mocks; application = fakes of the ports; infrastructure = Testcontainers |
 | Comments | Public types and functions carry a godoc comment; business rationale goes into an ADR, not into the code |
 
@@ -239,3 +277,24 @@ The template is a starting point, not a constraint. What was changed when this p
    maintained through the GitHub UI and documented in [ci-cd.md](./ci-cd.md) §4. There is no
    bootstrap script — a one-shot setup script would rot, and the settings are declared where they
    are enforced.
+
+---
+
+## 6. Generated files that are committed
+
+Generated output is not committed. Exactly two files break that rule, both deliberately, and each
+for a reason that is about somebody who has not installed Node.js:
+
+| File | Produced by | Why it is committed |
+|---|---|---|
+| `presentation/webui/dist/index.html` | a placeholder, replaced by the container build | `//go:embed all:dist` refuses to compile against a directory that does not exist, so without it `go build ./...` would need a frontend build ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
+| `core/domain/model/shared/LabelTokens.go` | `make tokens`, from `packages/design-system/tokens/tokens.json` | the domain validates a `colorToken` against it, and committing it keeps `go build ./...` working without Node — and turns a drift between the design system and the domain into a diff ([ADR-0029](../adr/ADR-0029-design-system-tokens.md)) |
+
+**Neither may be edited by hand.** `LabelTokens.go` carries the `// Code generated … DO NOT EDIT.`
+line, and CI regenerates it and fails on any difference. It holds the *names* of the ten label
+colours and never a colour value: the core stays colour-blind while sharing one vocabulary with
+the frontend, which is what `domain-model.md` §4 asks for when it stores a token instead of a hex.
+
+Everything else the workspace produces — `packages/design-system/dist/`,
+`packages/api-client/dist/`, `apps/*/dist/` — is ignored, and reproducible from the source plus
+the pnpm lockfile.
