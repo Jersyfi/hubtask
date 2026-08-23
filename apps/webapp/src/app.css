@@ -29,3 +29,13 @@ p {
   max-width: 60ch;
   color: var(--text-secondary);
 }
+
+/* The data style of design-system.md §3: IDs, timestamps, counters. */
+code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-075);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-snug);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
