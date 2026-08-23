@@ -10,10 +10,12 @@ import (
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
 // The questions every writer in this package asks before it writes, in one place.
@@ -28,13 +30,67 @@ func findItem(ctx context.Context, items repository.Items, id shared.ID) (domain
 	item, err := items.Find(ctx, id)
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
-			return domain.WorkItem{}, shared.ErrNotFound.
-				WithDetail("items.not_found").
-				WithParams(map[string]string{"item_id": id.String()})
+			// The same answer the authorisation service gives for an entry out of reach, from the
+			// same constructor: two spellings of "not found" would be an oracle for which
+			// identifiers exist (T-04, appshared.ItemNotFound).
+			return domain.WorkItem{}, appshared.ItemNotFound(id)
 		}
 		return domain.WorkItem{}, err
 	}
 	return item, nil
+}
+
+// readItemScope reads the entry a request is about together with the collection it lives in,
+// read-only and outside any write transaction, because the permission check needs both first: the
+// collection for the path a membership is resolved along, and the entry for the assignee the
+// narrowing is measured against (C-04).
+//
+// One helper rather than the copy each writer held. Those copies read the entry and threw it away,
+// which was harmless while nothing about the entry decided anything - and stopped being harmless
+// the moment "assigned only" became a rule rather than a sentence in a document.
+//
+// Nothing it reads is trusted afterwards: the state that decides the write is read again inside the
+// transaction that writes, since anything read before it can have changed by the time it commits.
+func readItemScope(
+	ctx context.Context, uow persistence.UnitOfWork, items repository.Items,
+	containers repository.Containers, actor appshared.ActorContext, itemID shared.ID,
+) (domain.WorkItem, domain.Container, error) {
+	var (
+		item       domain.WorkItem
+		collection domain.Container
+	)
+
+	err := uow.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := findItem(ctx, items, itemID)
+		if err != nil {
+			return err
+		}
+		item = found
+		collection, err = findCollection(ctx, containers, found.CollectionID)
+		return err
+	})
+	if err != nil {
+		return domain.WorkItem{}, domain.Container{}, err
+	}
+	return item, collection, nil
+}
+
+// changing, commenting and reading name what a request does to an entry, for the one decision
+// point that applies the matrix's qualifiers to it (access.ItemSubject, C-04).
+//
+// Three constructors rather than a literal at every call site, because the assignee is the field
+// that is easy to leave out and impossible to notice missing: an omitted one reads as "this entry
+// belongs to nobody", which refuses a contributor on their own work.
+func changing(item domain.WorkItem) access.ItemSubject {
+	return access.ItemSubject{Does: service.ItemChange, ID: item.ID, Assignee: item.AssigneeID}
+}
+
+func commenting(item domain.WorkItem) access.ItemSubject {
+	return access.ItemSubject{Does: service.ItemComment, ID: item.ID, Assignee: item.AssigneeID}
+}
+
+func reading(item domain.WorkItem) access.ItemSubject {
+	return access.ItemSubject{Does: service.ItemRead, ID: item.ID, Assignee: item.AssigneeID}
 }
 
 // findCollection reads the collection an item already belongs to. A missing one under an item that

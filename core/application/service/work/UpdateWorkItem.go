@@ -85,7 +85,7 @@ func (h UpdateWorkItem) Execute(
 	// on the path: a membership at the hub applies downwards, and a path naming only the collection
 	// would refuse somebody who does hold the right (domain-model.md §3.2). Nothing read here is
 	// trusted afterwards - the state that decides the write is read again inside the transaction.
-	collection, err := h.collectionOf(ctx, actor, cmd.ItemID)
+	subject, collection, err := h.collectionOf(ctx, actor, cmd.ItemID)
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
@@ -99,6 +99,7 @@ func (h UpdateWorkItem) Execute(
 		TokenScope: itemsWrite,
 		TargetType: itemTarget,
 		TargetID:   cmd.ItemID,
+		On:         changing(subject),
 	}); err != nil {
 		return domain.WorkItem{}, err
 	}
@@ -290,21 +291,8 @@ func (h UpdateWorkItem) recordAudit(
 // because the permission check needs it first.
 func (h UpdateWorkItem) collectionOf(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
-) (domain.Container, error) {
-	var collection domain.Container
-
-	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		item, err := findItem(ctx, h.Items, itemID)
-		if err != nil {
-			return err
-		}
-		collection, err = findCollection(ctx, h.Containers, item.CollectionID)
-		return err
-	})
-	if err != nil {
-		return domain.Container{}, err
-	}
-	return collection, nil
+) (domain.WorkItem, domain.Container, error) {
+	return readItemScope(ctx, h.UnitOfWork, h.Items, h.Containers, actor, itemID)
 }
 
 // Descriptor is the catalogue entry. Registering it is what makes the use case reachable through

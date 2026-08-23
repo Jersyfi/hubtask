@@ -38,6 +38,18 @@ const (
 	ItemCreatedAction audit.Action = "item.created"
 )
 
+// Ownership is the slice of the authorisation service the create path needs beyond Authorizer:
+// whether the role the actor holds writes only what is assigned to them.
+//
+// Its own interface rather than a method on Authorizer, for the reason that split Visibility off: a
+// use case declaring a dependency it does not use is a use case whose test has to satisfy it
+// anyway, and creation is the only write that has to know this.
+type Ownership interface {
+	WritesOnlyWhatIsAssigned(
+		ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+	) (bool, error)
+}
+
 // CreateWorkItemCommand is the input, typed.
 //
 // The fields are the ones this use case owns. Everything else the contract's WorkItemCreate
@@ -80,6 +92,7 @@ type CreateWorkItem struct {
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
 	Authorizer Authorizer
+	Ownership  Ownership
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
@@ -120,9 +133,19 @@ func (h CreateWorkItem) Execute(
 		TokenScope: itemsWrite,
 		TargetType: itemTarget,
 		// The item does not exist yet, so the refusal names the collection it would have been
-		// created in.
+		// created in, and the subject names no entry: there is nothing to share and nothing
+		// assigned, so the path ends at the container (access.ItemSubject).
 		TargetID: collectionID,
+		On:       access.ItemSubject{Does: service.ItemCreate},
 	}); err != nil {
+		return domain.WorkItem{}, nil, err
+	}
+
+	// Whose the new entry has to be. A role narrowed to what is assigned to it creates on itself,
+	// or the entry would be out of its reach the moment it existed - which is the decision on issue
+	// #84, and what keeps "assigned only" true at every moment rather than suspended for one call.
+	cmd, err = h.assignToCreator(ctx, actor, path, cmd)
+	if err != nil {
 		return domain.WorkItem{}, nil, err
 	}
 
@@ -198,6 +221,38 @@ type createAssignment struct {
 	h        CreateWorkItem
 	assignee shared.ID
 	pool     *eligiblePool
+}
+
+// assignToCreator makes the new entry the creator's, where the role they hold requires it.
+//
+// Not optional, and not the caller's to override: re-assigning is a write on an entry that is not
+// yet theirs, and it is not a permission this role holds. So naming somebody else is refused rather
+// than quietly corrected - a create that silently landed somewhere other than where the client
+// asked would be worse than a refusal - and asking a policy to hand the entry out is refused for
+// the same reason, since a policy can land it on anybody.
+//
+// Where the type's profile does not carry ASSIGNMENT, the write below refuses: such a type cannot
+// be owned, and a role that may only write what it owns therefore cannot create one. That falls out
+// of the capability profile rather than being decided here (I-W3, ADR-0006).
+func (h CreateWorkItem) assignToCreator(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+	cmd CreateWorkItemCommand,
+) (CreateWorkItemCommand, error) {
+	onlyOwn, err := h.Ownership.WritesOnlyWhatIsAssigned(ctx, actor, path)
+	if err != nil || !onlyOwn {
+		return cmd, err
+	}
+
+	if cmd.AutoAssign || (!cmd.AssigneeID.IsZero() && cmd.AssigneeID != actor.AccountID) {
+		return CreateWorkItemCommand{}, shared.ErrForbidden.
+			WithDetail("items.assignee_must_be_the_creator").
+			WithFields(shared.FieldError{
+				Path: "/assignee_id", Code: "items.assignee_must_be_the_creator",
+			})
+	}
+
+	cmd.AssigneeID = actor.AccountID
+	return cmd, nil
 }
 
 // assignmentPlan reads the command's two assignment fields against the collection's policy and

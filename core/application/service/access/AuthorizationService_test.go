@@ -48,9 +48,14 @@ func (u *unitOfWork) WithinReadOnly(ctx context.Context, _ persistence.Scope, fn
 }
 
 type memberships struct {
-	held []identity.Membership
-	path []identity.Scope
-	err  error
+	held   []identity.Membership
+	path   []identity.Scope
+	err    error
+	shares []shared.ID
+}
+
+func (m *memberships) SharedItemsIn(_ context.Context, _, _ shared.ID) ([]shared.ID, error) {
+	return m.shares, m.err
 }
 
 func (m *memberships) Along(_ context.Context, _ shared.ID, path []identity.Scope) ([]identity.Membership, error) {

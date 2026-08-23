@@ -206,6 +206,7 @@ func (w PlacementWriter) plan(
 		TokenScope: itemsWrite,
 		TargetType: itemTarget,
 		TargetID:   cmd.ItemID,
+		On:         changing(plan.item),
 	}); err != nil {
 		return placement{}, err
 	}
@@ -221,6 +222,7 @@ func (w PlacementWriter) plan(
 			TokenScope: itemsWrite,
 			TargetType: itemTarget,
 			TargetID:   cmd.ItemID,
+			On:         changing(plan.item),
 		}); err != nil {
 			return placement{}, err
 		}

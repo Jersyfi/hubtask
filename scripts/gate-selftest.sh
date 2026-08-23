@@ -326,6 +326,24 @@ import "net/http"
 
 func Selftest() *http.Client { return &http.Client{} }'
 
+expect_gate_failure "a permission question that does not name its entry" gate-architecture core/application \
+'package selftest
+
+import "github.com/Jersyfi/hubtask/core/application/service/access"
+
+const itemTarget = "item"
+
+func Selftest() access.Request { return access.Request{TargetType: itemTarget} }'
+
+expect_gate_failure "the per-entry matrix read in an adapter" gate-architecture infrastructure \
+'package selftest
+
+import "github.com/Jersyfi/hubtask/core/domain/service"
+
+func Selftest() service.ItemAccess {
+	return service.ItemAccessOf("GUEST", service.ItemChange)
+}'
+
 header "Formatting and generation (make gate-quick)"
 
 expect_gate_failure "unformatted source" gate-quick infrastructure \

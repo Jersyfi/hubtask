@@ -141,7 +141,7 @@ func (w ItemMemberWriter) change(
 	// depends on the path: a membership held at the hub applies downwards (domain-model.md §3.2).
 	// Nothing read here is trusted afterwards - the state that decides the write is read again
 	// inside the transaction.
-	collection, err := w.readCollectionOf(ctx, actor, cmd.ItemID)
+	subject, collection, err := w.readCollectionOf(ctx, actor, cmd.ItemID)
 	if err != nil {
 		return ItemMemberSet{}, err
 	}
@@ -155,6 +155,7 @@ func (w ItemMemberWriter) change(
 		TokenScope: itemsWrite,
 		TargetType: itemTarget,
 		TargetID:   cmd.ItemID,
+		On:         changing(subject),
 	}); err != nil {
 		return ItemMemberSet{}, err
 	}
@@ -380,22 +381,8 @@ func (w ItemMemberWriter) ensureMembersAllowed(ctx context.Context, item domain.
 // (multi-tenancy.md §7).
 func (w ItemMemberWriter) readCollectionOf(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
-) (domain.Container, error) {
-	var collection domain.Container
-
-	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		item, err := findItem(ctx, w.Items, itemID)
-		if err != nil {
-			return err
-		}
-		found, err := findCollection(ctx, w.Containers, item.CollectionID)
-		collection = found
-		return err
-	})
-	if err != nil {
-		return domain.Container{}, err
-	}
-	return collection, nil
+) (domain.WorkItem, domain.Container, error) {
+	return readItemScope(ctx, w.UnitOfWork, w.Items, w.Containers, actor, itemID)
 }
 
 // memberSetOutput is the shape every channel returns: the field names of the contract

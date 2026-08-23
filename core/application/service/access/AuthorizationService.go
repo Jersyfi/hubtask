@@ -45,6 +45,48 @@ type Request struct {
 	TokenScope string
 	TargetType string
 	TargetID   shared.ID
+	// On names the entry the request is about, when it is about one. Zero means the request is
+	// about a container and the permission alone decides it.
+	On ItemSubject
+}
+
+// ItemSubject is what the per-entry half of the role matrix needs in order to be applied: the
+// entry, what the request does to it, and whose it is (domain-model.md §3.2, C-04).
+//
+// The use case fills it in; the use case does not decide from it. It has already read the entry -
+// the path to it is what the check is about - so naming it here costs nothing, while reading it
+// again in this package would be a round trip for a row already in hand. Every judgement made
+// about what is named here is made below, in one place (ADR-0005).
+type ItemSubject struct {
+	// Does is the kind of access. Empty means this is not a request about a single entry.
+	Does service.ItemAction
+	// ID is the entry. Zero for a creation: there is nothing yet to share or to assign, so the
+	// path ends at the container the entry would be created under.
+	ID shared.ID
+	// Assignee is who the entry belongs to, zero for nobody. It is what "assigned only" is
+	// measured against, and it is read from the stored entry rather than from the request that
+	// wants to change it - a caller that could name the assignee would be naming its own
+	// permission.
+	Assignee shared.ID
+}
+
+// aboutAnEntry reports whether the per-entry decision applies.
+func (r Request) aboutAnEntry() bool { return r.On.Does != "" }
+
+// scopePath is the path the memberships are resolved along: the one the use case gave, with the
+// entry's own scope at the bottom when there is an entry.
+//
+// Appending here rather than at every call site is the point of the whole file: a share is a
+// membership at ITEM scope (identity.ItemScope), and a path that stopped at the collection would
+// resolve no role for the person it was shared with - silently, and in every use case that forgot.
+func (r Request) scopePath() []identity.Scope {
+	if !r.aboutAnEntry() || r.On.ID.IsZero() {
+		return r.Path
+	}
+
+	path := make([]identity.Scope, len(r.Path), len(r.Path)+1)
+	copy(path, r.Path)
+	return append(path, identity.ItemScope(r.On.ID))
 }
 
 // Service answers permission questions and records the refusals.
@@ -75,25 +117,150 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 		}
 	}
 
-	var memberships []identity.Membership
-	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		memberships, err = s.Memberships.Along(ctx, actor.AccountID, request.Path)
-		return err
-	})
+	path := request.scopePath()
+
+	memberships, err := s.resolve(ctx, actor, path)
 	if err != nil {
 		// Not a refusal: nobody was denied anything, the question could not be answered. Reporting
 		// it as forbidden would send a client off to fix a permission that is not the problem.
 		return err
 	}
 
-	if !service.Allows(memberships, request.Path, request.Permission) {
+	if request.aboutAnEntry() {
+		return s.decideAboutTheEntry(ctx, actor, request, memberships, path)
+	}
+
+	if !service.Allows(memberships, path, request.Permission) {
 		s.recordRefusal(ctx, actor, request, "permission")
-		return shared.ErrForbidden.
-			WithDetail("access.not_permitted").
-			WithParams(map[string]string{"permission": string(request.Permission)})
+		return notPermitted(request)
 	}
 	return nil
+}
+
+// resolve reads what the account holds along the path, in a transaction of its own.
+func (s Service) resolve(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+) ([]identity.Membership, error) {
+	var memberships []identity.Membership
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		memberships, err = s.Memberships.Along(ctx, actor.AccountID, path)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return memberships, nil
+}
+
+// Reach is how much of a container's entries an actor may see.
+type Reach struct {
+	// All is true when a role held on the container's own path answers for every entry in it -
+	// which is the ordinary case, and the one that costs nothing extra.
+	All bool
+	// Shared is the entries that were shared with the actor individually, and is meaningful only
+	// when All is false. Never empty when All is false: an actor who reaches neither the container
+	// nor anything in it has already been refused rather than handed an empty answer.
+	Shared []shared.ID
+}
+
+// ReachInto answers how far the actor reaches into one container's entries.
+//
+// A list anchored to a container asks this rather than Authorize, because for a list there are two
+// right answers rather than one. A role on the container answers for every row in it. An actor who
+// holds none may still hold a membership on entries inside it - that is what "shared items only"
+// is (domain-model.md §3.2) - and their level is those entries rather than a refusal.
+//
+// The refusal is recorded once, and only when both come back empty. Asking Authorize first and then
+// looking for shares would write a DENIED entry for somebody who was not in the end denied
+// anything, which is a trail an auditor cannot read (audit.md §4).
+//
+// The second query runs only for an actor who holds no role on the container, so the ordinary list
+// pays one membership read exactly as it did before.
+func (s Service) ReachInto(
+	ctx context.Context, actor appshared.ActorContext, request Request, containerID shared.ID,
+) (Reach, error) {
+	if !actor.IsAuthenticated() {
+		return Reach{}, shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	if request.TokenScope != "" {
+		if err := actor.RequireScope(request.TokenScope); err != nil {
+			s.recordRefusal(ctx, actor, request, "scope")
+			return Reach{}, err
+		}
+	}
+
+	memberships, err := s.resolve(ctx, actor, request.Path)
+	if err != nil {
+		return Reach{}, err
+	}
+	if service.Allows(memberships, request.Path, request.Permission) {
+		return Reach{All: true}, nil
+	}
+
+	var sharedWith []shared.ID
+	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		sharedWith, err = s.Memberships.SharedItemsIn(ctx, actor.AccountID, containerID)
+		return err
+	})
+	if err != nil {
+		return Reach{}, err
+	}
+	if len(sharedWith) > 0 {
+		return Reach{Shared: sharedWith}, nil
+	}
+
+	s.recordRefusal(ctx, actor, request, "permission")
+	return Reach{}, notPermitted(request)
+}
+
+// decideAboutTheEntry applies the qualifiers the permission column cannot express.
+//
+// Two answers, and the difference between them is the whole of T-04. An actor who holds a role
+// somewhere on the entry's path may reach it and is refused on what that role does not do: a
+// forbidden, naming the permission, exactly as any other refusal reads. An actor who holds nothing
+// on the path is not refused but told the entry is not there - because it is not, for them, and
+// telling them otherwise would confirm that an identifier they guessed names something real.
+//
+// Nothing distinguishes a guest from a stranger here, deliberately. "Shared items only" is not a
+// rule about the role: it is where the membership was granted, and an entry nobody granted anything
+// on is out of everybody's reach by the same sentence.
+func (s Service) decideAboutTheEntry(
+	ctx context.Context, actor appshared.ActorContext, request Request,
+	memberships []identity.Membership, path []identity.Scope,
+) error {
+	role, found := service.EffectiveRole(memberships, path)
+	if !found {
+		s.recordRefusal(ctx, actor, request, "sharing")
+		if request.On.ID.IsZero() {
+			// A creation names no entry, so there is no existence to disclose: the caller named a
+			// container it already holds an identifier for, and hiding that is the container
+			// list's business rather than this call's. It is refused as it always was.
+			return notPermitted(request)
+		}
+		return appshared.ItemNotFound(request.On.ID)
+	}
+
+	switch service.AllowsItemAction(role, request.On.Does, actor.AccountID, request.On.Assignee) {
+	case service.ItemPermitted:
+		return nil
+	case service.ItemRefusedByAssignment:
+		// The trail says which narrowing refused; the client is told what it is told for every
+		// other refusal. Distinguishing the two answers to the caller would tell a contributor
+		// which entries exist that are not theirs.
+		s.recordRefusal(ctx, actor, request, "assignment")
+	case service.ItemRefusedByRole:
+		s.recordRefusal(ctx, actor, request, "permission")
+	}
+	return notPermitted(request)
+}
+
+// notPermitted is the one refusal, so that every path to it reads the same to a client.
+func notPermitted(request Request) error {
+	return shared.ErrForbidden.
+		WithDetail("access.not_permitted").
+		WithParams(map[string]string{"permission": string(request.Permission)})
 }
 
 // Permitted answers the same question as Authorize for many paths at once: which of these may the
@@ -216,6 +383,31 @@ func (s Service) RoleAlong(
 
 	role, found := service.EffectiveRole(memberships, path)
 	return role, found, nil
+}
+
+// WritesOnlyWhatIsAssigned reports whether the role the actor holds along this path reaches only
+// the entries assigned to them.
+//
+// It is the one thing about the narrowing a use case has to know *before* it writes rather than
+// after. A creation by somebody whose writes are narrowed that way has to land on them, or the
+// entry they just made would be out of their own reach the moment it existed - so the create path
+// asks this and assigns accordingly (the decision on issue #84).
+//
+// What it hands back is "this entry has to be yours", not "you are a contributor". The role stays
+// here and the matrix answers the question (service.ItemAccessOf), so a role added later with the
+// same qualifier is covered without the create path being edited - which is the difference between
+// consulting the decision point and copying a check out of it (ADR-0005).
+//
+// Nothing is audited. Nobody was refused anything: the actor's own permission is decided by
+// Authorize, and this asks what shape their write has to take (audit.md §4).
+func (s Service) WritesOnlyWhatIsAssigned(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+) (bool, error) {
+	role, found, err := s.RoleAlong(ctx, actor, path)
+	if err != nil || !found {
+		return false, err
+	}
+	return service.ItemAccessOf(role, service.ItemChange) == service.AccessAssigned, nil
 }
 
 // union flattens the paths into the scopes to ask about, without duplicates. The resolution ignores

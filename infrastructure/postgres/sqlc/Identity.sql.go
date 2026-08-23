@@ -417,6 +417,55 @@ func (q *Queries) RevokeMembership(ctx context.Context, id pgtype.UUID) (int64, 
 	return result.RowsAffected(), nil
 }
 
+const sharedItemsInCollection = `-- name: SharedItemsInCollection :many
+SELECT m.scope_id
+FROM membership m
+JOIN work_item wi ON wi.id = m.scope_id
+WHERE m.scope_type = 'ITEM'
+  AND wi.collection_id = $1
+  AND (
+    m.account_id = $2
+    OR m.group_id IN (
+      SELECT group_id FROM account_group_member WHERE account_id = $2
+    )
+  )
+`
+
+type SharedItemsInCollectionParams struct {
+	CollectionID pgtype.UUID
+	AccountID    pgtype.UUID
+}
+
+// The entries inside one collection that the account holds a membership on directly, or through
+// one of its groups.
+//
+// What "shared with me" means (domain-model.md §3.2, C-04): a membership at ITEM scope reaches
+// that entry and nothing else, so the answer to "which of this collection's entries may I see"
+// is the list of those scope identifiers. It is asked only when the account holds no role on the
+// collection itself - the ordinary case answers the whole level in one check and never runs this.
+//
+// The join is what bounds it: without it the query would return every entry shared with the
+// account anywhere in the tenant, and the caller asked about one collection.
+func (q *Queries) SharedItemsInCollection(ctx context.Context, arg SharedItemsInCollectionParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, sharedItemsInCollection, arg.CollectionID, arg.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var scope_id pgtype.UUID
+		if err := rows.Scan(&scope_id); err != nil {
+			return nil, err
+		}
+		items = append(items, scope_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const touchAccessToken = `-- name: TouchAccessToken :exec
 UPDATE access_token SET last_used_at = $2 WHERE id = $1
 `

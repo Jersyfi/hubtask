@@ -464,7 +464,15 @@ func idsFrom(values []pgtype.UUID) ([]shared.ID, error) {
 }
 
 // uuidsOf maps identifiers into the array a statement takes.
+//
+// Nil for an empty set rather than an empty array, because a statement that reads the array as an
+// optional restriction reads null as "no restriction" and an empty array as "restrict to nothing"
+// (db/queries/Work.sql, ListWorkItems). The callers that always pass a non-empty set are unaffected.
 func uuidsOf(ids []shared.ID) ([]pgtype.UUID, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
 	keys := make([]pgtype.UUID, 0, len(ids))
 	for _, id := range ids {
 		key, err := uuidOf(id)

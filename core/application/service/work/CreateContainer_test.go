@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -298,11 +299,39 @@ func (u *unitOfWork) run(ctx context.Context, _ persistence.Scope, fn func(conte
 type authorizer struct {
 	err      error
 	requests []access.Request
+	// onlyOwn is what the create path is told about the role the actor holds: false is every role
+	// that writes unqualified, which is the ordinary case a test does not have to say anything
+	// about (C-04).
+	onlyOwn bool
+	// shares are the entries a list is narrowed to, empty for an actor who reaches the whole
+	// container.
+	shares []shared.ID
 }
 
 func (a *authorizer) Authorize(_ context.Context, _ appshared.ActorContext, request access.Request) error {
 	a.requests = append(a.requests, request)
 	return a.err
+}
+
+// reach is what ReachInto answers: the whole container unless a test says the actor holds only
+// individual shares inside it (C-04).
+func (a *authorizer) ReachInto(
+	_ context.Context, _ appshared.ActorContext, request access.Request, _ shared.ID,
+) (access.Reach, error) {
+	a.requests = append(a.requests, request)
+	if a.err != nil {
+		return access.Reach{}, a.err
+	}
+	if len(a.shares) > 0 {
+		return access.Reach{Shared: a.shares}, nil
+	}
+	return access.Reach{All: true}, nil
+}
+
+func (a *authorizer) WritesOnlyWhatIsAssigned(
+	_ context.Context, _ appshared.ActorContext, _ []identity.Scope,
+) (bool, error) {
+	return a.onlyOwn, nil
 }
 
 // jobs is the queue as the writers see it: what was asked for, and under which key.

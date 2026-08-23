@@ -88,7 +88,7 @@ func (h AddComment) Execute(
 	// depends on the path: a membership held at the hub applies downwards (domain-model.md §3.2).
 	// Nothing read here is trusted afterwards - the state that decides the write is read again
 	// inside the transaction.
-	collection, err := w.readCollectionOf(ctx, actor, cmd.ItemID)
+	subject, collection, err := w.readCollectionOf(ctx, actor, cmd.ItemID)
 	if err != nil {
 		return domain.Comment{}, err
 	}
@@ -108,6 +108,7 @@ func (h AddComment) Execute(
 		// The comment does not exist yet, so the refusal names the entry it would have been
 		// written on.
 		TargetID: cmd.ItemID,
+		On:       commenting(subject),
 	}); err != nil {
 		return domain.Comment{}, err
 	}
@@ -229,22 +230,8 @@ func (w CommentWriter) parentOf(
 // because the permission check needs its path first. Read-only, so it may be served by a replica.
 func (w CommentWriter) readCollectionOf(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
-) (domain.Container, error) {
-	var collection domain.Container
-
-	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		item, err := findItem(ctx, w.Items, itemID)
-		if err != nil {
-			return err
-		}
-		found, err := findCollection(ctx, w.Containers, item.CollectionID)
-		collection = found
-		return err
-	})
-	if err != nil {
-		return domain.Container{}, err
-	}
-	return collection, nil
+) (domain.WorkItem, domain.Container, error) {
+	return readItemScope(ctx, w.UnitOfWork, w.Items, w.Containers, actor, itemID)
 }
 
 // recordChange writes what an offline client has to be told.

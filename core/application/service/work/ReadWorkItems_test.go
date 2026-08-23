@@ -406,3 +406,49 @@ func TestARefusedReadDoesNotAskForLabels(t *testing.T) {
 		t.Fatalf("the refusal did not come back: %v", err)
 	}
 }
+
+// The read narrowing of C-04: somebody who holds no role on the collection and a membership on
+// entries inside it lists those entries, rather than being refused the level.
+func TestAListIsNarrowedToWhatWasSharedIndividually(t *testing.T) {
+	store, containerStore := readFixture()
+	store.page = repository.ItemPage{
+		Items: []domain.WorkItem{itemFixture(readItemID, readCollectionID, "Buy milk")},
+	}
+	guard := &authorizer{shares: []shared.ID{readItemID}}
+
+	page, err := ListWorkItems{
+		Items: store, Containers: containerStore, Authorizer: guard, UnitOfWork: &unitOfWork{},
+	}.Execute(t.Context(), actorFixture(), ListWorkItemsQuery{CollectionID: readCollectionID})
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if len(page.Items) != 1 {
+		t.Errorf("the page holds %d rows, want 1", len(page.Items))
+	}
+
+	// In the query rather than after it: a page filtered afterwards comes back short and its
+	// cursor skips.
+	if len(store.asked.RestrictTo) != 1 || store.asked.RestrictTo[0] != readItemID {
+		t.Errorf("the query was restricted to %+v, want the one shared entry", store.asked.RestrictTo)
+	}
+}
+
+// And the ordinary list is unchanged: a role on the collection answers for every row in it, and
+// the query carries no restriction at all.
+func TestAnUnnarrowedListRestrictsNothing(t *testing.T) {
+	store, containerStore := readFixture()
+	store.page = repository.ItemPage{
+		Items: []domain.WorkItem{itemFixture(readItemID, readCollectionID, "Buy milk")},
+	}
+
+	_, err := ListWorkItems{
+		Items: store, Containers: containerStore, Authorizer: &authorizer{},
+		UnitOfWork: &unitOfWork{},
+	}.Execute(t.Context(), actorFixture(), ListWorkItemsQuery{CollectionID: readCollectionID})
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if store.asked.RestrictTo != nil {
+		t.Errorf("the ordinary list was restricted to %+v", store.asked.RestrictTo)
+	}
+}

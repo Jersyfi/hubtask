@@ -44,6 +44,19 @@ type Authorizer interface {
 	Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error
 }
 
+// Anchored is the slice of the authorisation service a list anchored to a container needs: not
+// "may I read this", but "how much of it may I read".
+//
+// Its own interface rather than a method on Authorizer, for the reason that split Visibility and
+// Moderation off: only the two lists over a collection's entries ask it, and every other use case
+// would have to satisfy it in its test for nothing.
+type Anchored interface {
+	ReachInto(
+		ctx context.Context, actor appshared.ActorContext, request access.Request,
+		containerID shared.ID,
+	) (access.Reach, error)
+}
+
 // CreateContainerCommand is the input, typed. The registry hands the use case an untyped map from
 // whichever channel the call arrived through; this is what that map becomes once, here.
 type CreateContainerCommand struct {

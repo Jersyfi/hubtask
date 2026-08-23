@@ -157,6 +157,7 @@
   "items.auto_assign_unavailable": "This collection has no assignment policy. Configure one in its policies first.",
   "items.auto_assign_no_candidate": "No candidate of the assignment policy can receive this entry at the moment. It stays unassigned.",
   "items.assignee_conflicts_auto_assign": "Name a person or ask for automatic assignment - not both.",
+  "items.assignee_must_be_the_creator": "You may only create entries assigned to yourself.",
 
   "comments.body_required": "A comment needs text.",
   "comments.body_too_long": "A comment may be at most {maximum} characters long.",

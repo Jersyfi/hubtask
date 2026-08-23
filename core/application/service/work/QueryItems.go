@@ -48,7 +48,8 @@ type QueryItems struct {
 // query that cannot be resolved is one nobody should read a row for. The anchor is then read and
 // the permission asked about it - once, for the whole result, exactly as ListWorkItems asks about
 // the collection it was given: the client named the scope, so a refusal is a refusal rather than an
-// empty page. Only then does the compiled statement run.
+// empty page - and somebody who holds only individual shares inside it queries those (C-04). Only
+// then does the compiled statement run.
 func (h QueryItems) Execute(
 	ctx context.Context, actor appshared.ActorContext, spec view.Spec,
 ) (repository.ItemQueryResult, error) {

@@ -76,3 +76,46 @@ func (r MembershipRepository) Along(
 	}
 	return memberships, nil
 }
+
+// SharedItemsIn returns the entries of one collection the account holds a membership on, directly
+// or through a group.
+//
+// The tenant is not a parameter: row level security bounds the query to the tenant of the running
+// transaction, so an entry of another tenant cannot reach the answer even if its identifier were
+// guessed correctly (ADR-0010).
+func (r MembershipRepository) SharedItemsIn(
+	ctx context.Context, accountID, collectionID shared.ID,
+) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := uuidOf(collectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.SharedItemsInCollection(ctx, sqlc.SharedItemsInCollectionParams{
+		AccountID:    account,
+		CollectionID: collection,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the shared entries: %w", err))
+	}
+
+	items := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		id, err := optionalID(row)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	return items, nil
+}

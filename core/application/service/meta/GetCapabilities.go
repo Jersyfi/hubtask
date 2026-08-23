@@ -9,8 +9,10 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -37,10 +39,48 @@ type Capabilities struct {
 	// database: a manifest that listed a field the grammar refuses would send a client to build a
 	// filter editor for a query that cannot run.
 	QueryFields []view.Field
+	// Roles is the role matrix as this installation enforces it (domain-model.md §3.2).
+	//
+	// Read from the matrix rather than restated here, for the reason the item types come from the
+	// database: a second copy answers what the first one used to say. It matters most for the two
+	// cells no permission name carries - a contributor writes only what is assigned to them, a
+	// guest comments on what it may not change - because a client that does not know them draws
+	// buttons the server refuses (C-04).
+	Roles []RoleDescription
 	// Limits are the numbers a client has to respect to avoid being refused.
 	Limits map[string]int64
 	// Features says which optional parts of the installation are configured.
 	Features map[string]bool
+}
+
+// RoleDescription is one row of that matrix: the columns the role carries unqualified, and how far
+// it reaches into a single entry.
+type RoleDescription struct {
+	Role        identity.Role
+	Permissions []service.Permission
+	// ItemAccess is answered for every kind of access, including the ones that are AccessNone: an
+	// absent key would leave a client guessing, and guessing wrong in the permissive direction is
+	// the mistake this whole endpoint exists to prevent.
+	ItemAccess map[service.ItemAction]service.ItemAccess
+}
+
+// roleMatrix reads the matrix out of the domain service, one row per defined role.
+func roleMatrix() []RoleDescription {
+	roles := identity.Roles()
+	described := make([]RoleDescription, 0, len(roles))
+
+	for _, role := range roles {
+		reach := make(map[service.ItemAction]service.ItemAccess, len(service.ItemActions()))
+		for _, action := range service.ItemActions() {
+			reach[action] = service.ItemAccessOf(role, action)
+		}
+		described = append(described, RoleDescription{
+			Role:        role,
+			Permissions: service.PermissionsOf(role),
+			ItemAccess:  reach,
+		})
+	}
+	return described
 }
 
 // GetCapabilities reads the manifest.
@@ -82,6 +122,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		TenancyMode:    string(g.Config.Tenancy),
 		ItemTypes:      profiles,
 		QueryFields:    view.Fields(),
+		Roles:          roleMatrix(),
 		Limits: map[string]int64{
 			"max_body_bytes":            g.Config.Request.MaxBodyBytes,
 			"max_upload_bytes":          g.Config.Request.MaxUploadBytes,

@@ -11,6 +11,7 @@ import (
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -106,6 +107,20 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		queryFields = append(queryFields, rendered)
 	}
 
+	roles := make([]openapi.RoleDescription, 0, len(source.Roles))
+	for _, described := range source.Roles {
+		permissions := make([]openapi.RoleDescriptionPermissions, 0, len(described.Permissions))
+		for _, permission := range described.Permissions {
+			permissions = append(permissions, openapi.RoleDescriptionPermissions(permission))
+		}
+
+		role := openapi.MembershipRole(described.Role)
+		reach := roleItemAccess(described.ItemAccess)
+		roles = append(roles, openapi.RoleDescription{
+			Role: &role, Permissions: &permissions, ItemAccess: &reach,
+		})
+	}
+
 	limits := make(map[string]any, len(source.Limits))
 	for name, value := range source.Limits {
 		limits[name] = value
@@ -122,8 +137,26 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		TenancyMode:    &tenancy,
 		ItemTypes:      &itemTypes,
 		QueryFields:    &queryFields,
+		Roles:          &roles,
 		Limits:         &limits,
 		Features:       &features,
+	}
+}
+
+// roleItemAccess renders the per-entry half of one matrix row.
+//
+// Every kind is written, including the ones that are NONE: an absent key would leave a client
+// guessing, and the permissive guess is the one this endpoint exists to prevent.
+func roleItemAccess(reach map[service.ItemAction]service.ItemAccess) openapi.RoleItemAccess {
+	value := func(action service.ItemAction) *openapi.ItemAccess {
+		rendered := openapi.ItemAccess(reach[action])
+		return &rendered
+	}
+	return openapi.RoleItemAccess{
+		Read:    value(service.ItemRead),
+		Create:  value(service.ItemCreate),
+		Change:  value(service.ItemChange),
+		Comment: value(service.ItemComment),
 	}
 }
 

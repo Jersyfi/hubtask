@@ -831,6 +831,27 @@ func (e HealthWarningSeverity) Valid() bool {
 	}
 }
 
+// Defines values for ItemAccess.
+const (
+	ItemAccessALL      ItemAccess = "ALL"
+	ItemAccessASSIGNED ItemAccess = "ASSIGNED"
+	ItemAccessNONE     ItemAccess = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the ItemAccess enum.
+func (e ItemAccess) Valid() bool {
+	switch e {
+	case ItemAccessALL:
+		return true
+	case ItemAccessASSIGNED:
+		return true
+	case ItemAccessNONE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemQueryCount.
 const (
 	Estimated ItemQueryCount = "estimated"
@@ -1194,6 +1215,36 @@ func (e RetentionStateBlockedBy) Valid() bool {
 	case RetentionStateBlockedByLessThannil:
 		return true
 	case RetentionStateBlockedByRestriction:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoleDescriptionPermissions.
+const (
+	RoleDescriptionPermissionsAUTOMATION      RoleDescriptionPermissions = "AUTOMATION"
+	RoleDescriptionPermissionsDELETECONTAINER RoleDescriptionPermissions = "DELETE_CONTAINER"
+	RoleDescriptionPermissionsMANAGEMEMBERS   RoleDescriptionPermissions = "MANAGE_MEMBERS"
+	RoleDescriptionPermissionsREAD            RoleDescriptionPermissions = "READ"
+	RoleDescriptionPermissionsSTRUCTURE       RoleDescriptionPermissions = "STRUCTURE"
+	RoleDescriptionPermissionsWRITEITEMS      RoleDescriptionPermissions = "WRITE_ITEMS"
+)
+
+// Valid indicates whether the value is a known member of the RoleDescriptionPermissions enum.
+func (e RoleDescriptionPermissions) Valid() bool {
+	switch e {
+	case RoleDescriptionPermissionsAUTOMATION:
+		return true
+	case RoleDescriptionPermissionsDELETECONTAINER:
+		return true
+	case RoleDescriptionPermissionsMANAGEMEMBERS:
+		return true
+	case RoleDescriptionPermissionsREAD:
+		return true
+	case RoleDescriptionPermissionsSTRUCTURE:
+		return true
+	case RoleDescriptionPermissionsWRITEITEMS:
 		return true
 	default:
 		return false
@@ -1728,7 +1779,10 @@ type Capabilities struct {
 	ProductVersion *string                 `json:"product_version,omitempty"`
 
 	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
-	QueryFields      *[]QueryField `json:"query_fields,omitempty"`
+	QueryFields *[]QueryField `json:"query_fields,omitempty"`
+
+	// Roles The role matrix as this installation enforces it (domain-model.md §3.2). A client decides from this which actions to offer, rather than from a table compiled into it: two cells of the matrix are qualifiers no permission name can carry - a contributor writes only what is assigned to them, and a guest may comment on an entry without being able to change it - and a client that does not know them offers buttons the server refuses.
+	Roles            *[]RoleDescription `json:"roles,omitempty"`
 	SupportedLocales *[]struct {
 		Direction *CapabilitiesSupportedLocalesDirection `json:"direction,omitempty"`
 		Locale    *string                                `json:"locale,omitempty"`
@@ -1980,6 +2034,10 @@ type HealthWarning struct {
 
 // HealthWarningSeverity defines model for HealthWarning.Severity.
 type HealthWarningSeverity string
+
+// ItemAccess How far a role reaches into one entry.
+// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
+type ItemAccess string
 
 // ItemLabels The labels one entry carries. Returned by adding and removing rather than the entry itself, because neither touches the entry's own row: a label lives beside it, and an entry whose version had moved would tell a client its title had changed too.
 type ItemLabels struct {
@@ -2294,6 +2352,39 @@ type RetentionState struct {
 
 // RetentionStateBlockedBy defines model for RetentionState.BlockedBy.
 type RetentionStateBlockedBy string
+
+// RoleDescription One row of the role matrix: the permissions the role carries, and what it may do to a single entry.
+// Every cell is bounded by where the membership was granted. The role applies downwards from its scope - tenant, hub, collection, or one entry - so a role granted at `ITEM` scope reaches that entry and nothing else. That is what sharing an entry with a guest is; it needs no separate mechanism and is therefore not a property of the role.
+type RoleDescription struct {
+	// ItemAccess What a role does to a single entry, per kind of access. Every kind is answered, including the ones that are `NONE`: an absent one would leave a client guessing, and guessing wrong in the permissive direction is what this endpoint exists to prevent.
+	ItemAccess *RoleItemAccess `json:"item_access,omitempty"`
+
+	// Permissions The columns of the matrix this role carries unqualified.
+	Permissions *[]RoleDescriptionPermissions `json:"permissions,omitempty"`
+	Role        *MembershipRole               `json:"role,omitempty"`
+}
+
+// RoleDescriptionPermissions defines model for RoleDescription.Permissions.
+type RoleDescriptionPermissions string
+
+// RoleItemAccess What a role does to a single entry, per kind of access. Every kind is answered, including the ones that are `NONE`: an absent one would leave a client guessing, and guessing wrong in the permissive direction is what this endpoint exists to prevent.
+type RoleItemAccess struct {
+	// Change How far a role reaches into one entry.
+	// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
+	Change *ItemAccess `json:"change,omitempty"`
+
+	// Comment How far a role reaches into one entry.
+	// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
+	Comment *ItemAccess `json:"comment,omitempty"`
+
+	// Create How far a role reaches into one entry.
+	// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
+	Create *ItemAccess `json:"create,omitempty"`
+
+	// Read How far a role reaches into one entry.
+	// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
+	Read *ItemAccess `json:"read,omitempty"`
+}
 
 // SyncChange defines model for SyncChange.
 type SyncChange struct {

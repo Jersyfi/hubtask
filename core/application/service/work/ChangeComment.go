@@ -111,7 +111,7 @@ func (w CommentWriter) change(
 	// The comment, its entry and the collection are read before the permission question, because
 	// the answer depends on the path (domain-model.md §3.2). Nothing read here is trusted
 	// afterwards - the state that decides the write is read again inside the transaction.
-	comment, collection, err := w.readCommentScope(ctx, actor, cmd)
+	comment, subject, collection, err := w.readCommentScope(ctx, actor, cmd)
 	if err != nil {
 		return domain.Comment{}, err
 	}
@@ -125,6 +125,7 @@ func (w CommentWriter) change(
 		TokenScope: commentsWrite,
 		TargetType: commentTarget,
 		TargetID:   cmd.CommentID,
+		On:         commenting(subject),
 	}); err != nil {
 		return domain.Comment{}, err
 	}
@@ -326,8 +327,9 @@ func (w CommentWriter) findComment(ctx context.Context, id shared.ID) (domain.Co
 // entry would be a second address for the same resource.
 func (w CommentWriter) readCommentScope(
 	ctx context.Context, actor appshared.ActorContext, cmd ChangeCommentCommand,
-) (domain.Comment, domain.Container, error) {
+) (domain.Comment, domain.WorkItem, domain.Container, error) {
 	var comment domain.Comment
+	var item domain.WorkItem
 	var collection domain.Container
 
 	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -345,7 +347,7 @@ func (w CommentWriter) readCommentScope(
 		}
 		comment = found
 
-		item, err := findItem(ctx, w.Items, found.ItemID)
+		item, err = findItem(ctx, w.Items, found.ItemID)
 		if err != nil {
 			return err
 		}
@@ -353,9 +355,9 @@ func (w CommentWriter) readCommentScope(
 		return err
 	})
 	if err != nil {
-		return domain.Comment{}, domain.Container{}, err
+		return domain.Comment{}, domain.WorkItem{}, domain.Container{}, err
 	}
-	return comment, collection, nil
+	return comment, item, collection, nil
 }
 
 // ensureCommentVersion honours the If-Match on a write that turned out to be a no-op.

@@ -285,6 +285,12 @@ WHERE collection_id = sqlc.arg('collection_id')::uuid
   AND parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
   AND deleted_at IS NULL
   AND (sqlc.arg('include_archived')::boolean OR archived_at IS NULL)
+  -- The entries the caller may see, when that is fewer than the level: null is no restriction at
+  -- all, which is what every caller holding a role on the collection passes (C-04).
+  AND (
+    sqlc.narg('restrict_to')::uuid[] IS NULL
+    OR id = ANY(sqlc.narg('restrict_to')::uuid[])
+  )
   AND (
     sqlc.narg('cursor_order_key')::text IS NULL
     OR (order_key COLLATE "C", id)

@@ -65,7 +65,7 @@ func (h ListActivity) Execute(
 		return activityrepo.EntryPage{}, itemIDRequired()
 	}
 
-	collection, err := h.collectionOf(ctx, actor, query.ItemID)
+	subject, collection, err := h.collectionOf(ctx, actor, query.ItemID)
 	if err != nil {
 		return activityrepo.EntryPage{}, err
 	}
@@ -77,6 +77,7 @@ func (h ListActivity) Execute(
 		TokenScope: itemsRead,
 		TargetType: itemTarget,
 		TargetID:   query.ItemID,
+		On:         reading(subject),
 	}); err != nil {
 		return activityrepo.EntryPage{}, err
 	}
@@ -103,24 +104,8 @@ func (h ListActivity) Execute(
 // refuse somebody who holds the right above it (domain-model.md §3.2).
 func (h ListActivity) collectionOf(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
-) (domain.Container, error) {
-	var collection domain.Container
-
-	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		item, err := findItem(ctx, h.Items, itemID)
-		if err != nil {
-			return err
-		}
-		// A missing collection under an entry that exists is a defect rather than a 404 for the
-		// entry that does exist: a tenant-scoped foreign key makes it unreachable (ADR-0024). That
-		// distinction is findCollection's, so that this read and every writer's answer the same way.
-		collection, err = findCollection(ctx, h.Containers, item.CollectionID)
-		return err
-	})
-	if err != nil {
-		return domain.Container{}, err
-	}
-	return collection, nil
+) (domain.WorkItem, domain.Container, error) {
+	return readItemScope(ctx, h.UnitOfWork, h.Items, h.Containers, actor, itemID)
 }
 
 // Descriptor is the catalogue entry.

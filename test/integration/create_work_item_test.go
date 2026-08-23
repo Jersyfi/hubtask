@@ -42,16 +42,21 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 	}
 	sink := postgres.NewAuditSink(ids)
 
+	authorizer := access.Service{
+		Memberships: postgres.NewMembershipRepository(),
+		UnitOfWork:  unitOfWork,
+		Audit:       sink,
+		Clock:       fixed,
+	}
+
 	registry, err := usecase.NewRegistry(nil, work.CreateWorkItem{
 		Items:      itemRepo(),
 		Containers: containerRepo(),
 		Profiles:   postgres.NewCapabilityProfileRepository(),
-		Authorizer: access.Service{
-			Memberships: postgres.NewMembershipRepository(),
-			UnitOfWork:  unitOfWork,
-			Audit:       sink,
-			Clock:       fixed,
-		},
+		Authorizer: authorizer,
+		// The same service in both fields: it answers the permission and, for the create path, what
+		// the role it found requires of the new entry's assignee (C-04).
+		Ownership:  authorizer,
 		Events:     postgres.NewOutbox(jobQueue(t)),
 		Changes:    postgres.NewChangeLog(),
 		Audit:      sink,

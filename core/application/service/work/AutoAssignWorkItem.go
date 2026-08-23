@@ -68,7 +68,7 @@ func (h AutoAssignWorkItem) Execute(
 	}
 
 	w := h.Assignment
-	collection, err := w.readCollectionOf(ctx, actor, cmd.ItemID)
+	subject, collection, err := w.readCollectionOf(ctx, actor, cmd.ItemID)
 	if err != nil {
 		return domain.WorkItem{}, AutoAssignOutcome{}, err
 	}
@@ -82,6 +82,7 @@ func (h AutoAssignWorkItem) Execute(
 		TokenScope: itemsWrite,
 		TargetType: itemTarget,
 		TargetID:   cmd.ItemID,
+		On:         changing(subject),
 	}); err != nil {
 		return domain.WorkItem{}, AutoAssignOutcome{}, err
 	}

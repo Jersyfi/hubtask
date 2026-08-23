@@ -582,19 +582,26 @@ WHERE collection_id = $1::uuid
   AND parent_id IS NOT DISTINCT FROM $2::uuid
   AND deleted_at IS NULL
   AND ($3::boolean OR archived_at IS NULL)
+  -- The entries the caller may see, when that is fewer than the level: null is no restriction at
+  -- all, which is what every caller holding a role on the collection passes (C-04).
   AND (
-    $4::text IS NULL
+    $4::uuid[] IS NULL
+    OR id = ANY($4::uuid[])
+  )
+  AND (
+    $5::text IS NULL
     OR (order_key COLLATE "C", id)
-       > ($4::text COLLATE "C", $5::uuid)
+       > ($5::text COLLATE "C", $6::uuid)
   )
 ORDER BY order_key COLLATE "C", id
-LIMIT $6
+LIMIT $7
 `
 
 type ListWorkItemsParams struct {
 	CollectionID    pgtype.UUID
 	ParentID        pgtype.UUID
 	IncludeArchived bool
+	RestrictTo      []pgtype.UUID
 	CursorOrderKey  *string
 	CursorID        pgtype.UUID
 	PageSize        int32
@@ -641,6 +648,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 		arg.CollectionID,
 		arg.ParentID,
 		arg.IncludeArchived,
+		arg.RestrictTo,
 		arg.CursorOrderKey,
 		arg.CursorID,
 		arg.PageSize,
