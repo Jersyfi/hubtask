@@ -22,6 +22,10 @@ TAG="${1:?usage: compose-smoke.sh <image tag>}"
 # same Compose file - which is exactly the claim worth checking, since "podman is compatible" is
 # true until it is not.
 COMPOSE="${HUBTASK_COMPOSE:-docker compose}"
+# The engine underneath it, for the one question the Compose implementations answer in different
+# vocabularies (see the running-services check below). The matrix job sets DOCKER=podman next to
+# HUBTASK_COMPOSE, the same variable the Makefile uses.
+ENGINE="${DOCKER:-docker}"
 IMAGE="${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}"
 PROJECT="hubtask-smoke"
 # Ports of their own, so that the check does not collide with a development stack on 8080.
@@ -115,7 +119,13 @@ fi
 
 # Exactly two containers keep running. The README promises self-hosting in two, the migration is
 # a job that finishes, and this is the line that stops a third from appearing unnoticed.
-running="$($COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" ps --status running --format '{{.Service}}' | sort | tr '\n' ' ')"
+#
+# Asked of the engine rather than of $COMPOSE: `ps --status --format '{{.Service}}'` is Docker
+# Compose vocabulary that podman-compose does not speak. Both engines label every container with
+# the project and service Compose created it for, and both answer `ps --filter` the same way.
+running="$($ENGINE ps \
+	--filter "label=com.docker.compose.project=$PROJECT" --filter status=running \
+	--format '{{.Names}}' | sed -E "s/^${PROJECT}[-_]//; s/[-_][0-9]+$//" | sort | tr '\n' ' ')"
 if [ "$running" != "app db " ]; then
 	echo "FAILED: the running services are '$running', expected 'app db '"
 	failures=$((failures + 1))
