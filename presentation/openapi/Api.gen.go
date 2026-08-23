@@ -1759,6 +1759,12 @@ type Comment struct {
 	Version         int                 `json:"version"`
 }
 
+// CommentPage defines model for CommentPage.
+type CommentPage struct {
+	Data []Comment `json:"data"`
+	Page PageInfo  `json:"page"`
+}
+
 // Completion defines model for Completion.
 type Completion struct {
 	CompletedAt *time.Time          `json:"completed_at,omitempty"`

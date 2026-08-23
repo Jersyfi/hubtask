@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -314,5 +315,45 @@ func TestTheCommentChannelSpeaksTheContract(t *testing.T) {
 	}
 	if out["body"] != "Looks good." {
 		t.Errorf("body = %v", out["body"])
+	}
+}
+
+// The reader: the right to read the entry is the right to read its discussion, and a tombstone
+// travels without a body rather than being filtered out.
+func TestListingCommentsSpeaksTheContractTombstonesIncluded(t *testing.T) {
+	h := newCommentHarness(t)
+	h.withItem(domain.ItemTask)
+	h.withComment("0192f000-0000-7000-8000-0000000000b1", accountID, "Still here")
+	gone := h.withComment("0192f000-0000-7000-8000-0000000000b2", accountID, "Removed")
+	h.comments.stored[gone.ID] = gone.Removed(now)
+
+	reader := ListComments{
+		Comments: h.comments, Items: h.items, Containers: h.containers,
+		Authorizer: h.authorizer, UnitOfWork: &unitOfWork{},
+	}
+	out, err := reader.Descriptor().Handler.Invoke(t.Context(), actor(), map[string]any{
+		"item_id": assignedItem.String(),
+	})
+	if err != nil {
+		t.Fatalf("listing failed: %v", err)
+	}
+
+	if len(h.authorizer.requests) != 1 ||
+		h.authorizer.requests[0].TokenScope != "items:read" {
+		t.Fatalf("the permission question was %+v", h.authorizer.requests)
+	}
+
+	rows, ok := out["data"].([]usecase.Output)
+	if !ok || len(rows) != 2 {
+		t.Fatalf("the page carries %+v", out["data"])
+	}
+	for _, row := range rows {
+		if row["id"] == gone.ID.String() {
+			if row["body"] != nil || row["deleted_at"] == nil {
+				t.Errorf("the tombstone travels as %+v", row)
+			}
+		} else if row["body"] == nil {
+			t.Errorf("a living comment lost its body: %+v", row)
+		}
 	}
 }

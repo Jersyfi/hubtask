@@ -1422,18 +1422,12 @@ paths:
         - $ref: "#/components/parameters/PageSize"
       responses:
         "200":
-          description: The comments
+          description: The comments, oldest first - a conversation reads top down. Deleted ones
+            are in it as tombstones with a null body, so a reply never dangles.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Comment"
-                  page:
-                    $ref: "#/components/schemas/PageInfo"
+                $ref: "#/components/schemas/CommentPage"
         "4XX":
           $ref: "#/components/responses/Problem"
     post:
@@ -2922,6 +2916,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TrashEntry"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    CommentPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Comment"
         page:
           $ref: "#/components/schemas/PageInfo"
 

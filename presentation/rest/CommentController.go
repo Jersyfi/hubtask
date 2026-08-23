@@ -16,8 +16,30 @@ import (
 // a field of its row - it appends, it never merges, and it pages on its own.
 
 const (
-	addCommentUseCase = "AddComment"
+	addCommentUseCase   = "AddComment"
+	listCommentsUseCase = "ListComments"
 )
+
+// ListComments answers GET /items/{itemId}/comments.
+func (c *RestController) ListComments(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+	params openapi.ListCommentsParams,
+) {
+	out, ok := c.read(w, r, listCommentsUseCase, usecase.Input{
+		"item_id": itemID.String(),
+		"cursor":  optionalStringField(params.Cursor),
+		"size":    optionalIntField(params.Size),
+	})
+	if !ok {
+		return
+	}
+
+	page := openapi.CommentPage{Data: []openapi.Comment{}, Page: pageResponse(out)}
+	for _, row := range rowsOf(out) {
+		page.Data = append(page.Data, commentResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, page)
+}
 
 // AddComment answers POST /items/{itemId}/comments.
 func (c *RestController) AddComment(

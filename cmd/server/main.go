@@ -512,6 +512,10 @@ func run() error {
 			History: history, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.ListComments{
+			Comments: commentWriter.Comments, Items: items, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),
 		work.ReopenWorkItem{Completion: completion}.Descriptor(),
 
