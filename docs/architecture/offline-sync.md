@@ -123,6 +123,13 @@ That is also why the write side distinguishes an absent field from an empty one 
 from the merge patch that expressed it (`api-guidelines.md` §"Partial updates"): "leave the notes
 alone" must not reach the log as "set the notes to nothing".
 
+**One comment field does merge.** A comment appends and never merges as a whole - the row above -
+but its body can be edited, and an edit is last writer wins via the HLC, with the displaced text
+*not* preserved (C-03). Deliberately narrower than the free-text row: filing a displaced version
+as a comment attachment is §5's mechanism, it belongs to the notes and to milestone 0.8.5, and a
+comment pretending to have it early would promise a recovery this milestone cannot keep. A
+deletion is not a merge at all: the tombstone is the server's answer, and an edit racing it loses.
+
 **The item history is not merged, and it does not travel in the change log.** An `activity_entry` is
 written by the server, in the transaction that accepted the change, for a change the server has
 already decided — so there is nothing for two devices to disagree about, and the "appending lists"
