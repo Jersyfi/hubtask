@@ -34,6 +34,7 @@ tags:
   - name: items
   - name: structure
   - name: comments
+  - name: media
   - name: audit
   - name: backup
   - name: retention
@@ -1820,6 +1821,251 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/cover:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    put:
+      tags: [items]
+      operationId: setCover
+      description: >
+        Puts a cover on the entry: a colour token, or an image by its media identifier. Only a
+        type whose profile carries the COVER capability has one - by default a task, and neither
+        a work package nor an activity. An image has to be a READY media object of usage COVER in
+        this workspace. Replacing a cover is this call again; the displaced image loses a
+        reference and is cleaned up by the reconciliation job once nothing points at it.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoverInput"
+      responses:
+        "200":
+          description: The entry, cover set
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: clearCover
+      description: >
+        Takes the cover off the entry. Idempotent: an entry with no cover succeeds and announces
+        nothing.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: The entry, cover cleared
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/attachments:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [items]
+      operationId: listAttachments
+      description: >
+        The entry's attachments as media objects, oldest first. Readable by whoever may read the
+        entry.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The attachments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/attachments/{mediaId}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+      - $ref: "#/components/parameters/MediaId"
+    put:
+      tags: [items]
+      operationId: attachMedia
+      description: >
+        Attaches a media object to the entry. Idempotent: an entry that already carries it
+        succeeds. The object has to be READY, of usage ATTACHMENT and of this workspace, and the
+        entry's type has to carry the ATTACHMENTS capability - an activity does not. Attaching
+        raises the object's reference count; the bytes are shared, never copied.
+      responses:
+        "200":
+          description: The attachments the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemAttachments"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: detachMedia
+      description: >
+        Takes a media object off the entry. Idempotent: an entry that does not carry it succeeds.
+        The object itself stays; once nothing references it, the reconciliation job removes it.
+      responses:
+        "200":
+          description: The attachments the entry now carries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemAttachments"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /media:
+    post:
+      tags: [media]
+      operationId: requestMediaUpload
+      description: >
+        Stages an upload: declares what is coming - its purpose, size and claimed type - and
+        receives where to put the bytes. The answer's upload object carries a URL the client PUTs
+        the bytes to directly (presigned object storage, or this server's token-protected content
+        route on a local-storage installation) and the moment it expires. The object stays
+        PENDING until confirmed; abandoned stagings are cleaned up by the reconciliation job.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaUploadRequest"
+      responses:
+        "201":
+          description: The staged object, upload target included
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaObject"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /media/{mediaId}:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+    get:
+      tags: [media]
+      operationId: getMedia
+      description: >
+        The media object's record, with a download target when it is READY. Readable by its
+        uploader, and by anybody who can read an entry it is attached to or covers.
+      responses:
+        "200":
+          description: The media object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaObject"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [media]
+      operationId: deleteMedia
+      description: >
+        Removes an unreferenced media object: the record now, the bytes through the
+        reconciliation job. Refused while anything references it - detach it or clear the cover
+        first. Only the uploader or an administrator may.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /media/{mediaId}:confirm:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+    post:
+      tags: [media]
+      operationId: confirmMediaUpload
+      description: >
+        Seals the upload: the server reads the object's head back from storage, sniffs it, checks
+        the size against what was declared and against the installation's limit, and marks the
+        object READY with the judged content type - never the claim (T-11). A refusal removes the
+        staged bytes. Idempotent: confirming a READY object succeeds and changes nothing, which
+        is what makes an upload confirmed twice one media object.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: The object, READY
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaObject"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /media/{mediaId}:content:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+      - name: token
+        in: query
+        required: true
+        description: >
+          The capability: a signed, expiring token minted by requestMediaUpload or getMedia. The
+          URL is the credential, exactly as a presigned object-storage URL is - which is why
+          these two operations carry no bearer requirement.
+        schema: { type: string }
+    put:
+      tags: [media]
+      operationId: uploadMediaContent
+      security: []
+      description: >
+        The upload target of a local-storage installation: the bytes, streamed, judged by the
+        upload guard as they pass. On an object-storage installation the upload goes to the
+        presigned URL instead and this route answers that the token is not one it minted.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: Stored, awaiting confirmation
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    get:
+      tags: [media]
+      operationId: downloadMediaContent
+      security: []
+      description: >
+        The download target of a local-storage installation: the bytes, streamed, as a download -
+        `Content-Disposition: attachment` and a sandboxing content security policy, never a
+        rendering path for what somebody uploaded (T-11).
+      responses:
+        "200":
+          description: The bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1868,6 +2114,11 @@ components:
       schema: { type: string, format: uuid }
     CommentId:
       name: commentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MediaId:
+      name: mediaId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -2240,6 +2491,123 @@ components:
           enum: [COLOR, IMAGE]
         color_token: { type: [string, "null"] }
         media_id: { type: [string, "null"], format: uuid }
+
+    CoverInput:
+      type: object
+      description: >
+        What the cover shall be: a colour token from the design system's vocabulary, or an image
+        by its media identifier - exactly one of the two, matching the kind.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [COLOR, IMAGE]
+        color_token: { type: [string, "null"] }
+        media_id: { type: [string, "null"], format: uuid }
+
+    MediaObject:
+      type: object
+      required: [id, usage, status, content_type, size, ref_count, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        file_name:
+          type: [string, "null"]
+          description: The name the file arrived under, for the download - never a storage path.
+        content_type:
+          type: string
+          description: >
+            While PENDING, the claim the upload declared; once READY, the judged type - sniffed
+            from the bytes, never the claim (T-11). Delivery decides from this.
+        size:
+          type: integer
+          format: int64
+          description: Declared while PENDING, measured once READY.
+        checksum: { type: [string, "null"] }
+        usage:
+          type: string
+          enum: [COVER, ATTACHMENT]
+        status:
+          type: string
+          enum: [PENDING, READY]
+          description: >
+            PENDING between staging and confirmation; READY once the bytes were read back,
+            judged and sealed. Only READY objects can cover or be attached.
+        ref_count:
+          type: integer
+          description: >
+            How many covers and attachments point at the object. Zero and READY means the
+            reconciliation job will remove it after its grace period; deletion by hand is only
+            possible at zero.
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        upload:
+          oneOf:
+            - $ref: "#/components/schemas/MediaTransfer"
+            - type: "null"
+          description: >
+            Where to put the bytes, present in the answer that staged the upload and on a GET
+            while the object is PENDING and the target has not expired.
+        download:
+          oneOf:
+            - $ref: "#/components/schemas/MediaTransfer"
+            - type: "null"
+          description: Where to fetch the bytes, present on a GET once the object is READY.
+
+    MediaTransfer:
+      type: object
+      required: [url, method, expires_at]
+      description: >
+        One side of the byte transfer: the URL is the capability - a presigned object-storage
+        URL, or this server's token-protected content route - and it expires.
+      properties:
+        url: { type: string }
+        method:
+          type: string
+          enum: [PUT, GET]
+        expires_at: { type: string, format: date-time }
+
+    MediaUploadRequest:
+      type: object
+      required: [usage, size]
+      properties:
+        file_name:
+          type: [string, "null"]
+          maxLength: 255
+        content_type:
+          type: [string, "null"]
+          description: The claim. Reconciled against the bytes at confirmation; a lie about a
+            renderable type is refused there (T-11).
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          description: The exact size in bytes. Bounded by the installation's upload limit.
+        usage:
+          type: string
+          enum: [COVER, ATTACHMENT]
+
+    MediaPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaObject"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
+    ItemAttachments:
+      type: object
+      description: >
+        The attachments one entry carries. Returned by attaching and detaching rather than the
+        entry itself, for the reason ItemMembers is: neither touches the entry's own row.
+      required: [item_id, media_ids]
+      properties:
+        item_id: { type: string, format: uuid }
+        media_ids:
+          type: array
+          items: { type: string, format: uuid }
 
     WorkItem:
       type: object

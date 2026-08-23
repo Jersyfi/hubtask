@@ -611,16 +611,34 @@ func (e ContainerType) Valid() bool {
 
 // Defines values for CoverKind.
 const (
-	COLOR CoverKind = "COLOR"
-	IMAGE CoverKind = "IMAGE"
+	CoverKindCOLOR CoverKind = "COLOR"
+	CoverKindIMAGE CoverKind = "IMAGE"
 )
 
 // Valid indicates whether the value is a known member of the CoverKind enum.
 func (e CoverKind) Valid() bool {
 	switch e {
-	case COLOR:
+	case CoverKindCOLOR:
 		return true
-	case IMAGE:
+	case CoverKindIMAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CoverInputKind.
+const (
+	CoverInputKindCOLOR CoverInputKind = "COLOR"
+	CoverInputKindIMAGE CoverInputKind = "IMAGE"
+)
+
+// Valid indicates whether the value is a known member of the CoverInputKind enum.
+func (e CoverInputKind) Valid() bool {
+	switch e {
+	case CoverInputKindCOLOR:
+		return true
+	case CoverInputKindIMAGE:
 		return true
 	default:
 		return false
@@ -951,6 +969,78 @@ func (e JobRefStatus) Valid() bool {
 	case JobRefStatusRUNNING:
 		return true
 	case JobRefStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MediaObjectStatus.
+const (
+	PENDING MediaObjectStatus = "PENDING"
+	READY   MediaObjectStatus = "READY"
+)
+
+// Valid indicates whether the value is a known member of the MediaObjectStatus enum.
+func (e MediaObjectStatus) Valid() bool {
+	switch e {
+	case PENDING:
+		return true
+	case READY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MediaObjectUsage.
+const (
+	MediaObjectUsageATTACHMENT MediaObjectUsage = "ATTACHMENT"
+	MediaObjectUsageCOVER      MediaObjectUsage = "COVER"
+)
+
+// Valid indicates whether the value is a known member of the MediaObjectUsage enum.
+func (e MediaObjectUsage) Valid() bool {
+	switch e {
+	case MediaObjectUsageATTACHMENT:
+		return true
+	case MediaObjectUsageCOVER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MediaTransferMethod.
+const (
+	GET MediaTransferMethod = "GET"
+	PUT MediaTransferMethod = "PUT"
+)
+
+// Valid indicates whether the value is a known member of the MediaTransferMethod enum.
+func (e MediaTransferMethod) Valid() bool {
+	switch e {
+	case GET:
+		return true
+	case PUT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MediaUploadRequestUsage.
+const (
+	MediaUploadRequestUsageATTACHMENT MediaUploadRequestUsage = "ATTACHMENT"
+	MediaUploadRequestUsageCOVER      MediaUploadRequestUsage = "COVER"
+)
+
+// Valid indicates whether the value is a known member of the MediaUploadRequestUsage enum.
+func (e MediaUploadRequestUsage) Valid() bool {
+	switch e {
+	case MediaUploadRequestUsageATTACHMENT:
+		return true
+	case MediaUploadRequestUsageCOVER:
 		return true
 	default:
 		return false
@@ -1898,6 +1988,16 @@ type Cover struct {
 // CoverKind defines model for Cover.Kind.
 type CoverKind string
 
+// CoverInput What the cover shall be: a colour token from the design system's vocabulary, or an image by its media identifier - exactly one of the two, matching the kind.
+type CoverInput struct {
+	ColorToken *string             `json:"color_token,omitempty"`
+	Kind       CoverInputKind      `json:"kind"`
+	MediaId    *openapi_types.UUID `json:"media_id,omitempty"`
+}
+
+// CoverInputKind defines model for CoverInput.Kind.
+type CoverInputKind string
+
 // DegradedFeature defines model for DegradedFeature.
 type DegradedFeature struct {
 	Feature    string    `json:"feature"`
@@ -2039,6 +2139,12 @@ type HealthWarningSeverity string
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
 type ItemAccess string
 
+// ItemAttachments The attachments one entry carries. Returned by attaching and detaching rather than the entry itself, for the reason ItemMembers is: neither touches the entry's own row.
+type ItemAttachments struct {
+	ItemId   openapi_types.UUID   `json:"item_id"`
+	MediaIds []openapi_types.UUID `json:"media_ids"`
+}
+
 // ItemLabels The labels one entry carries. Returned by adding and removing rather than the entry itself, because neither touches the entry's own row: a label lives beside it, and an entry whose version had moved would tell a client its title had changed too.
 type ItemLabels struct {
 	ItemId   openapi_types.UUID   `json:"item_id"`
@@ -2175,6 +2281,72 @@ type LabelUpdate struct {
 	Description *string `json:"description,omitempty"`
 	Name        *string `json:"name,omitempty"`
 }
+
+// MediaObject defines model for MediaObject.
+type MediaObject struct {
+	Checksum *string `json:"checksum,omitempty"`
+
+	// ContentType While PENDING, the claim the upload declared; once READY, the judged type - sniffed from the bytes, never the claim (T-11). Delivery decides from this.
+	ContentType string             `json:"content_type"`
+	CreatedAt   time.Time          `json:"created_at"`
+	CreatedBy   openapi_types.UUID `json:"created_by"`
+
+	// Download Where to fetch the bytes, present on a GET once the object is READY.
+	Download *MediaTransfer `json:"download,omitempty"`
+
+	// FileName The name the file arrived under, for the download - never a storage path.
+	FileName *string            `json:"file_name,omitempty"`
+	Id       openapi_types.UUID `json:"id"`
+
+	// RefCount How many covers and attachments point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
+	RefCount int `json:"ref_count"`
+
+	// Size Declared while PENDING, measured once READY.
+	Size int64 `json:"size"`
+
+	// Status PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Only READY objects can cover or be attached.
+	Status MediaObjectStatus `json:"status"`
+
+	// Upload Where to put the bytes, present in the answer that staged the upload and on a GET while the object is PENDING and the target has not expired.
+	Upload *MediaTransfer   `json:"upload,omitempty"`
+	Usage  MediaObjectUsage `json:"usage"`
+}
+
+// MediaObjectStatus PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Only READY objects can cover or be attached.
+type MediaObjectStatus string
+
+// MediaObjectUsage defines model for MediaObject.Usage.
+type MediaObjectUsage string
+
+// MediaPage defines model for MediaPage.
+type MediaPage struct {
+	Data []MediaObject `json:"data"`
+	Page PageInfo      `json:"page"`
+}
+
+// MediaTransfer One side of the byte transfer: the URL is the capability - a presigned object-storage URL, or this server's token-protected content route - and it expires.
+type MediaTransfer struct {
+	ExpiresAt time.Time           `json:"expires_at"`
+	Method    MediaTransferMethod `json:"method"`
+	Url       string              `json:"url"`
+}
+
+// MediaTransferMethod defines model for MediaTransfer.Method.
+type MediaTransferMethod string
+
+// MediaUploadRequest defines model for MediaUploadRequest.
+type MediaUploadRequest struct {
+	// ContentType The claim. Reconciled against the bytes at confirmation; a lie about a renderable type is refused there (T-11).
+	ContentType *string `json:"content_type,omitempty"`
+	FileName    *string `json:"file_name,omitempty"`
+
+	// Size The exact size in bytes. Bounded by the installation's upload limit.
+	Size  int64                   `json:"size"`
+	Usage MediaUploadRequestUsage `json:"usage"`
+}
+
+// MediaUploadRequestUsage defines model for MediaUploadRequest.Usage.
+type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
 type Membership struct {
@@ -2674,6 +2846,9 @@ type ItemId = openapi_types.UUID
 // LabelId defines model for LabelId.
 type LabelId = openapi_types.UUID
 
+// MediaId defines model for MediaId.
+type MediaId = openapi_types.UUID
+
 // MembershipId defines model for MembershipId.
 type MembershipId = openapi_types.UUID
 
@@ -2875,6 +3050,12 @@ type ListActivityParams struct {
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
 }
 
+// ListAttachmentsParams defines parameters for ListAttachments.
+type ListAttachmentsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // ListCommentsParams defines parameters for ListComments.
 type ListCommentsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -2906,6 +3087,18 @@ type EditCommentJSONBody struct {
 
 // EditCommentParams defines parameters for EditComment.
 type EditCommentParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ClearCoverParams defines parameters for ClearCover.
+type ClearCoverParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetCoverParams defines parameters for SetCover.
+type SetCoverParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -3015,6 +3208,30 @@ type BulkItemsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// RequestMediaUploadParams defines parameters for RequestMediaUpload.
+type RequestMediaUploadParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ConfirmMediaUploadParams defines parameters for ConfirmMediaUpload.
+type ConfirmMediaUploadParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DownloadMediaContentParams defines parameters for DownloadMediaContent.
+type DownloadMediaContentParams struct {
+	// Token The capability: a signed, expiring token minted by requestMediaUpload or getMedia. The URL is the credential, exactly as a presigned object-storage URL is - which is why these two operations carry no bearer requirement.
+	Token string `form:"token" json:"token"`
+}
+
+// UploadMediaContentParams defines parameters for UploadMediaContent.
+type UploadMediaContentParams struct {
+	// Token The capability: a signed, expiring token minted by requestMediaUpload or getMedia. The URL is the credential, exactly as a presigned object-storage URL is - which is why these two operations carry no bearer requirement.
+	Token string `form:"token" json:"token"`
+}
+
 // GrantMembershipParams defines parameters for GrantMembership.
 type GrantMembershipParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -3101,6 +3318,9 @@ type AddCommentJSONRequestBody AddCommentJSONBody
 // EditCommentJSONRequestBody defines body for EditComment for application/json ContentType.
 type EditCommentJSONRequestBody EditCommentJSONBody
 
+// SetCoverJSONRequestBody defines body for SetCover for application/json ContentType.
+type SetCoverJSONRequestBody = CoverInput
+
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
 
@@ -3118,6 +3338,9 @@ type BulkItemsJSONRequestBody BulkItemsJSONBody
 
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
+
+// RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
+type RequestMediaUploadJSONRequestBody = MediaUploadRequest
 
 // GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
 type GrantMembershipJSONRequestBody = MembershipGrant
@@ -3254,6 +3477,15 @@ type ServerInterface interface {
 	// (GET /items/{itemId}/activity)
 	ListActivity(w http.ResponseWriter, r *http.Request, itemId ItemId, params ListActivityParams)
 
+	// (GET /items/{itemId}/attachments)
+	ListAttachments(w http.ResponseWriter, r *http.Request, itemId ItemId, params ListAttachmentsParams)
+
+	// (DELETE /items/{itemId}/attachments/{mediaId})
+	DetachMedia(w http.ResponseWriter, r *http.Request, itemId ItemId, mediaId MediaId)
+
+	// (PUT /items/{itemId}/attachments/{mediaId})
+	AttachMedia(w http.ResponseWriter, r *http.Request, itemId ItemId, mediaId MediaId)
+
 	// (GET /items/{itemId}/comments)
 	ListComments(w http.ResponseWriter, r *http.Request, itemId ItemId, params ListCommentsParams)
 
@@ -3265,6 +3497,12 @@ type ServerInterface interface {
 
 	// (PATCH /items/{itemId}/comments/{commentId})
 	EditComment(w http.ResponseWriter, r *http.Request, itemId ItemId, commentId CommentId, params EditCommentParams)
+
+	// (DELETE /items/{itemId}/cover)
+	ClearCover(w http.ResponseWriter, r *http.Request, itemId ItemId, params ClearCoverParams)
+
+	// (PUT /items/{itemId}/cover)
+	SetCover(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetCoverParams)
 
 	// (DELETE /items/{itemId}/labels/{labelId})
 	RemoveLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
@@ -3319,6 +3557,24 @@ type ServerInterface interface {
 	// QueryItems The generic query - the basis for list, kanban, and timeline
 	// (POST /items:query)
 	QueryItems(w http.ResponseWriter, r *http.Request)
+
+	// (POST /media)
+	RequestMediaUpload(w http.ResponseWriter, r *http.Request, params RequestMediaUploadParams)
+
+	// (DELETE /media/{mediaId})
+	DeleteMedia(w http.ResponseWriter, r *http.Request, mediaId MediaId)
+
+	// (GET /media/{mediaId})
+	GetMedia(w http.ResponseWriter, r *http.Request, mediaId MediaId)
+
+	// (POST /media/{mediaId}:confirm)
+	ConfirmMediaUpload(w http.ResponseWriter, r *http.Request, mediaId MediaId, params ConfirmMediaUploadParams)
+
+	// (GET /media/{mediaId}:content)
+	DownloadMediaContent(w http.ResponseWriter, r *http.Request, mediaId MediaId, params DownloadMediaContentParams)
+
+	// (PUT /media/{mediaId}:content)
+	UploadMediaContent(w http.ResponseWriter, r *http.Request, mediaId MediaId, params UploadMediaContentParams)
 	// GrantMembership Grant a role at a scope
 	// (POST /memberships)
 	GrantMembership(w http.ResponseWriter, r *http.Request, params GrantMembershipParams)
@@ -5078,6 +5334,131 @@ func (siw *ServerInterfaceWrapper) ListActivity(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListAttachments operation middleware
+func (siw *ServerInterfaceWrapper) ListAttachments(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAttachmentsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAttachments(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DetachMedia operation middleware
+func (siw *ServerInterfaceWrapper) DetachMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DetachMedia(w, r, itemId, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AttachMedia operation middleware
+func (siw *ServerInterfaceWrapper) AttachMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AttachMedia(w, r, itemId, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListComments operation middleware
 func (siw *ServerInterfaceWrapper) ListComments(w http.ResponseWriter, r *http.Request) {
 
@@ -5292,6 +5673,106 @@ func (siw *ServerInterfaceWrapper) EditComment(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EditComment(w, r, itemId, commentId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ClearCover operation middleware
+func (siw *ServerInterfaceWrapper) ClearCover(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ClearCoverParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ClearCover(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetCover operation middleware
+func (siw *ServerInterfaceWrapper) SetCover(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetCoverParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetCover(w, r, itemId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6105,6 +6586,233 @@ func (siw *ServerInterfaceWrapper) QueryItems(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// RequestMediaUpload operation middleware
+func (siw *ServerInterfaceWrapper) RequestMediaUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RequestMediaUploadParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequestMediaUpload(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMedia operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMedia(w, r, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMedia operation middleware
+func (siw *ServerInterfaceWrapper) GetMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMedia(w, r, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmMediaUpload operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmMediaUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConfirmMediaUploadParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmMediaUpload(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadMediaContent operation middleware
+func (siw *ServerInterfaceWrapper) DownloadMediaContent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DownloadMediaContentParams
+
+	// ------------- Required query parameter "token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "token", r.URL.Query(), &params.Token, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadMediaContent(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadMediaContent operation middleware
+func (siw *ServerInterfaceWrapper) UploadMediaContent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UploadMediaContentParams
+
+	// ------------- Required query parameter "token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "token", r.URL.Query(), &params.Token, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadMediaContent(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GrantMembership operation middleware
 func (siw *ServerInterfaceWrapper) GrantMembership(w http.ResponseWriter, r *http.Request) {
 
@@ -6623,6 +7331,17 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/labels/{labelId}", wrapper.AddLabel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/members/{accountId}", wrapper.RemoveMember)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/members/{accountId}", wrapper.AddMember)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.ClearCover)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.SetCover)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/attachments", wrapper.ListAttachments)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/attachments/{mediaId}", wrapper.DetachMedia)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/attachments/{mediaId}", wrapper.AttachMedia)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media", wrapper.RequestMediaUpload)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/media/{mediaId}", wrapper.DeleteMedia)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}", wrapper.GetMedia)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:confirm", wrapper.ConfirmMediaUpload)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.DownloadMediaContent)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.UploadMediaContent)
 
 	return m
 }
