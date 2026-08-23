@@ -380,3 +380,138 @@ func samePath(got, want []identity.Scope) bool {
 	}
 	return true
 }
+
+// --- what an entry carries ---------------------------------------------------------------------
+
+// workItems answers Find and nothing else. The rest of the port is here because Go needs it, not
+// because a media use case has any business writing an entry.
+type workItems struct {
+	stored map[shared.ID]work.WorkItem
+}
+
+func newWorkItems() *workItems {
+	return &workItems{stored: map[shared.ID]work.WorkItem{
+		itemID: {
+			ID: itemID, TenantID: tenantID, CollectionID: collectionID, Type: work.ItemTask,
+			Path: work.RootPath(itemID), Depth: 1, Title: "File the expenses", Version: 1,
+		},
+	}}
+}
+
+func (i *workItems) Find(_ context.Context, id shared.ID) (work.WorkItem, error) {
+	item, ok := i.stored[id]
+	if !ok {
+		return work.WorkItem{}, shared.ErrNotFound
+	}
+	return item, nil
+}
+
+func (i *workItems) List(context.Context, workrepo.ItemQuery) (workrepo.ItemPage, error) {
+	return workrepo.ItemPage{}, nil
+}
+func (i *workItems) ChildCompletion(context.Context, shared.ID) (work.ChildCompletion, error) {
+	return work.ChildCompletion{}, nil
+}
+func (i *workItems) SetCompletion(context.Context, work.WorkItem, int) error { return nil }
+func (i *workItems) SetAttributes(context.Context, work.WorkItem, int) error { return nil }
+func (i *workItems) Neighbours(
+	context.Context, workrepo.Level, shared.ID, shared.ID,
+) (string, string, error) {
+	return "", "", nil
+}
+func (i *workItems) SetOrderKey(context.Context, work.WorkItem, int) error { return nil }
+func (i *workItems) SetAssignee(context.Context, work.WorkItem, int) error { return nil }
+func (i *workItems) CountOpenByAssignee(
+	context.Context, []shared.ID,
+) (map[shared.ID]int, error) {
+	return nil, nil
+}
+func (i *workItems) SetCover(context.Context, work.WorkItem, int) error { return nil }
+func (i *workItems) MoveSubtree(
+	context.Context, workrepo.Move,
+) (int, []work.DroppedReference, error) {
+	return 0, nil, nil
+}
+func (i *workItems) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
+	return "", nil
+}
+func (i *workItems) Insert(context.Context, work.WorkItem) error           { return nil }
+func (i *workItems) SetArchived(context.Context, work.WorkItem, int) error { return nil }
+func (i *workItems) TrashSubtree(context.Context, workrepo.ItemTrash) (int, error) {
+	return 0, nil
+}
+func (i *workItems) RestoreBatch(context.Context, workrepo.ItemTrash) (int, error) {
+	return 0, nil
+}
+func (i *workItems) Query(
+	context.Context, workrepo.ItemSearch,
+) (workrepo.ItemQueryResult, error) {
+	return workrepo.ItemQueryResult{}, nil
+}
+
+func listingHarness() (ListAttachments, *objects, *authorizer) {
+	records, permission := newObjects(), &authorizer{}
+	return ListAttachments{
+		Objects:    records,
+		Items:      newWorkItems(),
+		Containers: newContainers(),
+		Authorizer: permission,
+		UnitOfWork: &unitOfWork{},
+	}, records, permission
+}
+
+func TestTheAttachmentsOfAnEntryComeBackAsMediaRecords(t *testing.T) {
+	handler, records, _ := listingHarness()
+	records.pages[itemID] = repository.ObjectPage{Objects: []domain.Object{ready(accountID)}}
+
+	page, err := handler.Execute(t.Context(), actor(mediaRead), AttachmentsQuery{ItemID: itemID})
+	if err != nil {
+		t.Fatalf("listing failed: %v", err)
+	}
+
+	if len(page.Objects) != 1 || page.Objects[0].ID != mintedID {
+		t.Fatalf("the page is %+v", page.Objects)
+	}
+	// Clamped rather than refused: a client asking for more than the contract allows wants as many
+	// as it can have.
+	if records.asked[itemID].Size != defaultPageSize {
+		t.Errorf("the page size asked for is %d, want %d", records.asked[itemID].Size, defaultPageSize)
+	}
+}
+
+func TestAnOversizedPageIsClamped(t *testing.T) {
+	handler, records, _ := listingHarness()
+
+	if _, err := handler.Execute(t.Context(), actor(mediaRead), AttachmentsQuery{
+		ItemID: itemID, Size: 5000,
+	}); err != nil {
+		t.Fatalf("listing failed: %v", err)
+	}
+	if records.asked[itemID].Size != maxPageSize {
+		t.Errorf("the page size asked for is %d, want %d", records.asked[itemID].Size, maxPageSize)
+	}
+}
+
+func TestListingRefusesSomebodyWhoMayNotReadTheEntry(t *testing.T) {
+	handler, records, permission := listingHarness()
+	permission.err = shared.ErrForbidden.WithDetail("access.not_permitted")
+
+	_, err := handler.Execute(t.Context(), actor(mediaRead), AttachmentsQuery{ItemID: itemID})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("error %v, want forbidden", err)
+	}
+	// Refused before the read: a client that may not see the entry does not pay for the query, and
+	// this server does not run one for it.
+	if _, asked := records.asked[itemID]; asked {
+		t.Error("the attachments were read despite the refusal")
+	}
+}
+
+func TestListingAnEntryThatIsNotThereIsReportedMissing(t *testing.T) {
+	handler, _, _ := listingHarness()
+
+	_, err := handler.Execute(t.Context(), actor(mediaRead), AttachmentsQuery{ItemID: strangerA})
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("error %v, want not found", err)
+	}
+}

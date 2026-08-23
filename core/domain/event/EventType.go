@@ -204,6 +204,22 @@ const (
 	// ItemLabelRemoved announces that an entry no longer carries a label. Consumers: automation.
 	ItemLabelRemoved Type = "de.hubtask.work.item.label_removed.v1"
 
+	// AttachmentAdded announces that an entry now carries a file. Consumers: automation, and the
+	// media garbage collection the event catalogue names beside it (domain-model.md §4).
+	//
+	// Named for the attachment rather than for the item - `attachment.added`, not
+	// `item.attachment_added` - because that is what the catalogue calls it, and because the
+	// consumer it names first reasons about the media object rather than about the entry.
+	//
+	// The reference rather than a snapshot, for the reason given at ItemLabelAdded and in the same
+	// words: a set is not a field, and an entry snapshot would have to carry the whole set to be
+	// useful.
+	AttachmentAdded Type = "de.hubtask.work.attachment.added.v1"
+	// AttachmentRemoved announces that an entry no longer carries a file. The media object itself
+	// is not removed by this: it may serve other entries, and what decides its life is the
+	// reference count (data-protection.md §5).
+	AttachmentRemoved Type = "de.hubtask.work.attachment.removed.v1"
+
 	// CommentCreated announces a new contribution to an entry's discussion. Consumers:
 	// notification (C-09), automation. The payload is the comment (domain-model.md §4) - its own
 	// entity beside the item, so the item's snapshot events stay free of a thread that appends
@@ -233,6 +249,7 @@ var types = [...]Type{
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted,
 	ItemLabelAdded, ItemLabelRemoved,
+	AttachmentAdded, AttachmentRemoved,
 	CommentCreated, CommentUpdated, CommentDeleted,
 }
 

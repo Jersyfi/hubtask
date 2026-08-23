@@ -254,15 +254,22 @@ func (w CoverWriter) wanted(
 func (w CoverWriter) ensureImageUsable(ctx context.Context, mediaID shared.ID) error {
 	object, err := w.Media.Find(ctx, mediaID)
 	if err != nil {
-		if errors.Is(err, shared.ErrNotFound) {
-			return shared.ErrNotFound.
-				WithDetail("media.not_found").
-				WithParams(map[string]string{"media_id": mediaID.String()}).
-				WithFields(shared.FieldError{Path: "/media_id", Code: "media.not_found"})
-		}
-		return err
+		return mediaOrNotFound(err, mediaID)
 	}
 	return object.Attachable(media.UsageCover)
+}
+
+// mediaOrNotFound turns a missing media record into the words a client can act on. One spelling for
+// both of this package's uses of a media object, so that a cover and an attachment do not report
+// the same absence differently.
+func mediaOrNotFound(err error, mediaID shared.ID) error {
+	if errors.Is(err, shared.ErrNotFound) {
+		return shared.ErrNotFound.
+			WithDetail("media.not_found").
+			WithParams(map[string]string{"media_id": mediaID.String()}).
+			WithFields(shared.FieldError{Path: "/media_id", Code: "media.not_found"})
+	}
+	return err
 }
 
 // write stores the cover and records what the change owes: the reference counters, the event

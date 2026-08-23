@@ -59,7 +59,11 @@ type objects struct {
 	// for an object something still points at.
 	referenced map[shared.ID]bool
 	marked     []shared.ID
-	inserted   int
+	// pages is what ListForItem answers, and asked records the page it was asked for - which is
+	// how a test says that the size was clamped rather than passed through.
+	pages    map[shared.ID]repository.ObjectPage
+	asked    map[shared.ID]workrepo.Page
+	inserted int
 }
 
 func newObjects() *objects {
@@ -67,6 +71,8 @@ func newObjects() *objects {
 		stored:     map[shared.ID]domain.Object{},
 		refs:       map[shared.ID][]repository.ItemRef{},
 		referenced: map[shared.ID]bool{},
+		pages:      map[shared.ID]repository.ObjectPage{},
+		asked:      map[shared.ID]workrepo.Page{},
 	}
 }
 
@@ -123,9 +129,10 @@ func (o *objects) ReferencingItems(_ context.Context, id shared.ID) ([]repositor
 }
 
 func (o *objects) ListForItem(
-	context.Context, shared.ID, workrepo.Page,
+	_ context.Context, itemID shared.ID, page workrepo.Page,
 ) (repository.ObjectPage, error) {
-	return repository.ObjectPage{}, nil
+	o.asked[itemID] = page
+	return o.pages[itemID], nil
 }
 func (o *objects) RemoveRows(context.Context, []shared.ID) (int, error) { return 0, nil }
 

@@ -17,6 +17,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // Orphan is one object the reconciliation decided to remove: the row's identity and where its
@@ -83,15 +84,28 @@ type Objects interface {
 	ListForItem(ctx context.Context, itemID shared.ID, page repository.Page) (ObjectPage, error)
 }
 
-// Attachments maintains which items carry which objects.
+// Attachments maintains which items carry which objects, and the tags that decide it after a
+// merge.
+//
+// The same two-tables-behind-one-interface as ItemLabels, and for the same reason: `item_attachment`
+// is the link every read goes through and `set_element` is the OR-set tag that survives an offline
+// merge (offline-sync.md §4.2). Writing one without the other is the failure mode - a link with no
+// tag merges as last writer wins and loses a concurrent change - so neither is separately callable.
 type Attachments interface {
-	// Add links the object to the item and reports whether the link is new - attaching what is
-	// attached succeeds and reports false, so the caller does not raise the count twice.
-	Add(ctx context.Context, itemID, mediaID shared.ID) (bool, error)
+	// Add links the object to the item, records the addition's tag, and reports whether the link
+	// is new - attaching what is attached succeeds and reports false, so the caller does not raise
+	// the reference count twice. The tag is written either way, so that the decision merges.
+	Add(ctx context.Context, itemID, mediaID shared.ID, tag shared.HLC) (bool, error)
 
-	// Remove unlinks and reports whether there was a link.
-	Remove(ctx context.Context, itemID, mediaID shared.ID) (bool, error)
+	// Remove unlinks, records the removal's tag, and reports whether there was a link. The tag is
+	// written either way: a device that detaches something this replica never saw attached has
+	// still made a decision another replica has to merge against.
+	Remove(ctx context.Context, itemID, mediaID shared.ID, tag shared.HLC) (bool, error)
 
 	// MediaIDs returns the identifiers an item carries, stably ordered.
 	MediaIDs(ctx context.Context, itemID shared.ID) ([]shared.ID, error)
+
+	// Elements returns every tag of one item's attachment set: what a merge compares a client's
+	// tags against.
+	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)
 }

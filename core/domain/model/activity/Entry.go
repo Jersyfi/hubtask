@@ -49,6 +49,11 @@ const (
 	ItemUnassigned    Verb = "item.unassigned"
 	ItemMemberAdded   Verb = "item.member_added"
 	ItemMemberRemoved Verb = "item.member_removed"
+	// The attachment pair (C-06). A set beside the entry rather than a field on it, so the two
+	// directions are two verbs - which is also what the addition and the removal of a label are,
+	// and for the same reason: a history that said "changed" would not say what a person did.
+	ItemAttachmentAdded   Verb = "item.attachment_added"
+	ItemAttachmentRemoved Verb = "item.attachment_removed"
 	// The cover pair (C-06). Their own verbs rather than `item.updated`, because a history that
 	// rendered choosing a picture and renaming an entry as the same sentence would be a history
 	// nobody reads twice - and because two use cases sharing a verb is exactly what the gate
@@ -66,7 +71,7 @@ var verbs = [...]Verb{
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved, ItemReordered,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemLabelAdded, ItemLabelRemoved,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
-	ItemCoverSet, ItemCoverCleared, ItemCommented,
+	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared, ItemCommented,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

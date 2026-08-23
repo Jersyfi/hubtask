@@ -14,6 +14,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
@@ -334,17 +335,11 @@ func (r MediaRepository) ListForItem(
 	return mediarepo.ObjectPage{Objects: kept, Info: repository.PageInfo(info)}, nil
 }
 
-// Add links the object to the item.
-func (r MediaRepository) Add(ctx context.Context, itemID, mediaID shared.ID) (bool, error) {
-	queries, err := queriesFrom(ctx)
-	if err != nil {
-		return false, err
-	}
-	item, err := uuidOf(itemID)
-	if err != nil {
-		return false, err
-	}
-	object, err := uuidOf(mediaID)
+// Add links the object to the item and records the addition's tag.
+func (r MediaRepository) Add(
+	ctx context.Context, itemID, mediaID shared.ID, tag shared.HLC,
+) (bool, error) {
+	queries, item, object, err := attachmentWrite(ctx, itemID, mediaID)
 	if err != nil {
 		return false, err
 	}
@@ -357,20 +352,29 @@ func (r MediaRepository) Add(ctx context.Context, itemID, mediaID shared.ID) (bo
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("attaching %s to %s: %w", mediaID, itemID, err))
 	}
+
+	// The tag second, in the same transaction: a link without one merges as last writer wins over
+	// the whole set, which is the loss the OR-set exists to prevent (offline-sync.md §4.2). It is
+	// written even when the link was already there - a device that decided this has made a
+	// decision another replica has to merge against.
+	if err := queries.RecordSetElementAdded(ctx, sqlc.RecordSetElementAddedParams{
+		ItemID:    item,
+		SetName:   string(work.SetAttachments),
+		ElementID: object,
+		Tag:       optionalText(tag.String()),
+	}); err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording the attachment tag of %s: %w", itemID, err))
+	}
 	return affected != 0, nil
 }
 
-// Remove unlinks.
-func (r MediaRepository) Remove(ctx context.Context, itemID, mediaID shared.ID) (bool, error) {
-	queries, err := queriesFrom(ctx)
-	if err != nil {
-		return false, err
-	}
-	item, err := uuidOf(itemID)
-	if err != nil {
-		return false, err
-	}
-	object, err := uuidOf(mediaID)
+// Remove unlinks and records the removal's tag.
+func (r MediaRepository) Remove(
+	ctx context.Context, itemID, mediaID shared.ID, tag shared.HLC,
+) (bool, error) {
+	queries, item, object, err := attachmentWrite(ctx, itemID, mediaID)
 	if err != nil {
 		return false, err
 	}
@@ -383,7 +387,80 @@ func (r MediaRepository) Remove(ctx context.Context, itemID, mediaID shared.ID) 
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("detaching %s from %s: %w", mediaID, itemID, err))
 	}
+
+	if err := queries.RecordSetElementRemoved(ctx, sqlc.RecordSetElementRemovedParams{
+		ItemID:    item,
+		SetName:   string(work.SetAttachments),
+		ElementID: object,
+		Tag:       optionalText(tag.String()),
+	}); err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording the detachment tag of %s: %w", itemID, err))
+	}
 	return affected != 0, nil
+}
+
+// Elements returns every tag of one item's attachment set.
+func (r MediaRepository) Elements(
+	ctx context.Context, itemID shared.ID,
+) ([]work.SetElement, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	item, err := uuidOf(itemID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ListSetElements(ctx, sqlc.ListSetElementsParams{
+		ItemID: item, SetName: string(work.SetAttachments),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the attachment tags of %s: %w", itemID, err))
+	}
+
+	elements := make([]work.SetElement, 0, len(rows))
+	for _, row := range rows {
+		elementID, err := idFrom(row.ElementID)
+		if err != nil {
+			return nil, err
+		}
+		added, err := tagFrom(row.AddTag)
+		if err != nil {
+			return nil, err
+		}
+		removed, err := tagFrom(row.RemoveTag)
+		if err != nil {
+			return nil, err
+		}
+		elements = append(elements, work.SetElement{
+			ElementID: elementID, AddedAt: added, RemovedAt: removed,
+		})
+	}
+	return elements, nil
+}
+
+// attachmentWrite is the preamble both writes share.
+func attachmentWrite(
+	ctx context.Context, itemID, mediaID shared.ID,
+) (*sqlc.Queries, pgtype.UUID, pgtype.UUID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, pgtype.UUID{}, pgtype.UUID{}, err
+	}
+	item, err := uuidOf(itemID)
+	if err != nil {
+		return nil, pgtype.UUID{}, pgtype.UUID{}, err
+	}
+	object, err := uuidOf(mediaID)
+	if err != nil {
+		return nil, pgtype.UUID{}, pgtype.UUID{}, err
+	}
+	return queries, item, object, nil
 }
 
 // MediaIDs returns the identifiers an item carries.

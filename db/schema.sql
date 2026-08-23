@@ -1064,12 +1064,13 @@ CREATE TABLE sync_op_log (
 );
 CREATE INDEX sync_op_log_ttl_idx ON sync_op_log (applied_at);
 
--- OR-set tags for set fields (labels, members): additions and removals each carry
+-- OR-set tags for set fields (labels, members, attachments): additions and removals each carry
 -- their own tag, so that a concurrent add/remove does not discard whole lists through LWW.
 CREATE TABLE set_element (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   item_id      uuid NOT NULL,
-  set_name     text NOT NULL CHECK (set_name IN ('labels','members','watchers')),
+  set_name     text NOT NULL CONSTRAINT set_element_set_name_known
+    CHECK (set_name IN ('labels','members','watchers','attachments')),
   element_id   uuid NOT NULL,
   add_tag      text,                                  -- the HLC of the addition
   remove_tag   text,                                  -- the HLC of the removal

@@ -377,6 +377,16 @@ func run() error {
 		HLC: hybrid,
 	}
 
+	// Both directions of an entry's attachments share one dependency set (work.ItemAttachmentWriter).
+	// The same repository serves both halves of it: MediaRepository stores the links and the
+	// records, and the reference counter moves in the same transaction as the link (C-06).
+	attachmentWriter := work.ItemAttachmentWriter{
+		Items: items, Containers: containers, Profiles: profiles, Attachments: mediaObjects,
+		Media: mediaObjects, Authorizer: authorizer, Events: outbox, Changes: changes,
+		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	// Both directions of an entry's member list share one dependency set, for the reason the label
 	// pair does: they are the same write in opposite directions, and wiring them separately would
 	// be two places to get one of fourteen fields wrong (work.ItemMemberWriter).
@@ -582,6 +592,8 @@ func run() error {
 		}.Descriptor(),
 		work.SetCover{Cover: coverWriter}.Descriptor(),
 		work.ClearCover{Cover: coverWriter}.Descriptor(),
+		work.AttachMedia{Writer: attachmentWriter}.Descriptor(),
+		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		mediaservice.GetMedia{
 			Objects: mediaObjects, Containers: containers, Transfers: mediaTransfers,
@@ -590,6 +602,10 @@ func run() error {
 		mediaservice.DeleteMedia{
 			Objects: mediaObjects, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		mediaservice.ListAttachments{
+			Objects: mediaObjects, Items: items, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 	)
 	if err != nil {

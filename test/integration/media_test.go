@@ -109,7 +109,7 @@ func TestReferencesAreCountedAndTheRecountKeepsThemHonest(t *testing.T) {
 	object := sealMedia(ctx, t, tenantA, stagedMedia(ctx, t, tenantA, authorA, media.UsageAttachment))
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		linked, err := mediaRepo().Add(ctx, task, object.ID)
+		linked, err := mediaRepo().Add(ctx, task, object.ID, shared.HLC{})
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ func TestReferencesAreCountedAndTheRecountKeepsThemHonest(t *testing.T) {
 
 	// Attaching what is attached changes nothing - and reports so.
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		linked, err := mediaRepo().Add(ctx, task, object.ID)
+		linked, err := mediaRepo().Add(ctx, task, object.ID, shared.HLC{})
 		if linked {
 			t.Error("a repeated attachment reported itself new")
 		}
@@ -286,7 +286,7 @@ func TestAttachmentsListAndPage(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-			if _, err := mediaRepo().Add(ctx, task, object.ID); err != nil {
+			if _, err := mediaRepo().Add(ctx, task, object.ID, shared.HLC{}); err != nil {
 				return err
 			}
 			return mediaRepo().AdjustRefCount(ctx, object.ID, 1)
@@ -322,11 +322,11 @@ func TestAttachmentsListAndPage(t *testing.T) {
 
 	// Detaching reports the difference between a link and none.
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		removed, err := mediaRepo().Remove(ctx, task, objects[0].ID)
+		removed, err := mediaRepo().Remove(ctx, task, objects[0].ID, shared.HLC{})
 		if err != nil || !removed {
 			t.Errorf("detaching an attachment: removed=%v err=%v", removed, err)
 		}
-		again, err := mediaRepo().Remove(ctx, task, objects[0].ID)
+		again, err := mediaRepo().Remove(ctx, task, objects[0].ID, shared.HLC{})
 		if again {
 			t.Error("detaching nothing reported a link")
 		}
@@ -355,7 +355,7 @@ func TestMediaIsInvisibleFromAnotherTenant(t *testing.T) {
 	task := seedTask(ctx, t, tenantA, authorA, collection)
 	object := sealMedia(ctx, t, tenantA, stagedMedia(ctx, t, tenantA, authorA, media.UsageAttachment))
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if _, err := mediaRepo().Add(ctx, task, object.ID); err != nil {
+		if _, err := mediaRepo().Add(ctx, task, object.ID, shared.HLC{}); err != nil {
 			return err
 		}
 		return mediaRepo().AdjustRefCount(ctx, object.ID, 1)
@@ -438,7 +438,7 @@ func TestMediaIsInvisibleFromAnotherTenant(t *testing.T) {
 		// and is swallowed as no rows; a pair of tenant A's rows that is not yet linked fails the
 		// tenant-scoped foreign keys. Neither leaves a row of tenant B's.
 		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-			linked, err := mediaRepo().Add(ctx, task, object.ID)
+			linked, err := mediaRepo().Add(ctx, task, object.ID, shared.HLC{})
 			if linked {
 				t.Error("tenant B attached tenant A's object to tenant A's entry")
 			}
@@ -449,7 +449,7 @@ func TestMediaIsInvisibleFromAnotherTenant(t *testing.T) {
 		}
 		fresh := sealMedia(ctx, t, tenantA, stagedMedia(ctx, t, tenantA, authorA, media.UsageAttachment))
 		err := write(ctx, t, tenantB, func(ctx context.Context) error {
-			linked, err := mediaRepo().Add(ctx, task, fresh.ID)
+			linked, err := mediaRepo().Add(ctx, task, fresh.ID, shared.HLC{})
 			if linked {
 				t.Error("tenant B linked tenant A's rows across the boundary")
 			}
@@ -459,7 +459,7 @@ func TestMediaIsInvisibleFromAnotherTenant(t *testing.T) {
 			t.Fatal("the tenant-scoped foreign keys let a cross-tenant link through")
 		}
 		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-			removed, err := mediaRepo().Remove(ctx, task, object.ID)
+			removed, err := mediaRepo().Remove(ctx, task, object.ID, shared.HLC{})
 			if removed {
 				t.Error("tenant B detached tenant A's attachment")
 			}

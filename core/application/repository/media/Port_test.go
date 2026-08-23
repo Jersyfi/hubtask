@@ -12,6 +12,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // The port carries no logic - the doubles prove both interfaces can be implemented by a fake,
@@ -46,13 +47,16 @@ var _ Objects = objectDouble{}
 
 type attachmentDouble struct{}
 
-func (attachmentDouble) Add(context.Context, shared.ID, shared.ID) (bool, error) {
+func (attachmentDouble) Add(context.Context, shared.ID, shared.ID, shared.HLC) (bool, error) {
 	return false, nil
 }
-func (attachmentDouble) Remove(context.Context, shared.ID, shared.ID) (bool, error) {
+func (attachmentDouble) Remove(context.Context, shared.ID, shared.ID, shared.HLC) (bool, error) {
 	return false, nil
 }
 func (attachmentDouble) MediaIDs(context.Context, shared.ID) ([]shared.ID, error) {
+	return nil, nil
+}
+func (attachmentDouble) Elements(context.Context, shared.ID) ([]work.SetElement, error) {
 	return nil, nil
 }
 
