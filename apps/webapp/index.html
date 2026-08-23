@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<!-- No data-theme here: src/lib/theme.ts sets it deliberately, following the system preference
+     until the account preference exists (W-07). The stylesheet has no :root fallback on purpose,
+     so a boot path that forgets the module shows itself immediately. -->
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

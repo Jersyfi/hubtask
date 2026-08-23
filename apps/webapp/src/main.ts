@@ -26,6 +26,11 @@ import './app.css';
 
 import { mount } from 'svelte';
 import App from './App.svelte';
+import { followSystemTheme } from './lib/theme.ts';
+
+// Before the first paint: the stylesheet deliberately renders nothing sensible without
+// `data-theme` (ADR-0029), and this is the call that sets it.
+followSystemTheme();
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (!root) throw new Error('#app is missing from index.html');
