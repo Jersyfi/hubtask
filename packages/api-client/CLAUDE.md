@@ -10,9 +10,9 @@ specification is the source and the code is the result
   fails `pnpm lint`. If the type you need is missing, it is missing from the contract: change
   `api/openapi.yaml`, run `make generate` **and** `make api-client`, and put both halves in one
   pull request.
-* **No fetch layer, no client class, no retry logic — yet.** Which runtime client the webapp uses
-  is part of the frontend framework decision that has not been taken, and adding one here would
-  prejudge it.
+* **No fetch layer, no client class, no retry logic — yet.** The fetch layer belongs to the sync
+  engine's `Transport` port ([ADR-0033](../../docs/adr/ADR-0033-shared-client-architecture.md))
+  and arrives with that work package, not here as a side effect of other work.
 * **No committed output.** `dist/` is ignored: it is reproducible from the specification and the
   lockfile, and a committed copy would be a second description of the contract to keep in step.
 * **No dependency on anything under `apps/`.** A package that knows about an application is not a

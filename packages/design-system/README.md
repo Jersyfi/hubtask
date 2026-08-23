@@ -74,8 +74,12 @@ From the repository root, `make tokens` does the same as `pnpm build`.
 
 `reference/foundations.html` is the visual acceptance reference: open it after a change and both
 modes must still look right. It imports the generated stylesheet and declares no value of its own.
-Storybook replaces it once the frontend framework is decided.
+Whether a component workbench (Storybook or another) replaces it is decided with the
+component-layer work package.
 
 ## What is not here
 
-Components. `src/` is empty on purpose until the framework ADR exists — see [`src/README.md`](./src/README.md).
+Components. The framework is decided — Svelte 5
+([ADR-0030](../../docs/adr/ADR-0030-svelte-frontend-framework.md)) — but `src/` stays empty until
+the component-layer work package builds it deliberately, wave by wave — see
+[`src/README.md`](./src/README.md).

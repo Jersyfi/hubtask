@@ -67,8 +67,9 @@ packages/design-system/
 It imports `dist/tokens.css` and defines no values of its own — otherwise it would itself be a
 source of drift.
 
-Once the framework is decided, Storybook replaces this file as living documentation. Until then
-it is sufficient and costs nothing.
+Whether a component workbench (Storybook or another) replaces this file as living documentation
+is decided with the component-layer work package (roadmap, frontend track). Until then it is
+sufficient and costs nothing.
 
 ---
 

@@ -8,8 +8,8 @@
  * `api/openapi.yaml`. This file adds no description of its own: the specification is the source
  * and a second description of it is a second thing to keep in step (ADR-0004).
  *
- * There is deliberately no runtime client yet. Which fetch layer the webapp uses is part of the
- * frontend framework decision that has not been taken, and keeping this package to generated
+ * There is deliberately no runtime client yet. The fetch layer belongs to the sync engine's
+ * Transport port (ADR-0033) and arrives with that work package; keeping this package to generated
  * types means the extraction ADR-0027 defers to before 1.0.0 stays a move rather than a rewrite.
  */
 
