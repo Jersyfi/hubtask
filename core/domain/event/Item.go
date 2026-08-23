@@ -270,6 +270,21 @@ func NewItemAssigned(id shared.ID, item work.WorkItem, assigneeID shared.ID, act
 	return newItemAssignment(id, ItemAssigned, item, assigneeID, actor, occurredAt, cause)
 }
 
+// NewItemAutoAssigned is NewItemAssigned with the strategy that chose the person, which is what
+// the payload's `strategy` key means (domain-model.md §4): a rule reacting to assignments can
+// tell a decision somebody made from one a policy made, and a person reading a notification can
+// be told why the entry landed on them.
+func NewItemAutoAssigned(id shared.ID, item work.WorkItem, assigneeID shared.ID,
+	strategy work.AutoAssignStrategy, actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	envelope, err := newItemAssignment(id, ItemAssigned, item, assigneeID, actor, occurredAt, cause)
+	if err != nil {
+		return Envelope{}, err
+	}
+	envelope.Payload["strategy"] = string(strategy)
+	return envelope, nil
+}
+
 // NewItemUnassigned announces that an entry is on nobody, and names who it was.
 //
 // The former assignee travels rather than a null, because that is what the event is about: a

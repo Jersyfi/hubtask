@@ -1491,6 +1491,15 @@ type AutoAssignCandidate struct {
 // AutoAssignCandidateKind defines model for AutoAssignCandidate.Kind.
 type AutoAssignCandidateKind string
 
+// AutoAssignOutcome What one run of automatic assignment did. assigned says whether anybody got the entry; strategy is the policy's strategy that ran; code is the stable reason when nobody did - items.auto_assign_no_candidate when no candidate was eligible.
+type AutoAssignOutcome struct {
+	Assigned bool    `json:"assigned"`
+	Code     *string `json:"code,omitempty"`
+
+	// Strategy How a candidate is picked. FIXED always assigns the one configured account. RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a group first and one of its members second, so each group carries an equal share of the work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED picks the candidate with the fewest open entries. /meta/capabilities returns the valid values.
+	Strategy AutoAssignStrategy `json:"strategy"`
+}
+
 // AutoAssignPolicy A collection's rule for handing out what is created in it. An enabled policy applies itself to everything created in the collection; one that is not enabled waits to be asked for, with auto_assign on the create request. The rotation state of ROUND_ROBIN is the server's bookkeeping and is not in this document.
 type AutoAssignPolicy struct {
 	// Candidates The pool the strategy draws from, in the order that matters to ROUND_ROBIN. FIXED takes exactly one ACCOUNT; RANDOM_GROUP_MEMBER takes GROUP candidates; every other strategy takes ACCOUNT candidates.
@@ -2436,6 +2445,9 @@ type TrashPage struct {
 type WorkItem struct {
 	ArchivedAt *time.Time          `json:"archived_at,omitempty"`
 	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
+
+	// AutoAssign What automatic assignment did, present only in the response of an operation that ran it - autoAssignWorkItem, or a create that a policy applied to. Absent everywhere else.
+	AutoAssign *AutoAssignOutcome  `json:"auto_assign,omitempty"`
 	BucketId   *openapi_types.UUID `json:"bucket_id,omitempty"`
 
 	// Children Only with expand=children:N
@@ -2793,6 +2805,15 @@ type AssignWorkItemParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// AutoAssignWorkItemParams defines parameters for AutoAssignWorkItem.
+type AutoAssignWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // CompleteWorkItemJSONBody defines parameters for CompleteWorkItem.
 type CompleteWorkItemJSONBody struct {
 	CascadeChildren *bool `json:"cascade_children,omitempty"`
@@ -3133,6 +3154,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:assign)
 	AssignWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params AssignWorkItemParams)
+
+	// (POST /items/{itemId}:auto-assign)
+	AutoAssignWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params AutoAssignWorkItemParams)
 
 	// (POST /items/{itemId}:complete)
 	CompleteWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params CompleteWorkItemParams)
@@ -5289,6 +5313,75 @@ func (siw *ServerInterfaceWrapper) AssignWorkItem(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// AutoAssignWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) AutoAssignWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AutoAssignWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AutoAssignWorkItem(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CompleteWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) CompleteWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -6257,6 +6350,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:unassign", wrapper.UnassignWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:auto-assign", wrapper.AutoAssignWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:purge", wrapper.PurgeWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:restore", wrapper.RestoreWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:archive", wrapper.ArchiveWorkItem)

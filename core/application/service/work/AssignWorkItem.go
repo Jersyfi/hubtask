@@ -226,7 +226,7 @@ func (w AssignmentWriter) change(
 			return nil
 		}
 
-		written, err := w.write(ctx, actor, item, wanted, cmd.ExpectedVersion, profile, want, now)
+		written, err := w.write(ctx, actor, item, wanted, cmd.ExpectedVersion, profile, want, now, byHand)
 		changed = written
 		return err
 	})
@@ -236,12 +236,17 @@ func (w AssignmentWriter) change(
 	return changed, nil
 }
 
+// byHand is the absent strategy: the assignment was somebody's decision, not a policy's. The
+// distinction reaches the event, where a rule tells the two apart by the `strategy` key (C-02).
+const byHand = domain.AutoAssignStrategy("")
+
 // write stores the assignee and records what the change owes: the event outwards, the change log
 // for offline clients, the audit entry, and the step of the entry's own history - all inside the
 // caller's transaction (test AT-5).
 func (w AssignmentWriter) write(
 	ctx context.Context, actor appshared.ActorContext, before, after domain.WorkItem,
 	expectedVersion int, profile domain.CapabilityProfile, want assignmentDirection, now time.Time,
+	strategy domain.AutoAssignStrategy,
 ) (domain.WorkItem, error) {
 	expected := expectedVersion
 	if expected == 0 {
@@ -262,7 +267,7 @@ func (w AssignmentWriter) write(
 		about = before.AssigneeID
 	}
 
-	if err := w.announce(ctx, actor, after, about, want, now); err != nil {
+	if err := w.announce(ctx, actor, after, about, want, now, strategy); err != nil {
 		return domain.WorkItem{}, err
 	}
 	if err := w.recordChange(ctx, after, actor, about, want); err != nil {
@@ -279,11 +284,15 @@ func (w AssignmentWriter) write(
 
 func (w AssignmentWriter) announce(
 	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem, about shared.ID,
-	want assignmentDirection, now time.Time,
+	want assignmentDirection, now time.Time, strategy domain.AutoAssignStrategy,
 ) error {
 	by := event.Actor{Kind: actor.Kind, ID: actor.AccountID}
 
 	announcement, err := event.NewItemAssigned(w.IDs.NewID(), item, about, by, now, event.Cause{})
+	if want == assigning && strategy != byHand {
+		announcement, err = event.NewItemAutoAssigned(
+			w.IDs.NewID(), item, about, strategy, by, now, event.Cause{})
+	}
 	if want == unassigning {
 		announcement, err = event.NewItemUnassigned(
 			w.IDs.NewID(), item, about, by, now, event.Cause{})

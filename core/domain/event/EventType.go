@@ -103,8 +103,8 @@ const (
 	ItemMoved Type = "de.hubtask.work.item.moved.v1"
 	// ItemAssigned announces that an entry is on somebody. Consumers: notification.
 	//
-	// The payload is the reference domain-model.md §4 names - `assigneeId` and, once C-02 lands, the
-	// strategy that chose them - rather than a snapshot of the entry. What a rule and a notification
+	// The payload is the reference domain-model.md §4 names - `assigneeId` and, when a policy did
+	// the choosing, the strategy that chose them (C-02) - rather than a snapshot of the entry. What a rule and a notification
 	// react to is who it is now, and `itemId` is what they read the rest from; an entry snapshot
 	// would additionally have to say something about the member list, which merges separately and
 	// which another device may already have merged differently (offline-sync.md §4.2).

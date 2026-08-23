@@ -35,10 +35,10 @@ var workManagementTargets = map[string]bool{
 // exempting a use case takes two edits in two places rather than one line nobody reviews - the
 // reason travels with the use case, and the decision travels through this gate.
 var exemptUseCases = []string{
-	"ArchiveContainer", "CreateBucket", "CreateContainer", "CreateLabel", "DeleteBucket",
-	"DeleteLabel", "EmptyTrash", "MoveContainer", "PurgeWorkItem", "RenameContainer",
-	"ReorderBucket", "RestoreContainer", "TrashContainer", "UnarchiveContainer",
-	"UpdateBucket", "UpdateContainerPolicies", "UpdateLabel",
+	"ArchiveContainer", "AutoAssignWorkItem", "CreateBucket", "CreateContainer", "CreateLabel",
+	"DeleteBucket", "DeleteLabel", "EmptyTrash", "MoveContainer", "PurgeWorkItem",
+	"RenameContainer", "ReorderBucket", "RestoreContainer", "TrashContainer",
+	"UnarchiveContainer", "UpdateBucket", "UpdateContainerPolicies", "UpdateLabel",
 }
 
 func TestEveryMutatingWorkUseCaseWritesTheHistoryOrSaysWhyNot(t *testing.T) {

@@ -115,7 +115,18 @@
         "assignee_id": {
           "type": "string",
           "format": "uuid",
-          "description": "The account the entry is now assigned to. What a notification reacts to. `strategy` joins it when automatic assignment lands (domain-model.md §4)."
+          "description": "The account the entry is now assigned to. What a notification reacts to (domain-model.md §4)."
+        },
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "FIXED",
+            "RANDOM_MEMBER",
+            "RANDOM_GROUP_MEMBER",
+            "ROUND_ROBIN",
+            "LEAST_LOADED"
+          ],
+          "description": "The policy strategy that chose the assignee, present exactly when automatic assignment did the choosing (C-02). Absent for an assignment somebody made by hand - which is how a rule tells the two apart."
         }
       }
     }

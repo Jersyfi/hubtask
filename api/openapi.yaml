@@ -1159,6 +1159,35 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:auto-assign:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: autoAssignWorkItem
+      description: >
+        Hands the entry out by the collection's assignment policy - FIXED, RANDOM_MEMBER,
+        RANDOM_GROUP_MEMBER, ROUND_ROBIN or LEAST_LOADED - instead of naming a person. Refused
+        when the collection has no policy configured. Candidates who cannot see the entry are
+        skipped; a policy with nobody eligible leaves the entry as it is and says so in the
+        response's auto_assign object rather than failing. An explicit call uses the policy
+        whether or not it is enabled - enabled decides only whether it applies itself on create.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Handed out by policy, or left as it was with the reason in auto_assign
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:purge:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -2112,6 +2141,18 @@ components:
             Whether the policy applies itself to everything created in the collection. A policy
             that is not enabled is applied only to a create that asks with auto_assign.
 
+    AutoAssignOutcome:
+      type: object
+      description: >
+        What one run of automatic assignment did. assigned says whether anybody got the entry;
+        strategy is the policy's strategy that ran; code is the stable reason when nobody did -
+        items.auto_assign_no_candidate when no candidate was eligible.
+      required: [assigned, strategy]
+      properties:
+        assigned: { type: boolean }
+        strategy: { $ref: "#/components/schemas/AutoAssignStrategy" }
+        code: { type: [string, "null"] }
+
     AutoAssignStrategy:
       type: string
       description: >
@@ -2174,6 +2215,13 @@ components:
           type: array
           items: { type: string, format: uuid }
         assignee_id: { type: [string, "null"], format: uuid }
+        auto_assign:
+          oneOf:
+            - $ref: "#/components/schemas/AutoAssignOutcome"
+            - type: "null"
+          description: >
+            What automatic assignment did, present only in the response of an operation that ran
+            it - autoAssignWorkItem, or a create that a policy applied to. Absent everywhere else.
         cover: { $ref: "#/components/schemas/Cover" }
         custom_fields:
           type: object

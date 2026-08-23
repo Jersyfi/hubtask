@@ -287,6 +287,20 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		assigneeID := uuidValue(assignee)
 		item.AssigneeId = &assigneeID
 	}
+	// Present exactly when automatic assignment ran (C-02): the outcome of an :auto-assign call,
+	// or of a create a policy applied to. Absent means it did not run, which is a different
+	// answer from "it ran and assigned nobody".
+	if outcome, ran := out["auto_assign"].(map[string]any); ran {
+		assigned, _ := outcome["assigned"].(bool)
+		strategy, _ := outcome["strategy"].(string)
+		result := &openapi.AutoAssignOutcome{
+			Assigned: assigned, Strategy: openapi.AutoAssignStrategy(strategy),
+		}
+		if code, told := outcome["code"].(string); told {
+			result.Code = &code
+		}
+		item.AutoAssign = result
+	}
 	// Present only when the caller asked for it with `expand=labels`, and then an empty array when
 	// the entry carries none: absent means "not asked for", which is a different answer from "none".
 	if ids, asked := out["label_ids"].([]string); asked {

@@ -194,6 +194,10 @@ func (pending) UnassignWorkItem(w http.ResponseWriter, r *http.Request, _ openap
 	notAvailable(w, r)
 }
 
+func (pending) AutoAssignWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AutoAssignWorkItemParams) {
+	notAvailable(w, r)
+}
+
 // AddMember and RemoveMember are overridden by RestController, for the reason given at
 // CreateContainer.
 

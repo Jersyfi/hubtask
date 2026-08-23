@@ -465,6 +465,10 @@ func run() error {
 		work.RemoveLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.AssignWorkItem{Assignment: assignment}.Descriptor(),
 		work.UnassignWorkItem{Assignment: assignment}.Descriptor(),
+		work.AutoAssignWorkItem{
+			Assignment: assignment, Policies: postgres.AutoAssignPolicyRepository{},
+			Groups: groups, Random: clockadapter.CryptoRandom{},
+		}.Descriptor(),
 		work.AddMember{Writer: itemMemberWriter}.Descriptor(),
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
