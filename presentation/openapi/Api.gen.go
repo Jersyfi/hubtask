@@ -1746,14 +1746,23 @@ type CapabilitiesTenancyMode string
 
 // Comment defines model for Comment.
 type Comment struct {
-	AuthorId        openapi_types.UUID  `json:"author_id"`
-	Body            string              `json:"body"`
+	AuthorId openapi_types.UUID `json:"author_id"`
+
+	// Body Null exactly when deleted_at is set: a deleted comment still answers with its identifier, author and timestamps, so a reply does not dangle - but its text is gone, not hidden.
+	Body            *string             `json:"body"`
 	CreatedAt       time.Time           `json:"created_at"`
 	DeletedAt       *time.Time          `json:"deleted_at,omitempty"`
 	EditedAt        *time.Time          `json:"edited_at,omitempty"`
 	Id              openapi_types.UUID  `json:"id"`
 	ItemId          openapi_types.UUID  `json:"item_id"`
 	ParentCommentId *openapi_types.UUID `json:"parent_comment_id,omitempty"`
+	Version         int                 `json:"version"`
+}
+
+// CommentPage defines model for CommentPage.
+type CommentPage struct {
+	Data []Comment `json:"data"`
+	Page PageInfo  `json:"page"`
 }
 
 // Completion defines model for Completion.
@@ -2541,6 +2550,9 @@ type BucketId = openapi_types.UUID
 // CollectionId defines model for CollectionId.
 type CollectionId = openapi_types.UUID
 
+// CommentId defines model for CommentId.
+type CommentId = openapi_types.UUID
+
 // ContainerId defines model for ContainerId.
 type ContainerId = openapi_types.UUID
 
@@ -2790,6 +2802,23 @@ type AddCommentParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DeleteCommentParams defines parameters for DeleteComment.
+type DeleteCommentParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// EditCommentJSONBody defines parameters for EditComment.
+type EditCommentJSONBody struct {
+	Body string `json:"body"`
+}
+
+// EditCommentParams defines parameters for EditComment.
+type EditCommentParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ArchiveWorkItemParams defines parameters for ArchiveWorkItem.
 type ArchiveWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -2978,6 +3007,9 @@ type UpdateWorkItemApplicationMergePatchPlusJSONRequestBody = WorkItemUpdate
 // AddCommentJSONRequestBody defines body for AddComment for application/json ContentType.
 type AddCommentJSONRequestBody AddCommentJSONBody
 
+// EditCommentJSONRequestBody defines body for EditComment for application/json ContentType.
+type EditCommentJSONRequestBody EditCommentJSONBody
+
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
 
@@ -3136,6 +3168,12 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}/comments)
 	AddComment(w http.ResponseWriter, r *http.Request, itemId ItemId, params AddCommentParams)
+
+	// (DELETE /items/{itemId}/comments/{commentId})
+	DeleteComment(w http.ResponseWriter, r *http.Request, itemId ItemId, commentId CommentId, params DeleteCommentParams)
+
+	// (PATCH /items/{itemId}/comments/{commentId})
+	EditComment(w http.ResponseWriter, r *http.Request, itemId ItemId, commentId CommentId, params EditCommentParams)
 
 	// (DELETE /items/{itemId}/labels/{labelId})
 	RemoveLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
@@ -5054,6 +5092,124 @@ func (siw *ServerInterfaceWrapper) AddComment(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteComment operation middleware
+func (siw *ServerInterfaceWrapper) DeleteComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "commentId" -------------
+	var commentId CommentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "commentId", r.PathValue("commentId"), &commentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "commentId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteCommentParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteComment(w, r, itemId, commentId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EditComment operation middleware
+func (siw *ServerInterfaceWrapper) EditComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "commentId" -------------
+	var commentId CommentId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "commentId", r.PathValue("commentId"), &commentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "commentId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params EditCommentParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EditComment(w, r, itemId, commentId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RemoveLabel operation middleware
 func (siw *ServerInterfaceWrapper) RemoveLabel(w http.ResponseWriter, r *http.Request) {
 
@@ -6360,6 +6516,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.ListComments)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.AddComment)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/comments/{commentId}", wrapper.DeleteComment)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}/comments/{commentId}", wrapper.EditComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/activity", wrapper.ListActivity)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.ListBuckets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.CreateBucket)

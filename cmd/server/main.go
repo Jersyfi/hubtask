@@ -355,6 +355,18 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// The discussion's verbs share one dependency set (work.CommentWriter): the same reads, the
+	// same permission question, the same records.
+	// `authorizer` appears twice on purpose: the actor's own permission and the
+	// author-or-administrator question are two different questions answered by the same service.
+	commentWriter := work.CommentWriter{
+		Comments: postgres.NewCommentRepository(cursors), Items: items, Containers: containers,
+		Profiles: profiles, Authorizer: authorizer, Moderation: authorizer,
+		Events: outbox, Changes: changes,
+		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -474,6 +486,9 @@ func run() error {
 		work.AssignWorkItem{Assignment: assignment}.Descriptor(),
 		work.UnassignWorkItem{Assignment: assignment}.Descriptor(),
 		autoAssign.Descriptor(),
+		work.AddComment{Writer: commentWriter}.Descriptor(),
+		work.EditComment{Writer: commentWriter}.Descriptor(),
+		work.DeleteComment{Writer: commentWriter}.Descriptor(),
 		work.AddMember{Writer: itemMemberWriter}.Descriptor(),
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
@@ -500,6 +515,10 @@ func run() error {
 		}.Descriptor(),
 		work.ListActivity{
 			History: history, Items: items, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListComments{
+			Comments: commentWriter.Comments, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),

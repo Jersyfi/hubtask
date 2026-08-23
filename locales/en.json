@@ -157,6 +157,17 @@
   "items.auto_assign_unavailable": "This collection has no assignment policy. Configure one in its policies first.",
   "items.auto_assign_no_candidate": "No candidate of the assignment policy can receive this entry at the moment. It stays unassigned.",
   "items.assignee_conflicts_auto_assign": "Name a person or ask for automatic assignment - not both.",
+
+  "comments.body_required": "A comment needs text.",
+  "comments.body_too_long": "A comment may be at most {maximum} characters long.",
+  "comments.parent_not_on_item": "That comment belongs to another entry.",
+  "comments.reply_to_reply": "Replies cannot be replied to. Reply to the top-level comment instead.",
+  "comments.parent_deleted": "That comment was deleted and cannot be replied to.",
+  "comments.parent_not_found": "That comment does not exist.",
+  "comments.not_found": "That comment does not exist.",
+  "comments.comment_id_required": "Say which comment.",
+  "comments.comment_deleted": "That comment was deleted. Its text cannot be changed.",
+  "comments.version_conflict": "Someone else changed that comment in the meantime. Read it again and reapply.",
   "items.auto_assign_strategy_unhandled": "This installation is misconfigured and could not hand that entry out automatically.",
 
   "buckets.name_empty": "A bucket needs a name.",
@@ -228,6 +239,7 @@
   "events.change_set_empty": "This installation could not announce that change.",
   "events.lifecycle_inconsistent": "Something went wrong on our side while recording that change.",
   "events.label_missing": "This installation could not announce that change.",
+  "events.comment_not_deleted": "This installation could not announce that deletion.",
   "events.assignee_missing": "This installation could not announce that change.",
   "events.account_missing": "This installation could not announce that change.",
 
@@ -280,6 +292,7 @@
   "activity.item_unassigned": "{actor} took the assignee off this entry",
   "activity.item_member_added": "{actor} added a member",
   "activity.item_member_removed": "{actor} removed a member",
+  "activity.item_commented": "{actor} commented",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
   "sync.change_without_clock": "This installation could not record that change for offline devices.",

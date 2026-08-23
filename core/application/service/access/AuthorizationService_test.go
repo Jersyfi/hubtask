@@ -238,3 +238,27 @@ func TestAnOperationWithoutATokenScope(t *testing.T) {
 		t.Fatalf("a viewer was refused a read: %v", err)
 	}
 }
+
+// RoleAlong is the qualifier question (C-03): which role the actor holds, for the rules the
+// permission matrix cannot express - only the author or an administrator may change a comment.
+func TestRoleAlongReportsTheHighestRoleAndItsAbsence(t *testing.T) {
+	authorize, _, trail, _ := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.HubScope(hubID), Role: identity.RoleViewer},
+		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleAdmin},
+	})
+
+	role, found, err := authorize.RoleAlong(context.Background(), actorWithScopes(),
+		[]identity.Scope{identity.TenantScope(), identity.HubScope(hubID)})
+	if err != nil || !found || role != identity.RoleAdmin {
+		t.Fatalf("role = %v/%v/%v, want the highest along the path", role, found, err)
+	}
+	if len(trail.entries) != 0 {
+		t.Errorf("a question produced an audit entry: %+v", trail.entries)
+	}
+
+	stranger, _, _, _ := serviceWith(nil)
+	if _, found, err := stranger.RoleAlong(context.Background(), actorWithScopes(),
+		[]identity.Scope{identity.TenantScope()}); err != nil || found {
+		t.Fatalf("an account with no membership reports %v/%v", found, err)
+	}
+}

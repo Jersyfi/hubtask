@@ -150,9 +150,18 @@ normalised (I-W7); cross-tenant reads return nothing.
 
 **Read:** `domain-model.md` §3.5, §4; `api-guidelines.md` §5, §6; `offline-sync.md` §4.2
 
----
-
-## C-04 — The narrowings the role matrix promises **[L]**
+*Decided while implementing:* deletion clears the body in the row rather than hiding it - a
+deletion that only hid the words would be retained personal content with no purpose - and
+migration 0012 makes the body constraint conditional for exactly that; the tombstone's statements
+never match a deleted row, so an edit racing a deletion loses to it. The single-comment routes are
+`PATCH`/`DELETE /items/{itemId}/comments/{commentId}`, and the `Comment` schema gained `version`
+(for If-Match) and a nullable body. A reply to a deleted comment is refused - the tombstone keeps
+the thread readable, not open - and the thread pages oldest first. The author-or-administrator
+rule consults the authorisation service's new `RoleAlong`; the author's right puts no role
+question, a third party's refusal is `access.not_permitted` and lands in the trail as a DENIED
+entry. `AddComment` runs under WRITE_ITEMS with the `comments:write` scope until C-04 builds the
+decision point the guest qualifier consults. Edit and deletion write no history - `item.commented`
+is the vocabulary's one comment verb.
 
 *Depends on: C-01, C-03. Security-critical.*
 

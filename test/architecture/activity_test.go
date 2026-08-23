@@ -29,6 +29,7 @@ import (
 // has an opinion about; identity, meta and the rest are not its business.
 var workManagementTargets = map[string]bool{
 	"item": true, "container": true, "bucket": true, "label": true, "trash": true,
+	"comment": true,
 }
 
 // exemptUseCases is the list. It is pinned here as well as declared on the descriptor, so that
@@ -36,8 +37,8 @@ var workManagementTargets = map[string]bool{
 // reason travels with the use case, and the decision travels through this gate.
 var exemptUseCases = []string{
 	"ArchiveContainer", "AutoAssignWorkItem", "CreateBucket", "CreateContainer", "CreateLabel",
-	"DeleteBucket", "DeleteLabel", "EmptyTrash", "MoveContainer", "PurgeWorkItem",
-	"RenameContainer", "ReorderBucket", "RestoreContainer", "TrashContainer",
+	"DeleteBucket", "DeleteComment", "DeleteLabel", "EditComment", "EmptyTrash", "MoveContainer",
+	"PurgeWorkItem", "RenameContainer", "ReorderBucket", "RestoreContainer", "TrashContainer",
 	"UnarchiveContainer", "UpdateBucket", "UpdateContainerPolicies", "UpdateLabel",
 }
 

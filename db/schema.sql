@@ -358,7 +358,9 @@ CREATE TABLE comment (
   item_id           uuid NOT NULL,
   author_id         uuid NOT NULL,
   parent_comment_id uuid,
-  body              text NOT NULL CHECK (length(body) BETWEEN 1 AND 20000),
+  -- Conditional since migration 0012: a tombstone's body is empty - deletion clears the text
+  -- rather than hiding it (C-03) - while a living comment carries 1 to 20000 characters.
+  body              text NOT NULL CHECK (deleted_at IS NOT NULL OR length(body) BETWEEN 1 AND 20000),
   created_at        timestamptz NOT NULL DEFAULT now(),
   edited_at         timestamptz,
   deleted_at        timestamptz,
