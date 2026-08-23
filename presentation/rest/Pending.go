@@ -247,6 +247,14 @@ func (pending) AddComment(w http.ResponseWriter, r *http.Request, _ openapi.Item
 	notAvailable(w, r)
 }
 
+func (pending) EditComment(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CommentId, _ openapi.EditCommentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteComment(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CommentId, _ openapi.DeleteCommentParams) {
+	notAvailable(w, r)
+}
+
 // CompleteWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CompleteWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CompleteWorkItemParams) {
 	notAvailable(w, r)

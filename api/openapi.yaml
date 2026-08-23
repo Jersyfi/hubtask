@@ -1465,6 +1465,59 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/comments/{commentId}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+      - $ref: "#/components/parameters/CommentId"
+    patch:
+      tags: [comments]
+      operationId: editComment
+      description: >
+        Rewrites a comment's text. Only its author or an administrator may; anybody else is
+        refused exactly as any other missing permission is. The displaced text is not preserved -
+        an edit is last writer wins over the body - and a deleted comment cannot be edited back
+        into existence.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  maxLength: 20000
+      responses:
+        "200":
+          description: Edited
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [comments]
+      operationId: deleteComment
+      description: >
+        Removes a comment's text and marks it deleted, keeping the thread readable: the comment
+        still answers with its identifier, author and timestamps, so a reply does not dangle. Only
+        the author or an administrator may. Idempotent - deleting a deleted comment succeeds and
+        announces nothing.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}/activity:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -1816,6 +1869,11 @@ components:
       schema: { type: string, format: uuid }
     ItemId:
       name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CommentId:
+      name: commentId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -2645,16 +2703,22 @@ components:
 
     Comment:
       type: object
-      required: [id, item_id, author_id, body, created_at]
+      required: [id, item_id, author_id, body, created_at, version]
       properties:
         id: { type: string, format: uuid }
         item_id: { type: string, format: uuid }
         author_id: { type: string, format: uuid }
         parent_comment_id: { type: [string, "null"], format: uuid }
-        body: { type: string }
+        body:
+          type: [string, "null"]
+          description: >
+            Null exactly when deleted_at is set: a deleted comment still answers with its
+            identifier, author and timestamps, so a reply does not dangle - but its text is gone,
+            not hidden.
         created_at: { type: string, format: date-time }
         edited_at: { type: [string, "null"], format: date-time }
         deleted_at: { type: [string, "null"], format: date-time }
+        version: { type: integer }
 
 
     AuditEntry:
