@@ -175,9 +175,95 @@ matrix that contains states explodes.
 
 ---
 
-## 7. Still missing
+## 7. Rewarding interactions
 
-- **Framework decision** for `apps/webapp` — its own ADR; blocks the component layer.
+Relevant actions feel rewarding — through moments a user experiences when completing work that
+matters, not through classic gamification. **Levels, points, badges, streaks and leaderboards are
+excluded**, deliberately and permanently: they turn finishing work into collecting rewards, and a
+task tool that pays out tokens trains people to farm the tokens.
+
+The terminology is part of the decision. The principle describes the *feeling* (rewarding); the
+moments and the slots that carry them are called **"celebration"** throughout — documentation,
+code, and tokens. Not "reward": a reward connotes something received and collectible, which is
+exactly the transactional gamification excluded above. A celebration marks a moment; it hands
+over nothing.
+
+### The guardrails
+
+Celebrations must fit the existing principles — modern, plain, micro-animations, light/dark,
+dark red/dark blue — and must never make the application feel playful. Concretely:
+
+* **Sparing and short.** A celebration is the exception that proves the calm default.
+* **On by default, and each user can switch it off.** One preference, all tiers.
+* **`prefers-reduced-motion` reduces automatically** to a subtle alternative (rule 6 already
+  fixes the floor: a colour change). Switching off motion never switches off the acknowledgement.
+* **Never blocking.** No celebration delays input, navigation, or the next completion.
+* **Never on trivial actions.** Opening a menu is not a moment.
+
+### The three tiers
+
+"How do you recognise a special task?" is decided: not by heuristics, but by the WorkItem
+hierarchy itself.
+
+| Tier | Trigger | Character |
+|---|---|---|
+| **1 — always, subtle** | Every completion | A satisfying micro-animation, part of the normal motion system. No special event, no trigger logic |
+| **2 — structural, medium** | A completion completes the next level up: the last activity closes a work package, the last work package a task, the last task a collection | Deterministic events read directly off the domain model — no heuristic |
+| **3 — rare, the big moment** | Completing a collection or a hub; the day's close (the last item planned for or due today is completed); a user's **first-ever completion**, as the onboarding moment (§8) | At most **one tier-3 celebration per user per day**. Rarity is part of the design: a second qualifying event on the same day falls back to tier 2 |
+
+### Celebration slots, not fixed animations
+
+The design system defines **one celebration slot per tier**, with intensity guardrails — maximum
+duration, claimed screen area, and extent of motion — expressed through tokens like every other
+duration in this product. Which concrete animation fills a slot (particles in the brand colours,
+confetti, a light or glass effect matching the depth model of rule 1) is an interchangeable
+design-system asset: it can evolve or be replaced without touching trigger logic or this
+document. Which animation carries which moment is deliberately **not** specified here.
+
+### Triggering
+
+Trigger evaluation runs **client-side**, from the domain events and hierarchy state the client
+already holds — completing the last activity of a work package is visible in data the sync layer
+delivers anyway. Nothing is added to the backend for this.
+
+Documented as a growth path, not implemented: the CEL rule engine
+([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)) can later gain a `celebrate` action type,
+letting tenants define their own moments ("celebrate when an item with the label *release*
+completes"). If that comes, it comes as its own decision.
+
+### Rejected alternatives
+
+* **Random celebrations** (the Asana model): variable reward feels arbitrary and playful,
+  decouples the effect from actual accomplishment, and invites reward-hacking — users toggling
+  tasks to roll the dice. The three tiers are deterministic precisely so that a celebration
+  always means something real happened.
+* **Overdue thresholds as triggers** ("finished something long overdue"): negative framing,
+  rewards procrastination patterns, and misses every task without a due date.
+* **Behavioural heuristics or scoring of any kind**: if ever wanted, that is a new decision with
+  its own ADR — not an extension of this section.
+
+---
+
+## 8. The onboarding tour
+
+On first start, the user is guided through the application's main features — as **guided
+click-through on the real interface** (coach marks / a spotlight on actual UI elements), one
+short, plain piece of information per feature. Never a separate slide show: a tour of screenshots
+teaches the screenshots.
+
+* **Skippable at every step**, and restartable later from the help menu.
+* **The last step is the first celebration.** The tour ends by leading the user to create and
+  complete their first own task — whose completion fires the tier-3 onboarding moment (§7). Tour
+  end and first moment of success coincide by design.
+* The design system defines the **pattern** — presentation (spotlight, glass overlay per rule 2),
+  tone (caption/body styles, no exclamation marks doing the enthusiasm's work), interaction
+  (next/skip, keyboard operable, focus-visible per rule 5). The concrete tour content per client
+  is implementation work and lives in the roadmap, not here.
+
+---
+
+## 9. Still missing
+
 - **Iconography** — 24 px grid, 1.5 px stroke. Base: Lucide or Phosphor (both MIT), plus roughly
   15 custom ones for Hub, Collection, Work Package, Activity, Jumble, Bucket, Capability.
 - **Logo and wordmark** — the placeholder in `foundations.html` shows the idea (three nested
