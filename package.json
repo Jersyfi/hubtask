@@ -9,6 +9,7 @@
     "build": "pnpm --recursive build",
     "clean": "pnpm --recursive clean",
     "lint": "pnpm --recursive lint",
+    "lint:workspace": "node build/lint-workspace-map.mjs",
     "typecheck": "pnpm --recursive typecheck",
     "test": "pnpm --recursive test",
     "tokens": "pnpm --filter @hubtask/design-system build",

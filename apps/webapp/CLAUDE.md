@@ -23,6 +23,21 @@ from the same commit and cannot be a version apart.
 * **No colour, spacing, radius or duration written here.** They come from
   `@hubtask/design-system`; a value that does not exist is added to `tokens.json` or is not
   needed. `pnpm lint` fails on one ([ADR-0029](../../docs/adr/ADR-0029-design-system-tokens.md)).
+  In CSS that means `var(--…)`. Where a value is needed **in script**, it comes through
+  `tokens.ts` as a custom-property reference, never as a literal:
+
+  ```ts
+  import { tokens } from '@hubtask/design-system';
+  element.style.color = tokens.text.primary; // 'var(--text-primary)' — resolves per theme
+  ```
+
+  `values.light`/`values.dark` (the resolved literals) are for surfaces a custom property
+  cannot reach — a canvas, an exported image — and nothing else: a component that writes the
+  light-mode colour is wrong in dark mode, and no type can catch it.
+* **The theme is an attribute, set in one place.** `src/lib/theme.ts` puts `data-theme` on the
+  document, following the system preference until the account preference exists; the generated
+  stylesheet has no `:root` fallback on purpose, so a document without the attribute looks
+  broken at once. Components never read or set the theme themselves.
 * **No hand-written API type.** They come from `@hubtask/api-client`, generated from
   `api/openapi.yaml`. If the type you need is not there, change the specification (ADR-0004).
 * **No request to a foreign origin.** `connect-src 'self'`, and the fonts ship with the bundle. A

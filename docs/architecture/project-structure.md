@@ -211,6 +211,12 @@ Forbidden:
   `presentation/webui/dist/index.html` is committed (ADR-0028) and why `make tokens` is a separate
   target from `make generate` (ADR-0029).
 
+Tooling: `build/lint-workspace-map.mjs` (root script `pnpm lint:workspace`), the pnpm counterpart
+of `gate-architecture`. It reads the manifests and the imports — a manifest cannot see a deep or
+relative import that crosses a member boundary — and fails on any edge outside the map above. CI
+runs it in every Node lane, selftest first: `--selftest` proves each forbidden edge kind is still
+caught before the real tree is trusted.
+
 ---
 
 ## 3. Conventions
