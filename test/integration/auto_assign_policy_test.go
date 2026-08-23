@@ -257,6 +257,45 @@ func TestTwoConcurrentRotationsQueueOnTheLockedRow(t *testing.T) {
 	}
 }
 
+// The policies document travels with the container: the LEFT JOIN in FindContainer and
+// ListContainers is what puts the row's definition onto every container read (C-02).
+func TestTheContainerCarriesItsPolicyDocument(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	ada := seedAccount(ctx, t, tenantA)
+
+	storedPolicy(ctx, t, tenantA, collection,
+		work.AssignFixed, accountCandidates(ada))
+
+	var found work.Container
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		found, err = containerRepo().Find(ctx, collection)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the collection: %v", err)
+	}
+	if found.AutoAssign == nil || found.AutoAssign.Strategy != work.AssignFixed ||
+		len(found.AutoAssign.Candidates) != 1 || found.AutoAssign.Candidates[0].ID != ada ||
+		!found.AutoAssign.Enabled {
+		t.Fatalf("the collection carries %+v", found.AutoAssign)
+	}
+
+	// And one without a policy carries the absent key, through the same join.
+	var bare work.Container
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		bare, err = containerRepo().Find(ctx, hub)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the hub: %v", err)
+	}
+	if bare.AutoAssign != nil {
+		t.Fatalf("the hub carries %+v, want no policy", bare.AutoAssign)
+	}
+}
+
 func TestThePolicyIsInvisibleFromAnotherTenant(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

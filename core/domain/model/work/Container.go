@@ -50,14 +50,16 @@ const MaxContainerNameLength = 200
 
 // Container is a hub or a collection (domain-model.md §3.3).
 //
-// Of the `policies` column's four documented keys, one is here: the completion policy, because B-07
-// reads it. The other three - the default bucket, capability overrides, automatic assignment - stay
-// absent on the reasoning that kept this one absent until now: a field nothing reads and nothing
-// writes is a promise nothing keeps. They arrive with the use cases that own them.
+// Of the `policies` column's four documented keys, two are here: the completion policy, because
+// B-07 reads it, and the automatic assignment, because C-02 does. The other two - the default
+// bucket, capability overrides - stay absent on the reasoning that kept these absent until then:
+// a field nothing reads and nothing writes is a promise nothing keeps. They arrive with the use
+// cases that own them.
 //
-// UpdateContainerPolicies writes the completion policy, and a collection that has never been
-// configured reads as the default - which is why the column starting as `{}` is a special case
-// nowhere above the adapter.
+// UpdateContainerPolicies writes both keys, and a collection that has never been configured reads
+// as the defaults - which is why the column starting as `{}` is a special case nowhere above the
+// adapter. The auto_assign key is stored in its own row rather than in the column (see
+// AutoAssignPolicy); on this type it is the document's read model, loaded by the adapter.
 type Container struct {
 	ID       shared.ID
 	TenantID shared.ID
@@ -96,6 +98,10 @@ type Container struct {
 	// collection carries a meaningful one - a hub holds no items - and it is read off both, because
 	// the column is on both and a reader that skipped hubs would be a second rule to keep.
 	CompletionPolicy CompletionPolicy
+	// AutoAssign is how what is created in this collection is handed out, nil for not at all
+	// (domain-model.md §3.6). Stored in its own row and loaded by the adapter; nil on a hub,
+	// which has no policies to carry it.
+	AutoAssign *AutoAssignDefinition
 	// Version is the optimistic lock. It starts at 1, which is what the column default says, so
 	// that a freshly created container has an ETag before it has been read back.
 	Version int
@@ -328,6 +334,7 @@ const (
 	FieldIcon             = "icon"
 	FieldColorToken       = "color_token"
 	FieldCompletionPolicy = "completion_policy"
+	FieldAutoAssign       = "auto_assign"
 	FieldParentID         = "parent_id"
 	FieldOrderKey         = "order_key"
 	FieldArchivedAt       = "archived_at"
@@ -424,6 +431,8 @@ func (c Container) Renamed(attributes ContainerAttributes, at time.Time) (Contai
 // noticed getting that wrong.
 type ContainerPolicies struct {
 	CompletionPolicy CompletionPolicy
+	// AutoAssign is the auto_assign key, nil for the default: no automatic assignment.
+	AutoAssign *AutoAssignDefinition
 }
 
 // WithPolicies replaces the container's policies and reports what moved.
@@ -456,16 +465,54 @@ func (c Container) WithPolicies(policies ContainerPolicies, at time.Time) (Conta
 				Path: "/completion_policy", Code: "containers.completion_policy_unknown",
 			})
 	}
-	if policy == c.CompletionPolicy {
-		return c, nil, nil
+	if policies.AutoAssign != nil {
+		// Validated here as well as at the channel's parse, because this is the last door before
+		// the document is stored - and a policy that cannot choose anybody must not get through
+		// any of them.
+		if err := policies.AutoAssign.Validate(); err != nil {
+			return Container{}, nil, err
+		}
 	}
 
-	changes := []FieldChange{{
-		Field: FieldCompletionPolicy, From: string(c.CompletionPolicy), To: string(policy),
-	}}
-	c.CompletionPolicy = policy
+	var changes []FieldChange
+	if policy != c.CompletionPolicy {
+		changes = append(changes, FieldChange{
+			Field: FieldCompletionPolicy, From: string(c.CompletionPolicy), To: string(policy),
+		})
+		c.CompletionPolicy = policy
+	}
+	if change, moved := autoAssignChange(c.AutoAssign, policies.AutoAssign); moved {
+		changes = append(changes, change)
+		c.AutoAssign = policies.AutoAssign
+	}
+
+	if len(changes) == 0 {
+		return c, nil, nil
+	}
 	c.UpdatedAt = at
 	return c, changes, nil
+}
+
+// autoAssignChange compares the stored auto_assign key with the submitted one. The change set
+// carries the strategies rather than the whole definitions: "the collection stopped rotating and
+// started giving everything to one person" is the answer an event reader wants, and the full
+// document is one read away for anyone who wants the rest.
+func autoAssignChange(before, after *AutoAssignDefinition) (FieldChange, bool) {
+	if before == nil && after == nil {
+		return FieldChange{}, false
+	}
+	if before != nil && after != nil && before.Equal(*after) {
+		return FieldChange{}, false
+	}
+
+	change := FieldChange{Field: FieldAutoAssign}
+	if before != nil {
+		change.From = string(before.Strategy)
+	}
+	if after != nil {
+		change.To = string(after.Strategy)
+	}
+	return change, true
 }
 
 // Archived stamps the container read-only, and reports the change as the other verbs do.

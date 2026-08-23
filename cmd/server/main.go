@@ -293,7 +293,7 @@ func run() error {
 	// (work.ContainerWriter).
 	containerWriter := work.ContainerWriter{
 		Queue:      jobs,
-		Containers: containers, Authorizer: authorizer,
+		Containers: containers, Policies: postgres.AutoAssignPolicyRepository{}, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}

@@ -138,19 +138,128 @@ type AutoAssignState struct {
 	Cursor int
 }
 
+// AutoAssignDefinition is the policy as the policies document carries it: the strategy, its
+// pool, and whether it applies itself. What the aggregate adds - the scope, the rotation state,
+// the version - is the row's business, not the document's.
+type AutoAssignDefinition struct {
+	Strategy   AutoAssignStrategy
+	Candidates []AutoAssignCandidate
+	Enabled    bool
+}
+
+// Definition is the document half of the policy.
+func (p AutoAssignPolicy) Definition() AutoAssignDefinition {
+	return AutoAssignDefinition{
+		Strategy: p.Strategy, Candidates: p.Candidates, Enabled: p.Enabled,
+	}
+}
+
+// Equal reports whether two definitions say the same thing. The candidate order is part of the
+// meaning - it is the order ROUND_ROBIN walks - so a reordered list is a different policy.
+func (d AutoAssignDefinition) Equal(other AutoAssignDefinition) bool {
+	if d.Strategy != other.Strategy || d.Enabled != other.Enabled ||
+		len(d.Candidates) != len(other.Candidates) {
+		return false
+	}
+	for i, candidate := range d.Candidates {
+		if candidate != other.Candidates[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// ParseAutoAssignDefinition reads the auto_assign key of a submitted policies document, from any
+// channel: the value arrives as decoded JSON, and nil is the key sent as null - which, exactly
+// like an absent key, means no automatic assignment.
+func ParseAutoAssignDefinition(value any) (*AutoAssignDefinition, error) {
+	if value == nil {
+		return nil, nil
+	}
+	document, ok := value.(map[string]any)
+	if !ok {
+		return nil, shared.ErrValidation.
+			WithDetail("usecase.field_type_invalid").
+			WithFields(shared.FieldError{
+				Path: "/policies/auto_assign", Code: "usecase.field_type_invalid",
+			})
+	}
+
+	strategyValue, _ := document["strategy"].(string)
+	strategy, err := ParseAutoAssignStrategy(strategyValue)
+	if err != nil {
+		return nil, err
+	}
+
+	// The key sent but not a list - or not sent at all - is the shape error; an empty list is
+	// caught by Validate as a policy with nobody in it.
+	list, ok := document["candidates"].([]any)
+	if !ok {
+		return nil, shared.ErrValidation.
+			WithDetail("containers.auto_assign_candidates_required").
+			WithFields(shared.FieldError{
+				Path: "/policies/auto_assign/candidates",
+				Code: "containers.auto_assign_candidates_required",
+			})
+	}
+	candidates := make([]AutoAssignCandidate, 0, len(list))
+	for _, entry := range list {
+		candidate, ok := entry.(map[string]any)
+		if !ok {
+			return nil, shared.ErrValidation.
+				WithDetail("usecase.field_type_invalid").
+				WithFields(shared.FieldError{
+					Path: "/policies/auto_assign/candidates", Code: "usecase.field_type_invalid",
+				})
+		}
+		kindValue, _ := candidate["kind"].(string)
+		kind, err := ParseCandidateKind(kindValue)
+		if err != nil {
+			return nil, err
+		}
+		idValue, _ := candidate["id"].(string)
+		id, err := shared.ParseID(idValue)
+		if err != nil {
+			return nil, shared.ErrValidation.
+				WithDetail("containers.auto_assign_candidate_id_required").
+				WithFields(shared.FieldError{
+					Path: "/policies/auto_assign/candidates",
+					Code: "containers.auto_assign_candidate_id_required",
+				})
+		}
+		candidates = append(candidates, AutoAssignCandidate{Kind: kind, ID: id})
+	}
+
+	enabled := true
+	if value, sent := document["enabled"].(bool); sent {
+		enabled = value
+	}
+
+	definition := &AutoAssignDefinition{
+		Strategy: strategy, Candidates: candidates, Enabled: enabled,
+	}
+	if err := definition.Validate(); err != nil {
+		return nil, err
+	}
+	return definition, nil
+}
+
 // Validate checks what every strategy demands of its pool. Called where the policy document is
 // written, so that a policy that cannot choose anybody is refused before it is stored rather
 // than discovered by the create that consults it.
-func (p AutoAssignPolicy) Validate() error {
-	if !p.Strategy.Valid() {
+func (p AutoAssignPolicy) Validate() error { return p.Definition().Validate() }
+
+// Validate is the definition's own share of that check.
+func (d AutoAssignDefinition) Validate() error {
+	if !d.Strategy.Valid() {
 		return shared.ErrValidation.
 			WithDetail("containers.auto_assign_strategy_unknown").
-			WithParams(map[string]string{"value": string(p.Strategy)}).
+			WithParams(map[string]string{"value": string(d.Strategy)}).
 			WithFields(shared.FieldError{
 				Path: "/policies/auto_assign/strategy", Code: "containers.auto_assign_strategy_unknown",
 			})
 	}
-	if len(p.Candidates) == 0 {
+	if len(d.Candidates) == 0 {
 		return shared.ErrValidation.
 			WithDetail("containers.auto_assign_candidates_required").
 			WithFields(shared.FieldError{
@@ -158,19 +267,19 @@ func (p AutoAssignPolicy) Validate() error {
 				Code: "containers.auto_assign_candidates_required",
 			})
 	}
-	if p.Strategy == AssignFixed && len(p.Candidates) != 1 {
+	if d.Strategy == AssignFixed && len(d.Candidates) != 1 {
 		// One candidate is the strategy: FIXED with a list would leave the extra names as dead
 		// configuration that reads as if it did something.
 		return shared.ErrValidation.
 			WithDetail("containers.auto_assign_single_candidate_required").
-			WithParams(map[string]string{"count": strconv.Itoa(len(p.Candidates))}).
+			WithParams(map[string]string{"count": strconv.Itoa(len(d.Candidates))}).
 			WithFields(shared.FieldError{
 				Path: "/policies/auto_assign/candidates",
 				Code: "containers.auto_assign_single_candidate_required",
 			})
 	}
 
-	for _, candidate := range p.Candidates {
+	for _, candidate := range d.Candidates {
 		if candidate.ID.IsZero() {
 			return shared.ErrValidation.
 				WithDetail("containers.auto_assign_candidate_id_required").
@@ -179,14 +288,14 @@ func (p AutoAssignPolicy) Validate() error {
 					Code: "containers.auto_assign_candidate_id_required",
 				})
 		}
-		if candidate.Kind != p.Strategy.candidateKind() {
+		if candidate.Kind != d.Strategy.candidateKind() {
 			// Each strategy draws from one kind of pool: groups exactly where §3.6 names them,
 			// accounts everywhere else. A mixed list would make "no eligible candidate" ambiguous
 			// about which half it means.
 			return shared.ErrValidation.
 				WithDetail("containers.auto_assign_candidate_kind_invalid").
 				WithParams(map[string]string{
-					"strategy": string(p.Strategy), "kind": string(candidate.Kind),
+					"strategy": string(d.Strategy), "kind": string(candidate.Kind),
 				}).
 				WithFields(shared.FieldError{
 					Path: "/policies/auto_assign/candidates",

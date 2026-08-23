@@ -138,32 +138,39 @@ const findContainer = `-- name: FindContainer :one
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
   coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
 WHERE c.id = $1
 `
 
 type FindContainerRow struct {
-	ID               pgtype.UUID
-	TenantID         pgtype.UUID
-	Type             ContainerType
-	ParentID         pgtype.UUID
-	Name             string
-	Description      *string
-	Icon             *string
-	ColorToken       *string
-	OrderKey         string
-	CompletionPolicy string
-	ArchivedAt       pgtype.Timestamptz
-	ParentArchivedAt pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
-	TrashBatchID     pgtype.UUID
-	CreatedBy        pgtype.UUID
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	Version          int32
+	ID                   pgtype.UUID
+	TenantID             pgtype.UUID
+	Type                 ContainerType
+	ParentID             pgtype.UUID
+	Name                 string
+	Description          *string
+	Icon                 *string
+	ColorToken           *string
+	OrderKey             string
+	CompletionPolicy     string
+	AutoAssignStrategy   *string
+	AutoAssignCandidates []byte
+	AutoAssignEnabled    *bool
+	ArchivedAt           pgtype.Timestamptz
+	ParentArchivedAt     pgtype.Timestamptz
+	DeletedAt            pgtype.Timestamptz
+	TrashBatchID         pgtype.UUID
+	CreatedBy            pgtype.UUID
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+	Version              int32
 }
 
 // The tenant is never a parameter here: it comes from the transaction's own context through
@@ -176,10 +183,16 @@ type FindContainerRow struct {
 // "it does not exist" (I-C2, I-C3).
 //
 // One key of `policies` is read out, not the column: the completion policy has a reader (B-07) and the
-// other three keys do not, and selecting a value nothing consumes is a promise nothing keeps. `->>`
-// yields NULL for a collection that has never been configured, and coalesce turns that into the empty
-// string - which the domain reads as the default. Coalescing here rather than mapping a nil pointer in
-// the adapter keeps the generated field a plain string, and "unset" one concept instead of two.
+// keys without a use case do not, and selecting a value nothing consumes is a promise nothing keeps.
+// `->>` yields NULL for a collection that has never been configured, and coalesce turns that into the
+// empty string - which the domain reads as the default. Coalescing here rather than mapping a nil
+// pointer in the adapter keeps the generated field a plain string, and "unset" one concept instead of
+// two.
+//
+// The auto_assign key of the same document lives in its own row (C-02, see Assignment.sql), and the
+// second LEFT JOIN is how it travels with the container: NULL columns for a container without a
+// policy, which the adapter reads as the key being absent. The join lands on migration 0011's unique
+// index, so it costs an index lookup - the same price as the parent join beside it.
 //
 // The hub's own archive stamp travels with the row as `parent_archived_at`, which is invariant I-C3's
 // second half: a collection in an archived hub is read-only without being archived itself. Read here
@@ -200,6 +213,9 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.ColorToken,
 		&i.OrderKey,
 		&i.CompletionPolicy,
+		&i.AutoAssignStrategy,
+		&i.AutoAssignCandidates,
+		&i.AutoAssignEnabled,
 		&i.ArchivedAt,
 		&i.ParentArchivedAt,
 		&i.DeletedAt,
@@ -427,10 +443,14 @@ const listContainers = `-- name: ListContainers :many
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
   coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
 WHERE c.parent_id IS NOT DISTINCT FROM $1::uuid
   AND c.deleted_at IS NULL
   AND ($2::container_type IS NULL OR c.type = $2::container_type)
@@ -454,24 +474,27 @@ type ListContainersParams struct {
 }
 
 type ListContainersRow struct {
-	ID               pgtype.UUID
-	TenantID         pgtype.UUID
-	Type             ContainerType
-	ParentID         pgtype.UUID
-	Name             string
-	Description      *string
-	Icon             *string
-	ColorToken       *string
-	OrderKey         string
-	CompletionPolicy string
-	ArchivedAt       pgtype.Timestamptz
-	ParentArchivedAt pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
-	TrashBatchID     pgtype.UUID
-	CreatedBy        pgtype.UUID
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	Version          int32
+	ID                   pgtype.UUID
+	TenantID             pgtype.UUID
+	Type                 ContainerType
+	ParentID             pgtype.UUID
+	Name                 string
+	Description          *string
+	Icon                 *string
+	ColorToken           *string
+	OrderKey             string
+	CompletionPolicy     string
+	AutoAssignStrategy   *string
+	AutoAssignCandidates []byte
+	AutoAssignEnabled    *bool
+	ArchivedAt           pgtype.Timestamptz
+	ParentArchivedAt     pgtype.Timestamptz
+	DeletedAt            pgtype.Timestamptz
+	TrashBatchID         pgtype.UUID
+	CreatedBy            pgtype.UUID
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+	Version              int32
 }
 
 // One level of the container tree, in its manual order: the hubs when no parent is named, that
@@ -527,6 +550,9 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 			&i.ColorToken,
 			&i.OrderKey,
 			&i.CompletionPolicy,
+			&i.AutoAssignStrategy,
+			&i.AutoAssignCandidates,
+			&i.AutoAssignEnabled,
 			&i.ArchivedAt,
 			&i.ParentArchivedAt,
 			&i.DeletedAt,

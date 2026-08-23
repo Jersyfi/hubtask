@@ -127,6 +127,7 @@ func containerPayload(container work.Container) map[string]any {
 		"name":               container.Name,
 		"order_key":          container.OrderKey,
 		"completion_policy":  string(container.CompletionPolicy.OrDefault()),
+		"auto_assign":        autoAssignPayload(container.AutoAssign),
 		"archived_at":        nil,
 		"effective_archived": container.IsEffectivelyArchived(),
 		"created_at":         container.CreatedAt.UTC(),
@@ -150,6 +151,26 @@ func containerPayload(container work.Container) map[string]any {
 		}
 	}
 	return payload
+}
+
+// autoAssignPayload is the auto_assign key as the snapshot carries it: null for no policy, and
+// the document without the rotation state - the state is the server's bookkeeping, and an event
+// that carried it would announce every assignment as a configuration change.
+func autoAssignPayload(policy *work.AutoAssignDefinition) any {
+	if policy == nil {
+		return nil
+	}
+	candidates := make([]any, 0, len(policy.Candidates))
+	for _, candidate := range policy.Candidates {
+		candidates = append(candidates, map[string]any{
+			"kind": string(candidate.Kind), "id": candidate.ID.String(),
+		})
+	}
+	return map[string]any{
+		"strategy":   string(policy.Strategy),
+		"candidates": candidates,
+		"enabled":    policy.Enabled,
+	}
 }
 
 // ContainerSubject is what a container event is about. Kept next to the event so that the two

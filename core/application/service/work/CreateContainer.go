@@ -278,11 +278,12 @@ func containerOutput(container domain.Container) usecase.Output {
 		// says which of the two it is, so a client offers "unarchive" on the right object.
 		"effective_archived": container.IsEffectivelyArchived(),
 		"deleted_at":         timeOrNil(container.DeletedAt),
-		// The policies document, with the one key that has a use case. It is always here rather than
+		// The policies document, with the keys that have a use case. It is always here rather than
 		// only on a configured collection, so that a client reads the behaviour off the response
 		// instead of knowing what an absent document means.
 		"policies": map[string]any{
 			"completion_policy": string(container.CompletionPolicy.OrDefault()),
+			"auto_assign":       autoAssignOutput(container.AutoAssign),
 		},
 		"created_at": container.CreatedAt,
 		"updated_at": container.UpdatedAt,
@@ -301,6 +302,26 @@ func containerOutput(container domain.Container) usecase.Output {
 		}
 	}
 	return out
+}
+
+// autoAssignOutput is the auto_assign key of the policies document: null for no policy, the
+// definition without the rotation state for one - the state is the server's bookkeeping, not part
+// of what a client configures. The same shape every channel and the event snapshot carry.
+func autoAssignOutput(policy *domain.AutoAssignDefinition) any {
+	if policy == nil {
+		return nil
+	}
+	candidates := make([]any, 0, len(policy.Candidates))
+	for _, candidate := range policy.Candidates {
+		candidates = append(candidates, map[string]any{
+			"kind": string(candidate.Kind), "id": candidate.ID.String(),
+		})
+	}
+	return map[string]any{
+		"strategy":   string(policy.Strategy),
+		"candidates": candidates,
+		"enabled":    policy.Enabled,
+	}
 }
 
 // timeOrNil is how an optional instant reaches a projection: the value, or an explicit null. Nothing

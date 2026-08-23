@@ -228,6 +228,51 @@ func (e AuditEntrySeverity) Valid() bool {
 	}
 }
 
+// Defines values for AutoAssignCandidateKind.
+const (
+	ACCOUNT AutoAssignCandidateKind = "ACCOUNT"
+	GROUP   AutoAssignCandidateKind = "GROUP"
+)
+
+// Valid indicates whether the value is a known member of the AutoAssignCandidateKind enum.
+func (e AutoAssignCandidateKind) Valid() bool {
+	switch e {
+	case ACCOUNT:
+		return true
+	case GROUP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AutoAssignStrategy.
+const (
+	FIXED             AutoAssignStrategy = "FIXED"
+	LEASTLOADED       AutoAssignStrategy = "LEAST_LOADED"
+	RANDOMGROUPMEMBER AutoAssignStrategy = "RANDOM_GROUP_MEMBER"
+	RANDOMMEMBER      AutoAssignStrategy = "RANDOM_MEMBER"
+	ROUNDROBIN        AutoAssignStrategy = "ROUND_ROBIN"
+)
+
+// Valid indicates whether the value is a known member of the AutoAssignStrategy enum.
+func (e AutoAssignStrategy) Valid() bool {
+	switch e {
+	case FIXED:
+		return true
+	case LEASTLOADED:
+		return true
+	case RANDOMGROUPMEMBER:
+		return true
+	case RANDOMMEMBER:
+		return true
+	case ROUNDROBIN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BackupArchiveChecksumStatus.
 const (
 	MISMATCH   BackupArchiveChecksumStatus = "MISMATCH"
@@ -1437,6 +1482,30 @@ type AuditEntryOutcome string
 // AuditEntrySeverity defines model for AuditEntry.Severity.
 type AuditEntrySeverity string
 
+// AutoAssignCandidate defines model for AutoAssignCandidate.
+type AutoAssignCandidate struct {
+	Id   openapi_types.UUID      `json:"id"`
+	Kind AutoAssignCandidateKind `json:"kind"`
+}
+
+// AutoAssignCandidateKind defines model for AutoAssignCandidate.Kind.
+type AutoAssignCandidateKind string
+
+// AutoAssignPolicy A collection's rule for handing out what is created in it. An enabled policy applies itself to everything created in the collection; one that is not enabled waits to be asked for, with auto_assign on the create request. The rotation state of ROUND_ROBIN is the server's bookkeeping and is not in this document.
+type AutoAssignPolicy struct {
+	// Candidates The pool the strategy draws from, in the order that matters to ROUND_ROBIN. FIXED takes exactly one ACCOUNT; RANDOM_GROUP_MEMBER takes GROUP candidates; every other strategy takes ACCOUNT candidates.
+	Candidates []AutoAssignCandidate `json:"candidates"`
+
+	// Enabled Whether the policy applies itself to everything created in the collection. A policy that is not enabled is applied only to a create that asks with auto_assign.
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Strategy How a candidate is picked. FIXED always assigns the one configured account. RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a group first and one of its members second, so each group carries an equal share of the work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED picks the candidate with the fewest open entries. /meta/capabilities returns the valid values.
+	Strategy AutoAssignStrategy `json:"strategy"`
+}
+
+// AutoAssignStrategy How a candidate is picked. FIXED always assigns the one configured account. RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a group first and one of its members second, so each group carries an equal share of the work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED picks the candidate with the fewest open entries. /meta/capabilities returns the valid values.
+type AutoAssignStrategy string
+
 // BackupArchive Read from the manifest at the target, not from the database.
 type BackupArchive struct {
 	ArchiveId       *string                      `json:"archive_id,omitempty"`
@@ -1704,7 +1773,7 @@ type Container struct {
 	OrderKey          *string             `json:"order_key,omitempty"`
 	ParentId          *openapi_types.UUID `json:"parent_id,omitempty"`
 
-	// Policies How a collection works, as opposed to what it is called. One key today; the others the data model names - the default bucket, capability overrides, automatic assignment - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps.
+	// Policies How a collection works, as opposed to what it is called. Two keys today; the others the data model names - the default bucket, capability overrides - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 	Policies  *ContainerPolicies `json:"policies,omitempty"`
 	Type      ContainerType      `json:"type"`
 	UpdatedAt *time.Time         `json:"updated_at,omitempty"`
@@ -1727,8 +1796,11 @@ type ContainerPage struct {
 	Page PageInfo    `json:"page"`
 }
 
-// ContainerPolicies How a collection works, as opposed to what it is called. One key today; the others the data model names - the default bucket, capability overrides, automatic assignment - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps.
+// ContainerPolicies How a collection works, as opposed to what it is called. Two keys today; the others the data model names - the default bucket, capability overrides - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 type ContainerPolicies struct {
+	// AutoAssign How what is created in this collection is handed out, absent (or null) for not at all. Sending null - or omitting the key - removes the policy.
+	AutoAssign *AutoAssignPolicy `json:"auto_assign,omitempty"`
+
 	// CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 	CompletionPolicy *CompletionPolicy `json:"completion_policy,omitempty"`
 }

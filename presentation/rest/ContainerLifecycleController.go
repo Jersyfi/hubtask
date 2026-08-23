@@ -108,6 +108,9 @@ func (c *RestController) UpdateContainerPolicies(
 	if body.CompletionPolicy != nil {
 		in["completion_policy"] = string(*body.CompletionPolicy)
 	}
+	if body.AutoAssign != nil {
+		in["auto_assign"] = autoAssignInput(*body.AutoAssign)
+	}
 	if version, ok := versionFromIfMatch(params.IfMatch); ok {
 		in["expected_version"] = version
 	}
@@ -120,6 +123,25 @@ func (c *RestController) UpdateContainerPolicies(
 
 	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, containerResponse(out))
+}
+
+// autoAssignInput maps the request's auto_assign key onto the catalogue's document shape - the
+// same decoded-JSON form every channel hands in, so the parse in the domain is one code path.
+func autoAssignInput(policy openapi.AutoAssignPolicy) map[string]any {
+	candidates := make([]any, 0, len(policy.Candidates))
+	for _, candidate := range policy.Candidates {
+		candidates = append(candidates, map[string]any{
+			"kind": string(candidate.Kind), "id": candidate.Id.String(),
+		})
+	}
+	document := map[string]any{
+		"strategy":   string(policy.Strategy),
+		"candidates": candidates,
+	}
+	if policy.Enabled != nil {
+		document["enabled"] = *policy.Enabled
+	}
+	return document
 }
 
 // ArchiveContainer answers POST /containers/{containerId}:archive.

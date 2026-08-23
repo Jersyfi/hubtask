@@ -226,17 +226,9 @@ func policyOf(
 		return work.AutoAssignPolicy{}, err
 	}
 
-	var storedCandidates []storedCandidate
-	if err := json.Unmarshal(candidates, &storedCandidates); err != nil {
-		return work.AutoAssignPolicy{}, policyUnreadable(policyID, "candidates", err)
-	}
-	pool := make([]work.AutoAssignCandidate, 0, len(storedCandidates))
-	for _, candidate := range storedCandidates {
-		kind, err := work.ParseCandidateKind(candidate.Kind)
-		if err != nil {
-			return work.AutoAssignPolicy{}, err
-		}
-		pool = append(pool, work.AutoAssignCandidate{Kind: kind, ID: shared.ID(candidate.ID)})
+	pool, err := candidatesFrom(candidates, policyID)
+	if err != nil {
+		return work.AutoAssignPolicy{}, err
 	}
 
 	var rotation storedState
@@ -254,6 +246,47 @@ func policyOf(
 		State:      work.AutoAssignState{Cursor: rotation.Cursor},
 		Enabled:    enabled,
 		Version:    int(version),
+	}, nil
+}
+
+// candidatesFrom reads the candidates column. The identifier in the error is whatever the caller
+// has to name the row by - the policy for a policy read, the container for the joined read.
+func candidatesFrom(raw []byte, owner shared.ID) ([]work.AutoAssignCandidate, error) {
+	var storedCandidates []storedCandidate
+	if err := json.Unmarshal(raw, &storedCandidates); err != nil {
+		return nil, policyUnreadable(owner, "candidates", err)
+	}
+	pool := make([]work.AutoAssignCandidate, 0, len(storedCandidates))
+	for _, candidate := range storedCandidates {
+		kind, err := work.ParseCandidateKind(candidate.Kind)
+		if err != nil {
+			return nil, err
+		}
+		pool = append(pool, work.AutoAssignCandidate{Kind: kind, ID: shared.ID(candidate.ID)})
+	}
+	return pool, nil
+}
+
+// autoAssignDefinitionFrom reads the policy columns a container row carries from the LEFT JOIN:
+// all NULL - read off the strategy - means no policy, which the domain spells nil.
+func autoAssignDefinitionFrom(
+	containerID shared.ID, strategy *string, candidates []byte, enabled *bool,
+) (*work.AutoAssignDefinition, error) {
+	if strategy == nil {
+		return nil, nil
+	}
+	parsed, err := work.ParseAutoAssignStrategy(*strategy)
+	if err != nil {
+		return nil, err
+	}
+	pool, err := candidatesFrom(candidates, containerID)
+	if err != nil {
+		return nil, err
+	}
+	return &work.AutoAssignDefinition{
+		Strategy:   parsed,
+		Candidates: pool,
+		Enabled:    enabled != nil && *enabled,
 	}, nil
 }
 

@@ -10,10 +10,16 @@
 -- "it does not exist" (I-C2, I-C3).
 --
 -- One key of `policies` is read out, not the column: the completion policy has a reader (B-07) and the
--- other three keys do not, and selecting a value nothing consumes is a promise nothing keeps. `->>`
--- yields NULL for a collection that has never been configured, and coalesce turns that into the empty
--- string - which the domain reads as the default. Coalescing here rather than mapping a nil pointer in
--- the adapter keeps the generated field a plain string, and "unset" one concept instead of two.
+-- keys without a use case do not, and selecting a value nothing consumes is a promise nothing keeps.
+-- `->>` yields NULL for a collection that has never been configured, and coalesce turns that into the
+-- empty string - which the domain reads as the default. Coalescing here rather than mapping a nil
+-- pointer in the adapter keeps the generated field a plain string, and "unset" one concept instead of
+-- two.
+--
+-- The auto_assign key of the same document lives in its own row (C-02, see Assignment.sql), and the
+-- second LEFT JOIN is how it travels with the container: NULL columns for a container without a
+-- policy, which the adapter reads as the key being absent. The join lands on migration 0011's unique
+-- index, so it costs an index lookup - the same price as the parent join beside it.
 --
 -- The hub's own archive stamp travels with the row as `parent_archived_at`, which is invariant I-C3's
 -- second half: a collection in an archived hub is read-only without being archived itself. Read here
@@ -23,10 +29,14 @@
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
   coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
 WHERE c.id = $1;
 
 -- name: LastContainerOrderKey :one
@@ -86,10 +96,14 @@ INSERT INTO container (
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
   coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
 WHERE c.parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
   AND c.deleted_at IS NULL
   AND (sqlc.narg('type')::container_type IS NULL OR c.type = sqlc.narg('type')::container_type)
