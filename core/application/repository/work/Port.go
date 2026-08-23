@@ -546,6 +546,38 @@ type ItemMembers interface {
 	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)
 }
 
+// CommentPage is one page of one entry's discussion, oldest first.
+type CommentPage struct {
+	Comments []work.Comment
+	Info     PageInfo
+}
+
+// Comments stores the discussion beside the entries (domain-model.md §3.5).
+//
+// There is deliberately no hard delete here: a comment leaves as a tombstone through SetDeleted,
+// and what removes the row is the deletion of the item it belongs to, through the foreign key -
+// exactly as the history goes.
+type Comments interface {
+	// Find returns the comment, tombstone or not, or ErrNotFound if it does not exist *for this
+	// tenant*. Whether a deleted comment may be changed is the domain's question, not a query's.
+	Find(ctx context.Context, id shared.ID) (work.Comment, error)
+
+	// List returns one page of one entry's comments, oldest first - a conversation reads top
+	// down. Tombstones are in it; the reader serves them without their body.
+	List(ctx context.Context, itemID shared.ID, page Page) (CommentPage, error)
+
+	// Insert writes a new comment.
+	Insert(ctx context.Context, comment work.Comment) error
+
+	// SetBody writes the rewritten text and the edit stamp, or reports a version conflict. A
+	// tombstone is never matched: an edit racing a deletion loses to it.
+	SetBody(ctx context.Context, comment work.Comment, expectedVersion int) error
+
+	// SetDeleted writes the tombstone, or reports a version conflict. Also never matches one
+	// that is already a tombstone - the caller decides idempotence on what it read.
+	SetDeleted(ctx context.Context, comment work.Comment, expectedVersion int) error
+}
+
 // AutoAssignPolicies stores the assignment policy per scope (domain-model.md §3.6).
 //
 // One policy per scope, and the upsert is the whole write vocabulary: the policy is the

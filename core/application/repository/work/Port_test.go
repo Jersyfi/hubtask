@@ -115,6 +115,23 @@ func (policyDouble) SaveState(context.Context, work.AutoAssignPolicy) error { re
 
 var _ AutoAssignPolicies = policyDouble{}
 
+// The comment store's double, for the same reason the others exist.
+type commentDouble struct{}
+
+func (commentDouble) Find(context.Context, shared.ID) (work.Comment, error) {
+	return work.Comment{}, shared.ErrNotFound
+}
+func (commentDouble) List(context.Context, shared.ID, Page) (CommentPage, error) {
+	return CommentPage{}, nil
+}
+func (commentDouble) Insert(context.Context, work.Comment) error       { return nil }
+func (commentDouble) SetBody(context.Context, work.Comment, int) error { return nil }
+func (commentDouble) SetDeleted(context.Context, work.Comment, int) error {
+	return nil
+}
+
+var _ Comments = commentDouble{}
+
 // The sibling level is decided by two identifiers, not one: the same parent in another collection
 // is not a sibling, and a port that took only the parent could not express the level directly
 // under a collection at all.
