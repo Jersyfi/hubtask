@@ -318,6 +318,8 @@
   "activity.item_unassigned": "{actor} took the assignee off this entry",
   "activity.item_member_added": "{actor} added a member",
   "activity.item_member_removed": "{actor} removed a member",
+  "activity.item_cover_set": "{actor} chose a cover for this entry",
+  "activity.item_cover_cleared": "{actor} took the cover off this entry",
   "activity.item_commented": "{actor} commented",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",

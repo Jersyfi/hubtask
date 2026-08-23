@@ -49,6 +49,13 @@ const (
 	ItemUnassigned    Verb = "item.unassigned"
 	ItemMemberAdded   Verb = "item.member_added"
 	ItemMemberRemoved Verb = "item.member_removed"
+	// The cover pair (C-06). Their own verbs rather than `item.updated`, because a history that
+	// rendered choosing a picture and renaming an entry as the same sentence would be a history
+	// nobody reads twice - and because two use cases sharing a verb is exactly what the gate
+	// forbids. The event is an `item.updated` all the same: the cover is a scalar on the row and
+	// the event catalogue names no cover event (domain-model.md §4).
+	ItemCoverSet     Verb = "item.cover_set"
+	ItemCoverCleared Verb = "item.cover_cleared"
 	// ItemCommented is the one comment verb (C-03). An edit and a deletion do not write history:
 	// the comment carries its own edited_at and its tombstone, and the thread is where both are
 	// read - a history entry beside them would describe the same fact in a second place.
@@ -58,7 +65,8 @@ const (
 var verbs = [...]Verb{
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved, ItemReordered,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemLabelAdded, ItemLabelRemoved,
-	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved, ItemCommented,
+	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
+	ItemCoverSet, ItemCoverCleared, ItemCommented,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

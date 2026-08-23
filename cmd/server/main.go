@@ -366,6 +366,17 @@ func run() error {
 		Groups: groups, Random: clockadapter.CryptoRandom{},
 	}
 
+	// Both directions of an entry's cover share one dependency set, for the same reason
+	// (work.CoverWriter). The media record store is here rather than in the media package's own
+	// wiring, because a cover is a reference an item holds: this is where the counter moves
+	// (C-06, data-protection.md §5).
+	coverWriter := work.CoverWriter{
+		Items: items, Containers: containers, Profiles: profiles, Media: mediaObjects,
+		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
+		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		HLC: hybrid,
+	}
+
 	// Both directions of an entry's member list share one dependency set, for the reason the label
 	// pair does: they are the same write in opposite directions, and wiring them separately would
 	// be two places to get one of fourteen fields wrong (work.ItemMemberWriter).
@@ -569,6 +580,9 @@ func run() error {
 			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Config: cfg,
 		}.Descriptor(),
+		work.SetCover{Cover: coverWriter}.Descriptor(),
+		work.ClearCover{Cover: coverWriter}.Descriptor(),
+
 		mediaservice.GetMedia{
 			Objects: mediaObjects, Containers: containers, Transfers: mediaTransfers,
 			Reader: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
