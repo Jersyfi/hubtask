@@ -113,6 +113,31 @@ Roles and rights (an extract):
 | `VIEWER` | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ |
 | `GUEST` | Shared items only | Comment | ✘ | ✘ | ✘ | ✘ |
 
+Two of those cells are qualifiers no permission name can carry, and both are decided in one place
+in the application layer rather than by each use case that writes
+([ADR-0005](../adr/ADR-0005-authn-authz.md), C-04). Every request about a single entry names the
+entry, what it does to it, and whose it is; the decision point applies the row.
+
+* **"Assigned only"** is measured against the entry's `assigneeId`. A contributor **may create**,
+  and the entry they create is assigned to them — so the qualifier holds at every moment rather
+  than being suspended for the one call that would break it. The auto-assignment is not optional:
+  naming a different assignee, or asking the collection's policy to hand the entry out, is refused,
+  because re-assigning is a write on an entry that is not yet theirs and is not a right the role
+  holds. Creating remains possible only where the contributor holds a membership; the parent scope
+  is checked unchanged.
+* **"Shared items only"** is where the membership was granted, not a rule about the role. A
+  membership at `ITEM` scope reaches that entry and nothing else, and the entry's own scope is the
+  bottom of every authorisation path — so a share needs no mechanism of its own. Any role can be
+  granted there; `GUEST` is simply the one usually given.
+
+An entry that nothing on its path grants the actor anything on is answered as **not found** rather
+than forbidden, in the same words a genuinely missing entry produces
+([security.md](./security.md) T-04). A creation is the exception: it names no entry, so there is no
+existence to disclose, and it is refused as any other write is.
+
+`/meta/capabilities` reports the whole matrix, including these two cells, so that a client offers
+the actions the server will accept rather than a table compiled into it.
+
 ### 3.3 `Container` (hub / collection)
 
 | Field | Type | Rules |

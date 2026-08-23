@@ -178,11 +178,11 @@ and `Membership.scopeType` has carried `ITEM` since 0.1.0. What the task adds is
 the write use cases consult — not a check copied into each of them — plus the read filter that keeps
 a guest's list to what was shared.
 
-**Open point (blocking, to be settled in the issue before the first commit):** the matrix does not say
-whether a contributor may *create* an item. Both readings are defensible — creation forbidden is the
-literal reading of "assigned only"; creation permitted with the new item assigned to its creator is
-the reading that lets a contributor log their own work. Jérôme decides; `/meta/capabilities` reports
-the answer either way.
+**Open point (settled on the issue, 2026-08-23):** a `CONTRIBUTOR` **may create**, and the new entry
+is assigned to its creator. That keeps "write on assigned only" true at every moment rather than
+carving an exception out beside it. The auto-assignment is not optional — a contributor cannot name
+another assignee, nor ask the collection's policy to hand the entry out — creating stays bounded by
+where they hold a membership, and a create is audited and refused like any other write.
 
 **Acceptance:** a contributor changes an item assigned to them and is refused on one that is not,
 with the same code and status as any other refusal; a guest without an `ITEM`-scope membership
@@ -193,6 +193,21 @@ adapter; the audit records the refusal with the permission that was missing, as 
 
 **Read:** `domain-model.md` §3.2; `core/domain/service/Authorization.go`; ADR-0005; `security.md`
 T-04, SG-5
+
+*Decided while implementing:* three things the task text left open.
+
+* **The not-found answer is not about guests.** "Shared items only" turned out to need no rule of
+  its own — it is where the membership was granted — so the invisibility applies to anybody who
+  holds nothing on an entry's path, not to the `GUEST` role. That is strictly less disclosure than
+  the acceptance asked for, and it is one sentence rather than a role check.
+* **A contributor's comments are narrowed with their writes.** The matrix gives the comment
+  exception to `GUEST` and nothing to `CONTRIBUTOR`, whose whole write column reads "assigned
+  only". Read literally, a contributor comments on what is theirs. The guest row would not need to
+  say "Comment" at all if commenting followed the read right.
+* **A list is narrowed in the query, not after it.** `ListWorkItems` and `POST /items:query` ask
+  the decision point how far the actor reaches and pass the shared entries into the statement as a
+  bound array. Filtered after the page was read, a page would come back short and its cursor would
+  skip. The second membership query runs only for an actor who holds no role on the container.
 
 ---
 
