@@ -46,6 +46,10 @@ type CommentWriter struct {
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
 	Authorizer Authorizer
+	// Moderation answers the one question the permission cannot: which role the actor holds.
+	// Only the edit and the deletion consult it - "only the author or an administrator may
+	// change a comment" is their rule, and it is named where it is enforced (Authorization.go).
+	Moderation Moderation
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink

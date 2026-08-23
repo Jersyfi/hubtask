@@ -16,8 +16,10 @@ import (
 // a field of its row - it appends, it never merges, and it pages on its own.
 
 const (
-	addCommentUseCase   = "AddComment"
-	listCommentsUseCase = "ListComments"
+	addCommentUseCase    = "AddComment"
+	listCommentsUseCase  = "ListComments"
+	editCommentUseCase   = "EditComment"
+	deleteCommentUseCase = "DeleteComment"
 )
 
 // ListComments answers GET /items/{itemId}/comments.
@@ -70,6 +72,66 @@ func (c *RestController) AddComment(
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, commentResponse(out))
+}
+
+// EditComment answers PATCH /items/{itemId}/comments/{commentId}.
+func (c *RestController) EditComment(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, commentID openapi.CommentId,
+	params openapi.EditCommentParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.EditCommentJSONRequestBody
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	in := usecase.Input{
+		"item_id": itemID.String(), "comment_id": commentID.String(), "body": body.Body,
+	}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), editCommentUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	w.Header().Set("ETag", etag(out.Int("version")))
+	writeJSON(w, r, http.StatusOK, commentResponse(out))
+}
+
+// DeleteComment answers DELETE /items/{itemId}/comments/{commentId}. 204: the caller asked for
+// the comment to be gone, and what remains - the tombstone - is read through the thread.
+func (c *RestController) DeleteComment(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, commentID openapi.CommentId,
+	params openapi.DeleteCommentParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	in := usecase.Input{"item_id": itemID.String(), "comment_id": commentID.String()}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+
+	if _, err := c.UseCases.Invoke(r.Context(), deleteCommentUseCase, actorOf(r), in); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // commentResponse maps the catalogue's output onto the generated schema. The mapping lives here

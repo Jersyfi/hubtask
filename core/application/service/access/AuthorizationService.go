@@ -190,6 +190,34 @@ func (s Service) CanSee(
 	return service.Allows(memberships, path, service.PermissionRead), nil
 }
 
+// RoleAlong returns the actor's own effective role along the path, and whether they hold one at
+// all.
+//
+// It exists for the qualifiers the permission matrix deliberately does not fold in
+// (service.Permission): "only the author or an administrator may change a comment" is a rule
+// about *which* role the actor holds, not about a permission a role carries, and the use case
+// that enforces it needs the role to say so. Here rather than in that use case for the reason
+// CanSee is here: an answer about who may reach what is one answer (ADR-0005).
+//
+// Nothing is audited. Nobody was refused anything - the caller asked a question, and whatever it
+// refuses on the answer is its own act to record.
+func (s Service) RoleAlong(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+) (identity.Role, bool, error) {
+	var memberships []identity.Membership
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		memberships, err = s.Memberships.Along(ctx, actor.AccountID, path)
+		return err
+	})
+	if err != nil {
+		return "", false, err
+	}
+
+	role, found := service.EffectiveRole(memberships, path)
+	return role, found, nil
+}
+
 // union flattens the paths into the scopes to ask about, without duplicates. The resolution ignores
 // whatever is not on the path it is checking, so asking about all of them at once is safe - and it is
 // the difference between one query per page and one per row.
