@@ -227,6 +227,22 @@ transaction (§8: no external calls inside transactions).
 **Read:** `security.md` T-11, T-17, SG-12; `observability-reliability.md` §6, §7; ADR-0015;
 `deployment.md` §6; arc42 §8.4
 
+*Decided while implementing:* the S3 adapter signs SigV4 over the standard library rather than
+adding an SDK — a new dependency is a supply-chain decision no pull request takes, and MinIO's
+strict validation in the conformance suite is what proves the signer; swapping to an SDK stays
+open as an ADR. The adapter carries its own HTTP client with a documented entry in
+`outboundExceptions`: the endpoint is operator configuration in the database DSN's trust class,
+it streams what the guarded port deliberately buffers, and a self-hosted MinIO sits on exactly
+the private network the guard blocks — deadlines, refused redirects, breaker and bulkhead keep
+what rule 6 protects. Delivery policy: inline rendering is earned by a four-entry image
+allowlist; SVG, HTML and everything unrecognised are downloads, a claim of an inline-capable
+type the bytes contradict is refused as smuggling, and a sharper non-inline claim over a generic
+sniff is kept (sniffing cannot name SVG). The local store keeps the judged type in a sidecar
+file and writes atomically; local storage carries no breaker and no probe — a directory has no
+circuit to trip. `CreateBucket` exists for a fresh self-hosted MinIO and the suite. SG-12 runs
+untagged in `gate-security` over the guard, the policy and the local store; the MinIO-backed
+conformance runs under the `integration` tag.
+
 ---
 
 ## C-06 — Media: presigned upload, attachments, covers **[G]**
