@@ -24,6 +24,12 @@ var outboundExceptions = map[string]string{
 	// The container health check calls the process's own /healthz on 127.0.0.1. GuardedClient
 	// refuses loopback by design, which is exactly right for a webhook and exactly wrong here.
 	"cmd/server/main.go": "the container health check against 127.0.0.1",
+	// The S3 endpoint is operator configuration - the trust class of the database DSN, not a
+	// user-controlled target, so T-07 has nothing to guard - and the adapter streams objects the
+	// guarded port deliberately buffers, against a MinIO that lives on exactly the private
+	// network the guard blocks. Deadlines, refused redirects, the breaker and the bulkhead keep
+	// what rule 6 actually protects (C-05).
+	"infrastructure/storage/S3Storage.go": "the operator-configured object storage endpoint",
 }
 
 // forbiddenOutbound is what makes a call without the guard: the package-level helpers, the

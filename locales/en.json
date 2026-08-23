@@ -168,6 +168,15 @@
   "comments.comment_id_required": "Say which comment.",
   "comments.comment_deleted": "That comment was deleted. Its text cannot be changed.",
   "comments.version_conflict": "Someone else changed that comment in the meantime. Read it again and reapply.",
+
+  "media.type_mismatch": "The file does not look like {claimed}. Send it as what it is, or without a content type.",
+  "media.too_large": "The file is larger than this installation accepts ({limit_bytes} bytes).",
+  "media.content_required": "The upload carries no content.",
+  "media.content_unreadable": "The upload could not be read.",
+  "media.size_mismatch": "The upload ended at a different size than it declared.",
+
+  "storage.key_invalid": "This installation is misconfigured and could not store that file.",
+  "storage.io_failed": "The file store did not respond as expected. Please try again in a moment.",
   "items.auto_assign_strategy_unhandled": "This installation is misconfigured and could not hand that entry out automatically.",
 
   "buckets.name_empty": "A bucket needs a name.",
