@@ -45,6 +45,48 @@ type Request struct {
 	TokenScope string
 	TargetType string
 	TargetID   shared.ID
+	// On names the entry the request is about, when it is about one. Zero means the request is
+	// about a container and the permission alone decides it.
+	On ItemSubject
+}
+
+// ItemSubject is what the per-entry half of the role matrix needs in order to be applied: the
+// entry, what the request does to it, and whose it is (domain-model.md §3.2, C-04).
+//
+// The use case fills it in; the use case does not decide from it. It has already read the entry -
+// the path to it is what the check is about - so naming it here costs nothing, while reading it
+// again in this package would be a round trip for a row already in hand. Every judgement made
+// about what is named here is made below, in one place (ADR-0005).
+type ItemSubject struct {
+	// Does is the kind of access. Empty means this is not a request about a single entry.
+	Does service.ItemAction
+	// ID is the entry. Zero for a creation: there is nothing yet to share or to assign, so the
+	// path ends at the container the entry would be created under.
+	ID shared.ID
+	// Assignee is who the entry belongs to, zero for nobody. It is what "assigned only" is
+	// measured against, and it is read from the stored entry rather than from the request that
+	// wants to change it - a caller that could name the assignee would be naming its own
+	// permission.
+	Assignee shared.ID
+}
+
+// aboutAnEntry reports whether the per-entry decision applies.
+func (r Request) aboutAnEntry() bool { return r.On.Does != "" }
+
+// scopePath is the path the memberships are resolved along: the one the use case gave, with the
+// entry's own scope at the bottom when there is an entry.
+//
+// Appending here rather than at every call site is the point of the whole file: a share is a
+// membership at ITEM scope (identity.ItemScope), and a path that stopped at the collection would
+// resolve no role for the person it was shared with - silently, and in every use case that forgot.
+func (r Request) scopePath() []identity.Scope {
+	if !r.aboutAnEntry() || r.On.ID.IsZero() {
+		return r.Path
+	}
+
+	path := make([]identity.Scope, len(r.Path), len(r.Path)+1)
+	copy(path, r.Path)
+	return append(path, identity.ItemScope(r.On.ID))
 }
 
 // Service answers permission questions and records the refusals.
@@ -75,10 +117,12 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 		}
 	}
 
+	path := request.scopePath()
+
 	var memberships []identity.Membership
 	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		memberships, err = s.Memberships.Along(ctx, actor.AccountID, request.Path)
+		memberships, err = s.Memberships.Along(ctx, actor.AccountID, path)
 		return err
 	})
 	if err != nil {
@@ -87,13 +131,63 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 		return err
 	}
 
-	if !service.Allows(memberships, request.Path, request.Permission) {
+	if request.aboutAnEntry() {
+		return s.decideAboutTheEntry(ctx, actor, request, memberships, path)
+	}
+
+	if !service.Allows(memberships, path, request.Permission) {
 		s.recordRefusal(ctx, actor, request, "permission")
-		return shared.ErrForbidden.
-			WithDetail("access.not_permitted").
-			WithParams(map[string]string{"permission": string(request.Permission)})
+		return notPermitted(request)
 	}
 	return nil
+}
+
+// decideAboutTheEntry applies the qualifiers the permission column cannot express.
+//
+// Two answers, and the difference between them is the whole of T-04. An actor who holds a role
+// somewhere on the entry's path may reach it and is refused on what that role does not do: a
+// forbidden, naming the permission, exactly as any other refusal reads. An actor who holds nothing
+// on the path is not refused but told the entry is not there - because it is not, for them, and
+// telling them otherwise would confirm that an identifier they guessed names something real.
+//
+// Nothing distinguishes a guest from a stranger here, deliberately. "Shared items only" is not a
+// rule about the role: it is where the membership was granted, and an entry nobody granted anything
+// on is out of everybody's reach by the same sentence.
+func (s Service) decideAboutTheEntry(
+	ctx context.Context, actor appshared.ActorContext, request Request,
+	memberships []identity.Membership, path []identity.Scope,
+) error {
+	role, found := service.EffectiveRole(memberships, path)
+	if !found {
+		s.recordRefusal(ctx, actor, request, "sharing")
+		if request.On.ID.IsZero() {
+			// A creation names no entry, so there is no existence to disclose: the caller named a
+			// container it already holds an identifier for, and hiding that is the container
+			// list's business rather than this call's. It is refused as it always was.
+			return notPermitted(request)
+		}
+		return appshared.ItemNotFound(request.On.ID)
+	}
+
+	switch service.AllowsItemAction(role, request.On.Does, actor.AccountID, request.On.Assignee) {
+	case service.ItemPermitted:
+		return nil
+	case service.ItemRefusedByAssignment:
+		// The trail says which narrowing refused; the client is told what it is told for every
+		// other refusal. Distinguishing the two answers to the caller would tell a contributor
+		// which entries exist that are not theirs.
+		s.recordRefusal(ctx, actor, request, "assignment")
+	case service.ItemRefusedByRole:
+		s.recordRefusal(ctx, actor, request, "permission")
+	}
+	return notPermitted(request)
+}
+
+// notPermitted is the one refusal, so that every path to it reads the same to a client.
+func notPermitted(request Request) error {
+	return shared.ErrForbidden.
+		WithDetail("access.not_permitted").
+		WithParams(map[string]string{"permission": string(request.Permission)})
 }
 
 // Permitted answers the same question as Authorize for many paths at once: which of these may the
