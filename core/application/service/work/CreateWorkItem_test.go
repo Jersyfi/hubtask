@@ -390,6 +390,8 @@ type itemHarness struct {
 	history    *journal
 	authorizer *authorizer
 	uow        *unitOfWork
+	visibility *visibility
+	policies   *policyStore
 }
 
 func newItemHarness() *itemHarness {
@@ -405,12 +407,27 @@ func newItemHarness() *itemHarness {
 		history:    &journal{},
 		authorizer: &authorizer{},
 		uow:        &unitOfWork{},
+		visibility: newVisibility(assigneeID, accountID),
+		policies:   newPolicyStore(),
 	}
 	h.handler = CreateWorkItem{
 		Items: store, Containers: containerStore, Profiles: h.profiles,
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+		// The C-02 machinery, over the same fakes: the create path is its second caller.
+		AutoAssign: AutoAssignWorkItem{
+			Assignment: AssignmentWriter{
+				Items: store, Containers: containerStore, Profiles: h.profiles,
+				Authorizer: h.authorizer, Visibility: h.visibility, Events: h.events,
+				Changes: h.changes, Audit: h.audit,
+				Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+				UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+			},
+			Policies: h.policies,
+			Groups:   &groupStore{members: map[shared.ID][]shared.ID{}},
+			Random:   clock.NewScripted(0),
+		},
 	}
 
 	// A collection inside a hub: the shape every one of these tests writes into.
@@ -467,7 +484,7 @@ func TestTheThreeLevelsCanAllBeCreated(t *testing.T) {
 	h := newItemHarness()
 	ctx := context.Background()
 
-	task, err := h.handler.Execute(ctx, itemActor(), taskCommand())
+	task, _, err := h.handler.Execute(ctx, itemActor(), taskCommand())
 	if err != nil {
 		t.Fatalf("the task: %v", err)
 	}
@@ -478,7 +495,7 @@ func TestTheThreeLevelsCanAllBeCreated(t *testing.T) {
 		t.Errorf("title = %q, want it trimmed", task.Title)
 	}
 
-	pkg, err := h.handler.Execute(ctx, itemActor(), CreateWorkItemCommand{
+	pkg, _, err := h.handler.Execute(ctx, itemActor(), CreateWorkItemCommand{
 		Type: domain.ItemWorkPackage, CollectionID: collectionID, ParentID: task.ID,
 		Title: "Dairy aisle",
 	})
@@ -489,7 +506,7 @@ func TestTheThreeLevelsCanAllBeCreated(t *testing.T) {
 		t.Errorf("unexpected work package: %+v", pkg)
 	}
 
-	leaf, err := h.handler.Execute(ctx, itemActor(), CreateWorkItemCommand{
+	leaf, _, err := h.handler.Execute(ctx, itemActor(), CreateWorkItemCommand{
 		Type: domain.ItemActivity, CollectionID: collectionID, ParentID: pkg.ID,
 		Title: "Semi-skimmed, two litres",
 	})
@@ -518,7 +535,7 @@ func TestCreatingAnItemWritesTheRowTheEventTheChangeTheEntryAndTheHistory(t *tes
 	h := newItemHarness()
 	ctx := correlation.ContextWithRequestID(context.Background(), "01J9REQUEST")
 
-	item, err := h.handler.Execute(ctx, itemActor(), taskCommand())
+	item, _, err := h.handler.Execute(ctx, itemActor(), taskCommand())
 	if err != nil {
 		t.Fatalf("creating the task failed: %v", err)
 	}
@@ -602,7 +619,7 @@ func TestTheAuditEntryCarriesNoReadableUserContent(t *testing.T) {
 	cmd.Title = "Buy a birthday present for Jonas"
 	cmd.Notes = "He likes the blue one"
 
-	if _, err := h.handler.Execute(context.Background(), itemActor(), cmd); err != nil {
+	if _, _, err := h.handler.Execute(context.Background(), itemActor(), cmd); err != nil {
 		t.Fatalf("creating the task failed: %v", err)
 	}
 
@@ -657,7 +674,7 @@ func carries(value any, needle string) bool {
 func TestThePermissionIsAskedForAtTheWholePathBeforeTheTransaction(t *testing.T) {
 	h := newItemHarness()
 
-	if _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand()); err != nil {
+	if _, _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand()); err != nil {
 		t.Fatalf("creating the task failed: %v", err)
 	}
 
@@ -698,7 +715,7 @@ func TestARefusedRequestWritesNothing(t *testing.T) {
 	h := newItemHarness()
 	h.authorizer.err = shared.ErrForbidden
 
-	_, err := h.handler.Execute(context.Background(), itemActor(), taskCommand())
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand())
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("error = %v, want forbidden", err)
 	}
@@ -801,7 +818,7 @@ func TestEveryForbiddenCombinationIsRefusedWithItsReason(t *testing.T) {
 			h := newItemHarness()
 			cmd := c.command(h)
 
-			item, err := h.handler.Execute(context.Background(), itemActor(), cmd)
+			item, _, err := h.handler.Execute(context.Background(), itemActor(), cmd)
 			if err == nil {
 				t.Fatalf("no error, and the item was created: %+v", item)
 			}
@@ -826,7 +843,7 @@ func TestTheCollectionIsTakenFromTheParentWhenItIsNotGiven(t *testing.T) {
 	h := newItemHarness()
 	task := h.withTask()
 
-	pkg, err := h.handler.Execute(context.Background(), itemActor(), CreateWorkItemCommand{
+	pkg, _, err := h.handler.Execute(context.Background(), itemActor(), CreateWorkItemCommand{
 		Type: domain.ItemWorkPackage, ParentID: task.ID, Title: "Dairy aisle",
 	})
 	if err != nil {
@@ -854,7 +871,7 @@ func TestAParentInAnotherCollectionIsRefused(t *testing.T) {
 		Name: "Other", OrderKey: "a1", CreatedBy: accountID, CreatedAt: now, Version: 1,
 	}
 
-	_, err := h.handler.Execute(context.Background(), itemActor(), CreateWorkItemCommand{
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), CreateWorkItemCommand{
 		Type: domain.ItemWorkPackage, CollectionID: elsewhere, ParentID: task.ID, Title: "Dairy",
 	})
 	if got := shared.AsError(err).DetailCode; got != "items.parent_not_in_collection" {
@@ -880,14 +897,14 @@ func TestTheRulesComeFromTheProfilesRatherThanFromTheCode(t *testing.T) {
 
 	withNotes := taskCommand()
 	withNotes.Notes = "Something"
-	if _, err := h.handler.Execute(context.Background(), itemActor(), withNotes); !errors.Is(
+	if _, _, err := h.handler.Execute(context.Background(), itemActor(), withNotes); !errors.Is(
 		err, shared.ErrCapabilityNotSupported) {
 		t.Errorf("a note was accepted although the narrowed profile has none: %v", err)
 	}
 
 	// A type this workspace no longer offers is refused as unsupported rather than as unknown:
 	// the schema still knows WORK_PACKAGE, this installation does not offer it.
-	_, err := h.handler.Execute(context.Background(), itemActor(), CreateWorkItemCommand{
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), CreateWorkItemCommand{
 		Type: domain.ItemWorkPackage, CollectionID: collectionID, Title: "Dairy",
 	})
 	if got := shared.AsError(err).DetailCode; got != "items.type_unsupported" {
@@ -895,7 +912,7 @@ func TestTheRulesComeFromTheProfilesRatherThanFromTheCode(t *testing.T) {
 	}
 
 	// The plain case still works, so the narrowing refused what it should and nothing else.
-	if _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand()); err != nil {
+	if _, _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand()); err != nil {
 		t.Errorf("a plain task was refused: %v", err)
 	}
 }
@@ -922,7 +939,7 @@ func TestANarrowedWorkspaceCannotPromoteATypeToTheTopLevel(t *testing.T) {
 		},
 	}
 
-	_, err := h.handler.Execute(context.Background(), itemActor(), CreateWorkItemCommand{
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), CreateWorkItemCommand{
 		Type: domain.ItemWorkPackage, CollectionID: collectionID, Title: "Dairy",
 	})
 	if got := shared.AsError(err).DetailCode; got != "items.parent_item_required" {
@@ -939,7 +956,7 @@ func TestANewItemIsRankedAfterItsLastSibling(t *testing.T) {
 	h := newItemHarness()
 	h.items.lastKey = "a5"
 
-	item, err := h.handler.Execute(context.Background(), itemActor(), taskCommand())
+	item, _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand())
 	if err != nil {
 		t.Fatalf("error = %v", err)
 	}
@@ -955,7 +972,7 @@ func TestAFailedInsertAnnouncesNothing(t *testing.T) {
 	h := newItemHarness()
 	h.items.insertErr = shared.ErrUnavailable
 
-	if _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand()); !errors.Is(
+	if _, _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand()); !errors.Is(
 		err, shared.ErrUnavailable) {
 		t.Fatalf("error = %v", err)
 	}
@@ -995,19 +1012,21 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	}
 	for _, owned := range []string{
 		"type", "title", "collection_id", "parent_id", "notes", "bucket_id",
+		"assignee_id", "auto_assign",
 	} {
 		if !declared[owned] {
 			t.Errorf("%s is not declared", owned)
 		}
 	}
-	for _, later := range []string{"label_ids", "assignee_id", "due_at", "cover"} {
+	for _, later := range []string{"label_ids", "member_ids", "due_at", "cover"} {
 		if declared[later] {
 			t.Errorf("%s is declared, though no use case writes it yet", later)
 		}
 	}
 
 	if err := descriptor.ValidateInput(map[string]any{
-		"type": "TASK", "title": "Buy milk", "assignee_id": "0192f000-0000-7000-8000-00000000000e",
+		"type": "TASK", "title": "Buy milk",
+		"member_ids": []any{"0192f000-0000-7000-8000-00000000000e"},
 	}); err == nil {
 		t.Error("a field nothing writes was accepted rather than refused by name")
 	}

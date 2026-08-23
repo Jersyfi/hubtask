@@ -299,10 +299,10 @@ func (h AutoAssignWorkItem) choose(
 		locked, err = h.Policies.Lock(ctx, domain.AutoAssignScopeCollection, collection.ID)
 		if err != nil {
 			if errors.Is(err, shared.ErrNotFound) {
-				// The policy was removed between the read and the lock. The same answer as no
-				// policy at all, because that is what it now is.
-				return service.AssignmentChoice{}, false, domain.AutoAssignPolicy{},
-					autoAssignUnavailableError()
+				// The policy was removed between the read and the lock. Nobody is chosen - the
+				// same shape as an empty pool, and deliberately not a failure: on the create
+				// path this races a configuration change, and the creation must not lose to it.
+				return service.AssignmentChoice{}, false, domain.AutoAssignPolicy{}, nil
 			}
 			return service.AssignmentChoice{}, false, domain.AutoAssignPolicy{}, err
 		}

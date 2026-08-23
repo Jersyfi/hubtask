@@ -41,11 +41,11 @@ const (
 // CreateWorkItemCommand is the input, typed.
 //
 // The fields are the ones this use case owns. Everything else the contract's WorkItemCreate
-// declares - the bucket, the labels, the members, the assignee, the due date, the cover, the
-// custom fields - belongs to a use case that has not landed yet, and is refused rather than
-// accepted and dropped: the catalogue does not declare those fields, so a request carrying one
-// comes back naming it (usecase.field_unknown) instead of returning a 201 for an item that is
-// not what the caller asked for.
+// declares - the labels, the members, the due date, the cover, the custom fields - belongs to a
+// use case that has not landed yet, and is refused rather than accepted and dropped: the
+// catalogue does not declare those fields, so a request carrying one comes back naming it
+// (usecase.field_unknown) instead of returning a 201 for an item that is not what the caller
+// asked for. The assignee and auto_assign joined with C-02, which is the task C-01 left them to.
 type CreateWorkItemCommand struct {
 	Type domain.ItemType
 	// CollectionID may be left empty when ParentID is given: an item's collection is the one its
@@ -56,6 +56,13 @@ type CreateWorkItemCommand struct {
 	Notes        string
 	// BucketID is the column of the collection's board the entry starts in, empty for none.
 	BucketID shared.ID
+	// AssigneeID creates the entry already on somebody (C-02): the same checks and the same
+	// records as :assign, in the same transaction as the creation. Empty for nobody.
+	AssigneeID shared.ID
+	// AutoAssign asks the collection's assignment policy to hand the new entry out, explicitly -
+	// an enabled policy applies itself without this flag. Contradicts AssigneeID and is refused
+	// beside it: a named person and a policy cannot both decide one scalar.
+	AutoAssign bool
 }
 
 // CreateWorkItem creates a task, a work package, or an activity.
@@ -81,21 +88,28 @@ type CreateWorkItem struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
+	// AutoAssign is the machinery C-02 built for :auto-assign, reused whole: the create path is
+	// its second caller - the policy that applies itself to what a collection creates, and the
+	// explicit `auto_assign` ask - and its Assignment writer is also how an explicit assignee is
+	// written, with the same guards and the same four records as :assign.
+	AutoAssign AutoAssignWorkItem
 }
 
-// Execute creates the item and returns it.
+// Execute creates the item and returns it, together with what automatic assignment did when it
+// ran - nil when it did not, which is a different answer from "it ran and found nobody".
 func (h CreateWorkItem) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd CreateWorkItemCommand,
-) (domain.WorkItem, error) {
+) (domain.WorkItem, *AutoAssignOutcome, error) {
 	// The collection has to be known before the permission question can be asked, because the
 	// answer depends on it: a membership held at the hub applies downwards, and a path that named
 	// only the collection would ignore it and refuse somebody who does have the right
 	// (domain-model.md §3.2). So this read comes first - it decides nothing, it only says which
 	// path the question is about.
-	collectionID, path, err := h.scopeOf(ctx, actor, cmd)
+	collection, path, err := h.scopeOf(ctx, actor, cmd)
 	if err != nil {
-		return domain.WorkItem{}, err
+		return domain.WorkItem{}, nil, err
 	}
+	collectionID := collection.ID
 
 	// Before the transaction, deliberately: a refusal writes an audit entry, and an entry written
 	// inside this transaction would be rolled back together with the refusal (audit.md §7).
@@ -109,10 +123,19 @@ func (h CreateWorkItem) Execute(
 		// created in.
 		TargetID: collectionID,
 	}); err != nil {
-		return domain.WorkItem{}, err
+		return domain.WorkItem{}, nil, err
+	}
+
+	// Whether and how the new entry gets an assignee is decided before the transaction, for the
+	// reasons the manual path decides it there: the second person's visibility and the pool's
+	// eligibility read through the authorisation service, which opens transactions of its own.
+	plan, err := h.assignmentPlan(ctx, actor, collection, cmd)
+	if err != nil {
+		return domain.WorkItem{}, nil, err
 	}
 
 	var created domain.WorkItem
+	var outcome *AutoAssignOutcome
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		// One reading of the clock for the whole write. Two would let the row say it was created
 		// at one moment and the event say another, and the difference would show up as an item
@@ -153,12 +176,98 @@ func (h CreateWorkItem) Execute(
 		}
 
 		created = item
-		return nil
+		if plan == nil {
+			return nil
+		}
+
+		// The entry exists; now it lands on somebody, with the same records the standalone
+		// assignment writes - the second event is what a notification reacts to (C-09 subscribes
+		// to item.assigned, not to every create), and it is why the assignment is not baked into
+		// the inserted row.
+		created, outcome, err = plan.apply(ctx, actor, item, now)
+		return err
 	})
 	if err != nil {
-		return domain.WorkItem{}, err
+		return domain.WorkItem{}, nil, err
 	}
-	return created, nil
+	return created, outcome, nil
+}
+
+// createAssignment is the decided plan: exactly one of the two fields is set.
+type createAssignment struct {
+	h        CreateWorkItem
+	assignee shared.ID
+	pool     *eligiblePool
+}
+
+// assignmentPlan reads the command's two assignment fields against the collection's policy and
+// decides what - if anything - will put an assignee on the new entry. Nil means the entry is
+// created on nobody, which is what a plain create has always meant.
+func (h CreateWorkItem) assignmentPlan(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container,
+	cmd CreateWorkItemCommand,
+) (*createAssignment, error) {
+	if cmd.AutoAssign && !cmd.AssigneeID.IsZero() {
+		return nil, shared.ErrValidation.
+			WithDetail("items.assignee_conflicts_auto_assign").
+			WithFields(shared.FieldError{
+				Path: "/auto_assign", Code: "items.assignee_conflicts_auto_assign",
+			})
+	}
+
+	if !cmd.AssigneeID.IsZero() {
+		// The person named must be able to see what they are being given - the check that makes
+		// an assignment mean anything, asked here exactly as :assign asks it (C-01).
+		if err := ensureAccountCanSee(
+			ctx, h.AutoAssign.Assignment.Visibility, actor, cmd.AssigneeID, collection,
+		); err != nil {
+			return nil, err
+		}
+		return &createAssignment{h: h, assignee: cmd.AssigneeID}, nil
+	}
+
+	policy := collection.AutoAssign
+	if cmd.AutoAssign {
+		if policy == nil {
+			return nil, autoAssignUnavailableError()
+		}
+	} else if policy == nil || !policy.Enabled {
+		// No explicit ask and no policy that applies itself: the two ways a policy is reached
+		// (C-02), and neither is this create.
+		return nil, nil
+	}
+
+	pool, err := h.AutoAssign.eligible(ctx, actor, collection, *policy)
+	if err != nil {
+		return nil, err
+	}
+	return &createAssignment{h: h, pool: &pool}, nil
+}
+
+// apply runs inside the create's transaction, on the row the create just wrote.
+func (p *createAssignment) apply(
+	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem, now time.Time,
+) (domain.WorkItem, *AutoAssignOutcome, error) {
+	if p.pool != nil {
+		written, outcome, err := p.h.AutoAssign.apply(
+			ctx, actor, AssignmentCommand{ItemID: item.ID}, *p.pool)
+		if err != nil {
+			return domain.WorkItem{}, nil, err
+		}
+		return written, &outcome, nil
+	}
+
+	w := p.h.AutoAssign.Assignment
+	profile, err := profileOf(ctx, w.Profiles, item.Type)
+	if err != nil {
+		return domain.WorkItem{}, nil, err
+	}
+	if err := item.EnsureAssignable(profile); err != nil {
+		return domain.WorkItem{}, nil, err
+	}
+	written, err := w.write(ctx, actor, item, item.Assigned(p.assignee, now),
+		0, profile, assigning, now, byHand)
+	return written, nil, err
 }
 
 // scopeOf resolves which collection the item will live in, and the authorisation path to it.
@@ -169,7 +278,7 @@ func (h CreateWorkItem) Execute(
 // changed by the time it commits.
 func (h CreateWorkItem) scopeOf(
 	ctx context.Context, actor appshared.ActorContext, cmd CreateWorkItemCommand,
-) (shared.ID, []identity.Scope, error) {
+) (domain.Container, []identity.Scope, error) {
 	var collection domain.Container
 
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -201,14 +310,14 @@ func (h CreateWorkItem) scopeOf(
 		return nil
 	})
 	if err != nil {
-		return "", nil, err
+		return domain.Container{}, nil, err
 	}
 
 	// The path runs from the tenant downwards: the hub the collection sits in, then the collection
 	// itself. A membership held at any of them counts, which is what "the effective permission is the
 	// highest role along the path" means. Built by containerPath, which the read side needs for the
 	// same reason - two copies of this would eventually disagree about one level.
-	return collection.ID, containerPath(collection), nil
+	return collection, containerPath(collection), nil
 }
 
 // build reads the state the placement depends on and turns the command into an item. It runs
@@ -481,7 +590,9 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 			"Which combinations are permitted is configured per workspace rather than fixed, " +
 			"so a refusal names the reason rather than the rule.",
 		SideEffects: "Writes the item, announces " + string(event.ItemCreated) +
-			", records a change for offline clients, and writes an audit entry.",
+			", records a change for offline clients, and writes an audit entry. When an assignee " +
+			"is named or an assignment policy applies, additionally writes the assignment with " +
+			"everything :assign writes, " + string(event.ItemAssigned) + " included.",
 		TokenScope: itemsWrite,
 		Input: []usecase.Field{
 			{
@@ -517,6 +628,22 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"has one - a board belongs to a collection, so only the entries directly in it " +
 					"have a place on it.",
 			},
+			{
+				Name: "assignee_id", Kind: usecase.KindID,
+				Description: "The account to put the new entry on, with the same rules as " +
+					":assign: the person has to be able to see the entry, and one who cannot is " +
+					"refused rather than stored. Cannot be combined with auto_assign - a named " +
+					"person and a policy cannot both decide one field.",
+			},
+			{
+				Name: "auto_assign", Kind: usecase.KindBool,
+				Description: "Hand the new entry out by the collection's assignment policy, " +
+					"explicitly. Refused when the collection has no policy. Without this flag an " +
+					"enabled policy applies itself anyway; a policy that is not enabled runs only " +
+					"when this asks. The response's auto_assign object says what happened - " +
+					"including that nobody was eligible, which leaves the entry unassigned rather " +
+					"than failing the creation.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ItemCreatedAction, TargetType: itemTarget,
@@ -544,17 +671,28 @@ func (h CreateWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
+	assigneeID, err := in.ID("assignee_id")
+	if err != nil {
+		return nil, err
+	}
 
-	item, err := h.Execute(ctx, actor, CreateWorkItemCommand{
+	item, outcome, err := h.Execute(ctx, actor, CreateWorkItemCommand{
 		Type:         domain.ItemType(in.String("type")),
 		CollectionID: collectionID,
 		ParentID:     parentID,
 		Title:        in.String("title"),
 		Notes:        in.String("notes"),
 		BucketID:     bucketID,
+		AssigneeID:   assigneeID,
+		AutoAssign:   in.Bool("auto_assign"),
 	})
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+
+	out := itemOutput(item)
+	if outcome != nil {
+		out = outcome.output(out)
+	}
+	return out, nil
 }

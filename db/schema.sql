@@ -154,6 +154,10 @@ CREATE TABLE container (
   -- default_bucket_id, capability_overrides, auto_assign. An absent key means the default; the column
   -- starts as {} and UpdateContainerPolicies (B-06) is what writes into it.
   --
+  -- auto_assign is a key of the policies *document*, not of this column: C-02 stores it in
+  -- auto_assign_policy, because ROUND_ROBIN's cursor has to be lockable, and the container queries
+  -- join it back so every read still carries the whole document.
+  --
   -- default_bucket_id has no writer and is not read. B-09 needed a column for a deleted bucket's
   -- items to fall back to and derived it instead - the collection's leftmost remaining bucket -
   -- because a stored default is a value nothing keeps up to date: a column deleted while the key
@@ -509,6 +513,9 @@ CREATE TABLE auto_assign_policy (
   enabled     boolean NOT NULL DEFAULT true,
   version     integer NOT NULL DEFAULT 1
 );
+-- One policy per scope (C-02, migration 0011): the auto_assign key of one container's policies
+-- document is one row, and the upsert that writes the key conflicts on this.
+CREATE UNIQUE INDEX auto_assign_policy_scope_uq ON auto_assign_policy (tenant_id, scope_type, scope_id);
 
 -- =============================== Automation ================================
 
