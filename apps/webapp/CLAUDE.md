@@ -14,7 +14,8 @@ from the same commit and cannot be a version apart.
   ([ADR-0030](../../docs/adr/ADR-0030-svelte-frontend-framework.md)) — SvelteKit's inline
   bootstrap script cannot pass the CSP below. The two standing constraints are unchanged: the
   content security policy permits neither `'unsafe-inline'` nor `'unsafe-eval'` (the built
-  bundle must contain no inline script or style), and every value comes from the design system.
+  bundle must contain no inline script or style — `pnpm build` runs `build/check-csp.js` and
+  fails on one), and every value comes from the design system.
   This one codebase is also what the Tauri shells wrap
   ([ADR-0031](../../docs/adr/ADR-0031-tauri-app-shell.md)); platform-specific code lives only
   behind the `src/lib/platform/` seam
@@ -27,6 +28,10 @@ from the same commit and cannot be a version apart.
 * **No request to a foreign origin.** `connect-src 'self'`, and the fonts ship with the bundle. A
   self-hosted Hubtask contacts nobody on load (ADR-0018).
 * **No dependency on `apps/website`.** The two clients share packages, never each other.
+* **Routing is the in-house module `src/lib/router.ts`** — real paths over the History API,
+  never `#/` (ADR-0028's `index.html` fallback exists so deep links survive a reload). Routes
+  join its table in `App.svelte`; a router library would be a new dependency and therefore a
+  proposal, not a commit (CLAUDE.md, the W-06 pull request records the reasoning).
 
 ## Two things the API decides for you
 

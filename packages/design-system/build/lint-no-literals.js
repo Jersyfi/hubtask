@@ -24,7 +24,7 @@ const ALLOWED = [
   path.join('packages', 'design-system', 'tokens', 'tokens.json'),
 ];
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.vite', '.turbo']);
-const EXTENSIONS = new Set(['.css', '.ts', '.tsx', '.js', '.jsx', '.html', '.svg', '.json']);
+const EXTENSIONS = new Set(['.css', '.ts', '.tsx', '.js', '.jsx', '.html', '.svg', '.json', '.svelte']);
 
 // Colour is checked everywhere; length and duration only in application code.
 //
