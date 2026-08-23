@@ -34,6 +34,7 @@ import (
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
 	queueport "github.com/Jersyfi/hubtask/core/port/queue"
+	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
@@ -43,6 +44,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
+	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 	"github.com/Jersyfi/hubtask/presentation/webui"
@@ -167,6 +169,17 @@ func run() error {
 
 	registry.Register(postgres.NewProbe(pool))
 	registry.SetSignals(metrics)
+
+	// The object store exists from here on, although the first use case that consumes it is
+	// C-06's: the configuration surface has existed since A-02, and an operator who pointed the
+	// process at a bucket deserves to read in /meta/health that it is unreachable rather than to
+	// find out at the first upload (QS-11). Local storage carries no breaker and no probe - a
+	// directory has no circuit to trip, and its failures are the disk's, reported per call.
+	mediaStore, err := buildObjectStore(cfg, registry, metrics)
+	if err != nil {
+		return fmt.Errorf("object storage: %w", err)
+	}
+	_ = mediaStore // C-06 threads this into the media use cases.
 
 	// The panic metric is the one an alert watches, and its target value is 0 permanently
 	// (ADR-0016). The recovered value itself is deliberately not logged here: a panic value can
@@ -842,6 +855,35 @@ func runsBackgroundWork(cfg envport.Config) bool {
 // primaryRole picks the role whose query budget the pool runs under. The API is the strictest,
 // so a process serving the API uses that budget for everything it does - being cut off early is
 // the safer mistake on a shared pool.
+// buildObjectStore composes the configured store (C-05). For S3 that is the whole of A-05's
+// vocabulary: the adapter, a breaker the health probe reads, and a bulkhead so the storage pool
+// is this size and not the process (ADR-0016).
+func buildObjectStore(
+	cfg envport.Config, registry *healthadapter.Registry, metrics *observability.Metrics,
+) (storageport.ObjectStore, error) {
+	if cfg.Storage.Kind != envport.StorageS3 {
+		return storageadapter.NewLocalStorage(cfg.Storage.LocalPath), nil
+	}
+
+	s3, err := storageadapter.NewS3Storage(cfg.Storage, cfg.Request.Timeout)
+	if err != nil {
+		return nil, err
+	}
+	breaker := resilience.NewBreaker(resilience.BreakerConfig{
+		Dependency: "object_storage",
+		OnStateChange: func(dependency string, state resilience.BreakerState) {
+			metrics.CircuitBreakerState(context.Background(), dependency, state.Level())
+		},
+	})
+	// Eight slots, failing fast: media is the interactive path's optional extra, and a request
+	// that cannot get a slot should hear so now rather than queue behind an outage
+	// (observability-reliability.md §6).
+	bulkhead := resilience.NewBulkhead(resilience.BulkheadConfig{Name: "s3", Capacity: 8})
+
+	registry.Register(storageadapter.NewProbe(breaker))
+	return storageadapter.NewResilientStore(s3, breaker, bulkhead), nil
+}
+
 func primaryRole(cfg envport.Config) envport.Role {
 	if cfg.HasRole(envport.RoleAPI) {
 		return envport.RoleAPI
