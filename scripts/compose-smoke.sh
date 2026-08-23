@@ -103,12 +103,58 @@ elif grep -q "No user interface was built into this binary" <<< "$index"; then
 	failures=$((failures + 1))
 fi
 
+# The document names a content-hashed asset - which is what separates the real application from
+# any page that happens to be HTML, and what the caching pair below rests on (ADR-0028, W-08).
+asset="$(grep -o '/assets/[^"]*\.js' <<< "$index" | head -1)"
+if [ -z "$asset" ]; then
+	echo "FAILED: the document references no hashed script - this is not the built application"
+	failures=$((failures + 1))
+else
+	# The pairing decided in ADR-0028, observed on the wire rather than trusted from a unit
+	# test: the document is always revalidated, the hashed asset it names may be kept forever.
+	index_cache="$(curl -fsSI "http://127.0.0.1:$HTTP_PORT/" | tr -d '\r' | grep -i '^cache-control:' || true)"
+	if ! grep -q "no-cache" <<< "$index_cache"; then
+		echo "FAILED: the document answers '$index_cache', expected no-cache"
+		failures=$((failures + 1))
+	fi
+	asset_cache="$(curl -fsSI "http://127.0.0.1:$HTTP_PORT$asset" | tr -d '\r' | grep -i '^cache-control:' || true)"
+	if ! grep -q "immutable" <<< "$asset_cache"; then
+		echo "FAILED: the hashed asset answers '$asset_cache', expected immutable"
+		failures=$((failures + 1))
+	fi
+fi
+
+# The UI policy of security.md §9 / ADR-0028 travels with the document, and it is the strict
+# one: no 'unsafe-inline', no 'unsafe-eval' - the constraint that was placed before the
+# framework was chosen holds in the running container after it.
+csp="$(curl -fsSI "http://127.0.0.1:$HTTP_PORT/" | tr -d '\r' | grep -i '^content-security-policy:' || true)"
+if [ -z "$csp" ]; then
+	echo "FAILED: the document carries no Content-Security-Policy"
+	failures=$((failures + 1))
+elif grep -q "unsafe-inline\|unsafe-eval" <<< "$csp"; then
+	echo "FAILED: the UI policy contains an unsafe- source: $csp"
+	failures=$((failures + 1))
+fi
+
 # A route only the client knows about has to survive a reload rather than 404 - the application
 # owns its own paths (ADR-0028).
 if ! curl -fsS -o /dev/null "http://127.0.0.1:$HTTP_PORT/containers/01JBXR3TESTONLY"; then
 	echo "FAILED: a deep link into the application did not resolve to the document"
 	failures=$((failures + 1))
 fi
+
+# The other half of the fallback rule: an unmatched path under /api is the API's own answer with
+# a Problem body, never a page - the interface must not shadow the API's error surface
+# (ADR-0028). The status is 401 rather than 404 for this anonymous probe, because the API's
+# middleware authenticates before it routes; what the fallback rule promises is the body.
+api_missing="$(curl -sS -o /dev/null -w '%{http_code} %{content_type}' "http://127.0.0.1:$HTTP_PORT/api/v1/no-such-route")"
+case "$api_missing" in
+4*" application/problem+json"*) ;;
+*)
+	echo "FAILED: an unmatched /api path answered '$api_missing', expected the API's problem document"
+	failures=$((failures + 1))
+	;;
+esac
 
 # The interface is an optional part of the installation, so a client discovers it the same way it
 # discovers every other one, instead of asking for "/" and guessing from the answer.
