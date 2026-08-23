@@ -42,7 +42,11 @@ The architecture is fully documented and ready to implement. Start here:
 | [docs/architecture/versioning-release.md](./docs/architecture/versioning-release.md) | Semantic versioning, releases, migrations |
 | [docs/architecture/licensing-editions.md](./docs/architecture/licensing-editions.md) | Licence and edition model |
 | [docs/architecture/engineering-guidelines.md](./docs/architecture/engineering-guidelines.md) | Test strategy, Definition of Ready/Done, operations |
-| [docs/adr/README.md](./docs/adr/README.md) | 23 architecture decisions with their reasoning |
+| [docs/architecture/deployment.md](./docs/architecture/deployment.md) | Environments, rollout, the integration environment, self-hosting |
+| [docs/architecture/ci-cd.md](./docs/architecture/ci-cd.md) | GitHub Actions pipeline, quality gates, release automation |
+| [docs/architecture/support-matrix.md](./docs/architecture/support-matrix.md) | What is supported, with the CI job that proves every row |
+| [docs/design/design-system.md](./docs/design/design-system.md) | Design system specification: tokens, themes, foundations |
+| [docs/adr/README.md](./docs/adr/README.md) | The architecture decision records with their reasoning |
 | [docs/roadmap.md](./docs/roadmap.md) | Milestones `0.1.0` through `1.0.0` |
 | [api/openapi.yaml](./api/openapi.yaml) | API contract (skeleton) |
 | [db/schema.sql](./db/schema.sql) | Reference database schema |
@@ -58,9 +62,15 @@ the job queue, the event outbox, full-text search, and tenant isolation (row lev
 Instead of four specialised level entities there is one generalised `WorkItem` aggregate root with
 capability profiles — new levels and fields are configuration, not a migration.
 
+The same repository also holds both first-party clients and the design system
+([ADR-0027](./docs/adr/ADR-0027-monorepo-structure.md)): the web UI under `apps/webapp` is an
+inbound adapter like REST or MCP and ships inside the binary
+([ADR-0028](./docs/adr/ADR-0028-embedded-web-ui.md)), and the project website lives under
+`apps/website`.
+
 ---
 
-## Quick start (planned, from milestone `0.1.0`)
+## Quick start
 
 ```bash
 git clone https://github.com/Jersyfi/hubtask.git && cd hubtask
@@ -118,6 +128,8 @@ Which platforms the binary is supported on is in
 | Resilience | Circuit breakers, bulkheads, load shedding, dead letter, idempotency throughout |
 | Backup | Own logical archive format (JSON Lines + manifest), AES-256-GCM, adapters for S3/SFTP/FTPS/WebDAV/SMB/Azure/GCS/rclone/local |
 | Offline sync | Delta sync via a change log, hybrid logical clocks, OR-sets, fractional indices |
+| Clients | Svelte 5 + TypeScript; the webapp as a plain Vite SPA, served from inside the binary; Tauri 2 shells for desktop and mobile planned |
+| Design system | Design tokens (W3C DTCG, Style Dictionary) as the single origin of every visual value; pnpm workspace |
 | Deployment | Docker/Podman Compose, Helm for Kubernetes |
 
 ---

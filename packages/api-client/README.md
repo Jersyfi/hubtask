@@ -27,5 +27,6 @@ fails the check. If you need something the types do not describe, describe it in
 
 ## There is no runtime client yet
 
-Only types. Which fetch layer the webapp uses is part of the frontend framework decision that has
-not been taken, and picking one here would prejudge it.
+Only types. The fetch layer belongs to the sync engine's `Transport` port
+([ADR-0033](../../docs/adr/ADR-0033-shared-client-architecture.md)) and arrives with that work
+package — not here as a side effect, and never hand-written.
