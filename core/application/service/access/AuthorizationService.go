@@ -312,6 +312,31 @@ func (s Service) RoleAlong(
 	return role, found, nil
 }
 
+// WritesOnlyWhatIsAssigned reports whether the role the actor holds along this path reaches only
+// the entries assigned to them.
+//
+// It is the one thing about the narrowing a use case has to know *before* it writes rather than
+// after. A creation by somebody whose writes are narrowed that way has to land on them, or the
+// entry they just made would be out of their own reach the moment it existed - so the create path
+// asks this and assigns accordingly (the decision on issue #84).
+//
+// What it hands back is "this entry has to be yours", not "you are a contributor". The role stays
+// here and the matrix answers the question (service.ItemAccessOf), so a role added later with the
+// same qualifier is covered without the create path being edited - which is the difference between
+// consulting the decision point and copying a check out of it (ADR-0005).
+//
+// Nothing is audited. Nobody was refused anything: the actor's own permission is decided by
+// Authorize, and this asks what shape their write has to take (audit.md §4).
+func (s Service) WritesOnlyWhatIsAssigned(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+) (bool, error) {
+	role, found, err := s.RoleAlong(ctx, actor, path)
+	if err != nil || !found {
+		return false, err
+	}
+	return service.ItemAccessOf(role, service.ItemChange) == service.AccessAssigned, nil
+}
+
 // union flattens the paths into the scopes to ask about, without duplicates. The resolution ignores
 // whatever is not on the path it is checking, so asking about all of them at once is safe - and it is
 // the difference between one query per page and one per row.

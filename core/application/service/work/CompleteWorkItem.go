@@ -129,7 +129,7 @@ func (w CompletionWriter) change(
 	// the path: a membership at the hub applies downwards, and a path that named only the collection
 	// would refuse somebody who does hold the right (domain-model.md §3.2). Nothing read here is trusted
 	// afterwards - the state that decides the write is read again inside the transaction that writes.
-	collection, err := w.collectionOf(ctx, actor, cmd.ItemID)
+	subject, collection, err := w.collectionOf(ctx, actor, cmd.ItemID)
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
@@ -143,6 +143,7 @@ func (w CompletionWriter) change(
 		TokenScope: itemsWrite,
 		TargetType: itemTarget,
 		TargetID:   cmd.ItemID,
+		On:         changing(subject),
 	}); err != nil {
 		return domain.WorkItem{}, err
 	}
@@ -415,21 +416,8 @@ func (w CompletionWriter) completable(ctx context.Context, item domain.WorkItem)
 // the permission check needs it first.
 func (w CompletionWriter) collectionOf(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
-) (domain.Container, error) {
-	var collection domain.Container
-
-	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		item, err := w.findItem(ctx, itemID)
-		if err != nil {
-			return err
-		}
-		collection, err = w.findCollection(ctx, item.CollectionID)
-		return err
-	})
-	if err != nil {
-		return domain.Container{}, err
-	}
-	return collection, nil
+) (domain.WorkItem, domain.Container, error) {
+	return readItemScope(ctx, w.UnitOfWork, w.Items, w.Containers, actor, itemID)
 }
 
 func (w CompletionWriter) findItem(ctx context.Context, id shared.ID) (domain.WorkItem, error) {

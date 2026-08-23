@@ -427,6 +427,7 @@ func run() error {
 			Containers: containers,
 			Profiles:   profiles,
 			Authorizer: authorizer,
+			Ownership:  authorizer,
 			Events:     outbox,
 			Changes:    changes,
 			Audit:      auditSink,

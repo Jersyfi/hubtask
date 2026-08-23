@@ -106,6 +106,12 @@ func (h PurgeWorkItem) Execute(
 		TokenScope: itemsWrite,
 		TargetType: itemTarget,
 		TargetID:   cmd.ItemID,
+		// A hard delete is a write on the entry, so it is narrowed like any other (C-04): a role
+		// that reaches only what is assigned to it does not get to empty somebody else's work out
+		// of the trash.
+		On: access.ItemSubject{
+			Does: service.ItemChange, ID: item.ID, Assignee: item.AssigneeID,
+		},
 	}); err != nil {
 		return 0, err
 	}

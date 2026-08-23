@@ -413,6 +413,7 @@ func newItemHarness() *itemHarness {
 	h.handler = CreateWorkItem{
 		Items: store, Containers: containerStore, Profiles: h.profiles,
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+		Ownership:  h.authorizer,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		// The C-02 machinery, over the same fakes: the create path is its second caller.

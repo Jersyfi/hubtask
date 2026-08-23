@@ -94,6 +94,7 @@ func (h GetWorkItem) Execute(
 		TokenScope: itemsRead,
 		TargetType: itemTarget,
 		TargetID:   item.ID,
+		On:         reading(item),
 	}); err != nil {
 		return domain.WorkItem{}, err
 	}

@@ -59,7 +59,7 @@ func (h ListComments) Execute(
 		return repository.CommentPage{}, itemIDRequired()
 	}
 
-	collection, err := h.collectionOf(ctx, actor, query.ItemID)
+	subject, collection, err := h.collectionOf(ctx, actor, query.ItemID)
 	if err != nil {
 		return repository.CommentPage{}, err
 	}
@@ -71,6 +71,7 @@ func (h ListComments) Execute(
 		TokenScope: itemsRead,
 		TargetType: itemTarget,
 		TargetID:   query.ItemID,
+		On:         reading(subject),
 	}); err != nil {
 		return repository.CommentPage{}, err
 	}
@@ -93,21 +94,8 @@ func (h ListComments) Execute(
 // asked against - both levels, because a membership held at either applies downwards.
 func (h ListComments) collectionOf(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
-) (domain.Container, error) {
-	var collection domain.Container
-
-	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		item, err := findItem(ctx, h.Items, itemID)
-		if err != nil {
-			return err
-		}
-		collection, err = findCollection(ctx, h.Containers, item.CollectionID)
-		return err
-	})
-	if err != nil {
-		return domain.Container{}, err
-	}
-	return collection, nil
+) (domain.WorkItem, domain.Container, error) {
+	return readItemScope(ctx, h.UnitOfWork, h.Items, h.Containers, actor, itemID)
 }
 
 // Descriptor is the catalogue entry.
