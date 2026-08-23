@@ -57,7 +57,10 @@ added — the milestone is measured by what still works afterwards. It sits here
 starts in parallel from `0.4.0`, and the house has to exist before anybody moves in
 ([ADR-0027](./adr/ADR-0027-monorepo-structure.md),
 [ADR-0028](./adr/ADR-0028-embedded-web-ui.md),
-[ADR-0029](./adr/ADR-0029-design-system-tokens.md)).
+[ADR-0029](./adr/ADR-0029-design-system-tokens.md)). With
+[ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)–[ADR-0033](./adr/ADR-0033-shared-client-architecture.md)
+accepted, the milestone carries a second wave, W-06–W-09: the Svelte webapp scaffold, the token
+wiring, the embedded pipeline proven against the real bundle, and the workspace dependency lint.
 
 ### `0.4.0` Time
 Due dates (including all-day, time zones), reminders (predefined + custom), recurrence (RRULE, both
@@ -131,9 +134,28 @@ Prerequisites for `1.0.0`:
 
 ## Phase 5 — Frontend (in parallel from `0.4.0`, with its own versioning)
 
-The design and feature set are open; the backend supplies only building blocks. The place it will
-live, the way it will be delivered and the values it will be drawn in are settled by `0.3.5`; what
-is settled in preparation beyond that:
+The stack is decided: Svelte 5 with the webapp as a plain Vite SPA
+([ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)), Tauri 2 shells for desktop and mobile
+with the PWA path closed ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md)), parity by default with
+tenant administration reached via the web on mobile
+([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)), and one product UI plus a
+framework-agnostic sync engine ([ADR-0033](./adr/ADR-0033-shared-client-architecture.md)). The
+scaffolds live in milestone `0.3.5` (W-06–W-09); the work packages of the frontend track follow
+below, each cut into issues only when its milestone opens, from the then-current state of this
+file and the accepted ADRs.
+
+| Work package | Decision it implements |
+|---|---|
+| Sync-engine package: ports, store schema, mutation queue, HLC, the §9 test harness against fakes — before any shell | [ADR-0033](./adr/ADR-0033-shared-client-architecture.md), [ADR-0021](./adr/ADR-0021-offline-sync.md) |
+| Design-system component layer, wave by wave per `design-system.md` §4, plus the component workbench decision | [ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md), [ADR-0029](./adr/ADR-0029-design-system-tokens.md) |
+| Tauri 2 desktop shell (Windows/macOS/Linux): thin shell, SQLite + keystore persistence behind the `Storage` port, updater and distribution | [ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0033](./adr/ADR-0033-shared-client-architecture.md) |
+| Tauri 2 mobile shell (iOS/Android): shell, signing, store pipeline, and the capability-matrix implementation (admin routes excluded, the "lives on the web" affordance) | [ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0032](./adr/ADR-0032-client-capability-matrix.md) |
+| Celebration kit: the three slots with intensity-guardrail tokens, tier triggers from domain events, the per-user switch | `design-system.md` §7 |
+| Onboarding tour: the pattern's components, and the tour content per client | `design-system.md` §8 |
+| Website: SvelteKit + `adapter-static` scaffold, prerendered | [ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md) |
+
+A dedicated arc42 client-architecture document is written with the sync-engine package, once
+there is a first implementation to describe. What was settled in preparation and stays binding:
 
 * The contract: an OpenAPI-generated SDK, `/meta/capabilities` for configuration, saved views with a
   `layout` hint, SSE for live updates.
@@ -145,16 +167,11 @@ is settled in preparation beyond that:
   `sync.gone`, a full resynchronisation on `sync.cursor_too_old`, and encrypted local storage with
   complete deletion on sign-out. Verifiable through `hubctl sync-conformance` — which applies to
   third-party implementations too.
-* For a PWA that means concretely: local storage (IndexedDB) plus a mutation queue, a service worker
-  only for delivery and background sync, and **no** conflict handling of its own — merging belongs
-  on the server.
+* The offline promise is carried by the installed clients; the browser app holds a best-effort
+  cache only, and no client merges — merging belongs on the server
+  ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0033](./adr/ADR-0033-shared-client-architecture.md)).
 * As an interim solution, `hubctl` (the CLI) plus a minimal reference client serve for dogfooding —
   not a product decision, just a tool (risk R-08).
-
-The choice of framework is the one thing deliberately still open, and it needs its own ADR — the
-content security policy [ADR-0028](./adr/ADR-0028-embedded-web-ui.md) settles is already a
-constraint on it: no `'unsafe-inline'`, no `'unsafe-eval'`. A dedicated arc42 document is created
-once that decision is taken.
 
 ---
 
@@ -171,4 +188,4 @@ once that decision is taken.
 | Backup and restore | The target abstraction, archive format, schedules, retention, and restore modes are decided ([backup-restore.md](./architecture/backup-restore.md)) |
 | Offline synchronisation | The protocol, conflict handling, and data model prerequisites are decided; the client requirements are settled ([offline-sync.md](./architecture/offline-sync.md)) |
 | Observability and resilience | The health model, metric and alert catalogue, resilience patterns, and the test series RT-1…RT-12 are decided ([observability-reliability.md](./architecture/observability-reliability.md)) |
-| **Not ready** | The frontend (design and feature set open), the concrete billing model, SAML/SCIM details, master key management in provider operation (S-2), and the capacity model from real load data (O-2) |
+| **Not ready** | The concrete billing model, SAML/SCIM details, master key management in provider operation (S-2), and the capacity model from real load data (O-2). The frontend stack is decided (ADR-0030…ADR-0033); its visual design beyond the design system emerges with the component layer |
