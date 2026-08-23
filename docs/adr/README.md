@@ -36,3 +36,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0027](./ADR-0027-monorepo-structure.md) | One repository for the core, the clients, and the design system | accepted | Structure, process |
 | [0028](./ADR-0028-embedded-web-ui.md) | The web UI ships inside the binary, as an adapter | accepted | Deployment, security, clients |
 | [0029](./ADR-0029-design-system-tokens.md) | The design system is code, and `tokens.json` is its only origin | accepted | Design system, domain |
+| [0030](./ADR-0030-svelte-frontend-framework.md) | Svelte 5 for every first-party client, and the webapp as a plain Vite SPA | accepted | Clients, structure |
+| [0031](./ADR-0031-tauri-app-shell.md) | Tauri 2 shells for desktop and mobile; the PWA path is closed | accepted | Clients, deployment |
+| [0032](./ADR-0032-client-capability-matrix.md) | The client capability matrix: parity by default, restrictions justified one by one | accepted | Clients, product |
+| [0033](./ADR-0033-shared-client-architecture.md) | One product UI, three targets: the shared client architecture | accepted | Clients, structure, offline |

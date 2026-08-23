@@ -139,7 +139,7 @@ automated proof that breaks the build ([security.md](./security.md) §13,
 | C-11 | Commercial production use requires a commercial licence; the licence model is decided and recorded in [ADR-0013](../adr/ADR-0013-licensing.md) and [licensing-editions.md](./licensing-editions.md) |
 | C-12 | GDPR conformance from the ground up (Art. 25): access, export, rectification, erasure, restriction, processing on behalf, data residency — the concept is in [data-protection.md](./data-protection.md), the record of processing activities in [../privacy/data-catalog.md](../privacy/data-catalog.md) |
 | C-13 | No feature crippling of the self-hosted variant → monetisation through licence law plus optional add-ons, not through removed core features |
-| C-14 | Frontend design and frontend feature set are **not** decided → the backend must make no assumptions about them |
+| C-14 | The frontend stack and feature distribution are decided ([ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md)–[ADR-0033](../adr/ADR-0033-shared-client-architecture.md)); the original core of this constraint stands unchanged: the backend makes no assumptions about clients, and the API stays client-blind |
 | C-15 | Backup targets must not be limited to particular providers; the target, timing, and retention are freely configurable |
 | C-16 | Offline operation must be compatible with multi-user collaboration — other people's changes must not be silently lost |
 
@@ -224,7 +224,7 @@ graph LR
 | Operability (Q-03) | **One artefact, several roles:** one container image, with roles (`api`, `worker`, `scheduler`, `automation`) selected by configuration. Self-hosting = all roles in one process; Kubernetes = one deployment per role. |
 | Few dependencies | PostgreSQL as the database **and** the job queue (`SKIP LOCKED`) **and** the outbox **and** full-text search **and** the pub/sub fallback. NATS, Redis, and S3 are interchangeable adapters, not prerequisites. |
 | Tenant isolation (Q-04) | `tenant_id` in every table plus **PostgreSQL row level security**; the application connects with a role *without* `BYPASSRLS`. Sharding per tenant through a control plane comes later. |
-| Frontend left open (C-14) | The backend supplies **generic building blocks**: the query DSL (filter/sort/group/cursor), `SavedView` with an opaque `layout` hint, and the capability manifest. Kanban, timeline, and lists are interpretations of the same query. |
+| Frontend decoupled (C-14) | The backend supplies **generic building blocks**: the query DSL (filter/sort/group/cursor), `SavedView` with an opaque `layout` hint, and the capability manifest. Kanban, timeline, and lists are interpretations of the same query. |
 | AI first | The domain stays AI-free; AI is an adapter behind ports. Outwards: an MCP server, deterministic IDs, idempotency, machine-readable errors, and optional embeddings (pgvector) for semantic search. |
 | Architectural style | **Hexagonal + DDD + explicit architecture** after Herberto Graça: the core (domain/application) knows only ports; all technology lives in adapters. A modular monolith with cleanly cut bounded contexts that can be deployed as their own process when needed (the automation service is the first candidate). |
 | Why not a microservice split from the start | A distributed system would make consistency, operations, and self-hosting considerably more expensive with no business benefit. The context boundaries are already drawn; cutting one out stays possible (see [ADR-0002](../adr/ADR-0002-modular-monolith.md)). |
@@ -739,6 +739,10 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0027 | One repository for the core, the clients, and the design system | accepted |
 | 0028 | The web UI ships inside the binary, as an adapter | accepted |
 | 0029 | The design system is code, and `tokens.json` is its only origin | accepted |
+| 0030 | Svelte 5 for every first-party client, and the webapp as a plain Vite SPA | accepted |
+| 0031 | Tauri 2 shells for desktop and mobile; the PWA path is closed | accepted |
+| 0032 | The client capability matrix: parity by default, restrictions justified one by one | accepted |
+| 0033 | One product UI, three targets: the shared client architecture | accepted |
 
 ---
 
