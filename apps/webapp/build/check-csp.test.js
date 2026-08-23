@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { violations } from './check-csp.js';
+import { violations, stylesheetViolations } from './check-csp.js';
 
 const clean = `<!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -48,6 +48,26 @@ test('a planted style attribute fails', () => {
 test('a violation inside a comment is not a violation', () => {
   const commented = clean.replace('</head>', '<!-- <script>old()</script> --></head>');
   assert.deepEqual(violations(commented), []);
+});
+
+test('a planted data: font in a stylesheet fails - font-src has no data:', () => {
+  const found = stylesheetViolations('@font-face { src: url(data:font/woff2;base64,AAAA); }');
+  assert.ok(found.some((v) => v.includes('font/woff2')));
+});
+
+test('a data: URI without a media type fails rather than passes unrecognised', () => {
+  assert.equal(stylesheetViolations('.x { background: url("data:;base64,AAAA"); }').length, 1);
+});
+
+test('a small inlined image in a stylesheet is allowed - img-src says data:', () => {
+  assert.deepEqual(stylesheetViolations('.x { background: url(data:image/svg+xml;base64,AAAA); }'), []);
+});
+
+test('a stylesheet of plain file references is clean', () => {
+  assert.deepEqual(
+    stylesheetViolations('@font-face { src: url(/assets/plex-abc123.woff2) format("woff2"); }'),
+    [],
+  );
 });
 
 test('a script tag with src and attributes on both sides stays clean', () => {
