@@ -19,9 +19,12 @@ export default defineConfig({
     emptyOutDir: true,
     assetsDir: 'assets',
     sourcemap: true,
-    // 0 would inline nothing at all and cost a request per icon; the default 4 kB is a sensible
-    // ceiling for a data: URI, and CSP treats those as `img-src data:` rather than as script.
-    assetsInlineLimit: 4096,
+    // Only images may be inlined, and only small ones. The policy of ADR-0028 says
+    // `img-src 'self' data:` and nothing else says data: - a small font inlined by a byte
+    // threshold becomes a blocked resource and an empty glyph, which is exactly what happened
+    // to two sub-4kB IBM Plex subsets before W-08 watched the console (font-src has no data:).
+    assetsInlineLimit: (filePath: string, content: Buffer) =>
+      /\.(svg|png|jpe?g|gif|webp|avif)$/i.test(filePath) && content.length < 4096,
     rollupOptions: {
       output: {
         entryFileNames: 'assets/[name]-[hash].js',
