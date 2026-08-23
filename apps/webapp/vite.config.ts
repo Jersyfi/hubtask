@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 // The bundle this produces is embedded into the Go binary and served from `/` by
 // presentation/webui (ADR-0028). Two settings follow from that and are not stylistic:
@@ -11,6 +12,7 @@ import { defineConfig } from 'vite';
 //   - nothing is inlined as a data: URI beyond the trivial, so that the content security policy
 //     can stay free of `'unsafe-inline'`.
 export default defineConfig({
+  plugins: [svelte()],
   base: '/',
   build: {
     outDir: 'dist',

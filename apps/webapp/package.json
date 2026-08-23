@@ -11,14 +11,17 @@
     "preview": "vite preview",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "node ../../packages/design-system/build/lint-no-literals.js",
-    "typecheck": "tsc --noEmit",
-    "test": "node --test src/*.test.ts"
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "test": "node --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@hubtask/api-client": "workspace:*",
     "@hubtask/design-system": "workspace:*"
   },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "svelte": "^5.56.10",
+    "svelte-check": "^4.7.6",
     "typescript": "^5.9.3",
     "vite": "^8.2.2"
   }
