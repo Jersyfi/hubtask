@@ -10,8 +10,10 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
 * **No second place for a value.** A design system drifts at exactly the point where the same
   number is written twice. `pnpm lint` fails on a colour written outside `tokens.json`, and on a
   bare length or duration in application code.
-* **No component.** `src/` stays empty until the frontend framework ADR exists. A component layer
-  built before that decision is rebuilt at the first contradiction.
+* **No component yet.** The framework is decided — Svelte 5
+  ([ADR-0030](../../docs/adr/ADR-0030-svelte-frontend-framework.md)) — so the blocker is gone,
+  but `src/` stays empty until the component-layer work package builds it deliberately, wave by
+  wave per `design-system.md` §4. No component arrives here as a side effect of other work.
 * **No colour value in the Go output.** `LabelTokens.go` carries the ten *names* and nothing else,
   so the core keeps the vocabulary while staying colour-blind. A hex constant in `core/domain`
   would be display information in the backend.

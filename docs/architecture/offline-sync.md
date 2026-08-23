@@ -1,10 +1,11 @@
 # Offline Capability and Synchronisation
 
-Clients (PWA, desktop, mobile) must be able to keep working entirely without a network while the
-same objects are edited concurrently by other people. The frontend is not decided (C-14) — the
-**synchronisation protocol is nonetheless a backend contract** and has to exist before the first
-client, because it shapes the data model. Decision:
-[ADR-0021](../adr/ADR-0021-offline-sync.md).
+Clients must be able to keep working entirely without a network while the same objects are edited
+concurrently by other people. The **synchronisation protocol is a backend contract** — it existed
+before the first client because it shapes the data model, and it is client-agnostic by design.
+Decision: [ADR-0021](../adr/ADR-0021-offline-sync.md). Since
+[ADR-0031](../adr/ADR-0031-tauri-app-shell.md), the offline promise is carried by the installed
+clients (Tauri desktop and mobile); the browser app holds a best-effort cache only.
 
 ---
 
@@ -246,6 +247,6 @@ commitments; mixing them would damage both.
 | # | Point | Needed by |
 |---|---|---|
 | SY-A | Character-level merging for long notes (CRDT text) — assess the need after user feedback | After `1.0.0` |
-| SY-B | The extent of the default sync scope (everything vs. subscribed containers) — storage requirements on mobile devices | With the frontend decision |
+| SY-B | The extent of the default sync scope (everything vs. subscribed containers) — storage requirements on mobile devices | Engine configuration per [ADR-0033](../adr/ADR-0033-shared-client-architecture.md); the product default is set in the sync-engine work package |
 | SY-C | Transfer format for large initial synchronisations (a snapshot file instead of a page sequence) | `0.9.0` |
-| SY-D | The encryption method for the local cache per platform | With the frontend decision |
+| SY-D | The encryption method for the local cache per platform | Settled for first-party clients in [ADR-0033](../adr/ADR-0033-shared-client-architecture.md) (SQLite encrypted at rest, key in the platform keystore); open only for third-party clients, which decide per client |

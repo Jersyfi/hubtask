@@ -193,7 +193,7 @@ towards what is shared:
 ```
 apps/webapp  → packages/design-system, packages/api-client
 apps/website → packages/design-system
-packages/*   → nothing in this repository
+packages/*   → other packages/* only, acyclically (ADR-0033)
 ```
 
 Forbidden:

@@ -9,10 +9,16 @@ from the same commit and cannot be a version apart.
 
 ## What must not happen here
 
-* **No framework decision.** It has not been taken, it needs its own ADR, and the scaffold is
-  deliberately framework-free so it stays reversible (arc42 §2.2 C-14). Two constraints are
-  already fixed for whoever takes it: the content security policy permits neither
-  `'unsafe-inline'` nor `'unsafe-eval'`, and every value comes from the design system.
+* **The framework is decided, and it is not SvelteKit here.** This app is Svelte 5 (runes,
+  TypeScript) as a plain Vite SPA
+  ([ADR-0030](../../docs/adr/ADR-0030-svelte-frontend-framework.md)) — SvelteKit's inline
+  bootstrap script cannot pass the CSP below. The two standing constraints are unchanged: the
+  content security policy permits neither `'unsafe-inline'` nor `'unsafe-eval'` (the built
+  bundle must contain no inline script or style), and every value comes from the design system.
+  This one codebase is also what the Tauri shells wrap
+  ([ADR-0031](../../docs/adr/ADR-0031-tauri-app-shell.md)); platform-specific code lives only
+  behind the `src/lib/platform/` seam
+  ([ADR-0033](../../docs/adr/ADR-0033-shared-client-architecture.md)).
 * **No colour, spacing, radius or duration written here.** They come from
   `@hubtask/design-system`; a value that does not exist is added to `tokens.json` or is not
   needed. `pnpm lint` fails on one ([ADR-0029](../../docs/adr/ADR-0029-design-system-tokens.md)).

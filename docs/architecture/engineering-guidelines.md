@@ -45,6 +45,7 @@ injected.
 13. **Data protection assessment**: new personal data fields added to the data catalogue, purpose and retention named, deletion path defined ([data-protection.md](./data-protection.md)).
 14. **Audit obligation** settled: is the operation security- or compliance-relevant? If so, enter the action in the `AuditableAction` registry.
 15. **Sync impact** settled: does the change produce change log entries, and how is the field merged on offline conflicts (LWW, OR-set, fractional index, server-side)? ([offline-sync.md](./offline-sync.md) §4)
+16. **Client availability** named: which area of the client capability matrix the feature belongs to (end-user, profile configuration, administration); a restriction beyond [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s matrix needs its justification recorded there via supersede.
 
 ## 3. Definition of Done
 

@@ -32,7 +32,7 @@ packages/api-client/     TypeScript types generated from api/openapi.yaml
 
 ```
 cmd → presentation, infrastructure, core        apps/* → packages/*
-presentation, infrastructure → core             packages/* → nothing here
+presentation, infrastructure → core             packages/* → packages/* (acyclic; ADR-0033)
 core/application → core/domain, core/port       apps/* ↛ apps/*
 core/domain → itself and pure ports             packages/* ↛ apps/*
 ```
