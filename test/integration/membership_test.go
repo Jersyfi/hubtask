@@ -145,3 +145,105 @@ func TestOnlyWhatCouldApplyToThePathComesBack(t *testing.T) {
 		}
 	}
 }
+
+// The read half of C-04: a membership on an entry is what "shared with me" means, and the query
+// answers which entries of one collection an account holds one on.
+func TestSharedEntriesOfACollectionComeBack(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+
+	sharedItem, unsharedItem := freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		items := itemRepo()
+		if err := items.Insert(ctx, taskIn(tenantA, authorA, collection, sharedItem, "Shared", "a0")); err != nil {
+			return err
+		}
+		return items.Insert(ctx, taskIn(tenantA, authorA, collection, unsharedItem, "Not shared", "a1"))
+	}); err != nil {
+		t.Fatalf("seeding the entries: %v", err)
+	}
+	shareItem(ctx, t, tenantA, authorA, sharedItem)
+
+	shares := sharedItemsIn(ctx, t, tenantA, authorA, collection)
+	if len(shares) != 1 || shares[0] != sharedItem {
+		t.Fatalf("the shares came back as %+v, want only the entry that was shared", shares)
+	}
+
+	// The entry beside it is not in the answer, which is the whole of "shared items only": it needs
+	// no rule, only the scope the membership was granted at.
+	for _, id := range shares {
+		if id == unsharedItem {
+			t.Error("an entry nobody was given reached the answer")
+		}
+	}
+}
+
+// The query is bounded to the collection it was asked about: a share elsewhere in the tenant is
+// not part of this level.
+func TestASharedEntryInAnotherCollectionIsNotInTheLevel(t *testing.T) {
+	ctx := context.Background()
+	here := collectionFor(ctx, t, tenantA, authorA)
+	elsewhere := collectionFor(ctx, t, tenantA, authorA)
+
+	item := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, elsewhere, item, "Over there", "a0"))
+	}); err != nil {
+		t.Fatalf("seeding the entry: %v", err)
+	}
+	shareItem(ctx, t, tenantA, authorA, item)
+
+	if shares := sharedItemsIn(ctx, t, tenantA, authorA, here); len(shares) != 0 {
+		t.Errorf("a share in another collection reached this level: %+v", shares)
+	}
+}
+
+// The cross-tenant negative test for SharedItemsIn (gate SG-3): another tenant's shares are not
+// visible, even when both identifiers are known.
+func TestSharedEntriesOfAnotherTenantAreInvisible(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+
+	item := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Shared", "a0"))
+	}); err != nil {
+		t.Fatalf("seeding the entry: %v", err)
+	}
+	shareItem(ctx, t, tenantA, authorA, item)
+
+	// Tenant B asks about tenant A's account and tenant A's collection - neither identifier is a
+	// secret, and neither must help.
+	if shares := sharedItemsIn(ctx, t, tenantB, authorA, collection); len(shares) != 0 {
+		t.Errorf("tenant B read %d of tenant A's shares: %+v", len(shares), shares)
+	}
+}
+
+// shareItem grants the account a guest role on one entry - the membership that is a share.
+func shareItem(ctx context.Context, t *testing.T, tenant, account, item shared.ID) {
+	t.Helper()
+
+	_, err := adminPool(ctx, t).Exec(ctx,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, scope_id, role)
+		 VALUES ($1, $2, $3, 'ITEM', $4, 'GUEST') ON CONFLICT (id) DO NOTHING`,
+		freshID(t).String(), tenant.String(), account.String(), item.String())
+	if err != nil {
+		t.Fatalf("sharing the entry: %v", err)
+	}
+}
+
+func sharedItemsIn(
+	ctx context.Context, t *testing.T, tenant, account, collection shared.ID,
+) []shared.ID {
+	t.Helper()
+
+	var shares []shared.ID
+	if err := read(ctx, t, tenant, func(ctx context.Context) error {
+		var err error
+		shares, err = postgres.NewMembershipRepository().SharedItemsIn(ctx, account, collection)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the shared entries: %v", err)
+	}
+	return shares
+}

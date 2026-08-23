@@ -64,6 +64,18 @@ type Memberships interface {
 	// directly or through a group is not a distinction the decision makes, and resolving it in
 	// the query costs a join that the index already serves.
 	Along(ctx context.Context, accountID shared.ID, path []identity.Scope) ([]identity.Membership, error)
+
+	// SharedItemsIn returns the entries inside one collection the account holds a membership on -
+	// what was shared with it individually (domain-model.md §3.2, C-04).
+	//
+	// Along cannot answer this: it takes the path to one entry, and this asks which entries there
+	// are a path to. The two are asked in sequence and only when the first came back empty - an
+	// account that holds a role on the collection reads all of it, and never pays for this query.
+	//
+	// Bounded to one collection rather than the tenant, because the caller asked about one
+	// level. Trashed and archived entries are in the answer as they are stored: which of them the
+	// level shows is the item query's rule, and applying it twice is how the two come to disagree.
+	SharedItemsIn(ctx context.Context, accountID, collectionID shared.ID) ([]shared.ID, error)
 }
 
 // Accounts is the store of people and service accounts.

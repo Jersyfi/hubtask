@@ -195,3 +195,59 @@ func changeTo(entry audit.Entry, field string) string {
 	to, _ := change["to"].(string)
 	return to
 }
+
+// A list anchored to a container has two right answers rather than one, and ReachInto is where
+// that is decided (C-04).
+func TestAListReachesTheWholeContainerOrOnlyWhatWasShared(t *testing.T) {
+	listRequest := Request{
+		Permission: service.PermissionRead,
+		Path: []identity.Scope{
+			identity.TenantScope(), identity.HubScope(hubID), identity.CollectionScope(collectionID),
+		},
+		Action:     "item.read",
+		TokenScope: "items:read",
+		TargetType: "container",
+		TargetID:   collectionID,
+	}
+	actor := actorWithScopes("items:read")
+
+	// A role on the collection answers for every row in it, and the share query never runs.
+	authorize, store, trail, _ := serviceWith(held(identity.CollectionScope(collectionID), identity.RoleViewer))
+	store.shares = []shared.ID{itemID}
+	reach, err := authorize.ReachInto(context.Background(), actor, listRequest, collectionID)
+	if err != nil {
+		t.Fatalf("a viewer was refused the level: %v", err)
+	}
+	if !reach.All || len(reach.Shared) != 0 {
+		t.Errorf("reach %+v, want the whole container", reach)
+	}
+	if len(trail.entries) != 0 {
+		t.Errorf("a permitted list recorded a refusal: %+v", trail.entries)
+	}
+
+	// No role on the collection, and a membership on one entry inside it: the level is that entry.
+	authorize, store, trail, _ = serviceWith(held(identity.ItemScope(itemID), identity.RoleGuest))
+	store.shares = []shared.ID{itemID}
+	reach, err = authorize.ReachInto(context.Background(), actor, listRequest, collectionID)
+	if err != nil {
+		t.Fatalf("somebody holding a share was refused the level: %v", err)
+	}
+	if reach.All || len(reach.Shared) != 1 || reach.Shared[0] != itemID {
+		t.Errorf("reach %+v, want the one shared entry", reach)
+	}
+	// Nobody was refused anything, so nothing is recorded: a DENIED entry here would be a trail an
+	// auditor cannot read.
+	if len(trail.entries) != 0 {
+		t.Errorf("a narrowed list recorded a refusal: %+v", trail.entries)
+	}
+
+	// Neither: the refusal stands, and it is recorded once.
+	authorize, _, trail, _ = serviceWith(nil)
+	_, err = authorize.ReachInto(context.Background(), actor, listRequest, collectionID)
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("error %v, want forbidden", err)
+	}
+	if len(trail.entries) != 1 || deniedBy(trail.entries[0]) != "permission" {
+		t.Errorf("the refusal was not recorded once: %+v", trail.entries)
+	}
+}

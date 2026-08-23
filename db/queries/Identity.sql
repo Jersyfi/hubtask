@@ -43,6 +43,29 @@ WHERE (
   )
   AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]));
 
+-- name: SharedItemsInCollection :many
+-- The entries inside one collection that the account holds a membership on directly, or through
+-- one of its groups.
+--
+-- What "shared with me" means (domain-model.md §3.2, C-04): a membership at ITEM scope reaches
+-- that entry and nothing else, so the answer to "which of this collection's entries may I see"
+-- is the list of those scope identifiers. It is asked only when the account holds no role on the
+-- collection itself - the ordinary case answers the whole level in one check and never runs this.
+--
+-- The join is what bounds it: without it the query would return every entry shared with the
+-- account anywhere in the tenant, and the caller asked about one collection.
+SELECT m.scope_id
+FROM membership m
+JOIN work_item wi ON wi.id = m.scope_id
+WHERE m.scope_type = 'ITEM'
+  AND wi.collection_id = sqlc.arg('collection_id')
+  AND (
+    m.account_id = sqlc.arg('account_id')
+    OR m.group_id IN (
+      SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')
+    )
+  );
+
 -- ============================== Accounts ==============================
 -- The tenant is never a parameter in this file: row level security bounds every statement to the
 -- tenant of the running transaction, which is what makes an account of another tenant not found

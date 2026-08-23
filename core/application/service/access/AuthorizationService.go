@@ -119,12 +119,7 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 
 	path := request.scopePath()
 
-	var memberships []identity.Membership
-	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		memberships, err = s.Memberships.Along(ctx, actor.AccountID, path)
-		return err
-	})
+	memberships, err := s.resolve(ctx, actor, path)
 	if err != nil {
 		// Not a refusal: nobody was denied anything, the question could not be answered. Reporting
 		// it as forbidden would send a client off to fix a permission that is not the problem.
@@ -140,6 +135,84 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 		return notPermitted(request)
 	}
 	return nil
+}
+
+// resolve reads what the account holds along the path, in a transaction of its own.
+func (s Service) resolve(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+) ([]identity.Membership, error) {
+	var memberships []identity.Membership
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		memberships, err = s.Memberships.Along(ctx, actor.AccountID, path)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return memberships, nil
+}
+
+// Reach is how much of a container's entries an actor may see.
+type Reach struct {
+	// All is true when a role held on the container's own path answers for every entry in it -
+	// which is the ordinary case, and the one that costs nothing extra.
+	All bool
+	// Shared is the entries that were shared with the actor individually, and is meaningful only
+	// when All is false. Never empty when All is false: an actor who reaches neither the container
+	// nor anything in it has already been refused rather than handed an empty answer.
+	Shared []shared.ID
+}
+
+// ReachInto answers how far the actor reaches into one container's entries.
+//
+// A list anchored to a container asks this rather than Authorize, because for a list there are two
+// right answers rather than one. A role on the container answers for every row in it. An actor who
+// holds none may still hold a membership on entries inside it - that is what "shared items only"
+// is (domain-model.md §3.2) - and their level is those entries rather than a refusal.
+//
+// The refusal is recorded once, and only when both come back empty. Asking Authorize first and then
+// looking for shares would write a DENIED entry for somebody who was not in the end denied
+// anything, which is a trail an auditor cannot read (audit.md §4).
+//
+// The second query runs only for an actor who holds no role on the container, so the ordinary list
+// pays one membership read exactly as it did before.
+func (s Service) ReachInto(
+	ctx context.Context, actor appshared.ActorContext, request Request, containerID shared.ID,
+) (Reach, error) {
+	if !actor.IsAuthenticated() {
+		return Reach{}, shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	if request.TokenScope != "" {
+		if err := actor.RequireScope(request.TokenScope); err != nil {
+			s.recordRefusal(ctx, actor, request, "scope")
+			return Reach{}, err
+		}
+	}
+
+	memberships, err := s.resolve(ctx, actor, request.Path)
+	if err != nil {
+		return Reach{}, err
+	}
+	if service.Allows(memberships, request.Path, request.Permission) {
+		return Reach{All: true}, nil
+	}
+
+	var sharedWith []shared.ID
+	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		sharedWith, err = s.Memberships.SharedItemsIn(ctx, actor.AccountID, containerID)
+		return err
+	})
+	if err != nil {
+		return Reach{}, err
+	}
+	if len(sharedWith) > 0 {
+		return Reach{Shared: sharedWith}, nil
+	}
+
+	s.recordRefusal(ctx, actor, request, "permission")
+	return Reach{}, notPermitted(request)
 }
 
 // decideAboutTheEntry applies the qualifiers the permission column cannot express.

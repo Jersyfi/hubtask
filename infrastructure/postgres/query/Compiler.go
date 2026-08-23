@@ -136,12 +136,33 @@ func Count(search repository.ItemSearch) (Statement, error) {
 // predicates writes what every shape of the query shares: the scope, the lifecycle, the filter.
 func (b *builder) predicates(search repository.ItemSearch) {
 	b.scope(search.Anchor)
+	b.restriction(search.RestrictTo)
 	b.lifecycle(search.Spec)
 	if search.Spec.Filter != nil {
 		b.write(` AND (`)
 		b.node(*search.Spec.Filter)
 		b.write(`)`)
 	}
+}
+
+// restriction narrows the answer to the entries the caller may see, when that is fewer than the
+// anchor holds (C-04).
+//
+// A bound array rather than a list written into the statement: no byte of it becomes SQL text
+// (rule 9, T-06). Empty means no restriction, which is what every caller holding a role on the
+// anchor passes - the predicate is not written at all then, so the ordinary query is unchanged.
+func (b *builder) restriction(ids []shared.ID) {
+	if len(ids) == 0 {
+		return
+	}
+
+	values := make([]string, 0, len(ids))
+	for _, id := range ids {
+		values = append(values, id.String())
+	}
+	b.write(` AND wi.id = ANY(`)
+	b.param(values)
+	b.write(`::uuid[])`)
 }
 
 // scope is the anchor the use case resolved, as a predicate.

@@ -303,11 +303,29 @@ type authorizer struct {
 	// that writes unqualified, which is the ordinary case a test does not have to say anything
 	// about (C-04).
 	onlyOwn bool
+	// shares are the entries a list is narrowed to, empty for an actor who reaches the whole
+	// container.
+	shares []shared.ID
 }
 
 func (a *authorizer) Authorize(_ context.Context, _ appshared.ActorContext, request access.Request) error {
 	a.requests = append(a.requests, request)
 	return a.err
+}
+
+// reach is what ReachInto answers: the whole container unless a test says the actor holds only
+// individual shares inside it (C-04).
+func (a *authorizer) ReachInto(
+	_ context.Context, _ appshared.ActorContext, request access.Request, _ shared.ID,
+) (access.Reach, error) {
+	a.requests = append(a.requests, request)
+	if a.err != nil {
+		return access.Reach{}, a.err
+	}
+	if len(a.shares) > 0 {
+		return access.Reach{Shared: a.shares}, nil
+	}
+	return access.Reach{All: true}, nil
 }
 
 func (a *authorizer) WritesOnlyWhatIsAssigned(

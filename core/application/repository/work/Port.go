@@ -75,6 +75,15 @@ type ItemQuery struct {
 	ParentID        shared.ID
 	IncludeArchived bool
 	Page            Page
+	// RestrictTo narrows the level to a named set of entries, or to all of them when it is empty.
+	//
+	// It carries the read half of C-04: an actor who holds no role on the collection may still
+	// hold a membership on entries inside it, and then the level is those entries rather than a
+	// refusal. Applied in the query rather than after it, so a page is a page - filtering the rows
+	// out afterwards would return short pages and a cursor that skips.
+	//
+	// It is a narrowing and never a widening: everything else the query excludes stays excluded.
+	RestrictTo []shared.ID
 }
 
 // ItemPage is one page of a level.
@@ -240,6 +249,9 @@ type Anchor struct {
 type ItemSearch struct {
 	Anchor Anchor
 	Spec   view.Spec
+	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is
+	// empty - the read half of C-04, exactly as ItemQuery carries it for the plain level list.
+	RestrictTo []shared.ID
 }
 
 // ItemGroup is one column of a grouped result: the entries that share a value of the grouping

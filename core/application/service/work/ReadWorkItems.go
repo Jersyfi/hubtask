@@ -201,7 +201,7 @@ type ListWorkItems struct {
 	Items      repository.Items
 	ItemLabels repository.ItemLabels
 	Containers repository.Containers
-	Authorizer Authorizer
+	Authorizer Anchored
 	UnitOfWork persistence.UnitOfWork
 }
 
@@ -225,6 +225,11 @@ type ListWorkItemsQuery struct {
 // covers every row in it - a membership at the collection, or at its hub, applies to everything
 // inside. A refusal is therefore a refusal rather than an empty page, which is the honest answer when
 // the client named the container it cannot read.
+//
+// The one caller for whom that single answer is not the whole truth is somebody who holds no role on
+// the collection and a membership on entries inside it. Their level is those entries (C-04), and the
+// restriction goes into the query rather than filtering the page afterwards: filtered afterwards, a
+// page would come back short and its cursor would skip.
 func (h ListWorkItems) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListWorkItemsQuery,
 ) (repository.ItemPage, error) {
@@ -256,14 +261,15 @@ func (h ListWorkItems) Execute(
 		return repository.ItemPage{}, err
 	}
 
-	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+	reach, err := h.Authorizer.ReachInto(ctx, actor, access.Request{
 		Permission: service.PermissionRead,
 		Path:       containerPath(collection),
 		Action:     ItemReadAction,
 		TokenScope: itemsRead,
 		TargetType: containerTarget,
 		TargetID:   collection.ID,
-	}); err != nil {
+	}, collection.ID)
+	if err != nil {
 		return repository.ItemPage{}, err
 	}
 
@@ -274,6 +280,7 @@ func (h ListWorkItems) Execute(
 			CollectionID:    collection.ID,
 			ParentID:        query.ParentID,
 			IncludeArchived: query.IncludeArchived,
+			RestrictTo:      reach.Shared,
 			Page:            repository.Page{Cursor: query.Cursor, Size: PageSize(query.Size)},
 		})
 		return err

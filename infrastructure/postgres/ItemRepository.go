@@ -84,10 +84,16 @@ func (r ItemRepository) List(ctx context.Context, query repository.ItemQuery) (r
 		return repository.ItemPage{}, err
 	}
 
+	restrictTo, err := uuidsOf(query.RestrictTo)
+	if err != nil {
+		return repository.ItemPage{}, err
+	}
+
 	rows, err := queries.ListWorkItems(ctx, sqlc.ListWorkItemsParams{
 		CollectionID:    collection,
 		ParentID:        parent,
 		IncludeArchived: query.IncludeArchived,
+		RestrictTo:      restrictTo,
 		CursorOrderKey:  from.sortKey,
 		CursorID:        from.id,
 		PageSize:        pageProbe(query.Page.Size),
