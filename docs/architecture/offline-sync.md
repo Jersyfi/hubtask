@@ -139,6 +139,14 @@ which, the maximum depth), uniqueness, quotas, recurring follow-up instances, au
 A client may predict them in order to show something immediately, but it must adopt the server's
 result.
 
+For automatic assignment (C-02) that sentence covers two things worth separating. The `auto_assign`
+key of a collection's policies document is configuration and merges as one scalar field — last
+writer wins via the HLC, one change log entry, exactly like `completion_policy` beside it. The
+rotation state of a `ROUND_ROBIN` policy is not a field at all: it is the server's bookkeeping,
+advanced under a row lock in the transaction that assigns, and it never travels to a client — a
+device that predicted the next candidate would be guessing, and the server's answer is the one the
+`item.assigned` record carries.
+
 ---
 
 ## 5. Conflicts are visible, not silent

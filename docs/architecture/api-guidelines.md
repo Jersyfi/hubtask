@@ -27,7 +27,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | Groups | `/groups` | CRUD |
 | Memberships | `/memberships` | `GET`, `POST`, `DELETE` |
 | Containers (hub/collection) | `/containers` | CRUD, `:move`, `:archive`, `:unarchive`, `:restore` |
-| Items | `/items` | CRUD, `:query`, `:move`, `:complete`, `:reopen`, `:reorder`, `:duplicate`, `:bulk`, `:archive`, `:restore`, `:assign`, `:unassign` |
+| Items | `/items` | CRUD, `:query`, `:move`, `:complete`, `:reopen`, `:reorder`, `:duplicate`, `:bulk`, `:archive`, `:restore`, `:assign`, `:unassign`, `:auto-assign` |
 | Buckets | `/containers/{id}/buckets` | CRUD, `:reorder` |
 | Labels | `/containers/{id}/labels` | CRUD |
 | An entry's labels | `/items/{id}/labels/{labelId}` | `PUT`, `DELETE` |
