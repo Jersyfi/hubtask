@@ -355,6 +355,15 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// The discussion's verbs share one dependency set (work.CommentWriter): the same reads, the
+	// same permission question, the same records.
+	commentWriter := work.CommentWriter{
+		Comments: postgres.NewCommentRepository(cursors), Items: items, Containers: containers,
+		Profiles: profiles, Authorizer: authorizer, Events: outbox, Changes: changes,
+		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -474,6 +483,7 @@ func run() error {
 		work.AssignWorkItem{Assignment: assignment}.Descriptor(),
 		work.UnassignWorkItem{Assignment: assignment}.Descriptor(),
 		autoAssign.Descriptor(),
+		work.AddComment{Writer: commentWriter}.Descriptor(),
 		work.AddMember{Writer: itemMemberWriter}.Descriptor(),
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{

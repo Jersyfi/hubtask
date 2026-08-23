@@ -1398,3 +1398,81 @@ func TestALifecycleEventCannotContradictItsOwnName(t *testing.T) {
 		})
 	}
 }
+
+// The three events of C-03, against the schemas they are published under. Each carries the whole
+// comment - its own entity, not a field of the item - and the deleted one carries a null body,
+// which is the tombstone's shape and what a subscriber writes against.
+func TestTheCommentEventsMatchTheirSchemas(t *testing.T) {
+	editedAt := time.Date(2026, 8, 23, 12, 30, 0, 0, time.UTC)
+	deletedAt := time.Date(2026, 8, 23, 13, 0, 0, 0, time.UTC)
+	comment := work.Comment{
+		ID:              shared.MustParseID("0192f000-0000-7000-8000-0000000000c2"),
+		TenantID:        shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		ItemID:          shared.MustParseID("0192f000-0000-7000-8000-00000000000e"),
+		AuthorID:        shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		ParentCommentID: shared.MustParseID("0192f000-0000-7000-8000-0000000000c1"),
+		Body:            "Looks good. Ship it.",
+		CreatedAt:       time.Date(2026, 8, 23, 12, 0, 0, 0, time.UTC),
+		Version:         1,
+	}
+	collectionID := shared.MustParseID("0192f000-0000-7000-8000-00000000000b")
+	by := event.Actor{Kind: shared.ActorUser, ID: comment.AuthorID}
+	eventID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e9")
+
+	edited := comment
+	edited.Body, edited.EditedAt, edited.Version = "Looks good.", &editedAt, 2
+	tombstone := edited.Removed(deletedAt)
+	tombstone.Version = 3
+
+	for eventType, build := range map[event.Type]func() (event.Envelope, error){
+		event.CommentCreated: func() (event.Envelope, error) {
+			return event.NewCommentCreated(eventID, comment, collectionID, by, comment.CreatedAt, event.Cause{})
+		},
+		event.CommentUpdated: func() (event.Envelope, error) {
+			return event.NewCommentUpdated(eventID, edited, collectionID, by, editedAt, event.Cause{})
+		},
+		event.CommentDeleted: func() (event.Envelope, error) {
+			return event.NewCommentDeleted(eventID, tombstone, collectionID, by, deletedAt, event.Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// A deletion event about a living comment means the writer and the event disagree, which is a
+// defect rather than something a client sent.
+func TestACommentDeletionEventNeedsATombstone(t *testing.T) {
+	_, err := event.NewCommentDeleted(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e9"),
+		work.Comment{
+			ID:       shared.MustParseID("0192f000-0000-7000-8000-0000000000c2"),
+			TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			ItemID:   shared.MustParseID("0192f000-0000-7000-8000-00000000000e"),
+			AuthorID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+			Body:     "Still here",
+		},
+		shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		event.Actor{Kind: shared.ActorSystem},
+		time.Date(2026, 8, 23, 13, 0, 0, 0, time.UTC), event.Cause{})
+	if err == nil {
+		t.Fatal("a deletion event about a living comment was built")
+	}
+}

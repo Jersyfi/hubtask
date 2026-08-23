@@ -239,6 +239,7 @@
   "events.change_set_empty": "This installation could not announce that change.",
   "events.lifecycle_inconsistent": "Something went wrong on our side while recording that change.",
   "events.label_missing": "This installation could not announce that change.",
+  "events.comment_not_deleted": "This installation could not announce that deletion.",
   "events.assignee_missing": "This installation could not announce that change.",
   "events.account_missing": "This installation could not announce that change.",
 
@@ -291,6 +292,7 @@
   "activity.item_unassigned": "{actor} took the assignee off this entry",
   "activity.item_member_added": "{actor} added a member",
   "activity.item_member_removed": "{actor} removed a member",
+  "activity.item_commented": "{actor} commented",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
   "sync.change_without_clock": "This installation could not record that change for offline devices.",

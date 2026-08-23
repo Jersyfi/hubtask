@@ -24,7 +24,7 @@ import (
 // the message catalogue is keyed by - renaming one is a breaking change to every translation.
 type Verb string
 
-// The verbs of the history: the sixteen things that can happen to an entry.
+// The verbs of the history: the seventeen things that can happen to an entry.
 //
 // Item-level throughout. `ActivityEntry` is keyed on the item (domain-model.md §3.5) and
 // `/items/{id}/activity` is the only reader the contract declares (api-guidelines.md §2), so a hub
@@ -49,12 +49,16 @@ const (
 	ItemUnassigned    Verb = "item.unassigned"
 	ItemMemberAdded   Verb = "item.member_added"
 	ItemMemberRemoved Verb = "item.member_removed"
+	// ItemCommented is the one comment verb (C-03). An edit and a deletion do not write history:
+	// the comment carries its own edited_at and its tombstone, and the thread is where both are
+	// read - a history entry beside them would describe the same fact in a second place.
+	ItemCommented Verb = "item.commented"
 )
 
 var verbs = [...]Verb{
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved, ItemReordered,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemLabelAdded, ItemLabelRemoved,
-	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
+	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved, ItemCommented,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.hubtask.dev/events/de.hubtask.work.comment.created.v1.json",
+  "title": "de.hubtask.work.comment.created.v1",
+  "description": "A new contribution to an entry's discussion (C-03). The payload is the comment (domain-model.md §4): its own entity beside the item, because comments append and never merge (offline-sync.md §4.2). Consumers: notification, automation. The wire format is a CloudEvent 1.0 in structured JSON (ADR-0007); the tenant, the actor and the causal chain travel as CloudEvents extension attributes. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases (domain-model.md §4).",
+  "type": "object",
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "type",
+    "subject",
+    "time",
+    "datacontenttype",
+    "tenantid",
+    "actortype",
+    "causationdepth",
+    "correlationid",
+    "data"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "specversion": {
+      "type": "string",
+      "enum": [
+        "1.0"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv7. Stable across delivery attempts, so a consumer deduplicates on it (at-least-once delivery)."
+    },
+    "source": {
+      "type": "string",
+      "description": "The installation and the bounded context that produced the event."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "de.hubtask.work.comment.created.v1"
+      ]
+    },
+    "subject": {
+      "type": "string",
+      "description": "What the event is about, so that a consumer can filter without parsing the payload."
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "datacontenttype": {
+      "type": "string",
+      "enum": [
+        "application/json"
+      ]
+    },
+    "tenantid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actortype": {
+      "type": "string",
+      "enum": [
+        "USER",
+        "SERVICE_ACCOUNT",
+        "AUTOMATION",
+        "AI_AGENT",
+        "SYSTEM"
+      ]
+    },
+    "actorid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Absent when the system itself acts. No label: an event leaves the installation, and a name is personal data a subscriber does not need in order to react (ADR-0018)."
+    },
+    "onbehalfof": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The principal an automation rule or an agent runs as."
+    },
+    "correlationid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Everything that came out of one original action carries the same value. A root event is its own correlation."
+    },
+    "causationid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The event that caused this one. Absent for an action a person took."
+    },
+    "causationdepth": {
+      "type": "integer",
+      "description": "Distance from the original action. The rule engine stops at 5 and marks the run ABORTED_LOOP (automation.md §2)."
+    },
+    "data": {
+      "type": "object",
+      "description": "The reference rather than a snapshot of the entry, which is what the assignment and member events have in common with the label pair: a set is not a field. An entry snapshot would have to carry the member list to be useful, and that list is exactly what merges separately (offline-sync.md §4.2) - so a consumer reading it out of an event would be reading a value another device may already have merged differently.",
+      "required": [
+        "id",
+        "item_id",
+        "collection_id",
+        "author_id",
+        "body",
+        "created_at",
+        "version"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "item_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The entry the discussion belongs to - what a rule reads the rest from."
+        },
+        "collection_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "author_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Who wrote the comment - not necessarily who acted: an administrator may edit or delete somebody else's words, and the actor attribute says who did."
+        },
+        "parent_comment_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "description": "The comment this one replies to, null for a top-level comment. One level of threading (domain-model.md §3.5)."
+        },
+        "body": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The text, null exactly when deleted_at is set: a tombstone keeps the comment's identity and loses its words."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "edited_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "deleted_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

@@ -203,6 +203,21 @@ const (
 	ItemLabelAdded Type = "de.hubtask.work.item.label_added.v1"
 	// ItemLabelRemoved announces that an entry no longer carries a label. Consumers: automation.
 	ItemLabelRemoved Type = "de.hubtask.work.item.label_removed.v1"
+
+	// CommentCreated announces a new contribution to an entry's discussion. Consumers:
+	// notification (C-09), automation. The payload is the comment (domain-model.md §4) - its own
+	// entity beside the item, so the item's snapshot events stay free of a thread that appends
+	// rather than merges (offline-sync.md §4.2).
+	CommentCreated Type = "de.hubtask.work.comment.created.v1"
+	// CommentUpdated announces that a comment's text was rewritten. The payload is the comment
+	// after the edit: the displaced text is not preserved, which is the edit's merge rule.
+	CommentUpdated Type = "de.hubtask.work.comment.updated.v1"
+	// CommentDeleted announces a comment's tombstone: identity, author and timestamps, no body.
+	//
+	// Its own type rather than an update carrying a null, for the reason ItemUnassigned is its
+	// own: a rule reacting to people writing must not fire when something is taken down, and a
+	// subscriber filtering on a null payload field to avoid that is one that will eventually not.
+	CommentDeleted Type = "de.hubtask.work.comment.deleted.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -218,6 +233,7 @@ var types = [...]Type{
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted,
 	ItemLabelAdded, ItemLabelRemoved,
+	CommentCreated, CommentUpdated, CommentDeleted,
 }
 
 // Types returns every defined event type.
