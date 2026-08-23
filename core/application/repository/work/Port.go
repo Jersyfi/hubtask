@@ -337,6 +337,11 @@ type Items interface {
 	// asked for. Whether that account may be assigned is decided before this runs (ADR-0005).
 	SetAssignee(ctx context.Context, item work.WorkItem, expectedVersion int) error
 
+	// CountOpenByAssignee counts the open entries each of the given accounts carries, tenant-wide
+	// - LEAST_LOADED's material (domain-model.md §3.6). An account with no open entry is absent
+	// from the answer, and the caller reads an absent key as zero.
+	CountOpenByAssignee(ctx context.Context, accounts []shared.ID) (map[shared.ID]int, error)
+
 	// MoveSubtree rewrites where an item and everything below it sits, drops the references the
 	// destination cannot resolve, and returns how many rows it touched together with what was lost.
 	//
@@ -539,6 +544,34 @@ type ItemMembers interface {
 	// Elements returns every tag of one item's member set: what a merge compares a client's tags
 	// against.
 	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)
+}
+
+// AutoAssignPolicies stores the assignment policy per scope (domain-model.md §3.6).
+//
+// One policy per scope, and the upsert is the whole write vocabulary: the policy is the
+// `autoAssign` key of a container's policies document, which arrives complete (PUT semantics), so
+// the row it maps to is written complete or removed. The rotation's state is the one exception,
+// with a write of its own, because it is advanced by assignments rather than by configuration.
+type AutoAssignPolicies interface {
+	// FindForScope reads the policy at one scope, or ErrNotFound when none is configured there.
+	FindForScope(ctx context.Context, scope work.AutoAssignScope, scopeID shared.ID) (work.AutoAssignPolicy, error)
+
+	// Lock reads the same row and holds it for the rest of the transaction. The rotation reads
+	// its cursor through this: two assignments arriving together must queue on the row, because a
+	// cursor read hopefully is one turn handed to both of them.
+	Lock(ctx context.Context, scope work.AutoAssignScope, scopeID shared.ID) (work.AutoAssignPolicy, error)
+
+	// Upsert writes the whole definition, creating or replacing the scope's row. A replacement
+	// resets the rotation: the state belonged to the pool that was configured, and a new pool
+	// starts at its head.
+	Upsert(ctx context.Context, policy work.AutoAssignPolicy) error
+
+	// Delete removes the scope's policy. Removing one that is not there succeeds - that is the
+	// state the caller asked for.
+	Delete(ctx context.Context, scope work.AutoAssignScope, scopeID shared.ID) error
+
+	// SaveState persists the advanced rotation, under the lock Lock took.
+	SaveState(ctx context.Context, policy work.AutoAssignPolicy) error
 }
 
 // ItemTrash is everything one item's deletion or restore needs decided before it runs.

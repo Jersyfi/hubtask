@@ -44,6 +44,8 @@ type items struct {
 	// other is what it decided.
 	children    map[shared.ID]domain.ChildCompletion
 	completions []completionWrite
+	// load is what CountOpenByAssignee answers, per account (C-02's LEAST_LOADED material).
+	load map[shared.ID]int
 	// attributes records every write SetAttributes took: the B-05 tests care about what was stored as
 	// much as about what came back, because a use case that returned the right item and wrote the wrong
 	// one would pass every assertion made on the answer alone.
@@ -100,6 +102,20 @@ func (i *items) SetOrderKey(_ context.Context, item domain.WorkItem, expectedVer
 	i.ranks = append(i.ranks, rankWrite{item: item, expectedVersion: expectedVersion})
 	i.stored[item.ID] = item
 	return nil
+}
+
+// CountOpenByAssignee answers from the load map, absent accounts omitted as the real query omits
+// them. The C-02 tests fill it; everything else never asks.
+func (i *items) CountOpenByAssignee(
+	_ context.Context, accounts []shared.ID,
+) (map[shared.ID]int, error) {
+	counts := make(map[shared.ID]int)
+	for _, account := range accounts {
+		if load, carries := i.load[account]; carries {
+			counts[account] = load
+		}
+	}
+	return counts, nil
 }
 
 func (i *items) SetAssignee(_ context.Context, item domain.WorkItem, expectedVersion int) error {

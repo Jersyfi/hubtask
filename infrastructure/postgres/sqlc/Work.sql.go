@@ -92,6 +92,47 @@ func (q *Queries) ContainerOrderKeyNeighbours(ctx context.Context, arg Container
 	return i, err
 }
 
+const countOpenItemsByAssignee = `-- name: CountOpenItemsByAssignee :many
+SELECT assignee_id, COUNT(*) AS open_items
+FROM work_item
+WHERE assignee_id = ANY($1::uuid[])
+  AND is_completed = false
+  AND deleted_at IS NULL
+  AND archived_at IS NULL
+GROUP BY assignee_id
+`
+
+type CountOpenItemsByAssigneeRow struct {
+	AssigneeID pgtype.UUID
+	OpenItems  int64
+}
+
+// LEAST_LOADED's material (C-02): how many open entries each candidate carries, tenant-wide,
+// because a person's load does not stop at a collection's edge. Open means not completed, not in
+// the trash, and not archived by its own stamp - the inherited archive of an ancestor is not
+// consulted, which overcounts a dormant subtree's entries rather than paying a recursive walk on
+// every create. Candidates with no open entry are simply absent from the answer; the caller reads
+// an absent key as zero.
+func (q *Queries) CountOpenItemsByAssignee(ctx context.Context, accountIds []pgtype.UUID) ([]CountOpenItemsByAssigneeRow, error) {
+	rows, err := q.db.Query(ctx, countOpenItemsByAssignee, accountIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountOpenItemsByAssigneeRow{}
+	for rows.Next() {
+		var i CountOpenItemsByAssigneeRow
+		if err := rows.Scan(&i.AssigneeID, &i.OpenItems); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findContainer = `-- name: FindContainer :one
 
 SELECT

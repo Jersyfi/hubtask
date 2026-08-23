@@ -38,3 +38,57 @@ ON CONFLICT DO NOTHING;
 -- name: RemoveItemMember :execrows
 DELETE FROM item_member
 WHERE item_id = sqlc.arg('item_id')::uuid AND account_id = sqlc.arg('account_id')::uuid;
+
+-- How what is created here gets handed out: the assignment policy per scope (C-02).
+--
+-- One row per scope, which migration 0011's unique index insists on: the row is the storage of
+-- the `autoAssign` key of the container's policies document, and a document key cannot be two
+-- rows. `state` is ROUND_ROBIN's cursor, kept in the row rather than in the document so that the
+-- transaction advancing it can lock exactly what it advances (domain-model.md §3.6).
+
+-- name: FindAutoAssignPolicy :one
+SELECT id, tenant_id, scope_type, scope_id, strategy, candidates, state, enabled, version
+FROM auto_assign_policy
+WHERE scope_type = sqlc.arg('scope_type') AND scope_id = sqlc.arg('scope_id')::uuid;
+
+-- name: LockAutoAssignPolicy :one
+-- The same row, held for the rest of the transaction. ROUND_ROBIN reads its cursor through this
+-- rather than through FindAutoAssignPolicy: two creates arriving together must queue on the row,
+-- because a cursor read hopefully is a turn handed to both of them (C-02's acceptance).
+SELECT id, tenant_id, scope_type, scope_id, strategy, candidates, state, enabled, version
+FROM auto_assign_policy
+WHERE scope_type = sqlc.arg('scope_type') AND scope_id = sqlc.arg('scope_id')::uuid
+FOR UPDATE;
+
+-- name: UpsertAutoAssignPolicy :exec
+-- The whole definition in one statement, because the caller holds PUT semantics: the policies
+-- document arrives complete, so the row it maps to is written complete. A rewrite resets the
+-- state - the rotation belongs to the pool that was configured, and a new pool starts at its
+-- head rather than at an index into a list that no longer exists.
+INSERT INTO auto_assign_policy
+  (id, tenant_id, scope_type, scope_id, strategy, candidates, state, enabled, version)
+VALUES (
+  sqlc.arg('id')::uuid, current_tenant_id(), sqlc.arg('scope_type'), sqlc.arg('scope_id')::uuid,
+  sqlc.arg('strategy'), sqlc.arg('candidates'), '{}'::jsonb, sqlc.arg('enabled'), 1
+)
+ON CONFLICT (tenant_id, scope_type, scope_id) DO UPDATE SET
+  strategy   = EXCLUDED.strategy,
+  candidates = EXCLUDED.candidates,
+  state      = '{}'::jsonb,
+  enabled    = EXCLUDED.enabled,
+  version    = auto_assign_policy.version + 1;
+
+-- name: DeleteAutoAssignPolicy :execrows
+-- Removing the key from the document removes the row. Idempotent at the caller: a document that
+-- never carried the key deletes nothing, and that is the state that was asked for.
+DELETE FROM auto_assign_policy
+WHERE scope_type = sqlc.arg('scope_type') AND scope_id = sqlc.arg('scope_id')::uuid;
+
+-- name: SaveAutoAssignPolicyState :execrows
+-- The advanced cursor, written by the transaction that holds the lock LockAutoAssignPolicy took.
+-- No version guard: the lock is the concurrency control here, and a version bump per assignment
+-- would make the rotation's bookkeeping look like a configuration change to a client comparing
+-- versions.
+UPDATE auto_assign_policy
+SET state = sqlc.arg('state')
+WHERE id = sqlc.arg('id')::uuid;
