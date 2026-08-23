@@ -232,34 +232,38 @@ const findWorkItem = `-- name: FindWorkItem :one
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
   is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
+  cover_kind, cover_color_token, cover_media_id,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE id = $1
 `
 
 type FindWorkItemRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Type         ItemType
-	ParentID     pgtype.UUID
-	Path         string
-	Depth        int32
-	Title        string
-	Notes        *string
-	IsCompleted  bool
-	CompletedAt  pgtype.Timestamptz
-	CompletedBy  pgtype.UUID
-	BucketID     pgtype.UUID
-	OrderKey     string
-	AssigneeID   pgtype.UUID
-	ArchivedAt   pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	TrashBatchID pgtype.UUID
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Version      int32
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	CollectionID    pgtype.UUID
+	Type            ItemType
+	ParentID        pgtype.UUID
+	Path            string
+	Depth           int32
+	Title           string
+	Notes           *string
+	IsCompleted     bool
+	CompletedAt     pgtype.Timestamptz
+	CompletedBy     pgtype.UUID
+	BucketID        pgtype.UUID
+	OrderKey        string
+	AssigneeID      pgtype.UUID
+	CoverKind       *string
+	CoverColorToken *string
+	CoverMediaID    pgtype.UUID
+	ArchivedAt      pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	TrashBatchID    pgtype.UUID
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
 }
 
 // Trashed and archived items are returned rather than filtered out, for the reason FindContainer
@@ -283,6 +287,9 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.BucketID,
 		&i.OrderKey,
 		&i.AssigneeID,
+		&i.CoverKind,
+		&i.CoverColorToken,
+		&i.CoverMediaID,
 		&i.ArchivedAt,
 		&i.DeletedAt,
 		&i.TrashBatchID,
@@ -576,6 +583,7 @@ const listWorkItems = `-- name: ListWorkItems :many
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
   is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
+  cover_kind, cover_color_token, cover_media_id,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE collection_id = $1::uuid
@@ -608,28 +616,31 @@ type ListWorkItemsParams struct {
 }
 
 type ListWorkItemsRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Type         ItemType
-	ParentID     pgtype.UUID
-	Path         string
-	Depth        int32
-	Title        string
-	Notes        *string
-	IsCompleted  bool
-	CompletedAt  pgtype.Timestamptz
-	CompletedBy  pgtype.UUID
-	BucketID     pgtype.UUID
-	OrderKey     string
-	AssigneeID   pgtype.UUID
-	ArchivedAt   pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	TrashBatchID pgtype.UUID
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Version      int32
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	CollectionID    pgtype.UUID
+	Type            ItemType
+	ParentID        pgtype.UUID
+	Path            string
+	Depth           int32
+	Title           string
+	Notes           *string
+	IsCompleted     bool
+	CompletedAt     pgtype.Timestamptz
+	CompletedBy     pgtype.UUID
+	BucketID        pgtype.UUID
+	OrderKey        string
+	AssigneeID      pgtype.UUID
+	CoverKind       *string
+	CoverColorToken *string
+	CoverMediaID    pgtype.UUID
+	ArchivedAt      pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	TrashBatchID    pgtype.UUID
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
 }
 
 // One level of one collection, in its manual order: the items directly in the collection when no
@@ -676,6 +687,9 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.BucketID,
 			&i.OrderKey,
 			&i.AssigneeID,
+			&i.CoverKind,
+			&i.CoverColorToken,
+			&i.CoverMediaID,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,
@@ -1096,6 +1110,45 @@ func (q *Queries) SetWorkItemCompletion(ctx context.Context, arg SetWorkItemComp
 		arg.IsCompleted,
 		arg.CompletedAt,
 		arg.CompletedBy,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setWorkItemCover = `-- name: SetWorkItemCover :execrows
+UPDATE work_item SET
+  cover_kind        = $1,
+  cover_color_token = $2,
+  cover_media_id    = $3,
+  updated_at        = $4,
+  version           = version + 1
+WHERE id = $5::uuid AND version = $6
+`
+
+type SetWorkItemCoverParams struct {
+	CoverKind       *string
+	CoverColorToken *string
+	CoverMediaID    pgtype.UUID
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The cover, set or cleared, under the same optimistic lock every write to this row takes. Its
+// own statement for the reason the assignee has one: a cover is one decision about one field,
+// and spending a rename's version on it would be a version nobody asked for. The consistency of
+// the three columns is the table's CHECK (migration 0013), so a statement that half-set a cover
+// would be refused by the database.
+func (q *Queries) SetWorkItemCover(ctx context.Context, arg SetWorkItemCoverParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemCover,
+		arg.CoverKind,
+		arg.CoverColorToken,
+		arg.CoverMediaID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

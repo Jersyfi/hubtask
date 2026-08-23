@@ -343,6 +343,70 @@ func (r ItemRepository) SetAssignee(ctx context.Context, item work.WorkItem, exp
 	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
 }
 
+// SetCover writes the cover, set or cleared, or reports a version conflict. The consistency of
+// the three columns is the table's CHECK (migration 0013); this only spells the domain's value
+// out into them.
+func (r ItemRepository) SetCover(ctx context.Context, item work.WorkItem, expectedVersion int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+
+	params := sqlc.SetWorkItemCoverParams{
+		UpdatedAt: timestampOf(item.UpdatedAt),
+		ID:        id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	}
+	if item.Cover != nil {
+		kind := string(item.Cover.Kind)
+		params.CoverKind = &kind
+		if item.Cover.ColorToken != "" {
+			token := item.Cover.ColorToken
+			params.CoverColorToken = &token
+		}
+		mediaID, err := optionalUUID(item.Cover.MediaID)
+		if err != nil {
+			return err
+		}
+		params.CoverMediaID = mediaID
+	}
+
+	affected, err := queries.SetWorkItemCover(ctx, params)
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the cover of %s: %w", item.ID, err))
+	}
+	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
+}
+
+// coverFrom maps the three stored columns back onto the domain's one value.
+func coverFrom(kind, colorToken *string, mediaID pgtype.UUID) (*work.Cover, error) {
+	if kind == nil {
+		return nil, nil
+	}
+	media, err := optionalID(mediaID)
+	if err != nil {
+		return nil, err
+	}
+	token := ""
+	if colorToken != nil {
+		token = *colorToken
+	}
+	cover, err := work.NewCover(work.CoverKind(*kind), token, media)
+	if err != nil {
+		// The CHECK makes this unreachable; refusing is still better than serving a cover the
+		// domain cannot express.
+		return nil, err
+	}
+	return &cover, nil
+}
+
 // CountOpenByAssignee counts the open entries each of the given accounts carries, tenant-wide.
 // What "open" means - and why an ancestor's archive is not consulted - is stated at the query.
 func (r ItemRepository) CountOpenByAssignee(
@@ -702,6 +766,10 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 	if err != nil {
 		return work.WorkItem{}, err
 	}
+	cover, err := coverFrom(row.CoverKind, row.CoverColorToken, row.CoverMediaID)
+	if err != nil {
+		return work.WorkItem{}, err
+	}
 
 	return work.WorkItem{
 		ID:           id,
@@ -721,6 +789,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		BucketID:     bucketID,
 		OrderKey:     row.OrderKey,
 		AssigneeID:   assigneeID,
+		Cover:        cover,
 		ArchivedAt:   optionalTime(row.ArchivedAt),
 		DeletedAt:    optionalTime(row.DeletedAt),
 		TrashBatchID: trashBatchID,

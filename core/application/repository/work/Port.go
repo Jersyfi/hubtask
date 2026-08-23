@@ -354,6 +354,11 @@ type Items interface {
 	// from the answer, and the caller reads an absent key as zero.
 	CountOpenByAssignee(ctx context.Context, accounts []shared.ID) (map[shared.ID]int, error)
 
+	// SetCover writes the cover, set or cleared, or reports a version conflict. Its own method
+	// for the reason SetAssignee is: one decision about one field, never spending a rename's
+	// version.
+	SetCover(ctx context.Context, item work.WorkItem, expectedVersion int) error
+
 	// MoveSubtree rewrites where an item and everything below it sits, drops the references the
 	// destination cannot resolve, and returns how many rows it touched together with what was lost.
 	//
