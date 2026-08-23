@@ -22,6 +22,9 @@ package storage
 import (
 	"context"
 	"io"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 // ObjectStore reads and writes objects. Implementations: LocalStorage (a directory, the
@@ -46,6 +49,31 @@ type ObjectStore interface {
 	// the caller asked for, and the reconciliation job that calls this retries (C-06,
 	// data-protection.md §5).
 	Delete(ctx context.Context, key string) error
+}
+
+// Transfer is one side of the byte movement, as the contract's MediaTransfer carries it: a URL
+// that is itself the capability, the method to use on it, and the moment it stops working.
+type Transfer struct {
+	URL       string
+	Method    string
+	ExpiresAt time.Time
+}
+
+// TransferIssuer mints the URLs the bytes travel through, so the server never carries them on an
+// object-storage installation (arc42 §8.4) - and stands in for that with its own token-protected
+// routes on a local one.
+//
+// The media identifier travels beside the key because the two implementations address by
+// different halves: a presigned URL names the storage key, the local content route names the
+// object and resolves the key itself.
+type TransferIssuer interface {
+	// IssueUpload mints where the staged object's bytes go.
+	IssueUpload(key string, mediaID shared.ID, expiresAt time.Time) (Transfer, error)
+
+	// IssueDownload mints where the object's bytes come from, served as a download: the
+	// disposition - attachment, with the file's name when one is known - is part of what is
+	// signed, so a holder cannot strip it (T-11).
+	IssueDownload(key string, mediaID shared.ID, fileName string, expiresAt time.Time) (Transfer, error)
 }
 
 // Upload is one object on its way in.

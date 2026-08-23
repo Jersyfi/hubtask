@@ -194,6 +194,59 @@ func (s *S3Storage) Delete(ctx context.Context, key string) error {
 	}
 }
 
+var _ port.TransferIssuer = (*S3Storage)(nil)
+
+// IssueUpload mints a presigned PUT: the client sends the bytes to the bucket directly, and the
+// server never carries them (arc42 §8.4).
+func (s *S3Storage) IssueUpload(key string, _ shared.ID, expiresAt time.Time) (port.Transfer, error) {
+	target, err := s.objectURL(key)
+	if err != nil {
+		return port.Transfer{}, err
+	}
+
+	now := s.now()
+	return port.Transfer{
+		URL: presignV4(http.MethodPut, target, s.accessKey, s.secretKey, s.region, "s3",
+			expiresAt.Sub(now), now, nil),
+		Method:    http.MethodPut,
+		ExpiresAt: expiresAt,
+	}, nil
+}
+
+// IssueDownload mints a presigned GET whose disposition is signed into it: the bucket answers
+// `Content-Disposition: attachment`, and a holder cannot strip that without invalidating the
+// signature (T-11 - the bucket origin is not the application's, and the download stays a
+// download there too).
+func (s *S3Storage) IssueDownload(
+	key string, _ shared.ID, fileName string, expiresAt time.Time,
+) (port.Transfer, error) {
+	target, err := s.objectURL(key)
+	if err != nil {
+		return port.Transfer{}, err
+	}
+
+	disposition := "attachment"
+	if fileName != "" {
+		disposition = `attachment; filename="` + sanitizeDispositionName(fileName) + `"`
+	}
+	now := s.now()
+	return port.Transfer{
+		URL: presignV4(http.MethodGet, target, s.accessKey, s.secretKey, s.region, "s3",
+			expiresAt.Sub(now), now, map[string]string{
+				"response-content-disposition": disposition,
+			}),
+		Method:    http.MethodGet,
+		ExpiresAt: expiresAt,
+	}, nil
+}
+
+// sanitizeDispositionName keeps the quoted-string form of RFC 6266 intact: quotes and
+// backslashes would end the string early, and the domain already refused everything wilder.
+func sanitizeDispositionName(name string) string {
+	replacer := strings.NewReplacer(`"`, "'", `\`, "_")
+	return replacer.Replace(name)
+}
+
 // CreateBucket makes the configured bucket exist, treating "it already does" as the success it
 // is. For an operator's first run against a fresh MinIO, and for the conformance suite; AWS
 // itself is not the audience - a bucket there is infrastructure somebody provisions, and a name

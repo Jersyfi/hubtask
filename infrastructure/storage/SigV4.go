@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -127,6 +128,69 @@ func canonicalQuery(rawQuery string) string {
 	}
 	sort.Strings(pairs)
 	return strings.Join(pairs, "&")
+}
+
+// presignV4 signs a URL instead of a request: the query form of the same signature, which is
+// what makes the URL itself the capability - whoever holds it may perform exactly this method on
+// exactly this object until the expiry, and nothing else (arc42 §8.4).
+//
+// `extra` carries response-override parameters (response-content-disposition and friends); they
+// are signed like everything else, so a holder cannot strip the attachment disposition off a
+// download URL without invalidating it (T-11).
+func presignV4(method string, target string, accessKey, secretKey, region, service string,
+	expires time.Duration, now time.Time, extra map[string]string,
+) string {
+	stamp := now.UTC().Format("20060102T150405Z")
+	date := stamp[:8]
+	scope := date + "/" + region + "/" + service + "/aws4_request"
+
+	host, path := splitOrigin(target)
+	query := map[string]string{
+		"X-Amz-Algorithm":     "AWS4-HMAC-SHA256",
+		"X-Amz-Credential":    accessKey + "/" + scope,
+		"X-Amz-Date":          stamp,
+		"X-Amz-Expires":       strconv.Itoa(int(expires.Seconds())),
+		"X-Amz-SignedHeaders": "host",
+	}
+	for key, value := range extra {
+		query[key] = value
+	}
+
+	pairs := make([]string, 0, len(query))
+	for key, value := range query {
+		pairs = append(pairs, uriEncode(key)+"="+uriEncode(value))
+	}
+	sort.Strings(pairs)
+	canonicalQueryString := strings.Join(pairs, "&")
+
+	canonicalRequest := strings.Join([]string{
+		method,
+		canonicalURI(path),
+		canonicalQueryString,
+		"host:" + host + "\n",
+		"host",
+		unsignedPayload,
+	}, "\n")
+
+	stringToSign := strings.Join([]string{
+		"AWS4-HMAC-SHA256", stamp, scope, hexSHA256([]byte(canonicalRequest)),
+	}, "\n")
+	signature := hex.EncodeToString(
+		hmacSHA256(deriveKey(secretKey, date, region, service), []byte(stringToSign)))
+
+	return target + "?" + canonicalQueryString + "&X-Amz-Signature=" + signature
+}
+
+// splitOrigin separates scheme://host from the path of an already-built object URL.
+func splitOrigin(target string) (host, path string) {
+	rest := target
+	if at := strings.Index(rest, "://"); at >= 0 {
+		rest = rest[at+3:]
+	}
+	if at := strings.Index(rest, "/"); at >= 0 {
+		return rest[:at], rest[at:]
+	}
+	return rest, "/"
 }
 
 const upperhex = "0123456789ABCDEF"
