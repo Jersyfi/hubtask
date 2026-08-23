@@ -194,6 +194,43 @@ func (s *S3Storage) Delete(ctx context.Context, key string) error {
 	}
 }
 
+// CreateBucket makes the configured bucket exist, treating "it already does" as the success it
+// is. For an operator's first run against a fresh MinIO, and for the conformance suite; AWS
+// itself is not the audience - a bucket there is infrastructure somebody provisions, and a name
+// taken by another account answers 409 with a different meaning, which still reads as "not
+// yours to create" and fails the first upload honestly.
+//
+// No location constraint body: the S3-compatible services this serves ignore the region, and
+// the empty body keeps the request signable with the empty payload hash.
+func (s *S3Storage) CreateBucket(ctx context.Context) error {
+	target := *s.base
+	if s.pathStyle {
+		target.Path = "/" + s.bucket
+	} else {
+		target.Host = s.bucket + "." + target.Host
+		target.Path = "/"
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, target.String(), nil)
+	if err != nil {
+		return ioFailed("building the request", err)
+	}
+	signV4(req, s.accessKey, s.secretKey, s.region, "s3", emptyPayloadHash, s.now())
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return unreachable(err)
+	}
+	defer drain(resp)
+
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusConflict:
+		return nil
+	default:
+		return s.unexpected(resp)
+	}
+}
+
 // objectURL is where the object lives: path-style (the self-hosting default - MinIO without
 // wildcard DNS) or virtual-host style.
 func (s *S3Storage) objectURL(key string) (string, error) {

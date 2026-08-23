@@ -48,8 +48,8 @@ func (f *flakyStore) Get(context.Context, string) (port.Object, error) {
 
 func (f *flakyStore) Delete(context.Context, string) error { return nil }
 
-func put(store port.ObjectStore) error {
-	return store.Put(context.Background(), port.Upload{
+func put(ctx context.Context, store port.ObjectStore) error {
+	return store.Put(ctx, port.Upload{
 		Key: "media/one", Content: strings.NewReader("x"), Size: 1, ContentType: "text/plain",
 	})
 }
@@ -74,13 +74,13 @@ func TestTheBreakerCutsOffADeadEndpointAndTheProbeSaysSo(t *testing.T) {
 	}
 
 	for range 2 {
-		if err := put(store); err == nil {
+		if err := put(context.Background(), store); err == nil {
 			t.Fatal("the dead endpoint answered")
 		}
 	}
 
 	before := inner.calls.Load()
-	err := put(store)
+	err := put(context.Background(), store)
 	if got := shared.AsError(err).DetailCode; got != "dependency.circuit_open" {
 		t.Fatalf("the open breaker answered %q", got)
 	}
@@ -103,7 +103,7 @@ func TestTheBreakerCutsOffADeadEndpointAndTheProbeSaysSo(t *testing.T) {
 	// call closes the breaker.
 	inner.failing.Store(false)
 	offset.Store(int64(31 * time.Second))
-	if err := put(store); err != nil {
+	if err := put(context.Background(), store); err != nil {
 		t.Fatalf("the recovered endpoint was refused: %v", err)
 	}
 	if got := probe.Check(context.Background()); got.Status != health.StatusOK ||
@@ -123,10 +123,10 @@ func TestAFullPoolFailsFastAndIsNotTheEndpointsFault(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	started := make(chan struct{})
-	concurrency.Go(context.Background(), "test.storage.occupant", func(context.Context) {
+	concurrency.Go(context.Background(), "test.storage.occupant", func(ctx context.Context) {
 		defer wg.Done()
 		close(started)
-		_ = put(store)
+		_ = put(ctx, store)
 	})
 	<-started
 	// Give the first call its slot before contending for it.
@@ -134,7 +134,7 @@ func TestAFullPoolFailsFastAndIsNotTheEndpointsFault(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 
-	err := put(store)
+	err := put(context.Background(), store)
 	if got := shared.AsError(err).DetailCode; got != "dependency.saturated" {
 		t.Fatalf("the full pool answered %q", got)
 	}
@@ -144,7 +144,7 @@ func TestAFullPoolFailsFastAndIsNotTheEndpointsFault(t *testing.T) {
 
 	// The saturation was this process's state, not the dependency's: the breaker must not have
 	// counted it, so the next call still reaches the endpoint.
-	if err := put(store); err != nil {
+	if err := put(context.Background(), store); err != nil {
 		t.Fatalf("the pool's saturation was charged to the breaker: %v", err)
 	}
 }
