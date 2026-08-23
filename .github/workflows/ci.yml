@@ -59,6 +59,9 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - '.nvmrc'
+              # The workspace dependency lint (ADR-0033): a change to the checker re-proves
+              # every package against the map, exactly like a manifest change.
+              - 'build/**'
             go:
               - '**/*.go'
               - 'go.mod'
@@ -446,6 +449,12 @@ jobs:
         if: matrix.run == 'true'
         with:
           node-version-file: .nvmrc
+      # The workspace map of ADR-0033, checked before anything is installed or built from it -
+      # the pnpm counterpart of gate-architecture. Selftest first, per the gate-selftest habit:
+      # a checker that cannot fail proves nothing by passing. Plain node, no dependencies, so it
+      # runs before the install and fails fast.
+      - if: matrix.run == 'true'
+        run: node build/lint-workspace-map.mjs --selftest && node build/lint-workspace-map.mjs
       # The same command a contributor runs, so the version of pnpm is pinned in exactly one
       # place - `packageManager` in package.json (ADR-0027).
       - if: matrix.run == 'true'
