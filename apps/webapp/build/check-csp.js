@@ -37,11 +37,28 @@ export function violations(html) {
   return found;
 }
 
-function* htmlFiles(dir) {
+/**
+ * The same question for a stylesheet: a data: URI in CSS is loaded under the directive of what
+ * it is - and only `img-src` says data:. A font or anything else inlined by the bundler's byte
+ * threshold arrives as a blocked resource and an empty glyph at runtime; W-08 found exactly
+ * that in the browser console before this check existed.
+ */
+export function stylesheetViolations(css) {
+  const found = [];
+  for (const use of css.matchAll(/url\(\s*['"]?data:([a-z0-9.+-]+\/[a-z0-9.+-]+)?/gi)) {
+    const mime = (use[1] ?? '').toLowerCase();
+    if (!mime.startsWith('image/')) {
+      found.push(`a data: URI the policy blocks (${mime || 'no media type'} - only img-src permits data:)`);
+    }
+  }
+  return found;
+}
+
+function* filesEndingIn(dir, suffix) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const joined = path.join(dir, entry.name);
-    if (entry.isDirectory()) yield* htmlFiles(joined);
-    else if (entry.name.endsWith('.html')) yield joined;
+    if (entry.isDirectory()) yield* filesEndingIn(joined, suffix);
+    else if (entry.name.endsWith(suffix)) yield joined;
   }
 }
 
@@ -57,9 +74,17 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
 
   let failures = 0;
   let documents = 0;
-  for (const file of htmlFiles(dist)) {
+  let stylesheets = 0;
+  for (const file of filesEndingIn(dist, '.html')) {
     documents++;
     for (const finding of violations(fs.readFileSync(file, 'utf8'))) {
+      console.error(`csp: ${path.relative(dist, file)} contains ${finding}`);
+      failures++;
+    }
+  }
+  for (const file of filesEndingIn(dist, '.css')) {
+    stylesheets++;
+    for (const finding of stylesheetViolations(fs.readFileSync(file, 'utf8'))) {
       console.error(`csp: ${path.relative(dist, file)} contains ${finding}`);
       failures++;
     }
@@ -72,5 +97,7 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     console.error(`csp: ${failures} finding(s) the policy of ADR-0028 would block`);
     process.exit(1);
   }
-  console.log(`csp: ${documents} document(s) clean - no inline script, no inline style`);
+  console.log(
+    `csp: ${documents} document(s) and ${stylesheets} stylesheet(s) clean - no inline script, no inline style, no blocked data: URI`,
+  );
 }
