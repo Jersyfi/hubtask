@@ -20,10 +20,13 @@ import (
 // go.mod is the source. Everything else has to agree with it on the major.minor, and this says so
 // on every pull request rather than at the release where it matters.
 //
-// Only major.minor is compared. The patch in go.mod is deliberately more precise than a container
-// tag or a `go-version:` can be, and demanding `golang:1.26.7-alpine` would pin the image to a
-// digest-level detail for no gain: setup-go and the golang image both resolve a major.minor to
-// its latest patch, which is what "at least this patched release" wants.
+// Only major.minor is compared, on both sides. The workflows state the exact patch on purpose -
+// `setup-go` with a bare major.minor resolves to whichever patch the runner image happens to
+// carry, and a tool built by `go install` from that Go then has to analyse a module whose
+// `toolchain` directive may name a newer one. That mismatch is what makes go-licenses report
+// "does not have module info" and golangci-lint refuse the module outright, on some runners and
+// not others. Pinning the patch in CI removes the coin toss; comparing only major.minor here
+// keeps this check from failing every time the patch moves in lockstep.
 
 const goModFile = "go.mod"
 
@@ -47,8 +50,8 @@ type goVersionSource struct {
 }
 
 var goVersionSources = []goVersionSource{
-	{dir: ".github/workflows", pattern: regexp.MustCompile(`go-version:\s*"(\d+\.\d+)"`), atLeast: 9, what: "go-version:"},
-	{dir: ".github/workflows", pattern: regexp.MustCompile(`GO_VERSION:\s*"(\d+\.\d+)"`), atLeast: 2, what: "GO_VERSION:"},
+	{dir: ".github/workflows", pattern: regexp.MustCompile(`go-version:\s*"(\d+\.\d+)(?:\.\d+)?"`), atLeast: 9, what: "go-version:"},
+	{dir: ".github/workflows", pattern: regexp.MustCompile(`GO_VERSION:\s*"(\d+\.\d+)(?:\.\d+)?"`), atLeast: 2, what: "GO_VERSION:"},
 	{path: "deploy/docker/Dockerfile", pattern: regexp.MustCompile(`FROM golang:(\d+\.\d+)`), atLeast: 1, what: "the build image"},
 	{path: "docs/architecture/support-matrix.md", pattern: regexp.MustCompile(`\|\s*Go \(building from source\)\s*\|\s*(\d+\.\d+)\s*\|`), atLeast: 1, what: "the support matrix row"},
 	{path: "README.md", pattern: regexp.MustCompile(`Go \(≥ (\d+\.\d+)\)`), atLeast: 1, what: "the technology table"},

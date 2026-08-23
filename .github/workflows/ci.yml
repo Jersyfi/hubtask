@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.26"
+  GO_VERSION: "1.26.7"
 
 jobs:
   # Which parts of the tree a pull request touches, and therefore which jobs have anything to say

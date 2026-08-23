@@ -1,12 +1,20 @@
 module github.com/Jersyfi/hubtask
 
-// Pinned to a patched release, not just to a major version: gate-security runs govulncheck, and
-// an unpatched standard library is a finding there. Whoever builds with an older Go gets this
-// toolchain fetched automatically, which is why no separate `toolchain` directive is needed - the
-// minimum and the pin are the same statement.
+// The language level is a major.minor, and the patch lives in `toolchain` below. The two are
+// deliberately different statements, because a patch in the `go` directive means something
+// stricter than it looks: every tool that analyses this module must itself have been built with
+// at least that patch, or it refuses to run. golangci-lint and go-licenses are built by
+// `go install` from whatever Go the runner happens to have, and `setup-go` with a major.minor
+// resolves to whichever patch is in the image - 1.26.6 on one runner, 1.26.7 on the next. A patch
+// here therefore turns a green pipeline into a coin toss.
 //
 // 1.25 left Go's support window when 1.27 shipped; Go patches only the two most recent majors.
-go 1.26.7
+go 1.26
+
+// The toolchain is pinned to a patched release: gate-security runs govulncheck, and an unpatched
+// standard library is a finding there. Whoever builds with an older Go gets this one fetched
+// automatically - which is the guarantee the `go` directive above must not try to make.
+toolchain go1.26.7
 
 // Dependencies are added step by step from milestone 0.1.0 onwards.
 // The core (core/domain, core/port, core/shared) stays permanently free of
