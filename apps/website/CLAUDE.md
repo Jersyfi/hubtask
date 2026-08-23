@@ -14,7 +14,9 @@ website` builds it into a directory; where that directory is deployed is not dec
 * **No dependency on `@hubtask/api-client`.** Only the design system.
 * **No colour, spacing, radius or duration written here** — same rule as everywhere, same lint
   ([ADR-0029](../../docs/adr/ADR-0029-design-system-tokens.md)).
-* **No framework decision**, for the same reason as the webapp: it has not been taken.
+* **The framework is decided**: Svelte 5 with SvelteKit and `adapter-static`, fully prerendered
+  ([ADR-0030](../../docs/adr/ADR-0030-svelte-frontend-framework.md)). Build-time Node only —
+  the output is plain static files, and nothing here runs a server.
 * **No claim about the licence that `LICENSE` does not make.** BSL 1.1 with a Change Date to
   Apache-2.0 after three years is "source available", not "open source", and
   [ADR-0013](../../docs/adr/ADR-0013-licensing.md) is explicit about that. Saying otherwise on the
