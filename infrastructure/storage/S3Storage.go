@@ -18,6 +18,7 @@ import (
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	port "github.com/Jersyfi/hubtask/core/port/storage"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -198,8 +199,8 @@ var _ port.TransferIssuer = (*S3Storage)(nil)
 
 // IssueUpload mints a presigned PUT: the client sends the bytes to the bucket directly, and the
 // server never carries them (arc42 §8.4).
-func (s *S3Storage) IssueUpload(key string, _ shared.ID, expiresAt time.Time) (port.Transfer, error) {
-	target, err := s.objectURL(key)
+func (s *S3Storage) IssueUpload(object media.Object, expiresAt time.Time) (port.Transfer, error) {
+	target, err := s.objectURL(object.StorageKey)
 	if err != nil {
 		return port.Transfer{}, err
 	}
@@ -218,16 +219,16 @@ func (s *S3Storage) IssueUpload(key string, _ shared.ID, expiresAt time.Time) (p
 // signature (T-11 - the bucket origin is not the application's, and the download stays a
 // download there too).
 func (s *S3Storage) IssueDownload(
-	key string, _ shared.ID, fileName string, expiresAt time.Time,
+	object media.Object, expiresAt time.Time,
 ) (port.Transfer, error) {
-	target, err := s.objectURL(key)
+	target, err := s.objectURL(object.StorageKey)
 	if err != nil {
 		return port.Transfer{}, err
 	}
 
 	disposition := "attachment"
-	if fileName != "" {
-		disposition = `attachment; filename="` + sanitizeDispositionName(fileName) + `"`
+	if object.FileName != "" {
+		disposition = `attachment; filename="` + sanitizeDispositionName(object.FileName) + `"`
 	}
 	now := s.now()
 	return port.Transfer{

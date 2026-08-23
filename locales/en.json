@@ -183,6 +183,8 @@
   "media.file_name_too_long": "The file name may be at most {maximum} characters long.",
   "media.file_name_invalid": "The file name has to fit on one line and cannot contain path separators.",
   "media.already_confirmed": "That upload was already confirmed.",
+  "media.media_id_required": "Say which media object is meant.",
+  "media.content_missing": "The bytes of that upload are not in storage. Upload them, then confirm.",
   "media.not_ready": "That media object is not ready. Confirm its upload first.",
   "media.usage_mismatch": "That media object was staged as {usage} and cannot be used as {wanted}.",
   "media.not_found": "That media object does not exist.",

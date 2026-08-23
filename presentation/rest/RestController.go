@@ -9,6 +9,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -41,6 +42,15 @@ type RestController struct {
 	// per use case: the operations that arrive from here on are entries in it, not new
 	// dependencies of this controller (arc42 §4).
 	UseCases UseCaseRegistry
+
+	// MediaContent and MediaTokens serve the two content routes, which are not catalogue entries:
+	// they take a stream and answer a stream, which is neither what MCP nor what an automation
+	// rule could do with them (C-06, core/application/service/media.MediaContent).
+	MediaContent MediaContentService
+	MediaTokens  MediaTokenValidator
+	// Clock judges an expiring capability. The one place this layer needs the time, and a port
+	// rather than time.Now so that a test can stand at the moment a token expires.
+	Clock clock.Clock
 }
 
 func NewRestController() *RestController { return &RestController{} }

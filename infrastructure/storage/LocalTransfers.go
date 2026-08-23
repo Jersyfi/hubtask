@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	port "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
@@ -29,29 +29,29 @@ func NewLocalTransfers(tokens security.MediaTokenIssuer, baseURL string) LocalTr
 
 var _ port.TransferIssuer = LocalTransfers{}
 
-func (l LocalTransfers) IssueUpload(_ string, mediaID shared.ID, expiresAt time.Time) (port.Transfer, error) {
+func (l LocalTransfers) IssueUpload(object media.Object, expiresAt time.Time) (port.Transfer, error) {
 	return port.Transfer{
-		URL:       l.contentURL(mediaID, security.MediaTokenUpload, expiresAt),
+		URL:       l.contentURL(object, security.MediaTokenUpload, expiresAt),
 		Method:    http.MethodPut,
 		ExpiresAt: expiresAt,
 	}, nil
 }
 
 func (l LocalTransfers) IssueDownload(
-	_ string, mediaID shared.ID, _ string, expiresAt time.Time,
+	object media.Object, expiresAt time.Time,
 ) (port.Transfer, error) {
 	// The file name is not in the URL: the content route reads it off the record and sets the
 	// disposition itself, so there is nothing a holder could tamper with.
 	return port.Transfer{
-		URL:       l.contentURL(mediaID, security.MediaTokenDownload, expiresAt),
+		URL:       l.contentURL(object, security.MediaTokenDownload, expiresAt),
 		Method:    http.MethodGet,
 		ExpiresAt: expiresAt,
 	}, nil
 }
 
 func (l LocalTransfers) contentURL(
-	mediaID shared.ID, purpose security.MediaTokenPurpose, expiresAt time.Time,
+	object media.Object, purpose security.MediaTokenPurpose, expiresAt time.Time,
 ) string {
-	return l.base + "/api/v1/media/" + mediaID.String() + ":content?token=" +
-		l.tokens.Issue(purpose, mediaID, expiresAt)
+	return l.base + "/api/v1/media/" + object.ID.String() + ":content?token=" +
+		l.tokens.Issue(purpose, object.TenantID, object.ID, expiresAt)
 }

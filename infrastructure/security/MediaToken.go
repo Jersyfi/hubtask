@@ -50,18 +50,25 @@ func NewMediaTokenIssuer(installationSecret secret.Secret) MediaTokenIssuer {
 }
 
 // Issue mints the token for one object, one direction, until expiresAt.
+//
+// The tenant travels in the token, in clear and signed. The content routes carry no bearer
+// credential - the URL is the capability, exactly as a presigned bucket URL is - so there is
+// nothing else on the request that could say which tenant to open the transaction as, and a
+// tenant read from the path or a header would be a way around row level security
+// (multi-tenancy.md §2.2). Signed rather than merely carried: swapping it invalidates the tag.
 func (i MediaTokenIssuer) Issue(
-	purpose MediaTokenPurpose, mediaID shared.ID, expiresAt time.Time,
+	purpose MediaTokenPurpose, tenantID, mediaID shared.ID, expiresAt time.Time,
 ) string {
-	payload := i.payload(purpose, mediaID, expiresAt.Unix())
+	payload := i.payload(purpose, tenantID, mediaID, expiresAt.Unix())
 
 	mac := hmac.New(sha256.New, i.key)
 	mac.Write(payload)
 	tag := mac.Sum(nil)[:mediaTokenTagLength]
 
-	token := make([]byte, 0, len(tag)+8)
+	token := make([]byte, 0, len(tag)+8+len(tenantID))
 	token = append(token, tag...)
 	token = binary.BigEndian.AppendUint64(token, uint64(expiresAt.Unix())) //nolint:gosec // G115: a unix timestamp fits until the year 292277026596
+	token = append(token, tenantID.String()...)
 	return base64.RawURLEncoding.EncodeToString(token)
 }
 
@@ -69,39 +76,60 @@ func (i MediaTokenIssuer) Issue(
 // the reason a page cursor's is: saying which check failed tells whoever is probing how far
 // their forgery got. Expiry is the one distinguished refusal - an expired token is a token this
 // server really minted, and "stage the upload again" is actionable where "invalid" is not.
+// It returns the tenant the token was minted in, which is what the caller opens its transaction
+// as. The value is only ever returned after the tag has been verified, so a caller cannot be
+// handed a tenant nobody signed for.
 func (i MediaTokenIssuer) Validate(
 	token string, purpose MediaTokenPurpose, mediaID shared.ID, now time.Time,
-) error {
+) (shared.ID, error) {
 	raw, err := base64.RawURLEncoding.DecodeString(token)
-	if err != nil || len(raw) != mediaTokenTagLength+8 {
-		return errMediaTokenInvalid()
+	if err != nil || len(raw) <= mediaTokenTagLength+8 {
+		return "", errMediaTokenInvalid()
 	}
 
-	expiry := int64(binary.BigEndian.Uint64(raw[mediaTokenTagLength:])) //nolint:gosec // G115: the value was written by Issue
-	payload := i.payload(purpose, mediaID, expiry)
+	expiry := int64(binary.BigEndian.Uint64(raw[mediaTokenTagLength : mediaTokenTagLength+8])) //nolint:gosec // G115: the value was written by Issue
+	tenantID := shared.ID(raw[mediaTokenTagLength+8:])
+	payload := i.payload(purpose, tenantID, mediaID, expiry)
 
 	mac := hmac.New(sha256.New, i.key)
 	mac.Write(payload)
 	if !hmac.Equal(raw[:mediaTokenTagLength], mac.Sum(nil)[:mediaTokenTagLength]) {
-		return errMediaTokenInvalid()
+		return "", errMediaTokenInvalid()
 	}
 	if now.Unix() > expiry {
-		return shared.ErrValidation.
+		return "", shared.ErrValidation.
 			WithDetail("media.upload_expired").
 			WithFields(shared.FieldError{Path: "/token", Code: "media.upload_expired"})
 	}
-	return nil
+	return tenantID, nil
 }
 
 func (i MediaTokenIssuer) payload(
-	purpose MediaTokenPurpose, mediaID shared.ID, expiry int64,
+	purpose MediaTokenPurpose, tenantID, mediaID shared.ID, expiry int64,
 ) []byte {
-	return []byte(string(purpose) + "\x00" + mediaID.String() + "\x00" +
-		strconv.FormatInt(expiry, 10))
+	return []byte(string(purpose) + "\x00" + tenantID.String() + "\x00" + mediaID.String() +
+		"\x00" + strconv.FormatInt(expiry, 10))
 }
 
 func errMediaTokenInvalid() error {
 	return shared.ErrValidation.
 		WithDetail("media.token_invalid").
 		WithFields(shared.FieldError{Path: "/token", Code: "media.token_invalid"})
+}
+
+// ValidateUpload and ValidateDownload are Validate with the purpose named rather than passed.
+//
+// They exist so that the REST layer can hold this as an interface of its own without knowing the
+// purpose type - presentation may not import infrastructure - and they make the one mistake that
+// matters impossible to write: a handler cannot pass the wrong direction if it cannot pass one.
+func (i MediaTokenIssuer) ValidateUpload(
+	token string, mediaID shared.ID, now time.Time,
+) (shared.ID, error) {
+	return i.Validate(token, MediaTokenUpload, mediaID, now)
+}
+
+func (i MediaTokenIssuer) ValidateDownload(
+	token string, mediaID shared.ID, now time.Time,
+) (shared.ID, error) {
+	return i.Validate(token, MediaTokenDownload, mediaID, now)
 }

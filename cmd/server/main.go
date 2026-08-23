@@ -28,6 +28,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
+	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -175,11 +176,15 @@ func run() error {
 	// process at a bucket deserves to read in /meta/health that it is unreachable rather than to
 	// find out at the first upload (QS-11). Local storage carries no breaker and no probe - a
 	// directory has no circuit to trip, and its failures are the disk's, reported per call.
-	mediaStore, err := buildObjectStore(cfg, registry, metrics)
+	// Who mints the URLs the bytes travel through comes back with the store, because the two
+	// answers are one decision: a bucket signs its own transfers, and a local installation lets
+	// this server's content routes stand in for it with a token (C-06, arc42 §8.4).
+	mediaTokens := security.NewMediaTokenIssuer(cfg.SecretKey)
+	mediaStore, mediaTransfers, err := buildObjectStore(cfg, mediaTokens, registry, metrics)
 	if err != nil {
 		return fmt.Errorf("object storage: %w", err)
 	}
-	_ = mediaStore // C-06 threads this into the media use cases.
+	mediaGuard := storageadapter.NewUploadGuard()
 
 	// The panic metric is the one an alert watches, and its target value is 0 permanently
 	// (ADR-0016). The recovered value itself is deliberately not logged here: a panic value can
@@ -256,6 +261,9 @@ func run() error {
 	labels := postgres.NewLabelRepository()
 	itemLabels := postgres.NewItemLabelRepository()
 	itemMembers := postgres.NewItemMemberRepository()
+	// The media records, beside the bytes: this stores the rows, the object store the content, and
+	// keeping the two apart is what keeps every byte operation outside a transaction (C-06).
+	mediaObjects := postgres.NewMediaRepository(cursors)
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
@@ -552,6 +560,15 @@ func run() error {
 		lifecycle.EmptyTrash{
 			Purger: purger, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+
+		mediaservice.RequestMediaUpload{
+			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+		}.Descriptor(),
+		mediaservice.ConfirmMediaUpload{
+			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Config: cfg,
+		}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process
@@ -566,6 +583,16 @@ func run() error {
 		// exists because the contract declares it, not because it works.
 		controller := rest.NewRestController()
 		controller.UseCases = useCases
+		// The two content routes are not catalogue entries: they take a stream and answer a
+		// stream, which is neither what MCP nor what an automation rule could do with them. On an
+		// object-storage installation they are never reached - the token this server would have to
+		// have minted is one it never mints there (C-06).
+		controller.MediaContent = mediaservice.MediaContent{
+			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard,
+			UnitOfWork: unitOfWork, Config: cfg,
+		}
+		controller.MediaTokens = mediaTokens
+		controller.Clock = clockadapter.System{}
 		controller.Capabilities = meta.GetCapabilities{
 			Profiles:   profiles,
 			UnitOfWork: unitOfWork,
@@ -859,16 +886,23 @@ func runsBackgroundWork(cfg envport.Config) bool {
 // buildObjectStore composes the configured store (C-05). For S3 that is the whole of A-05's
 // vocabulary: the adapter, a breaker the health probe reads, and a bulkhead so the storage pool
 // is this size and not the process (ADR-0016).
+// The transfer issuer comes back with it, because which one applies is the same decision: the S3
+// adapter signs its own presigned URLs, and a local installation has nothing to presign - so this
+// server's token-protected content routes take that part instead. The resilient wrapper is
+// deliberately not the issuer: signing a URL reaches nothing, and putting it behind a circuit
+// breaker would refuse to mint a target because a previous byte transfer failed.
 func buildObjectStore(
-	cfg envport.Config, registry *healthadapter.Registry, metrics *observability.Metrics,
-) (storageport.ObjectStore, error) {
+	cfg envport.Config, tokens security.MediaTokenIssuer,
+	registry *healthadapter.Registry, metrics *observability.Metrics,
+) (storageport.ObjectStore, storageport.TransferIssuer, error) {
 	if cfg.Storage.Kind != envport.StorageS3 {
-		return storageadapter.NewLocalStorage(cfg.Storage.LocalPath), nil
+		return storageadapter.NewLocalStorage(cfg.Storage.LocalPath),
+			storageadapter.NewLocalTransfers(tokens, cfg.BaseURL), nil
 	}
 
 	s3, err := storageadapter.NewS3Storage(cfg.Storage, cfg.Request.Timeout)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	breaker := resilience.NewBreaker(resilience.BreakerConfig{
 		Dependency: "object_storage",
@@ -882,7 +916,7 @@ func buildObjectStore(
 	bulkhead := resilience.NewBulkhead(resilience.BulkheadConfig{Name: "s3", Capacity: 8})
 
 	registry.Register(storageadapter.NewProbe(breaker))
-	return storageadapter.NewResilientStore(s3, breaker, bulkhead), nil
+	return storageadapter.NewResilientStore(s3, breaker, bulkhead), s3, nil
 }
 
 func primaryRole(cfg envport.Config) envport.Role {

@@ -77,8 +77,17 @@ func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 				t.Errorf("%s is not readable: %v", rel(path), err)
 				return
 			}
-			for _, match := range messageCode.FindAllStringSubmatch(string(source), -1) {
-				used[match[1]] = append(used[match[1]], rel(path))
+			for _, line := range strings.Split(string(source), "\n") {
+				// An audit action is not a message code: nothing renders it, an auditor filters on
+				// it (audit.md §2). The two namespaces only collide where a resource's name is the
+				// same in the singular and the plural - `media.staged` beside `media.not_found` -
+				// which every other entity avoids by accident rather than by design.
+				if strings.Contains(line, "audit.Action") {
+					continue
+				}
+				for _, match := range messageCode.FindAllStringSubmatch(line, -1) {
+					used[match[1]] = append(used[match[1]], rel(path))
+				}
 			}
 		})
 
