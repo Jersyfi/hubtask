@@ -22,6 +22,8 @@ import (
 const (
 	requestMediaUploadUseCase = "RequestMediaUpload"
 	confirmMediaUploadUseCase = "ConfirmMediaUpload"
+	getMediaUseCase           = "GetMedia"
+	deleteMediaUseCase        = "DeleteMedia"
 
 	// mediaContentSuffix is the one route the contract declares as a byte stream rather than as
 	// JSON. Named here because the request bound needs to recognise it (Bounded).
@@ -105,6 +107,47 @@ func (c *RestController) ConfirmMediaUpload(
 		return
 	}
 	writeJSON(w, r, http.StatusOK, mediaResponse(out))
+}
+
+// GetMedia answers GET /media/{mediaId}.
+//
+// The download target travels in the answer rather than as a redirect: a client that wants the
+// record and a client that wants the bytes are asking two different questions, and a 302 here
+// would force the first one to follow the second.
+func (c *RestController) GetMedia(w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	actor, _ := appshared.ActorFrom(r.Context())
+
+	out, err := c.UseCases.Invoke(r.Context(), getMediaUseCase, actor,
+		usecase.Input{"media_id": mediaID.String()})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, mediaResponse(out))
+}
+
+// DeleteMedia answers DELETE /media/{mediaId}.
+func (c *RestController) DeleteMedia(w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	actor, _ := appshared.ActorFrom(r.Context())
+
+	if _, err := c.UseCases.Invoke(r.Context(), deleteMediaUseCase, actor,
+		usecase.Input{"media_id": mediaID.String()}); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // UploadMediaContent answers PUT /media/{mediaId}:content.

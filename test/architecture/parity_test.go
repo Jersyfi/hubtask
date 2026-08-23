@@ -92,6 +92,8 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		lifecycle.EmptyTrash{}.Descriptor(),
 		mediaservice.RequestMediaUpload{}.Descriptor(),
 		mediaservice.ConfirmMediaUpload{}.Descriptor(),
+		mediaservice.GetMedia{}.Descriptor(),
+		mediaservice.DeleteMedia{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.GrantMembership{}.Descriptor(),

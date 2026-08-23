@@ -569,6 +569,14 @@ func run() error {
 			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Config: cfg,
 		}.Descriptor(),
+		mediaservice.GetMedia{
+			Objects: mediaObjects, Containers: containers, Transfers: mediaTransfers,
+			Reader: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		mediaservice.DeleteMedia{
+			Objects: mediaObjects, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process

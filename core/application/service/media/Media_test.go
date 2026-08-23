@@ -49,14 +49,26 @@ func config(limit int64) env.Config {
 // --- the ports, as fakes ------------------------------------------------------------------
 
 type objects struct {
-	stored   map[shared.ID]domain.Object
-	sealed   []domain.Object
-	sealErr  error
-	findErr  error
-	inserted int
+	stored  map[shared.ID]domain.Object
+	sealed  []domain.Object
+	sealErr error
+	findErr error
+	// refs is what each object serves, for the authorisation question GetMedia asks.
+	refs map[shared.ID][]repository.ItemRef
+	// referenced are the objects MarkDeleted refuses to mark, which is what the repository does
+	// for an object something still points at.
+	referenced map[shared.ID]bool
+	marked     []shared.ID
+	inserted   int
 }
 
-func newObjects() *objects { return &objects{stored: map[shared.ID]domain.Object{}} }
+func newObjects() *objects {
+	return &objects{
+		stored:     map[shared.ID]domain.Object{},
+		refs:       map[shared.ID][]repository.ItemRef{},
+		referenced: map[shared.ID]bool{},
+	}
+}
 
 func (o *objects) Insert(_ context.Context, object domain.Object) error {
 	o.inserted++
@@ -85,8 +97,18 @@ func (o *objects) Seal(_ context.Context, object domain.Object) error {
 }
 
 func (o *objects) AdjustRefCount(context.Context, shared.ID, int) error { return nil }
-func (o *objects) MarkDeleted(context.Context, shared.ID, time.Time) (bool, error) {
-	return false, nil
+func (o *objects) MarkDeleted(_ context.Context, id shared.ID, at time.Time) (bool, error) {
+	if o.referenced[id] {
+		return false, nil
+	}
+	object, ok := o.stored[id]
+	if !ok || object.DeletedAt != nil {
+		return false, nil
+	}
+	object.DeletedAt = &at
+	o.stored[id] = object
+	o.marked = append(o.marked, id)
+	return true, nil
 }
 func (o *objects) Recount(context.Context) error { return nil }
 func (o *objects) MarkOrphans(context.Context, time.Time, time.Time) (int, error) {
@@ -96,8 +118,8 @@ func (o *objects) TakeOrphans(context.Context, time.Time, int) ([]repository.Orp
 	return nil, nil
 }
 
-func (o *objects) ReferencingItems(context.Context, shared.ID) ([]repository.ItemRef, error) {
-	return nil, nil
+func (o *objects) ReferencingItems(_ context.Context, id shared.ID) ([]repository.ItemRef, error) {
+	return o.refs[id], nil
 }
 
 func (o *objects) ListForItem(
