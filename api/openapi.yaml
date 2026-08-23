@@ -1159,6 +1159,35 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:auto-assign:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: autoAssignWorkItem
+      description: >
+        Hands the entry out by the collection's assignment policy - FIXED, RANDOM_MEMBER,
+        RANDOM_GROUP_MEMBER, ROUND_ROBIN or LEAST_LOADED - instead of naming a person. Refused
+        when the collection has no policy configured. Candidates who cannot see the entry are
+        skipped; a policy with nobody eligible leaves the entry as it is and says so in the
+        response's auto_assign object rather than failing. An explicit call uses the policy
+        whether or not it is enabled - enabled decides only whether it applies itself on create.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Handed out by policy, or left as it was with the reason in auto_assign
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:purge:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -2063,11 +2092,20 @@ components:
     ContainerPolicies:
       type: object
       description: >
-        How a collection works, as opposed to what it is called. One key today; the others the data
-        model names - the default bucket, capability overrides, automatic assignment - arrive with
-        the use cases that own them, and a key nothing reads would be a promise nothing keeps.
+        How a collection works, as opposed to what it is called. Two keys today; the others the
+        data model names - the default bucket, capability overrides - arrive with the use cases
+        that own them, and a key nothing reads would be a promise nothing keeps. This document is
+        replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the
+        completion policy, no automatic assignment for auto_assign.
       properties:
         completion_policy: { $ref: "#/components/schemas/CompletionPolicy" }
+        auto_assign:
+          oneOf:
+            - $ref: "#/components/schemas/AutoAssignPolicy"
+            - type: "null"
+          description: >
+            How what is created in this collection is handed out, absent (or null) for not at
+            all. Sending null - or omitting the key - removes the policy.
 
     CompletionPolicy:
       type: string
@@ -2077,6 +2115,63 @@ components:
         reopened. /meta/capabilities returns the valid values.
       enum: [MANUAL, ROLLUP]
       default: MANUAL
+
+    AutoAssignPolicy:
+      type: object
+      description: >
+        A collection's rule for handing out what is created in it. An enabled policy applies
+        itself to everything created in the collection; one that is not enabled waits to be asked
+        for, with auto_assign on the create request. The rotation state of ROUND_ROBIN is the
+        server's bookkeeping and is not in this document.
+      required: [strategy, candidates]
+      properties:
+        strategy: { $ref: "#/components/schemas/AutoAssignStrategy" }
+        candidates:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/AutoAssignCandidate" }
+          description: >
+            The pool the strategy draws from, in the order that matters to ROUND_ROBIN. FIXED
+            takes exactly one ACCOUNT; RANDOM_GROUP_MEMBER takes GROUP candidates; every other
+            strategy takes ACCOUNT candidates.
+        enabled:
+          type: boolean
+          default: true
+          description: >
+            Whether the policy applies itself to everything created in the collection. A policy
+            that is not enabled is applied only to a create that asks with auto_assign.
+
+    AutoAssignOutcome:
+      type: object
+      description: >
+        What one run of automatic assignment did. assigned says whether anybody got the entry;
+        strategy is the policy's strategy that ran; code is the stable reason when nobody did -
+        items.auto_assign_no_candidate when no candidate was eligible.
+      required: [assigned, strategy]
+      properties:
+        assigned: { type: boolean }
+        strategy: { $ref: "#/components/schemas/AutoAssignStrategy" }
+        code: { type: [string, "null"] }
+
+    AutoAssignStrategy:
+      type: string
+      description: >
+        How a candidate is picked. FIXED always assigns the one configured account.
+        RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a
+        group first and one of its members second, so each group carries an equal share of the
+        work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED
+        picks the candidate with the fewest open entries. /meta/capabilities returns the valid
+        values.
+      enum: [FIXED, RANDOM_MEMBER, RANDOM_GROUP_MEMBER, ROUND_ROBIN, LEAST_LOADED]
+
+    AutoAssignCandidate:
+      type: object
+      required: [kind, id]
+      properties:
+        kind:
+          type: string
+          enum: [ACCOUNT, GROUP]
+        id: { type: string, format: uuid }
 
     Completion:
       type: object
@@ -2120,6 +2215,13 @@ components:
           type: array
           items: { type: string, format: uuid }
         assignee_id: { type: [string, "null"], format: uuid }
+        auto_assign:
+          oneOf:
+            - $ref: "#/components/schemas/AutoAssignOutcome"
+            - type: "null"
+          description: >
+            What automatic assignment did, present only in the response of an operation that ran
+            it - autoAssignWorkItem, or a create that a policy applied to. Absent everywhere else.
         cover: { $ref: "#/components/schemas/Cover" }
         custom_fields:
           type: object

@@ -293,7 +293,7 @@ func run() error {
 	// (work.ContainerWriter).
 	containerWriter := work.ContainerWriter{
 		Queue:      jobs,
-		Containers: containers, Authorizer: authorizer,
+		Containers: containers, Policies: postgres.AutoAssignPolicyRepository{}, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
@@ -336,6 +336,13 @@ func run() error {
 		Visibility: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,
+	}
+
+	// One instance serves both callers: the :auto-assign route, and the create path that reuses
+	// the machinery for the policy that applies itself and for an explicit assignee (C-02).
+	autoAssign := work.AutoAssignWorkItem{
+		Assignment: assignment, Policies: postgres.AutoAssignPolicyRepository{},
+		Groups: groups, Random: clockadapter.CryptoRandom{},
 	}
 
 	// Both directions of an entry's member list share one dependency set, for the reason the label
@@ -403,6 +410,7 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+			AutoAssign: autoAssign,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
@@ -465,6 +473,7 @@ func run() error {
 		work.RemoveLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.AssignWorkItem{Assignment: assignment}.Descriptor(),
 		work.UnassignWorkItem{Assignment: assignment}.Descriptor(),
+		autoAssign.Descriptor(),
 		work.AddMember{Writer: itemMemberWriter}.Descriptor(),
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{

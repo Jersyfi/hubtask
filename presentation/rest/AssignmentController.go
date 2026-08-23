@@ -19,8 +19,9 @@ import (
 // controllers is the split between the two merge rules (offline-sync.md §4.2).
 
 const (
-	assignWorkItemUseCase   = "AssignWorkItem"
-	unassignWorkItemUseCase = "UnassignWorkItem"
+	assignWorkItemUseCase     = "AssignWorkItem"
+	unassignWorkItemUseCase   = "UnassignWorkItem"
+	autoAssignWorkItemUseCase = "AutoAssignWorkItem"
 )
 
 // AssignWorkItem answers POST /items/{itemId}:assign.
@@ -52,6 +53,19 @@ func (c *RestController) UnassignWorkItem(
 		in["expected_version"] = version
 	}
 	c.assignment(w, r, unassignWorkItemUseCase, in)
+}
+
+// AutoAssignWorkItem answers POST /items/{itemId}:auto-assign. No body either: the whole point
+// is that the caller names nobody - the collection's policy does the choosing (C-02).
+func (c *RestController) AutoAssignWorkItem(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+	params openapi.AutoAssignWorkItemParams,
+) {
+	in := usecase.Input{"item_id": itemID.String()}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+	c.assignment(w, r, autoAssignWorkItemUseCase, in)
 }
 
 // assignment runs one direction and writes the entry back.

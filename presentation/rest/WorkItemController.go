@@ -44,6 +44,15 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 		"notes":         optionalStringField(body.Notes),
 		"bucket_id":     optionalUUIDField(body.BucketId),
 	}
+	// The two assignment fields the create path serves since C-02: a named person, or the
+	// collection's policy asked for explicitly. Both optional, and the catalogue refuses the
+	// combination.
+	if body.AssigneeId != nil {
+		in["assignee_id"] = body.AssigneeId.String()
+	}
+	if body.AutoAssign != nil {
+		in["auto_assign"] = *body.AutoAssign
+	}
 	withUnservedItemFields(body, in)
 
 	out, err := c.UseCases.Invoke(r.Context(), createWorkItemUseCase, actor, in)
@@ -202,19 +211,14 @@ func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[strin
 // every request, since the catalogue does not declare these names.
 //
 // Each entry disappears from this list when the create path serves it. `assignee_id` and
-// `member_ids` stay after C-01 for the reason `label_ids` stayed after B-09: the endpoints that own
-// them are their own - `:assign` and `/items/{id}/members/{accountId}` - and creating an entry
-// already assigned is the create path's own decision, which C-02 takes together with `auto_assign`.
+// `auto_assign` left it with C-02, which took the decision C-01 deferred: an entry may be created
+// already assigned, by name or by the collection's policy. `member_ids` stays for the reason
+// `label_ids` stayed after B-09: the endpoint that owns the set is its own
+// (`/items/{id}/members/{accountId}`), and no task has yet decided that a create may seed it.
 // The cover follows in 0.3.0, the due date in 0.4.0. The bucket left this list with B-09.
 func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
 	if body.BeforeItemId != nil {
 		in["before_item_id"] = body.BeforeItemId.String()
-	}
-	if body.AssigneeId != nil {
-		in["assignee_id"] = body.AssigneeId.String()
-	}
-	if body.AutoAssign != nil {
-		in["auto_assign"] = *body.AutoAssign
 	}
 	if body.LabelIds != nil {
 		in["label_ids"] = uuidList(*body.LabelIds)
@@ -286,6 +290,20 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	if assignee := out.String("assignee_id"); assignee != "" {
 		assigneeID := uuidValue(assignee)
 		item.AssigneeId = &assigneeID
+	}
+	// Present exactly when automatic assignment ran (C-02): the outcome of an :auto-assign call,
+	// or of a create a policy applied to. Absent means it did not run, which is a different
+	// answer from "it ran and assigned nobody".
+	if outcome, ran := out["auto_assign"].(map[string]any); ran {
+		assigned, _ := outcome["assigned"].(bool)
+		strategy, _ := outcome["strategy"].(string)
+		result := &openapi.AutoAssignOutcome{
+			Assigned: assigned, Strategy: openapi.AutoAssignStrategy(strategy),
+		}
+		if code, told := outcome["code"].(string); told {
+			result.Code = &code
+		}
+		item.AutoAssign = result
 	}
 	// Present only when the caller asked for it with `expand=labels`, and then an empty array when
 	// the entry carries none: absent means "not asked for", which is a different answer from "none".

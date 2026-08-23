@@ -104,6 +104,12 @@
   "containers.target_parent_required": "Say which hub to move that collection into.",
   "containers.before_container_not_in_level": "That hub or collection is not in the list this one is being moved into.",
   "containers.version_conflict": "Someone else changed that hub or collection in the meantime. Read it again and reapply.",
+  "containers.auto_assign_strategy_unknown": "{value} is not an assignment strategy this installation knows.",
+  "containers.auto_assign_candidates_required": "An assignment policy needs at least one candidate.",
+  "containers.auto_assign_single_candidate_required": "FIXED assigns to exactly one person - this policy names {count} candidates.",
+  "containers.auto_assign_candidate_kind_unknown": "{value} is not a kind of candidate. Use ACCOUNT or GROUP.",
+  "containers.auto_assign_candidate_kind_invalid": "The {strategy} strategy does not draw from a {kind} candidate.",
+  "containers.auto_assign_candidate_id_required": "Every candidate needs an identifier.",
 
   "items.capability_not_supported": "A {item_type} has no {capability}.",
   "items.type_unknown": "{value} is not a kind of entry. Use TASK, WORK_PACKAGE or ACTIVITY.",
@@ -148,6 +154,10 @@
   "items.profiles_incoherent": "This installation is misconfigured and could not create that entry.",
   "items.trash_batch_missing": "This installation is misconfigured and could not delete that entry.",
   "items.trash_stamp_missing": "This installation is misconfigured and could not delete that entry.",
+  "items.auto_assign_unavailable": "This collection has no assignment policy. Configure one in its policies first.",
+  "items.auto_assign_no_candidate": "No candidate of the assignment policy can receive this entry at the moment. It stays unassigned.",
+  "items.assignee_conflicts_auto_assign": "Name a person or ask for automatic assignment - not both.",
+  "items.auto_assign_strategy_unhandled": "This installation is misconfigured and could not hand that entry out automatically.",
 
   "buckets.name_empty": "A bucket needs a name.",
   "buckets.name_too_long": "The name may be at most {maximum} characters long.",

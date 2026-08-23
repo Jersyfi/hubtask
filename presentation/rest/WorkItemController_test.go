@@ -120,17 +120,33 @@ func TestTheRequestIsHandedToTheCatalogueAsItArrived(t *testing.T) {
 	}
 }
 
+// The two assignment fields the create path serves since C-02 reach the catalogue in its words.
+func TestTheCreateAssignmentFieldsAreMapped(t *testing.T) {
+	registry := &catalogue{out: createdItem()}
+	postItem(t, registry, `{"type":"TASK","collection_id":"`+collectionID+`",`+
+		`"title":"Buy milk","assignee_id":"`+collectionID+`"}`)
+	if registry.in["assignee_id"] != collectionID {
+		t.Errorf("assignee_id = %v", registry.in["assignee_id"])
+	}
+
+	registry = &catalogue{out: createdItem()}
+	postItem(t, registry, `{"type":"TASK","collection_id":"`+collectionID+`",`+
+		`"title":"Buy milk","auto_assign":true}`)
+	if registry.in["auto_assign"] != true {
+		t.Errorf("auto_assign = %v", registry.in["auto_assign"])
+	}
+}
+
 // The specification is the whole of 1.0 and this installation serves a part of it. A field no use
 // case writes yet is passed on so the catalogue refuses it by name - never dropped, which is how
 // a client comes to believe there is a due date.
 func TestAFieldNoUseCaseWritesYetIsPassedOnRatherThanDropped(t *testing.T) {
 	cases := map[string]string{
 		"bucket_id":     `"bucket_id":"` + collectionID + `"`,
-		"assignee_id":   `"assignee_id":"` + collectionID + `"`,
+		"member_ids":    `"member_ids":["` + collectionID + `"]`,
 		"due_at":        `"due_at":"2026-09-01T09:00:00Z"`,
 		"label_ids":     `"label_ids":["` + collectionID + `"]`,
 		"custom_fields": `"custom_fields":{"size":"L"}`,
-		"auto_assign":   `"auto_assign":true`,
 	}
 
 	for field, fragment := range cases {

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -24,11 +25,75 @@ var (
 	archivedEarly = now.Add(-time.Hour)
 )
 
+// policyStore fakes the assignment policy rows, keyed by scope. It records every write, because
+// the C-02 tests care about what reached the row as much as about what came back.
+type policyStore struct {
+	stored   map[shared.ID]domain.AutoAssignPolicy
+	upserted []domain.AutoAssignPolicy
+	deleted  []shared.ID
+	saved    []domain.AutoAssignPolicy
+}
+
+func newPolicyStore() *policyStore {
+	return &policyStore{stored: map[shared.ID]domain.AutoAssignPolicy{}}
+}
+
+func (p *policyStore) FindForScope(
+	_ context.Context, _ domain.AutoAssignScope, scopeID shared.ID,
+) (domain.AutoAssignPolicy, error) {
+	policy, found := p.stored[scopeID]
+	if !found {
+		return domain.AutoAssignPolicy{}, shared.ErrNotFound
+	}
+	return policy, nil
+}
+
+func (p *policyStore) Lock(
+	ctx context.Context, scope domain.AutoAssignScope, scopeID shared.ID,
+) (domain.AutoAssignPolicy, error) {
+	return p.FindForScope(ctx, scope, scopeID)
+}
+
+func (p *policyStore) Upsert(_ context.Context, policy domain.AutoAssignPolicy) error {
+	if existing, found := p.stored[policy.ScopeID]; found {
+		// The row keeps its identity and the rotation resets, exactly as the statement behind
+		// the real adapter writes it.
+		policy.ID = existing.ID
+		policy.Version = existing.Version + 1
+	} else {
+		policy.Version = 1
+	}
+	policy.State = domain.AutoAssignState{}
+	p.stored[policy.ScopeID] = policy
+	p.upserted = append(p.upserted, policy)
+	return nil
+}
+
+func (p *policyStore) Delete(
+	_ context.Context, _ domain.AutoAssignScope, scopeID shared.ID,
+) error {
+	delete(p.stored, scopeID)
+	p.deleted = append(p.deleted, scopeID)
+	return nil
+}
+
+func (p *policyStore) SaveState(_ context.Context, policy domain.AutoAssignPolicy) error {
+	stored, found := p.stored[policy.ScopeID]
+	if !found {
+		return shared.ErrNotFound
+	}
+	stored.State = policy.State
+	p.stored[policy.ScopeID] = stored
+	p.saved = append(p.saved, policy)
+	return nil
+}
+
 // containerHarness wires the writer every lifecycle use case shares, so a test names only what it
 // is about.
 type containerHarness struct {
 	writer     ContainerWriter
 	containers *containers
+	policies   *policyStore
 	events     *events
 	changes    *changes
 	audit      *sink
@@ -41,6 +106,7 @@ func newContainerHarness() *containerHarness {
 	store := &containers{stored: map[shared.ID]domain.Container{}}
 	h := &containerHarness{
 		containers: store,
+		policies:   newPolicyStore(),
 		events:     &events{},
 		changes:    &changes{},
 		audit:      &sink{},
@@ -49,9 +115,9 @@ func newContainerHarness() *containerHarness {
 		jobs:       &jobs{},
 	}
 	h.writer = ContainerWriter{
-		Containers: store, Authorizer: h.authorizer, Events: h.events, Changes: h.changes,
-		Audit: h.audit, UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
-		Queue: h.jobs,
+		Containers: store, Policies: h.policies, Authorizer: h.authorizer, Events: h.events,
+		Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow, Clock: clock.Fixed(now),
+		IDs: &ids{}, HLC: &hlcSource{}, Queue: h.jobs,
 	}
 	return h
 }
@@ -338,6 +404,134 @@ func TestAnAbsentPolicyKeyFallsBackToTheDefault(t *testing.T) {
 	}
 	if updated.CompletionPolicy != domain.CompletionManual {
 		t.Errorf("policy %q, want the default back", updated.CompletionPolicy)
+	}
+}
+
+// The auto_assign key of the document lives in its own row, and the store writes both sides
+// inside one transaction (C-02): the JSONB key for the completion policy, the policy row for the
+// assignment.
+func TestConfiguringAutoAssignWritesTheRowBesideTheDocument(t *testing.T) {
+	h := newContainerHarness()
+	h.withCollection()
+
+	rotation := &domain.AutoAssignDefinition{
+		Strategy: domain.AssignRoundRobin,
+		Candidates: []domain.AutoAssignCandidate{
+			{Kind: domain.CandidateAccount, ID: assigneeID},
+			{Kind: domain.CandidateAccount, ID: strangerID},
+		},
+		Enabled: true,
+	}
+	updated, err := UpdateContainerPolicies{Writer: h.writer}.Execute(
+		t.Context(), actor(), UpdateContainerPoliciesCommand{
+			ContainerID: shoppingID,
+			Policies: domain.ContainerPolicies{
+				CompletionPolicy: domain.CompletionManual, AutoAssign: rotation,
+			},
+		})
+	if err != nil {
+		t.Fatalf("configuring the collection failed: %v", err)
+	}
+
+	if updated.AutoAssign == nil || updated.AutoAssign.Strategy != domain.AssignRoundRobin {
+		t.Fatalf("the collection does not carry the key: %+v", updated.AutoAssign)
+	}
+	if len(h.policies.upserted) != 1 {
+		t.Fatalf("policy rows written: %+v", h.policies.upserted)
+	}
+	row := h.policies.upserted[0]
+	if row.ScopeType != domain.AutoAssignScopeCollection || row.ScopeID != shoppingID ||
+		row.Strategy != domain.AssignRoundRobin || len(row.Candidates) != 2 || !row.Enabled {
+		t.Fatalf("the row does not say what the document says: %+v", row)
+	}
+	if row.ID.IsZero() {
+		t.Error("the row was written without an identifier")
+	}
+	if len(h.events.appended) != 1 || h.events.appended[0].Type != event.ContainerPoliciesUpdated {
+		t.Fatalf("unexpected events: %+v", h.events.appended)
+	}
+	if payload, ok := h.events.appended[0].Payload["auto_assign"].(map[string]any); !ok ||
+		payload["strategy"] != "ROUND_ROBIN" {
+		t.Errorf("the event snapshot does not carry the policy: %+v",
+			h.events.appended[0].Payload["auto_assign"])
+	}
+}
+
+func TestLeavingTheAutoAssignKeyOutRemovesTheRow(t *testing.T) {
+	h := newContainerHarness()
+	collection := h.withCollection()
+	collection.AutoAssign = &domain.AutoAssignDefinition{
+		Strategy:   domain.AssignFixed,
+		Candidates: []domain.AutoAssignCandidate{{Kind: domain.CandidateAccount, ID: assigneeID}},
+		Enabled:    true,
+	}
+	h.containers.stored[shoppingID] = collection
+
+	updated, err := UpdateContainerPolicies{Writer: h.writer}.Execute(
+		t.Context(), actor(), UpdateContainerPoliciesCommand{
+			ContainerID: shoppingID,
+			Policies:    domain.ContainerPolicies{CompletionPolicy: domain.CompletionManual},
+		})
+	if err != nil {
+		t.Fatalf("removing the key failed: %v", err)
+	}
+	if updated.AutoAssign != nil {
+		t.Fatal("the key survived its removal")
+	}
+	if len(h.policies.deleted) != 1 || h.policies.deleted[0] != shoppingID {
+		t.Fatalf("rows deleted: %+v, want the collection's", h.policies.deleted)
+	}
+	if len(h.policies.upserted) != 0 {
+		t.Errorf("a removal upserted a row: %+v", h.policies.upserted)
+	}
+}
+
+func TestAnInvalidAutoAssignDocumentWritesNothing(t *testing.T) {
+	h := newContainerHarness()
+	h.withCollection()
+
+	_, err := UpdateContainerPolicies{Writer: h.writer}.Execute(
+		t.Context(), actor(), UpdateContainerPoliciesCommand{
+			ContainerID: shoppingID,
+			Policies: domain.ContainerPolicies{
+				AutoAssign: &domain.AutoAssignDefinition{
+					Strategy: domain.AssignRandomGroupMember,
+					Candidates: []domain.AutoAssignCandidate{
+						{Kind: domain.CandidateAccount, ID: assigneeID},
+					},
+				},
+			},
+		})
+	assertValidation(t, err, "containers.auto_assign_candidate_kind_invalid")
+	if len(h.policies.upserted)+len(h.policies.deleted) != 0 ||
+		len(h.containers.written) != 0 || len(h.events.appended) != 0 {
+		t.Error("a refused document still moved something")
+	}
+}
+
+// The untyped input every channel hands in carries the key as decoded JSON, and the parse is one
+// code path in the domain - so one channel test covers the three channels.
+func TestThePoliciesChannelParsesTheAutoAssignKey(t *testing.T) {
+	h := newContainerHarness()
+	h.withCollection()
+
+	handler := UpdateContainerPolicies{Writer: h.writer}.Descriptor().Handler
+	_, err := handler.Invoke(t.Context(), actor(), usecase.Input{
+		"container_id": shoppingID.String(),
+		"auto_assign": map[string]any{
+			"strategy": "FIXED",
+			"candidates": []any{
+				map[string]any{"kind": "ACCOUNT", "id": assigneeID.String()},
+			},
+			"enabled": false,
+		},
+	})
+	if err != nil {
+		t.Fatalf("the channel refused the key: %v", err)
+	}
+	if len(h.policies.upserted) != 1 || h.policies.upserted[0].Strategy != domain.AssignFixed ||
+		h.policies.upserted[0].Enabled {
+		t.Fatalf("the parsed policy is %+v", h.policies.upserted)
 	}
 }
 

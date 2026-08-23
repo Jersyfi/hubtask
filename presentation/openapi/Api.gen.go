@@ -228,6 +228,51 @@ func (e AuditEntrySeverity) Valid() bool {
 	}
 }
 
+// Defines values for AutoAssignCandidateKind.
+const (
+	ACCOUNT AutoAssignCandidateKind = "ACCOUNT"
+	GROUP   AutoAssignCandidateKind = "GROUP"
+)
+
+// Valid indicates whether the value is a known member of the AutoAssignCandidateKind enum.
+func (e AutoAssignCandidateKind) Valid() bool {
+	switch e {
+	case ACCOUNT:
+		return true
+	case GROUP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AutoAssignStrategy.
+const (
+	FIXED             AutoAssignStrategy = "FIXED"
+	LEASTLOADED       AutoAssignStrategy = "LEAST_LOADED"
+	RANDOMGROUPMEMBER AutoAssignStrategy = "RANDOM_GROUP_MEMBER"
+	RANDOMMEMBER      AutoAssignStrategy = "RANDOM_MEMBER"
+	ROUNDROBIN        AutoAssignStrategy = "ROUND_ROBIN"
+)
+
+// Valid indicates whether the value is a known member of the AutoAssignStrategy enum.
+func (e AutoAssignStrategy) Valid() bool {
+	switch e {
+	case FIXED:
+		return true
+	case LEASTLOADED:
+		return true
+	case RANDOMGROUPMEMBER:
+		return true
+	case RANDOMMEMBER:
+		return true
+	case ROUNDROBIN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BackupArchiveChecksumStatus.
 const (
 	MISMATCH   BackupArchiveChecksumStatus = "MISMATCH"
@@ -1437,6 +1482,39 @@ type AuditEntryOutcome string
 // AuditEntrySeverity defines model for AuditEntry.Severity.
 type AuditEntrySeverity string
 
+// AutoAssignCandidate defines model for AutoAssignCandidate.
+type AutoAssignCandidate struct {
+	Id   openapi_types.UUID      `json:"id"`
+	Kind AutoAssignCandidateKind `json:"kind"`
+}
+
+// AutoAssignCandidateKind defines model for AutoAssignCandidate.Kind.
+type AutoAssignCandidateKind string
+
+// AutoAssignOutcome What one run of automatic assignment did. assigned says whether anybody got the entry; strategy is the policy's strategy that ran; code is the stable reason when nobody did - items.auto_assign_no_candidate when no candidate was eligible.
+type AutoAssignOutcome struct {
+	Assigned bool    `json:"assigned"`
+	Code     *string `json:"code,omitempty"`
+
+	// Strategy How a candidate is picked. FIXED always assigns the one configured account. RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a group first and one of its members second, so each group carries an equal share of the work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED picks the candidate with the fewest open entries. /meta/capabilities returns the valid values.
+	Strategy AutoAssignStrategy `json:"strategy"`
+}
+
+// AutoAssignPolicy A collection's rule for handing out what is created in it. An enabled policy applies itself to everything created in the collection; one that is not enabled waits to be asked for, with auto_assign on the create request. The rotation state of ROUND_ROBIN is the server's bookkeeping and is not in this document.
+type AutoAssignPolicy struct {
+	// Candidates The pool the strategy draws from, in the order that matters to ROUND_ROBIN. FIXED takes exactly one ACCOUNT; RANDOM_GROUP_MEMBER takes GROUP candidates; every other strategy takes ACCOUNT candidates.
+	Candidates []AutoAssignCandidate `json:"candidates"`
+
+	// Enabled Whether the policy applies itself to everything created in the collection. A policy that is not enabled is applied only to a create that asks with auto_assign.
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Strategy How a candidate is picked. FIXED always assigns the one configured account. RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a group first and one of its members second, so each group carries an equal share of the work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED picks the candidate with the fewest open entries. /meta/capabilities returns the valid values.
+	Strategy AutoAssignStrategy `json:"strategy"`
+}
+
+// AutoAssignStrategy How a candidate is picked. FIXED always assigns the one configured account. RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a group first and one of its members second, so each group carries an equal share of the work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED picks the candidate with the fewest open entries. /meta/capabilities returns the valid values.
+type AutoAssignStrategy string
+
 // BackupArchive Read from the manifest at the target, not from the database.
 type BackupArchive struct {
 	ArchiveId       *string                      `json:"archive_id,omitempty"`
@@ -1704,7 +1782,7 @@ type Container struct {
 	OrderKey          *string             `json:"order_key,omitempty"`
 	ParentId          *openapi_types.UUID `json:"parent_id,omitempty"`
 
-	// Policies How a collection works, as opposed to what it is called. One key today; the others the data model names - the default bucket, capability overrides, automatic assignment - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps.
+	// Policies How a collection works, as opposed to what it is called. Two keys today; the others the data model names - the default bucket, capability overrides - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 	Policies  *ContainerPolicies `json:"policies,omitempty"`
 	Type      ContainerType      `json:"type"`
 	UpdatedAt *time.Time         `json:"updated_at,omitempty"`
@@ -1727,8 +1805,11 @@ type ContainerPage struct {
 	Page PageInfo    `json:"page"`
 }
 
-// ContainerPolicies How a collection works, as opposed to what it is called. One key today; the others the data model names - the default bucket, capability overrides, automatic assignment - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps.
+// ContainerPolicies How a collection works, as opposed to what it is called. Two keys today; the others the data model names - the default bucket, capability overrides - arrive with the use cases that own them, and a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 type ContainerPolicies struct {
+	// AutoAssign How what is created in this collection is handed out, absent (or null) for not at all. Sending null - or omitting the key - removes the policy.
+	AutoAssign *AutoAssignPolicy `json:"auto_assign,omitempty"`
+
 	// CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 	CompletionPolicy *CompletionPolicy `json:"completion_policy,omitempty"`
 }
@@ -2364,6 +2445,9 @@ type TrashPage struct {
 type WorkItem struct {
 	ArchivedAt *time.Time          `json:"archived_at,omitempty"`
 	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
+
+	// AutoAssign What automatic assignment did, present only in the response of an operation that ran it - autoAssignWorkItem, or a create that a policy applied to. Absent everywhere else.
+	AutoAssign *AutoAssignOutcome  `json:"auto_assign,omitempty"`
 	BucketId   *openapi_types.UUID `json:"bucket_id,omitempty"`
 
 	// Children Only with expand=children:N
@@ -2721,6 +2805,15 @@ type AssignWorkItemParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// AutoAssignWorkItemParams defines parameters for AutoAssignWorkItem.
+type AutoAssignWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // CompleteWorkItemJSONBody defines parameters for CompleteWorkItem.
 type CompleteWorkItemJSONBody struct {
 	CascadeChildren *bool `json:"cascade_children,omitempty"`
@@ -3061,6 +3154,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:assign)
 	AssignWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params AssignWorkItemParams)
+
+	// (POST /items/{itemId}:auto-assign)
+	AutoAssignWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params AutoAssignWorkItemParams)
 
 	// (POST /items/{itemId}:complete)
 	CompleteWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params CompleteWorkItemParams)
@@ -5217,6 +5313,75 @@ func (siw *ServerInterfaceWrapper) AssignWorkItem(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// AutoAssignWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) AutoAssignWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AutoAssignWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AutoAssignWorkItem(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CompleteWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) CompleteWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -6185,6 +6350,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:unassign", wrapper.UnassignWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:auto-assign", wrapper.AutoAssignWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:purge", wrapper.PurgeWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:restore", wrapper.RestoreWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:archive", wrapper.ArchiveWorkItem)

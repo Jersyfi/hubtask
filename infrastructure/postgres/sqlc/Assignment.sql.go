@@ -30,6 +30,61 @@ func (q *Queries) AddItemMember(ctx context.Context, arg AddItemMemberParams) er
 	return err
 }
 
+const deleteAutoAssignPolicy = `-- name: DeleteAutoAssignPolicy :execrows
+DELETE FROM auto_assign_policy
+WHERE scope_type = $1 AND scope_id = $2::uuid
+`
+
+type DeleteAutoAssignPolicyParams struct {
+	ScopeType string
+	ScopeID   pgtype.UUID
+}
+
+// Removing the key from the document removes the row. Idempotent at the caller: a document that
+// never carried the key deletes nothing, and that is the state that was asked for.
+func (q *Queries) DeleteAutoAssignPolicy(ctx context.Context, arg DeleteAutoAssignPolicyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAutoAssignPolicy, arg.ScopeType, arg.ScopeID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const findAutoAssignPolicy = `-- name: FindAutoAssignPolicy :one
+
+SELECT id, tenant_id, scope_type, scope_id, strategy, candidates, state, enabled, version
+FROM auto_assign_policy
+WHERE scope_type = $1 AND scope_id = $2::uuid
+`
+
+type FindAutoAssignPolicyParams struct {
+	ScopeType string
+	ScopeID   pgtype.UUID
+}
+
+// How what is created here gets handed out: the assignment policy per scope (C-02).
+//
+// One row per scope, which migration 0011's unique index insists on: the row is the storage of
+// the `autoAssign` key of the container's policies document, and a document key cannot be two
+// rows. `state` is ROUND_ROBIN's cursor, kept in the row rather than in the document so that the
+// transaction advancing it can lock exactly what it advances (domain-model.md §3.6).
+func (q *Queries) FindAutoAssignPolicy(ctx context.Context, arg FindAutoAssignPolicyParams) (AutoAssignPolicy, error) {
+	row := q.db.QueryRow(ctx, findAutoAssignPolicy, arg.ScopeType, arg.ScopeID)
+	var i AutoAssignPolicy
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ScopeType,
+		&i.ScopeID,
+		&i.Strategy,
+		&i.Candidates,
+		&i.State,
+		&i.Enabled,
+		&i.Version,
+	)
+	return i, err
+}
+
 const listItemMembers = `-- name: ListItemMembers :many
 
 SELECT account_id
@@ -80,6 +135,38 @@ func (q *Queries) ListItemMembers(ctx context.Context, itemID pgtype.UUID) ([]pg
 	return items, nil
 }
 
+const lockAutoAssignPolicy = `-- name: LockAutoAssignPolicy :one
+SELECT id, tenant_id, scope_type, scope_id, strategy, candidates, state, enabled, version
+FROM auto_assign_policy
+WHERE scope_type = $1 AND scope_id = $2::uuid
+FOR UPDATE
+`
+
+type LockAutoAssignPolicyParams struct {
+	ScopeType string
+	ScopeID   pgtype.UUID
+}
+
+// The same row, held for the rest of the transaction. ROUND_ROBIN reads its cursor through this
+// rather than through FindAutoAssignPolicy: two creates arriving together must queue on the row,
+// because a cursor read hopefully is a turn handed to both of them (C-02's acceptance).
+func (q *Queries) LockAutoAssignPolicy(ctx context.Context, arg LockAutoAssignPolicyParams) (AutoAssignPolicy, error) {
+	row := q.db.QueryRow(ctx, lockAutoAssignPolicy, arg.ScopeType, arg.ScopeID)
+	var i AutoAssignPolicy
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ScopeType,
+		&i.ScopeID,
+		&i.Strategy,
+		&i.Candidates,
+		&i.State,
+		&i.Enabled,
+		&i.Version,
+	)
+	return i, err
+}
+
 const removeItemMember = `-- name: RemoveItemMember :execrows
 DELETE FROM item_member
 WHERE item_id = $1::uuid AND account_id = $2::uuid
@@ -96,4 +183,67 @@ func (q *Queries) RemoveItemMember(ctx context.Context, arg RemoveItemMemberPara
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const saveAutoAssignPolicyState = `-- name: SaveAutoAssignPolicyState :execrows
+UPDATE auto_assign_policy
+SET state = $1
+WHERE id = $2::uuid
+`
+
+type SaveAutoAssignPolicyStateParams struct {
+	State []byte
+	ID    pgtype.UUID
+}
+
+// The advanced cursor, written by the transaction that holds the lock LockAutoAssignPolicy took.
+// No version guard: the lock is the concurrency control here, and a version bump per assignment
+// would make the rotation's bookkeeping look like a configuration change to a client comparing
+// versions.
+func (q *Queries) SaveAutoAssignPolicyState(ctx context.Context, arg SaveAutoAssignPolicyStateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, saveAutoAssignPolicyState, arg.State, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const upsertAutoAssignPolicy = `-- name: UpsertAutoAssignPolicy :exec
+INSERT INTO auto_assign_policy
+  (id, tenant_id, scope_type, scope_id, strategy, candidates, state, enabled, version)
+VALUES (
+  $1::uuid, current_tenant_id(), $2, $3::uuid,
+  $4, $5, '{}'::jsonb, $6, 1
+)
+ON CONFLICT (tenant_id, scope_type, scope_id) DO UPDATE SET
+  strategy   = EXCLUDED.strategy,
+  candidates = EXCLUDED.candidates,
+  state      = '{}'::jsonb,
+  enabled    = EXCLUDED.enabled,
+  version    = auto_assign_policy.version + 1
+`
+
+type UpsertAutoAssignPolicyParams struct {
+	ID         pgtype.UUID
+	ScopeType  string
+	ScopeID    pgtype.UUID
+	Strategy   string
+	Candidates []byte
+	Enabled    bool
+}
+
+// The whole definition in one statement, because the caller holds PUT semantics: the policies
+// document arrives complete, so the row it maps to is written complete. A rewrite resets the
+// state - the rotation belongs to the pool that was configured, and a new pool starts at its
+// head rather than at an index into a list that no longer exists.
+func (q *Queries) UpsertAutoAssignPolicy(ctx context.Context, arg UpsertAutoAssignPolicyParams) error {
+	_, err := q.db.Exec(ctx, upsertAutoAssignPolicy,
+		arg.ID,
+		arg.ScopeType,
+		arg.ScopeID,
+		arg.Strategy,
+		arg.Candidates,
+		arg.Enabled,
+	)
+	return err
 }

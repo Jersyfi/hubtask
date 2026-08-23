@@ -8,9 +8,9 @@
 // use case that reads the clock directly cannot be tested at a DST boundary, at an expiry
 // boundary, or on 29 February - and those are exactly the cases that produce the bug reports.
 //
-// RandomSource is the third of the trio arc42 §8.13 names. It arrives with the first code that
-// needs it - the assignment strategies; declaring an interface nobody implements would only be a
-// second thing to keep in step.
+// RandomSource is the third of the trio arc42 §8.13 names. It stayed undeclared until the first
+// code that needs it arrived - the assignment strategies (C-02) - because an interface nobody
+// implements is only a second thing to keep in step.
 package clock
 
 import (
@@ -40,6 +40,36 @@ func (f Fixed) Now() time.Time { return time.Time(f) }
 // written.
 type IDGenerator interface {
 	NewID() shared.ID
+}
+
+// RandomSource is uniform randomness. The random assignment strategies draw through it rather
+// than through a generator of their own, so that a table test can say which candidate wins
+// (arc42 §8.13) - and so that production draws come from crypto/rand, because "who gets this
+// task" must not be predictable from "who got the last one" (security.md §8).
+type RandomSource interface {
+	// IntN returns a uniform value in [0, n). n must be positive.
+	IntN(n int) int
+}
+
+// Scripted is a random source that plays a rehearsed sequence, one value per call, cycling when
+// the script runs out. A scripted value outside [0, n) is taken modulo n, so a script stays in
+// bounds when the pool it draws from is smaller than the test expected.
+//
+// It is here rather than in a test helper package for the reason Fixed is: every layer's tests
+// need randomness they can predict, and a second copy per package is a second thing to get wrong.
+type Scripted struct {
+	values []int
+	next   int
+}
+
+// NewScripted takes the sequence to play. At least one value: a script with nothing to say has no
+// answer for IntN.
+func NewScripted(values ...int) *Scripted { return &Scripted{values: values} }
+
+func (s *Scripted) IntN(n int) int {
+	value := s.values[s.next%len(s.values)]
+	s.next++
+	return value % n
 }
 
 // HLCSource stamps a change with a hybrid logical clock (offline-sync.md §4.1).

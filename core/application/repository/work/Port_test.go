@@ -76,6 +76,9 @@ func (itemDouble) Neighbours(context.Context, Level, shared.ID, shared.ID) (stri
 }
 func (itemDouble) SetOrderKey(context.Context, work.WorkItem, int) error { return nil }
 func (itemDouble) SetAssignee(context.Context, work.WorkItem, int) error { return nil }
+func (itemDouble) CountOpenByAssignee(context.Context, []shared.ID) (map[shared.ID]int, error) {
+	return nil, nil
+}
 func (itemDouble) MoveSubtree(
 	context.Context, Move,
 ) (int, []work.DroppedReference, error) {
@@ -93,6 +96,24 @@ func (itemDouble) Query(context.Context, ItemSearch) (ItemQueryResult, error) {
 }
 
 var _ Items = itemDouble{}
+
+// The policy store's double, for the same reason the others exist: the use case tests fake it,
+// and this is where the interface is proven fakeable.
+type policyDouble struct{}
+
+func (policyDouble) FindForScope(context.Context, work.AutoAssignScope, shared.ID) (work.AutoAssignPolicy, error) {
+	return work.AutoAssignPolicy{}, shared.ErrNotFound
+}
+func (policyDouble) Lock(context.Context, work.AutoAssignScope, shared.ID) (work.AutoAssignPolicy, error) {
+	return work.AutoAssignPolicy{}, shared.ErrNotFound
+}
+func (policyDouble) Upsert(context.Context, work.AutoAssignPolicy) error { return nil }
+func (policyDouble) Delete(context.Context, work.AutoAssignScope, shared.ID) error {
+	return nil
+}
+func (policyDouble) SaveState(context.Context, work.AutoAssignPolicy) error { return nil }
+
+var _ AutoAssignPolicies = policyDouble{}
 
 // The sibling level is decided by two identifiers, not one: the same parent in another collection
 // is not a sibling, and a port that took only the parent could not express the level directly

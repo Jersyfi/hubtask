@@ -107,6 +107,21 @@ instead of failing the creation; `item.assigned` carries `strategy` as §4 decla
 
 **Read:** `domain-model.md` §3.6; arc42 §8.13; `automation.md` §1.3
 
+*Decided while implementing:* the policy is stored in its own row, not in the `policies` JSONB —
+ROUND_ROBIN's cursor has to be lockable — and the container queries join it back, so the document
+stays whole on every read; a rewrite keeps the row's identity and resets the rotation. `enabled`
+is the difference between the backlog's "two ways": an enabled policy applies itself to everything
+created in the collection, a disabled one waits for a create that asks with `auto_assign`, and an
+explicit `POST /items/{id}:auto-assign` uses the policy either way. Each strategy draws from one
+kind of candidate — groups exactly where §3.6 names them, accounts everywhere else — and FIXED
+takes exactly one account: an assignee is an account, so "always the same group" is spelled
+RANDOM_GROUP_MEMBER with a single group. The rotation's cursor indexes the configured list, so a
+candidate skipped while ineligible loses one turn, not their place. The create path also opened
+`assignee_id` (the decision C-01 deferred): an entry may be created already assigned, written as a
+second event after `item.created` because notifications subscribe to `item.assigned`; `member_ids`
+stays refused. The history verb stays `item.assigned` — §3.5 keeps assignment one verb — and the
+event's `strategy` key is what tells a policy's decision from a person's.
+
 ---
 
 ## C-03 — Comments **[G]**

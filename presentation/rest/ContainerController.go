@@ -200,8 +200,44 @@ func containerResponse(out usecase.Output) openapi.Container {
 			completionPolicy := openapi.CompletionPolicy(policy)
 			container.Policies.CompletionPolicy = &completionPolicy
 		}
+		container.Policies.AutoAssign = autoAssignResponse(policies["auto_assign"])
 	}
 	return container
+}
+
+// autoAssignResponse maps the auto_assign key of the catalogue's policies document onto the
+// generated schema. An absent policy is an absent key - the generated pointer with omitempty
+// cannot say null, and the schema allows either spelling of "none".
+func autoAssignResponse(value any) *openapi.AutoAssignPolicy {
+	document, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	policy := &openapi.AutoAssignPolicy{}
+	if strategy, ok := document["strategy"].(string); ok {
+		policy.Strategy = openapi.AutoAssignStrategy(strategy)
+	}
+	if enabled, ok := document["enabled"].(bool); ok {
+		policy.Enabled = &enabled
+	}
+	if list, ok := document["candidates"].([]any); ok {
+		candidates := make([]openapi.AutoAssignCandidate, 0, len(list))
+		for _, entry := range list {
+			candidate, ok := entry.(map[string]any)
+			if !ok {
+				continue
+			}
+			kind, _ := candidate["kind"].(string)
+			id, _ := candidate["id"].(string)
+			candidates = append(candidates, openapi.AutoAssignCandidate{
+				Kind: openapi.AutoAssignCandidateKind(kind),
+				Id:   uuidValue(id),
+			})
+		}
+		policy.Candidates = candidates
+	}
+	return policy
 }
 
 // optionalStringField turns an absent field into an absent entry rather than an empty string, so

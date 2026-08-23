@@ -48,6 +48,11 @@ const (
 // the audit entry. What differs between them is which domain method decides the new state.
 type ContainerWriter struct {
 	Containers repository.Containers
+	// Policies is where the auto_assign key of the policies document is stored: its own row, so
+	// the rotation's state can be locked (see work.AutoAssignPolicy). Only UpdateContainerPolicies
+	// writes it, for the reason only TrashContainer uses Queue - the dependency set is shared, the
+	// verbs are not.
+	Policies   repository.AutoAssignPolicies
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -133,7 +138,15 @@ func (h UpdateContainerPolicies) Execute(
 		apply: func(container domain.Container, now time.Time) (domain.Container, []domain.FieldChange, error) {
 			return container.WithPolicies(cmd.Policies, now)
 		},
-		store: repository.Containers.SetPolicies,
+		// The document's two keys live in two places: the completion policy in the container's
+		// column, the assignment policy in its own row (work.AutoAssignPolicy says why). One
+		// store writes both inside the caller's transaction, so the document can never half-move.
+		store: func(repo repository.Containers, ctx context.Context, container domain.Container, expected int) error {
+			if err := repo.SetPolicies(ctx, container, expected); err != nil {
+				return err
+			}
+			return h.storeAutoAssign(ctx, container)
+		},
 		announce: func(id shared.ID, container domain.Container, changes []domain.FieldChange,
 			by event.Actor, at time.Time,
 		) (event.Envelope, error) {
@@ -143,6 +156,27 @@ func (h UpdateContainerPolicies) Execute(
 		// It is recorded in clear text because an auditor asking "when did this collection start
 		// rolling up" has no other way to answer it, and there is no personal data in "ROLLUP".
 		classification: audit.Open,
+	})
+}
+
+// storeAutoAssign brings the policy row in line with the document that was just written: a
+// definition is upserted, an absent key deletes the row. The identifier is minted fresh on every
+// write and used only when the scope has no row yet - the upsert keeps an existing row's identity,
+// so nothing that recorded it is severed by a reconfiguration.
+func (h UpdateContainerPolicies) storeAutoAssign(
+	ctx context.Context, container domain.Container,
+) error {
+	if container.AutoAssign == nil {
+		return h.Writer.Policies.Delete(ctx, domain.AutoAssignScopeCollection, container.ID)
+	}
+	return h.Writer.Policies.Upsert(ctx, domain.AutoAssignPolicy{
+		ID:         h.Writer.IDs.NewID(),
+		TenantID:   container.TenantID,
+		ScopeType:  domain.AutoAssignScopeCollection,
+		ScopeID:    container.ID,
+		Strategy:   container.AutoAssign.Strategy,
+		Candidates: container.AutoAssign.Candidates,
+		Enabled:    container.AutoAssign.Enabled,
 	})
 }
 
@@ -517,6 +551,17 @@ func (h UpdateContainerPolicies) Descriptor() usecase.Descriptor {
 					"any child is reopened. Omitted means MANUAL, which is the default.",
 			},
 			{
+				Name: "auto_assign", Kind: usecase.KindObject,
+				Description: "How what is created in this collection is handed out, as " +
+					"{strategy, candidates, enabled}. strategy is FIXED, RANDOM_MEMBER, " +
+					"RANDOM_GROUP_MEMBER, ROUND_ROBIN or LEAST_LOADED; candidates is the ordered " +
+					"pool as [{kind: ACCOUNT|GROUP, id}] - groups for RANDOM_GROUP_MEMBER, one " +
+					"account for FIXED, accounts otherwise; enabled (default true) makes the " +
+					"policy apply to everything created here, while a disabled one waits for a " +
+					"create that asks with auto_assign. Omitted or null means no automatic " +
+					"assignment.",
+			},
+			{
 				Name: "expected_version", Kind: usecase.KindInt,
 				Description: "The version last read, from the If-Match header over REST. Omitted means " +
 					"the caller read none and accepts whatever is there.",
@@ -545,10 +590,15 @@ func (h UpdateContainerPolicies) invoke(
 
 	// String rather than OptionalString, and that is the difference from a rename: an absent key here
 	// is the default rather than "leave it alone", because this replaces the document.
+	autoAssign, err := domain.ParseAutoAssignDefinition(in["auto_assign"])
+	if err != nil {
+		return nil, err
+	}
 	container, err := h.Execute(ctx, actor, UpdateContainerPoliciesCommand{
 		ContainerID: containerID,
 		Policies: domain.ContainerPolicies{
 			CompletionPolicy: domain.CompletionPolicy(in.String("completion_policy")),
+			AutoAssign:       autoAssign,
 		},
 		ExpectedVersion: in.Int("expected_version"),
 	})

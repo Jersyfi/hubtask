@@ -160,6 +160,58 @@
           ],
           "description": "Whether a child's completion propagates upwards (invariant I-W5). Meaningful on a collection; a hub holds no items and reports the default."
         },
+        "auto_assign": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "The collection's automatic assignment policy, null for none. The document without ROUND_ROBIN's rotation state - the state is the server's bookkeeping, and an event that carried it would announce every assignment as a configuration change. Optional: events recorded before C-02 do not carry the key.",
+          "required": [
+            "strategy",
+            "candidates",
+            "enabled"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "FIXED",
+                "RANDOM_MEMBER",
+                "RANDOM_GROUP_MEMBER",
+                "ROUND_ROBIN",
+                "LEAST_LOADED"
+              ]
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "ACCOUNT",
+                      "GROUP"
+                    ]
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            },
+            "enabled": {
+              "type": "boolean"
+            }
+          }
+        },
         "archived_at": {
           "type": [
             "string",

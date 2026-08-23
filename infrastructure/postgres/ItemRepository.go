@@ -337,6 +337,43 @@ func (r ItemRepository) SetAssignee(ctx context.Context, item work.WorkItem, exp
 	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
 }
 
+// CountOpenByAssignee counts the open entries each of the given accounts carries, tenant-wide.
+// What "open" means - and why an ancestor's archive is not consulted - is stated at the query.
+func (r ItemRepository) CountOpenByAssignee(
+	ctx context.Context, accounts []shared.ID,
+) (map[shared.ID]int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]pgtype.UUID, 0, len(accounts))
+	for _, account := range accounts {
+		id, err := uuidOf(account)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	rows, err := queries.CountOpenItemsByAssignee(ctx, ids)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting open entries per assignee: %w", err))
+	}
+
+	load := make(map[shared.ID]int, len(rows))
+	for _, row := range rows {
+		account, err := idFrom(row.AssigneeID)
+		if err != nil {
+			return nil, err
+		}
+		load[account] = int(row.OpenItems)
+	}
+	return load, nil
+}
+
 // MoveSubtree rewrites the item's placement and its subtree's paths, and returns the subtree's size.
 //
 // Two statements in the order that matters. The placement carries the optimistic lock, so it runs first and a

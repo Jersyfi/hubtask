@@ -422,6 +422,11 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 	if err != nil {
 		return work.Container{}, err
 	}
+	autoAssign, err := autoAssignDefinitionFrom(
+		id, row.AutoAssignStrategy, row.AutoAssignCandidates, row.AutoAssignEnabled)
+	if err != nil {
+		return work.Container{}, err
+	}
 
 	return work.Container{
 		ID:               id,
@@ -434,6 +439,7 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 		ColorToken:       stringFrom(row.ColorToken),
 		OrderKey:         row.OrderKey,
 		CompletionPolicy: policy,
+		AutoAssign:       autoAssign,
 		ArchivedAt:       optionalTime(row.ArchivedAt),
 		ParentArchivedAt: optionalTime(row.ParentArchivedAt),
 		DeletedAt:        optionalTime(row.DeletedAt),
