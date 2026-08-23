@@ -292,6 +292,27 @@ and `item_attachment` still match the schema and PG-7 stays green.
 **Read:** `api-guidelines.md` §2; `domain-model.md` §3.4, §3.5; `data-protection.md` §5;
 `data-retention.md`; arc42 §8.4
 
+*Decided while implementing:* attachments are a set, so they joined the OR-set tags rather than
+being written as a plain link table — `set_element` already held the tags for labels, members and
+watchers and the only thing in the way was a `CHECK` naming the three by hand (migration 0015,
+widened before the narrow one goes, so a rolling update never sees a window without one). The
+cover keeps its own history verbs, `item.cover_set` and `item.cover_cleared`: `item.updated` would
+have rendered choosing a picture and renaming an entry as the same sentence, and two use cases
+sharing a verb is what the architecture gate forbids. Its *event* stays an `item.updated` carrying
+the field, because the cover is a scalar on the row and §4 names no cover event. `ListAttachments`
+lives in the media package rather than beside the pair: what it answers is a page of media
+records, and a second copy of that projection in the work package would be a second place for the
+contract's `MediaObject` schema to drift — it mints no download target per row either, since
+twenty capabilities for bytes nobody asked for is a leak rather than a page. Reading a media
+object asks the authorisation service for many paths at once (`access.Permitted`) instead of one
+`Authorize` per reference, so an object on five entries cannot write four `DENIED` entries for
+somebody who was not in the end refused. The reconciliation is the one job that runs **outside**
+the runner's transaction (`queue.Detached`): it deletes bytes from a bucket between two writes,
+which observability-reliability.md §8 forbids inside one, and it can afford to give up atomicity
+with its own completion because every part of a pass is safe to run twice. It seeds itself from a
+staging and is pulled forward by a deletion, for the reason the retention sweep does — nothing may
+enumerate tenants.
+
 ---
 
 ## C-07 — Custom fields **[G]**

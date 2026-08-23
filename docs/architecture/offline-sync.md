@@ -103,7 +103,7 @@ minutes by default); values beyond that are set to server time and the event is 
 |---|---|---|
 | Scalar attributes | Title, note, due date, priority, bucket, cover | LWW per field, via the HLC |
 | Status fields with meaning | `completed` | LWW, but "completed" only beats "reopened" if it is genuinely later; a reopen is never silently discarded but produces a visible history entry |
-| Sets | Labels, members, watchers | An **OR-set**: additions and removals carry their own tags. A label added offline is not lost when another was removed concurrently — with LWW over the whole array, that is exactly what would have happened |
+| Sets | Labels, members, watchers, attachments | An **OR-set**: additions and removals carry their own tags. A label added offline is not lost when another was removed concurrently — with LWW over the whole array, that is exactly what would have happened |
 | Ordering / position | Order in lists and kanban | **Fractional indexing**: the position is a lexicographic key between its neighbours, not an integer. Two devices can insert independently without renumbering every successor; collisions resolve through the device ID |
 | Hierarchy | `parent_id`, moving | LWW with cycle detection on the server; a move that would create a cycle is rejected (`sync.cycle_detected`) and shown to the user |
 | Appending lists | Comments, activities | Append-only, no conflicts |
@@ -228,7 +228,7 @@ A conformance test (`hubctl sync-conformance`) checks these points against a run
 | `sync_device` | A device per account: `device_id`, platform, last cursor, last contact, push token, block status |
 | `op_log` | Processed `op_id`s for idempotency (30 days) |
 | `position` | The fractional index per item per context (bucket, view) |
-| `set_element` | OR-set tags for labels and members |
+| `set_element` | OR-set tags for labels, members and attachments |
 | Sync service | `core/application/service/SyncService.go`: pull, push, merge rules, conflict log |
 
 The change log is deliberately not the event outbox: the outbox carries business integration events

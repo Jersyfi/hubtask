@@ -60,7 +60,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Assignments | `item_member`, `work_item.assignee_id` | `PERSONAL_BASIC` | Work organisation | As above | `CASCADE` (the member link, with the entry) / `ANONYMIZE` (the assignee: the account's deletion clears the reference and leaves the entry) |
 | Comments | `comment` | `PERSONAL_CONTENT` | Collaboration | As above | `CASCADE` / `ANONYMIZE` (the author) |
 | Activity history | `activity_entry` | `PERSONAL_CONTENT` | Traceability within the product | With the item | `CASCADE` |
-| Attachments (file, name, checksum) | `media_object`, object storage | `PERSONAL_CONTENT` | The core feature | As above | `CASCADE` + object deletion after reference counting |
+| Attachments (file, name, checksum) | `media_object`, object storage | `PERSONAL_CONTENT` | The core feature | As above | Reference counting plus the reconciliation job: an object that nothing points at any more is marked, its bytes are removed from storage, and the row goes with a deletion journal entry and a tombstone (C-06, `data-protection.md` §5). The file name is the only free text on the row and travels with it |
 | Custom fields (values) | `work_item.custom_fields` | `PERSONAL_CONTENT` | Extensibility | As above | `CASCADE` |
 | Containers, buckets, labels | `container`, `bucket`, `label` | `NON_PERSONAL` | Structure | As above | `CASCADE` |
 | Full-text index | `work_item.search_vector`, optionally a vector index | `PERSONAL_CONTENT` (derived) | Search | With the source row | `CASCADE` |
@@ -68,7 +68,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Jumble entries (raw text from mail/webhook) | `jumble_entry` | `PERSONAL_CONTENT` | Quick capture | Until converted, otherwise 90 days | `RETENTION` |
 | Trash marker | `work_item.deleted_at` | `NON_PERSONAL` | Restore | 30 days | `RETENTION` (hard delete) |
 | Label and attachment links | `item_label`, `item_attachment` | `NON_PERSONAL` | Structure; the content sits in the row they point at | With the item | `CASCADE` |
-| Set membership for offline merging (labels, members, watchers with their tags) | `set_element` | `PERSONAL_BASIC` (member references) | Merging two devices' edits without losing either | With the item | `CASCADE` |
+| Set membership for offline merging (labels, members, watchers, attachments with their tags) | `set_element` | `PERSONAL_BASIC` (member references) | Merging two devices' edits without losing either | With the item | `CASCADE` |
 | Custom field definitions (key, type, options) | `custom_field_definition` | `NON_PERSONAL` | Extensibility; the values are in `work_item` | Until deleted | `CASCADE` |
 | Capability profiles | `item_capability_profile` | `NON_PERSONAL` | What an item type can do | Permanent (system rows) or until deleted | `CASCADE` |
 | Reminders (time, channels, recipients) | `reminder` | `PERSONAL_BASIC` (the recipients) | Punctuality | With the item | `CASCADE` |
