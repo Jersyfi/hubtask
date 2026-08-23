@@ -2356,24 +2356,8 @@ type RetentionStateBlockedBy string
 // RoleDescription One row of the role matrix: the permissions the role carries, and what it may do to a single entry.
 // Every cell is bounded by where the membership was granted. The role applies downwards from its scope - tenant, hub, collection, or one entry - so a role granted at `ITEM` scope reaches that entry and nothing else. That is what sharing an entry with a guest is; it needs no separate mechanism and is therefore not a property of the role.
 type RoleDescription struct {
-	// ItemAccess What the role does to a single entry, per kind of access. Absent kinds are `NONE`.
-	ItemAccess *struct {
-		// Change How far a role reaches into one entry.
-		// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
-		Change *ItemAccess `json:"change,omitempty"`
-
-		// Comment How far a role reaches into one entry.
-		// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
-		Comment *ItemAccess `json:"comment,omitempty"`
-
-		// Create How far a role reaches into one entry.
-		// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
-		Create *ItemAccess `json:"create,omitempty"`
-
-		// Read How far a role reaches into one entry.
-		// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
-		Read *ItemAccess `json:"read,omitempty"`
-	} `json:"item_access,omitempty"`
+	// ItemAccess What a role does to a single entry, per kind of access. Every kind is answered, including the ones that are `NONE`: an absent one would leave a client guessing, and guessing wrong in the permissive direction is what this endpoint exists to prevent.
+	ItemAccess *RoleItemAccess `json:"item_access,omitempty"`
 
 	// Permissions The columns of the matrix this role carries unqualified.
 	Permissions *[]RoleDescriptionPermissions `json:"permissions,omitempty"`
@@ -2382,6 +2366,25 @@ type RoleDescription struct {
 
 // RoleDescriptionPermissions defines model for RoleDescription.Permissions.
 type RoleDescriptionPermissions string
+
+// RoleItemAccess What a role does to a single entry, per kind of access. Every kind is answered, including the ones that are `NONE`: an absent one would leave a client guessing, and guessing wrong in the permissive direction is what this endpoint exists to prevent.
+type RoleItemAccess struct {
+	// Change How far a role reaches into one entry.
+	// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
+	Change *ItemAccess `json:"change,omitempty"`
+
+	// Comment How far a role reaches into one entry.
+	// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
+	Comment *ItemAccess `json:"comment,omitempty"`
+
+	// Create How far a role reaches into one entry.
+	// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
+	Create *ItemAccess `json:"create,omitempty"`
+
+	// Read How far a role reaches into one entry.
+	// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
+	Read *ItemAccess `json:"read,omitempty"`
+}
 
 // SyncChange defines model for SyncChange.
 type SyncChange struct {

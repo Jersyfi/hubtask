@@ -3397,15 +3397,19 @@ components:
           items:
             type: string
             enum: [READ, WRITE_ITEMS, STRUCTURE, MANAGE_MEMBERS, AUTOMATION, DELETE_CONTAINER]
-        item_access:
-          type: object
-          description: >
-            What the role does to a single entry, per kind of access. Absent kinds are `NONE`.
-          properties:
-            read: { $ref: "#/components/schemas/ItemAccess" }
-            create: { $ref: "#/components/schemas/ItemAccess" }
-            change: { $ref: "#/components/schemas/ItemAccess" }
-            comment: { $ref: "#/components/schemas/ItemAccess" }
+        item_access: { $ref: "#/components/schemas/RoleItemAccess" }
+
+    RoleItemAccess:
+      type: object
+      description: >
+        What a role does to a single entry, per kind of access. Every kind is answered, including
+        the ones that are `NONE`: an absent one would leave a client guessing, and guessing wrong
+        in the permissive direction is what this endpoint exists to prevent.
+      properties:
+        read: { $ref: "#/components/schemas/ItemAccess" }
+        create: { $ref: "#/components/schemas/ItemAccess" }
+        change: { $ref: "#/components/schemas/ItemAccess" }
+        comment: { $ref: "#/components/schemas/ItemAccess" }
 
     ItemAccess:
       type: string

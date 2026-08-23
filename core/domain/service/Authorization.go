@@ -11,10 +11,13 @@ import (
 //
 // The matrix has qualifiers the columns cannot express: a contributor writes only what is
 // assigned to them, a member manages only their own automation rules, a guest sees only what was
-// shared with them. Those are narrowings the individual use case applies on top of the
-// permission, and each is named where it is enforced. They are deliberately not folded in here -
-// a permission that sometimes means "all items" and sometimes "one item" is a permission nobody
-// can reason about.
+// shared with them. They are deliberately not folded in here - a permission that sometimes means
+// "all items" and sometimes "one item" is a permission nobody can reason about.
+//
+// The two that are about a single entry live beside this table rather than in it, in one decision
+// every use case consults (ItemAccess, C-04): they were once applied by each use case where it
+// was enforced, which is the arrangement in which a use case forgets. The third - a member's own
+// automation rules - is still the use case's, and arrives with the automation that has one.
 type Permission string
 
 const (
@@ -50,6 +53,16 @@ var rolePermissions = map[identity.Role][]Permission{
 	identity.RoleContributor: {PermissionRead, PermissionWriteItems},
 	identity.RoleViewer:      {PermissionRead},
 	identity.RoleGuest:       {PermissionRead},
+}
+
+// PermissionsOf returns the permissions the role carries, in the order the matrix's columns are
+// written. It exists so that the manifest can describe the matrix rather than restate it: a copy
+// in the meta service would be a second table to keep in step with this one.
+func PermissionsOf(role identity.Role) []Permission {
+	granted := rolePermissions[role]
+	out := make([]Permission, len(granted))
+	copy(out, granted)
+	return out
 }
 
 // RoleAllows reports whether the role carries the permission.

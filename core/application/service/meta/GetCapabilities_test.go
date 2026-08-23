@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -191,5 +193,60 @@ func TestAReadFailureSurfaces(t *testing.T) {
 
 	if !errors.Is(err, shared.ErrUnavailable) {
 		t.Errorf("error = %v", err)
+	}
+}
+
+// C-04: the manifest describes the role matrix, and describes it out of the matrix rather than
+// from a copy - so that a client renders the actions it offers from data.
+func TestTheManifestReportsTheRoleMatrix(t *testing.T) {
+	manifest, err := handler(profiles{list: systemDefaults()}, &unitOfWork{}).
+		Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatalf("reading the manifest: %v", err)
+	}
+
+	if len(manifest.Roles) != len(identity.Roles()) {
+		t.Fatalf("%d rows, want one per defined role", len(manifest.Roles))
+	}
+
+	described := map[identity.Role]RoleDescription{}
+	for _, row := range manifest.Roles {
+		described[row.Role] = row
+	}
+
+	// Every kind of access is answered for every role: an absent key would leave a client
+	// guessing, and the permissive guess is what this endpoint exists to prevent.
+	for role, row := range described {
+		for _, action := range service.ItemActions() {
+			if _, answered := row.ItemAccess[action]; !answered {
+				t.Errorf("%s has no answer for %s", role, action)
+			}
+		}
+	}
+
+	// The two cells no permission name carries, which are the reason the section exists.
+	contributor := described[identity.RoleContributor]
+	if contributor.ItemAccess[service.ItemChange] != service.AccessAssigned {
+		t.Errorf("a contributor's change is %q, want ASSIGNED", contributor.ItemAccess[service.ItemChange])
+	}
+	if contributor.ItemAccess[service.ItemCreate] != service.AccessAll {
+		t.Errorf("a contributor's create is %q, want ALL", contributor.ItemAccess[service.ItemCreate])
+	}
+
+	guest := described[identity.RoleGuest]
+	if guest.ItemAccess[service.ItemComment] != service.AccessAll {
+		t.Errorf("a guest's comment is %q, want ALL", guest.ItemAccess[service.ItemComment])
+	}
+	if guest.ItemAccess[service.ItemChange] != service.AccessNone {
+		t.Errorf("a guest's change is %q, want NONE", guest.ItemAccess[service.ItemChange])
+	}
+
+	// The permission half comes from the same table: an administrator ranks above a member and
+	// still may not delete a container.
+	admin := described[identity.RoleAdmin]
+	for _, permission := range admin.Permissions {
+		if permission == service.PermissionDeleteContainer {
+			t.Error("the manifest gives an administrator DELETE_CONTAINER")
+		}
 	}
 }

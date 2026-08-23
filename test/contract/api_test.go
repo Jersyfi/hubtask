@@ -20,8 +20,10 @@ import (
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	catalogue "github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 )
 
@@ -123,6 +125,25 @@ func TestTheCapabilityManifestMatchesTheSchema(t *testing.T) {
 				Capabilities:      []work.Capability{work.CapabilityCompletion},
 				AllowedChildTypes: []work.ItemType{},
 				MaxDepth:          1,
+			},
+		},
+		Roles: []usecase.RoleDescription{
+			{
+				Role:        identity.RoleContributor,
+				Permissions: []service.Permission{service.PermissionRead, service.PermissionWriteItems},
+				ItemAccess: map[service.ItemAction]service.ItemAccess{
+					service.ItemRead: service.AccessAll, service.ItemCreate: service.AccessAll,
+					service.ItemChange:  service.AccessAssigned,
+					service.ItemComment: service.AccessAssigned,
+				},
+			},
+			{
+				Role:        identity.RoleGuest,
+				Permissions: []service.Permission{service.PermissionRead},
+				ItemAccess: map[service.ItemAction]service.ItemAccess{
+					service.ItemRead: service.AccessAll, service.ItemCreate: service.AccessNone,
+					service.ItemChange: service.AccessNone, service.ItemComment: service.AccessAll,
+				},
 			},
 		},
 		Limits:   map[string]int64{"max_body_bytes": 1 << 20},
