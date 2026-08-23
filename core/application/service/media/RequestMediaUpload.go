@@ -20,10 +20,12 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -65,9 +67,14 @@ const (
 // mean asking at the tenant scope, which refuses everybody whose membership sits on a hub or a
 // collection - most of a real installation - for an act that grants nothing.
 type RequestMediaUpload struct {
-	Objects    repository.Objects
-	Transfers  storage.TransferIssuer
-	Audit      audit.Sink
+	Objects   repository.Objects
+	Transfers storage.TransferIssuer
+	Audit     audit.Sink
+	// Jobs is where the tenant's reconciliation is asked for. A staging is what seeds it, because
+	// an upload is the first thing in a tenant that can ever need reclaiming - and because nothing
+	// in this system may enumerate tenants, so no scheduler could create the job instead
+	// (multi-tenancy.md §2.1, queue.KindMediaReconcile).
+	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -117,6 +124,9 @@ func (h RequestMediaUpload) Execute(
 
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Objects.Insert(ctx, object); err != nil {
+			return err
+		}
+		if err := scheduleReconciliation(ctx, h.Jobs, actor.TenantID); err != nil {
 			return err
 		}
 		return h.recordAudit(ctx, object, actor, now)
@@ -280,3 +290,24 @@ func textOrNil(value string) any {
 }
 
 func sizeString(bytes int64) string { return strconv.FormatInt(bytes, 10) }
+
+// scheduleReconciliation asks for the tenant's reclamation pass, in the transaction that made the
+// work for it.
+//
+// The same transaction on purpose: a staging whose reclamation was never scheduled would sit
+// unconfirmed until somebody staged something else, and nothing would say why. The dedupe key is
+// the tenant, so a session that stages twenty files leaves one job - and a tenant whose pass is
+// already waiting has it pulled forward rather than duplicated (queue.Request.DedupeKey).
+//
+// A nil queue is a build without one, which is a state the composition root does not produce and a
+// test may: nothing to schedule is better than a panic on the upload path.
+func scheduleReconciliation(ctx context.Context, jobs queue.Queue, tenantID shared.ID) error {
+	if jobs == nil {
+		return nil
+	}
+	return jobs.Enqueue(ctx, queue.Request{
+		Kind:      queue.KindMediaReconcile,
+		TenantID:  tenantID,
+		DedupeKey: tenantID.String(),
+	})
+}

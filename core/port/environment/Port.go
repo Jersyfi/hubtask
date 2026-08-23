@@ -76,6 +76,7 @@ type Config struct {
 	Outbound  OutboundConfig
 	Queue     QueueConfig
 	Retention RetentionConfig
+	Media     MediaConfig
 	Locale    LocaleConfig
 	Metrics   MetricsConfig
 	Tracing   TracingConfig
@@ -143,6 +144,31 @@ type RetentionConfig struct {
 	// Interval is how long a tenant's sweep waits after a pass that reached the end of its trash.
 	// It is what a quiet installation pays for having the machinery at all: nothing expires within
 	// an hour of anything else, so an hour is often enough and cheap.
+	Interval time.Duration
+}
+
+// MediaConfig is what the reconciliation of uploaded files runs on (C-06, data-protection.md §5).
+//
+// The operator's rather than the tenant's, exactly as RetentionConfig is: how long an abandoned
+// upload is given before it counts as abandoned is about the lines this installation's people are
+// on, not about what any one workspace keeps.
+type MediaConfig struct {
+	// StagingGrace is how long a staged upload may stay unconfirmed before the reconciliation
+	// treats it as abandoned. It has to outlast the upload window comfortably - a client that got
+	// its target and is still pushing 64 MiB up a slow line has not abandoned anything - and the
+	// only cost of it being generous is a row and its bytes sitting unreferenced for that long.
+	StagingGrace time.Duration
+	// OrphanGrace is how long a marked object waits before its bytes go. The window in which a
+	// mistake is still a mistake rather than a loss: an object marked because its last reference
+	// went, and then attached again before the grace ends, is recounted and unmarked by the next
+	// pass rather than removed.
+	OrphanGrace time.Duration
+	// BatchSize is how many orphans one pass reclaims. Batched for the reason a retention pass is:
+	// each object costs a call to a bucket, and a pass that took them all would be a pass nobody
+	// can stop.
+	BatchSize int
+	// Interval is how long a tenant's reconciliation waits after a pass that found nothing left to
+	// do. What a quiet installation pays for having the machinery at all.
 	Interval time.Duration
 }
 

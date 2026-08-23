@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -49,6 +50,10 @@ type DeleteMedia struct {
 	Objects    repository.Objects
 	Authorizer Authorizer
 	Audit      audit.Sink
+	// Jobs is where the tenant's reconciliation is pulled forward: this call marks a row and the
+	// pass is what takes its bytes, so a deletion that scheduled nothing would wait for the
+	// interval to come round (queue.KindMediaReconcile).
+	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 }
@@ -88,6 +93,9 @@ func (h DeleteMedia) Execute(
 			return shared.ErrConflict.
 				WithDetail("media.still_referenced").
 				WithParams(map[string]string{"media_id": object.ID.String()})
+		}
+		if err := scheduleReconciliation(ctx, h.Jobs, actor.TenantID); err != nil {
+			return err
 		}
 		return h.recordAudit(ctx, object, actor, now)
 	})

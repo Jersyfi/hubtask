@@ -79,10 +79,12 @@ func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 			}
 			for _, line := range strings.Split(string(source), "\n") {
 				// An audit action is not a message code: nothing renders it, an auditor filters on
-				// it (audit.md §2). The two namespaces only collide where a resource's name is the
-				// same in the singular and the plural - `media.staged` beside `media.not_found` -
-				// which every other entity avoids by accident rather than by design.
-				if strings.Contains(line, "audit.Action") {
+				// it (audit.md §2). Neither is a job kind: nothing renders that either, it is the
+				// label of a queue metric (queue.Kind). The two namespaces only collide where a
+				// resource's name is the same in the singular and the plural - `media.staged` and
+				// `media.reconcile` beside `media.not_found` - which every other entity avoids by
+				// accident rather than by design.
+				if strings.Contains(line, "audit.Action") || strings.Contains(line, "Kind = \"") {
 					continue
 				}
 				for _, match := range messageCode.FindAllStringSubmatch(line, -1) {

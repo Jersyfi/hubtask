@@ -190,6 +190,7 @@
   "media.not_found": "That media object does not exist.",
   "media.still_referenced": "That media object is still in use. Detach it or clear the cover first.",
   "media.upload_expired": "The upload window has closed. Stage the upload again.",
+  "media.reconcile_without_tenant": "This installation is misconfigured and could not reclaim unused files.",
   "media.token_invalid": "That link is not valid any more.",
 
   "storage.key_invalid": "This installation is misconfigured and could not store that file.",

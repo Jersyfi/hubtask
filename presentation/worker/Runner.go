@@ -165,6 +165,9 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 	// The span covers the transaction, not just the handler: what the run cost includes what it
 	// took to record that the run happened.
 	err := r.observe(jobCtx, job.Kind.String(), func(obsCtx context.Context) error {
+		if _, detached := handler.(queue.Detached); detached {
+			return r.executeDetached(obsCtx, handler, job)
+		}
 		return r.UnitOfWork.Within(obsCtx, scopeOf(job), func(txCtx context.Context) error {
 			result, err := run(txCtx, handler, job)
 			if err != nil {
@@ -186,6 +189,28 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 	if r.Signals != nil {
 		r.Signals.JobFinished(ctx, job.Kind.String(), r.Clock.Now().Sub(started).Seconds())
 	}
+}
+
+// executeDetached runs a handler that opens its own transactions, and records the outcome in a
+// short one afterwards (queue.Detached).
+//
+// The trade the interface names, made concrete: the handler's writes are already committed by the
+// time the job is completed, so a process that dies in between leaves the work done and the job
+// claimable again. That is why only an idempotent pass may declare itself detached - and why the
+// completion is a transaction of its own rather than an afterthought, so a failure to record it is
+// a failure the runner handles like any other.
+func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job queue.Job) error {
+	result, err := run(ctx, handler, job)
+	if err != nil {
+		return err
+	}
+
+	return r.UnitOfWork.Within(ctx, scopeOf(job), func(txCtx context.Context) error {
+		if result.Repeat {
+			return r.Queue.Repeat(txCtx, job, r.Clock.Now().Add(result.RepeatAfter))
+		}
+		return r.Queue.Complete(txCtx, job)
+	})
 }
 
 // fail writes down what happened: another attempt when the budget allows one, the dead letter when

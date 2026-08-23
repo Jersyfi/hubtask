@@ -437,3 +437,70 @@ func TestAFailingJobIsObservedAsFailing(t *testing.T) {
 		t.Error("the observer saw a successful run of a job that failed")
 	}
 }
+
+// detachedHandler is a handler that declares it opens its own transactions (queue.Detached).
+type detachedHandler struct{ handlerFunc }
+
+func (detachedHandler) OwnsItsTransactions() {}
+
+// The one exception to the transaction the runner otherwise holds around a handler: a pass that has
+// to reach a bucket between two writes cannot run inside one (observability-reliability.md §8).
+func TestADetachedHandlerRunsOutsideTheRunnersTransaction(t *testing.T) {
+	jobs := newQueue()
+	work := &unitOfWork{}
+
+	var openWhileRunning int
+	handler := detachedHandler{handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+		openWhileRunning = len(work.scopes)
+		return queue.Result{}, nil
+	})}
+
+	runner(jobs, work, handler, nil).execute(t.Context(), job(1))
+
+	if openWhileRunning != 0 {
+		t.Errorf("%d transactions were open while the handler ran, want none", openWhileRunning)
+	}
+	// The completion is still a transaction, and still the job's own scope: what the handler gives
+	// up is atomicity with its own work, not the tenant boundary.
+	if len(jobs.completed) != 1 {
+		t.Errorf("completed = %v, want the job", jobs.completed)
+	}
+	if len(work.scopes) != 1 || work.scopes[0].TenantID != tenantID {
+		t.Errorf("the completion ran as %+v", work.scopes)
+	}
+}
+
+// A detached poller is rescheduled exactly as a wrapped one is.
+func TestADetachedPollerIsRescheduled(t *testing.T) {
+	jobs := newQueue()
+	handler := detachedHandler{handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+		return queue.Result{Repeat: true, RepeatAfter: time.Minute}, nil
+	})}
+
+	runner(jobs, &unitOfWork{}, handler, nil).execute(t.Context(), job(1))
+
+	if len(jobs.repeated) != 1 {
+		t.Fatalf("repeated = %v, want the job", jobs.repeated)
+	}
+	if len(jobs.completed) != 0 {
+		t.Error("a poller was completed")
+	}
+}
+
+// A detached handler that fails is failed like any other: the runner records the attempt on a
+// context of its own, so nothing about the exception changes what happens to a bad pass.
+func TestADetachedFailureStillGoesBackToTheQueue(t *testing.T) {
+	jobs := newQueue()
+	handler := detachedHandler{handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+		return queue.Result{}, shared.ErrUnavailable.WithDetail("dependency.object_storage_unavailable")
+	})}
+
+	runner(jobs, &unitOfWork{}, handler, nil).execute(t.Context(), job(1))
+
+	if len(jobs.failures) != 1 {
+		t.Fatalf("failures = %v, want the job", jobs.failures)
+	}
+	if jobs.failures[0].Code != "dependency.object_storage_unavailable" {
+		t.Errorf("the failure is recorded as %q", jobs.failures[0].Code)
+	}
+}

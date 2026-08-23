@@ -583,7 +583,7 @@ func run() error {
 		}.Descriptor(),
 
 		mediaservice.RequestMediaUpload{
-			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink,
+			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
 		}.Descriptor(),
 		mediaservice.ConfirmMediaUpload{
@@ -600,7 +600,7 @@ func run() error {
 			Reader: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		mediaservice.DeleteMedia{
-			Objects: mediaObjects, Authorizer: authorizer, Audit: auditSink,
+			Objects: mediaObjects, Authorizer: authorizer, Audit: auditSink, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		mediaservice.ListAttachments{
@@ -784,9 +784,23 @@ func run() error {
 		Continuation: cfg.Queue.OutboxMinInterval,
 	}
 
+	// The reclamation of unreferenced files. The one handler that runs outside the runner's
+	// transaction (queue.Detached): the pass deletes bytes from a bucket between two writes, and a
+	// transaction held open across that call is what observability-reliability.md §8 forbids.
+	mediaReconciliation := worker.MediaReconciliation{
+		Reconciliation: mediaservice.ReconcileMedia{
+			Objects: mediaObjects, Store: mediaStore, Removals: lifecycleStore,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Config: cfg.Media, Retention: cfg.Retention, Signals: metrics,
+		},
+		Interval:     cfg.Media.Interval,
+		Continuation: cfg.Queue.OutboxMinInterval,
+	}
+
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindOutboxDispatch: dispatcher,
 		queueport.KindRetentionSweep: retention,
+		queueport.KindMediaReconcile: mediaReconciliation,
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {
