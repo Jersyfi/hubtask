@@ -40,3 +40,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0031](./ADR-0031-tauri-app-shell.md) | Tauri 2 shells for desktop and mobile; the PWA path is closed | accepted | Clients, deployment |
 | [0032](./ADR-0032-client-capability-matrix.md) | The client capability matrix: parity by default, restrictions justified one by one | accepted | Clients, product |
 | [0033](./ADR-0033-shared-client-architecture.md) | One product UI, three targets: the shared client architecture | accepted | Clients, structure, offline |
+| [0034](./ADR-0034-language-dependent-search.md) | The language-dependent search document | accepted | Search, i18n, persistence |
