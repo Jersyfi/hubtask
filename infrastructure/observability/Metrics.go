@@ -55,6 +55,10 @@ type Metrics struct {
 	notificationsRec  metric.Int64Counter
 	notificationsSent metric.Float64Histogram
 	notificationsFail metric.Int64Counter
+	streamsOpen       metric.Int64UpDownCounter
+	streamDuration    metric.Float64Histogram
+	streamRefused     metric.Int64Counter
+	streamRecords     metric.Int64Counter
 	tenantLabelActive bool
 }
 
@@ -233,7 +237,71 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	if err := m.mediaInstruments(meter); err != nil {
 		return err
 	}
-	return m.notificationInstruments(meter)
+	if err := m.notificationInstruments(meter); err != nil {
+		return err
+	}
+	return m.streamInstruments(meter)
+}
+
+// streamInstruments are what the change stream publishes (C-10).
+//
+// No tenant and no account on any of them. A series per workspace is the cardinality problem
+// §3.2 is about, and on a gauge of open connections it would additionally say who is online -
+// which is presence data nobody asked to publish (rule 10).
+func (m *Metrics) streamInstruments(meter metric.Meter) error {
+	var err error
+	if m.streamsOpen, err = meter.Int64UpDownCounter(
+		namespace+"_stream_connections",
+		metric.WithDescription("Change streams this process is currently holding open."),
+	); err != nil {
+		return fmt.Errorf("stream connection gauge: %w", err)
+	}
+	if m.streamDuration, err = meter.Float64Histogram(
+		namespace+"_stream_duration_seconds",
+		metric.WithDescription("How long a change stream stayed open."),
+		metric.WithUnit("s"),
+		// Minutes and hours rather than milliseconds: a stream that lasted a second is a client
+		// reconnecting in a loop, and a stream that lasted a day is one working as intended. Both
+		// ends of that range are worth telling apart.
+		metric.WithExplicitBucketBoundaries(1, 10, 60, 300, 900, 3600, 14400, 86400),
+	); err != nil {
+		return fmt.Errorf("stream duration histogram: %w", err)
+	}
+	if m.streamRefused, err = meter.Int64Counter(
+		namespace+"_stream_refused_total",
+		metric.WithDescription("Stream connections refused, by which limit refused them."),
+	); err != nil {
+		return fmt.Errorf("stream refusal counter: %w", err)
+	}
+	if m.streamRecords, err = meter.Int64Counter(
+		namespace+"_stream_records_total",
+		metric.WithDescription("Change records delivered over the streams."),
+	); err != nil {
+		return fmt.Errorf("stream record counter: %w", err)
+	}
+	return nil
+}
+
+// StreamOpened counts a connection this process has taken on.
+func (m *Metrics) StreamOpened(ctx context.Context) { m.streamsOpen.Add(ctx, 1) }
+
+// StreamClosed gives the connection back and records how long it lasted.
+func (m *Metrics) StreamClosed(ctx context.Context, seconds float64) {
+	m.streamsOpen.Add(ctx, -1)
+	m.streamDuration.Record(ctx, seconds)
+}
+
+// StreamRefused counts a connection that was not taken on, by the limit that refused it. The
+// reason is the point: "twelve refused" is not something an operator can act on, and "twelve
+// refused by the per-credential cap" is.
+func (m *Metrics) StreamRefused(ctx context.Context, reason string) {
+	m.streamRefused.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
+}
+
+// StreamRecords counts what went down the streams. Against the change log's own growth it is what
+// says whether the streams are keeping up.
+func (m *Metrics) StreamRecords(ctx context.Context, count int) {
+	m.streamRecords.Add(ctx, int64(count))
 }
 
 // notificationInstruments are what the notification path publishes (C-09).

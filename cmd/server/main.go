@@ -31,6 +31,7 @@ import (
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
@@ -190,6 +191,26 @@ func run() error {
 		return fmt.Errorf("object storage: %w", err)
 	}
 	mediaGuard := storageadapter.NewUploadGuard()
+
+	// The stream's cursor codec and its wake-up. The codec is keyed on the installation secret
+	// like every other opaque value this server mints; the listener holds one connection of the
+	// pool for as long as the process serves streams (ADR-0007).
+	streamCursors := streamCursorAdapter{codec: security.NewStreamCursorCodec(cfg.SecretKey)}
+	changeListener := postgres.NewChangeListener(pool)
+
+	// The change stream's process-local bookkeeping (C-10). Built before the chain, because the
+	// shutdown path needs it as much as the handler does: a stream has no natural end, so nothing
+	// but CloseAll tells it there is one.
+	streams := rest.NewStreamRegistry(rest.StreamLimits{
+		// Four per client, so an ordinary application with a couple of tabs open is never refused
+		// and a client reconnecting in a loop is. Sixty-four per workspace and two hundred and
+		// fifty-six per pod: a bound on the resource rather than a tuning knob, sized so that the
+		// file descriptors and the goroutine stacks of a full complement stay well inside what a
+		// container with the default limits has.
+		PerCredential: 4,
+		PerTenant:     64,
+		PerProcess:    256,
+	})
 
 	// The one channel that sends in this milestone, and the renderer that decides its language
 	// (C-09). Both are built whatever the roles are, because the pieces are the same; what the
@@ -688,6 +709,24 @@ func run() error {
 		}
 		controller.MediaTokens = mediaTokens
 		controller.Clock = clockadapter.System{}
+		// The change stream is not a catalogue entry either: it is a connection being held rather
+		// than an operation being invoked, so there is nothing for MCP or an automation rule to
+		// call (C-10). The listener is the wake-up; without it the stream still works, at its idle
+		// poll interval.
+		controller.Stream = &rest.StreamController{
+			Stream: syncservice.StreamChanges{
+				Changes: changes, Containers: containers, Authorizer: authorizer,
+				UnitOfWork: unitOfWork, Cursors: streamCursors,
+				Clock: clockadapter.System{},
+				// The maximum offline window, which is also the minimum tombstone period: beyond
+				// it the log no longer holds everything that happened (offline-sync.md §7).
+				Window: cfg.Retention.TombstoneWindow,
+				Batch:  cfg.Queue.OutboxBatch,
+			},
+			Registry: streams,
+			Wakeups:  changeListener,
+			Signals:  metrics,
+		}
 		controller.Capabilities = meta.GetCapabilities{
 			Profiles:   profiles,
 			Languages:  postgres.NewTextLanguageRepository(),
@@ -890,6 +929,12 @@ func run() error {
 		kinds = append(kinds, kind)
 	}
 
+	if cfg.HasRole(envport.RoleAPI) {
+		// The wake-up loop, and only where streams are served: a worker holding a LISTEN would be
+		// a connection occupied for notifications nobody in that process is waiting for.
+		background = append(background, start(ctx, "api.change_listener", changeListener.Run))
+	}
+
 	if cfg.HasRole(envport.RoleWorker) {
 		// The backoff policy is the resilience adapter's, handed to the runner as a function: the
 		// presentation layer decides when to retry, not how far apart (project-structure.md §2).
@@ -966,6 +1011,14 @@ func run() error {
 	// seconds buys: an ingress still holding the endpoint, and two requests answered with 502
 	// during a rollout that was otherwise clean (docs/evidence/RT-8-2026-08-21.md).
 	registry.MarkClosing()
+
+	// The streams are asked to end at the same moment, and before the deregistration wait rather
+	// than after it. A stream has no natural end, so Shutdown would otherwise sit out the whole
+	// grace period on connections that are working exactly as designed - and the clients get the
+	// length of that wait to notice, reconnect elsewhere and resume from their cursors
+	// (observability-reliability.md §9).
+	streams.CloseAll()
+
 	time.Sleep(time.Duration(cfg.ShutdownDeregisterSeconds) * time.Second)
 
 	grace := time.Duration(cfg.ShutdownGraceSeconds) * time.Second
@@ -1129,4 +1182,27 @@ func selfCheck() int {
 		return 1
 	}
 	return 0
+}
+
+// streamCursorAdapter bridges the stream's cursor port to the keyed codec in
+// infrastructure/security.
+//
+// Two lines of translation rather than one type implementing both sides, because the two are
+// deliberately different shapes: the application says `sync.Position` and knows nothing about
+// HMACs, and the adapter says `security.StreamPosition` and knows nothing about change logs. The
+// alternative is one of them importing the other, and the one that would have to give is the core.
+type streamCursorAdapter struct{ codec security.StreamCursorCodec }
+
+func (a streamCursorAdapter) Encode(position syncservice.Position) string {
+	return a.codec.Encode(security.StreamPosition{
+		Seq: position.Seq, IssuedAt: position.IssuedAt,
+	})
+}
+
+func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error) {
+	decoded, err := a.codec.Decode(cursor)
+	if err != nil {
+		return syncservice.Position{}, err
+	}
+	return syncservice.Position{Seq: decoded.Seq, IssuedAt: decoded.IssuedAt}, nil
 }

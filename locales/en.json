@@ -400,6 +400,11 @@
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
   "sync.change_without_clock": "This installation could not record that change for offline devices.",
+  "sync.payload_unreadable": "This installation could not read a recorded change.",
+  "sync.clock_unreadable": "This installation could not read the clock of a recorded change.",
+  "sync.cursor_invalid": "This stream position is not one this installation issued. Start again without one.",
+  "sync.cursor_too_old": "This stream position is older than the offline window, so the changes since then are no longer all kept. Resynchronise in full.",
+  "sync.stream_unavailable": "This server cannot take another live connection right now. Try again shortly.",
   "sync.hlc_malformed": "{value} is not a valid change timestamp.",
   "sync.hlc_incomplete": "This installation could not stamp that change.",
   "sync.hlc_device_malformed": "This installation could not stamp that change.",

@@ -161,3 +161,40 @@ func TestTheLocaleReachesTheActorContext(t *testing.T) {
 		t.Error("resolving a language authenticated the request")
 	}
 }
+
+// The one route with no end of its own. A stream cut off after the request timeout would look to a
+// client like a server that drops connections on a timer, and the client would reconnect on that
+// timer forever (C-10).
+func TestTheStreamOutlivesTheRequestTimeout(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		method  string
+		path    string
+		bounded bool
+	}{
+		{"the stream", http.MethodGet, "/api/v1/stream", false},
+		// Every other route keeps the deadline, including a different method on the same path and
+		// a path that merely ends in the same word.
+		{"a POST to the same path", http.MethodPost, "/api/v1/stream", true},
+		{"an ordinary read", http.MethodGet, "/api/v1/items", true},
+		{"a container list", http.MethodGet, "/api/v1/containers", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var hadDeadline bool
+			bound := Bounded{
+				MaxBodyBytes: 1 << 20,
+				Timeout:      time.Second,
+				Next: http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+					_, hadDeadline = r.Context().Deadline()
+				}),
+			}
+
+			request := httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, nil)
+			bound.ServeHTTP(httptest.NewRecorder(), request)
+
+			if hadDeadline != tc.bounded {
+				t.Errorf("deadline present = %v, want %v", hadDeadline, tc.bounded)
+			}
+		})
+	}
+}

@@ -153,6 +153,34 @@ func (s Service) resolve(
 	return memberships, nil
 }
 
+// Permits answers whether the actor holds the permission along the path, and records nothing.
+//
+// The counterpart of Authorize for a *filter* rather than an attempt, and the distinction is
+// audit.md §4's rather than a convenience. The trail records what somebody tried to do and was
+// refused; a change stream deciding that ninety of a hundred records are not for this client is
+// nobody trying anything, and an entry per withheld record would bury the refusals that matter
+// under a feed nobody even read.
+//
+// It is not a second permission model: the resolution and the decision are the ones Authorize
+// uses, and a caller that wants the entry writes Authorize instead. What it does not do is
+// speak - so a token scope is checked once where a connection is accepted rather than per record
+// in here (core/application/service/sync).
+func (s Service) Permits(
+	ctx context.Context, actor appshared.ActorContext, request Request,
+) (bool, error) {
+	if !actor.IsAuthenticated() {
+		return false, nil
+	}
+
+	memberships, err := s.resolve(ctx, actor, request.scopePath())
+	if err != nil {
+		// Not "may not": nobody was refused anything, the question could not be answered. A caller
+		// that read this as a refusal would silently shorten a stream on a database blip.
+		return false, err
+	}
+	return service.Allows(memberships, request.scopePath(), request.Permission), nil
+}
+
 // Reach is how much of a container's entries an actor may see.
 type Reach struct {
 	// All is true when a role held on the container's own path answers for every entry in it -

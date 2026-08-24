@@ -11,6 +11,7 @@ package sync
 
 import (
 	"context"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -52,10 +53,40 @@ type Change struct {
 	Payload map[string]any
 }
 
+// Recorded is one entry as it comes back out: the change, and the position it holds.
+//
+// The position is not on Change, because a writer does not have one - `seq` is the database's, and
+// it is assigned when the row lands. A type that carried it on the way in would be a type with a
+// field every writer has to leave empty and hope nobody reads.
+type Recorded struct {
+	Change
+	// Seq is the position in the log, and the cursor a reader resumes from. Monotonic per tenant
+	// and sparse: the identity is table-wide, so a gap between two of one tenant's entries is
+	// somebody else's entry rather than one of theirs that went missing.
+	Seq int64
+	// OccurredAt is when the change was recorded. Not the cursor - ADR-0021 is explicit that a
+	// timestamp is never one - but what a client shows and what an operator reads.
+	OccurredAt time.Time
+}
+
 // ChangeLog records what a client has to be told about.
 type ChangeLog interface {
 	// Record writes one change inside the caller's transaction. A change that reached the tables
 	// but not the log would be invisible to every offline client until something else touched the
 	// same row - which is a data loss that looks like a caching bug.
 	Record(ctx context.Context, change Change) error
+}
+
+// Changes reads the log back. The half `:pull` and the stream share: the same records, the same
+// order, the same cursor - which is what makes the stream an accelerator rather than a second
+// source of truth (ADR-0021).
+type Changes interface {
+	// After returns up to batch entries past the cursor, oldest first. A short page is the end of
+	// the log rather than the end of a page: there is no `has_more` to compute, because the cursor
+	// of the last entry is the answer to "what next".
+	After(ctx context.Context, after int64, batch int) ([]Recorded, error)
+
+	// Latest is where the log stands now, and where a client with no cursor starts. Zero for a
+	// workspace nothing has happened in.
+	Latest(ctx context.Context) (int64, error)
 }

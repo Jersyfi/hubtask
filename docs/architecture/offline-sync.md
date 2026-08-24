@@ -82,9 +82,14 @@ Rules:
 
 ### 3.3 The event stream
 
-While online, SSE (`GET /api/v1/events:stream`) additionally carries the same change records, so
-that no polling is needed. If the connection drops, `:pull` catches up from the last cursor — the
-stream is an accelerator, not a second source of truth.
+While online, SSE (`GET /api/v1/stream`) additionally carries the same change records, so that no
+polling is needed. If the connection drops, `:pull` catches up from the last cursor — the stream is
+an accelerator, not a second source of truth.
+
+The path is `/stream` rather than the `/events:stream` this section used to name. `api-guidelines.md`
+§2 is the contract authority and lists it there, and the `:verb` suffix belongs to POST actions
+(Google AIP style): a `GET` that opens a stream is a resource being read, not an action being
+performed. Corrected here rather than the specification being bent to it (C-10).
 
 ---
 

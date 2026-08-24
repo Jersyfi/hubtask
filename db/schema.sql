@@ -1144,6 +1144,23 @@ CREATE TABLE change_log_2026_08 PARTITION OF change_log
   FOR VALUES FROM ('2026-08-01') TO ('2026-09-01');
 CREATE TABLE change_log_default PARTITION OF change_log DEFAULT;
 CREATE INDEX change_log_pull_idx ON change_log (tenant_id, seq) INCLUDE (entity, entity_id, op);
+
+-- The wake-up for the change stream (C-10, ADR-0007). A trigger rather than a NOTIFY in the
+-- application: every path that records a change would otherwise have to remember to announce it,
+-- and the one that forgets produces a change no connected client is told about. The payload is the
+-- tenant and nothing else - a doorbell, not a letter (rule 10).
+CREATE OR REPLACE FUNCTION hubtask_notify_change() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_change', NEW.tenant_id::text);
+  RETURN NULL;
+END $$;
+
+-- On the parent, so that partitions created later carry it too.
+CREATE TRIGGER change_log_notify
+  AFTER INSERT ON change_log
+  FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
 CREATE INDEX change_log_container_idx ON change_log (tenant_id, container_id, seq);
 
 -- Deletion markers with a minimum lifetime: a hard delete is only allowed after it elapses,

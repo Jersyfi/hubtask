@@ -11,6 +11,85 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const latestChangeSeq = `-- name: LatestChangeSeq :one
+SELECT coalesce(max(seq), 0)::bigint FROM change_log WHERE tenant_id = current_tenant_id()
+`
+
+// Where the log stands now, which is where a client with no cursor starts.
+//
+// Zero for a tenant that has never changed anything, and that is the right answer rather than a
+// missing one: a stream opened on an untouched workspace resumes from the beginning of a sequence
+// that has not started, and the first change it is told about is the first change there is.
+func (q *Queries) LatestChangeSeq(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, latestChangeSeq)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const readChangesAfter = `-- name: ReadChangesAfter :many
+SELECT seq, entity, entity_id, op, container_id, actor_id, device_id, hlc, occurred_at, payload
+FROM change_log
+WHERE tenant_id = current_tenant_id() AND seq > $1
+ORDER BY seq
+LIMIT $2
+`
+
+type ReadChangesAfterParams struct {
+	After int64
+	Batch int32
+}
+
+type ReadChangesAfterRow struct {
+	Seq         int64
+	Entity      string
+	EntityID    pgtype.UUID
+	Op          string
+	ContainerID pgtype.UUID
+	ActorID     pgtype.UUID
+	DeviceID    pgtype.UUID
+	Hlc         string
+	OccurredAt  pgtype.Timestamptz
+	Payload     []byte
+}
+
+// One batch of the change log, in cursor order. What the stream sends and what `:pull` will page.
+//
+// `seq > $1` and nothing else: the cursor is a position in a monotonic sequence, so a walk needs no
+// offset, no timestamp comparison and no second sort key. The identity is table-wide rather than
+// per tenant, which makes the sequence sparse for any one of them - a gap between two of a tenant's
+// rows is somebody else's row, never a row of theirs that is missing.
+func (q *Queries) ReadChangesAfter(ctx context.Context, arg ReadChangesAfterParams) ([]ReadChangesAfterRow, error) {
+	rows, err := q.db.Query(ctx, readChangesAfter, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReadChangesAfterRow{}
+	for rows.Next() {
+		var i ReadChangesAfterRow
+		if err := rows.Scan(
+			&i.Seq,
+			&i.Entity,
+			&i.EntityID,
+			&i.Op,
+			&i.ContainerID,
+			&i.ActorID,
+			&i.DeviceID,
+			&i.Hlc,
+			&i.OccurredAt,
+			&i.Payload,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordChange = `-- name: RecordChange :exec
 
 INSERT INTO change_log (

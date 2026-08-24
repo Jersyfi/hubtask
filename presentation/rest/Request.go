@@ -34,6 +34,28 @@ type Bounded struct {
 	Timeout time.Duration
 }
 
+// streamSuffix is the one route with no end of its own: a stream is held open until the client
+// leaves or the process drains, which is the opposite of what a request timeout is for (C-10).
+const streamSuffix = "/stream"
+
+// deadlineFor is how long this request may run.
+//
+// Every request gets the configured deadline, which is what rule 7 asks for - and exactly one does
+// not, because for it the deadline would be a bug rather than a bound. A stream cut off after the
+// request timeout would look to a client like a server that drops connections on a timer, and the
+// client would reconnect on that timer forever.
+//
+// What bounds a stream instead is everything the handler already selects on: the client's own
+// context, the shutdown, and a heartbeat that fails to write. Recognised by method and shape for
+// the reason limitFor recognises the byte route - the alternative is a list in the composition root
+// that drifts from the contract.
+func (b Bounded) deadlineFor(r *http.Request) time.Duration {
+	if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, streamSuffix) {
+		return 0
+	}
+	return b.Timeout
+}
+
 // limitFor is which of the two bounds applies. It recognises the byte route rather than being told
 // about it, because the alternative is a list in the composition root that drifts from the
 // contract - and it recognises it by method and shape, so a GET on the same path is bounded as
@@ -61,11 +83,12 @@ func (b Bounded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
 	}
 
-	if b.Timeout <= 0 {
+	timeout := b.deadlineFor(r)
+	if timeout <= 0 {
 		b.Next.ServeHTTP(w, r)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), b.Timeout)
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 	b.Next.ServeHTTP(w, r.WithContext(ctx))
 }
