@@ -30,10 +30,13 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
+	"github.com/Jersyfi/hubtask/core/application/service/notification"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
+	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
+	mailport "github.com/Jersyfi/hubtask/core/port/mail"
 	queueport "github.com/Jersyfi/hubtask/core/port/queue"
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
@@ -41,6 +44,8 @@ import (
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
+	"github.com/Jersyfi/hubtask/infrastructure/i18n"
+	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
@@ -186,6 +191,15 @@ func run() error {
 	}
 	mediaGuard := storageadapter.NewUploadGuard()
 
+	// The one channel that sends in this milestone, and the renderer that decides its language
+	// (C-09). Both are built whatever the roles are, because the pieces are the same; what the
+	// roles decide is which loops run (ADR-0014).
+	mailSender := buildMailSender(cfg, registry, metrics)
+	renderer, err := i18n.NewRenderer()
+	if err != nil {
+		return fmt.Errorf("message catalogue: %w", err)
+	}
+
 	// The panic metric is the one an alert watches, and its target value is 0 permanently
 	// (ADR-0016). The recovered value itself is deliberately not logged here: a panic value can
 	// carry anything, user content included (rule 10) - SafeGo logs it with the redacting
@@ -268,6 +282,10 @@ func run() error {
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
 	// keeping the two apart is what keeps every byte operation outside a transaction (C-06).
 	mediaObjects := postgres.NewMediaRepository(cursors)
+	// The notification records and the preferences. Two repositories rather than one type with two
+	// interfaces, because both need a Find and a Save (C-09).
+	notifications := postgres.NewNotificationRepository()
+	notificationPreferences := postgres.NewNotificationPreferenceRepository()
 	outbox := postgres.NewOutbox(jobs)
 	changes := postgres.NewChangeLog()
 
@@ -795,14 +813,18 @@ func run() error {
 	// The queue channel. It is wired whatever the roles are, because the pieces are the same;
 	// what the roles decide is which loops run (ADR-0014).
 	backgroundWork := postgres.NewUnitOfWork(backgroundPool)
+	// Who is told about what happens. The first subscriber there has ever been: automation,
+	// webhooks, the live stream and the search index register beside it as they arrive (C-09).
+	notify := notification.RecordNotifications{
+		Notifications: notifications, Preferences: notificationPreferences, Accounts: accounts,
+		Items: items, ItemMembers: itemMembers, Jobs: jobs,
+		Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+	}
+
 	dispatcher := eventbus.Dispatcher{
-		Events:   postgres.NewOutbox(jobs),
-		Consumed: postgres.NewConsumption(clockadapter.System{}),
-		// No consumers yet: automation, webhooks, the live stream and the search index register
-		// here as they arrive. Until then a round still marks its events as delivered - "nobody
-		// subscribes" is an answer, and an outbox that only grows would raise the backlog alert
-		// for a system that is working.
-		Subscribers: nil,
+		Events:      postgres.NewOutbox(jobs),
+		Consumed:    postgres.NewConsumption(clockadapter.System{}),
+		Subscribers: []eventbusport.Subscriber{notify},
 		Clock:       clockadapter.System{},
 		Batch:       cfg.Queue.OutboxBatch,
 		MinInterval: cfg.Queue.OutboxMinInterval,
@@ -818,7 +840,8 @@ func run() error {
 	retention := worker.RetentionSweep{
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
-			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			History: notifications,
+			Clock:   clockadapter.System{}, IDs: ids, Signals: metrics,
 		},
 		Interval:     cfg.Retention.Interval,
 		Continuation: cfg.Queue.OutboxMinInterval,
@@ -837,10 +860,30 @@ func run() error {
 		Continuation: cfg.Queue.OutboxMinInterval,
 	}
 
+	// The two halves of telling somebody something. The invitation writes a record inside the
+	// runner's transaction; the delivery reaches an SMTP server and therefore owns its own
+	// (queue.Detached, observability-reliability.md §8).
+	invitationMessage := worker.InvitationMessage{
+		Invitation: notification.RecordInvitation{
+			Notifications: notifications, Accounts: accounts, Jobs: jobs,
+			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+		},
+	}
+	notificationDelivery := worker.NotificationDelivery{
+		Delivery: notification.DeliverNotification{
+			Notifications: notifications, Preferences: notificationPreferences,
+			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
+			UnitOfWork: backgroundWork, Clock: clockadapter.System{}, BaseURL: cfg.BaseURL,
+			Signals: metrics,
+		},
+	}
+
 	handlers := map[queueport.Kind]queueport.Handler{
-		queueport.KindOutboxDispatch: dispatcher,
-		queueport.KindRetentionSweep: retention,
-		queueport.KindMediaReconcile: mediaReconciliation,
+		queueport.KindOutboxDispatch:      dispatcher,
+		queueport.KindRetentionSweep:      retention,
+		queueport.KindMediaReconcile:      mediaReconciliation,
+		queueport.KindInvitationEmail:     invitationMessage,
+		queueport.KindNotificationDeliver: notificationDelivery,
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {
@@ -1009,6 +1052,33 @@ func buildObjectStore(
 
 	registry.Register(storageadapter.NewProbe(breaker))
 	return storageadapter.NewResilientStore(s3, breaker, bulkhead), s3, nil
+}
+
+// buildMailSender assembles the mail port: the SMTP adapter behind a breaker and a bulkhead, and
+// the probe that reads the same breaker (C-09).
+//
+// Always built, even where nothing is configured. An installation with no HUBTASK_SMTP_HOST is not
+// an installation without notifications - the records are written either way, and the delivery
+// reports the dependency as down so that /meta/health says why nothing is arriving. A nil sender
+// would be a nil check in the delivery path instead.
+func buildMailSender(
+	cfg envport.Config, registry *healthadapter.Registry, metrics *observability.Metrics,
+) mailport.Sender {
+	breaker := resilience.NewBreaker(resilience.BreakerConfig{
+		Dependency: mailadapter.Dependency,
+		OnStateChange: func(dependency string, state resilience.BreakerState) {
+			metrics.CircuitBreakerState(context.Background(), dependency, state.Level())
+		},
+	})
+	// Four slots. Notifications are never on the interactive path - every send is a job - so the
+	// bulkhead is here to bound how much of the worker one slow mail server can hold rather than
+	// to keep a request fast.
+	bulkhead := resilience.NewBulkhead(resilience.BulkheadConfig{
+		Name: mailadapter.Dependency, Capacity: 4,
+	})
+
+	registry.Register(mailadapter.NewProbe(breaker, cfg.Mail.Host != ""))
+	return mailadapter.NewResilientSender(mailadapter.NewSMTP(cfg.Mail), breaker, bulkhead)
 }
 
 func primaryRole(cfg envport.Config) envport.Role {
