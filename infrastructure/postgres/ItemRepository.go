@@ -393,7 +393,8 @@ func (r ItemRepository) SetCover(ctx context.Context, item work.WorkItem, expect
 // answered would erase them. The value travels as jsonb; nil (the key absent from the wanted
 // state) removes it, which is the one spelling "cleared" has.
 func (r ItemRepository) SetCustomField(
-	ctx context.Context, item work.WorkItem, key string, expectedVersion int,
+	ctx context.Context, item work.WorkItem, key string, definitionID shared.ID,
+	expectedVersion int,
 ) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -403,16 +404,21 @@ func (r ItemRepository) SetCustomField(
 	if err != nil {
 		return err
 	}
+	definition, err := uuidOf(definitionID)
+	if err != nil {
+		return err
+	}
 	value, err := customValueOf(item.CustomFields, key)
 	if err != nil {
 		return err
 	}
 
 	affected, err := queries.SetWorkItemCustomField(ctx, sqlc.SetWorkItemCustomFieldParams{
-		Value:     value,
-		Key:       key,
-		UpdatedAt: timestampOf(item.UpdatedAt),
-		ID:        id,
+		Value:        value,
+		Key:          key,
+		DefinitionID: definition,
+		UpdatedAt:    timestampOf(item.UpdatedAt),
+		ID:           id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
 		ExpectedVersion: int32(expectedVersion),
 	})

@@ -1096,4 +1096,5 @@ type WorkItem struct {
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
 	Version          int32
+	CustomFieldRefs  []byte
 }

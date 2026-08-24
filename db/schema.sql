@@ -260,6 +260,10 @@ CREATE TABLE work_item (
   cover_color_token  text,
   cover_media_id     uuid,
   custom_fields      jsonb NOT NULL DEFAULT '{}'::jsonb,
+  -- Which definition each custom field value was written under: {key: definition id}. A value is
+  -- visible only while exactly that definition lives, which is what keeps a deleted-and-recreated
+  -- key from resurrecting the old value (C-07, migration 0018).
+  custom_field_refs  jsonb NOT NULL DEFAULT '{}'::jsonb,
   recurrence_rule_id uuid,
   origin_jumble_id   uuid,
   content_language   text,

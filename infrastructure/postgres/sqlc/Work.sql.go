@@ -233,17 +233,19 @@ SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
   wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
-  -- The visible custom fields: only the keys a live definition stands behind. The hiding happens
-  -- here rather than in Go, so that every read of an entry - the find, the list, the query
-  -- endpoint - hides a deleted definition's values identically, and a definition recreated under
-  -- the same key exposes nothing of what the old one held (C-07). The values themselves stay in
-  -- the row untouched, which is the whole shape of the soft delete.
+  -- The visible custom fields: only the values whose own definition still lives. The hiding
+  -- happens here rather than in Go, so that every read of an entry - the find, the list, the
+  -- query endpoint - hides a deleted definition's values identically. Identity rather than key,
+  -- because a definition recreated under the same key must not resurrect what the old one held
+  -- (C-07): each value's ref names the definition it was written under (migration 0018), and a
+  -- recreated key is a new definition standing behind nothing it did not write. The values
+  -- themselves stay in the row untouched, which is the whole shape of the soft delete.
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
      FROM jsonb_each(wi.custom_fields) AS kv
     WHERE EXISTS (
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
-         AND cfd.key = kv.key
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -606,7 +608,7 @@ SELECT
     WHERE EXISTS (
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
-         AND cfd.key = kv.key
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -1193,14 +1195,20 @@ UPDATE work_item SET
     WHEN $1::jsonb IS NULL THEN custom_fields - $2::text
     ELSE jsonb_set(custom_fields, ARRAY[$2::text], $1::jsonb, true)
   END,
-  updated_at = $3,
+  custom_field_refs = CASE
+    WHEN $1::jsonb IS NULL THEN custom_field_refs - $2::text
+    ELSE jsonb_set(custom_field_refs, ARRAY[$2::text],
+                   to_jsonb($3::uuid::text), true)
+  END,
+  updated_at = $4,
   version    = version + 1
-WHERE id = $4::uuid AND version = $5
+WHERE id = $5::uuid AND version = $6
 `
 
 type SetWorkItemCustomFieldParams struct {
 	Value           []byte
 	Key             string
+	DefinitionID    pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -1209,14 +1217,17 @@ type SetWorkItemCustomFieldParams struct {
 // One key of the entry's custom field document, under the same optimistic lock every write to this
 // row takes. One key rather than the whole document, and that is a data-safety decision as much as
 // a merge one: the row may hold values whose definitions were deleted - visible to no read, but
-// kept - and a write that replaced the document with what a read answered would erase them. A NULL
-// value removes the key, which is the one spelling "cleared" has (the reads cannot tell a stored
-// null from an absent key, so storing one would create a state nothing can see). The version
-// predicate is what makes two devices writing two different keys resolve rather than overwrite.
+// kept - and a write that replaced the document with what a read answered would erase them. The
+// ref travels in the same statement, because a value and the identity of the definition it was
+// written under are one fact: written apart, a crash between the two would leave a value no read
+// can ever judge. A NULL value removes the key and its ref - "cleared" has one spelling, since the
+// reads cannot tell a stored null from an absent key. The version predicate is what makes two
+// devices writing two different keys resolve rather than overwrite.
 func (q *Queries) SetWorkItemCustomField(ctx context.Context, arg SetWorkItemCustomFieldParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setWorkItemCustomField,
 		arg.Value,
 		arg.Key,
+		arg.DefinitionID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

@@ -364,7 +364,14 @@ type Items interface {
 	// them. The item carries the wanted state; what is written is the one key, taken from it: a
 	// present key is set, an absent one removed. The version predicate is what makes two devices
 	// writing two different keys resolve rather than overwrite (offline-sync.md §4.2).
-	SetCustomField(ctx context.Context, item work.WorkItem, key string, expectedVersion int) error
+	//
+	// The definition's identity travels with the value: a read shows a value only while exactly
+	// that definition lives, which is what keeps a deleted-and-recreated key from resurrecting
+	// what the old one held (C-07).
+	SetCustomField(
+		ctx context.Context, item work.WorkItem, key string, definitionID shared.ID,
+		expectedVersion int,
+	) error
 
 	// SetCover writes the cover, set or cleared, or reports a version conflict. Its own method
 	// for the reason SetAssignee is: one decision about one field, never spending a rename's

@@ -141,7 +141,7 @@ func (h SetCustomField) Execute(
 			return err
 		}
 
-		value, err := h.judge(ctx, actor, item, collection, cmd)
+		definition, value, err := h.judge(ctx, actor, item, collection, cmd)
 		if err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func (h SetCustomField) Execute(
 			return err
 		}
 
-		stored, err := h.write(ctx, actor, item, wanted, cmd, profile, now)
+		stored, err := h.write(ctx, actor, item, wanted, cmd, definition, profile, now)
 		written = stored
 		return err
 	})
@@ -183,22 +183,24 @@ func (h SetCustomField) Execute(
 func (h SetCustomField) judge(
 	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
 	collection domain.Container, cmd SetCustomFieldCommand,
-) (any, error) {
+) (domain.CustomFieldDefinition, any, error) {
+	none := domain.CustomFieldDefinition{}
+
 	definition, err := h.Fields.FindInScope(ctx, item.CollectionID, cmd.Key)
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
-			return nil, shared.ErrNotFound.
+			return none, nil, shared.ErrNotFound.
 				WithDetail("fields.not_in_scope").
 				WithParams(map[string]string{"key": cmd.Key}).
 				WithFields(shared.FieldError{Path: "/key", Code: "fields.not_in_scope"})
 		}
-		return nil, err
+		return none, nil, err
 	}
 	if !definition.Carries(item.Type) {
 		// The definition exists and this type is not one it applies to. Refused rather than
 		// stored: a client that filled the field in on a work package a task-only definition
 		// covers would believe the value is there.
-		return nil, shared.ErrValidation.
+		return none, nil, shared.ErrValidation.
 			WithDetail("fields.not_for_this_type").
 			WithParams(map[string]string{"key": cmd.Key, "type": string(item.Type)}).
 			WithFields(shared.FieldError{Path: "/key", Code: "fields.not_for_this_type"})
@@ -206,14 +208,14 @@ func (h SetCustomField) judge(
 
 	value, err := definition.ValidateValue(cmd.Value)
 	if err != nil {
-		return nil, err
+		return none, nil, err
 	}
 	if definition.Kind == domain.CustomFieldUser && value != nil {
 		if err := h.ensureAccountReachable(ctx, actor, value, collection); err != nil {
-			return nil, err
+			return none, nil, err
 		}
 	}
-	return value, nil
+	return definition, value, nil
 }
 
 // ensureAccountReachable refuses a USER value naming somebody who cannot see the entry.
@@ -257,7 +259,8 @@ func ensureFieldCount(item domain.WorkItem) error {
 // caller's transaction (test AT-5).
 func (h SetCustomField) write(
 	ctx context.Context, actor appshared.ActorContext, before, after domain.WorkItem,
-	cmd SetCustomFieldCommand, profile domain.CapabilityProfile, now time.Time,
+	cmd SetCustomFieldCommand, definition domain.CustomFieldDefinition,
+	profile domain.CapabilityProfile, now time.Time,
 ) (domain.WorkItem, error) {
 	expected := cmd.ExpectedVersion
 	if expected == 0 {
@@ -266,10 +269,11 @@ func (h SetCustomField) write(
 		// between the read and here is still caught.
 		expected = before.Version
 	}
-	// One key reaches the row, taken from the wanted state. The rest of the document - including
-	// any values whose definitions were deleted, which no read answers and this call never saw -
-	// stays exactly as stored (repository.Items.SetCustomField).
-	if err := h.Items.SetCustomField(ctx, after, cmd.Key, expected); err != nil {
+	// One key reaches the row, taken from the wanted state, together with the identity of the
+	// definition that judged it. The rest of the document - including any values whose definitions
+	// were deleted, which no read answers and this call never saw - stays exactly as stored
+	// (repository.Items.SetCustomField).
+	if err := h.Items.SetCustomField(ctx, after, cmd.Key, definition.ID, expected); err != nil {
 		return domain.WorkItem{}, err
 	}
 	after.Version = expected + 1

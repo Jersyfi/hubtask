@@ -138,7 +138,9 @@ func (i *items) SetCover(_ context.Context, item domain.WorkItem, expectedVersio
 // SetCustomField mirrors SetCover: the same optimistic lock, the same version bump on the stored
 // row, recorded in customFields so the C-07 tests can say what was written. The fake stores the
 // whole wanted state, which is what the real adapter's per-key write converges the row to.
-func (i *items) SetCustomField(_ context.Context, item domain.WorkItem, _ string, expectedVersion int) error {
+func (i *items) SetCustomField(
+	_ context.Context, item domain.WorkItem, _ string, _ shared.ID, expectedVersion int,
+) error {
 	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}

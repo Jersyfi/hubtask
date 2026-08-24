@@ -53,8 +53,12 @@ func (s *itemStore) SetAssignee(context.Context, work.WorkItem, int) error { ret
 func (s *itemStore) CountOpenByAssignee(context.Context, []shared.ID) (map[shared.ID]int, error) {
 	return nil, nil
 }
-func (s *itemStore) SetCustomField(context.Context, work.WorkItem, string, int) error { return nil }
-func (s *itemStore) SetCover(context.Context, work.WorkItem, int) error               { return nil }
+func (s *itemStore) SetCustomField(
+	context.Context, work.WorkItem, string, shared.ID, int,
+) error {
+	return nil
+}
+func (s *itemStore) SetCover(context.Context, work.WorkItem, int) error { return nil }
 func (s *itemStore) MoveSubtree(context.Context, workrepo.Move) (int, []work.DroppedReference, error) {
 	return 0, nil, nil
 }

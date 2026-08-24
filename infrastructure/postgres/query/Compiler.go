@@ -53,7 +53,7 @@ const (
 	visibleCustomFields = `(SELECT coalesce(jsonb_object_agg(kv.key, kv.value), jsonb_build_object()) ` +
 		`FROM jsonb_each(wi.custom_fields) AS kv WHERE EXISTS (` +
 		`SELECT 1 FROM custom_field_definition cfd WHERE cfd.deleted_at IS NULL ` +
-		`AND cfd.key = kv.key ` +
+		`AND cfd.id = jsonb_extract_path_text(wi.custom_field_refs, kv.key)::uuid ` +
 		`AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)))::jsonb ` +
 		`AS custom_fields`
 
@@ -425,14 +425,16 @@ func (b *builder) customField(node view.Node, key string) {
 	}
 }
 
-// liveDefinition is the check that a definition currently stands behind the key, in the entry's
-// own collection or workspace-wide. It lands on cfd_scope_idx, so it costs an index lookup beside
-// whatever the main predicate costs.
+// liveDefinition is the check that the definition this entry's value was written under still
+// lives, in the entry's own collection or workspace-wide. By identity rather than by key, for the
+// reason the read projection is: a definition recreated under the same key must not make the old
+// value filterable again (C-07). A primary-key lookup per row, beside whatever the main predicate
+// costs.
 func (b *builder) liveDefinition(key string) {
 	b.write(`EXISTS (SELECT 1 FROM custom_field_definition cfd WHERE cfd.deleted_at IS NULL ` +
-		`AND cfd.key = `)
+		`AND cfd.id = jsonb_extract_path_text(wi.custom_field_refs, `)
 	b.param(key)
-	b.write(` AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL))`)
+	b.write(`)::uuid AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL))`)
 }
 
 // contains writes the indexable equality: does the document hold this key with this value.
