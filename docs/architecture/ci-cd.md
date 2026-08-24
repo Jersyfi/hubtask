@@ -26,8 +26,8 @@ Which means:
 | `deploy.yml` | Push to `main`, manual dispatch | `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
 | `codeql.yml` | PR, schedule | Static security analysis |
 | `scorecard.yml` | Schedule | OpenSSF supply chain scorecard |
-| `claude-review.yml` | Pull request, unless it is a draft or Dependabot's | Advisory architecture review as a comment (§5) |
-| `claude.yml` | `@claude` in an issue, comment or review; the label `claude:task` on an issue | Claude works on a branch and opens a pull request — never on `main` (§5) |
+| `claude-review.yml` | Pull request, unless it is a draft or Dependabot's | **Switched off** — posts the review checklist as the record that no automated reviewer ran (§5) |
+| `claude.yml` | `@claude` in an issue, comment or review; the label `claude:task` on an issue | **Switched off** — answers that delegation is off rather than dropping the request (§5) |
 
 ---
 
@@ -154,6 +154,24 @@ Rules:
 * Costs are capped (a character limit per run, a counter per month); exceeding the cap aborts the
   run, not the gate.
 * If the AI provider is down, that is **not** a pipeline failure (`continue-on-error: true`).
+
+### 5.1 Both AI workflows are off during the initial development phase
+
+Every task is worked on locally in a Claude Code session, so the architecture review happens there
+— by the session that wrote the change, before the pull request leaves draft — and delegation to CI
+would only add a second opinion from the same model on its own work. The `[G]` markers in the
+backlog are a decision for the end of that phase; until then every task is `[L]`.
+
+Neither workflow was deleted, and that is the point. `claude-review.yml` posts the checklist the
+session applies, as the record that no automated reviewer ran; `claude.yml` answers a
+`claude:task` label with a comment saying delegation is off. A trigger that did nothing and said
+nothing about why is the failure this repository has already had: the review previously called the
+action with input names the pinned version had renamed, and reported a green check in 29 seconds
+without reviewing anything. **A green check that reviews nothing is worse than no check.**
+
+Re-enabling either means fixing the inputs first — `direct_prompt` became `prompt`,
+`allowed_tools` and `disallowed_tools` became `claude_args` — and then proving the gate can go red,
+the way `make gate-selftest` proves it for the deterministic ones.
 
 ---
 

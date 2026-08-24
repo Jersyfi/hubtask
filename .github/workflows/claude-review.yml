@@ -1,9 +1,22 @@
-# Architecture review by Claude on every pull request.
+# The architecture review, deliberately switched off — and saying so.
 #
-# Deliberately NOT a substitute for the deterministic gates: tests, linters, govulncheck and the
-# cross-tenant suite decide green or red. Claude checks what a linter cannot
-# see - agreement with the ADRs and the subject documents. The result is a
-# comment, not a blocking status.
+# During the initial development phase every task is worked on locally with Claude Code in a
+# session (CLAUDE.md, "Automated review and delegation"), and the architecture review is performed
+# there, by the session that wrote the change, before the pull request leaves draft. An automated
+# second opinion on top of that would be a second opinion from the same model on its own work.
+#
+# This workflow therefore no longer calls claude-code-action. What it does instead is leave the
+# notice where the review's findings would have gone: a comment on the pull request, and a check
+# whose name says what is and is not happening. That is the whole point of it still existing —
+# the previous version *did* call the action, passed input names the pinned version had renamed,
+# and reported a green check after 29 seconds without reviewing anything. A gate nobody has seen go
+# red is a gate nobody knows is connected (the reasoning behind `make gate-selftest`), and a green
+# check that reviews nothing is worse than no check at all.
+#
+# Re-enabling it is a decision for the end of the initial phase, and it is not a matter of deleting
+# the `if:` below: the action's inputs have to be brought up to date first — `direct_prompt` is now
+# `prompt` and `allowed_tools` is now part of `claude_args` — and the `id-token: write` question
+# ci-cd.md §4 raises has to be settled.
 name: Claude architecture review
 
 on:
@@ -14,53 +27,84 @@ permissions:
   contents: read
 
 jobs:
-  review:
+  # The job id is what the check is called in the pull request's list, so it is the one-line
+  # version of everything above.
+  automated-review-disabled:
+    name: Architecture review (automated review off, reviewed in-session)
     if: github.event.pull_request.draft == false && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
+      - name: State what stands in for the automated review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
 
-      - name: Request the review
-        # AI comments, gates decide (ci-cd.md §5): a failure here must never turn the pipeline
-        # red. Open point: claude-code-action fetches an OIDC token and therefore needs
-        # `id-token: write`, which ci-cd.md §4 reserves for the release job. Until that is
-        # decided the step runs, fails without consequence, and produces no review.
-        continue-on-error: true
-        uses: anthropics/claude-code-action@3f854a8fb5146b39d5cbf8b57f70d80810e1366f # v1.0.198
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          allowed_tools: "Read,Glob,Grep,Bash(git diff *),Bash(git log *)"
-          direct_prompt: |
-            Check this pull request against the project's architecture rules.
-            Read CLAUDE.md first, then the subject documents under docs/architecture/
-            touched by the diff, and the ADRs they link to.
+          # The marker is what makes the comment sticky: one comment per pull request, rewritten on
+          # every push, rather than a new one each time somebody pushes a fixup.
+          MARKER='<!-- hubtask:architecture-review -->'
 
-            Check exclusively these points and report only genuine findings:
+          cat > comment.md <<'COMMENT'
+          <!-- hubtask:architecture-review -->
+          ### Architecture review — performed in-session, not by this workflow
 
-            1. Layer boundaries: does core/domain or core/port import anything outwards
-               or any third-party library?
-            2. Authorisation: does it happen in the application layer - not in an adapter,
-               not in a repository?
-            3. Tenant boundary: does every query go through the transaction wrapper?
-               Is a new repository method missing its cross-tenant negative test?
-            4. Determinism: time.Now, math/rand, or UUID generation in domain/application?
-            5. Concurrency: a bare `go` statement outside core/shared/concurrency?
-            6. Outbound calls: bypassing GuardedClient? A call without a timeout?
-            7. Data protection and audit: user content in logs, metrics, traces, or audit
-               entries? A new personal data field with no entry in the data catalogue?
-            8. Contract: a hand-written change to generated code? An API change without
-               openapi.yaml being adjusted first?
-            9. Offline sync: a new field on WorkItem with no merge rule defined?
-            10. i18n: display text in the backend instead of a message code?
+          The automated review is **switched off** for the initial development phase. Every task is
+          worked on locally with Claude Code, and the review below is carried out there, by the
+          session that wrote the change, before the pull request leaves draft. The findings belong
+          in the pull request body, under the Definition of Done.
 
-            Format: a short list. Per finding, the file, the line, the rule or ADR number
-            affected, and a concrete correction. No style or taste questions, no summary
-            of the diff, no praise. If there is nothing to report, answer with exactly one
-            line: "No architecture findings."
-            Answer in English.
+          This comment is the record that the automated reviewer did not run — so that a later
+          session reading this pull request does not mistake a green check for a second opinion.
+
+          **The checklist the session applies** (CLAUDE.md and the subject documents under
+          `docs/architecture/` are read first, along with the ADRs the diff touches):
+
+          1. **Layer boundaries** — does `core/domain` or `core/port` import outwards, or a
+             third-party library? (rule 1, ADR-0001)
+          2. **Authorisation** — in the application layer, not in an adapter and not in a
+             repository? (rule 2, ADR-0005)
+          3. **Tenant boundary** — every query through the transaction wrapper, and a cross-tenant
+             negative test for every new repository method? (rule 3, ADR-0010, gate SG-3)
+          4. **Determinism** — `time.Now`, `math/rand` or UUID generation in domain or
+             application? (rule 4)
+          5. **Concurrency** — a bare `go` statement outside `core/shared/concurrency`? (rule 5)
+          6. **Outbound calls** — bypassing `GuardedClient`, or a call without a timeout?
+             (rules 6 and 7)
+          7. **Data protection and audit** — user content in logs, metrics, traces or audit
+             entries? A new personal data field with no row in the data catalogue? (rule 10)
+          8. **Contract** — a hand-written change to generated code, or an API change without
+             `openapi.yaml` first? (rule 11)
+          9. **Offline sync** — a new field with no merge rule defined? (`offline-sync.md` §4)
+          10. **i18n** — display text in the backend instead of a message code? (rule 8, ADR-0011)
+
+          The deterministic gates decide green or red either way: `CI required` is the real check,
+          and this one never blocks anything (`ci-cd.md` §5).
+          COMMENT
+
+          # Upsert rather than append. jq builds the payload so that a body containing backticks,
+          # quotes or newlines cannot break out of the request.
+          jq -n --rawfile body comment.md '{body: $body}' > payload.json
+
+          # One page of a hundred rather than --paginate: the marker comment is this workflow's
+          # own, there is exactly one, and --paginate applies the filter per page and would print
+          # a match per page rather than one.
+          existing="$(gh api "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+            --jq "[.[] | select(.body | contains(\"${MARKER}\"))] | first | .id // empty")"
+
+          if [ -n "${existing}" ]; then
+            gh api -X PATCH "repos/${REPOSITORY}/issues/comments/${existing}" --input payload.json \
+              --silent
+          else
+            gh api -X POST "repos/${REPOSITORY}/issues/${PR_NUMBER}/comments" --input payload.json \
+              --silent
+          fi
+
+          # The run page gets the same statement, for whoever clicks the check rather than reading
+          # the conversation.
+          cat comment.md >> "${GITHUB_STEP_SUMMARY}"

@@ -1,6 +1,17 @@
-# Claude Code as the assignee: responds to @claude in issues, comments and reviews.
-# The scope is deliberately narrow: Claude works only on branches and opens pull requests.
-# There is no path on which AI writes directly to main or triggers a release.
+# Claude Code as the assignee — switched off for the initial development phase.
+#
+# The scope was always deliberately narrow: Claude works only on branches and opens pull requests,
+# and there is no path on which AI writes directly to main or triggers a release. What has changed
+# is that the work is being done in a local session instead, so every task in the backlog is
+# treated as [L] regardless of how it is marked (CLAUDE.md, "Automated review and delegation").
+#
+# The triggers stay, and the job answers instead of running. Removing them would mean that labelling
+# an issue `claude:task` did nothing at all and said nothing about why - which is the failure this
+# repository has already had once, when the review workflow reported green without reviewing.
+#
+# Re-enabling is not a matter of deleting the step below. The action's inputs have to be brought up
+# to date first: `allowed_tools` and `disallowed_tools` were renamed into `claude_args` in the
+# pinned version, and the ones written here are silently ignored today.
 name: Claude Code
 
 on:
@@ -31,35 +42,35 @@ jobs:
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.issue.author_association)
       )
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
+    # Narrowed with the job: it answers, so it needs to write a comment and nothing else. The
+    # branch, pull request and token rights come back when delegation does.
     permissions:
-      contents: write          # create and push a branch
-      pull-requests: write     # open and comment on a PR
+      contents: read
       issues: write            # reply in the issue
-      id-token: write
+      pull-requests: write     # reply on a pull request
+    # No checkout: the job reads nothing of the repository, and cloning it to leave a comment
+    # would be a minute of a runner for nothing.
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
+      - name: Say that delegation is off
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TARGET: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.26.7"
-          cache: true
+          cat > reply.md <<'REPLY'
+          **Delegation to Claude in CI is switched off** for the initial development phase.
 
-      # Tools up front, so that Claude can actually run `make verify`.
-      - run: make tools
+          Every task in `docs/backlog/` is being worked on locally in a Claude Code session and is
+          treated as **[L]**, whatever it is marked in the backlog — so nothing will happen on this
+          issue as a result of the label or the mention. The `[G]` markers are a decision for later
+          (CLAUDE.md, "Automated review and delegation").
 
-      - name: Commission Claude
-        uses: anthropics/claude-code-action@3f854a8fb5146b39d5cbf8b57f70d80810e1366f # v1.0.198
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # CLAUDE.md is read automatically; only the execution rights go here.
-          allowed_tools: >-
-            Bash(make *),Bash(go *),Bash(git *),
-            Bash(.tools/*),Edit,Replace,Read,Glob,Grep
-          # A hard boundary: what is not listed here, Claude cannot run.
-          disallowed_tools: >-
-            Bash(curl *),Bash(wget *),Bash(docker *),Bash(gh release *),Bash(gh secret *)
-          claude_env: |
-            HUBTASK_ENV=ci
+          This reply exists so that the request is answered rather than silently dropped.
+          REPLY
+
+          jq -n --rawfile body reply.md '{body: $body}' > payload.json
+          gh api -X POST "repos/${REPOSITORY}/issues/${TARGET}/comments" --input payload.json \
+            --silent

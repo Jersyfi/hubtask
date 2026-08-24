@@ -50,7 +50,11 @@ type goVersionSource struct {
 }
 
 var goVersionSources = []goVersionSource{
-	{dir: ".github/workflows", pattern: regexp.MustCompile(`go-version:\s*"(\d+\.\d+)(?:\.\d+)?"`), atLeast: 9, what: "go-version:"},
+	// Eight since the delegation workflow stopped building anything: it answers that delegation is
+	// off and needs no Go toolchain to do it (C-10's follow-up). The number is a floor rather than
+	// an equality for exactly this reason - it catches a pin that was reworded, not a step that was
+	// deliberately removed.
+	{dir: ".github/workflows", pattern: regexp.MustCompile(`go-version:\s*"(\d+\.\d+)(?:\.\d+)?"`), atLeast: 8, what: "go-version:"},
 	{dir: ".github/workflows", pattern: regexp.MustCompile(`GO_VERSION:\s*"(\d+\.\d+)(?:\.\d+)?"`), atLeast: 2, what: "GO_VERSION:"},
 	{path: "deploy/docker/Dockerfile", pattern: regexp.MustCompile(`FROM golang:(\d+\.\d+)`), atLeast: 1, what: "the build image"},
 	{path: "docs/architecture/support-matrix.md", pattern: regexp.MustCompile(`\|\s*Go \(building from source\)\s*\|\s*(\d+\.\d+)\s*\|`), atLeast: 1, what: "the support matrix row"},
