@@ -363,6 +363,7 @@
   "activity.item_attachment_removed": "{actor} removed an attachment",
   "activity.item_cover_set": "{actor} chose a cover for this entry",
   "activity.item_cover_cleared": "{actor} took the cover off this entry",
+  "activity.item_custom_field_set": "{actor} filled in a field",
   "activity.item_commented": "{actor} commented",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",

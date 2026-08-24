@@ -561,6 +561,16 @@ func (i WorkItem) EnsureAttachable(profile CapabilityProfile) error {
 	return i.EnsureEditable()
 }
 
+// EnsureCustomisable refuses what cannot hold a custom field at all: a type whose profile does not
+// carry CUSTOM_FIELDS - an activity - and a trashed or archived entry. The capability first, for
+// the reason EnsureAssignable asks it first.
+func (i WorkItem) EnsureCustomisable(profile CapabilityProfile) error {
+	if err := profile.Require(CapabilityCustomFields, "/value"); err != nil {
+		return err
+	}
+	return i.EnsureEditable()
+}
+
 // Covered returns the item wearing the cover. Idempotent for the reason Assigned is: the same
 // cover again comes back untouched, so nothing is written, no version is spent and nothing is
 // announced.

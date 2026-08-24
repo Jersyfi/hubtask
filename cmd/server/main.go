@@ -618,6 +618,12 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateCustomField{Writer: customFieldWriter}.Descriptor(),
 		work.DeleteCustomField{Writer: customFieldWriter}.Descriptor(),
+		work.SetCustomField{
+			Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
+			Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
+			Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		}.Descriptor(),
 		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		mediaservice.GetMedia{

@@ -20,6 +20,7 @@ const (
 	listCustomFieldsUseCase  = "ListCustomFields"
 	updateCustomFieldUseCase = "UpdateCustomField"
 	deleteCustomFieldUseCase = "DeleteCustomField"
+	setCustomFieldUseCase    = "SetCustomField"
 )
 
 // ListCustomFields answers GET /custom-fields.
@@ -222,4 +223,43 @@ func (c *RestController) DeleteCustomField(
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// SetCustomField answers PUT /items/{itemId}/custom-fields/{key}.
+//
+// One key per call, which is the merge rule showing through the URL: the values merge per key, so
+// the resource a client addresses is one key rather than the document (offline-sync.md §4.2).
+func (c *RestController) SetCustomField(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, key openapi.CustomFieldKey,
+	params openapi.SetCustomFieldParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.CustomFieldValue
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	// The value travels as it arrived. What shape it may have is the definition's answer and the
+	// application layer's to ask; an adapter that coerced it here would be deciding a rule
+	// (presentation/CLAUDE.md, ADR-0005).
+	in := usecase.Input{"item_id": itemID.String(), "key": string(key), "value": body.Value}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), setCustomFieldUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	w.Header().Set("ETag", etag(out.Int("version")))
+	writeJSON(w, r, http.StatusOK, workItemResponse(out))
 }

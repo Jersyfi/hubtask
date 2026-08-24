@@ -49,6 +49,16 @@ const (
 	// it (core/domain/model/view, ADR-0026).
 	KindObject Kind = "object"
 	KindList   Kind = "list"
+	// KindAny is a value whose shape another declaration decides.
+	//
+	// The second exception, and one use case has it: a custom field's value is a text, a number, a
+	// boolean, a date or a list depending on the definition the key names, and that definition is
+	// data a tenant wrote rather than anything the catalogue can pin (C-07, domain-model.md §6).
+	// Declaring it as a string would make every other kind a type error before the definition was
+	// even read, and declaring five fields would be five ways to send one value. The catalogue
+	// therefore checks that something arrived and leaves the judgement to the definition, exactly
+	// as it leaves a filter tree to the grammar that owns it.
+	KindAny Kind = "any"
 )
 
 // Field declares one input field of a use case.
