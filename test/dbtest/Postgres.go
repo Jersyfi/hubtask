@@ -21,6 +21,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -110,12 +112,17 @@ func startDatabase() (Database, error) {
 // Migrate applies db/migrations the way production does - through goose, not by loading
 // schema.sql. A migration that only works when applied by a test is not a migration.
 func Migrate(ctx context.Context, dsn string) error {
+	return goose(ctx, dsn, "up")
+}
+
+// goose runs the binary `make tools` installed, on the repository's own migration directory.
+func goose(ctx context.Context, dsn string, arguments ...string) error {
 	root, err := RepositoryRoot()
 	if err != nil {
 		return err
 	}
-	goose := filepath.Join(root, ".tools", "goose")
-	if _, err := os.Stat(goose); err != nil {
+	binary := filepath.Join(root, ".tools", "goose")
+	if _, err := os.Stat(binary); err != nil {
 		return fmt.Errorf("goose is missing - run 'make tools': %w", err)
 	}
 
@@ -123,11 +130,21 @@ func Migrate(ctx context.Context, dsn string) error {
 	// arguments are the repository's own migration directory and a DSN this package produced. There
 	// is nothing here a caller supplies.
 	//nolint:gosec // G204: every argument is derived from the repository, not from a caller
-	cmd := exec.CommandContext(ctx, goose, "-dir", filepath.Join(root, "db", "migrations"), "postgres", dsn, "up")
+	cmd := exec.CommandContext(ctx, binary,
+		append([]string{"-dir", filepath.Join(root, "db", "migrations"), "postgres", dsn}, arguments...)...)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("goose up: %w: %s", err, out)
+		return fmt.Errorf("goose %s: %w: %s", strings.Join(arguments, " "), err, out)
 	}
 	return nil
+}
+
+// MigrateTo applies the migrations up to one version and stops there.
+//
+// What it is for is the state *before* a migration: a test that has to prove what a migration does
+// to a populated table has to populate the table with the schema of the version before it, which
+// `up` cannot leave it in (C-08).
+func MigrateTo(ctx context.Context, dsn string, version int) error {
+	return goose(ctx, dsn, "up-to", strconv.Itoa(version))
 }
 
 func grantLoginToApp(ctx context.Context, container *tcpostgres.PostgresContainer, adminDSN string) (string, error) {

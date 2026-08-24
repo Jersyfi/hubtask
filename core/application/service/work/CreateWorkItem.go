@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
@@ -75,6 +76,10 @@ type CreateWorkItemCommand struct {
 	// an enabled policy applies itself without this flag. Contradicts AssigneeID and is refused
 	// beside it: a named person and a policy cannot both decide one scalar.
 	AutoAssign bool
+	// ContentLanguage is the language the entry is written in, and empty takes the creator's
+	// locale (i18n-l10n.md §5). What it decides is the text search configuration the entry is
+	// indexed under, which is the whole of why it is worth carrying (ADR-0034).
+	ContentLanguage string
 }
 
 // CreateWorkItem creates a task, a work package, or an activity.
@@ -431,13 +436,26 @@ func (h CreateWorkItem) build(
 		Title:        cmd.Title,
 		Notes:        cmd.Notes,
 		BucketID:     cmd.BucketID,
-		Profile:      profile,
-		Path:         placement.PathOf(id),
-		Depth:        placement.Depth,
-		OrderKey:     orderKey,
-		CreatedBy:    actor.AccountID,
-		Now:          now,
+		// The creator's locale where the client said nothing, which is what i18n-l10n.md §5 asks
+		// for. A guess rather than knowledge, and the honest kind: somebody writing in their own
+		// language is the common case, and an entry that stated no language at all would be
+		// indexed word by word - which is the worse guess of the two.
+		ContentLanguage: languageOr(cmd.ContentLanguage, actor.Locale),
+		Profile:         profile,
+		Path:            placement.PathOf(id),
+		Depth:           placement.Depth,
+		OrderKey:        orderKey,
+		CreatedBy:       actor.AccountID,
+		Now:             now,
 	})
+}
+
+// languageOr answers the stated language, or the fallback where nothing was stated.
+func languageOr(stated, fallback string) string {
+	if strings.TrimSpace(stated) != "" {
+		return stated
+	}
+	return fallback
 }
 
 // hierarchy builds the rules in force: the profiles this tenant sees - the system defaults with
@@ -530,7 +548,8 @@ func (h CreateWorkItem) nextItemOrderKey(
 // recordChange writes what an offline client has to be told (offline-sync.md §3.1), and states
 // the merge rule for every field it carries - the Definition of Done asks for one per new field.
 //
-// `title` and `notes` are scalar attributes: last writer wins per field, decided by the HLC.
+// `title`, `notes` and `content_language` are scalar attributes: last writer wins per field,
+// decided by the HLC.
 // `order_key` is a fractional index and merges by itself. `parent_id`, `path` and `depth` are the
 // hierarchy, which is last writer wins with cycle detection on the server - a move that would
 // make a cycle is rejected rather than merged (offline-sync.md §4.2). `completion` is the status
@@ -627,12 +646,16 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 		// the ordinary case (C-07).
 		"custom_fields": customFieldsOutput(item.CustomFields),
 		"order_key":     item.OrderKey,
-		"archived_at":   timeOrNil(item.ArchivedAt),
-		"deleted_at":    timeOrNil(item.DeletedAt),
-		"created_by":    item.CreatedBy.String(),
-		"created_at":    item.CreatedAt,
-		"updated_at":    item.UpdatedAt,
-		"version":       item.Version,
+		// Always present, as null for an entry whose language nobody stated: a client's language
+		// picker reads it back to show what the entry is indexed under, and a missing key would
+		// read as "this server does not know about languages" (C-08).
+		"content_language": stringOrNil(item.ContentLanguage),
+		"archived_at":      timeOrNil(item.ArchivedAt),
+		"deleted_at":       timeOrNil(item.DeletedAt),
+		"created_by":       item.CreatedBy.String(),
+		"created_at":       item.CreatedAt,
+		"updated_at":       item.UpdatedAt,
+		"version":          item.Version,
 	}
 	if !item.ParentID.IsZero() {
 		out["parent_id"] = item.ParentID.String()
@@ -692,6 +715,14 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"have a place on it.",
 			},
 			{
+				Name: "content_language", Kind: usecase.KindString,
+				Description: "The language the title and the notes are written in, as a BCP 47 " +
+					"tag: it decides which text search configuration the entry is indexed under. " +
+					"Omitted takes the creator's locale. A language this installation cannot " +
+					"index is stored and indexed word by word rather than refused; " +
+					"/meta/capabilities lists the ones it can under text_languages.",
+			},
+			{
 				Name: "assignee_id", Kind: usecase.KindID,
 				Description: "The account to put the new entry on, with the same rules as " +
 					":assign: the person has to be able to see the entry, and one who cannot is " +
@@ -740,14 +771,15 @@ func (h CreateWorkItem) invoke(
 	}
 
 	item, outcome, err := h.Execute(ctx, actor, CreateWorkItemCommand{
-		Type:         domain.ItemType(in.String("type")),
-		CollectionID: collectionID,
-		ParentID:     parentID,
-		Title:        in.String("title"),
-		Notes:        in.String("notes"),
-		BucketID:     bucketID,
-		AssigneeID:   assigneeID,
-		AutoAssign:   in.Bool("auto_assign"),
+		Type:            domain.ItemType(in.String("type")),
+		CollectionID:    collectionID,
+		ParentID:        parentID,
+		Title:           in.String("title"),
+		Notes:           in.String("notes"),
+		BucketID:        bucketID,
+		AssigneeID:      assigneeID,
+		AutoAssign:      in.Bool("auto_assign"),
+		ContentLanguage: in.String("content_language"),
 	})
 	if err != nil {
 		return nil, err

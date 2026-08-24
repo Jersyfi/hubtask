@@ -39,9 +39,10 @@ func manifest() usecase.Capabilities {
 			AllowedChildTypes: []work.ItemType{work.ItemWorkPackage},
 			MaxDepth:          3,
 		}},
-		QueryFields: view.Fields(),
-		Limits:      map[string]int64{"max_body_bytes": 1 << 20},
-		Features:    map[string]bool{"mail": false},
+		QueryFields:   view.Fields(),
+		TextLanguages: []string{"de", "en"},
+		Limits:        map[string]int64{"max_body_bytes": 1 << 20},
+		Features:      map[string]bool{"mail": false},
 	}
 }
 
@@ -239,5 +240,42 @@ func TestAnUnwiredUseCaseIsAnInternalError(t *testing.T) {
 	// (security.md §9).
 	if problem.DetailCode != "" || len(problem.Params) != 0 {
 		t.Errorf("an internal error leaked detail: %+v", problem)
+	}
+}
+
+// The language picker a client draws for `content_language` is this list, so it travels as an
+// array even when the installation can index nothing: absent would read as "this server does not
+// know about languages", which is a different statement and one a client acts on (C-08).
+func TestTheManifestPublishesTheLanguagesThatCanBeIndexed(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		given []string
+		want  int
+	}{
+		{"what the installation has", []string{"de", "en"}, 2},
+		{"an installation that has none", nil, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			answer := manifest()
+			answer.TextLanguages = test.given
+
+			response := serveCapabilities(t, &capabilities{result: answer})
+			if response.Code != http.StatusOK {
+				t.Fatalf("status %d, body %s", response.Code, response.Body.String())
+			}
+
+			var body struct {
+				TextLanguages *[]string `json:"text_languages"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatalf("the manifest is not JSON: %v", err)
+			}
+			if body.TextLanguages == nil {
+				t.Fatal("the field is absent, which says the server knows nothing about languages")
+			}
+			if len(*body.TextLanguages) != test.want {
+				t.Errorf("%d languages published, want %d", len(*body.TextLanguages), test.want)
+			}
+		})
 	}
 }

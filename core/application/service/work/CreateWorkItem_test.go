@@ -39,6 +39,11 @@ type items struct {
 	result   repository.ItemQueryResult
 	searched []repository.ItemSearch
 	queryErr error
+	// hits is what Search answers with, and searchedText is every request it was handed (C-08's
+	// full text search).
+	hits         repository.ItemHitPage
+	searchedText []repository.TextSearch
+	searchErr    error
 	// children is what ChildCompletion answers, per parent, and completions records every write
 	// SetCompletion took - the roll-up tests care about both: one is the state it decided from, the
 	// other is what it decided.
@@ -317,6 +322,18 @@ func (i *items) Query(_ context.Context, search repository.ItemSearch) (reposito
 		return repository.ItemQueryResult{}, i.queryErr
 	}
 	return i.result, nil
+}
+
+// Search records the request the use case built and answers with what the test staged, for the
+// reason Query does: what a search *asks for* is the use case's business - the scope it resolved,
+// the narrowing it decided, the language it filled in - and what that becomes in SQL is proved
+// against a real database instead.
+func (i *items) Search(_ context.Context, search repository.TextSearch) (repository.ItemHitPage, error) {
+	i.searchedText = append(i.searchedText, search)
+	if i.searchErr != nil {
+		return repository.ItemHitPage{}, i.searchErr
+	}
+	return i.hits, nil
 }
 
 // RestoreBatch clears the stamp on every row of one deletion, keyed on the batch rather than on the
@@ -1092,5 +1109,54 @@ func TestTheOutputIsTheContractsShape(t *testing.T) {
 	completion, _ := out["completion"].(map[string]any)
 	if completion["is_completed"] != false {
 		t.Errorf("completion = %v, want an open one", out["completion"])
+	}
+}
+
+// The language an entry is written in, and where it comes from when nobody says (C-08,
+// i18n-l10n.md §5). The default is the creator's locale - a guess, and the honest kind: an entry
+// that stated no language at all would be indexed word by word, which is the worse guess of the two.
+func TestAnEntryTakesTheCreatorsLocaleWhenNoLanguageIsStated(t *testing.T) {
+	h := newItemHarness()
+	actor := itemActor()
+	actor.Locale = "de-AT"
+
+	item, _, err := h.handler.Execute(context.Background(), actor, taskCommand())
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if item.ContentLanguage != "de-AT" {
+		t.Errorf("the language is %q, want the creator's locale", item.ContentLanguage)
+	}
+}
+
+func TestAStatedLanguageBeatsTheCreatorsLocale(t *testing.T) {
+	h := newItemHarness()
+	actor := itemActor()
+	actor.Locale = "de-AT"
+
+	cmd := taskCommand()
+	cmd.ContentLanguage = "en"
+
+	item, _, err := h.handler.Execute(context.Background(), actor, cmd)
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if item.ContentLanguage != "en" {
+		t.Errorf("the language is %q, want the one the client stated", item.ContentLanguage)
+	}
+}
+
+// An anonymous or locale-less actor leaves the entry stating nothing, rather than inventing a
+// language for it: `simple` is what an unstated language is indexed under, and claiming English
+// would send a German entry through an English stemmer.
+func TestAnEntryStatesNoLanguageWhenTheCreatorHasNoLocale(t *testing.T) {
+	h := newItemHarness()
+
+	item, _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand())
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if item.ContentLanguage != "" {
+		t.Errorf("the language is %q, want none", item.ContentLanguage)
 	}
 }

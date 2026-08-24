@@ -171,6 +171,23 @@
                   "type": "string"
                 }
               }
+            },
+            "content_language": {
+              "type": "object",
+              "description": "The language the title and the notes are written in, as a BCP 47 tag; the empty string on either side means unstated. What it decides is the text search configuration the entry is indexed under, so a consumer that keeps its own index re-indexes the entry when this member is present.",
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                }
+              }
             }
           }
         }

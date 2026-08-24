@@ -88,3 +88,31 @@ func profileFrom(
 		MaxDepth:          int(maxDepth),
 	}
 }
+
+// TextLanguageRepository reads which languages this installation can index (C-08).
+//
+// Beside the capability profiles because it answers the same endpoint and nothing else, and
+// because both are reads of what this installation *is* rather than of what a tenant has: the
+// mapping is in the database (hubtask_text_languages), and the join against pg_ts_config inside it
+// is what makes the answer this binary's rather than this product's.
+type TextLanguageRepository struct{}
+
+func NewTextLanguageRepository() TextLanguageRepository { return TextLanguageRepository{} }
+
+var _ repository.TextLanguages = TextLanguageRepository{}
+
+// List returns the language tags, in the order the function answers them.
+func (r TextLanguageRepository) List(ctx context.Context) ([]string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := queries.ListTextLanguages(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the text search languages: %w", err))
+	}
+	return tags, nil
+}

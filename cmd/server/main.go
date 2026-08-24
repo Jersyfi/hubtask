@@ -569,6 +569,14 @@ func run() error {
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		// The authorisation service under three names, because a search asks the question in three
+		// shapes: about a hub the client named, about how far the caller reaches into a collection,
+		// and about each row of an unanchored page (SearchItems.reach).
+		work.SearchItems{
+			Items: items, Containers: containers,
+			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.ListActivity{
 			History: history, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -664,6 +672,7 @@ func run() error {
 		controller.Clock = clockadapter.System{}
 		controller.Capabilities = meta.GetCapabilities{
 			Profiles:   profiles,
+			Languages:  postgres.NewTextLanguageRepository(),
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 		}

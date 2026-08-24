@@ -116,6 +116,7 @@
   "items.title_empty": "An entry needs a title.",
   "items.title_too_long": "The title may be at most {maximum} characters long.",
   "items.title_malformed": "The title has to fit on one line. Longer text belongs in the notes.",
+  "items.content_language_invalid": "{value} is not a language tag. Use a code like de, de-AT or zh-Hans.",
   "items.profile_mismatched": "This installation is misconfigured and could not create that entry.",
   "items.identity_incomplete": "This installation is misconfigured and could not create that entry.",
   "items.path_malformed": "This installation is misconfigured and could not create that entry.",
@@ -395,6 +396,8 @@
   "dependency.too_many_redirects": "The address redirected more than {limit} times. Hubtask stopped following it.",
   "dependency.response_too_large": "The answer was larger than the permitted {limit_bytes} bytes.",
 
+  "search.words_required": "Say what to look for.",
+  "search.words_too_long": "A search may be at most {maximum} characters long.",
   "query.scope_required": "Say where to search: a hub, a collection, or an entry.",
   "query.scope_ambiguous": "Search in one place at a time - a container or an entry, not both.",
   "query.scope_not_found": "There is nothing to search there.",

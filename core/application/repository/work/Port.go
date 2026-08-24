@@ -216,6 +216,11 @@ type Containers interface {
 type AnchorKind string
 
 const (
+	// AnchorTenant is everything the transaction can see, which is one tenant's entries and only
+	// those (ADR-0010). The unanchored read, and the only one: a search is the one question that
+	// is asked of a workspace rather than of a place in it, and the answer is narrowed to what the
+	// actor may see rather than refused (C-08, view.Search).
+	AnchorTenant AnchorKind = "TENANT"
 	// AnchorHub is a whole hub: everything in every collection under it.
 	AnchorHub AnchorKind = "HUB"
 	// AnchorCollection is one collection.
@@ -249,9 +254,49 @@ type Anchor struct {
 type ItemSearch struct {
 	Anchor Anchor
 	Spec   view.Spec
+	// Language is the tag the query's own words are read under - the searcher's, resolved by the
+	// use case, and empty for a caller whose language nothing said.
+	//
+	// The searcher's rather than the entry's, and the difference is the whole reason it is here.
+	// An entry's document is built under the configuration its own language names (ADR-0034), and
+	// a query parsed per row would be exact and unindexable: an index scan needs the query to be
+	// one value for the whole scan. So the words are parsed under the searcher's configuration and
+	// under `simple`, which is two constants and two index scans.
+	Language string
 	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is
 	// empty - the read half of C-04, exactly as ItemQuery carries it for the plain level list.
 	RestrictTo []shared.ID
+}
+
+// TextSearch is one full-text search as the adapter receives it: the validated request, its
+// resolved scope, and the narrowing the use case decided (C-08).
+type TextSearch struct {
+	Anchor  Anchor
+	Request view.Search
+	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is
+	// empty - the read half of C-04, exactly as ItemSearch carries it for the query language.
+	RestrictTo []shared.ID
+}
+
+// ItemHit is one entry a search found: the entry, where it sits, and how well it matched.
+//
+// The hub travels with it for the reason it travels with a trash entry: the search spans hubs, so
+// the permission has to be asked about each row's place in the tree, and a membership held at a
+// hub applies downwards (domain-model.md §3.2). Reading it back per row afterwards would be one
+// query per collection in the page.
+type ItemHit struct {
+	Item  work.WorkItem
+	HubID shared.ID
+	// Rank is what `ts_rank_cd` answered, and it is the order rather than a number anybody reads:
+	// it is comparable inside one result set and means nothing outside it. It is on the hit
+	// because the cursor is a keyset over it - a walk that lost it could not continue.
+	Rank float32
+}
+
+// ItemHitPage is one page of a search, in rank order.
+type ItemHitPage struct {
+	Hits []ItemHit
+	Info PageInfo
 }
 
 // ItemGroup is one column of a grouped result: the entries that share a value of the grouping
@@ -432,6 +477,14 @@ type Items interface {
 	// It judges no further than the query asks, as List does: whether the actor may see the scope
 	// is decided in the application layer, once, before this runs (ADR-0005).
 	Query(ctx context.Context, search ItemSearch) (ItemQueryResult, error)
+
+	// Search answers the full text search: one page of entries in the order the database ranked
+	// them, with the hub each one sits under (C-08).
+	//
+	// Ranked rather than sorted, which is what makes the cursor a keyset over the rank. The order
+	// is `ts_rank_cd` descending and the identifier descending after it, so that entries matching
+	// equally well come newest first - a UUIDv7 carries its own time (ADR-0034).
+	Search(ctx context.Context, search TextSearch) (ItemHitPage, error)
 }
 
 // Buckets stores the columns of a collection's board.

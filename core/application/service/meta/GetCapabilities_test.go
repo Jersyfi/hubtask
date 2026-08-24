@@ -48,6 +48,14 @@ func (p profiles) ListSystem(context.Context) ([]work.CapabilityProfile, error) 
 	return p.list, p.err
 }
 
+// languages is what the installation can index, as the database answers it (C-08).
+type languages struct {
+	tags []string
+	err  error
+}
+
+func (l languages) List(context.Context) ([]string, error) { return l.tags, l.err }
+
 func systemDefaults() []work.CapabilityProfile {
 	return []work.CapabilityProfile{
 		{
@@ -67,6 +75,7 @@ func systemDefaults() []work.CapabilityProfile {
 func handler(store profiles, uow *unitOfWork) GetCapabilities {
 	return GetCapabilities{
 		Profiles:   store,
+		Languages:  languages{tags: []string{"de", "en"}},
 		UnitOfWork: uow,
 		Config: env.Config{
 			Version: "1.2.3",
@@ -248,5 +257,39 @@ func TestTheManifestReportsTheRoleMatrix(t *testing.T) {
 		if permission == service.PermissionDeleteContainer {
 			t.Error("the manifest gives an administrator DELETE_CONTAINER")
 		}
+	}
+}
+
+// The languages this installation can index come from the database, in the same transaction as
+// the profiles: both are answers about this installation rather than about the product, and a
+// client's language picker is built from the list rather than from a constant (C-08, ADR-0034).
+func TestTheManifestAnswersWhichLanguagesCanBeIndexed(t *testing.T) {
+	uow := &unitOfWork{}
+
+	capabilities, err := handler(profiles{list: systemDefaults()}, uow).
+		Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if len(capabilities.TextLanguages) != 2 || capabilities.TextLanguages[0] != "de" {
+		t.Errorf("the languages are %v, want what the database answered", capabilities.TextLanguages)
+	}
+	// One transaction, not two: the manifest is read before a client has signed in, and a second
+	// round trip for it is one every cold start pays.
+	if len(uow.scopes) != 1 {
+		t.Errorf("%d transactions were opened, want one", len(uow.scopes))
+	}
+}
+
+// An installation whose PostgreSQL can index nothing beyond exact words says so, and the failure
+// to read the list at all is a failure of the manifest rather than a silent empty one: a client
+// that saw no languages would offer none.
+func TestAnUnreadableLanguageListFailsTheManifest(t *testing.T) {
+	handler := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	handler.Languages = languages{err: errors.New("the catalogue is unreadable")}
+
+	if _, err := handler.Execute(t.Context(), appshared.Anonymous("en", "UTC")); err == nil {
+		t.Fatal("the manifest was answered without the languages it promises")
 	}
 }

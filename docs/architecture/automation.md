@@ -142,7 +142,7 @@ ascending order with a stable cursor — deduplicable through `event_id`.
 | Trigger "new task" | A webhook subscription on `item.created`, or polling |
 | Action "create task" | `POST /items` with an `Idempotency-Key` |
 | Action "set field" | `PATCH /items/{id}` with `If-Match` |
-| Search | `POST /items:query` |
+| Search | `POST /search` for text, `POST /items:query` for a filter |
 | Bulk import | `POST /items:bulk` |
 | Auth phase 1 | A personal access token (header `Authorization: Bearer hbt_pat_…`) |
 | Auth phase 2 | OAuth2 authorization code + PKCE (a prerequisite for the Zapier marketplace) |

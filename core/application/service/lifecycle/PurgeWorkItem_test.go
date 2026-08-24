@@ -79,6 +79,11 @@ func (s *itemStore) Query(
 ) (workrepo.ItemQueryResult, error) {
 	return workrepo.ItemQueryResult{}, nil
 }
+func (s *itemStore) Search(
+	context.Context, workrepo.TextSearch,
+) (workrepo.ItemHitPage, error) {
+	return workrepo.ItemHitPage{}, nil
+}
 
 type containerStore struct{ stored map[shared.ID]work.Container }
 

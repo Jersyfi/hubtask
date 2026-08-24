@@ -248,6 +248,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
+  wi.content_language,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -274,6 +275,7 @@ type FindWorkItemRow struct {
 	CoverColorToken *string
 	CoverMediaID    pgtype.UUID
 	CustomFields    []byte
+	ContentLanguage *string
 	ArchivedAt      pgtype.Timestamptz
 	DeletedAt       pgtype.Timestamptz
 	TrashBatchID    pgtype.UUID
@@ -308,6 +310,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.CoverColorToken,
 		&i.CoverMediaID,
 		&i.CustomFields,
+		&i.ContentLanguage,
 		&i.ArchivedAt,
 		&i.DeletedAt,
 		&i.TrashBatchID,
@@ -367,29 +370,31 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 const insertWorkItem = `-- name: InsertWorkItem :exec
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  bucket_id, order_key, created_by, created_at, updated_at, version
+  bucket_id, order_key, content_language, created_by, created_at, updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   normalize($7::text, NFC),
-  $8, $9, $10, $11,
-  $12, $12, 1
+  $8, $9, $10,
+  $11, $12,
+  $13, $13, 1
 )
 `
 
 type InsertWorkItemParams struct {
-	ID           pgtype.UUID
-	CollectionID pgtype.UUID
-	Type         ItemType
-	ParentID     pgtype.UUID
-	Path         string
-	Depth        int32
-	Title        string
-	Notes        *string
-	BucketID     pgtype.UUID
-	OrderKey     string
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
+	ID              pgtype.UUID
+	CollectionID    pgtype.UUID
+	Type            ItemType
+	ParentID        pgtype.UUID
+	Path            string
+	Depth           int32
+	Title           string
+	Notes           *string
+	BucketID        pgtype.UUID
+	OrderKey        string
+	ContentLanguage *string
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
 }
 
 // The title is stored Unicode NFC normalised, in the database rather than in the application, for
@@ -412,6 +417,7 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 		arg.Notes,
 		arg.BucketID,
 		arg.OrderKey,
+		arg.ContentLanguage,
 		arg.CreatedBy,
 		arg.CreatedAt,
 	)
@@ -611,6 +617,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
+  wi.content_language,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -663,6 +670,7 @@ type ListWorkItemsRow struct {
 	CoverColorToken *string
 	CoverMediaID    pgtype.UUID
 	CustomFields    []byte
+	ContentLanguage *string
 	ArchivedAt      pgtype.Timestamptz
 	DeletedAt       pgtype.Timestamptz
 	TrashBatchID    pgtype.UUID
@@ -720,6 +728,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.CoverColorToken,
 			&i.CoverMediaID,
 			&i.CustomFields,
+			&i.ContentLanguage,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,
@@ -1063,18 +1072,20 @@ func (q *Queries) SetWorkItemAssignee(ctx context.Context, arg SetWorkItemAssign
 
 const setWorkItemAttributes = `-- name: SetWorkItemAttributes :execrows
 UPDATE work_item SET
-  title      = $1,
-  notes      = $2,
-  bucket_id  = $3,
-  updated_at = $4,
-  version    = version + 1
-WHERE id = $5::uuid AND version = $6
+  title            = $1,
+  notes            = $2,
+  bucket_id        = $3,
+  content_language = $4,
+  updated_at       = $5,
+  version          = version + 1
+WHERE id = $6::uuid AND version = $7
 `
 
 type SetWorkItemAttributesParams struct {
 	Title           string
 	Notes           *string
 	BucketID        pgtype.UUID
+	ContentLanguage *string
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -1082,7 +1093,7 @@ type SetWorkItemAttributesParams struct {
 
 // The item's own fields: what UpdateWorkItem may change in 0.2.0 (B-05).
 //
-// Both columns are written on every call, not only the ones that moved. The application has already
+// Every column is written on every call, not only the ones that moved. The application has already
 // decided what the row should say - it read the item, applied the update and refused what the capability
 // profile does not allow - so this writes that decision whole. A statement that switched on which fields
 // were sent would be the second place deciding it, in the layer that is not allowed to decide anything
@@ -1091,14 +1102,17 @@ type SetWorkItemAttributesParams struct {
 // Optimistic locking in the WHERE clause, as everywhere: the update matches nothing when somebody else has
 // moved the row on, and the caller learns that rather than overwriting them (api-guidelines.md §5).
 //
-// `search_vector` follows by itself. It is a generated column over title and notes, so the index behind
-// full text search cannot fall behind a rename - which is exactly what a trigger somebody has to remember
-// would eventually do.
+// `search_document` follows by itself, through the trigger migration 0019 puts on this table. The
+// index behind full text search therefore cannot fall behind a rename, and it cannot fall behind a
+// change of language either - which is what the trigger buys over the generated column it replaces
+// (ADR-0034): a generated column can only be a function of the row, and the configuration a
+// document is built under is not one PostgreSQL will let a generated column choose.
 func (q *Queries) SetWorkItemAttributes(ctx context.Context, arg SetWorkItemAttributesParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setWorkItemAttributes,
 		arg.Title,
 		arg.Notes,
 		arg.BucketID,
+		arg.ContentLanguage,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

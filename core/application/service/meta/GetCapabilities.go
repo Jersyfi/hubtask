@@ -39,6 +39,15 @@ type Capabilities struct {
 	// database: a manifest that listed a field the grammar refuses would send a client to build a
 	// filter editor for a query that cannot run.
 	QueryFields []view.Field
+	// TextLanguages are the languages this installation can index the text of, as BCP 47 tags
+	// (C-08, ADR-0034).
+	//
+	// Read from the database for the reason the item types are: it is the installation's answer
+	// rather than the product's, because which text search configurations exist is what its
+	// PostgreSQL was built with. A client's language picker is then this list - and an entry
+	// written in a language that is not in it is stored and searched word by word rather than
+	// refused, which is why this is a manifest entry and not a validation rule.
+	TextLanguages []string
 	// Roles is the role matrix as this installation enforces it (domain-model.md §3.2).
 	//
 	// Read from the matrix rather than restated here, for the reason the item types come from the
@@ -89,6 +98,7 @@ func roleMatrix() []RoleDescription {
 // profile, and a copy in code would answer the default while the database answered the override.
 type GetCapabilities struct {
 	Profiles   repository.CapabilityProfiles
+	Languages  repository.TextLanguages
 	UnitOfWork persistence.UnitOfWork
 	Config     env.Config
 }
@@ -106,10 +116,19 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		scope = actor.PersistenceScope()
 	}
 
-	var profiles []work.CapabilityProfile
+	var (
+		profiles  []work.CapabilityProfile
+		languages []string
+	)
 	err := g.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
 		var err error
-		profiles, err = g.Profiles.List(ctx)
+		if profiles, err = g.Profiles.List(ctx); err != nil {
+			return err
+		}
+		// In the same transaction as the profiles, because it is the same question asked of the
+		// same installation - and because a second one would be a second round trip for a manifest
+		// a client reads before it has signed in.
+		languages, err = g.Languages.List(ctx)
 		return err
 	})
 	if err != nil {
@@ -122,6 +141,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		TenancyMode:    string(g.Config.Tenancy),
 		ItemTypes:      profiles,
 		QueryFields:    view.Fields(),
+		TextLanguages:  languages,
 		Roles:          roleMatrix(),
 		Limits: map[string]int64{
 			"max_body_bytes":            g.Config.Request.MaxBodyBytes,

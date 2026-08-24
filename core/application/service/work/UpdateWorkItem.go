@@ -300,7 +300,8 @@ func (h UpdateWorkItem) collectionOf(
 func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: UpdateWorkItemName,
-		Summary: "Changes an item's own fields: its title, and its notes where the type carries them. " +
+		Summary: "Changes an item's own fields: its title, its notes where the type carries them, " +
+			"and the language they are written in. " +
 			"A field that is not sent is left alone; sending `notes` as null clears it. Idempotent: an " +
 			"update that asks for what is already stored succeeds, writes nothing and announces nothing. " +
 			"Writing notes to a type whose capability profile does not carry NOTES - an activity - is " +
@@ -331,6 +332,13 @@ func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 					"collection's board, and only a type whose capability profile carries BUCKET " +
 					"has one - a board belongs to a collection, so only the entries directly in it " +
 					"have a place on it.",
+			},
+			{
+				Name: "content_language", Kind: usecase.KindString,
+				Description: "The language the entry is written in, as a BCP 47 tag. Empty clears " +
+					"the statement, omitted leaves it as it is. The entry is re-indexed under the " +
+					"new configuration on this write; entries whose language did not change are " +
+					"left alone.",
 			},
 			{
 				Name: "expected_version", Kind: usecase.KindInt,
@@ -366,6 +374,7 @@ func (h UpdateWorkItem) invoke(
 		ItemID: itemID,
 		Attributes: domain.ItemAttributes{
 			Title: in.OptionalString("title"), Notes: in.OptionalString("notes"),
+			ContentLanguage: in.OptionalString("content_language"),
 		},
 		ExpectedVersion: in.Int("expected_version"),
 	}

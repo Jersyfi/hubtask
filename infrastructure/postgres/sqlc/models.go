@@ -1097,4 +1097,5 @@ type WorkItem struct {
 	UpdatedAt        pgtype.Timestamptz
 	Version          int32
 	CustomFieldRefs  []byte
+	SearchDocument   interface{}
 }

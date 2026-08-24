@@ -1915,7 +1915,10 @@ type Capabilities struct {
 		WeekStart *string                                `json:"week_start,omitempty"`
 	} `json:"supported_locales,omitempty"`
 	TenancyMode *CapabilitiesTenancyMode `json:"tenancy_mode,omitempty"`
-	ViewLayouts *[]string                `json:"view_layouts,omitempty"`
+
+	// TextLanguages The languages this installation can index the text of, as BCP-47 tags, and what a client's language picker for `content_language` is built from. It is the installation's answer rather than the product's: the mapping from a tag to a text search configuration is in the database, and which of those configurations exist is what its PostgreSQL was built with (ADR-0034). A language that is not in this list is not refused - an entry declaring one is stored and matched word by word, which is the same treatment a script without word boundaries gets.
+	TextLanguages *[]string `json:"text_languages,omitempty"`
+	ViewLayouts   *[]string `json:"view_layouts,omitempty"`
 }
 
 // CapabilitiesSupportedLocalesDirection defines model for Capabilities.SupportedLocales.Direction.
@@ -2329,6 +2332,24 @@ type ItemQueryResult struct {
 
 	// Total The size of the whole result with `count=exact`, null otherwise.
 	Total *int `json:"total"`
+}
+
+// ItemSearchQuery One full-text search. Everything but `q` narrows or pages it; there is no filter grammar here, because a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which is the same index and is what that endpoint is for.
+type ItemSearchQuery struct {
+	// ContainerId The hub or collection to search in. Omitted searches everything the caller may see.
+	ContainerId     *openapi_types.UUID `json:"container_id,omitempty"`
+	IncludeArchived *bool               `json:"include_archived,omitempty"`
+	IncludeTrashed  *bool               `json:"include_trashed,omitempty"`
+
+	// Language BCP-47. The language the *words* are in, not the entries: it decides how the query is read. Omitted takes the caller's locale.
+	Language *string `json:"language,omitempty"`
+	Page     *struct {
+		Cursor *string `json:"cursor,omitempty"`
+		Size   *int    `json:"size,omitempty"`
+	} `json:"page,omitempty"`
+
+	// Q What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find.
+	Q string `json:"q"`
 }
 
 // ItemType Extensible; /meta/capabilities returns the valid values.
@@ -2821,7 +2842,7 @@ type WorkItem struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
 	Completion   Completion         `json:"completion"`
 
-	// ContentLanguage BCP-47
+	// ContentLanguage BCP-47, and null for an entry whose language nobody stated. It decides the text search configuration the entry is indexed under (i18n-l10n.md §5, ADR-0034).
 	ContentLanguage *string                 `json:"content_language,omitempty"`
 	Cover           *Cover                  `json:"cover,omitempty"`
 	CreatedAt       *time.Time              `json:"created_at,omitempty"`
@@ -2859,21 +2880,24 @@ type WorkItem struct {
 
 // WorkItemCreate defines model for WorkItemCreate.
 type WorkItemCreate struct {
-	AssigneeId   *openapi_types.UUID     `json:"assignee_id,omitempty"`
-	AutoAssign   *bool                   `json:"auto_assign,omitempty"`
-	BeforeItemId *openapi_types.UUID     `json:"before_item_id,omitempty"`
-	BucketId     *openapi_types.UUID     `json:"bucket_id,omitempty"`
-	CollectionId *openapi_types.UUID     `json:"collection_id,omitempty"`
-	Cover        *Cover                  `json:"cover,omitempty"`
-	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
-	DueAt        *time.Time              `json:"due_at,omitempty"`
-	DueDateOnly  *bool                   `json:"due_date_only,omitempty"`
-	DueTimeZone  *string                 `json:"due_time_zone,omitempty"`
-	LabelIds     *[]openapi_types.UUID   `json:"label_ids,omitempty"`
-	MemberIds    *[]openapi_types.UUID   `json:"member_ids,omitempty"`
-	Notes        *string                 `json:"notes,omitempty"`
-	ParentId     *openapi_types.UUID     `json:"parent_id,omitempty"`
-	Title        string                  `json:"title"`
+	AssigneeId   *openapi_types.UUID `json:"assignee_id,omitempty"`
+	AutoAssign   *bool               `json:"auto_assign,omitempty"`
+	BeforeItemId *openapi_types.UUID `json:"before_item_id,omitempty"`
+	BucketId     *openapi_types.UUID `json:"bucket_id,omitempty"`
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
+	// ContentLanguage BCP-47. The language the title and the notes are written in, which decides the text search configuration this entry is indexed under (i18n-l10n.md §5, ADR-0034). Omitted takes the creator's locale; a language this installation cannot index is stored and indexed word by word rather than refused. `/meta/capabilities` lists the ones it can under `text_languages`.
+	ContentLanguage *string                 `json:"content_language,omitempty"`
+	Cover           *Cover                  `json:"cover,omitempty"`
+	CustomFields    *map[string]interface{} `json:"custom_fields,omitempty"`
+	DueAt           *time.Time              `json:"due_at,omitempty"`
+	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
+	DueTimeZone     *string                 `json:"due_time_zone,omitempty"`
+	LabelIds        *[]openapi_types.UUID   `json:"label_ids,omitempty"`
+	MemberIds       *[]openapi_types.UUID   `json:"member_ids,omitempty"`
+	Notes           *string                 `json:"notes,omitempty"`
+	ParentId        *openapi_types.UUID     `json:"parent_id,omitempty"`
+	Title           string                  `json:"title"`
 
 	// Type Extensible; /meta/capabilities returns the valid values.
 	Type ItemType `json:"type"`
@@ -2887,15 +2911,18 @@ type WorkItemPage struct {
 
 // WorkItemUpdate JSON Merge Patch; null deletes a field.
 type WorkItemUpdate struct {
-	AssigneeId   *openapi_types.UUID     `json:"assignee_id,omitempty"`
-	BucketId     *openapi_types.UUID     `json:"bucket_id,omitempty"`
-	Cover        *Cover                  `json:"cover,omitempty"`
-	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
-	DueAt        *time.Time              `json:"due_at,omitempty"`
-	DueDateOnly  *bool                   `json:"due_date_only,omitempty"`
-	DueTimeZone  *string                 `json:"due_time_zone,omitempty"`
-	Notes        *string                 `json:"notes,omitempty"`
-	Title        *string                 `json:"title,omitempty"`
+	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
+	BucketId   *openapi_types.UUID `json:"bucket_id,omitempty"`
+
+	// ContentLanguage BCP-47, and null clears it. The entry is re-indexed under the new language on this write; earlier entries are not, because their language did not change.
+	ContentLanguage *string                 `json:"content_language,omitempty"`
+	Cover           *Cover                  `json:"cover,omitempty"`
+	CustomFields    *map[string]interface{} `json:"custom_fields,omitempty"`
+	DueAt           *time.Time              `json:"due_at,omitempty"`
+	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
+	DueTimeZone     *string                 `json:"due_time_zone,omitempty"`
+	Notes           *string                 `json:"notes,omitempty"`
+	Title           *string                 `json:"title,omitempty"`
 }
 
 // AccountId defines model for AccountId.
@@ -3490,6 +3517,9 @@ type StartRestoreJSONRequestBody = RestoreRequest
 // CreateRetentionPolicyJSONRequestBody defines body for CreateRetentionPolicy for application/json ContentType.
 type CreateRetentionPolicyJSONRequestBody = RetentionPolicy
 
+// SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
+type SearchItemsJSONRequestBody = ItemSearchQuery
+
 // SyncPullJSONRequestBody defines body for SyncPull for application/json ContentType.
 type SyncPullJSONRequestBody = SyncPullRequest
 
@@ -3753,6 +3783,9 @@ type ServerInterface interface {
 	// PreviewRetentionPolicy Determine the effect of a rule without executing it
 	// (POST /retention-policies/{policyId}:preview)
 	PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID)
+	// SearchItems Full-text search over the entries a caller may see
+	// (POST /search)
+	SearchItems(w http.ResponseWriter, r *http.Request)
 	// ListSyncDevices List your own devices
 	// (GET /sync/devices)
 	ListSyncDevices(w http.ResponseWriter, r *http.Request)
@@ -7395,6 +7428,20 @@ func (siw *ServerInterfaceWrapper) PreviewRetentionPolicy(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// SearchItems operation middleware
+func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchItems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSyncDevices operation middleware
 func (siw *ServerInterfaceWrapper) ListSyncDevices(w http.ResponseWriter, r *http.Request) {
 
@@ -7688,6 +7735,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}", wrapper.GetWorkItem)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search", wrapper.SearchItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)

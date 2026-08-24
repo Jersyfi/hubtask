@@ -101,7 +101,7 @@ minutes by default); values beyond that are set to server time and the event is 
 
 | Kind of field | Examples | Method |
 |---|---|---|
-| Scalar attributes | Title, note, due date, priority, bucket, cover | LWW per field, via the HLC |
+| Scalar attributes | Title, note, due date, priority, bucket, cover, content language | LWW per field, via the HLC |
 | Status fields with meaning | `completed` | LWW, but "completed" only beats "reopened" if it is genuinely later; a reopen is never silently discarded but produces a visible history entry |
 | Sets | Labels, members, watchers, attachments | An **OR-set**: additions and removals carry their own tags. A label added offline is not lost when another was removed concurrently — with LWW over the whole array, that is exactly what would have happened |
 | Maps | Custom field values (`custom_fields`) | **LWW per key**, via the HLC: one change log entry per key, carrying only that key, each with its own clock reading. Two devices setting two different keys converge to both; the same key resolves to the later writing. Merging the whole document as one scalar is precisely the loss the per-field rule above exists to prevent — and the server's write path makes the rule unavoidable rather than advisory: there is no call that writes the document, only one key at a time (C-07). A cleared key travels as an explicit null, since an absent key means "not touched" |

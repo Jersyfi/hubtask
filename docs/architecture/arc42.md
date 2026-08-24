@@ -743,6 +743,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0031 | Tauri 2 shells for desktop and mobile; the PWA path is closed | accepted |
 | 0032 | The client capability matrix: parity by default, restrictions justified one by one | accepted |
 | 0033 | One product UI, three targets: the shared client architecture | accepted |
+| 0034 | The language-dependent search document | accepted |
 
 ---
 

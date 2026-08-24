@@ -125,6 +125,15 @@ type WorkItem struct {
 	// rule exists to prevent (offline-sync.md §4.2). Nil and empty are the same thing - an entry
 	// carrying nothing.
 	CustomFields map[string]any
+	// ContentLanguage is the BCP 47 tag of the language the title and the notes are written in,
+	// and empty for an entry whose language nobody stated. What it decides is the text search
+	// configuration the entry is indexed under, which is why it is a field of the entry and not of
+	// the account that wrote it: a German note in an English workspace is German (i18n-l10n.md §5,
+	// ADR-0034).
+	//
+	// A scalar, so it merges as last writer wins per field: two devices declaring two languages is
+	// a genuine conflict with one answer (offline-sync.md §4.2).
+	ContentLanguage string
 
 	ArchivedAt   *time.Time
 	DeletedAt    *time.Time
@@ -149,6 +158,12 @@ type NewWorkItemInput struct {
 	// BucketID is the column the item starts in. Checked against the profile like every other
 	// optional field, so that a client cannot put a work package on a board.
 	BucketID shared.ID
+
+	// ContentLanguage is the language the title and the notes are written in. The use case
+	// defaults it to the creator's locale, which is what i18n-l10n.md §5 says an unstated language
+	// falls back to - so an empty value here is a deliberate "not stated" rather than a default
+	// waiting to be applied.
+	ContentLanguage string
 
 	// Profile is the capability profile in force for this type, which is data rather than code
 	// (ADR-0006) and therefore has to be handed in. It decides which of the optional fields above
@@ -198,6 +213,11 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		}
 	}
 
+	language, err := contentLanguage(in.ContentLanguage)
+	if err != nil {
+		return WorkItem{}, err
+	}
+
 	if err := checkPlacement(in.ID, in.ParentID, in.Path, in.Depth); err != nil {
 		return WorkItem{}, err
 	}
@@ -220,13 +240,14 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		// An item starts open. There is no way to create a completed one, and that is deliberate:
 		// completion is an event with a time and an actor, and inventing one at creation would
 		// put a lie in the history (I-W5, B-07).
-		Completion: Completion{},
-		BucketID:   in.BucketID,
-		OrderKey:   in.OrderKey,
-		CreatedBy:  in.CreatedBy,
-		CreatedAt:  in.Now,
-		UpdatedAt:  in.Now,
-		Version:    1,
+		Completion:      Completion{},
+		BucketID:        in.BucketID,
+		OrderKey:        in.OrderKey,
+		ContentLanguage: language,
+		CreatedBy:       in.CreatedBy,
+		CreatedAt:       in.Now,
+		UpdatedAt:       in.Now,
+		Version:         1,
 	}, nil
 }
 
@@ -295,6 +316,25 @@ func itemTitle(raw string) (string, error) {
 	return title, nil
 }
 
+// contentLanguage checks the shape of the tag and answers it trimmed.
+//
+// Structural only, against shared.LanguageTag. Which languages this installation can *index* is
+// what its PostgreSQL has (ADR-0034), and a tag it has no configuration for is indexed word by
+// word rather than refused - so refusing one here would deny a workspace the right to say what
+// language it writes in, in exchange for nothing.
+func contentLanguage(raw string) (string, error) {
+	tag, ok := shared.LanguageTag(raw)
+	if !ok {
+		return "", shared.ErrValidation.
+			WithDetail("items.content_language_invalid").
+			WithParams(map[string]string{"value": strings.TrimSpace(raw)}).
+			WithFields(shared.FieldError{
+				Path: "/content_language", Code: "items.content_language_invalid",
+			})
+	}
+	return tag, nil
+}
+
 // IsArchived reports whether the item is archived: kept, and read-only (I-W4).
 func (i WorkItem) IsArchived() bool { return i.ArchivedAt != nil }
 
@@ -313,7 +353,8 @@ const (
 	FieldCover      = "cover"
 	// FieldCustomFields is the column. One *key* of it reaches a change log entry as
 	// `custom_fields.<key>`, which is what makes the merge per key (CustomFieldPath).
-	FieldCustomFields = "custom_fields"
+	FieldCustomFields    = "custom_fields"
+	FieldContentLanguage = "content_language"
 	// FieldCollectionID is not something an update may set - an item changes collection by being
 	// moved - but it is a field that moves, and the records of a move name it.
 	FieldCollectionID = "collection_id"
@@ -336,11 +377,14 @@ type ItemAttributes struct {
 	// BucketID is the column the item moves to, and a pointer to the zero identifier takes it off
 	// the board altogether - which is the same "empty is not set" the text fields keep.
 	BucketID *shared.ID
+	// ContentLanguage re-indexes the entry under another language, and a pointer to the empty
+	// string clears the statement altogether.
+	ContentLanguage *string
 }
 
 // IsEmpty reports whether the update asks for nothing at all.
 func (a ItemAttributes) IsEmpty() bool {
-	return a.Title == nil && a.Notes == nil && a.BucketID == nil
+	return a.Title == nil && a.Notes == nil && a.BucketID == nil && a.ContentLanguage == nil
 }
 
 // FieldChange is one field that moved, with the value on each side.
@@ -404,6 +448,19 @@ func (i WorkItem) Updated(
 		if notes != i.Notes {
 			changes = append(changes, FieldChange{Field: FieldNotes, From: i.Notes, To: notes})
 			i.Notes = notes
+		}
+	}
+
+	if attributes.ContentLanguage != nil {
+		language, err := contentLanguage(*attributes.ContentLanguage)
+		if err != nil {
+			return WorkItem{}, nil, err
+		}
+		if language != i.ContentLanguage {
+			changes = append(changes, FieldChange{
+				Field: FieldContentLanguage, From: i.ContentLanguage, To: language,
+			})
+			i.ContentLanguage = language
 		}
 	}
 
