@@ -3403,6 +3403,12 @@ type ListRetentionPoliciesParams struct {
 	Effective *bool `form:"effective,omitempty" json:"effective,omitempty"`
 }
 
+// StreamChangesParams defines parameters for StreamChanges.
+type StreamChangesParams struct {
+	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
+	LastEventID *string `json:"Last-Event-ID,omitempty"`
+}
+
 // ListTrashParams defines parameters for ListTrash.
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -3786,6 +3792,9 @@ type ServerInterface interface {
 	// SearchItems Full-text search over the entries a caller may see
 	// (POST /search)
 	SearchItems(w http.ResponseWriter, r *http.Request)
+	// StreamChanges The change stream, as server-sent events
+	// (GET /stream)
+	StreamChanges(w http.ResponseWriter, r *http.Request, params StreamChangesParams)
 	// ListSyncDevices List your own devices
 	// (GET /sync/devices)
 	ListSyncDevices(w http.ResponseWriter, r *http.Request)
@@ -7442,6 +7451,47 @@ func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// StreamChanges operation middleware
+func (siw *ServerInterfaceWrapper) StreamChanges(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StreamChangesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Last-Event-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Last-Event-ID")]; found {
+		var LastEventID string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Last-Event-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Last-Event-ID", valueList[0], &LastEventID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Last-Event-ID", Err: err})
+			return
+		}
+
+		params.LastEventID = &LastEventID
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StreamChanges(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSyncDevices operation middleware
 func (siw *ServerInterfaceWrapper) ListSyncDevices(w http.ResponseWriter, r *http.Request) {
 
@@ -7782,6 +7832,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:confirm", wrapper.ConfirmMediaUpload)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.DownloadMediaContent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.UploadMediaContent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/stream", wrapper.StreamChanges)
 
 	return m
 }

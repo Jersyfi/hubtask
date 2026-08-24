@@ -2258,6 +2258,71 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /stream:
+    get:
+      tags: [sync]
+      operationId: streamChanges
+      summary: The change stream, as server-sent events
+      description: |
+        The same change records `:pull` returns, pushed as they happen. An **accelerator, not a
+        second source of truth** (ADR-0021): a client that loses this connection catches up by
+        cursor rather than by anything being replayed from memory, and a client that never opens it
+        is not missing anything a pull would not give it.
+
+        `text/event-stream`. Each event carries `id` (the cursor), `event` (the entity), and `data`
+        (one change record). The `id` is what a browser's `EventSource` sends back as
+        `Last-Event-ID` on its own reconnect, and what a client that manages its own connection
+        should send explicitly — either resumes exactly where the stream stopped, with no gap and no
+        duplicate.
+
+        A cursor older than the tombstone period is refused with `sync.cursor_too_old`, exactly as
+        `:pull` refuses one: a delta across a gap would be silently wrong, so the only safe answer
+        is a full resynchronisation (offline-sync.md §7). A cursor this installation did not mint is
+        `sync.cursor_invalid`.
+
+        The stream carries everything the caller may read in their workspace, and there is no
+        subscription filter: what a client wants to see is a question about its own screen, and a
+        filter here would be a second answer to a question the authorisation already answers.
+        Records are filtered by what the caller may read, per record and at the moment the record is
+        sent, rather than by anything the subscription was trusted to state. Permission lost while
+        the connection is open therefore stops the records for that container without the client
+        having to do anything, and a client is never handed a record for a container it may not see.
+
+        The stream is capped per tenant and per credential, because a long-lived connection is a
+        resource a stateless, horizontally scaled role has to bound. Over the cap, or while the
+        process is shedding load, the answer is `503` with `Retry-After` — the connection is refused,
+        never a record dropped.
+
+        A comment line is sent as a heartbeat so that proxies do not close an idle stream, and
+        `SIGTERM` closes every stream inside the grace period rather than cutting them: a client
+        reconnects to another pod and resumes from its cursor.
+      parameters:
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: >
+            The cursor to resume from, as the stream last sent it. Absent means "from now": a client
+            with no cursor is starting fresh and should pull rather than ask the stream for history.
+          schema: { type: string }
+      responses:
+        "200":
+          description: The stream, until the client or the server closes it
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          description: Over the stream cap, or the process is shedding load
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
 components:
   securitySchemes:
     bearerAuth:
