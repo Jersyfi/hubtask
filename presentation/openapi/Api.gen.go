@@ -1866,22 +1866,30 @@ type BucketUpdate struct {
 	WipLimit *int `json:"wip_limit,omitempty"`
 }
 
-// BulkOperation defines model for BulkOperation.
+// BulkOperation One operation of a bulk: which of the single-entry operations to carry out, on which entry, with the body that operation takes on its own.
 type BulkOperation struct {
-	ItemId  *openapi_types.UUID     `json:"item_id,omitempty"`
-	Op      BulkOperationOp         `json:"op"`
+	// ItemId The entry the operation is about. Required by every operation except CREATE_ITEM, which has no entry yet.
+	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+
+	// Op The operation. Each one is the same operation the route of the same name performs - CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a caller may do one entry at a time, never more.
+	Op BulkOperationOp `json:"op"`
+
+	// Payload What the single-entry operation takes in its body, by the field names it takes there. A field the operation does not know is refused by name rather than ignored.
 	Payload *map[string]interface{} `json:"payload,omitempty"`
 }
 
-// BulkOperationOp defines model for BulkOperation.Op.
+// BulkOperationOp The operation. Each one is the same operation the route of the same name performs - CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a caller may do one entry at a time, never more.
 type BulkOperationOp string
 
-// BulkResult defines model for BulkResult.
+// BulkResult What one operation of a bulk did. Exactly one of `item` and `problem` is present, except for an operation that never ran because an atomic bulk was rolled back - which carries neither and says so by its status.
 type BulkResult struct {
-	Index   *int      `json:"index,omitempty"`
+	// Index The position of the operation in the request, counted from zero.
+	Index   int       `json:"index"`
 	Item    *WorkItem `json:"item,omitempty"`
 	Problem *Problem  `json:"problem,omitempty"`
-	Status  *int      `json:"status,omitempty"`
+
+	// Status The status this operation would have answered on its own: 200 or 201 for one that was applied, the refusal's status for one that failed, and 409 for an operation of an atomic bulk that was rolled back because another one failed.
+	Status int `json:"status"`
 }
 
 // Capabilities Self-description; clients configure themselves from this.
@@ -2140,6 +2148,16 @@ type DroppedReference struct {
 
 // DroppedReferenceKind defines model for DroppedReference.Kind.
 type DroppedReferenceKind string
+
+// DuplicateResult What a duplicate produced: the copy, what it could not carry over, and how big it was.
+type DuplicateResult struct {
+	// Copied How many entries the copy consists of, the copied entry itself included.
+	Copied int `json:"copied"`
+
+	// DroppedReferences Labels, buckets, members or custom fields the destination collection could not resolve and that the copy therefore does not carry (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
+	DroppedReferences []DroppedReference `json:"dropped_references"`
+	Item              WorkItem           `json:"item"`
+}
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -3295,6 +3313,27 @@ type CompleteWorkItemParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DuplicateWorkItemJSONBody defines parameters for DuplicateWorkItem.
+type DuplicateWorkItemJSONBody struct {
+	// IncludeSubtree Whether everything below the entry is copied with it. Omitted copies the entry alone, and its children stay where they are.
+	IncludeSubtree *bool `json:"include_subtree,omitempty"`
+
+	// TargetCollectionId The destination collection. May be omitted when target_parent_id is given: an entry's collection is the one its parent is in.
+	TargetCollectionId *openapi_types.UUID `json:"target_collection_id,omitempty"`
+
+	// TargetParentId The entry the copy sits under. Null puts it at the top level of a collection, which then has to be named by target_collection_id; omitted puts the copy beside the original.
+	TargetParentId *openapi_types.UUID `json:"target_parent_id,omitempty"`
+
+	// Title The title of the copy. Omitted keeps the original's.
+	Title *string `json:"title,omitempty"`
+}
+
+// DuplicateWorkItemParams defines parameters for DuplicateWorkItem.
+type DuplicateWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // MoveWorkItemJSONBody defines parameters for MoveWorkItem.
 type MoveWorkItemJSONBody struct {
 	// BeforeItemId The sibling to place this item before at the destination. Null or omitted appends.
@@ -3353,14 +3392,15 @@ type UnassignWorkItemParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
-// BulkItemsJSONBody defines parameters for BulkItems.
-type BulkItemsJSONBody struct {
+// BulkUpdateWorkItemsJSONBody defines parameters for BulkUpdateWorkItems.
+type BulkUpdateWorkItemsJSONBody struct {
+	// Atomic All or nothing. Without it a bulk applies what it can and reports the rest.
 	Atomic     *bool           `json:"atomic,omitempty"`
 	Operations []BulkOperation `json:"operations"`
 }
 
-// BulkItemsParams defines parameters for BulkItems.
-type BulkItemsParams struct {
+// BulkUpdateWorkItemsParams defines parameters for BulkUpdateWorkItems.
+type BulkUpdateWorkItemsParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -3499,14 +3539,17 @@ type AssignWorkItemJSONRequestBody = Assignment
 // CompleteWorkItemJSONRequestBody defines body for CompleteWorkItem for application/json ContentType.
 type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
 
+// DuplicateWorkItemJSONRequestBody defines body for DuplicateWorkItem for application/json ContentType.
+type DuplicateWorkItemJSONRequestBody DuplicateWorkItemJSONBody
+
 // MoveWorkItemJSONRequestBody defines body for MoveWorkItem for application/json ContentType.
 type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 
 // ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
 
-// BulkItemsJSONRequestBody defines body for BulkItems for application/json ContentType.
-type BulkItemsJSONRequestBody BulkItemsJSONBody
+// BulkUpdateWorkItemsJSONRequestBody defines body for BulkUpdateWorkItems for application/json ContentType.
+type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
@@ -3718,6 +3761,9 @@ type ServerInterface interface {
 	// (POST /items/{itemId}:complete)
 	CompleteWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params CompleteWorkItemParams)
 
+	// (POST /items/{itemId}:duplicate)
+	DuplicateWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params DuplicateWorkItemParams)
+
 	// (POST /items/{itemId}:move)
 	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
@@ -3743,7 +3789,7 @@ type ServerInterface interface {
 	UnassignWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params UnassignWorkItemParams)
 
 	// (POST /items:bulk)
-	BulkItems(w http.ResponseWriter, r *http.Request, params BulkItemsParams)
+	BulkUpdateWorkItems(w http.ResponseWriter, r *http.Request, params BulkUpdateWorkItemsParams)
 	// QueryItems The generic query - the basis for list, kanban, and timeline
 	// (POST /items:query)
 	QueryItems(w http.ResponseWriter, r *http.Request)
@@ -6589,6 +6635,56 @@ func (siw *ServerInterfaceWrapper) CompleteWorkItem(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// DuplicateWorkItem operation middleware
+func (siw *ServerInterfaceWrapper) DuplicateWorkItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DuplicateWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DuplicateWorkItem(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // MoveWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -6960,14 +7056,14 @@ func (siw *ServerInterfaceWrapper) UnassignWorkItem(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
-// BulkItems operation middleware
-func (siw *ServerInterfaceWrapper) BulkItems(w http.ResponseWriter, r *http.Request) {
+// BulkUpdateWorkItems operation middleware
+func (siw *ServerInterfaceWrapper) BulkUpdateWorkItems(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params BulkItemsParams
+	var params BulkUpdateWorkItemsParams
 
 	headers := r.Header
 
@@ -6991,7 +7087,7 @@ func (siw *ServerInterfaceWrapper) BulkItems(w http.ResponseWriter, r *http.Requ
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.BulkItems(w, r, params)
+		siw.Handler.BulkUpdateWorkItems(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7797,7 +7893,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:unarchive", wrapper.UnarchiveWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reorder", wrapper.ReorderWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:move", wrapper.MoveWorkItem)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkItems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:duplicate", wrapper.DuplicateWorkItem)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkUpdateWorkItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.ListComments)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.AddComment)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/comments/{commentId}", wrapper.DeleteComment)
