@@ -8,9 +8,11 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -259,5 +261,74 @@ func TestAnUntouchedWorkspaceHasAHeadOfZero(t *testing.T) {
 	}
 	if entries := readChanges(ctx, t, fresh, 0, 10); len(entries) != 0 {
 		t.Errorf("%d entries in an untouched workspace", len(entries))
+	}
+}
+
+// The wake-up of ADR-0007, end to end: a change recorded through the repository rings the doorbell
+// on a listener that is watching that workspace, and rings nobody else's.
+//
+// Here rather than in the adapter's own tests because what is under test is the trigger: the
+// fan-out is proved without a database, and whether a `NOTIFY` reaches a `LISTEN` is a property of
+// the schema.
+func TestRecordingAChangeWakesTheListener(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	listener := postgres.NewChangeListener(appPool(ctx, t))
+	listening, stopListening := context.WithCancel(ctx)
+	defer stopListening()
+	concurrency.Go(listening, "test.change_listener", listener.Run)
+
+	waitFor(t, 5*time.Second, "the listener to connect", listener.Connected)
+
+	inA, stopA := listener.Subscribe(tenantA)
+	defer stopA()
+	inB, stopB := listener.Subscribe(tenantB)
+	defer stopB()
+
+	recordChange(ctx, t, tenantA, authorA, freshID(t), "work_item")
+
+	select {
+	case <-inA:
+	case <-time.After(5 * time.Second):
+		t.Fatal("a recorded change did not wake the workspace it belongs to")
+	}
+
+	// And nobody else's. A doorbell that rang for every workspace would have every stream on the
+	// process reading the log on every write in the installation.
+	select {
+	case <-inB:
+		t.Error("a change in one workspace woke another")
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+// The notification is a doorbell, not a letter: the payload is the tenant and nothing else, so no
+// user content travels through a channel with no tenant boundary (rule 10).
+func TestTheNotificationCarriesOnlyTheWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	conn, err := appPool(ctx, t).Acquire(ctx)
+	if err != nil {
+		t.Fatalf("acquiring a connection: %v", err)
+	}
+	defer conn.Release()
+
+	if _, err := conn.Exec(ctx, "LISTEN "+postgres.ChangeChannel); err != nil {
+		t.Fatalf("listening: %v", err)
+	}
+
+	recordChange(ctx, t, tenantA, authorA, freshID(t), "work_item")
+
+	waiting, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	notification, err := conn.Conn().WaitForNotification(waiting)
+	if err != nil {
+		t.Fatalf("waiting for the notification: %v", err)
+	}
+
+	if notification.Payload != tenantA.String() {
+		t.Errorf("the payload is %q, want the workspace identifier alone", notification.Payload)
 	}
 }
