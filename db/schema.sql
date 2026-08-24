@@ -30,6 +30,48 @@ CREATE OR REPLACE FUNCTION current_tenant_id() RETURNS uuid
   LANGUAGE sql STABLE AS
 $$ SELECT nullif(current_setting('app.tenant_id', true), '')::uuid $$;
 
+-- The text search configuration one item's language is indexed and searched under (C-08,
+-- ADR-0034). STABLE rather than IMMUTABLE - which is what a trigger permits and a generated column
+-- does not - so that the catalogue can be asked what it has and anything it has not falls back to
+-- `simple` instead of failing the write.
+CREATE OR REPLACE FUNCTION hubtask_text_config(language text) RETURNS regconfig
+  LANGUAGE sql STABLE PARALLEL SAFE AS
+$$
+  SELECT coalesce(
+    (SELECT c.oid::regconfig
+       FROM (VALUES
+         ('ar','arabic'),    ('hy','armenian'),   ('eu','basque'),      ('ca','catalan'),
+         ('da','danish'),    ('nl','dutch'),      ('en','english'),     ('fi','finnish'),
+         ('fr','french'),    ('de','german'),     ('el','greek'),       ('hi','hindi'),
+         ('hu','hungarian'), ('id','indonesian'), ('ga','irish'),       ('it','italian'),
+         ('lt','lithuanian'),('ne','nepali'),     ('nb','norwegian'),   ('nn','norwegian'),
+         ('no','norwegian'), ('pt','portuguese'), ('ro','romanian'),    ('ru','russian'),
+         ('sr','serbian'),   ('es','spanish'),    ('sv','swedish'),     ('ta','tamil'),
+         ('tr','turkish'),   ('yi','yiddish')
+       ) AS m(tag, cfgname)
+       JOIN pg_ts_config c ON c.cfgname = m.cfgname
+      WHERE m.tag = lower(split_part(btrim(coalesce(language, '')), '-', 1))
+      LIMIT 1),
+    'simple'::regconfig)
+$$;
+
+-- The title weighted A and the notes B, so that ts_rank_cd ranks a hit in a title above one buried
+-- in a note.
+CREATE OR REPLACE FUNCTION hubtask_search_document(language text, title text, notes text)
+  RETURNS tsvector LANGUAGE sql STABLE PARALLEL SAFE AS
+$$
+  SELECT setweight(to_tsvector(hubtask_text_config(language), coalesce(title, '')), 'A')
+      || setweight(to_tsvector(hubtask_text_config(language), coalesce(notes, '')), 'B')
+$$;
+
+CREATE OR REPLACE FUNCTION work_item_search_document() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  NEW.search_document := hubtask_search_document(NEW.content_language, NEW.title, NEW.notes);
+  RETURN NEW;
+END $$;
+
 -- ============================ Identity & Access ============================
 
 CREATE TYPE tenant_status AS ENUM ('ACTIVE', 'SUSPENDED', 'PENDING_DELETION');
@@ -269,6 +311,9 @@ CREATE TABLE work_item (
   content_language   text,
   search_vector      tsvector GENERATED ALWAYS AS
                        (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(notes, ''))) STORED,
+  -- The language-dependent document the search reads, maintained by the trigger below and dropping
+  -- the generated column above in a later migration (C-08, migration 0019, ADR-0034).
+  search_document    tsvector,
   archived_at        timestamptz,
   deleted_at         timestamptz,
   trash_batch_id     uuid,
@@ -317,6 +362,16 @@ CREATE INDEX wi_query_order_idx
   WHERE deleted_at IS NULL;
 CREATE INDEX wi_path_idx     ON work_item (tenant_id, path text_pattern_ops);
 CREATE INDEX wi_search_idx   ON work_item USING gin (search_vector);
+-- Every path that writes a row maintains the document, including the ones that are not use cases.
+-- UPDATE is narrowed to the columns it is built from, so completing a task recomputes nothing.
+CREATE TRIGGER work_item_search_document
+  BEFORE INSERT OR UPDATE OF title, notes, content_language ON work_item
+  FOR EACH ROW EXECUTE FUNCTION work_item_search_document();
+CREATE INDEX wi_search_document_idx ON work_item USING gin (search_document);
+-- The supplement for the scripts a tsquery cannot serve: CJK and Thai have no word boundaries, so
+-- one run of characters is one token and a substring of it is unfindable (i18n-l10n.md §5).
+CREATE INDEX wi_search_trgm_idx ON work_item
+  USING gin ((coalesce(title, '') || ' ' || coalesce(notes, '')) gin_trgm_ops);
 CREATE INDEX wi_custom_idx   ON work_item USING gin (custom_fields jsonb_path_ops);
 CREATE INDEX wi_trash_idx    ON work_item (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
 -- Restoring a deletion is one statement keyed on the batch every row of it shares (B-10, I-C2).
