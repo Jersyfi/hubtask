@@ -44,6 +44,16 @@ const (
 	// them (observability-reliability.md §7).
 	KindInvitationEmail Kind = "notification.invitation"
 
+	// KindNotificationDeliver sends one notification (C-09). One job per record rather than one
+	// per tenant, because the retry belongs to the message: an address the server refuses must not
+	// hold up everybody else's mail, and the queue's own attempt budget and dead letter are
+	// exactly the retry observability-reliability.md §7 promises for "the reminder arrives late".
+	//
+	// Queued by the outbox consumer in the dispatcher's transaction, so the record and the job to
+	// send it commit together - and detached when it runs, because an SMTP server inside a
+	// transaction holds a database connection for as long as somebody else's machine takes (§8).
+	KindNotificationDeliver Kind = "notification.deliver"
+
 	// KindRetentionSweep removes what one tenant's retention periods say may go (ADR-0020).
 	//
 	// One job per tenant, which reschedules itself forever: a poller lives as one row rather than

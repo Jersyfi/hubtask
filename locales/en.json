@@ -327,6 +327,7 @@
   "notifications.no_address": "There is no email address to send this to.",
   "notifications.self_caused": "You did this yourself, so nothing was sent.",
   "notifications.delivery_failed": "This message could not be delivered.",
+  "notifications.payload_malformed": "This installation could not read an event it was announcing.",
   "mail.recipient_missing": "This installation could not send a message: it had no address to send it to.",
   "mail.header_injection": "This installation refused to send a message whose subject or address was not on one line.",
 

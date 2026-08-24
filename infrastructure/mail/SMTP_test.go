@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	port "github.com/Jersyfi/hubtask/core/port/mail"
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/infrastructure/mail"
 )
 
@@ -40,7 +41,9 @@ func newServer(t *testing.T) *server {
 		t.Fatalf("listening: %v", err)
 	}
 	s := &server{listener: listener, done: make(chan struct{})}
-	go s.accept()
+	// Through the guard like every other goroutine in this codebase (ADR-0016, rule 5): a panic in
+	// a test's fake server would otherwise take the whole package down with no line number.
+	concurrency.Go(context.Background(), "test.smtp_server", func(context.Context) { s.accept() })
 	t.Cleanup(func() {
 		_ = listener.Close()
 		<-s.done
