@@ -382,7 +382,8 @@ func (pending) QueryItems(w http.ResponseWriter, r *http.Request) { notAvailable
 // SearchItems is overridden by RestController, for the same reason.
 func (pending) SearchItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// The bulk and the copy land with C-11.
+// BulkUpdateWorkItems and DuplicateWorkItem are overridden by RestController, for the reason given
+// at CreateContainer.
 func (pending) BulkUpdateWorkItems(w http.ResponseWriter, r *http.Request, _ openapi.BulkUpdateWorkItemsParams) {
 	notAvailable(w, r)
 }

@@ -84,6 +84,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.ReopenWorkItem{}.Descriptor(),
 		work.MoveWorkItem{}.Descriptor(),
 		work.DuplicateWorkItem{}.Descriptor(),
+		work.BulkUpdateWorkItems{}.Descriptor(),
 		work.ReorderWorkItem{}.Descriptor(),
 		work.ArchiveWorkItem{}.Descriptor(),
 		work.UnarchiveWorkItem{}.Descriptor(),

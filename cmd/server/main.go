@@ -33,7 +33,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
@@ -461,6 +463,11 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// The bulk performs the other use cases, so it needs the catalogue that is built from its own
+	// descriptor. The holder is what breaks that circle: it is passed in now and given the
+	// catalogue the moment there is one, a few lines below.
+	bulkCatalogue := &deferredCatalogue{}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -628,6 +635,10 @@ func run() error {
 		work.ReopenWorkItem{Completion: completion}.Descriptor(),
 
 		work.MoveWorkItem{Placement: placement}.Descriptor(),
+		work.BulkUpdateWorkItems{
+			Catalogue: bulkCatalogue, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
 		// The copy reaches almost everything an entry has, because that is what it carries: the
 		// row, its three sets, the vocabulary of the collection it lands in, and the counter of
 		// every file it points at (C-11).
@@ -702,6 +713,10 @@ func run() error {
 		// rather than being discovered later by whoever needed the audit entry (ADR-0015).
 		return fmt.Errorf("use case catalogue: %w", err)
 	}
+	// And now the bulk can reach the catalogue it is part of. Every operation it performs therefore
+	// goes through the same registry a REST call or an MCP tool call goes through, with the same
+	// input check, the same permission check and the same metric (C-11).
+	bulkCatalogue.catalogue = useCases
 
 	var api *http.Server
 	if cfg.HasRole(envport.RoleAPI) {
@@ -1216,4 +1231,28 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 		return syncservice.Position{}, err
 	}
 	return syncservice.Position{Seq: decoded.Seq, IssuedAt: decoded.IssuedAt}, nil
+}
+
+// deferredCatalogue hands the bulk use case the catalogue it is itself an entry of.
+//
+// The circle is real rather than accidental: `BulkUpdateWorkItems` performs the other use cases, so
+// it needs the registry - and the registry is built from its descriptor, so it cannot be handed one
+// that does not exist yet. This holder is passed in at construction and filled the moment the
+// registry is built, a few lines later and in the same function, so there is no window in which a
+// request could find it empty.
+//
+// It lives in the composition root rather than in the application layer because that is what it is:
+// wiring. The use case declares a narrow port (`work.Catalogue`) and knows nothing about how the
+// thing behind it came to exist.
+type deferredCatalogue struct{ catalogue *usecase.Registry }
+
+func (d *deferredCatalogue) Invoke(
+	ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	if d.catalogue == nil {
+		// Unreachable: the holder is filled before the server accepts a request. A named internal
+		// error rather than a nil dereference, because fail closed is the rule (ADR-0015).
+		return nil, shared.ErrInternal.WithDetail("usecase.catalogue_unavailable")
+	}
+	return d.catalogue.Invoke(ctx, name, actor, in)
 }
