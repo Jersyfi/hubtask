@@ -61,3 +61,43 @@ func TestAMalformedPayloadIsRefusedBeforeAnyWork(t *testing.T) {
 		})
 	}
 }
+
+// The invitation handler is *not* detached, and that is as much a design decision as the delivery
+// being detached: it writes a record and queues the send, both inside the runner's transaction, so
+// a process that dies halfway leaves neither.
+func TestTheInvitationHandlerRunsInsideTheRunnersTransaction(t *testing.T) {
+	var handler queue.Handler = InvitationMessage{}
+	if _, detached := handler.(queue.Detached); detached {
+		t.Error("the invitation handler owns its transactions - then the record and the job that " +
+			"sends it no longer commit together")
+	}
+}
+
+func TestTheInvitationJobNeedsAnAccountAndATenant(t *testing.T) {
+	tenant := shared.ID("01936f2a-7c1e-7000-8000-0000000000a1")
+	account := "01936f2a-7c1e-7000-8000-0000000000b2"
+
+	for _, tc := range []struct {
+		name   string
+		job    queue.Job
+		detail string
+	}{
+		{"no workspace", queue.Job{Payload: map[string]any{"account_id": account}},
+			"notifications.job_without_tenant"},
+		{"no account", queue.Job{TenantID: tenant, Payload: map[string]any{}},
+			"notifications.payload_malformed"},
+		{"an inviter that is not an identifier", queue.Job{TenantID: tenant, Payload: map[string]any{
+			"account_id": account, "invited_by": "somebody",
+		}}, "notifications.payload_malformed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := InvitationMessage{}.Run(t.Context(), tc.job)
+			if err == nil {
+				t.Fatal("accepted")
+			}
+			if got := shared.AsError(err).DetailCode; got != tc.detail {
+				t.Errorf("detail %q, want %q", got, tc.detail)
+			}
+		})
+	}
+}
