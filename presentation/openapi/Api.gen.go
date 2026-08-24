@@ -707,6 +707,8 @@ func (e DependencyHealthCircuitState) Valid() bool {
 
 // Defines values for DroppedReferenceKind.
 const (
+	DroppedReferenceKindASSIGNEE    DroppedReferenceKind = "ASSIGNEE"
+	DroppedReferenceKindATTACHMENT  DroppedReferenceKind = "ATTACHMENT"
 	DroppedReferenceKindBUCKET      DroppedReferenceKind = "BUCKET"
 	DroppedReferenceKindCUSTOMFIELD DroppedReferenceKind = "CUSTOM_FIELD"
 	DroppedReferenceKindLABEL       DroppedReferenceKind = "LABEL"
@@ -716,6 +718,10 @@ const (
 // Valid indicates whether the value is a known member of the DroppedReferenceKind enum.
 func (e DroppedReferenceKind) Valid() bool {
 	switch e {
+	case DroppedReferenceKindASSIGNEE:
+		return true
+	case DroppedReferenceKindATTACHMENT:
+		return true
 	case DroppedReferenceKindBUCKET:
 		return true
 	case DroppedReferenceKindCUSTOMFIELD:
@@ -2138,7 +2144,7 @@ type DroppedReference struct {
 	// Code A stable message code saying why.
 	Code string `json:"code"`
 
-	// Id The reference that could not be carried over.
+	// Id The reference that could not be carried over: an identifier for a label, a column or an account, and the key itself for a custom field, which has no identifier in a collection that does not define it.
 	Id string `json:"id"`
 
 	// ItemId The entry that lost it. A move carries a whole subtree, so one operation can drop references from several entries at once.

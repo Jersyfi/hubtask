@@ -3244,8 +3244,13 @@ components:
           description: >
             The entry that lost it. A move carries a whole subtree, so one operation can drop
             references from several entries at once.
-        kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
-        id: { type: string, description: The reference that could not be carried over. }
+        kind: { type: string, enum: [LABEL, BUCKET, MEMBER, ASSIGNEE, ATTACHMENT, CUSTOM_FIELD] }
+        id:
+          type: string
+          description: >
+            The reference that could not be carried over: an identifier for a label, a column or an
+            account, and the key itself for a custom field, which has no identifier in a collection
+            that does not define it.
         code: { type: string, description: A stable message code saying why. }
 
     FilterNode:

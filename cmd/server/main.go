@@ -628,6 +628,17 @@ func run() error {
 		work.ReopenWorkItem{Completion: completion}.Descriptor(),
 
 		work.MoveWorkItem{Placement: placement}.Descriptor(),
+		// The copy reaches almost everything an entry has, because that is what it carries: the
+		// row, its three sets, the vocabulary of the collection it lands in, and the counter of
+		// every file it points at (C-11).
+		work.DuplicateWorkItem{
+			Items: items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
+			Buckets: buckets, Fields: customFields, Containers: containers,
+			Attachments: mediaObjects, Media: mediaObjects, Profiles: profiles,
+			Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
+			Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		}.Descriptor(),
 		work.ReorderWorkItem{Placement: placement}.Descriptor(),
 		work.ArchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
 		work.UnarchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),

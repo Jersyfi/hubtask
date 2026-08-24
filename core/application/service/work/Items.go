@@ -93,6 +93,49 @@ func reading(item domain.WorkItem) access.ItemSubject {
 	return access.ItemSubject{Does: service.ItemRead, ID: item.ID, Assignee: item.AssigneeID}
 }
 
+// findParentItem reads the entry a request wants to place something under, where absent is the
+// caller's mistake and says so - unlike the entry being acted on, whose absence is a plain
+// not-found.
+func findParentItem(
+	ctx context.Context, items repository.Items, id shared.ID,
+) (domain.WorkItem, error) {
+	parent, err := items.Find(ctx, id)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return domain.WorkItem{}, shared.ErrNotFound.
+				WithDetail("items.parent_not_found").
+				WithParams(map[string]string{"parent_id": id.String()}).
+				WithFields(shared.FieldError{Path: "/target_parent_id", Code: "items.parent_not_found"})
+		}
+		return domain.WorkItem{}, err
+	}
+	return parent, nil
+}
+
+// findTargetCollection reads a collection a placement named, where absent is the caller's mistake
+// and says so - unlike the collection an entry already sits in, whose absence is a defect.
+//
+// Distinct from findNamedCollection, which answers the same question for the operations anchored to
+// a collection: the field the finding hangs on is `target_collection_id` here and `collection_id`
+// there, and a client that highlights the field it sent has to be told the one it sent.
+func findTargetCollection(
+	ctx context.Context, containers repository.Containers, id shared.ID,
+) (domain.Container, error) {
+	collection, err := containers.Find(ctx, id)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return domain.Container{}, shared.ErrNotFound.
+				WithDetail("items.collection_not_found").
+				WithParams(map[string]string{"collection_id": id.String()}).
+				WithFields(shared.FieldError{
+					Path: "/target_collection_id", Code: "items.collection_not_found",
+				})
+		}
+		return domain.Container{}, err
+	}
+	return collection, nil
+}
+
 // findCollection reads the collection an item already belongs to. A missing one under an item that
 // exists is a defect rather than a client's mistake: a tenant-scoped foreign key makes it
 // unreachable (ADR-0024).
