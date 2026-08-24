@@ -28,7 +28,7 @@ func search(t *testing.T, registry UseCaseRegistry, body string) *httptest.Respo
 	})
 
 	request := httptest.NewRequestWithContext(
-		ctx, http.MethodPost, APIBasePath+"/items:search", strings.NewReader(body))
+		ctx, http.MethodPost, APIBasePath+"/search", strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()

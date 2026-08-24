@@ -1045,7 +1045,7 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
-  /items:search:
+  /search:
     post:
       tags: [items]
       operationId: searchItems
@@ -1073,6 +1073,12 @@ paths:
         shorter than the size asked for. Walk on until `has_more` is false rather than stopping at
         the first short page. Naming a hub is the exception - a client that named a hub it cannot
         read is told so.
+
+        A `POST` and no `GET`. What somebody is looking for is their content, and a query string
+        travels through access logs, proxies and browser history; the same words in a body do not
+        (security.md §9, ADR-0018). What is searched today is entries - tasks, work packages and
+        activities - which is what `searchItems` says; a later milestone that makes containers or
+        comments searchable widens this operation rather than adding a second one.
       requestBody:
         required: true
         content:

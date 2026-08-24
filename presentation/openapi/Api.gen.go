@@ -3505,9 +3505,6 @@ type BulkItemsJSONRequestBody BulkItemsJSONBody
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
 
-// SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
-type SearchItemsJSONRequestBody = ItemSearchQuery
-
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
 
@@ -3519,6 +3516,9 @@ type StartRestoreJSONRequestBody = RestoreRequest
 
 // CreateRetentionPolicyJSONRequestBody defines body for CreateRetentionPolicy for application/json ContentType.
 type CreateRetentionPolicyJSONRequestBody = RetentionPolicy
+
+// SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
+type SearchItemsJSONRequestBody = ItemSearchQuery
 
 // SyncPullJSONRequestBody defines body for SyncPull for application/json ContentType.
 type SyncPullJSONRequestBody = SyncPullRequest
@@ -3741,9 +3741,6 @@ type ServerInterface interface {
 	// QueryItems The generic query - the basis for list, kanban, and timeline
 	// (POST /items:query)
 	QueryItems(w http.ResponseWriter, r *http.Request)
-	// SearchItems Full-text search over the entries a caller may see
-	// (POST /items:search)
-	SearchItems(w http.ResponseWriter, r *http.Request)
 
 	// (POST /media)
 	RequestMediaUpload(w http.ResponseWriter, r *http.Request, params RequestMediaUploadParams)
@@ -3786,6 +3783,9 @@ type ServerInterface interface {
 	// PreviewRetentionPolicy Determine the effect of a rule without executing it
 	// (POST /retention-policies/{policyId}:preview)
 	PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID)
+	// SearchItems Full-text search over the entries a caller may see
+	// (POST /search)
+	SearchItems(w http.ResponseWriter, r *http.Request)
 	// ListSyncDevices List your own devices
 	// (GET /sync/devices)
 	ListSyncDevices(w http.ResponseWriter, r *http.Request)
@@ -7006,20 +7006,6 @@ func (siw *ServerInterfaceWrapper) QueryItems(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// SearchItems operation middleware
-func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SearchItems(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // RequestMediaUpload operation middleware
 func (siw *ServerInterfaceWrapper) RequestMediaUpload(w http.ResponseWriter, r *http.Request) {
 
@@ -7442,6 +7428,20 @@ func (siw *ServerInterfaceWrapper) PreviewRetentionPolicy(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// SearchItems operation middleware
+func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchItems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSyncDevices operation middleware
 func (siw *ServerInterfaceWrapper) ListSyncDevices(w http.ResponseWriter, r *http.Request) {
 
@@ -7735,7 +7735,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}", wrapper.GetWorkItem)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:search", wrapper.SearchItems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search", wrapper.SearchItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)

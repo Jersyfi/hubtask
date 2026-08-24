@@ -14,7 +14,7 @@ import (
 
 const searchItemsUseCase = "SearchItems"
 
-// SearchItems answers POST /items:search (C-08).
+// SearchItems answers POST /search (C-08).
 //
 // A POST that reads, exactly as the query is: the request is a document, and a URL long enough to
 // carry a search phrase and a scope is a URL a proxy truncates. Nothing is written and the same

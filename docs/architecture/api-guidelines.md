@@ -48,7 +48,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | Trigger polling (Zapier/n8n) | `/integrations/triggers/{eventType}` | `GET` (sorted by `since`/cursor, deduplicable) |
 | Calendar | `/integrations/calendar-feeds`, `/calendar/{token}.ics` | CRUD, `GET` (public, token-protected) |
 | Tokens | `/auth/tokens` (PAT), `/auth/service-accounts` | `GET`, `POST`, `DELETE` |
-| Search | `/search` | `GET`/`POST` |
+| Search | `/search` | `POST` (`searchItems`, C-08). No `GET`: what somebody is looking for is their content, and a query string travels through access logs, proxies and browser history |
 | Event stream | `/stream` (SSE) | `GET` |
 | MCP | `/mcp` | Streamable HTTP |
 
