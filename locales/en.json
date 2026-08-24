@@ -319,6 +319,15 @@
   "lifecycle.policy_not_found": "No retention period is configured for that kind of data.",
   "lifecycle.run_unrecordable": "This installation could not record what a deletion run did.",
 
+  "notifications.tenant_missing": "This installation could not record a notification.",
+  "notifications.recipient_missing": "This installation could not record a notification.",
+  "notifications.category_unknown": "{value} is not a notification category.",
+  "notifications.channel_unknown": "{value} is not a notification channel.",
+  "notifications.category_off": "You have switched notifications of this kind off.",
+  "notifications.no_address": "There is no email address to send this to.",
+  "notifications.self_caused": "You did this yourself, so nothing was sent.",
+  "notifications.delivery_failed": "This message could not be delivered.",
+
   "usecase.input_invalid": "The request contains invalid values.",
   "usecase.field_required": "This field is required.",
   "usecase.field_unknown": "This field does not exist on this operation.",
