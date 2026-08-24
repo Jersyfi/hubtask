@@ -6,6 +6,7 @@ package notification
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/notification"
@@ -13,6 +14,9 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
+	"github.com/Jersyfi/hubtask/core/port/mail"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
@@ -271,3 +275,57 @@ func (s *signalLog) NotificationFailed(_ context.Context, category, channel, rea
 }
 
 var _ Signals = (*signalLog)(nil)
+
+// unitOfWork runs the closure without a transaction and records the scopes it was opened with -
+// enough to prove that every read and write is bound to the tenant the job named.
+type unitOfWork struct{ scopes []persistence.Scope }
+
+func (u *unitOfWork) Within(
+	ctx context.Context, scope persistence.Scope, fn func(context.Context) error,
+) error {
+	u.scopes = append(u.scopes, scope)
+	return fn(ctx)
+}
+
+func (u *unitOfWork) WithinReadOnly(
+	ctx context.Context, scope persistence.Scope, fn func(context.Context) error,
+) error {
+	return u.Within(ctx, scope, fn)
+}
+
+var _ persistence.UnitOfWork = (*unitOfWork)(nil)
+
+// mailbox is the mail port, in memory. What a test asserts against is the rendered message: the
+// subject somebody reads and the body they read after it.
+type mailbox struct {
+	sent []mail.Message
+	err  error
+}
+
+func (m *mailbox) Send(_ context.Context, message mail.Message) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.sent = append(m.sent, message)
+	return nil
+}
+
+var _ mail.Sender = (*mailbox)(nil)
+
+// catalogue is the i18n port with two languages in it, which is what the acceptance criterion
+// needs: an email rendered in the recipient's locale when the actor's differs cannot be proved
+// against a renderer that has only one language to answer with.
+type catalogue struct{}
+
+func (catalogue) Render(locale, code string, params map[string]string) string {
+	rendered := code
+	if strings.HasPrefix(locale, "de") {
+		rendered = "[de] " + code
+	}
+	for name, value := range params {
+		rendered += " " + name + "=" + value
+	}
+	return rendered
+}
+
+var _ i18n.Renderer = catalogue{}
