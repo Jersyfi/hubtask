@@ -347,6 +347,15 @@ func timeOrNil(at *time.Time) any {
 	return *at
 }
 
+// stringOrNil is the same for an optional text: the value, or an explicit null for one nobody
+// stated. Empty is not the answer - "" would say the language is the empty string.
+func stringOrNil(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
 // Descriptor is the catalogue entry: what the use case is called, what it needs, what it records,
 // and how to run it. Registering it is what makes it reachable through REST, MCP and automation
 // at once (arc42 §4).

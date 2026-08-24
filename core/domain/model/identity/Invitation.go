@@ -147,31 +147,16 @@ func (a Account) WithPreferences(p Preferences) (Account, error) {
 // localeTag checks the shape of a BCP 47 tag: de, de-AT, pt-BR, zh-Hans. Structural on purpose -
 // the catalogue decides which locales exist, and a tag this product has no translation for still
 // resolves to its fallback rather than failing a request (i18n-l10n.md §2).
+//
+// The grammar itself is shared.LanguageTag, because an entry's content language is checked against
+// exactly the same one (C-08). What is not shared is the message code: this is an account's
+// preference and says so.
 func localeTag(raw string) (string, error) {
-	tag := strings.TrimSpace(raw)
-	if tag == "" {
-		return "", nil
-	}
-	if utf8.RuneCountInString(tag) > 35 {
-		return "", shared.ErrValidation.WithDetail("accounts.locale_invalid")
-	}
-	for i, part := range strings.Split(tag, "-") {
-		if part == "" || len(part) > 8 {
-			return "", shared.ErrValidation.
-				WithDetail("accounts.locale_invalid").
-				WithParams(map[string]string{"value": tag})
-		}
-		for _, r := range part {
-			isLetter := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
-			// The first subtag is a language and is letters only; the ones after it may be
-			// digits (a region like 419, the UN code for Latin America).
-			isRegionDigit := r >= '0' && r <= '9' && i > 0
-			if !isLetter && !isRegionDigit {
-				return "", shared.ErrValidation.
-					WithDetail("accounts.locale_invalid").
-					WithParams(map[string]string{"value": tag})
-			}
-		}
+	tag, ok := shared.LanguageTag(raw)
+	if !ok {
+		return "", shared.ErrValidation.
+			WithDetail("accounts.locale_invalid").
+			WithParams(map[string]string{"value": strings.TrimSpace(raw)})
 	}
 	return tag, nil
 }

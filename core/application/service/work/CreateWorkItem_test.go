@@ -1094,3 +1094,52 @@ func TestTheOutputIsTheContractsShape(t *testing.T) {
 		t.Errorf("completion = %v, want an open one", out["completion"])
 	}
 }
+
+// The language an entry is written in, and where it comes from when nobody says (C-08,
+// i18n-l10n.md §5). The default is the creator's locale - a guess, and the honest kind: an entry
+// that stated no language at all would be indexed word by word, which is the worse guess of the two.
+func TestAnEntryTakesTheCreatorsLocaleWhenNoLanguageIsStated(t *testing.T) {
+	h := newItemHarness()
+	actor := itemActor()
+	actor.Locale = "de-AT"
+
+	item, _, err := h.handler.Execute(context.Background(), actor, taskCommand())
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if item.ContentLanguage != "de-AT" {
+		t.Errorf("the language is %q, want the creator's locale", item.ContentLanguage)
+	}
+}
+
+func TestAStatedLanguageBeatsTheCreatorsLocale(t *testing.T) {
+	h := newItemHarness()
+	actor := itemActor()
+	actor.Locale = "de-AT"
+
+	cmd := taskCommand()
+	cmd.ContentLanguage = "en"
+
+	item, _, err := h.handler.Execute(context.Background(), actor, cmd)
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if item.ContentLanguage != "en" {
+		t.Errorf("the language is %q, want the one the client stated", item.ContentLanguage)
+	}
+}
+
+// An anonymous or locale-less actor leaves the entry stating nothing, rather than inventing a
+// language for it: `simple` is what an unstated language is indexed under, and claiming English
+// would send a German entry through an English stemmer.
+func TestAnEntryStatesNoLanguageWhenTheCreatorHasNoLocale(t *testing.T) {
+	h := newItemHarness()
+
+	item, _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand())
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if item.ContentLanguage != "" {
+		t.Errorf("the language is %q, want none", item.ContentLanguage)
+	}
+}

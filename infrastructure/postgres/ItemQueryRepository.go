@@ -202,6 +202,7 @@ func readItems(ctx context.Context, tx pgx.Tx, statement query.Statement) ([]wor
 			&row.Depth, &row.Title, &row.Notes, &row.IsCompleted, &row.CompletedAt, &row.CompletedBy,
 			&row.BucketID, &row.OrderKey, &row.AssigneeID,
 			&row.CoverKind, &row.CoverColorToken, &row.CoverMediaID, &row.CustomFields,
+			&row.ContentLanguage,
 			&row.ArchivedAt, &row.DeletedAt,
 			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
 		); err != nil {

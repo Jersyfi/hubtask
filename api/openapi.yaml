@@ -2901,7 +2901,11 @@ components:
           type: object
           additionalProperties: true
         recurrence_rule_id: { type: [string, "null"], format: uuid }
-        content_language: { type: [string, "null"], description: BCP-47 }
+        content_language:
+          type: [string, "null"]
+          description: >
+            BCP-47, and null for an entry whose language nobody stated. It decides the text search
+            configuration the entry is indexed under (i18n-l10n.md §5, ADR-0034).
         archived_at: { type: [string, "null"], format: date-time }
         deleted_at: { type: [string, "null"], format: date-time }
         retention:
@@ -2945,6 +2949,14 @@ components:
         custom_fields:
           type: object
           additionalProperties: true
+        content_language:
+          type: [string, "null"]
+          description: >
+            BCP-47. The language the title and the notes are written in, which decides the text
+            search configuration this entry is indexed under (i18n-l10n.md §5, ADR-0034). Omitted
+            takes the creator's locale; a language this installation cannot index is stored and
+            indexed word by word rather than refused. `/meta/capabilities` lists the ones it can
+            under `text_languages`.
 
     WorkItemUpdate:
       type: object
@@ -2961,6 +2973,11 @@ components:
         custom_fields:
           type: object
           additionalProperties: true
+        content_language:
+          type: [string, "null"]
+          description: >
+            BCP-47, and null clears it. The entry is re-indexed under the new language on this
+            write; earlier entries are not, because their language did not change.
 
     MoveResult:
       type: object

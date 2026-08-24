@@ -213,11 +213,12 @@ func (r ItemRepository) SetAttributes(ctx context.Context, item work.WorkItem, e
 	}
 
 	affected, err := queries.SetWorkItemAttributes(ctx, sqlc.SetWorkItemAttributesParams{
-		Title:     item.Title,
-		Notes:     optionalText(item.Notes),
-		BucketID:  bucket,
-		UpdatedAt: timestampOf(item.UpdatedAt),
-		ID:        id,
+		Title:           item.Title,
+		Notes:           optionalText(item.Notes),
+		BucketID:        bucket,
+		ContentLanguage: optionalText(item.ContentLanguage),
+		UpdatedAt:       timestampOf(item.UpdatedAt),
+		ID:              id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
 		ExpectedVersion: int32(expectedVersion),
 	})
@@ -772,18 +773,19 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 	}
 
 	err = queries.InsertWorkItem(ctx, sqlc.InsertWorkItemParams{
-		ID:           id,
-		CollectionID: collection,
-		Type:         sqlc.ItemType(item.Type),
-		ParentID:     parent,
-		Path:         item.Path,
-		Depth:        depth,
-		Title:        item.Title,
-		Notes:        optionalText(item.Notes),
-		BucketID:     bucket,
-		OrderKey:     item.OrderKey,
-		CreatedBy:    createdBy,
-		CreatedAt:    timestampOf(item.CreatedAt),
+		ID:              id,
+		CollectionID:    collection,
+		Type:            sqlc.ItemType(item.Type),
+		ParentID:        parent,
+		Path:            item.Path,
+		Depth:           depth,
+		Title:           item.Title,
+		Notes:           optionalText(item.Notes),
+		BucketID:        bucket,
+		OrderKey:        item.OrderKey,
+		ContentLanguage: optionalText(item.ContentLanguage),
+		CreatedBy:       createdBy,
+		CreatedAt:       timestampOf(item.CreatedAt),
 	})
 	if err != nil {
 		return shared.ErrUnavailable.
@@ -869,17 +871,18 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 			CompletedAt: optionalTime(row.CompletedAt),
 			CompletedBy: completedBy,
 		},
-		BucketID:     bucketID,
-		OrderKey:     row.OrderKey,
-		AssigneeID:   assigneeID,
-		Cover:        cover,
-		CustomFields: customFields,
-		ArchivedAt:   optionalTime(row.ArchivedAt),
-		DeletedAt:    optionalTime(row.DeletedAt),
-		TrashBatchID: trashBatchID,
-		CreatedBy:    createdBy,
-		CreatedAt:    timeFrom(row.CreatedAt),
-		UpdatedAt:    timeFrom(row.UpdatedAt),
-		Version:      int(row.Version),
+		BucketID:        bucketID,
+		OrderKey:        row.OrderKey,
+		AssigneeID:      assigneeID,
+		Cover:           cover,
+		CustomFields:    customFields,
+		ContentLanguage: stringFrom(row.ContentLanguage),
+		ArchivedAt:      optionalTime(row.ArchivedAt),
+		DeletedAt:       optionalTime(row.DeletedAt),
+		TrashBatchID:    trashBatchID,
+		CreatedBy:       createdBy,
+		CreatedAt:       timeFrom(row.CreatedAt),
+		UpdatedAt:       timeFrom(row.UpdatedAt),
+		Version:         int(row.Version),
 	}, nil
 }

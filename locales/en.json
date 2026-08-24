@@ -116,6 +116,7 @@
   "items.title_empty": "An entry needs a title.",
   "items.title_too_long": "The title may be at most {maximum} characters long.",
   "items.title_malformed": "The title has to fit on one line. Longer text belongs in the notes.",
+  "items.content_language_invalid": "{value} is not a language tag. Use a code like de, de-AT or zh-Hans.",
   "items.profile_mismatched": "This installation is misconfigured and could not create that entry.",
   "items.identity_incomplete": "This installation is misconfigured and could not create that entry.",
   "items.path_malformed": "This installation is misconfigured and could not create that entry.",

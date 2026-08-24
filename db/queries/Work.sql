@@ -243,6 +243,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
+  wi.content_language,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -272,12 +273,13 @@ LIMIT 1;
 -- that own them, and their columns carry NULL until then.
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  bucket_id, order_key, created_by, created_at, updated_at, version
+  bucket_id, order_key, content_language, created_by, created_at, updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
   normalize(sqlc.arg('title')::text, NFC),
-  sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'), sqlc.arg('created_by'),
+  sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
+  sqlc.narg('content_language'), sqlc.arg('created_by'),
   sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
 
@@ -306,6 +308,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
+  wi.content_language,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -382,7 +385,7 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- name: SetWorkItemAttributes :execrows
 -- The item's own fields: what UpdateWorkItem may change in 0.2.0 (B-05).
 --
--- Both columns are written on every call, not only the ones that moved. The application has already
+-- Every column is written on every call, not only the ones that moved. The application has already
 -- decided what the row should say - it read the item, applied the update and refused what the capability
 -- profile does not allow - so this writes that decision whole. A statement that switched on which fields
 -- were sent would be the second place deciding it, in the layer that is not allowed to decide anything
@@ -391,15 +394,18 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- Optimistic locking in the WHERE clause, as everywhere: the update matches nothing when somebody else has
 -- moved the row on, and the caller learns that rather than overwriting them (api-guidelines.md §5).
 --
--- `search_vector` follows by itself. It is a generated column over title and notes, so the index behind
--- full text search cannot fall behind a rename - which is exactly what a trigger somebody has to remember
--- would eventually do.
+-- `search_document` follows by itself, through the trigger migration 0019 puts on this table. The
+-- index behind full text search therefore cannot fall behind a rename, and it cannot fall behind a
+-- change of language either - which is what the trigger buys over the generated column it replaces
+-- (ADR-0034): a generated column can only be a function of the row, and the configuration a
+-- document is built under is not one PostgreSQL will let a generated column choose.
 UPDATE work_item SET
-  title      = sqlc.arg('title'),
-  notes      = sqlc.narg('notes'),
-  bucket_id  = sqlc.narg('bucket_id'),
-  updated_at = sqlc.arg('updated_at'),
-  version    = version + 1
+  title            = sqlc.arg('title'),
+  notes            = sqlc.narg('notes'),
+  bucket_id        = sqlc.narg('bucket_id'),
+  content_language = sqlc.narg('content_language'),
+  updated_at       = sqlc.arg('updated_at'),
+  version          = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
 -- name: MoveWorkItemSubtree :execrows

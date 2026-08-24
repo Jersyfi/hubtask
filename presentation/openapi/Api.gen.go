@@ -2821,7 +2821,7 @@ type WorkItem struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
 	Completion   Completion         `json:"completion"`
 
-	// ContentLanguage BCP-47
+	// ContentLanguage BCP-47, and null for an entry whose language nobody stated. It decides the text search configuration the entry is indexed under (i18n-l10n.md §5, ADR-0034).
 	ContentLanguage *string                 `json:"content_language,omitempty"`
 	Cover           *Cover                  `json:"cover,omitempty"`
 	CreatedAt       *time.Time              `json:"created_at,omitempty"`
@@ -2859,21 +2859,24 @@ type WorkItem struct {
 
 // WorkItemCreate defines model for WorkItemCreate.
 type WorkItemCreate struct {
-	AssigneeId   *openapi_types.UUID     `json:"assignee_id,omitempty"`
-	AutoAssign   *bool                   `json:"auto_assign,omitempty"`
-	BeforeItemId *openapi_types.UUID     `json:"before_item_id,omitempty"`
-	BucketId     *openapi_types.UUID     `json:"bucket_id,omitempty"`
-	CollectionId *openapi_types.UUID     `json:"collection_id,omitempty"`
-	Cover        *Cover                  `json:"cover,omitempty"`
-	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
-	DueAt        *time.Time              `json:"due_at,omitempty"`
-	DueDateOnly  *bool                   `json:"due_date_only,omitempty"`
-	DueTimeZone  *string                 `json:"due_time_zone,omitempty"`
-	LabelIds     *[]openapi_types.UUID   `json:"label_ids,omitempty"`
-	MemberIds    *[]openapi_types.UUID   `json:"member_ids,omitempty"`
-	Notes        *string                 `json:"notes,omitempty"`
-	ParentId     *openapi_types.UUID     `json:"parent_id,omitempty"`
-	Title        string                  `json:"title"`
+	AssigneeId   *openapi_types.UUID `json:"assignee_id,omitempty"`
+	AutoAssign   *bool               `json:"auto_assign,omitempty"`
+	BeforeItemId *openapi_types.UUID `json:"before_item_id,omitempty"`
+	BucketId     *openapi_types.UUID `json:"bucket_id,omitempty"`
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
+	// ContentLanguage BCP-47. The language the title and the notes are written in, which decides the text search configuration this entry is indexed under (i18n-l10n.md §5, ADR-0034). Omitted takes the creator's locale; a language this installation cannot index is stored and indexed word by word rather than refused. `/meta/capabilities` lists the ones it can under `text_languages`.
+	ContentLanguage *string                 `json:"content_language,omitempty"`
+	Cover           *Cover                  `json:"cover,omitempty"`
+	CustomFields    *map[string]interface{} `json:"custom_fields,omitempty"`
+	DueAt           *time.Time              `json:"due_at,omitempty"`
+	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
+	DueTimeZone     *string                 `json:"due_time_zone,omitempty"`
+	LabelIds        *[]openapi_types.UUID   `json:"label_ids,omitempty"`
+	MemberIds       *[]openapi_types.UUID   `json:"member_ids,omitempty"`
+	Notes           *string                 `json:"notes,omitempty"`
+	ParentId        *openapi_types.UUID     `json:"parent_id,omitempty"`
+	Title           string                  `json:"title"`
 
 	// Type Extensible; /meta/capabilities returns the valid values.
 	Type ItemType `json:"type"`
@@ -2887,15 +2890,18 @@ type WorkItemPage struct {
 
 // WorkItemUpdate JSON Merge Patch; null deletes a field.
 type WorkItemUpdate struct {
-	AssigneeId   *openapi_types.UUID     `json:"assignee_id,omitempty"`
-	BucketId     *openapi_types.UUID     `json:"bucket_id,omitempty"`
-	Cover        *Cover                  `json:"cover,omitempty"`
-	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
-	DueAt        *time.Time              `json:"due_at,omitempty"`
-	DueDateOnly  *bool                   `json:"due_date_only,omitempty"`
-	DueTimeZone  *string                 `json:"due_time_zone,omitempty"`
-	Notes        *string                 `json:"notes,omitempty"`
-	Title        *string                 `json:"title,omitempty"`
+	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
+	BucketId   *openapi_types.UUID `json:"bucket_id,omitempty"`
+
+	// ContentLanguage BCP-47, and null clears it. The entry is re-indexed under the new language on this write; earlier entries are not, because their language did not change.
+	ContentLanguage *string                 `json:"content_language,omitempty"`
+	Cover           *Cover                  `json:"cover,omitempty"`
+	CustomFields    *map[string]interface{} `json:"custom_fields,omitempty"`
+	DueAt           *time.Time              `json:"due_at,omitempty"`
+	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
+	DueTimeZone     *string                 `json:"due_time_zone,omitempty"`
+	Notes           *string                 `json:"notes,omitempty"`
+	Title           *string                 `json:"title,omitempty"`
 }
 
 // AccountId defines model for AccountId.

@@ -43,6 +43,9 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 		"parent_id":     optionalUUIDField(body.ParentId),
 		"notes":         optionalStringField(body.Notes),
 		"bucket_id":     optionalUUIDField(body.BucketId),
+		// Empty is not a value here but the absence of one: the use case then takes the creator's
+		// locale, which is what an unstated content language falls back to (C-08).
+		"content_language": optionalStringField(body.ContentLanguage),
 	}
 	// The two assignment fields the create path serves since C-02: a named person, or the
 	// collection's policy asked for explicitly. Both optional, and the catalogue refuses the
@@ -113,6 +116,11 @@ func (c *RestController) UpdateWorkItem(
 		// Null and the empty string are one instruction: take the entry off the board. That is what
 		// makes them a different request from omitting the field, which leaves the column alone.
 		in["bucket_id"] = uuidOrEmpty(body.BucketId)
+	}
+	if present["content_language"] {
+		// The same shape: null clears the statement, and omitting the member leaves the entry
+		// indexed under the language it already declared.
+		in["content_language"] = stringOrEmpty(body.ContentLanguage)
 	}
 	withUnservedItemUpdateFields(body, present, in)
 
@@ -275,6 +283,9 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		CreatedAt:    &createdAt,
 		UpdatedAt:    &updatedAt,
 		Version:      out.Int("version"),
+	}
+	if language := out.String("content_language"); language != "" {
+		item.ContentLanguage = &language
 	}
 	if parent := out.String("parent_id"); parent != "" {
 		parentID := uuidValue(parent)
