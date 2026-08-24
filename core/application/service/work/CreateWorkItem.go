@@ -621,14 +621,18 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 		// Always present, as null for an entry with none, for the reason the bucket is: a field
 		// that appeared only once somebody had chosen a picture is one a client cannot read
 		// unconditionally (C-06).
-		"cover":       coverOutput(item.Cover),
-		"order_key":   item.OrderKey,
-		"archived_at": timeOrNil(item.ArchivedAt),
-		"deleted_at":  timeOrNil(item.DeletedAt),
-		"created_by":  item.CreatedBy.String(),
-		"created_at":  item.CreatedAt,
-		"updated_at":  item.UpdatedAt,
-		"version":     item.Version,
+		"cover": coverOutput(item.Cover),
+		// Always present, as an empty object for an entry carrying none: a client renders a form
+		// from the definitions and reads the values from here, and null would make it special-case
+		// the ordinary case (C-07).
+		"custom_fields": customFieldsOutput(item.CustomFields),
+		"order_key":     item.OrderKey,
+		"archived_at":   timeOrNil(item.ArchivedAt),
+		"deleted_at":    timeOrNil(item.DeletedAt),
+		"created_by":    item.CreatedBy.String(),
+		"created_at":    item.CreatedAt,
+		"updated_at":    item.UpdatedAt,
+		"version":       item.Version,
 	}
 	if !item.ParentID.IsZero() {
 		out["parent_id"] = item.ParentID.String()
@@ -754,4 +758,14 @@ func (h CreateWorkItem) invoke(
 		out = outcome.output(out)
 	}
 	return out, nil
+}
+
+// customFieldsOutput is how the entry's custom field document reaches a projection. A copy, because
+// a projection that handed out the aggregate's own map would let a caller change what was stored.
+func customFieldsOutput(values map[string]any) map[string]any {
+	out := make(map[string]any, len(values))
+	for key, value := range values {
+		out[key] = value
+	}
+	return out
 }

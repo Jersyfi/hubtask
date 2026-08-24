@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -383,6 +384,84 @@ func (r ItemRepository) SetCover(ctx context.Context, item work.WorkItem, expect
 			WithCause(fmt.Errorf("writing the cover of %s: %w", item.ID, err))
 	}
 	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
+}
+
+// SetCustomField writes one key of the entry's custom field document.
+//
+// One key rather than the whole document: the row may hold values whose definitions were deleted -
+// hidden from every read, but kept - and a write that replaced the document with what a read
+// answered would erase them. The value travels as jsonb; nil (the key absent from the wanted
+// state) removes it, which is the one spelling "cleared" has.
+func (r ItemRepository) SetCustomField(
+	ctx context.Context, item work.WorkItem, key string, definitionID shared.ID,
+	expectedVersion int,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+	definition, err := uuidOf(definitionID)
+	if err != nil {
+		return err
+	}
+	value, err := customValueOf(item.CustomFields, key)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetWorkItemCustomField(ctx, sqlc.SetWorkItemCustomFieldParams{
+		Value:        value,
+		Key:          key,
+		DefinitionID: definition,
+		UpdatedAt:    timestampOf(item.UpdatedAt),
+		ID:           id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing a custom field of %s: %w", item.ID, err))
+	}
+	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
+}
+
+// customValueOf renders one key's value for the statement, nil when the wanted state does not
+// carry it - which the statement reads as "remove the key".
+func customValueOf(values map[string]any, key string) ([]byte, error) {
+	value, held := values[key]
+	if !held {
+		return nil, nil
+	}
+
+	document, err := json.Marshal(value)
+	if err != nil {
+		// The value passed the domain's validation, so it has a JSON spelling. Reaching this is a
+		// defect rather than input (security.md §9).
+		return nil, shared.ErrInternal.WithDetail("items.custom_fields_unserialisable").WithCause(err)
+	}
+	return document, nil
+}
+
+// customFieldsFrom reads the document back. An absent or empty one is nil rather than an empty
+// map: the domain treats the two as the same thing, and nil is the cheaper of them.
+func customFieldsFrom(document []byte) (map[string]any, error) {
+	if len(document) == 0 {
+		return nil, nil
+	}
+
+	var values map[string]any
+	if err := json.Unmarshal(document, &values); err != nil {
+		return nil, shared.ErrInternal.WithDetail("items.custom_fields_unreadable").WithCause(err)
+	}
+	if len(values) == 0 {
+		return nil, nil
+	}
+	return values, nil
 }
 
 // coverFrom maps the three stored columns back onto the domain's one value.
@@ -770,6 +849,10 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 	if err != nil {
 		return work.WorkItem{}, err
 	}
+	customFields, err := customFieldsFrom(row.CustomFields)
+	if err != nil {
+		return work.WorkItem{}, err
+	}
 
 	return work.WorkItem{
 		ID:           id,
@@ -790,6 +873,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		OrderKey:     row.OrderKey,
 		AssigneeID:   assigneeID,
 		Cover:        cover,
+		CustomFields: customFields,
 		ArchivedAt:   optionalTime(row.ArchivedAt),
 		DeletedAt:    optionalTime(row.DeletedAt),
 		TrashBatchID: trashBatchID,

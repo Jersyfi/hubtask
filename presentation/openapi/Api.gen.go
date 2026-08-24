@@ -645,6 +645,42 @@ func (e CoverInputKind) Valid() bool {
 	}
 }
 
+// Defines values for CustomFieldKind.
+const (
+	CustomFieldKindBOOL        CustomFieldKind = "BOOL"
+	CustomFieldKindDATE        CustomFieldKind = "DATE"
+	CustomFieldKindMULTISELECT CustomFieldKind = "MULTI_SELECT"
+	CustomFieldKindNUMBER      CustomFieldKind = "NUMBER"
+	CustomFieldKindSELECT      CustomFieldKind = "SELECT"
+	CustomFieldKindTEXT        CustomFieldKind = "TEXT"
+	CustomFieldKindURL         CustomFieldKind = "URL"
+	CustomFieldKindUSER        CustomFieldKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the CustomFieldKind enum.
+func (e CustomFieldKind) Valid() bool {
+	switch e {
+	case CustomFieldKindBOOL:
+		return true
+	case CustomFieldKindDATE:
+		return true
+	case CustomFieldKindMULTISELECT:
+		return true
+	case CustomFieldKindNUMBER:
+		return true
+	case CustomFieldKindSELECT:
+		return true
+	case CustomFieldKindTEXT:
+		return true
+	case CustomFieldKindURL:
+		return true
+	case CustomFieldKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DependencyHealthCircuitState.
 const (
 	DependencyHealthCircuitStateClosed      DependencyHealthCircuitState = "closed"
@@ -1998,6 +2034,64 @@ type CoverInput struct {
 // CoverInputKind defines model for CoverInput.Kind.
 type CoverInputKind string
 
+// CustomFieldDefinition One field a workspace or a collection adds to its entries. The values live on the entry itself, in `custom_fields`; this is what says which keys exist, what they may hold and which types carry them.
+type CustomFieldDefinition struct {
+	// AppliesTo The item types that carry the field, bounded by the CUSTOM_FIELDS capability. Never empty - a definition no type carries is one nothing could ever hold.
+	AppliesTo []ItemType `json:"applies_to"`
+
+	// CollectionId The collection the definition belongs to, or null for the whole workspace. Always present: absent would say this server does not know about scopes, which is a different statement from "this one is workspace-wide".
+	CollectionId *openapi_types.UUID `json:"collection_id"`
+	CreatedAt    *time.Time          `json:"created_at,omitempty"`
+	Id           openapi_types.UUID  `json:"id"`
+
+	// IsRequired Whether the field has to hold a value. Enforced when the field is written, not retroactively: making a field required does not make the entries that predate it invalid.
+	IsRequired bool `json:"is_required"`
+
+	// Key The identifier the value is stored under, unique in its scope and fixed once defined. An identifier rather than a label: it appears in `custom_fields.<key>` filters, and a key that could be renamed would orphan every value stored under it.
+	Key string `json:"key"`
+
+	// Kind What a value for the field looks like. The eight the schema has carried since the first migration; validation against them is domain code (domain-model.md §6).
+	Kind CustomFieldKind `json:"kind"`
+
+	// Options The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind. Values rather than labels: what a person sees is the client's to render.
+	Options   []string   `json:"options"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+
+	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
+	Version int `json:"version"`
+}
+
+// CustomFieldDefinitionCreate defines model for CustomFieldDefinitionCreate.
+type CustomFieldDefinitionCreate struct {
+	// AppliesTo Omitted means TASK alone, which is the column's default.
+	AppliesTo *[]ItemType `json:"applies_to,omitempty"`
+
+	// CollectionId Omitted or null defines the field for the whole workspace.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	IsRequired   *bool               `json:"is_required,omitempty"`
+	Key          string              `json:"key"`
+
+	// Kind What a value for the field looks like. The eight the schema has carried since the first migration; validation against them is domain code (domain-model.md §6).
+	Kind    CustomFieldKind `json:"kind"`
+	Options *[]string       `json:"options,omitempty"`
+}
+
+// CustomFieldDefinitionUpdate JSON Merge Patch. The key and the kind are not in it: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them.
+type CustomFieldDefinitionUpdate struct {
+	AppliesTo  *[]ItemType `json:"applies_to,omitempty"`
+	IsRequired *bool       `json:"is_required,omitempty"`
+	Options    *[]string   `json:"options,omitempty"`
+}
+
+// CustomFieldKind What a value for the field looks like. The eight the schema has carried since the first migration; validation against them is domain code (domain-model.md §6).
+type CustomFieldKind string
+
+// CustomFieldValue One value for one key. `value` is required and may be null, which clears the key - the two are different requests, and a body that left the field out would be neither.
+type CustomFieldValue struct {
+	// Value The value, shaped by the definition's kind: a string for TEXT, SELECT and URL, a number for NUMBER, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, and an array of strings for MULTI_SELECT. Null clears the key.
+	Value interface{} `json:"value"`
+}
+
 // DegradedFeature defines model for DegradedFeature.
 type DegradedFeature struct {
 	Feature    string    `json:"feature"`
@@ -2825,6 +2919,12 @@ type ContainerTypeFilter = ContainerType
 // Cursor defines model for Cursor.
 type Cursor = string
 
+// CustomFieldId defines model for CustomFieldId.
+type CustomFieldId = openapi_types.UUID
+
+// CustomFieldKey defines model for CustomFieldKey.
+type CustomFieldKey = string
+
 // Expand defines model for Expand.
 type Expand = []string
 
@@ -2996,6 +3096,30 @@ type UnarchiveContainerParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListCustomFieldsParams defines parameters for ListCustomFields.
+type ListCustomFieldsParams struct {
+	// CollectionId The collection whose definitions are wanted, together with the workspace-wide ones. Omitted answers the workspace-wide ones alone.
+	CollectionId *openapi_types.UUID `form:"collection_id,omitempty" json:"collection_id,omitempty"`
+}
+
+// DefineCustomFieldParams defines parameters for DefineCustomField.
+type DefineCustomFieldParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DeleteCustomFieldParams defines parameters for DeleteCustomField.
+type DeleteCustomFieldParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateCustomFieldParams defines parameters for UpdateCustomField.
+type UpdateCustomFieldParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // CreateGroupParams defines parameters for CreateGroup.
 type CreateGroupParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -3099,6 +3223,12 @@ type ClearCoverParams struct {
 
 // SetCoverParams defines parameters for SetCover.
 type SetCoverParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetCustomFieldParams defines parameters for SetCustomField.
+type SetCustomFieldParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -3300,6 +3430,12 @@ type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
 
+// DefineCustomFieldJSONRequestBody defines body for DefineCustomField for application/json ContentType.
+type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
+
+// UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody defines body for UpdateCustomField for application/merge-patch+json ContentType.
+type UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody = CustomFieldDefinitionUpdate
+
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
 
@@ -3320,6 +3456,9 @@ type EditCommentJSONRequestBody EditCommentJSONBody
 
 // SetCoverJSONRequestBody defines body for SetCover for application/json ContentType.
 type SetCoverJSONRequestBody = CoverInput
+
+// SetCustomFieldJSONRequestBody defines body for SetCustomField for application/json ContentType.
+type SetCustomFieldJSONRequestBody = CustomFieldValue
 
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
@@ -3449,6 +3588,18 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}:unarchive)
 	UnarchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UnarchiveContainerParams)
+
+	// (GET /custom-fields)
+	ListCustomFields(w http.ResponseWriter, r *http.Request, params ListCustomFieldsParams)
+
+	// (POST /custom-fields)
+	DefineCustomField(w http.ResponseWriter, r *http.Request, params DefineCustomFieldParams)
+
+	// (DELETE /custom-fields/{fieldId})
+	DeleteCustomField(w http.ResponseWriter, r *http.Request, fieldId CustomFieldId, params DeleteCustomFieldParams)
+
+	// (PATCH /custom-fields/{fieldId})
+	UpdateCustomField(w http.ResponseWriter, r *http.Request, fieldId CustomFieldId, params UpdateCustomFieldParams)
 	// CreateGroup Create a group
 	// (POST /groups)
 	CreateGroup(w http.ResponseWriter, r *http.Request, params CreateGroupParams)
@@ -3503,6 +3654,9 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/cover)
 	SetCover(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetCoverParams)
+
+	// (PUT /items/{itemId}/custom-fields/{key})
+	SetCustomField(w http.ResponseWriter, r *http.Request, itemId ItemId, key CustomFieldKey, params SetCustomFieldParams)
 
 	// (DELETE /items/{itemId}/labels/{labelId})
 	RemoveLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
@@ -4881,6 +5035,180 @@ func (siw *ServerInterfaceWrapper) UnarchiveContainer(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// ListCustomFields operation middleware
+func (siw *ServerInterfaceWrapper) ListCustomFields(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCustomFieldsParams
+
+	// ------------- Optional query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCustomFields(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineCustomField operation middleware
+func (siw *ServerInterfaceWrapper) DefineCustomField(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineCustomFieldParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineCustomField(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteCustomField operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCustomField(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "fieldId" -------------
+	var fieldId CustomFieldId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "fieldId", r.PathValue("fieldId"), &fieldId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fieldId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteCustomFieldParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCustomField(w, r, fieldId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateCustomField operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCustomField(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "fieldId" -------------
+	var fieldId CustomFieldId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "fieldId", r.PathValue("fieldId"), &fieldId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fieldId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateCustomFieldParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCustomField(w, r, fieldId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateGroup operation middleware
 func (siw *ServerInterfaceWrapper) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
@@ -5773,6 +6101,65 @@ func (siw *ServerInterfaceWrapper) SetCover(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetCover(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetCustomField operation middleware
+func (siw *ServerInterfaceWrapper) SetCustomField(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "key" -------------
+	var key CustomFieldKey
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetCustomFieldParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetCustomField(w, r, itemId, key, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7331,6 +7718,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/labels/{labelId}", wrapper.AddLabel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/members/{accountId}", wrapper.RemoveMember)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/members/{accountId}", wrapper.AddMember)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/custom-fields", wrapper.ListCustomFields)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/custom-fields", wrapper.DefineCustomField)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/custom-fields/{fieldId}", wrapper.DeleteCustomField)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/custom-fields/{fieldId}", wrapper.UpdateCustomField)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/custom-fields/{key}", wrapper.SetCustomField)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.ClearCover)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.SetCover)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/attachments", wrapper.ListAttachments)

@@ -49,6 +49,16 @@ const (
 	// it (core/domain/model/view, ADR-0026).
 	KindObject Kind = "object"
 	KindList   Kind = "list"
+	// KindAny is a value whose shape another declaration decides.
+	//
+	// The second exception, and one use case has it: a custom field's value is a text, a number, a
+	// boolean, a date or a list depending on the definition the key names, and that definition is
+	// data a tenant wrote rather than anything the catalogue can pin (C-07, domain-model.md §6).
+	// Declaring it as a string would make every other kind a type error before the definition was
+	// even read, and declaring five fields would be five ways to send one value. The catalogue
+	// therefore checks that something arrived and leaves the judgement to the definition, exactly
+	// as it leaves a filter tree to the grammar that owns it.
+	KindAny Kind = "any"
 )
 
 // Field declares one input field of a use case.
@@ -148,6 +158,47 @@ func (in Input) IDList(field string) ([]shared.ID, error) {
 		ids = append(ids, id)
 	}
 	return ids, nil
+}
+
+// StringList returns a declared list of strings, empty when absent. A member that is not a string
+// fails the whole list, for the reason IDList's does: half a list is not a smaller request, it is
+// a different one.
+//
+// The same generosity about a bare value: a single string where a list belongs is the mistake
+// every channel's caller writes at least once, and it means exactly the one-element list.
+func (in Input) StringList(field string) ([]string, error) {
+	raw, present := in[field]
+	if !present || raw == nil {
+		return nil, nil
+	}
+
+	values, ok := raw.([]any)
+	if !ok {
+		if text, isString := raw.(string); isString {
+			return []string{text}, nil
+		}
+		if texts, isStrings := raw.([]string); isStrings {
+			// Already the shape, which is what an in-process caller hands over.
+			return texts, nil
+		}
+		return nil, shared.ErrValidation.
+			WithDetail("usecase.field_type_invalid").
+			WithFields(shared.FieldError{Path: "/" + field, Code: "usecase.field_type_invalid"})
+	}
+
+	texts := make([]string, 0, len(values))
+	for index, value := range values {
+		text, isString := value.(string)
+		if !isString {
+			return nil, shared.ErrValidation.
+				WithDetail("usecase.field_type_invalid").
+				WithFields(shared.FieldError{
+					Path: fieldPath(field, index), Code: "usecase.field_type_invalid",
+				})
+		}
+		texts = append(texts, text)
+	}
+	return texts, nil
 }
 
 // Present reports whether the caller sent the field at all - the distinction OptionalString makes

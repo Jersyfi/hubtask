@@ -259,6 +259,10 @@ func run() error {
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
+	// The vocabulary a workspace adds to its entries. Its own repository beside the items rather
+	// than a method on them: this is what the keys mean, and `work_item.custom_fields` is what an
+	// entry says in it (C-07).
+	customFields := postgres.NewCustomFieldRepository()
 	itemLabels := postgres.NewItemLabelRepository()
 	itemMembers := postgres.NewItemMemberRepository()
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
@@ -375,6 +379,15 @@ func run() error {
 		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,
+	}
+
+	// An edit and a deletion of a definition share one dependency set (work.CustomFieldWriter):
+	// the same read, the same scope resolution, the same permission question, and only the write
+	// at the end differs (C-07).
+	customFieldWriter := work.CustomFieldWriter{
+		Fields: customFields, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{},
 	}
 
 	// Both directions of an entry's attachments share one dependency set (work.ItemAttachmentWriter).
@@ -593,6 +606,24 @@ func run() error {
 		work.SetCover{Cover: coverWriter}.Descriptor(),
 		work.ClearCover{Cover: coverWriter}.Descriptor(),
 		work.AttachMedia{Writer: attachmentWriter}.Descriptor(),
+
+		work.DefineCustomField{
+			Fields: customFields, Containers: containers, Profiles: profiles,
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		work.ListCustomFields{
+			Fields: customFields, Containers: containers, Authorizer: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.UpdateCustomField{Writer: customFieldWriter}.Descriptor(),
+		work.DeleteCustomField{Writer: customFieldWriter}.Descriptor(),
+		work.SetCustomField{
+			Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
+			Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
+			Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		}.Descriptor(),
 		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		mediaservice.GetMedia{

@@ -348,6 +348,28 @@ resolves by HLC.
 
 **Read:** `domain-model.md` §3.5, §6; `offline-sync.md` §4.2; ADR-0026; `api-guidelines.md` §3
 
+*Decided while implementing:* each value remembers the **identity** of the definition it was
+written under — `work_item.custom_field_refs`, a map beside the values, written in the same
+statement as the value — because hiding by key alone fails the acceptance the moment the key is
+recreated: a live definition would stand behind the key again and the old value would be back.
+Every read (the find, the list, and the query endpoint's compiled projection) answers
+`custom_fields` through one SQL subquery that keeps only values whose own definition still lives,
+and the query filters take the same identity check, so a filter cannot be the one read that still
+finds what every other read hides. The write is one key per call all the way down —
+`jsonb_set`/key-removal under the version predicate, never the whole document — which is the
+per-key merge rule made unavoidable *and* what keeps a write from erasing hidden values it never
+saw. §4.2 gained the map row this task promised: LWW per key via the HLC, one change log entry per
+key, a cleared key as an explicit null. The value's shape in a filter keeps its JSON type (a
+number stays a number, so equality goes through containment and the GIN index), the family
+`custom_fields.<key>` is recognised by shape in the grammar with the key bound as a parameter
+(T-06 — the compiler spells the empty document `jsonb_build_object()` and reaches jsonb through
+`jsonb_exists`/`jsonb_extract_path_text`, because its alphabet has no braces and no hyphens for
+the fuzz gate to miss), and the family is deliberately **not** in `/meta/capabilities`: everything
+the manifest lists must be a usable name, and which keys exist is `/custom-fields`' answer. The
+key and the kind are immutable after definition; `applies_to` is bounded by the CUSTOM_FIELDS
+capability; a USER value is held to the same reachability question as an assignment; deleting is
+soft, idempotent, frees the key at once, and rewrites no entry.
+
 ---
 
 ## C-08 — Full-text search **[L]**

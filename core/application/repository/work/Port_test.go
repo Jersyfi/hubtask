@@ -79,6 +79,11 @@ func (itemDouble) SetAssignee(context.Context, work.WorkItem, int) error { retur
 func (itemDouble) CountOpenByAssignee(context.Context, []shared.ID) (map[shared.ID]int, error) {
 	return nil, nil
 }
+func (itemDouble) SetCustomField(
+	context.Context, work.WorkItem, string, shared.ID, int,
+) error {
+	return nil
+}
 func (itemDouble) SetCover(context.Context, work.WorkItem, int) error { return nil }
 func (itemDouble) MoveSubtree(
 	context.Context, Move,

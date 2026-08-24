@@ -426,6 +426,11 @@ func (i *workItems) CountOpenByAssignee(
 ) (map[shared.ID]int, error) {
 	return nil, nil
 }
+func (i *workItems) SetCustomField(
+	context.Context, work.WorkItem, string, shared.ID, int,
+) error {
+	return nil
+}
 func (i *workItems) SetCover(context.Context, work.WorkItem, int) error { return nil }
 func (i *workItems) MoveSubtree(
 	context.Context, workrepo.Move,

@@ -81,6 +81,8 @@ type items struct {
 	assignments []attributeWrite
 	// The cover side (C-06), same shape.
 	covers []attributeWrite
+	// The custom field side (C-07), same shape again.
+	customFields []attributeWrite
 }
 
 // rankWrite is one call to SetOrderKey: the item as it would be stored, and the version it was written
@@ -127,6 +129,22 @@ func (i *items) SetCover(_ context.Context, item domain.WorkItem, expectedVersio
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.covers = append(i.covers, attributeWrite{item: item, expectedVersion: expectedVersion})
+	written := item
+	written.Version = expectedVersion + 1
+	i.stored[item.ID] = written
+	return nil
+}
+
+// SetCustomField mirrors SetCover: the same optimistic lock, the same version bump on the stored
+// row, recorded in customFields so the C-07 tests can say what was written. The fake stores the
+// whole wanted state, which is what the real adapter's per-key write converges the row to.
+func (i *items) SetCustomField(
+	_ context.Context, item domain.WorkItem, _ string, _ shared.ID, expectedVersion int,
+) error {
+	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
+		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.customFields = append(i.customFields, attributeWrite{item: item, expectedVersion: expectedVersion})
 	written := item
 	written.Version = expectedVersion + 1
 	i.stored[item.ID] = written

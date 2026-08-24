@@ -354,6 +354,25 @@ type Items interface {
 	// from the answer, and the caller reads an absent key as zero.
 	CountOpenByAssignee(ctx context.Context, accounts []shared.ID) (map[shared.ID]int, error)
 
+	// SetCustomField writes one key of the entry's custom field document, or reports a version
+	// conflict. Its own method for the reason SetCover is: one decision about one column, never
+	// spending a rename's version.
+	//
+	// One key rather than the whole document, and that is a data-safety rule as much as a merge
+	// one. The stored document may hold values whose definitions were deleted - visible to no
+	// read, but kept (C-07) - and a write that replaced it with what a read answered would erase
+	// them. The item carries the wanted state; what is written is the one key, taken from it: a
+	// present key is set, an absent one removed. The version predicate is what makes two devices
+	// writing two different keys resolve rather than overwrite (offline-sync.md §4.2).
+	//
+	// The definition's identity travels with the value: a read shows a value only while exactly
+	// that definition lives, which is what keeps a deleted-and-recreated key from resurrecting
+	// what the old one held (C-07).
+	SetCustomField(
+		ctx context.Context, item work.WorkItem, key string, definitionID shared.ID,
+		expectedVersion int,
+	) error
+
 	// SetCover writes the cover, set or cleared, or reports a version conflict. Its own method
 	// for the reason SetAssignee is: one decision about one field, never spending a rename's
 	// version.
@@ -695,4 +714,43 @@ type Trash interface {
 	// hub whose collections are still there refuses to go. That is the database insisting on the
 	// order rather than a rule a caller could forget - but the caller still has to call it twice.
 	PurgeContainers(ctx context.Context, ids []shared.ID) (int, error)
+}
+
+// CustomFields stores the definitions a workspace or a collection adds to its entries (C-07).
+//
+// Its own interface rather than methods on Items, because the two are not the same thing: this is
+// the vocabulary, and `work_item.custom_fields` is what an entry says in it. A repository that
+// held both would let a read path reach a statement written for the other.
+type CustomFields interface {
+	// Insert writes a new definition. A key already taken in the scope comes back as ErrConflict:
+	// the unique index decides it, because a check followed by an insert is two statements with a
+	// gap between them.
+	Insert(ctx context.Context, definition work.CustomFieldDefinition) error
+
+	// Find returns one definition by identifier, deleted or not. Whether a deleted one may still
+	// be used is the domain's question.
+	Find(ctx context.Context, id shared.ID) (work.CustomFieldDefinition, error)
+
+	// FindInScope returns the live definition one collection sees under a key: the collection's
+	// own, or the workspace-wide one. The collection's own wins, so that a team can narrow a
+	// workspace-wide default rather than having to avoid its key.
+	//
+	// A zero collection asks about the workspace-wide scope alone.
+	FindInScope(ctx context.Context, collectionID shared.ID, key string) (work.CustomFieldDefinition, error)
+
+	// ListInScope returns every live definition in force for one collection: its own and the
+	// workspace-wide ones above it, ordered by scope and then by key. A zero collection answers
+	// the workspace-wide ones alone.
+	//
+	// Unpaged, deliberately. A workspace's vocabulary is small and bounded by what a person can
+	// fill in on one form; a client renders the whole of it or none of it, and a cursor over a
+	// list nobody scrolls would be machinery for its own sake.
+	ListInScope(ctx context.Context, collectionID shared.ID) ([]work.CustomFieldDefinition, error)
+
+	// SetAttributes writes what an edit may change, or reports a version conflict.
+	SetAttributes(ctx context.Context, definition work.CustomFieldDefinition, expectedVersion int) error
+
+	// SetDeleted marks the definition out of use, or reports a version conflict. A soft delete:
+	// the values stay in the entries and stop being visible.
+	SetDeleted(ctx context.Context, definition work.CustomFieldDefinition, expectedVersion int) error
 }

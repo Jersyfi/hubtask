@@ -315,6 +315,9 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		item.LabelIds = &labels
 	}
 	item.Cover = coverResponse(out["cover"])
+	if values, carried := out["custom_fields"].(map[string]any); carried {
+		item.CustomFields = &values
+	}
 	item.ArchivedAt, item.DeletedAt = optionalTimeField(out["archived_at"]), optionalTimeField(out["deleted_at"])
 	return item
 }

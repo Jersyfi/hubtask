@@ -35,6 +35,17 @@ const (
 	KindTimestamp Kind = "timestamp"
 	KindEnum      Kind = "enum"
 	KindIDSet     Kind = "id_set"
+	// KindCustom is a value whose shape a definition decides rather than this catalogue (C-07).
+	//
+	// The custom fields are the one family this package cannot enumerate: their keys are data a
+	// tenant wrote, and what a key holds is the definition's answer. So the grammar accepts the
+	// family by shape - `custom_fields.<key>`, with the key matching the same rule the definition
+	// enforces - and compares as text, which is what every kind has a spelling in.
+	KindCustom Kind = "custom"
+	// KindNumber is the shape a *value* takes when it is a JSON number and no column pins its
+	// type: a custom field's. Never a field's kind - `depth` is a KindInt column - so it appears
+	// only on Value, where it says which JSON scalar the comparison is against.
+	KindNumber Kind = "number"
 )
 
 // Field is one thing a query may ask about.
@@ -93,7 +104,54 @@ const (
 	// because the vector covers both and a client that searched `title` and matched a word in the
 	// notes would be reading a lie about which field it asked for.
 	FieldText = "text"
+
+	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
+	// grammar that carries a value: everything after the dot is a key, which is why it is a
+	// parameter in the compiled statement and never part of the text (ADR-0026, T-06).
+	CustomFieldPrefix = "custom_fields."
+	// MaxCustomFieldKeyLength mirrors the definition's bound (work.MaxCustomFieldKeyLength).
+	// Repeated rather than imported, because a longer key here would be a name the grammar accepts
+	// and no definition can ever have.
+	MaxCustomFieldKeyLength = 50
 )
+
+// customFieldOperators are what may be asked of a custom field.
+//
+// Narrower than a typed column's, and deliberately: the kind is not known when the filter is
+// validated - it is the definition's, which is data - so only the comparisons that mean the same
+// thing for every kind are offered. Ordering comparisons are absent for that reason: `LT` over a
+// jsonb value would compare a NUMBER as text on one entry and as a number on the next.
+var customFieldOperators = []Operator{
+	OpEq, OpNeq, OpIn, OpNotIn, OpIsNull, OpContains,
+}
+
+// CustomField reports whether the name belongs to the family, and answers with the key.
+//
+// The key is validated here rather than trusted, and against the same rule a definition enforces:
+// a name the grammar accepted and no definition could carry would be a filter that can only ever
+// match nothing, and the compiler would be binding a parameter nobody wrote.
+func CustomField(name string) (string, bool) {
+	key, found := strings.CutPrefix(name, CustomFieldPrefix)
+	if !found || key == "" || len(key) > MaxCustomFieldKeyLength {
+		return "", false
+	}
+	for i, r := range key {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case i > 0 && (r >= '0' && r <= '9' || r == '_'):
+		default:
+			return "", false
+		}
+	}
+	return key, true
+}
+
+// customFieldEntry is the synthetic field one `custom_fields.<key>` name resolves to.
+func customFieldEntry(name string) Field {
+	return Field{
+		Name: name, Kind: KindCustom, Operators: customFieldOperators, Nullable: true,
+	}
+}
 
 // catalogue is the field list, in the order `/meta/capabilities` reports it: the structural fields
 // first, then the content, then the timestamps, then the relations.
@@ -202,6 +260,15 @@ var catalogue = []Field{
 	},
 }
 
+// The custom fields are deliberately not in the catalogue.
+//
+// `/meta/capabilities` publishes it verbatim, and everything in it has to be a name a filter may
+// use - a client builds its editor from the list, so an entry that is published and refused is a
+// client rendering something the server rejects (api-guidelines.md §3). A family cannot satisfy
+// that: `custom_fields.*` is a shape rather than a field, and the keys are data. Where a client
+// learns which keys exist is `/custom-fields`, which answers the definitions themselves - with
+// their kinds and their options, which is more than the manifest could have said anyway.
+
 // Fields returns the catalogue, in its own order. A copy, because the manifest hands it out.
 func Fields() []Field { return slices.Clone(catalogue) }
 
@@ -222,6 +289,14 @@ func field(name, path string) (Field, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return Field{}, fieldError(path, "query.field_required", nil)
+	}
+	if key, isCustom := CustomField(name); isCustom {
+		// A key rather than a column, and the whole reason this branch exists: the family cannot
+		// be enumerated, so it is recognised by shape. What the key may hold is the definition's
+		// answer at write time, not this grammar's - a filter on a key nothing defines is a filter
+		// that matches nothing, which is the honest result rather than a refusal.
+		_ = key
+		return customFieldEntry(name), nil
 	}
 	found, known := FieldByName(name)
 	if !known {

@@ -43,16 +43,31 @@ func (b Boundary) IsZero() bool { return b.ID.IsZero() }
 // FindWorkItemRow, which is what the adapter scans into: a column added to one and not the other is
 // a mismatch the scan reports on the first row rather than a wrong answer.
 const (
+	// visibleCustomFields is the projection of `custom_fields` every read answers with: only the
+	// keys a live definition stands behind. The same expression the sqlc reads use (Work.sql,
+	// FindWorkItem), so the query endpoint and the plain reads hide a deleted definition's values
+	// identically (C-07). The stored document is untouched - the hiding is in the answer.
+	// jsonb_build_object() with no arguments is the empty document. The literal spelling '{}'
+	// would be shorter, and it is unavailable on purpose: this package's alphabet has no braces,
+	// so that the fuzz gate can prove no fragment of a request ever reaches the text (FuzzCompile).
+	visibleCustomFields = `(SELECT coalesce(jsonb_object_agg(kv.key, kv.value), jsonb_build_object()) ` +
+		`FROM jsonb_each(wi.custom_fields) AS kv WHERE EXISTS (` +
+		`SELECT 1 FROM custom_field_definition cfd WHERE cfd.deleted_at IS NULL ` +
+		`AND cfd.id = jsonb_extract_path_text(wi.custom_field_refs, kv.key)::uuid ` +
+		`AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)))::jsonb ` +
+		`AS custom_fields`
+
 	itemColumns = `wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, ` +
 		`wi.depth, wi.title, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, ` +
 		`wi.bucket_id, wi.order_key, wi.assignee_id, ` +
-		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, wi.archived_at, wi.deleted_at, ` +
+		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, ` + visibleCustomFields + `, ` +
+		`wi.archived_at, wi.deleted_at, ` +
 		`wi.trash_batch_id, ` +
 		`wi.created_by, wi.created_at, wi.updated_at, wi.version`
 
 	groupedColumns = `id, tenant_id, collection_id, type, parent_id, path, depth, title, notes, ` +
 		`is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id, ` +
-		`cover_kind, cover_color_token, cover_media_id, ` +
+		`cover_kind, cover_color_token, cover_media_id, custom_fields, ` +
 		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version`
 )
 
@@ -270,6 +285,11 @@ func (b *builder) leaf(node view.Node) {
 		return
 	}
 
+	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
+		b.customField(node, key)
+		return
+	}
+
 	name, ok := column(node.Field, itemPrefix)
 	if !ok {
 		b.fail(errFieldNotCompilable(node.Field))
@@ -328,6 +348,156 @@ func (b *builder) leaf(node view.Node) {
 	default:
 		b.fail(errOperatorNotCompilable(node.Op))
 	}
+}
+
+// customField writes a comparison against one key of the entry's custom field document.
+//
+// This is the one place ADR-0026's closed vocabulary cannot cover by enumeration, and the answer is
+// the one the ADR already gives: the *key* is a value, so it is bound as a parameter exactly like
+// the thing being compared. Every character of the SQL below is a constant of this package; the key
+// never touches the text (T-06).
+//
+// Equality goes through the containment operator rather than through `->>`, because containment is
+// what the GIN index on `custom_fields` answers (`jsonb_path_ops`, migration 0001). The other
+// operators fall back to `->>`, which is a text comparison the index cannot serve - bounded, as
+// every query here is, by the mandatory scope and the statement timeout.
+func (b *builder) customField(node view.Node, key string) {
+	// Every branch is conjoined with the live-definition check, so a filter answers over exactly
+	// the document a read answers with: a value whose definition was deleted matches nothing, and
+	// IS_NULL treats it as not set. Without this, a filter would be the one read that can still
+	// see what every other read hides.
+	switch node.Op {
+	case view.OpIsNull:
+		// The key is absent from the visible document: never stored, cleared, or stored under a
+		// definition that is gone.
+		b.write(`(NOT jsonb_exists(wi.custom_fields, `)
+		b.param(key)
+		b.write(`) OR NOT `)
+		b.liveDefinition(key)
+		b.write(`)`)
+	case view.OpEq:
+		b.write(`(`)
+		b.contains(key, node.Values[0])
+		b.write(` AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
+	case view.OpNeq:
+		// An entry that visibly holds nothing under the key counts as "not that one", for the
+		// reason bucket_id NEQ does: three-valued logic would drop the row instead of answering.
+		b.write(`NOT (`)
+		b.contains(key, node.Values[0])
+		b.write(` AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
+	case view.OpIn:
+		b.write(`(`)
+		b.customText(key)
+		b.write(` = ANY(`)
+		b.param(textsOf(node.Values, customValueText))
+		b.write(`::text[]) AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
+	case view.OpNotIn:
+		b.write(`(NOT `)
+		b.liveDefinition(key)
+		b.write(` OR `)
+		b.customText(key)
+		b.write(` IS NULL OR `)
+		b.customText(key)
+		b.write(` <> ALL(`)
+		b.param(textsOf(node.Values, customValueText))
+		b.write(`::text[]))`)
+	case view.OpContains:
+		// Two questions behind one spelling, and both are answered: a MULTI_SELECT that holds the
+		// element, or a text that contains it. The document decides which applies per row, which
+		// is the only honest reading when the kind is data.
+		b.write(`((`)
+		b.containsElement(key, node.Values[0])
+		b.write(` OR position(lower(`)
+		b.text(node.Values[0])
+		b.write(`) IN lower(coalesce(`)
+		b.customText(key)
+		b.write(`, ''))) > 0) AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
+	default:
+		b.fail(errOperatorNotCompilable(node.Op))
+	}
+}
+
+// liveDefinition is the check that the definition this entry's value was written under still
+// lives, in the entry's own collection or workspace-wide. By identity rather than by key, for the
+// reason the read projection is: a definition recreated under the same key must not make the old
+// value filterable again (C-07). A primary-key lookup per row, beside whatever the main predicate
+// costs.
+func (b *builder) liveDefinition(key string) {
+	b.write(`EXISTS (SELECT 1 FROM custom_field_definition cfd WHERE cfd.deleted_at IS NULL ` +
+		`AND cfd.id = jsonb_extract_path_text(wi.custom_field_refs, `)
+	b.param(key)
+	b.write(`)::uuid AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL))`)
+}
+
+// contains writes the indexable equality: does the document hold this key with this value.
+func (b *builder) contains(key string, value view.Value) {
+	b.write(`wi.custom_fields @> jsonb_build_object(`)
+	b.param(key)
+	b.write(`::text, `)
+	b.scalar(value)
+	b.write(`)`)
+}
+
+// containsElement is the same question about one element of a list value.
+func (b *builder) containsElement(key string, value view.Value) {
+	b.write(`wi.custom_fields @> jsonb_build_object(`)
+	b.param(key)
+	b.write(`::text, jsonb_build_array(`)
+	b.scalar(value)
+	b.write(`))`)
+}
+
+// scalar writes one comparison value as the JSON scalar it is.
+//
+// The cast is chosen by the value's own kind, which the grammar took from the document: a number
+// stays a number and a boolean a boolean, so containment matches what a NUMBER or a BOOL field
+// actually holds rather than its text spelling.
+func (b *builder) scalar(value view.Value) {
+	switch value.Kind {
+	case view.KindBool:
+		b.write(`to_jsonb(`)
+		b.param(value.Bool)
+		b.write(`::boolean)`)
+	case view.KindNumber:
+		b.write(`to_jsonb(`)
+		b.param(value.Text)
+		b.write(`::numeric)`)
+	default:
+		b.write(`to_jsonb(`)
+		b.text(value)
+		b.write(`)`)
+	}
+}
+
+// customText is the value as text, for the comparisons containment cannot express.
+func (b *builder) customText(key string) {
+	// The function form rather than the `->>` operator, and not for taste: this package may not
+	// write a hyphen at all, because two of them begin a SQL comment and the fuzz gate proves that
+	// none is ever emitted (ADR-0026, FuzzCompile). jsonb_extract_path_text is the same operation
+	// under a name made of letters. jsonb_exists above is the same trade for `?`.
+	b.write(`jsonb_extract_path_text(wi.custom_fields, `)
+	b.param(key)
+	b.write(`)`)
+}
+
+// customValueText is the value as `->>` renders the stored one: the text spelling of the JSON
+// scalar. A boolean has to be spelled the way jsonb spells it, which is `true` and not `TRUE`.
+func customValueText(value view.Value) string {
+	if value.Kind == view.KindBool {
+		if value.Bool {
+			return "true"
+		}
+		return "false"
+	}
+	return value.Text
 }
 
 // labels is the one relation a filter reaches into: the labels an entry carries.

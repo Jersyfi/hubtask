@@ -260,6 +260,10 @@ CREATE TABLE work_item (
   cover_color_token  text,
   cover_media_id     uuid,
   custom_fields      jsonb NOT NULL DEFAULT '{}'::jsonb,
+  -- Which definition each custom field value was written under: {key: definition id}. A value is
+  -- visible only while exactly that definition lives, which is what keeps a deleted-and-recreated
+  -- key from resurrecting the old value (C-07, migration 0018).
+  custom_field_refs  jsonb NOT NULL DEFAULT '{}'::jsonb,
   recurrence_rule_id uuid,
   origin_jumble_id   uuid,
   content_language   text,
@@ -352,10 +356,15 @@ CREATE TABLE custom_field_definition (
   options       jsonb NOT NULL DEFAULT '[]'::jsonb,
   is_required   boolean NOT NULL DEFAULT false,
   applies_to    item_type[] NOT NULL DEFAULT '{TASK}',
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  version       integer     NOT NULL DEFAULT 1,
   deleted_at    timestamptz,
   CONSTRAINT custom_field_definition_collection_id_fkey
     FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
+CREATE UNIQUE INDEX custom_field_definition_tenant_id_uq ON custom_field_definition (tenant_id, id);
+CREATE INDEX cfd_scope_idx ON custom_field_definition (tenant_id, collection_id) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX cfd_key_uq
   ON custom_field_definition (tenant_id, coalesce(collection_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
   WHERE deleted_at IS NULL;

@@ -1821,6 +1821,146 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /custom-fields:
+    get:
+      tags: [structure]
+      operationId: listCustomFields
+      description: >
+        The custom field definitions in force, by key. Naming a collection answers the ones that
+        apply inside it: its own, and the workspace-wide ones above it. Naming none answers the
+        workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in
+        the entries and stop being visible, which is what makes the deletion undoable.
+      parameters:
+        - name: collection_id
+          in: query
+          required: false
+          description: >
+            The collection whose definitions are wanted, together with the workspace-wide ones.
+            Omitted answers the workspace-wide ones alone.
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The definitions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomFieldDefinition"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [structure]
+      operationId: defineCustomField
+      description: >
+        Defines a custom field. The key has to be free in its scope - a collection's keys are free
+        of each other's and of the workspace-wide ones - and it is an identifier rather than a
+        label: lower case, digits and underscores, and it never changes afterwards. Which types
+        carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has
+        no custom fields, so naming one is refused.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomFieldDefinitionCreate"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomFieldDefinition"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /custom-fields/{fieldId}:
+    parameters:
+      - $ref: "#/components/parameters/CustomFieldId"
+    patch:
+      tags: [structure]
+      operationId: updateCustomField
+      description: >
+        Changes what a definition permits. A field that is not sent is left alone. The key and the
+        kind are not among them: a key that moved would orphan every value stored under it, and a
+        kind that changed would reinterpret them - both are a new definition rather than an edit.
+        Narrowing the options of a SELECT does not rewrite the entries that hold a value which is
+        no longer offered; they keep it until somebody sets the field again.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/CustomFieldDefinitionUpdate"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomFieldDefinition"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [structure]
+      operationId: deleteCustomField
+      description: >
+        Takes the definition out of use. A soft delete: the values stay in the entries and stop
+        being visible, because rewriting `custom_fields` across every entry in a collection would
+        be an unbounded write from one request. A definition recreated under the same key is a new
+        definition and shows none of what the old one held.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/custom-fields/{key}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+      - $ref: "#/components/parameters/CustomFieldKey"
+    put:
+      tags: [items]
+      operationId: setCustomField
+      description: >
+        Writes one custom field on an entry. The value is validated against the definition in force
+        - a SELECT value outside its options, a NUMBER arriving as a string, a USER pointing at an
+        account of another workspace are each `validation_failed` with the field path, never a
+        stored value. Sending null clears the key. One key per call, because the merge rule is per
+        key: two devices setting two different keys converge to both.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomFieldValue"
+      responses:
+        "200":
+          description: The entry, the field written
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}/cover:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -2097,6 +2237,17 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    CustomFieldId:
+      name: fieldId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CustomFieldKey:
+      name: key
+      in: path
+      required: true
+      description: The definition's key. An identifier, never a label.
+      schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
     LabelId:
       name: labelId
       in: path
@@ -2504,6 +2655,109 @@ components:
           enum: [COLOR, IMAGE]
         color_token: { type: [string, "null"] }
         media_id: { type: [string, "null"], format: uuid }
+
+    CustomFieldDefinition:
+      type: object
+      description: >
+        One field a workspace or a collection adds to its entries. The values live on the entry
+        itself, in `custom_fields`; this is what says which keys exist, what they may hold and
+        which types carry them.
+      required: [id, collection_id, key, kind, options, is_required, applies_to, version]
+      properties:
+        id: { type: string, format: uuid }
+        collection_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The collection the definition belongs to, or null for the whole workspace. Always
+            present: absent would say this server does not know about scopes, which is a different
+            statement from "this one is workspace-wide".
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{0,49}$"
+          description: >
+            The identifier the value is stored under, unique in its scope and fixed once defined.
+            An identifier rather than a label: it appears in `custom_fields.<key>` filters, and a
+            key that could be renamed would orphan every value stored under it.
+        kind:
+          $ref: "#/components/schemas/CustomFieldKind"
+        options:
+          type: array
+          description: >
+            The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind.
+            Values rather than labels: what a person sees is the client's to render.
+          items: { type: string, minLength: 1, maxLength: 200 }
+        is_required:
+          type: boolean
+          description: >
+            Whether the field has to hold a value. Enforced when the field is written, not
+            retroactively: making a field required does not make the entries that predate it
+            invalid.
+        applies_to:
+          type: array
+          description: >
+            The item types that carry the field, bounded by the CUSTOM_FIELDS capability. Never
+            empty - a definition no type carries is one nothing could ever hold.
+          minItems: 1
+          items: { $ref: "#/components/schemas/ItemType" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version:
+          type: integer
+          description: The optimistic lock, returned as the ETag and sent back as If-Match.
+
+    CustomFieldKind:
+      type: string
+      description: >
+        What a value for the field looks like. The eight the schema has carried since the first
+        migration; validation against them is domain code (domain-model.md §6).
+      enum: [TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL]
+
+    CustomFieldDefinitionCreate:
+      type: object
+      required: [key, kind]
+      properties:
+        collection_id:
+          type: [string, "null"]
+          format: uuid
+          description: Omitted or null defines the field for the whole workspace.
+        key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+        kind: { $ref: "#/components/schemas/CustomFieldKind" }
+        options:
+          type: array
+          items: { type: string, minLength: 1, maxLength: 200 }
+        is_required: { type: boolean, default: false }
+        applies_to:
+          type: array
+          description: Omitted means TASK alone, which is the column's default.
+          items: { $ref: "#/components/schemas/ItemType" }
+
+    CustomFieldDefinitionUpdate:
+      type: object
+      description: >
+        JSON Merge Patch. The key and the kind are not in it: a key that moved would orphan every
+        value stored under it, and a kind that changed would reinterpret them.
+      properties:
+        options:
+          type: array
+          items: { type: string, minLength: 1, maxLength: 200 }
+        is_required: { type: boolean }
+        applies_to:
+          type: array
+          items: { $ref: "#/components/schemas/ItemType" }
+
+    CustomFieldValue:
+      type: object
+      description: >
+        One value for one key. `value` is required and may be null, which clears the key - the two
+        are different requests, and a body that left the field out would be neither.
+      required: [value]
+      properties:
+        value:
+          description: >
+            The value, shaped by the definition's kind: a string for TEXT, SELECT and URL, a number
+            for NUMBER, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for
+            USER, and an array of strings for MULTI_SELECT. Null clears the key.
 
     MediaObject:
       type: object

@@ -116,6 +116,15 @@ type WorkItem struct {
 	// wins per field via the HLC - two devices choosing a colour and an image is a genuine
 	// conflict with one answer (offline-sync.md §4.2).
 	Cover *Cover
+	// CustomFields is what this workspace added to its entries, keyed by the definition's key
+	// (domain-model.md §6). A map rather than columns, because the keys are data: a tenant defines
+	// them and a migration cannot.
+	//
+	// It merges per key rather than as one value: two devices setting two different keys converge
+	// to both, and merging the whole document as one scalar is precisely the loss the per-field
+	// rule exists to prevent (offline-sync.md §4.2). Nil and empty are the same thing - an entry
+	// carrying nothing.
+	CustomFields map[string]any
 
 	ArchivedAt   *time.Time
 	DeletedAt    *time.Time
@@ -302,6 +311,9 @@ const (
 	FieldBucketID   = "bucket_id"
 	FieldAssigneeID = "assignee_id"
 	FieldCover      = "cover"
+	// FieldCustomFields is the column. One *key* of it reaches a change log entry as
+	// `custom_fields.<key>`, which is what makes the merge per key (CustomFieldPath).
+	FieldCustomFields = "custom_fields"
 	// FieldCollectionID is not something an update may set - an item changes collection by being
 	// moved - but it is a field that moves, and the records of a move name it.
 	FieldCollectionID = "collection_id"
@@ -549,6 +561,16 @@ func (i WorkItem) EnsureAttachable(profile CapabilityProfile) error {
 	return i.EnsureEditable()
 }
 
+// EnsureCustomisable refuses what cannot hold a custom field at all: a type whose profile does not
+// carry CUSTOM_FIELDS - an activity - and a trashed or archived entry. The capability first, for
+// the reason EnsureAssignable asks it first.
+func (i WorkItem) EnsureCustomisable(profile CapabilityProfile) error {
+	if err := profile.Require(CapabilityCustomFields, "/value"); err != nil {
+		return err
+	}
+	return i.EnsureEditable()
+}
+
 // Covered returns the item wearing the cover. Idempotent for the reason Assigned is: the same
 // cover again comes back untouched, so nothing is written, no version is spent and nothing is
 // announced.
@@ -571,6 +593,69 @@ func (i WorkItem) Uncovered(at time.Time) WorkItem {
 	i.Cover = nil
 	i.UpdatedAt = at
 	return i
+}
+
+// CustomFieldPath is how one key is named outside the entry: in a change log entry, in an audit
+// entry and in a query filter. One spelling, so that a device merging a change and a client
+// writing a filter are talking about the same thing (api-guidelines.md §3, offline-sync.md §4.2).
+func CustomFieldPath(key string) string { return FieldCustomFields + "." + key }
+
+// WithCustomField returns the item with one custom field written, and reports whether anything
+// moved. A nil value clears the key.
+//
+// One key at a time, which is the merge rule made unavoidable: a caller that could write the whole
+// document would be writing keys it never read, and the later of two devices would erase the
+// other's. Idempotent for the reason Covered is - the same value again comes back untouched, so
+// nothing is written, no version is spent and nothing is announced.
+//
+// The map is copied rather than mutated. A caller holding the item it passed in must not see it
+// change under them, and an aggregate that hands out a mutable interior is one whose invariants
+// are advisory.
+func (i WorkItem) WithCustomField(key string, value any, at time.Time) (WorkItem, bool) {
+	existing, held := i.CustomFields[key]
+	if value == nil && !held {
+		return i, false
+	}
+	if held && sameCustomValue(existing, value) {
+		return i, false
+	}
+
+	written := make(map[string]any, len(i.CustomFields)+1)
+	for k, v := range i.CustomFields {
+		written[k] = v
+	}
+	if value == nil {
+		delete(written, key)
+	} else {
+		written[key] = value
+	}
+
+	i.CustomFields = written
+	i.UpdatedAt = at
+	return i, true
+}
+
+// sameCustomValue compares two stored values. Arrays by element, everything else by equality: the
+// values that reach here are what a JSON document decodes to, and the only composite among them is
+// the list a MULTI_SELECT holds.
+func sameCustomValue(a, b any) bool {
+	first, firstIsList := a.([]any)
+	second, secondIsList := b.([]any)
+	if firstIsList != secondIsList {
+		return false
+	}
+	if !firstIsList {
+		return a == b
+	}
+	if len(first) != len(second) {
+		return false
+	}
+	for i := range first {
+		if first[i] != second[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // ChildPath is where an item directly underneath this one would sit. Kept next to Path so that

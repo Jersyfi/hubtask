@@ -255,6 +255,27 @@ func (pending) DeleteComment(w http.ResponseWriter, r *http.Request, _ openapi.I
 	notAvailable(w, r)
 }
 
+// The custom field operations land one by one as C-07 registers each use case.
+func (pending) ListCustomFields(w http.ResponseWriter, r *http.Request, _ openapi.ListCustomFieldsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCustomField(w http.ResponseWriter, r *http.Request, _ openapi.DefineCustomFieldParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateCustomField(w http.ResponseWriter, r *http.Request, _ openapi.CustomFieldId, _ openapi.UpdateCustomFieldParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteCustomField(w http.ResponseWriter, r *http.Request, _ openapi.CustomFieldId, _ openapi.DeleteCustomFieldParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SetCustomField(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CustomFieldKey, _ openapi.SetCustomFieldParams) {
+	notAvailable(w, r)
+}
+
 // The media operations land one by one as C-06 registers each use case.
 func (pending) SetCover(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetCoverParams) {
 	notAvailable(w, r)

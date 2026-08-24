@@ -54,6 +54,12 @@ const (
 	// and for the same reason: a history that said "changed" would not say what a person did.
 	ItemAttachmentAdded   Verb = "item.attachment_added"
 	ItemAttachmentRemoved Verb = "item.attachment_removed"
+	// ItemCustomFieldSet is one custom field written on an entry (C-07). Its own verb rather than
+	// `item.updated`, for the reason the cover pair has one: a history that rendered filling in a
+	// field and renaming an entry as the same sentence would be a history nobody reads twice. One
+	// verb for setting and clearing, because the change set carries both sides and "cleared" is a
+	// value moving to nothing rather than a different act.
+	ItemCustomFieldSet Verb = "item.custom_field_set"
 	// The cover pair (C-06). Their own verbs rather than `item.updated`, because a history that
 	// rendered choosing a picture and renaming an entry as the same sentence would be a history
 	// nobody reads twice - and because two use cases sharing a verb is exactly what the gate
@@ -71,7 +77,8 @@ var verbs = [...]Verb{
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved, ItemReordered,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemLabelAdded, ItemLabelRemoved,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
-	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared, ItemCommented,
+	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
+	ItemCustomFieldSet, ItemCommented,
 }
 
 // Verbs returns every verb the history knows, in a stable order.
