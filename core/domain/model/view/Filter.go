@@ -374,6 +374,9 @@ func parseValue(raw any, target Field, path string) (Value, error) {
 		}
 		return Value{Kind: KindEnum, Text: text}, nil
 
+	case KindCustom:
+		return parseCustomValue(raw, path)
+
 	default: // KindString, KindText
 		text, ok := raw.(string)
 		if !ok {
@@ -392,6 +395,57 @@ func parseValue(raw any, target Field, path string) (Value, error) {
 			})
 		}
 		return Value{Kind: target.Kind, Text: text}, nil
+	}
+}
+
+// parseCustomValue reads a value for a custom field, whose type no column pins.
+//
+// The three JSON scalars a definition can produce, and the value's own type is what says which
+// comparison is meant: a NUMBER field holds a JSON number, and a filter that had to spell it as a
+// string would match nothing on every entry that holds one. A list is not among them - a
+// MULTI_SELECT is asked with CONTAINS, one element at a time, which is the same shape the labels
+// take.
+func parseCustomValue(raw any, path string) (Value, error) {
+	switch typed := raw.(type) {
+	case bool:
+		return Value{Kind: KindBool, Bool: typed}, nil
+
+	case string:
+		text := strings.TrimSpace(typed)
+		if text == "" {
+			return Value{}, fieldError(path, "query.value_required", nil)
+		}
+		if len([]rune(text)) > MaxValueLength {
+			return Value{}, fieldError(path, "query.value_too_long", map[string]string{
+				"maximum": strconv.Itoa(MaxValueLength),
+			})
+		}
+		return Value{Kind: KindString, Text: text}, nil
+
+	default:
+		number, ok := numberTextOf(raw)
+		if !ok {
+			return Value{}, fieldError(path, "query.value_type_invalid", nil)
+		}
+		// The canonical spelling rather than the float, because the comparison is against a JSON
+		// scalar and the adapter casts it back to a number. A float carried through Go's default
+		// formatting would spell 1e+06 for a million.
+		return Value{Kind: KindNumber, Text: number}, nil
+	}
+}
+
+// numberTextOf renders a JSON number in the spelling the database will parse. The shapes are the
+// ones a decoded document produces across the three channels.
+func numberTextOf(raw any) (string, bool) {
+	switch number := raw.(type) {
+	case float64:
+		return strconv.FormatFloat(number, 'f', -1, 64), true
+	case int:
+		return strconv.Itoa(number), true
+	case int64:
+		return strconv.FormatInt(number, 10), true
+	default:
+		return "", false
 	}
 }
 

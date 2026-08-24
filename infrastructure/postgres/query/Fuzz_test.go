@@ -52,6 +52,16 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"due_at","op":"EQ","value":"2026-08-19T00:00:00Z"}`,
 		`{"field":"title","op":"EQ","value":"$1"}`,
 		`{"field":"title","op":"EQ","value":"COLLATE \"C\""}`,
+		// The custom field family (C-07). The key is the one part of a field *name* that is a
+		// value, so these seeds are what says it never reaches the SQL text.
+		`{"field":"custom_fields.priority","op":"EQ","value":"high"}`,
+		`{"field":"custom_fields.budget","op":"EQ","value":1000}`,
+		`{"field":"custom_fields.done_twice","op":"EQ","value":true}`,
+		`{"field":"custom_fields.tags","op":"CONTAINS","value":"urgent"}`,
+		`{"field":"custom_fields.priority","op":"IN","value":["high","low"]}`,
+		`{"field":"custom_fields.priority","op":"IS_NULL"}`,
+		`{"field":"custom_fields.'; DROP TABLE work_item; --","op":"EQ","value":"x"}`,
+		`{"field":"custom_fields.a\" OR 1=1 --","op":"EQ","value":"x"}`,
 		`not json at all`,
 		`{}`,
 		`[]`,

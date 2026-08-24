@@ -46,13 +46,14 @@ const (
 	itemColumns = `wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, ` +
 		`wi.depth, wi.title, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, ` +
 		`wi.bucket_id, wi.order_key, wi.assignee_id, ` +
-		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, wi.archived_at, wi.deleted_at, ` +
+		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, wi.custom_fields, ` +
+		`wi.archived_at, wi.deleted_at, ` +
 		`wi.trash_batch_id, ` +
 		`wi.created_by, wi.created_at, wi.updated_at, wi.version`
 
 	groupedColumns = `id, tenant_id, collection_id, type, parent_id, path, depth, title, notes, ` +
 		`is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id, ` +
-		`cover_kind, cover_color_token, cover_media_id, ` +
+		`cover_kind, cover_color_token, cover_media_id, custom_fields, ` +
 		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version`
 )
 
@@ -270,6 +271,11 @@ func (b *builder) leaf(node view.Node) {
 		return
 	}
 
+	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
+		b.customField(node, key)
+		return
+	}
+
 	name, ok := column(node.Field, itemPrefix)
 	if !ok {
 		b.fail(errFieldNotCompilable(node.Field))
@@ -328,6 +334,126 @@ func (b *builder) leaf(node view.Node) {
 	default:
 		b.fail(errOperatorNotCompilable(node.Op))
 	}
+}
+
+// customField writes a comparison against one key of the entry's custom field document.
+//
+// This is the one place ADR-0026's closed vocabulary cannot cover by enumeration, and the answer is
+// the one the ADR already gives: the *key* is a value, so it is bound as a parameter exactly like
+// the thing being compared. Every character of the SQL below is a constant of this package; the key
+// never touches the text (T-06).
+//
+// Equality goes through the containment operator rather than through `->>`, because containment is
+// what the GIN index on `custom_fields` answers (`jsonb_path_ops`, migration 0001). The other
+// operators fall back to `->>`, which is a text comparison the index cannot serve - bounded, as
+// every query here is, by the mandatory scope and the statement timeout.
+func (b *builder) customField(node view.Node, key string) {
+	switch node.Op {
+	case view.OpIsNull:
+		// The key is absent from the document, which is the only "not set" there is: a cleared key
+		// is removed rather than stored as a null (work.WorkItem.WithCustomField).
+		b.write(`NOT jsonb_exists(wi.custom_fields, `)
+		b.param(key)
+		b.write(`)`)
+	case view.OpEq:
+		b.contains(key, node.Values[0])
+	case view.OpNeq:
+		// An entry that holds nothing under the key counts as "not that one", for the reason
+		// bucket_id NEQ does: three-valued logic would drop the row instead of answering.
+		b.write(`NOT (`)
+		b.contains(key, node.Values[0])
+		b.write(`)`)
+	case view.OpIn:
+		b.write(`(`)
+		b.customText(key)
+		b.write(` = ANY(`)
+		b.param(textsOf(node.Values, customValueText))
+		b.write(`::text[]))`)
+	case view.OpNotIn:
+		b.write(`(`)
+		b.customText(key)
+		b.write(` IS NULL OR `)
+		b.customText(key)
+		b.write(` <> ALL(`)
+		b.param(textsOf(node.Values, customValueText))
+		b.write(`::text[]))`)
+	case view.OpContains:
+		// Two questions behind one spelling, and both are answered: a MULTI_SELECT that holds the
+		// element, or a text that contains it. The document decides which applies per row, which
+		// is the only honest reading when the kind is data.
+		b.write(`(`)
+		b.containsElement(key, node.Values[0])
+		b.write(` OR position(lower(`)
+		b.text(node.Values[0])
+		b.write(`) IN lower(coalesce(`)
+		b.customText(key)
+		b.write(`, ''))) > 0)`)
+	default:
+		b.fail(errOperatorNotCompilable(node.Op))
+	}
+}
+
+// contains writes the indexable equality: does the document hold this key with this value.
+func (b *builder) contains(key string, value view.Value) {
+	b.write(`wi.custom_fields @> jsonb_build_object(`)
+	b.param(key)
+	b.write(`::text, `)
+	b.scalar(value)
+	b.write(`)`)
+}
+
+// containsElement is the same question about one element of a list value.
+func (b *builder) containsElement(key string, value view.Value) {
+	b.write(`wi.custom_fields @> jsonb_build_object(`)
+	b.param(key)
+	b.write(`::text, jsonb_build_array(`)
+	b.scalar(value)
+	b.write(`))`)
+}
+
+// scalar writes one comparison value as the JSON scalar it is.
+//
+// The cast is chosen by the value's own kind, which the grammar took from the document: a number
+// stays a number and a boolean a boolean, so containment matches what a NUMBER or a BOOL field
+// actually holds rather than its text spelling.
+func (b *builder) scalar(value view.Value) {
+	switch value.Kind {
+	case view.KindBool:
+		b.write(`to_jsonb(`)
+		b.param(value.Bool)
+		b.write(`::boolean)`)
+	case view.KindNumber:
+		b.write(`to_jsonb(`)
+		b.param(value.Text)
+		b.write(`::numeric)`)
+	default:
+		b.write(`to_jsonb(`)
+		b.text(value)
+		b.write(`)`)
+	}
+}
+
+// customText is the value as text, for the comparisons containment cannot express.
+func (b *builder) customText(key string) {
+	// The function form rather than the `->>` operator, and not for taste: this package may not
+	// write a hyphen at all, because two of them begin a SQL comment and the fuzz gate proves that
+	// none is ever emitted (ADR-0026, FuzzCompile). jsonb_extract_path_text is the same operation
+	// under a name made of letters. jsonb_exists above is the same trade for `?`.
+	b.write(`jsonb_extract_path_text(wi.custom_fields, `)
+	b.param(key)
+	b.write(`)`)
+}
+
+// customValueText is the value as `->>` renders the stored one: the text spelling of the JSON
+// scalar. A boolean has to be spelled the way jsonb spells it, which is `true` and not `TRUE`.
+func customValueText(value view.Value) string {
+	if value.Kind == view.KindBool {
+		if value.Bool {
+			return "true"
+		}
+		return "false"
+	}
+	return value.Text
 }
 
 // labels is the one relation a filter reaches into: the labels an entry carries.

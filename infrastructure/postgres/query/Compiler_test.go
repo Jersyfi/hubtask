@@ -4,6 +4,7 @@
 package query
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
@@ -432,4 +433,99 @@ func equalArgs(got, want any) bool {
 		return isSlice && slices.Equal(bound, texts)
 	}
 	return got == want
+}
+
+// The custom field family (C-07). The key is the one part of a field *name* that carries a value,
+// so what these prove is that it is bound like any other value and never written into the text.
+func TestACustomFieldFilterBindsItsKeyAsAParameter(t *testing.T) {
+	cases := []struct {
+		name     string
+		document string
+		fragment string
+		args     []any
+	}{
+		{
+			name:     "equality goes through containment, which the GIN index answers",
+			document: `{"field":"custom_fields.priority","op":"EQ","value":"high"}`,
+			fragment: `wi.custom_fields @> jsonb_build_object($2::text, to_jsonb(normalize($3::text, NFC)))`,
+			args:     []any{"priority", "high"},
+		},
+		{
+			name:     "a number stays a number, so it matches what a NUMBER field holds",
+			document: `{"field":"custom_fields.budget","op":"EQ","value":1000}`,
+			fragment: `to_jsonb($3::numeric)`,
+			args:     []any{"budget", "1000"},
+		},
+		{
+			name:     "a boolean stays a boolean",
+			document: `{"field":"custom_fields.approved","op":"EQ","value":true}`,
+			fragment: `to_jsonb($3::boolean)`,
+			args:     []any{"approved", true},
+		},
+		{
+			name:     "absence is the key missing from the document",
+			document: `{"field":"custom_fields.priority","op":"IS_NULL"}`,
+			fragment: `NOT jsonb_exists(wi.custom_fields, $2)`,
+			args:     []any{"priority"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			statement := compile(t, documentOf(t, c.document), view.Spec{})
+
+			if !strings.Contains(statement.SQL, c.fragment) {
+				t.Fatalf("the statement is %s", statement.SQL)
+			}
+			for _, want := range c.args {
+				if !containsArg(statement.Args, want) {
+					t.Errorf("%#v is not among the arguments %#v", want, statement.Args)
+				}
+			}
+			// The whole point: nothing of the key is in the text.
+			if strings.Contains(statement.SQL, "priority") ||
+				strings.Contains(statement.SQL, "budget") {
+				t.Errorf("the key reached the SQL text: %s", statement.SQL)
+			}
+		})
+	}
+}
+
+// A name that is not a key is not a field. The grammar refuses it before the compiler sees it,
+// which is what keeps the family from being a hole in the closed vocabulary.
+func TestACustomFieldNameThatIsNotAKeyIsRefused(t *testing.T) {
+	for _, document := range []string{
+		`{"field":"custom_fields.","op":"EQ","value":"x"}`,
+		`{"field":"custom_fields.Priority","op":"EQ","value":"x"}`,
+		`{"field":"custom_fields.a b","op":"EQ","value":"x"}`,
+		`{"field":"custom_fields.'; DROP TABLE work_item; --","op":"EQ","value":"x"}`,
+	} {
+		t.Run(document, func(t *testing.T) {
+			if _, err := view.ParseFilter(documentOf(t, document), "/filter"); err == nil {
+				t.Error("the grammar accepted a name that is not a key")
+			}
+		})
+	}
+}
+
+// containsArg reports whether the value is among the bound arguments.
+func containsArg(args []any, want any) bool {
+	for _, arg := range args {
+		if arg == want {
+			return true
+		}
+	}
+	return false
+}
+
+// documentOf decodes a filter the way a request body reaches the grammar: as a map, not as a Go
+// literal, so the test exercises the same path a client does.
+func documentOf(t *testing.T, document string) any {
+	t.Helper()
+
+	var raw any
+	if err := json.Unmarshal([]byte(document), &raw); err != nil {
+		t.Fatalf("the fixture is not JSON: %v", err)
+	}
+	return raw
 }
