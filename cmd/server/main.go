@@ -646,7 +646,10 @@ func run() error {
 			Items: items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
 			Buckets: buckets, Fields: customFields, Containers: containers,
 			Attachments: mediaObjects, Media: mediaObjects, Profiles: profiles,
-			Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
+			// The authorisation service under three names: the permission, the question about the
+			// role the actor holds, and whether a second person can see the destination.
+			Authorizer: authorizer, Ownership: authorizer, Visibility: authorizer,
+			Events: outbox, Changes: changes,
 			Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 		}.Descriptor(),

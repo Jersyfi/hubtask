@@ -70,15 +70,18 @@ type DuplicateWorkItem struct {
 	Media       MediaReferences
 	Profiles    metarepo.CapabilityProfiles
 	Authorizer  Authorizer
-	Visibility  Visibility
-	Events      outbox.Events
-	Changes     changelog.ChangeLog
-	Audit       audit.Sink
-	Activity    ActivityJournal
-	UnitOfWork  persistence.UnitOfWork
-	Clock       clock.Clock
-	IDs         clock.IDGenerator
-	HLC         clock.HLCSource
+	// Ownership is the same question the create path asks: does the role the actor holds write only
+	// what is assigned to them (C-04). A copy is a create, so it has to ask it too.
+	Ownership  Ownership
+	Visibility Visibility
+	Events     outbox.Events
+	Changes    changelog.ChangeLog
+	Audit      audit.Sink
+	Activity   ActivityJournal
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
+	IDs        clock.IDGenerator
+	HLC        clock.HLCSource
 }
 
 // DuplicateWorkItemCommand is the input, typed.
@@ -135,6 +138,9 @@ type duplication struct {
 	parent      *domain.WorkItem
 	destination domain.Container
 	command     DuplicateWorkItemCommand
+	// ownEntriesOnly says the role the actor holds at the destination writes only what is assigned
+	// to them, so every entry the copy produces has to land on them (C-04).
+	ownEntriesOnly bool
 }
 
 // plan reads what the copy depends on and asks the permission questions.
@@ -190,6 +196,16 @@ func (h DuplicateWorkItem) plan(
 		TargetID:   plan.destination.ID,
 		On:         access.ItemSubject{Does: service.ItemCreate},
 	}); err != nil {
+		return duplication{}, err
+	}
+
+	// Whose the copy has to be. A role narrowed to what is assigned to it copies onto itself, or
+	// the entries it produced would be out of its reach the moment they existed - which is the
+	// decision the create path takes for the same reason, and what keeps "assigned only" true at
+	// every moment rather than suspended for one call.
+	if plan.ownEntriesOnly, err = h.Ownership.WritesOnlyWhatIsAssigned(
+		ctx, actor, containerPath(plan.destination),
+	); err != nil {
 		return duplication{}, err
 	}
 	return plan, nil
@@ -287,6 +303,7 @@ func (h DuplicateWorkItem) perform(
 		if err != nil {
 			return err
 		}
+		fresh.ownEntriesOnly = plan.ownEntriesOnly
 		if err := fresh.destination.EnsureAcceptsItems(); err != nil {
 			return err
 		}
@@ -616,6 +633,26 @@ func (h DuplicateWorkItem) assigneeFor(
 	source, copied domain.WorkItem, profile domain.CapabilityProfile,
 	known *vocabulary, made *copies,
 ) (shared.ID, error) {
+	if plan.ownEntriesOnly {
+		if !profile.Allows(domain.CapabilityAssignment) {
+			// A type that cannot be owned cannot be copied by a role that may only write what it
+			// owns: the copy would exist and be out of its reach, which is the refusal the create
+			// path gives for the same reason.
+			return noID, shared.ErrForbidden.
+				WithDetail("items.assignee_must_be_the_creator").
+				WithParams(map[string]string{"item_type": string(copied.Type)})
+		}
+		if !source.AssigneeID.IsZero() && source.AssigneeID != actor.AccountID {
+			// Reported rather than silently replaced: somebody who copies an entry that was on a
+			// colleague should be able to see that the copy is on them instead.
+			made.dropped = append(made.dropped, domain.DroppedReference{
+				ItemID: copied.ID, Kind: domain.ReferenceAssignee,
+				ID: source.AssigneeID.String(), Code: "items.assignee_must_be_the_creator",
+			})
+		}
+		return actor.AccountID, nil
+	}
+
 	if source.AssigneeID.IsZero() {
 		return noID, nil
 	}

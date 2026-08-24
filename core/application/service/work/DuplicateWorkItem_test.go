@@ -40,6 +40,7 @@ type duplicateHarness struct {
 	attachments *attachments
 	media       *mediaObjects
 	visibility  *visibility
+	ownership   *authorizer
 	events      *events
 	changes     *changes
 	audit       *sink
@@ -76,6 +77,7 @@ func newDuplicateHarness(t *testing.T) *duplicateHarness {
 		attachments: newAttachments(),
 		media:       newMediaObjects(),
 		visibility:  newVisibility(accountID, colleagueAccountID),
+		ownership:   &authorizer{},
 		events:      &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
 	}
 
@@ -83,7 +85,7 @@ func newDuplicateHarness(t *testing.T) *duplicateHarness {
 		Items: h.items, ItemLabels: h.itemLabels, ItemMembers: h.itemMembers, Labels: h.labels,
 		Buckets: h.buckets, Fields: h.fields, Containers: h.containers,
 		Attachments: h.attachments, Media: h.media, Profiles: &profiles{rows: copyProfiles()},
-		Authorizer: &authorizer{}, Visibility: h.visibility,
+		Authorizer: &authorizer{}, Ownership: h.ownership, Visibility: h.visibility,
 		Events: h.events, Changes: h.changes, Audit: h.audit,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
@@ -593,5 +595,54 @@ func TestACopyAsksToReadTheSourceAndToWriteTheDestination(t *testing.T) {
 		if request.Action != ItemDuplicatedAction {
 			t.Errorf("a refusal would be recorded as %q", request.Action)
 		}
+	}
+}
+
+// A role that writes only what is assigned to it copies onto itself: the entries the copy produces
+// would otherwise be out of its reach the moment they existed (C-04), which is the decision the
+// create path takes for the same reason.
+func TestACopyByAnAssignedOnlyRoleLandsOnTheActor(t *testing.T) {
+	h := newDuplicateHarness(t)
+	h.ownership.onlyOwn = true
+	original := h.withTask()
+
+	result, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{ItemID: original.ID})
+	if err != nil {
+		t.Fatalf("the copy was refused: %v", err)
+	}
+
+	if result.Item.AssigneeID != accountID {
+		t.Errorf("the copy is on %s, want the person who made it", result.Item.AssigneeID)
+	}
+	// Reported rather than silently replaced: somebody who copies an entry that was on a colleague
+	// should be able to see that the copy is on them instead.
+	var reported bool
+	for _, reference := range result.DroppedReferences {
+		if reference.Kind == domain.ReferenceAssignee &&
+			reference.Code == "items.assignee_must_be_the_creator" &&
+			reference.ID == colleagueAccountID.String() {
+			reported = true
+		}
+	}
+	if !reported {
+		t.Errorf("the losses are %+v, want the assignee among them", result.DroppedReferences)
+	}
+}
+
+// And a type that cannot be owned cannot be copied by such a role at all: the copy would exist and
+// be out of its reach.
+func TestACopyByAnAssignedOnlyRoleIsRefusedForATypeThatCannotBeOwned(t *testing.T) {
+	h := newDuplicateHarness(t)
+	h.ownership.onlyOwn = true
+	h.handler.Profiles = &profiles{rows: systemProfiles(), system: systemProfiles()}
+	original := h.withTask()
+
+	_, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{ItemID: original.ID})
+	if !errors.Is(err, shared.ErrForbidden) ||
+		shared.AsError(err).DetailCode != "items.assignee_must_be_the_creator" {
+		t.Fatalf("the copy answered %v", err)
+	}
+	if len(h.items.copies) != 0 {
+		t.Error("something was copied all the same")
 	}
 }

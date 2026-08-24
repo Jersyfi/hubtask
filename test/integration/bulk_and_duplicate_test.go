@@ -73,8 +73,9 @@ func bulkCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 			Items: itemRepo(), ItemLabels: itemLabelRepo(), ItemMembers: itemMemberRepo(),
 			Labels: labelRepo(), Buckets: bucketRepo(), Fields: fieldRepo(),
 			Containers: containerRepo(), Attachments: mediaRepo(), Media: mediaRepo(),
-			Profiles: profiles, Authorizer: authorizer, Visibility: authorizer,
-			Events: outbox, Changes: changes, Audit: sink, Activity: journal,
+			Profiles: profiles, Authorizer: authorizer, Ownership: authorizer,
+			Visibility: authorizer,
+			Events:     outbox, Changes: changes, Audit: sink, Activity: journal,
 			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
 		}.Descriptor(),
 		work.BulkUpdateWorkItems{
