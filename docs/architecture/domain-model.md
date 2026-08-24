@@ -191,7 +191,7 @@ Invariants:
 * I-W3: all references (bucket, label, assignee, member, media) live in the same tenant and — for buckets and labels — in the same collection.
 * I-W4: a trashed or archived item is not editable except through `Restore`/`Unarchive`.
 * I-W5: with `completionPolicy = ROLLUP` active, a parent item is automatically completed or reopened when the completion status of all its children changes (idempotent, event-driven).
-* I-W6: moving an item to another collection is only permitted if every reference can be resolved there; unresolvable labels/buckets are removed and reported back in the result (not silently).
+* I-W6: carrying an item into another collection — by moving it or by copying it — is only permitted if every reference can be resolved there; what cannot be is removed and reported back in the result (not silently). A move resolves the labels and the board column; a copy resolves those and, because it writes a new entry rather than relocating one, the members, the assignee and the custom field values as well (C-11). The reported kinds are `LABEL`, `BUCKET`, `MEMBER`, `ASSIGNEE`, `ATTACHMENT` and `CUSTOM_FIELD`, each with a stable message code saying why; an account is reported when it cannot see the destination, since an entry is only ever on somebody who can see it, and a reference is reported as an `ATTACHMENT` or by its kind when the type's capability profile no longer carries it.
 * I-W7: `title` and text fields are Unicode NFC normalised; length limits count code points, not bytes.
 
 The lifecycle state machine:
