@@ -303,9 +303,15 @@ func (h DuplicateWorkItem) perform(
 			return err
 		}
 		// Where the copy may sit, asked of the destination parent rather than of the entry's own
-		// place: the profiles may have been narrowed since the entry was created, and a copy is a
-		// new entry that has to be permitted now. The subtree below it needs no second question -
-		// the depth budget is per type, so a subtree fits exactly when its root does.
+		// place: the profiles may have been narrowed since the entry was created, and the copy is a
+		// new entry that has to be permitted where it is going.
+		//
+		// The question is asked once, about the root. The shape below it is carried whole, exactly
+		// as a move carries it: it is a tree that already exists, and re-deciding each level of it
+		// would mean refusing to copy a structure the workspace is still living with. What the root
+		// answers covers the reach - the depth budget is per type - and what it deliberately does
+		// not cover is a child type a narrowed profile no longer permits under its parent, which is
+		// the same thing a move of the same subtree does not re-decide either.
 		spot, err := hierarchy.Place(fresh.parent, fresh.source.Type)
 		if err != nil {
 			return err

@@ -29,7 +29,17 @@ const ReplayedHeader = "Idempotent-Replayed"
 // maxStoredResponseBytes bounds what is kept for a replay. A response larger than this is
 // answered normally and simply not stored - the alternative is a jsonb column growing without a
 // bound anybody chose.
-const maxStoredResponseBytes = 256 << 10
+//
+// One mebibyte because of the largest answer the contract lets a route produce: a bulk of five
+// hundred operations, each result carrying the entry it wrote (C-11, api-guidelines.md §5). At the
+// previous 256 KiB such an answer went unstored, and a client repeating a request it had lost the
+// answer to would have been given the status with an empty body - safe, since the repeat still does
+// not apply anything twice, but not the identical answer the guarantee promises.
+//
+// It is a bound rather than a promise even so: notes are free text, so a bulk of five hundred
+// entries carrying long ones can still exceed it. What that costs is the body of one replay, which
+// is why the overflow rule below keeps nothing rather than storing a truncated answer.
+const maxStoredResponseBytes = 1 << 20
 
 // IdempotencyGuard is the slice of the guard use case this middleware needs.
 type IdempotencyGuard interface {
