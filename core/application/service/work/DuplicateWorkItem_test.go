@@ -11,6 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
@@ -532,5 +533,39 @@ func TestCopyingWithoutAnEntryIsRefused(t *testing.T) {
 	if !errors.Is(err, shared.ErrValidation) ||
 		shared.AsError(err).DetailCode != "items.item_id_required" {
 		t.Fatalf("a copy of nothing answered %v", err)
+	}
+}
+
+// A copy asks two permission questions, and they are deliberately different: reading the entry it
+// copies, and writing where the copy lands. Somebody who may only read a collection can therefore
+// copy out of it into one they may write - and both questions carry the write scope, because a
+// scope is the credential's licence for the operation and the operation is a write.
+func TestACopyAsksToReadTheSourceAndToWriteTheDestination(t *testing.T) {
+	h := newDuplicateHarness(t)
+	permission := &authorizer{}
+	h.handler.Authorizer = permission
+	original := h.withTask()
+
+	if _, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{
+		ItemID: original.ID, TargetCollectionID: farCollectionID, ParentGiven: true,
+	}); err != nil {
+		t.Fatalf("the copy was refused: %v", err)
+	}
+
+	if len(permission.requests) != 2 {
+		t.Fatalf("the copy asked %d permission questions", len(permission.requests))
+	}
+	source, destination := permission.requests[0], permission.requests[1]
+	if source.Permission != service.PermissionRead ||
+		destination.Permission != service.PermissionWriteItems {
+		t.Errorf("the questions were %s and %s", source.Permission, destination.Permission)
+	}
+	for _, request := range permission.requests {
+		if request.TokenScope != itemsWrite {
+			t.Errorf("a question asked for the scope %q", request.TokenScope)
+		}
+		if request.Action != ItemDuplicatedAction {
+			t.Errorf("a refusal would be recorded as %q", request.Action)
+		}
 	}
 }

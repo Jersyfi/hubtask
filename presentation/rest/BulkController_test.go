@@ -4,12 +4,15 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
+	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -148,4 +151,75 @@ func TestABulkTheUseCaseRefusesIsAProblem(t *testing.T) {
 	if contentType := recorder.Header().Get("Content-Type"); contentType != ProblemContentType {
 		t.Errorf("content type %q", contentType)
 	}
+}
+
+// The acceptance sentence about a repeat: a replayed Idempotency-Key returns the identical body and
+// applies nothing twice.
+//
+// The guard is generic and tested on its own; what this proves is that the bulk goes through it -
+// it is a POST like any other, and a client that lost the answer to five hundred operations must be
+// able to ask again without applying them a second time (api-guidelines.md §5).
+func TestARepeatedBulkIsReplayedRatherThanApplied(t *testing.T) {
+	cat := &catalogue{out: bulkAnswer()}
+	controller := NewRestController()
+	controller.UseCases = cat
+
+	routes := controller.Routes()
+	keeper := &recordingGuard{}
+	guarded := Idempotent{Guard: keeper, Routes: routes, Next: routes}
+
+	body := `{"operations":[{"op":"COMPLETE_ITEM","item_id":"` + itemID + `"}]}`
+	first := httptest.NewRecorder()
+	guarded.ServeHTTP(first, bulkRequest(t, body))
+
+	if first.Code != http.StatusOK || !cat.invoked {
+		t.Fatalf("the first bulk answered %d, invoked=%v", first.Code, cat.invoked)
+	}
+
+	// The answer as it was stored, which is what the guard replays.
+	keeper.stored = &repository.Record{Status: first.Code, Body: first.Body.Bytes()}
+	cat.invoked = false
+
+	repeat := httptest.NewRecorder()
+	guarded.ServeHTTP(repeat, bulkRequest(t, body))
+
+	if cat.invoked {
+		t.Error("the repeat applied the operations a second time")
+	}
+	if repeat.Code != first.Code || repeat.Body.String() != first.Body.String() {
+		t.Errorf("the repeat answered %d %s, want the identical answer",
+			repeat.Code, repeat.Body.String())
+	}
+	if repeat.Header().Get(ReplayedHeader) != "true" {
+		t.Error("the repeat does not say it is one")
+	}
+}
+
+// recordingGuard replays whatever a test stored on it, and runs the handler until then.
+type recordingGuard struct{ stored *repository.Record }
+
+func (g *recordingGuard) Begin(
+	context.Context, appshared.ActorContext, repository.Key, []byte,
+) (idempotency.Attempt, error) {
+	return idempotency.Attempt{Replay: g.stored}, nil
+}
+
+func (g *recordingGuard) Complete(
+	context.Context, appshared.ActorContext, repository.Key, int, []byte,
+) error {
+	return nil
+}
+
+func bulkRequest(t *testing.T, body string) *http.Request {
+	t.Helper()
+
+	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+	request := httptest.NewRequestWithContext(ctx, http.MethodPost, APIBasePath+"/items:bulk",
+		strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set(IdempotencyKeyHeader, "5f9d1f8e-0000-4000-8000-0000000000c1")
+	return request
 }

@@ -161,11 +161,16 @@ func (h DuplicateWorkItem) plan(
 	// person put into it - and reading it is the permission that has to hold before anything else
 	// is considered. A caller who may write in the destination but may not see the source would
 	// otherwise be handed its contents by asking for a copy of it.
+	//
+	// Reading is the *permission*, so somebody who may only read a collection can still copy out of
+	// it into one they may write; the *scope* is the write scope all the same, because a scope is
+	// the credential's licence for the operation and the operation is a write. Asking for a second
+	// scope here would make a credential the catalogue declares as sufficient fail halfway through.
 	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionRead,
 		Path:       containerPath(plan.origin),
 		Action:     ItemDuplicatedAction,
-		TokenScope: itemsRead,
+		TokenScope: itemsWrite,
 		TargetType: itemTarget,
 		TargetID:   cmd.ItemID,
 		On:         reading(plan.source),
