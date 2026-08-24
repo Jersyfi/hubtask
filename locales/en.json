@@ -178,6 +178,8 @@
   "fields.option_duplicated": "The option {option} is listed twice.",
   "fields.applies_to_required": "Say which kinds of entry carry this field.",
   "fields.applies_to_unsupported": "A {type} does not carry custom fields.",
+  "fields.field_id_required": "Say which custom field is meant.",
+  "fields.update_empty": "That request changes nothing about the custom field.",
   "fields.not_found": "That custom field does not exist.",
   "fields.deleted": "That custom field is no longer in use.",
   "fields.not_in_scope": "That custom field is not defined for this entry's collection.",

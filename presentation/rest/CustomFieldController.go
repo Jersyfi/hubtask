@@ -18,6 +18,8 @@ import (
 const (
 	defineCustomFieldUseCase = "DefineCustomField"
 	listCustomFieldsUseCase  = "ListCustomFields"
+	updateCustomFieldUseCase = "UpdateCustomField"
+	deleteCustomFieldUseCase = "DeleteCustomField"
 )
 
 // ListCustomFields answers GET /custom-fields.
@@ -151,4 +153,73 @@ func itemTypesOf(value any) []openapi.ItemType {
 		types = append(types, openapi.ItemType(name))
 	}
 	return types
+}
+
+// UpdateCustomField answers PATCH /custom-fields/{fieldId}.
+func (c *RestController) UpdateCustomField(
+	w http.ResponseWriter, r *http.Request, fieldID openapi.CustomFieldId,
+	params openapi.UpdateCustomFieldParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.CustomFieldDefinitionUpdate
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	// A merge patch: only what the caller sent reaches the catalogue, so that "do not touch it"
+	// and "set it to nothing" stay two different requests (api-guidelines.md §"Partial updates").
+	in := usecase.Input{"field_id": fieldID.String()}
+	if body.Options != nil {
+		in["options"] = *body.Options
+	}
+	if body.IsRequired != nil {
+		in["is_required"] = *body.IsRequired
+	}
+	if body.AppliesTo != nil {
+		in["applies_to"] = itemTypeNames(*body.AppliesTo)
+	}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), updateCustomFieldUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	definition := customFieldResponse(out)
+	w.Header().Set("ETag", etag(definition.Version))
+	writeJSON(w, r, http.StatusOK, definition)
+}
+
+// DeleteCustomField answers DELETE /custom-fields/{fieldId}.
+func (c *RestController) DeleteCustomField(
+	w http.ResponseWriter, r *http.Request, fieldID openapi.CustomFieldId,
+	params openapi.DeleteCustomFieldParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	in := usecase.Input{"field_id": fieldID.String()}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+
+	if _, err := c.UseCases.Invoke(r.Context(), deleteCustomFieldUseCase, actorOf(r), in); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

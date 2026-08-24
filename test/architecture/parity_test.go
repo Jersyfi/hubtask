@@ -97,6 +97,8 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.AttachMedia{}.Descriptor(),
 		work.DefineCustomField{}.Descriptor(),
 		work.ListCustomFields{}.Descriptor(),
+		work.UpdateCustomField{}.Descriptor(),
+		work.DeleteCustomField{}.Descriptor(),
 		work.DetachMedia{}.Descriptor(),
 		mediaservice.ListAttachments{}.Descriptor(),
 		mediaservice.GetMedia{}.Descriptor(),

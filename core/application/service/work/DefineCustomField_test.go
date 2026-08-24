@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -323,4 +324,187 @@ func TestARefusedListAnswersNothing(t *testing.T) {
 	); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("error %v, want forbidden", err)
 	}
+}
+
+// --- the edit and the deletion ------------------------------------------------------------------
+
+func (h *customFieldHarness) writer() CustomFieldWriter {
+	return CustomFieldWriter{
+		Fields: h.fields, Containers: h.containers,
+		Profiles:   &profiles{rows: fieldProfiles()},
+		Authorizer: h.authorizer, Audit: h.audit, UnitOfWork: &unitOfWork{},
+		Clock: clock.Fixed(now),
+	}
+}
+
+// defined writes one definition through the use case and returns it.
+func (h *customFieldHarness) defined(t *testing.T, cmd DefineCustomFieldCommand) domain.CustomFieldDefinition {
+	t.Helper()
+
+	definition, err := h.define.Execute(t.Context(), actor(), cmd)
+	if err != nil {
+		t.Fatalf("defining failed: %v", err)
+	}
+	h.audit.entries = nil
+	h.authorizer.requests = nil
+	return definition
+}
+
+func TestAnEditWritesWhatMovedAndSpendsOneVersion(t *testing.T) {
+	h := newCustomFieldHarness(t)
+	defined := h.defined(t, DefineCustomFieldCommand{
+		CollectionID: collectionID, Key: "priority", Kind: domain.CustomFieldSelect,
+		Options: []string{"high"},
+	})
+	options := []string{"high", "low"}
+
+	updated, err := (UpdateCustomField{Writer: h.writer()}).Execute(
+		t.Context(), actor(), UpdateCustomFieldCommand{
+			FieldID: defined.ID, Attributes: domain.CustomFieldAttributes{Options: &options},
+		})
+	if err != nil {
+		t.Fatalf("the edit failed: %v", err)
+	}
+
+	if len(updated.Options) != 2 || updated.Version != 2 {
+		t.Fatalf("the definition is %+v", updated)
+	}
+	if len(h.fields.updates) != 1 || h.fields.updates[0].expectedVersion != 1 {
+		t.Errorf("the write is %+v", h.fields.updates)
+	}
+	if len(h.audit.entries) != 1 || h.audit.entries[0].Action != CustomFieldUpdatedAction {
+		t.Fatalf("the trail is %+v", h.audit.entries)
+	}
+	// The options are user content: recorded as a fingerprint rather than in clear text, so the
+	// trail can say that the list changed without carrying what a team calls its choices.
+	if change, named := h.audit.entries[0].Changes[domain.FieldOptions]; !named {
+		t.Error("the trail does not say that the options moved")
+	} else if containsText(change, "low") {
+		t.Errorf("the options reached the trail in clear text: %v", change)
+	}
+}
+
+func TestAnEditThatChangesNothingSpendsNoVersion(t *testing.T) {
+	h := newCustomFieldHarness(t)
+	defined := h.defined(t, DefineCustomFieldCommand{
+		CollectionID: collectionID, Key: "priority", Kind: domain.CustomFieldText,
+	})
+	required := false
+
+	updated, err := (UpdateCustomField{Writer: h.writer()}).Execute(
+		t.Context(), actor(), UpdateCustomFieldCommand{
+			FieldID: defined.ID, Attributes: domain.CustomFieldAttributes{IsRequired: &required},
+		})
+	if err != nil {
+		t.Fatalf("the edit failed: %v", err)
+	}
+	if updated.Version != 1 || len(h.fields.updates) != 0 || len(h.audit.entries) != 0 {
+		t.Errorf("a no-op wrote something: version %d, %+v", updated.Version, h.fields.updates)
+	}
+}
+
+// The If-Match is honoured even when the change would have been a no-op: the state the caller was
+// reasoning about is not the state that is there.
+func TestAnEditAgainstAStaleVersionIsRefusedEvenWhenItChangesNothing(t *testing.T) {
+	h := newCustomFieldHarness(t)
+	defined := h.defined(t, DefineCustomFieldCommand{
+		CollectionID: collectionID, Key: "priority", Kind: domain.CustomFieldText,
+	})
+	required := false
+
+	_, err := (UpdateCustomField{Writer: h.writer()}).Execute(
+		t.Context(), actor(), UpdateCustomFieldCommand{
+			FieldID:         defined.ID,
+			Attributes:      domain.CustomFieldAttributes{IsRequired: &required},
+			ExpectedVersion: 7,
+		})
+	if !errors.Is(err, shared.ErrVersionConflict) {
+		t.Fatalf("error %v, want a version conflict", err)
+	}
+}
+
+func TestAnEditThatNamesATypeWithoutCustomFieldsIsRefused(t *testing.T) {
+	h := newCustomFieldHarness(t)
+	defined := h.defined(t, DefineCustomFieldCommand{
+		CollectionID: collectionID, Key: "priority", Kind: domain.CustomFieldText,
+	})
+	types := []domain.ItemType{domain.ItemActivity}
+
+	_, err := (UpdateCustomField{Writer: h.writer()}).Execute(
+		t.Context(), actor(), UpdateCustomFieldCommand{
+			FieldID: defined.ID, Attributes: domain.CustomFieldAttributes{AppliesTo: &types},
+		})
+	if detail := shared.AsError(err).DetailCode; detail != "fields.applies_to_unsupported" {
+		t.Fatalf("detail %q, want fields.applies_to_unsupported", detail)
+	}
+}
+
+func TestADeletionTakesTheDefinitionOutOfUseAndIsIdempotent(t *testing.T) {
+	h := newCustomFieldHarness(t)
+	defined := h.defined(t, DefineCustomFieldCommand{
+		CollectionID: collectionID, Key: "priority", Kind: domain.CustomFieldText,
+	})
+	deleter := DeleteCustomField{Writer: h.writer()}
+
+	if err := deleter.Execute(
+		t.Context(), actor(), DeleteCustomFieldCommand{FieldID: defined.ID},
+	); err != nil {
+		t.Fatalf("the deletion failed: %v", err)
+	}
+	if !h.fields.stored[defined.ID].IsDeleted() {
+		t.Fatal("the definition is not out of use")
+	}
+	if len(h.audit.entries) != 1 || h.audit.entries[0].Action != CustomFieldDeletedAction {
+		t.Fatalf("the trail is %+v", h.audit.entries)
+	}
+
+	// A second DELETE is a client retrying, not a conflict.
+	if err := deleter.Execute(
+		t.Context(), actor(), DeleteCustomFieldCommand{FieldID: defined.ID},
+	); err != nil {
+		t.Fatalf("a second deletion answered %v", err)
+	}
+	if len(h.fields.deletes) != 1 {
+		t.Errorf("%d deletions were written, want 1", len(h.fields.deletes))
+	}
+
+	// And it is out of every scoped read from now on.
+	listed, err := h.list.Execute(t.Context(), actor(), ListCustomFieldsQuery{
+		CollectionID: collectionID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 0 {
+		t.Errorf("a deleted definition is still listed: %+v", listed)
+	}
+}
+
+func TestADefinitionThatIsNotThereIsReportedMissing(t *testing.T) {
+	h := newCustomFieldHarness(t)
+	required := true
+
+	_, err := (UpdateCustomField{Writer: h.writer()}).Execute(
+		t.Context(), actor(), UpdateCustomFieldCommand{
+			FieldID:    shared.MustParseID("0192f000-0000-7000-8000-0000000000fe"),
+			Attributes: domain.CustomFieldAttributes{IsRequired: &required},
+		})
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("error %v, want not found", err)
+	}
+}
+
+// containsText reports whether a recorded change carries the text in clear. The trail masks user
+// content, so this is how a test says that it did.
+func containsText(change any, text string) bool {
+	rendered, ok := change.(map[string]any)
+	if !ok {
+		return false
+	}
+	for _, side := range rendered {
+		if value, isString := side.(string); isString && strings.Contains(value, text) {
+			return true
+		}
+	}
+	return false
 }

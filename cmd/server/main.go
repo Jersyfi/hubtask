@@ -381,6 +381,15 @@ func run() error {
 		HLC: hybrid,
 	}
 
+	// An edit and a deletion of a definition share one dependency set (work.CustomFieldWriter):
+	// the same read, the same scope resolution, the same permission question, and only the write
+	// at the end differs (C-07).
+	customFieldWriter := work.CustomFieldWriter{
+		Fields: customFields, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{},
+	}
+
 	// Both directions of an entry's attachments share one dependency set (work.ItemAttachmentWriter).
 	// The same repository serves both halves of it: MediaRepository stores the links and the
 	// records, and the reference counter moves in the same transaction as the link (C-06).
@@ -607,6 +616,8 @@ func run() error {
 			Fields: customFields, Containers: containers, Authorizer: authorizer,
 			UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.UpdateCustomField{Writer: customFieldWriter}.Descriptor(),
+		work.DeleteCustomField{Writer: customFieldWriter}.Descriptor(),
 		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		mediaservice.GetMedia{
