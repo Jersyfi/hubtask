@@ -85,19 +85,16 @@ type authorizer struct {
 	err       error
 }
 
-func (a *authorizer) Authorize(
+func (a *authorizer) Permits(
 	_ context.Context, _ appshared.ActorContext, request access.Request,
-) error {
+) (bool, error) {
 	a.questions++
 	if a.err != nil {
-		return a.err
+		return false, a.err
 	}
 	// The container is the last scope of the path, which is what ContainerScopes builds.
 	last := request.Path[len(request.Path)-1]
-	if a.allowed[last.ID] {
-		return nil
-	}
-	return shared.ErrForbidden.WithDetail("access.not_permitted")
+	return a.allowed[last.ID], nil
 }
 
 // cursors is the codec, without the cryptography: the application never looks inside the string,
@@ -146,6 +143,7 @@ func (u *unitOfWork) WithinReadOnly(
 func actor() appshared.ActorContext {
 	return appshared.ActorContext{
 		TenantID: tenant, AccountID: account, AccountName: "Anna", Kind: shared.ActorUser,
+		Scopes: []string{"items:read"},
 	}
 }
 
@@ -403,4 +401,40 @@ func TestEveryReadIsBoundToTheActorsTenant(t *testing.T) {
 			t.Errorf("a transaction was opened for %q", scope.TenantID)
 		}
 	}
+}
+
+// The token's own bound, checked once where the connection is accepted rather than per record
+// (ADR-0005 makes the scope the second, independent limit beside the role). A token without it is
+// refused rather than handed an empty stream it would watch forever.
+func TestATokenWithoutTheReadScopeGetsNoStream(t *testing.T) {
+	f := streaming(t, entry(1, readable))
+
+	without := actor()
+	without.Scopes = []string{"items:write"}
+
+	if _, err := f.stream.Resume(t.Context(), without, ""); err == nil {
+		t.Fatal("a token without the read scope opened a stream")
+	}
+}
+
+// Nothing is recorded for a record that was withheld. The trail records what somebody tried to do;
+// a stream filtering a feed is nobody trying anything, and an entry per withheld record would bury
+// the refusals that matter (audit.md §4).
+func TestWithholdingARecordWritesNoAuditEntry(t *testing.T) {
+	f := streaming(t, entry(1, hidden), entry(2, hidden), entry(3, hidden))
+
+	batch, err := f.stream.Next(t.Context(), actor(), Position{IssuedAt: now})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if len(batch.Records) != 0 {
+		t.Fatalf("%d records survived the filter", len(batch.Records))
+	}
+
+	// The authorizer this package is given has no way to write an entry at all: the interface it
+	// depends on is Permits, which returns an answer rather than performing a refusal. That is the
+	// property, and it is checked by the type rather than by counting entries.
+	var _ interface {
+		Permits(context.Context, appshared.ActorContext, access.Request) (bool, error)
+	} = f.stream.Authorizer
 }

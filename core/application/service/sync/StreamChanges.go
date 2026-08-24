@@ -55,9 +55,14 @@ type Containers interface {
 	Find(ctx context.Context, id shared.ID) (work.Container, error)
 }
 
-// Authorizer answers whether the actor may read a container.
+// Authorizer answers whether the actor may read a container, without recording anything.
+//
+// Permits rather than Authorize, and the difference is audit.md §4's. The trail records what
+// somebody tried to do and was refused; a stream deciding that ninety of a hundred records are not
+// for this client is nobody trying anything, and an entry per withheld record would bury the
+// refusals that matter under a feed nobody even read.
 type Authorizer interface {
-	Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error
+	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
 }
 
 // Batch is one round of the stream: the records the caller may see, and where the walk now stands.
@@ -112,6 +117,14 @@ type StreamChanges struct {
 func (s StreamChanges) Resume(
 	ctx context.Context, actor appshared.ActorContext, cursor string,
 ) (Position, error) {
+	// The token's own bound, checked once here rather than per record (ADR-0005 makes the scope
+	// the second, independent limit beside the role). A connection is where the credential is
+	// presented, so it is where the credential is judged - and a token without the scope is
+	// refused rather than handed an empty stream it would watch forever.
+	if err := actor.RequireScope(streamScope); err != nil {
+		return Position{}, err
+	}
+
 	if cursor == "" {
 		var latest int64
 		err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
@@ -218,23 +231,17 @@ func (s StreamChanges) mayRead(
 		return false, err
 	}
 
-	authErr := s.Authorizer.Authorize(ctx, actor, access.Request{
+	allowed, err := s.Authorizer.Permits(ctx, actor, access.Request{
 		Permission: service.PermissionRead,
 		Path:       service.ContainerScopes(container),
-		TokenScope: streamScope,
 	})
-	switch {
-	case authErr == nil:
-		permitted[containerID] = true
-		return true, nil
-	case errors.Is(authErr, shared.ErrForbidden), errors.Is(authErr, shared.ErrNotFound):
-		permitted[containerID] = false
-		return false, nil
-	default:
-		// Not a refusal: nobody was denied anything, the question could not be answered. Reporting
-		// it as "may not see" would silently shorten the stream on a database blip.
-		return false, authErr
+	if err != nil {
+		// Not "may not see": nobody was refused anything, the question could not be answered.
+		// Reporting it as a refusal would silently shorten the stream on a database blip.
+		return false, err
 	}
+	permitted[containerID] = allowed
+	return allowed, nil
 }
 
 func (s StreamChanges) at(seq int64) Position {

@@ -7,13 +7,20 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // The read half of the change log (C-10): the walk the stream and `:pull` share, and a cross-tenant
@@ -330,5 +337,232 @@ func TestTheNotificationCarriesOnlyTheWorkspace(t *testing.T) {
 
 	if notification.Payload != tenantA.String() {
 		t.Errorf("the payload is %q, want the workspace identifier alone", notification.Payload)
+	}
+}
+
+// The acceptance of C-10, against a real database and the real service: a client sees only its own
+// tenant's records, never a record for a container it may not read, and `Last-Event-ID` resumes
+// with no gap and no duplicate.
+
+// streamFor builds the service the way the composition root builds it.
+func streamFor(ctx context.Context, t *testing.T) syncservice.StreamChanges {
+	t.Helper()
+
+	return syncservice.StreamChanges{
+		Changes:    postgres.NewChangeLog(),
+		Containers: containerRepo(),
+		Authorizer: access.Service{
+			Memberships: postgres.NewMembershipRepository(),
+			UnitOfWork:  postgres.NewUnitOfWork(appPool(ctx, t)),
+			Audit:       postgres.NewAuditSink(clockadapter.NewUUIDv7(clockadapter.System{})),
+			Clock:       clockadapter.System{},
+		},
+		UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
+		Cursors:    streamCursors{codec: security.NewStreamCursorCodec(secret.New("integration test installation secret"))},
+		Clock:      clockadapter.System{},
+		Window:     90 * 24 * time.Hour,
+		Batch:      50,
+	}
+}
+
+// streamCursors is the composition root's two-line bridge, repeated here for the same reason it
+// exists there: the application says `sync.Position` and the codec says `security.StreamPosition`.
+type streamCursors struct{ codec security.StreamCursorCodec }
+
+func (c streamCursors) Encode(position syncservice.Position) string {
+	return c.codec.Encode(security.StreamPosition{Seq: position.Seq, IssuedAt: position.IssuedAt})
+}
+
+func (c streamCursors) Decode(cursor string) (syncservice.Position, error) {
+	decoded, err := c.codec.Decode(cursor)
+	if err != nil {
+		return syncservice.Position{}, err
+	}
+	return syncservice.Position{Seq: decoded.Seq, IssuedAt: decoded.IssuedAt}, nil
+}
+
+func streamActor(tenant, account shared.ID) appshared.ActorContext {
+	return appshared.ActorContext{
+		TenantID: tenant, AccountID: account, AccountName: "Anna", Kind: shared.ActorUser,
+		Scopes: []string{"items:read"},
+	}
+}
+
+// hubFor creates a hub as a container and gives one account a role on it. The membership fixtures
+// of this package seed roles without containers, which is enough for the membership tests and not
+// enough here: the stream resolves a container before it asks about it, and a change naming a hub
+// that does not exist is withheld for that reason rather than for a permission.
+func hubWithRole(ctx context.Context, t *testing.T, tenant, account shared.ID, role string) shared.ID {
+	t.Helper()
+
+	hub := freshID(t)
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
+		 VALUES ($1, $2, 'HUB', $3, 'a0', $4)`,
+		hub.String(), tenant.String(), freshName(t), account.String()); err != nil {
+		t.Fatalf("seeding the hub: %v", err)
+	}
+	if role == "" {
+		return hub
+	}
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, scope_id, role)
+		 VALUES ($1, $2, $3, 'HUB', $4, $5)`,
+		freshID(t).String(), tenant.String(), account.String(), hub.String(), role); err != nil {
+		t.Fatalf("seeding the membership: %v", err)
+	}
+	return hub
+}
+
+// A member of one hub sees the changes below it and nothing else - not the other hub in the same
+// workspace, and not the other workspace at all. Judged per record in the application layer, never
+// by trusting what the connection asked for.
+func TestTheStreamCarriesOnlyWhatTheCallerMayRead(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	// Somebody with a role on exactly one hub. Deliberately not the package's Anna, who is a
+	// tenant administrator and would therefore see everything - which would make the test pass for
+	// the wrong reason.
+	member := seedAccount(ctx, t, tenantA)
+	permitted := hubWithRole(ctx, t, tenantA, member, "MEMBER")
+	forbidden := hubWithRole(ctx, t, tenantA, member, "")
+
+	stream := streamFor(ctx, t)
+	actor := streamActor(tenantA, member)
+
+	from, err := stream.Resume(ctx, actor, "")
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+
+	visible := recordChange(ctx, t, tenantA, member, permitted, "work_item")
+	invisible := recordChange(ctx, t, tenantA, member, forbidden, "work_item")
+	elsewhere := recordChange(ctx, t, tenantB, authorB, freshID(t), "work_item")
+
+	batch, err := stream.Next(ctx, actor, from)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+
+	seen := map[shared.ID]bool{}
+	for _, record := range batch.Records {
+		seen[record.EntityID] = true
+	}
+	if !seen[visible] {
+		t.Error("the caller was not sent a change in the hub they hold a role on")
+	}
+	if seen[invisible] {
+		t.Error("the caller was sent a change in a hub they hold nothing on")
+	}
+	if seen[elsewhere] {
+		t.Error("the caller was sent another tenant's change")
+	}
+
+	// The cursor still advanced past what was withheld: one that stalled on a container somebody
+	// may not read would re-read it forever.
+	if batch.Cursor.Seq <= from.Seq {
+		t.Error("the cursor did not advance past records the caller may not see")
+	}
+
+	// Losing the role stops the records, without the connection being told anything: the judgement
+	// is made at the moment the record is read, not when the stream was opened.
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`DELETE FROM membership WHERE tenant_id = $1 AND account_id = $2 AND scope_id = $3`,
+		tenantA.String(), member.String(), permitted.String()); err != nil {
+		t.Fatalf("revoking the membership: %v", err)
+	}
+	after := recordChange(ctx, t, tenantA, member, permitted, "work_item")
+
+	revoked, err := stream.Next(ctx, actor, batch.Cursor)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	for _, record := range revoked.Records {
+		if record.EntityID == after {
+			t.Error("a record arrived for a container the caller had just lost access to")
+		}
+	}
+}
+
+// `Last-Event-ID` resumes with no gap and no duplicate — the criterion, through the real cursor.
+func TestLastEventIDResumesWithNoGapAndNoDuplicate(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	member := seedAccount(ctx, t, tenantA)
+	hub := hubWithRole(ctx, t, tenantA, member, "MEMBER")
+	stream := streamFor(ctx, t)
+	actor := streamActor(tenantA, member)
+
+	from, err := stream.Resume(ctx, actor, "")
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+
+	written := make([]shared.ID, 0, 6)
+	for range 6 {
+		written = append(written, recordChange(ctx, t, tenantA, member, hub, "work_item"))
+	}
+
+	first, err := stream.Next(ctx, actor, from)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if len(first.Records) != len(written) {
+		t.Fatalf("%d records, want %d", len(first.Records), len(written))
+	}
+
+	// The client is cut off after the third record and comes back with that record's cursor -
+	// which is what a browser's EventSource does by itself.
+	interrupted := stream.Encode(first.Records[2].Cursor)
+	resumed, err := stream.Resume(ctx, actor, interrupted)
+	if err != nil {
+		t.Fatalf("resuming from %q: %v", interrupted, err)
+	}
+
+	rest, err := stream.Next(ctx, actor, resumed)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+
+	got := make([]shared.ID, 0, len(rest.Records))
+	for _, record := range rest.Records {
+		got = append(got, record.EntityID)
+	}
+	want := written[3:]
+	if len(got) != len(want) {
+		t.Fatalf("resumed with %d records, want %d - a gap or a duplicate", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("record %d is %s, want %s", i, got[i], want[i])
+		}
+	}
+}
+
+// A cursor older than the offline window is the one answer that is safe: the log no longer holds
+// everything that happened, so a delta across the gap would silently omit whatever was pruned.
+func TestACursorOlderThanTheWindowIsRefusedEndToEnd(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	stream := streamFor(ctx, t)
+	actor := streamActor(tenantA, authorA)
+
+	stale := stream.Encode(syncservice.Position{
+		Seq: 1, IssuedAt: time.Now().Add(-91 * 24 * time.Hour),
+	})
+
+	_, err := stream.Resume(ctx, actor, stale)
+	if err == nil {
+		t.Fatal("a cursor older than the window was accepted")
+	}
+	if !errors.Is(err, shared.ErrGone) {
+		t.Errorf("a stale cursor reported %v, want gone", err)
+	}
+	if got := shared.AsError(err).DetailCode; got != "sync.cursor_too_old" {
+		t.Errorf("detail %q", got)
 	}
 }
