@@ -283,6 +283,92 @@ INSERT INTO work_item (
   sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
 
+-- name: SubtreeOfWorkItem :many
+-- Everything below one entry, the entry itself excluded: what a copy of a subtree reads before it
+-- writes anything (C-11).
+--
+-- The prefix match is MoveWorkItemSubtree's, and for the same reasons: every descendant's path
+-- begins with the entry's own, `LIKE prefix || '%'` is the form wi_path_idx
+-- (tenant_id, path text_pattern_ops) serves as an index scan, and a path built from UUIDs and
+-- separators can hold no LIKE metacharacter. The entry itself matches its own prefix and is
+-- excluded, because the caller already holds it and copies it under rules of its own.
+--
+-- Trashed rows are left out. They are on their way out of the system, and a copy that carried them
+-- would put back what somebody deleted; an archived one is copied, because it is a place rather
+-- than a deletion and the copy keeps it (C-11).
+--
+-- Ordered by depth first, so that a caller walking the rows always meets a parent before its
+-- children and can carry the mapping from old identifier to new one forwards in one pass. The rank
+-- decides within a level, in byte order, exactly as every other ordered read of this table
+-- (ADR-0022): a rank is a fractional index and the database's collation would compare it as words.
+--
+-- The limit is the caller's bound rather than a page: a copy is one transaction, and a subtree
+-- larger than the caller allows is refused rather than copied halfway. One row beyond the bound is
+-- read on purpose, so that "too large" is distinguishable from "exactly at the bound".
+SELECT
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.content_language,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.path LIKE sqlc.arg('path_prefix')::text || '%'
+  AND wi.id <> sqlc.arg('item_id')::uuid
+  AND wi.deleted_at IS NULL
+ORDER BY wi.depth, wi.order_key COLLATE "C", wi.id
+LIMIT sqlc.arg('row_limit');
+
+-- name: InsertWorkItemCopy :exec
+-- A copy of an entry: a new row that carries the description of another one (C-11).
+--
+-- Its own statement rather than more columns on InsertWorkItem, because the two write different
+-- things. A create writes what its use case owns and leaves every other column NULL, deliberately,
+-- so that a field arrives through the use case that owns it; a copy writes the fields another row
+-- already carries, all at once, because there is nothing to decide about them a second time and
+-- writing them through five more statements would spend five versions on an entry that was born a
+-- moment ago.
+--
+-- What is not here is what a copy does not carry: the completion, which names a person and a moment
+-- and would be a false record on an entry that person never touched, the deletion stamps, and the
+-- trash batch. The archive stamp is here, because an entry that was put away below the copied one
+-- stays put away in the copy rather than being silently brought back.
+--
+-- The custom field document and its definition references arrive together and already resolved
+-- against the destination: which definition a value belongs to is decided where the losses are
+-- reported (I-W6), not here.
+--
+-- The columns no use case writes yet are absent: the schedule (start_at, due_at, due_date_only,
+-- due_time_zone), the recurrence rule and the jumble provenance. They are NULL on every row this
+-- installation has, so carrying them would be copying a value nothing can have set. Whichever
+-- milestone gives a column its first writer gives it a line here in the same change - a copy that
+-- silently lost somebody's due date would be worse than the one it lost.
+INSERT INTO work_item (
+  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
+  bucket_id, order_key, assignee_id,
+  cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
+  content_language, archived_at, created_by, created_at, updated_at, version
+) VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
+  sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
+  normalize(sqlc.arg('title')::text, NFC),
+  sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
+  sqlc.narg('assignee_id'),
+  sqlc.narg('cover_kind'), sqlc.narg('cover_color_token'), sqlc.narg('cover_media_id'),
+  sqlc.arg('custom_fields')::jsonb, sqlc.arg('custom_field_refs')::jsonb,
+  sqlc.narg('content_language'), sqlc.narg('archived_at'), sqlc.arg('created_by'),
+  sqlc.arg('created_at'), sqlc.arg('created_at'), 1
+);
+
 -- name: ListWorkItems :many
 -- One level of one collection, in its manual order: the items directly in the collection when no
 -- parent is named, that item's children when one is. Anchored to a collection because an unanchored

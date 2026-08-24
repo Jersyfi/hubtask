@@ -440,7 +440,11 @@ func (i *workItems) MoveSubtree(
 func (i *workItems) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }
-func (i *workItems) Insert(context.Context, work.WorkItem) error           { return nil }
+func (i *workItems) Insert(context.Context, work.WorkItem) error { return nil }
+func (i *workItems) Subtree(context.Context, work.WorkItem, int) ([]work.WorkItem, error) {
+	return nil, nil
+}
+func (i *workItems) InsertCopy(context.Context, workrepo.Copy) error       { return nil }
 func (i *workItems) SetArchived(context.Context, work.WorkItem, int) error { return nil }
 func (i *workItems) TrashSubtree(context.Context, workrepo.ItemTrash) (int, error) {
 	return 0, nil

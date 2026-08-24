@@ -65,7 +65,11 @@ func (s *itemStore) MoveSubtree(context.Context, workrepo.Move) (int, []work.Dro
 func (s *itemStore) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }
-func (s *itemStore) Insert(context.Context, work.WorkItem) error           { return nil }
+func (s *itemStore) Insert(context.Context, work.WorkItem) error { return nil }
+func (s *itemStore) Subtree(context.Context, work.WorkItem, int) ([]work.WorkItem, error) {
+	return nil, nil
+}
+func (s *itemStore) InsertCopy(context.Context, workrepo.Copy) error       { return nil }
 func (s *itemStore) SetArchived(context.Context, work.WorkItem, int) error { return nil }
 func (s *itemStore) TrashSubtree(context.Context, workrepo.ItemTrash) (int, error) {
 	return 0, nil

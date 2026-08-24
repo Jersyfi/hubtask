@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -88,6 +89,10 @@ type items struct {
 	covers []attributeWrite
 	// The custom field side (C-07), same shape again.
 	customFields []attributeWrite
+	// The copy side (C-11): every call to InsertCopy, and the failure a test asks the subtree read
+	// for.
+	copies     []repository.Copy
+	subtreeErr error
 }
 
 // rankWrite is one call to SetOrderKey: the item as it would be stored, and the version it was written
@@ -374,6 +379,51 @@ func (i *items) Insert(_ context.Context, item domain.WorkItem) error {
 	}
 	i.inserted = append(i.inserted, item)
 	i.stored[item.ID] = item
+	return nil
+}
+
+// Subtree answers what the real statement answers: everything stored whose path begins with the
+// entry's, the entry itself and the trashed rows left out, parents before children. Sorted by
+// depth and then by rank, because a map iterates in no order and the copy depends on meeting a
+// parent before its children (C-11).
+func (i *items) Subtree(_ context.Context, item domain.WorkItem, limit int) ([]domain.WorkItem, error) {
+	if i.subtreeErr != nil {
+		return nil, i.subtreeErr
+	}
+
+	var below []domain.WorkItem
+	for _, stored := range i.stored {
+		if stored.ID == item.ID || !strings.HasPrefix(stored.Path, item.Path) || stored.IsTrashed() {
+			continue
+		}
+		below = append(below, stored)
+	}
+	slices.SortFunc(below, func(a, b domain.WorkItem) int {
+		if a.Depth != b.Depth {
+			return a.Depth - b.Depth
+		}
+		if order := strings.Compare(a.OrderKey, b.OrderKey); order != 0 {
+			return order
+		}
+		return strings.Compare(a.ID.String(), b.ID.String())
+	})
+
+	// One row beyond the bound, exactly as the statement reads one: that is how the caller tells
+	// "as large as allowed" from "larger than allowed".
+	if len(below) > limit+1 {
+		below = below[:limit+1]
+	}
+	return below, nil
+}
+
+// InsertCopy records the copy and the definitions its values were written under, and stores the
+// row: a test asserts on both, the written entry and what it was written to stand behind.
+func (i *items) InsertCopy(_ context.Context, duplicate repository.Copy) error {
+	if i.insertErr != nil {
+		return i.insertErr
+	}
+	i.copies = append(i.copies, duplicate)
+	i.stored[duplicate.Item.ID] = duplicate.Item
 	return nil
 }
 
