@@ -93,6 +93,14 @@ func (f *fixedIDs) NewID() shared.ID {
 	return shared.MustParseID(fmt.Sprintf("0192f000-0000-7000-8000-%012x", f.issued))
 }
 
+// emptyHistory is a notification history with nothing due. The retention run refuses to sweep with
+// nothing wired, on purpose - an engine that quietly skips a kind is risk R-09 - so the sweep's own
+// tests wire it.
+type emptyHistory struct{}
+
+func (emptyHistory) DeleteExpired(context.Context, time.Time, int) (int, error) { return 0, nil }
+func (emptyHistory) CountExpired(context.Context, time.Time, int) (int, error)  { return 0, nil }
+
 func sweepFor(rows int, batchSize int) RetentionSweep {
 	items := make([]repository.ExpiredItem, 0, rows)
 	for i := range rows {
@@ -111,6 +119,9 @@ func sweepFor(rows int, batchSize int) RetentionSweep {
 				policy: domain.Policy{DataKind: domain.KindTrash, RetainDays: 30, MinDays: 7},
 			},
 			Runs: silentRuns{},
+			// The notification history, empty: what this file is about is when the job comes back,
+			// and a second kind with nothing in it does not change that answer.
+			History: emptyHistory{},
 			Purger: lifecycle.Purger{
 				Trash: noTrash{}, Expired: expiredRows{items: items}, Holds: noHolds{},
 				Removals: noRemovals{}, Events: noEvents{}, Audit: noAudit{},

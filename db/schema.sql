@@ -704,6 +704,56 @@ CREATE TABLE calendar_feed (
 );
 CREATE UNIQUE INDEX calendar_feed_token_uq ON calendar_feed (token_hash);
 
+-- ============================== Notification ===============================
+
+-- What somebody is to be told, and how far that got (C-09). References and no content: what an
+-- email says is read from the entry when it is rendered, never copied here.
+CREATE TABLE notification (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  recipient_id uuid NOT NULL,
+  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION')),
+  channel      text NOT NULL CHECK (channel IN ('EMAIL')),
+  state        text NOT NULL CHECK (state IN ('PENDING','SENT','SUPPRESSED','FAILED')),
+  reason       text,                             -- a detail code, never a sentence (rule 8)
+  event_id     uuid,                             -- null for the invitation, which is not an event
+  item_id      uuid,
+  actor_id     uuid,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  sent_at      timestamptz,
+  attempts     integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+
+  CONSTRAINT notification_recipient_id_fkey
+    FOREIGN KEY (tenant_id, recipient_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT notification_item_id_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT notification_actor_id_fkey
+    FOREIGN KEY (tenant_id, actor_id) REFERENCES account (tenant_id, id)
+      ON DELETE SET NULL (actor_id)
+);
+-- Partial: the invitation carries no event, and NULLs are all distinct to a unique index.
+CREATE UNIQUE INDEX notification_event_recipient_idx
+  ON notification (tenant_id, event_id, recipient_id, channel)
+  WHERE event_id IS NOT NULL;
+CREATE INDEX notification_pending_idx
+  ON notification (tenant_id, created_at) WHERE state = 'PENDING';
+CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
+
+-- What a person has said about being told. A row is an exception; its absence is the default, on.
+CREATE TABLE notification_preference (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id    uuid NOT NULL,
+  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION')),
+  channel       text NOT NULL CHECK (channel IN ('EMAIL')),
+  enabled       boolean NOT NULL DEFAULT true,
+  include_title boolean NOT NULL DEFAULT true,   -- data-protection.md §9: the minimum is switchable
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+
+  PRIMARY KEY (tenant_id, account_id, category, channel),
+  CONSTRAINT notification_preference_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+
 -- ========================= Events, jobs, idempotency =======================
 
 CREATE TABLE outbox_event (
@@ -1163,6 +1213,7 @@ BEGIN
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
     'automation_rule','rule_run','webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
+    'notification','notification_preference',
     'audit_anchor','retention_policy','data_subject_request','consent_record',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element'

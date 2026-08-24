@@ -88,7 +88,7 @@ func newSuite(t *testing.T, window time.Duration) *suite {
 
 	store := postgres.NewLifecycleRepository()
 	s.run = lifecycle.RunRetention{
-		Policies: store, Runs: store,
+		Policies: store, Runs: store, History: postgres.NewNotificationRepository(),
 		Purger: lifecycle.Purger{
 			Trash:    postgres.NewTrashRepository(security.NewCursorCodec(installationSecret)),
 			Expired:  store,
@@ -325,12 +325,14 @@ func TestRE5AHardDeleteLeavesNoOrphans(t *testing.T) {
 		s.tenant.String(), work.RootPath(removed)); count != 0 {
 		t.Errorf("%d rows survive under the removed entry", count)
 	}
-	// And the run is closed rather than left saying RUNNING.
+	// And the run is closed rather than left saying RUNNING. Narrowed to the trash, because a pass
+	// logs one run per data kind and the notification history's is beside it (C-09).
 	if count := s.count(t, `
 		SELECT count(*) FROM retention_run
-		WHERE tenant_id = $1 AND status = 'SUCCEEDED' AND finished_at IS NOT NULL`,
+		WHERE tenant_id = $1 AND data_kind = 'TRASH'
+		  AND status = 'SUCCEEDED' AND finished_at IS NOT NULL`,
 		s.tenant.String()); count != 1 {
-		t.Errorf("%d closed runs, want 1", count)
+		t.Errorf("%d closed trash runs, want 1", count)
 	}
 }
 
@@ -427,4 +429,75 @@ func TestAFullBatchIsReportedAsUnfinished(t *testing.T) {
 		`SELECT count(*) FROM work_item WHERE tenant_id = $1`, s.tenant.String()); left != 0 {
 		t.Errorf("%d entries are left after two passes", left)
 	}
+}
+
+// The NOTIFICATION class of data-retention.md §3, against the real table: seeded at ninety days
+// on the first pass, and enforced by the same run that empties the trash (C-09).
+func TestTheNotificationHistoryIsSweptAtNinetyDays(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	ctx := s.ctx
+
+	expired := s.seedNotification(ctx, t, s.author, now.AddDate(0, 0, -91))
+	fresh := s.seedNotification(ctx, t, s.author, now.AddDate(0, 0, -89))
+
+	s.sweep(t)
+
+	// The period is in the table rather than in the code, which is what the pass seeded on its
+	// way through (ADR-0020).
+	var retainDays int
+	if err := s.admin.QueryRow(ctx,
+		`SELECT retain_days FROM retention_policy WHERE tenant_id = $1 AND data_kind = 'NOTIFICATION'`,
+		s.tenant.String()).Scan(&retainDays); err != nil {
+		t.Fatalf("reading the seeded period: %v", err)
+	}
+	if retainDays != 90 {
+		t.Errorf("the seeded period is %d days, want 90", retainDays)
+	}
+
+	if s.notificationExists(ctx, t, expired) {
+		t.Error("a record past its period survived the sweep")
+	}
+	if !s.notificationExists(ctx, t, fresh) {
+		t.Error("a record inside its period was swept")
+	}
+
+	// And the run is in the log under its own kind, so an operator can see that the notification
+	// history is being kept to as well as the trash.
+	var runs int
+	if err := s.admin.QueryRow(ctx,
+		`SELECT count(*) FROM retention_run WHERE tenant_id = $1 AND data_kind = 'NOTIFICATION'`,
+		s.tenant.String()).Scan(&runs); err != nil {
+		t.Fatalf("reading the run log: %v", err)
+	}
+	if runs != 1 {
+		t.Errorf("%d logged runs for the notification history, want 1", runs)
+	}
+}
+
+// seedNotification writes one record straight into the table: what this file is about is the
+// period, and how a record comes to exist is the notification path's own evidence.
+func (s *suite) seedNotification(
+	ctx context.Context, t *testing.T, recipient shared.ID, createdAt time.Time,
+) shared.ID {
+	t.Helper()
+
+	id := ids.NewID()
+	if _, err := s.admin.Exec(ctx, `
+		INSERT INTO notification (id, tenant_id, recipient_id, category, channel, state, created_at)
+		VALUES ($1, $2, $3, 'INVITATION', 'EMAIL', 'SENT', $4)`,
+		id.String(), s.tenant.String(), recipient.String(), createdAt); err != nil {
+		t.Fatalf("seeding the notification: %v", err)
+	}
+	return id
+}
+
+func (s *suite) notificationExists(ctx context.Context, t *testing.T, id shared.ID) bool {
+	t.Helper()
+
+	var found bool
+	if err := s.admin.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM notification WHERE id = $1)`, id.String()).Scan(&found); err != nil {
+		t.Fatalf("reading the notification: %v", err)
+	}
+	return found
 }

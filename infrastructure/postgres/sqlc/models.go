@@ -824,6 +824,32 @@ type Membership struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type Notification struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	RecipientID pgtype.UUID
+	Category    string
+	Channel     string
+	State       string
+	Reason      *string
+	EventID     pgtype.UUID
+	ItemID      pgtype.UUID
+	ActorID     pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	SentAt      pgtype.Timestamptz
+	Attempts    int32
+}
+
+type NotificationPreference struct {
+	TenantID     pgtype.UUID
+	AccountID    pgtype.UUID
+	Category     string
+	Channel      string
+	Enabled      bool
+	IncludeTitle bool
+	UpdatedAt    pgtype.Timestamptz
+}
+
 type OutboxEvent struct {
 	ID             pgtype.UUID
 	TenantID       pgtype.UUID

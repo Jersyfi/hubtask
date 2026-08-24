@@ -52,6 +52,9 @@ type Metrics struct {
 	retentionRun      metric.Float64Histogram
 	mediaReclaimed    metric.Int64Counter
 	mediaReclaimFail  metric.Int64Counter
+	notificationsRec  metric.Int64Counter
+	notificationsSent metric.Float64Histogram
+	notificationsFail metric.Int64Counter
 	tenantLabelActive bool
 }
 
@@ -227,7 +230,77 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	if err := m.retentionInstruments(meter); err != nil {
 		return err
 	}
-	return m.mediaInstruments(meter)
+	if err := m.mediaInstruments(meter); err != nil {
+		return err
+	}
+	return m.notificationInstruments(meter)
+}
+
+// notificationInstruments are what the notification path publishes (C-09).
+//
+// The labels are the closed sets the notification domain defines - the category, the channel, the
+// state and the suppression reasons - so nothing unbounded can reach a label from here
+// (observability-reliability.md §3.2). No recipient and no tenant: a series per person is the
+// cardinality explosion §3.2 is about, and it would also be personal data in a metric (rule 10).
+func (m *Metrics) notificationInstruments(meter metric.Meter) error {
+	var err error
+	if m.notificationsRec, err = meter.Int64Counter(
+		namespace+"_notifications_recorded_total",
+		metric.WithDescription(
+			"Notification records written, by category, channel and the state they were written in."),
+	); err != nil {
+		return fmt.Errorf("notification counter: %w", err)
+	}
+	if m.notificationsSent, err = meter.Float64Histogram(
+		namespace+"_notification_send_duration_seconds",
+		metric.WithDescription("How long sending one notification took, by category and channel."),
+		metric.WithUnit("s"),
+		// A mail server on the same network answers in milliseconds and one across the internet in
+		// seconds. Past thirty the question is no longer how slow but whether it is there at all,
+		// which is the breaker's business rather than this histogram's.
+		metric.WithExplicitBucketBoundaries(0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30),
+	); err != nil {
+		return fmt.Errorf("notification send histogram: %w", err)
+	}
+	if m.notificationsFail, err = meter.Int64Counter(
+		namespace+"_notification_failures_total",
+		metric.WithDescription("Notification sends that did not work, by category, channel and reason."),
+	); err != nil {
+		return fmt.Errorf("notification failure counter: %w", err)
+	}
+	return nil
+}
+
+// NotificationRecorded counts a record as it is written, in the state it was written in. The state
+// is the point: a rising SUPPRESSED count is people switching things off, and a rising PENDING
+// count that never becomes SENT is a mail server nobody has noticed.
+func (m *Metrics) NotificationRecorded(ctx context.Context, category, channel, state string) {
+	m.notificationsRec.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("category", category),
+		attribute.String("channel", channel),
+		attribute.String("state", state),
+	))
+}
+
+// NotificationSent records how long one message took to leave.
+func (m *Metrics) NotificationSent(
+	ctx context.Context, category, channel string, seconds float64,
+) {
+	m.notificationsSent.Record(ctx, seconds, metric.WithAttributes(
+		attribute.String("category", category),
+		attribute.String("channel", channel),
+	))
+}
+
+// NotificationFailed counts a send that did not work, by the detail code that says why. The reason
+// separates "the server is down" from "the address was refused", which are different problems with
+// different fixes.
+func (m *Metrics) NotificationFailed(ctx context.Context, category, channel, reason string) {
+	m.notificationsFail.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("category", category),
+		attribute.String("channel", channel),
+		attribute.String("reason", reason),
+	))
 }
 
 // mediaInstruments are the two numbers the media reclamation publishes (C-06,

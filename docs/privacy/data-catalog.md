@@ -4,7 +4,7 @@ A record of every data category the system processes, with its purpose, classifi
 locations, retention, and deletion path. The basis for the record of processing activities
 (GDPR Art. 30) that every operator keeps for themselves.
 
-* **Version:** 0.3.0 · **As of:** 2026-08-22 · **Maintenance:** by pull request, so changes are traceable
+* **Version:** 0.3.0 · **As of:** 2026-08-24 · **Maintenance:** by pull request, so changes are traceable
 * **Concept:** [../architecture/data-protection.md](../architecture/data-protection.md)
 * **Consistency check:** gate PG-7 compares this record against the database schema; a table with personal content that is missing here fails the build.
 
@@ -94,6 +94,8 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Embedding vectors (optional) | `item_embedding` | `PERSONAL_CONTENT` (derived) | Semantic search | With the source row | `CASCADE` |
 | Email intake (sender, subject, body) | `jumble_entry` | `PERSONAL_CONTENT` | Quick capture | See §3 | `RETENTION` |
 | What a subscriber has already consumed (consumer, event, time) | `event_consumption` | `NON_PERSONAL` | At-least-once delivery without a repeated effect (ADR-0007) | With the event, 7 days after delivery | `RETENTION` |
+| Notifications (recipient, category, channel, state, reason, references) | `notification` | `PERSONAL_TECHNICAL` (references only — no title, no note, no comment text) | Telling somebody that work concerns them | 90 days (`NOTIFICATION`, data-retention.md §3) | `RETENTION`, and `CASCADE` with the account or the entry |
+| Notification preferences (category, channel, switched on, title in the message) | `notification_preference` | `PERSONAL_BASIC` | Honouring what somebody said about being told | The lifetime of the account | `CASCADE` |
 | Device operation log (operation, result, response) | `sync_op_log` | `PERSONAL_CONTENT` (the response mirrors the row) | Idempotent `:push` for offline devices | The offline window, 90 days by default | `RETENTION` |
 | Tombstones (entity, identifier, deletion time) | `tombstone` | `PERSONAL_TECHNICAL` (references only) | So a device that was offline learns of a deletion instead of recreating it | Until the purge date, the offline window | `RETENTION` |
 
