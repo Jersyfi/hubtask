@@ -18,22 +18,26 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	port "github.com/Jersyfi/hubtask/core/port/storage"
 )
 
 // sniffBytes is what content sniffing reads: the WHATWG algorithm behind
 // http.DetectContentType never looks past 512 bytes.
 const sniffBytes = 512
 
-// Inspection is a judged upload: the type to store, and the content re-assembled for exactly one
-// consumption.
-type Inspection struct {
-	// ContentType is the type to store: the sniffed one, sharpened by the claim only where the
-	// domain's policy allows (media.AcceptClaim).
-	ContentType string
-	// Content replays the sniffed head and continues with the rest, refusing at the boundary
-	// byte of the limit. It has not been buffered beyond the sniffing head and must be consumed
-	// once, streaming (T-17).
-	Content io.Reader
+// UploadGuard is the port's Guard: the judgement, as something a use case can hold without
+// importing this package (core/port/storage).
+//
+// Empty on purpose. The guard has no state and no configuration - the limit travels with the call,
+// because it is the installation's and the application layer is what knows it.
+type UploadGuard struct{}
+
+func NewUploadGuard() UploadGuard { return UploadGuard{} }
+
+var _ port.Guard = UploadGuard{}
+
+func (UploadGuard) Inspect(content io.Reader, claimedType string, limit int64) (port.Inspection, error) {
+	return Inspect(content, claimedType, limit)
 }
 
 // Inspect judges one upload before a byte of it reaches a store.
@@ -43,27 +47,27 @@ type Inspection struct {
 // boundary byte: an upload larger than the limit costs the bytes already streamed and nothing
 // held in memory - never an allocation of the object (T-17,
 // observability-reliability.md §6).
-func Inspect(content io.Reader, claimedType string, limit int64) (Inspection, error) {
+func Inspect(content io.Reader, claimedType string, limit int64) (port.Inspection, error) {
 	head := make([]byte, sniffBytes)
 	read, err := io.ReadFull(content, head)
 	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
-		return Inspection{}, shared.ErrValidation.
+		return port.Inspection{}, shared.ErrValidation.
 			WithDetail("media.content_unreadable").
 			WithFields(shared.FieldError{Path: "/content", Code: "media.content_unreadable"})
 	}
 	head = head[:read]
 	if read == 0 {
-		return Inspection{}, shared.ErrValidation.
+		return port.Inspection{}, shared.ErrValidation.
 			WithDetail("media.content_required").
 			WithFields(shared.FieldError{Path: "/content", Code: "media.content_required"})
 	}
 	if limit > 0 && int64(read) > limit {
-		return Inspection{}, media.TooLarge(limit)
+		return port.Inspection{}, media.TooLarge(limit)
 	}
 
 	stored, err := media.AcceptClaim(claimedType, http.DetectContentType(head))
 	if err != nil {
-		return Inspection{}, err
+		return port.Inspection{}, err
 	}
 
 	rest := io.Reader(content)
@@ -73,7 +77,7 @@ func Inspect(content io.Reader, claimedType string, limit int64) (Inspection, er
 		// file the sender did not send.
 		rest = &boundedReader{source: content, limit: limit, remaining: limit - int64(read)}
 	}
-	return Inspection{
+	return port.Inspection{
 		ContentType: stored,
 		Content:     io.MultiReader(bytes.NewReader(head), rest),
 	}, nil

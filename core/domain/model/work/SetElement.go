@@ -18,6 +18,10 @@ const (
 	SetLabels   SetName = "labels"
 	SetMembers  SetName = "members"
 	SetWatchers SetName = "watchers"
+	// SetAttachments is what an entry carries in files (C-06). A set like the others, and for the
+	// same reason it needs tags: two devices, one attaching a photo and the other detaching a
+	// receipt, must not resolve to whichever array was written later.
+	SetAttachments SetName = "attachments"
 )
 
 // SetElement is one element of a set an item carries, with the tags that decide whether it is in

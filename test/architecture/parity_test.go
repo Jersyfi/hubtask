@@ -16,6 +16,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
+	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -89,6 +90,15 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.ListTrash{}.Descriptor(),
 		lifecycle.PurgeWorkItem{}.Descriptor(),
 		lifecycle.EmptyTrash{}.Descriptor(),
+		mediaservice.RequestMediaUpload{}.Descriptor(),
+		mediaservice.ConfirmMediaUpload{}.Descriptor(),
+		work.SetCover{}.Descriptor(),
+		work.ClearCover{}.Descriptor(),
+		work.AttachMedia{}.Descriptor(),
+		work.DetachMedia{}.Descriptor(),
+		mediaservice.ListAttachments{}.Descriptor(),
+		mediaservice.GetMedia{}.Descriptor(),
+		mediaservice.DeleteMedia{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.GrantMembership{}.Descriptor(),

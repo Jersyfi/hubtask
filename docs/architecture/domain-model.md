@@ -215,7 +215,7 @@ stateDiagram-v2
 | `Label` | `collectionId`, `name`, `colorToken`, `description?` | The colour is a token (not hex) → theming is possible in the frontend; hex optionally allowed |
 | `Comment` | `itemId`, `authorId`, `body`, `editedAt?`, `parentCommentId?` | Only the author or an admin may change it; deletion is a soft delete ("removed") |
 | `ActivityEntry` | `itemId`, `actor{type,id}`, `verb`, `changeSet` (JSONB), `occurredAt`, `causationId` | Append-only, the source of the history; `verb` is a code (i18n) |
-| `MediaObject` | `tenantId`, `storageKey`, `mimeType`, `size`, `checksum`, `usage` | Presigned upload, reference counting, deletion on hard delete |
+| `MediaObject` | `tenantId`, `storageKey`, `fileName?`, `mimeType`, `size`, `checksum?`, `usage`, `status` (`PENDING`\|`READY`) | Presigned upload, reference counting, deletion on hard delete. `status` is the three-step flow written into the row: nothing may use an object before the confirmation has read its bytes back and judged them (C-06, T-11) |
 | `CustomFieldDefinition` | `scope(collection\|tenant)`, `key`, `kind` (`TEXT`,`NUMBER`,`DATE`,`SELECT`,`MULTI_SELECT`,`BOOL`,`USER`,`URL`), `options`, `required` | Enables extension without a migration |
 | `Reminder` | `itemId`, `offsetSpec` (`REL:-PT1H` / `ABS:<ts>`), `channels[]`, `recipients[]`, `state` | Predefined (relative presets) and custom |
 | `RecurrenceRule` | `rrule` (RFC 5545), `timeZone`, `mode` (`ON_SCHEDULE`\|`ON_COMPLETION`), `horizonDays`, `endSpec` | See arc42 §6.3 |
@@ -326,6 +326,16 @@ implementation backlog:
 `CreateLabel`, `UpdateLabel`, `DeleteLabel`, `DefineCustomField`, `UpdateCustomField`, `DeleteCustomField`.
 
 **Collaboration** `AddComment`, `EditComment`, `DeleteComment`, `ListActivity`.
+
+**Media** `RequestMediaUpload`, `ConfirmMediaUpload`, `GetMedia`, `DeleteMedia`, `AttachMedia`,
+`DetachMedia`, `ListAttachments`, `ReconcileMedia` (internal). The upload is three steps because
+the server does not carry the bytes (arc42 §8.4): a client asks where to put them, puts them there,
+and confirms — and only the confirmation, which reads them back and sniffs them, makes the object
+usable. `AttachMedia` and `DetachMedia` were missing from this list while the event catalogue in
+§4, the automation actions and the API resource table all named the attachment; they are here now
+(C-06). `ReconcileMedia` is not registered in the three channels and deliberately not: "delete
+every unreferenced file, now" is not a button anybody should be given, and the way to influence it
+is the configuration rather than a call.
 
 **Scheduling** `CreateReminder`, `UpdateReminder`, `DeleteReminder`, `SetRecurrence`,
 `UpdateRecurrence`, `RemoveRecurrence`, `SkipOccurrence`, `MaterializeOccurrences` (internal).

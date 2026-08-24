@@ -18,6 +18,7 @@ import (
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	port "github.com/Jersyfi/hubtask/core/port/storage"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -192,6 +193,59 @@ func (s *S3Storage) Delete(ctx context.Context, key string) error {
 	default:
 		return s.unexpected(resp)
 	}
+}
+
+var _ port.TransferIssuer = (*S3Storage)(nil)
+
+// IssueUpload mints a presigned PUT: the client sends the bytes to the bucket directly, and the
+// server never carries them (arc42 §8.4).
+func (s *S3Storage) IssueUpload(object media.Object, expiresAt time.Time) (port.Transfer, error) {
+	target, err := s.objectURL(object.StorageKey)
+	if err != nil {
+		return port.Transfer{}, err
+	}
+
+	now := s.now()
+	return port.Transfer{
+		URL: presignV4(http.MethodPut, target, s.accessKey, s.secretKey, s.region, "s3",
+			expiresAt.Sub(now), now, nil),
+		Method:    http.MethodPut,
+		ExpiresAt: expiresAt,
+	}, nil
+}
+
+// IssueDownload mints a presigned GET whose disposition is signed into it: the bucket answers
+// `Content-Disposition: attachment`, and a holder cannot strip that without invalidating the
+// signature (T-11 - the bucket origin is not the application's, and the download stays a
+// download there too).
+func (s *S3Storage) IssueDownload(
+	object media.Object, expiresAt time.Time,
+) (port.Transfer, error) {
+	target, err := s.objectURL(object.StorageKey)
+	if err != nil {
+		return port.Transfer{}, err
+	}
+
+	disposition := "attachment"
+	if object.FileName != "" {
+		disposition = `attachment; filename="` + sanitizeDispositionName(object.FileName) + `"`
+	}
+	now := s.now()
+	return port.Transfer{
+		URL: presignV4(http.MethodGet, target, s.accessKey, s.secretKey, s.region, "s3",
+			expiresAt.Sub(now), now, map[string]string{
+				"response-content-disposition": disposition,
+			}),
+		Method:    http.MethodGet,
+		ExpiresAt: expiresAt,
+	}, nil
+}
+
+// sanitizeDispositionName keeps the quoted-string form of RFC 6266 intact: quotes and
+// backslashes would end the string early, and the domain already refused everything wilder.
+func sanitizeDispositionName(name string) string {
+	replacer := strings.NewReplacer(`"`, "'", `\`, "_")
+	return replacer.Replace(name)
 }
 
 // CreateBucket makes the configured bucket exist, treating "it already does" as the success it

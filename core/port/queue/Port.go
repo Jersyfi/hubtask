@@ -53,6 +53,15 @@ const (
 	// tenant administration runs through the control plane (db/migrations/0001_init.sql). A
 	// deletion scheduling its own cleanup is also the more honest statement of what has to happen.
 	KindRetentionSweep Kind = "retention.sweep"
+
+	// KindMediaReconcile makes one tenant's media reference counts honest and reclaims what
+	// nothing points at (C-06, data-protection.md §5).
+	//
+	// One job per tenant, rescheduling itself forever, seeded by a write in the tenant for the
+	// reason the retention sweep is: nothing in this system may enumerate tenants, so a scheduler
+	// cannot create one job per tenant even if it wanted to. A staging is what seeds it - an
+	// upload is the first thing that can ever need reclaiming - and a deletion pulls it forward.
+	KindMediaReconcile Kind = "media.reconcile"
 )
 
 func (k Kind) String() string { return string(k) }
@@ -123,6 +132,26 @@ type Result struct {
 // (observability-reliability.md §8).
 type Handler interface {
 	Run(ctx context.Context, job Job) (Result, error)
+}
+
+// Detached is a handler the runner does not wrap in a transaction.
+//
+// The narrow exception to the paragraph above, for the one kind of job that cannot live inside it:
+// a pass that has to reach a bucket between two writes. Holding the transaction open across that
+// call is exactly what observability-reliability.md §8 forbids, and doing the call after the
+// commit is not available to a handler - the runner owns the boundary.
+//
+// What an implementer gives up is the atomicity everybody else gets for free: its writes and the
+// job's completion no longer commit together, so a process that dies between them leaves work done
+// and a job that will be claimed again. That is only acceptable for a pass that is safe to run
+// twice, and an implementer of this interface is asserting exactly that.
+type Detached interface {
+	Handler
+
+	// OwnsItsTransactions is the assertion, and its value is never read: implementing the
+	// interface is the declaration. A method rather than an empty interface, so that a handler
+	// cannot satisfy it by accident.
+	OwnsItsTransactions()
 }
 
 // Lease is the terms on which a batch of jobs is claimed.

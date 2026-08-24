@@ -806,6 +806,8 @@ type MediaObject struct {
 	CreatedBy  pgtype.UUID
 	CreatedAt  pgtype.Timestamptz
 	DeletedAt  pgtype.Timestamptz
+	Status     string
+	FileName   *string
 }
 
 type Membership struct {

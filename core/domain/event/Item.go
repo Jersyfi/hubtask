@@ -256,6 +256,42 @@ func newItemLabelChange(id shared.ID, eventType Type, item work.WorkItem, labelI
 		})
 }
 
+// NewAttachmentAdded announces that an entry now carries a file (domain-model.md §4).
+//
+// The payload is the reference, exactly as the label events are and for the same reason: an
+// attachment is a set element rather than a field, and an entry snapshot carrying the whole set
+// would be a value another device may already have merged differently. `media_id` is what a rule
+// and the media garbage collection react to; `item_id` is what they read the rest from.
+func NewAttachmentAdded(id shared.ID, item work.WorkItem, mediaID shared.ID, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newAttachmentChange(id, AttachmentAdded, item, mediaID, actor, occurredAt, cause)
+}
+
+// NewAttachmentRemoved announces that an entry no longer carries a file.
+func NewAttachmentRemoved(id shared.ID, item work.WorkItem, mediaID shared.ID, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newAttachmentChange(id, AttachmentRemoved, item, mediaID, actor, occurredAt, cause)
+}
+
+func newAttachmentChange(id shared.ID, eventType Type, item work.WorkItem, mediaID shared.ID,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if mediaID.IsZero() {
+		// An event about no file at all. Nothing a client sent could have caused it, so it is a
+		// defect rather than input (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.media_missing")
+	}
+
+	return NewEnvelope(id, eventType, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, map[string]any{
+			"item_id":       item.ID.String(),
+			"collection_id": item.CollectionID.String(),
+			"media_id":      mediaID.String(),
+		})
+}
+
 // NewItemAssigned announces that an entry is on somebody (domain-model.md §4).
 //
 // The payload is the reference §4 names rather than a snapshot of the entry, which is what the four

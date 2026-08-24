@@ -275,6 +275,13 @@ CREATE TABLE work_item (
   CHECK (is_completed = (completed_at IS NOT NULL)),
   CHECK ((type = 'TASK') = (parent_id IS NULL)),
   CHECK (bucket_id IS NULL OR type = 'TASK'),
+  -- The cover's integrity (C-06, migration 0013). No TASK tie: which types carry COVER is the
+  -- capability matrix, which is data per tenant.
+  CONSTRAINT work_item_cover_consistent CHECK (
+    (cover_kind IS NULL AND cover_color_token IS NULL AND cover_media_id IS NULL)
+    OR (cover_kind = 'COLOR' AND cover_color_token IS NOT NULL AND cover_media_id IS NULL)
+    OR (cover_kind = 'IMAGE' AND cover_media_id IS NOT NULL AND cover_color_token IS NULL)
+  ),
   CONSTRAINT work_item_assignee_id_fkey
     FOREIGN KEY (tenant_id, assignee_id) REFERENCES account (tenant_id, id) ON DELETE SET NULL (assignee_id),
   CONSTRAINT work_item_bucket_id_fkey
@@ -292,6 +299,7 @@ CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
 CREATE INDEX wi_assignee_idx ON work_item (tenant_id, assignee_id, is_completed, due_at)
   WHERE deleted_at IS NULL;
 CREATE INDEX wi_parent_idx   ON work_item (tenant_id, parent_id, order_key);
+CREATE INDEX wi_cover_media_idx ON work_item (tenant_id, cover_media_id) WHERE cover_media_id IS NOT NULL;
 -- The plain item list of GET /items: one level of one collection, in its manual order. `id` last,
 -- because the cursor is a keyset over (order_key, id) (B-04, api-guidelines.md §4).
 CREATE INDEX wi_level_order_idx
@@ -406,9 +414,18 @@ CREATE TABLE media_object (
   ref_count   integer NOT NULL DEFAULT 0,
   created_by  uuid NOT NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
-  deleted_at  timestamptz
+  deleted_at  timestamptz,
+  -- The upload life (C-06, migration 0013): PENDING between staging and confirmation, READY once
+  -- the bytes were read back, judged and sealed. Fail-closed default.
+  status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY')),
+  file_name   text
 );
 CREATE UNIQUE INDEX media_object_tenant_id_uq ON media_object (tenant_id, id);
+CREATE INDEX media_object_reconcile_idx ON media_object (tenant_id, status, ref_count, created_at);
+-- Declared here rather than in work_item's definition, because media_object is created after it
+-- in this file; migration 0013 is where it arrived.
+ALTER TABLE work_item ADD CONSTRAINT work_item_cover_media_fkey
+  FOREIGN KEY (tenant_id, cover_media_id) REFERENCES media_object (tenant_id, id) ON DELETE RESTRICT;
 
 CREATE TABLE item_attachment (
   tenant_id uuid NOT NULL,
@@ -420,6 +437,7 @@ CREATE TABLE item_attachment (
   CONSTRAINT item_attachment_media_id_fkey
     FOREIGN KEY (tenant_id, media_id) REFERENCES media_object (tenant_id, id) ON DELETE RESTRICT
 );
+CREATE INDEX item_attachment_media_idx ON item_attachment (tenant_id, media_id);
 
 -- ============================== Scheduling =================================
 
@@ -1046,12 +1064,13 @@ CREATE TABLE sync_op_log (
 );
 CREATE INDEX sync_op_log_ttl_idx ON sync_op_log (applied_at);
 
--- OR-set tags for set fields (labels, members): additions and removals each carry
+-- OR-set tags for set fields (labels, members, attachments): additions and removals each carry
 -- their own tag, so that a concurrent add/remove does not discard whole lists through LWW.
 CREATE TABLE set_element (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   item_id      uuid NOT NULL,
-  set_name     text NOT NULL CHECK (set_name IN ('labels','members','watchers')),
+  set_name     text NOT NULL CONSTRAINT set_element_set_name_known
+    CHECK (set_name IN ('labels','members','watchers','attachments')),
   element_id   uuid NOT NULL,
   add_tag      text,                                  -- the HLC of the addition
   remove_tag   text,                                  -- the HLC of the removal

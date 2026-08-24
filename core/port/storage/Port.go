@@ -22,6 +22,9 @@ package storage
 import (
 	"context"
 	"io"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/media"
 )
 
 // ObjectStore reads and writes objects. Implementations: LocalStorage (a directory, the
@@ -46,6 +49,58 @@ type ObjectStore interface {
 	// the caller asked for, and the reconciliation job that calls this retries (C-06,
 	// data-protection.md §5).
 	Delete(ctx context.Context, key string) error
+}
+
+// Inspection is a judged upload: the type to store, and the content re-assembled for exactly one
+// consumption.
+type Inspection struct {
+	// ContentType is the type to store: the sniffed one, sharpened by the claim only where the
+	// domain's policy allows (media.AcceptClaim). Never the claim on its own (T-11).
+	ContentType string
+	// Content replays the sniffed head and continues with the rest, refusing at the boundary byte
+	// of the limit. It has not been buffered beyond that head and must be consumed once, as a
+	// stream (T-17).
+	Content io.Reader
+}
+
+// Guard judges bytes before any store sees them: the upload matrix's subject (SG-12, T-11, T-17).
+//
+// A port rather than a call into the adapter, because a use case may not import one - and the
+// split it draws is real: sniffing is mechanics, and the signature table lives in net/http, which
+// the core may not import. The policy over the sniffed answer is the domain's
+// (core/domain/model/media).
+type Guard interface {
+	// Inspect reads at most the sniffing head, reconciles the claim against what the bytes are,
+	// and hands back a stream that enforces the limit while it is consumed. A limit of zero is no
+	// limit.
+	Inspect(content io.Reader, claimedType string, limit int64) (Inspection, error)
+}
+
+// Transfer is one side of the byte movement, as the contract's MediaTransfer carries it: a URL
+// that is itself the capability, the method to use on it, and the moment it stops working.
+type Transfer struct {
+	URL       string
+	Method    string
+	ExpiresAt time.Time
+}
+
+// TransferIssuer mints the URLs the bytes travel through, so the server never carries them on an
+// object-storage installation (arc42 §8.4) - and stands in for that with its own token-protected
+// routes on a local one.
+//
+// The whole record travels rather than its parts, because the two implementations address by
+// different halves of it: a presigned URL names the storage key and the file name, the local
+// content route names the object and the tenant its bytes live under and resolves the key itself.
+// Passing four parameters instead would be passing the union of both, with each implementation
+// ignoring the half it does not use.
+type TransferIssuer interface {
+	// IssueUpload mints where the staged object's bytes go.
+	IssueUpload(object media.Object, expiresAt time.Time) (Transfer, error)
+
+	// IssueDownload mints where the object's bytes come from, served as a download: the
+	// disposition - attachment, with the file's name when one is known - is part of what is
+	// signed, so a holder cannot strip it (T-11).
+	IssueDownload(object media.Object, expiresAt time.Time) (Transfer, error)
 }
 
 // Upload is one object on its way in.

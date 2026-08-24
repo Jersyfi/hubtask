@@ -227,6 +227,7 @@ SELECT
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
   is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
+  cover_kind, cover_color_token, cover_media_id,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE id = $1;
@@ -279,6 +280,7 @@ INSERT INTO work_item (
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
   is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
+  cover_kind, cover_color_token, cover_media_id,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE collection_id = sqlc.arg('collection_id')::uuid
@@ -479,3 +481,17 @@ WHERE assignee_id = ANY(sqlc.arg('account_ids')::uuid[])
   AND deleted_at IS NULL
   AND archived_at IS NULL
 GROUP BY assignee_id;
+
+-- name: SetWorkItemCover :execrows
+-- The cover, set or cleared, under the same optimistic lock every write to this row takes. Its
+-- own statement for the reason the assignee has one: a cover is one decision about one field,
+-- and spending a rename's version on it would be a version nobody asked for. The consistency of
+-- the three columns is the table's CHECK (migration 0013), so a statement that half-set a cover
+-- would be refused by the database.
+UPDATE work_item SET
+  cover_kind        = sqlc.narg('cover_kind'),
+  cover_color_token = sqlc.narg('cover_color_token'),
+  cover_media_id    = sqlc.narg('cover_media_id'),
+  updated_at        = sqlc.arg('updated_at'),
+  version           = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');

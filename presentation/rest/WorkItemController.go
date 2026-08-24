@@ -314,8 +314,37 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		}
 		item.LabelIds = &labels
 	}
+	item.Cover = coverResponse(out["cover"])
 	item.ArchivedAt, item.DeletedAt = optionalTimeField(out["archived_at"]), optionalTimeField(out["deleted_at"])
 	return item
+}
+
+// coverResponse maps the cover, or nothing when the entry carries none. Absent rather than an
+// object with three nulls: the schema makes the whole field optional, and a client reading `cover`
+// as present would draw a card with a picture nobody chose (C-06).
+func coverResponse(value any) *openapi.Cover {
+	fields, carried := value.(map[string]any)
+	if !carried {
+		return nil
+	}
+
+	kind := openapi.CoverKind(stringOf(fields["kind"]))
+	cover := openapi.Cover{Kind: &kind}
+	if token := stringOf(fields["color_token"]); token != "" {
+		cover.ColorToken = &token
+	}
+	if mediaID := stringOf(fields["media_id"]); mediaID != "" {
+		id := uuidValue(mediaID)
+		cover.MediaId = &id
+	}
+	return &cover
+}
+
+// stringOf reads an optional text out of a projection, where an absent value is an untyped nil
+// rather than an empty string.
+func stringOf(value any) string {
+	text, _ := value.(string)
+	return text
 }
 
 // optionalTimeField maps a projection's optional instant. The generated fields carry omitempty, so an

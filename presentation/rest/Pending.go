@@ -255,6 +255,51 @@ func (pending) DeleteComment(w http.ResponseWriter, r *http.Request, _ openapi.I
 	notAvailable(w, r)
 }
 
+// The media operations land one by one as C-06 registers each use case.
+func (pending) SetCover(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetCoverParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ClearCover(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ClearCoverParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAttachments(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ListAttachmentsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) AttachMedia(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) DetachMedia(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) RequestMediaUpload(w http.ResponseWriter, r *http.Request, _ openapi.RequestMediaUploadParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetMedia(w http.ResponseWriter, r *http.Request, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteMedia(w http.ResponseWriter, r *http.Request, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfirmMediaUpload(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.ConfirmMediaUploadParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UploadMediaContent(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.UploadMediaContentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DownloadMediaContent(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.DownloadMediaContentParams) {
+	notAvailable(w, r)
+}
+
 // CompleteWorkItem is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CompleteWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CompleteWorkItemParams) {
 	notAvailable(w, r)

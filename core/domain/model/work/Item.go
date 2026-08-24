@@ -109,6 +109,13 @@ type WorkItem struct {
 	// A scalar rather than a set, so it merges as last writer wins per field: two devices naming two
 	// different people is a genuine conflict with one answer, unlike two devices adding two members.
 	AssigneeID shared.ID
+	// Cover is how the card presents itself, nil for none. Capability COVER, which by default
+	// only a task carries (domain-model.md §2, §3.4).
+	//
+	// One value with two shapes rather than two fields, and it merges as one scalar: last writer
+	// wins per field via the HLC - two devices choosing a colour and an image is a genuine
+	// conflict with one answer (offline-sync.md §4.2).
+	Cover *Cover
 
 	ArchivedAt   *time.Time
 	DeletedAt    *time.Time
@@ -294,6 +301,7 @@ const (
 	FieldNotes      = "notes"
 	FieldBucketID   = "bucket_id"
 	FieldAssigneeID = "assignee_id"
+	FieldCover      = "cover"
 	// FieldCollectionID is not something an update may set - an item changes collection by being
 	// moved - but it is a field that moves, and the records of a move name it.
 	FieldCollectionID = "collection_id"
@@ -518,6 +526,49 @@ func (i WorkItem) Unassigned(at time.Time) WorkItem {
 	}
 
 	i.AssigneeID = ""
+	i.UpdatedAt = at
+	return i
+}
+
+// EnsureCoverable refuses what cannot carry a cover at all: a type whose profile does not carry
+// COVER, and a trashed or archived entry - the capability first, for the reason EnsureAssignable
+// asks it first.
+func (i WorkItem) EnsureCoverable(profile CapabilityProfile) error {
+	if err := profile.Require(CapabilityCover, "/cover"); err != nil {
+		return err
+	}
+	return i.EnsureEditable()
+}
+
+// EnsureAttachable refuses what cannot carry attachments: a type whose profile does not carry
+// ATTACHMENTS - an activity - and a trashed or archived entry.
+func (i WorkItem) EnsureAttachable(profile CapabilityProfile) error {
+	if err := profile.Require(CapabilityAttachments, "/media_id"); err != nil {
+		return err
+	}
+	return i.EnsureEditable()
+}
+
+// Covered returns the item wearing the cover. Idempotent for the reason Assigned is: the same
+// cover again comes back untouched, so nothing is written, no version is spent and nothing is
+// announced.
+func (i WorkItem) Covered(cover Cover, at time.Time) WorkItem {
+	if i.Cover != nil && i.Cover.Equal(cover) {
+		return i
+	}
+
+	i.Cover = &cover
+	i.UpdatedAt = at
+	return i
+}
+
+// Uncovered returns the item with no cover. Idempotent for the same reason.
+func (i WorkItem) Uncovered(at time.Time) WorkItem {
+	if i.Cover == nil {
+		return i
+	}
+
+	i.Cover = nil
 	i.UpdatedAt = at
 	return i
 }

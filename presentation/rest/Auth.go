@@ -24,6 +24,12 @@ import (
 // missing from this list is authenticated, never the reverse.
 var PublicRoutes = map[string]bool{
 	http.MethodGet + " " + APIBasePath + "/meta/capabilities": true,
+	// The content routes carry their credential in the URL: a signed, expiring token minted by
+	// requestMediaUpload and getMedia, validated by the route itself - the same trust model as a
+	// presigned object-storage URL, which is what these stand in for on a local-storage
+	// installation (C-06, T-11).
+	http.MethodPut + " " + APIBasePath + "/media/{mediaId}:content": true,
+	http.MethodGet + " " + APIBasePath + "/media/{mediaId}:content": true,
 }
 
 // bearerScheme is compared case-insensitively, as RFC 9110 §11.1 requires of an auth scheme.

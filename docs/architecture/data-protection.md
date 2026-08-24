@@ -93,7 +93,7 @@ storage location is recorded in the data catalogue with a deletion path, and a t
 | Storage location | Deletion path |
 |---|---|
 | Primary tables | A cascading `DELETE` or an anonymising `UPDATE` |
-| Object storage (media) | Reference counting, then a deletion request; orphaned objects via a reconciliation job |
+| Object storage (media) | Reference counting, then a deletion request; orphaned objects via a reconciliation job (see below) |
 | Search index (`tsvector`, optionally pgvector/external) | With the row, or via a reindex request |
 | `outbox_event` | Short period (7 days after delivery); event payloads limited to references and `NON_PERSONAL` fields |
 | `webhook_delivery` | 30 days; request bodies stored truncated |
@@ -103,6 +103,27 @@ storage location is recorded in the data catalogue with a deletion path, and a t
 | Operational logs | 7–30 days, without content and without clear-text identifiers |
 | Backups | The retention period is documented; deletion takes effect once the backup cycle has elapsed — a fact that is made transparent to the data subject rather than concealed |
 | AI providers | A zero-retention agreement as a selection criterion; otherwise the provider is not approved |
+
+**The media reconciliation** (C-06) is that job, and it runs per tenant like the retention sweep,
+seeded by a staging rather than by a scheduler — nothing may enumerate tenants
+([multi-tenancy.md](./multi-tenancy.md) §2.1). One pass is three parts, and they are three because
+one of them may not be inside a transaction. It recounts every live reference and marks what
+nothing points at — both in one transaction, because a count read in one and acted on in another is
+a count something can move in between, and the recount exists precisely because the incremental
+counter can drift. It then removes the bytes, outside any transaction, since a bucket is an
+external dependency ([observability-reliability.md](./observability-reliability.md) §8). Finally it
+writes the deletion journal entry and the tombstone and drops the row, all three in one
+transaction, so that a restore from backup can never bring back a file this installation decided
+was gone ([ADR-0020](../adr/ADR-0020-retention-policies.md) §6).
+
+Two graces bound it. A staged upload nobody confirmed is abandoned only after
+`HUBTASK_MEDIA_STAGING_GRACE` (a day by default), so a large file still travelling up a slow line is
+not mistaken for one; a marked object waits out `HUBTASK_MEDIA_ORPHAN_GRACE` (an hour) before its
+bytes go, which is the window in which an object that lost its last reference and gained a new one
+is recounted and unmarked rather than removed. An object whose bytes storage will not release keeps
+its row and is tried again next pass — the other order would leave a file in the bucket that nothing
+in this system knows about any more. Metrics: `hubtask_media_reclaimed_total`,
+`hubtask_media_reclaim_failed_total`.
 
 **The retention engine:** periods are data (`retention_policy` per tenant and data kind), not code.
 A scheduler job evaluates them tenant by tenant, records the scope in the audit, and reports

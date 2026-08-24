@@ -50,6 +50,8 @@ type Metrics struct {
 	retentionDeleted  metric.Int64Counter
 	retentionBlocked  metric.Int64Counter
 	retentionRun      metric.Float64Histogram
+	mediaReclaimed    metric.Int64Counter
+	mediaReclaimFail  metric.Int64Counter
 	tenantLabelActive bool
 }
 
@@ -222,7 +224,46 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("tick lag gauge: %w", err)
 	}
-	return m.retentionInstruments(meter)
+	if err := m.retentionInstruments(meter); err != nil {
+		return err
+	}
+	return m.mediaInstruments(meter)
+}
+
+// mediaInstruments are the two numbers the media reclamation publishes (C-06,
+// data-protection.md §5).
+//
+// Counters and no labels at all: the question is "is unreferenced storage actually being reclaimed,
+// and is anything failing to be", and neither half of it is per anything. A label naming the object
+// or the tenant would be exactly the unbounded label observability-reliability.md §3.2 forbids.
+func (m *Metrics) mediaInstruments(meter metric.Meter) error {
+	var err error
+	if m.mediaReclaimed, err = meter.Int64Counter(
+		namespace+"_media_reclaimed_total",
+		metric.WithDescription("Media objects removed for good because nothing referenced them."),
+	); err != nil {
+		return fmt.Errorf("media reclamation counter: %w", err)
+	}
+	if m.mediaReclaimFail, err = meter.Int64Counter(
+		namespace+"_media_reclaim_failed_total",
+		metric.WithDescription("Orphaned media objects whose bytes storage would not release."),
+	); err != nil {
+		return fmt.Errorf("media reclamation failure counter: %w", err)
+	}
+	return nil
+}
+
+// MediaReclaimed counts what a pass removed. Written even when it is zero, for the reason
+// RetentionDeleted is.
+func (m *Metrics) MediaReclaimed(ctx context.Context, count int64) {
+	m.mediaReclaimed.Add(ctx, count)
+}
+
+// MediaReclaimFailed counts the orphans a pass could not reclaim. They stay marked and the next
+// pass tries again, so a number that keeps rising is a bucket that is not letting go rather than a
+// backlog that will clear.
+func (m *Metrics) MediaReclaimFailed(ctx context.Context, count int64) {
+	m.mediaReclaimFail.Add(ctx, count)
 }
 
 // retentionInstruments are the three numbers data-retention.md §5 asks a deletion run to publish.

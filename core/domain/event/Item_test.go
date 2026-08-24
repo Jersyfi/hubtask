@@ -604,3 +604,52 @@ func TestThePurgeEventCarriesNoContentOfWhatWasDeleted(t *testing.T) {
 		t.Errorf("reason = %v, want %s", envelope.Payload["reason"], lifecycle.DeletedByRetention)
 	}
 }
+
+// The attachment pair carries the reference for the reason the label pair does: a set is not a
+// field, and an entry snapshot would have to carry the whole set to be useful (C-06).
+func TestTheAttachmentEventsCarryTheReference(t *testing.T) {
+	item := task()
+	mediaID := shared.MustParseID("0192f000-0000-7000-8000-0000000000d1")
+
+	for eventType, build := range map[Type]func() (Envelope, error){
+		AttachmentAdded: func() (Envelope, error) {
+			return NewAttachmentAdded(eventID, item, mediaID, by(), occurred, Cause{})
+		},
+		AttachmentRemoved: func() (Envelope, error) {
+			return NewAttachmentRemoved(eventID, item, mediaID, by(), occurred, Cause{})
+		},
+	} {
+		t.Run(string(eventType), func(t *testing.T) {
+			envelope, err := build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+			if envelope.Type != eventType || envelope.Subject != ItemSubject(item.ID) {
+				t.Errorf("unexpected envelope: %+v", envelope)
+			}
+			if envelope.Payload["media_id"] != mediaID.String() {
+				t.Errorf("the event does not name the file: %+v", envelope.Payload)
+			}
+			if envelope.Payload["collection_id"] != item.CollectionID.String() {
+				t.Errorf("the event does not name the collection: %+v", envelope.Payload)
+			}
+			// No download target and no record of the object: an event leaves the installation,
+			// and a capability in one would be handed to every subscriber (T-11).
+			if _, served := envelope.Payload["download"]; served {
+				t.Error("the event carries a download target")
+			}
+			if _, snapshot := envelope.Payload["title"]; snapshot {
+				t.Error("the event carries a snapshot of the entry")
+			}
+		})
+	}
+}
+
+// An event about no file at all is a defect rather than input: nothing a client sent could produce
+// it (security.md §9).
+func TestAnAttachmentEventWithoutAFileIsRefused(t *testing.T) {
+	_, err := NewAttachmentAdded(eventID, task(), "", by(), occurred, Cause{})
+	if !errors.Is(err, shared.ErrInternal) {
+		t.Errorf("an event about no file answered %v", err)
+	}
+}

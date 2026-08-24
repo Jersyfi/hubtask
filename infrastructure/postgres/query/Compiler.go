@@ -45,12 +45,14 @@ func (b Boundary) IsZero() bool { return b.ID.IsZero() }
 const (
 	itemColumns = `wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, ` +
 		`wi.depth, wi.title, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, ` +
-		`wi.bucket_id, wi.order_key, wi.assignee_id, wi.archived_at, wi.deleted_at, ` +
+		`wi.bucket_id, wi.order_key, wi.assignee_id, ` +
+		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, wi.archived_at, wi.deleted_at, ` +
 		`wi.trash_batch_id, ` +
 		`wi.created_by, wi.created_at, wi.updated_at, wi.version`
 
 	groupedColumns = `id, tenant_id, collection_id, type, parent_id, path, depth, title, notes, ` +
 		`is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id, ` +
+		`cover_kind, cover_color_token, cover_media_id, ` +
 		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version`
 )
 

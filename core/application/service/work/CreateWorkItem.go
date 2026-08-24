@@ -618,6 +618,10 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 		// here - it is a set beside the row, read through its own endpoint, exactly as the labels
 		// are (C-01).
 		"assignee_id": idOrNil(item.AssigneeID),
+		// Always present, as null for an entry with none, for the reason the bucket is: a field
+		// that appeared only once somebody had chosen a picture is one a client cannot read
+		// unconditionally (C-06).
+		"cover":       coverOutput(item.Cover),
 		"order_key":   item.OrderKey,
 		"archived_at": timeOrNil(item.ArchivedAt),
 		"deleted_at":  timeOrNil(item.DeletedAt),

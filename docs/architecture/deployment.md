@@ -221,6 +221,10 @@ Everything else has a self-hosting default:
 | `HUBTASK_TOMBSTONE_WINDOW` | `2160h` (90 days) | The maximum offline window (offline-sync.md §7). Two things at once: how long the marker of a removal outlives it, and the lower bound an automatic deletion observes before removing at all. Lowering it lets an automatic deletion outrun a device that has not checked in, which is how a deleted object comes back |
 | `HUBTASK_RETENTION_BATCH_SIZE` | `1000` | Rows one pass of a deletion run reads. Batches so that a large deletion does not hold one transaction open across the whole of it (data-retention.md §5) |
 | `HUBTASK_RETENTION_INTERVAL` | `1h` | Wait after a pass that reached the end of a tenant's trash. A pass that filled its batch comes back at once instead — there is known work left |
+| `HUBTASK_MEDIA_STAGING_GRACE` | `24h` | How long a staged upload may stay unconfirmed before the media reconciliation treats it as abandoned. It has to outlast the fifteen-minute upload window comfortably: a client still pushing 64 MiB up a slow line has abandoned nothing |
+| `HUBTASK_MEDIA_ORPHAN_GRACE` | `1h` | How long a media object nothing points at waits before its bytes go. The window in which a mistake is still a mistake: an object that lost its last reference and gained a new one inside it is recounted and unmarked rather than removed |
+| `HUBTASK_MEDIA_RECONCILE_BATCH_SIZE` | `100` | Orphans one reclamation pass removes. Each costs a call to a bucket, so a pass that took them all would be a pass nobody can stop |
+| `HUBTASK_MEDIA_RECONCILE_INTERVAL` | `6h` | Wait after a pass that found nothing left to reclaim. A pass that filled its batch comes back at once instead (data-protection.md §5) |
 | `HUBTASK_DEFAULT_LOCALE` | `en` | BCP 47; the last link in the chain request → account → tenant → installation |
 | `HUBTASK_DEFAULT_TIMEZONE` | `UTC` | IANA name, never a fixed offset — an offset cannot represent daylight saving |
 

@@ -79,6 +79,8 @@ type items struct {
 	// The assignment side (C-01): every call to SetAssignee, so that a test can say which version
 	// the write was made against as well as what it wrote.
 	assignments []attributeWrite
+	// The cover side (C-06), same shape.
+	covers []attributeWrite
 }
 
 // rankWrite is one call to SetOrderKey: the item as it would be stored, and the version it was written
@@ -116,6 +118,19 @@ func (i *items) CountOpenByAssignee(
 		}
 	}
 	return counts, nil
+}
+
+// SetCover mirrors SetAssignee: the same optimistic lock, the same version bump on the stored
+// row, recorded in covers so the C-06 tests can say what was written.
+func (i *items) SetCover(_ context.Context, item domain.WorkItem, expectedVersion int) error {
+	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
+		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.covers = append(i.covers, attributeWrite{item: item, expectedVersion: expectedVersion})
+	written := item
+	written.Version = expectedVersion + 1
+	i.stored[item.ID] = written
+	return nil
 }
 
 func (i *items) SetAssignee(_ context.Context, item domain.WorkItem, expectedVersion int) error {

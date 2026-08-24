@@ -22,26 +22,43 @@ import (
 // (ADR-0016) - and a body limit is the cheapest defence against T-17 there is.
 type Bounded struct {
 	Next http.Handler
-	// MaxBodyBytes is the global limit; uploads have their own, larger one and go through a
-	// presigned URL rather than through this path (security.md §9).
+	// MaxBodyBytes is the global limit for everything the contract carries as JSON (security.md §9).
 	MaxBodyBytes int64
+	// MaxUploadBytes is the limit for the one route the contract declares as a byte stream: the
+	// content route of a local-storage installation, which stands in for the bucket a presigned
+	// upload would have gone to (C-06). Bounding it by MaxBodyBytes would make an attachment on
+	// such an installation impossible; bounding everything else by this one would hand every JSON
+	// endpoint a sixty-four megabyte budget for a body that is never that big.
+	MaxUploadBytes int64
 	// Timeout is the deadline every handler inherits through the request context.
 	Timeout time.Duration
+}
+
+// limitFor is which of the two bounds applies. It recognises the byte route rather than being told
+// about it, because the alternative is a list in the composition root that drifts from the
+// contract - and it recognises it by method and shape, so a GET on the same path is bounded as
+// everything else is.
+func (b Bounded) limitFor(r *http.Request) int64 {
+	if r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, mediaContentSuffix) {
+		return b.MaxUploadBytes
+	}
+	return b.MaxBodyBytes
 }
 
 func (b Bounded) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// A declared length over the limit is refused before a byte is read. Without this check the
 	// answer would come only after the whole body had been transferred - which is the cost the
 	// limit exists to avoid.
-	if b.MaxBodyBytes > 0 && r.ContentLength > b.MaxBodyBytes {
-		WriteTooLarge(w, b.MaxBodyBytes, correlation.RequestIDFrom(r.Context()))
+	limit := b.limitFor(r)
+	if limit > 0 && r.ContentLength > limit {
+		WriteTooLarge(w, limit, correlation.RequestIDFrom(r.Context()))
 		return
 	}
-	if b.MaxBodyBytes > 0 && r.Body != nil {
+	if limit > 0 && r.Body != nil {
 		// The undeclared case: a chunked body has no Content-Length, and this is what stops it
 		// once it grows past the limit. The read then fails, and the handler's decoder turns that
 		// into malformed_request.
-		r.Body = http.MaxBytesReader(w, r.Body, b.MaxBodyBytes)
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 	}
 
 	if b.Timeout <= 0 {
