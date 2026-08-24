@@ -7,6 +7,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
 // containerPath is the authorisation path to a container, running from the tenant downwards: the hub it sits
@@ -20,15 +21,11 @@ import (
 // A hub's own scope is a hub scope and a collection's is a collection scope. Getting that wrong is not visible
 // in a passing test of the common case - a tenant-wide membership authorises everything either way - and only
 // a member scoped to exactly one container notices.
+//
+// The rule itself moved to the domain when the change stream gained a second reader of it (C-10). This stays
+// as the name the write path has always called it by.
 func containerPath(container domain.Container) []identity.Scope {
-	path := []identity.Scope{identity.TenantScope()}
-	if !container.ParentID.IsZero() {
-		path = append(path, identity.HubScope(container.ParentID))
-	}
-	if container.Type == domain.ContainerHub {
-		return append(path, identity.HubScope(container.ID))
-	}
-	return append(path, identity.CollectionScope(container.ID))
+	return service.ContainerScopes(container)
 }
 
 // idOrNil is how an optional identifier reaches a projection or an audit entry: the canonical spelling, or an
