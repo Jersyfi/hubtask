@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -383,6 +384,77 @@ func (r ItemRepository) SetCover(ctx context.Context, item work.WorkItem, expect
 			WithCause(fmt.Errorf("writing the cover of %s: %w", item.ID, err))
 	}
 	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
+}
+
+// SetCustomFields writes the entry's custom field document, whole.
+//
+// Whole rather than one key, because the version is what makes two devices writing two different
+// keys resolve rather than overwrite: the application reads the document, applies its key and
+// writes it back inside one transaction, and a concurrent writer's version is what stops the
+// second write from landing on a document it never saw.
+func (r ItemRepository) SetCustomFields(
+	ctx context.Context, item work.WorkItem, expectedVersion int,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+	document, err := customFieldsOf(item.CustomFields)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetWorkItemCustomFields(ctx, sqlc.SetWorkItemCustomFieldsParams{
+		CustomFields: document,
+		UpdatedAt:    timestampOf(item.UpdatedAt),
+		ID:           id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the custom fields of %s: %w", item.ID, err))
+	}
+	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
+}
+
+// customFieldsOf renders the document for the column. An empty map is `{}` rather than SQL NULL,
+// because the column is NOT NULL and "this entry carries nothing" is a document rather than the
+// absence of one.
+func customFieldsOf(values map[string]any) ([]byte, error) {
+	if len(values) == 0 {
+		return []byte("{}"), nil
+	}
+
+	document, err := json.Marshal(values)
+	if err != nil {
+		// The values passed the domain's validation, so every one of them has a JSON spelling.
+		// Reaching this is a defect rather than input (security.md §9).
+		return nil, shared.ErrInternal.WithDetail("items.custom_fields_unserialisable").WithCause(err)
+	}
+	return document, nil
+}
+
+// customFieldsFrom reads the document back. An absent or empty one is nil rather than an empty
+// map: the domain treats the two as the same thing, and nil is the cheaper of them.
+func customFieldsFrom(document []byte) (map[string]any, error) {
+	if len(document) == 0 {
+		return nil, nil
+	}
+
+	var values map[string]any
+	if err := json.Unmarshal(document, &values); err != nil {
+		return nil, shared.ErrInternal.WithDetail("items.custom_fields_unreadable").WithCause(err)
+	}
+	if len(values) == 0 {
+		return nil, nil
+	}
+	return values, nil
 }
 
 // coverFrom maps the three stored columns back onto the domain's one value.
@@ -770,6 +842,10 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 	if err != nil {
 		return work.WorkItem{}, err
 	}
+	customFields, err := customFieldsFrom(row.CustomFields)
+	if err != nil {
+		return work.WorkItem{}, err
+	}
 
 	return work.WorkItem{
 		ID:           id,
@@ -790,6 +866,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		OrderKey:     row.OrderKey,
 		AssigneeID:   assigneeID,
 		Cover:        cover,
+		CustomFields: customFields,
 		ArchivedAt:   optionalTime(row.ArchivedAt),
 		DeletedAt:    optionalTime(row.DeletedAt),
 		TrashBatchID: trashBatchID,

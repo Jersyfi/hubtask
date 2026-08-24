@@ -232,7 +232,7 @@ const findWorkItem = `-- name: FindWorkItem :one
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
   is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
-  cover_kind, cover_color_token, cover_media_id,
+  cover_kind, cover_color_token, cover_media_id, custom_fields,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE id = $1
@@ -257,6 +257,7 @@ type FindWorkItemRow struct {
 	CoverKind       *string
 	CoverColorToken *string
 	CoverMediaID    pgtype.UUID
+	CustomFields    []byte
 	ArchivedAt      pgtype.Timestamptz
 	DeletedAt       pgtype.Timestamptz
 	TrashBatchID    pgtype.UUID
@@ -290,6 +291,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.CoverKind,
 		&i.CoverColorToken,
 		&i.CoverMediaID,
+		&i.CustomFields,
 		&i.ArchivedAt,
 		&i.DeletedAt,
 		&i.TrashBatchID,
@@ -583,7 +585,7 @@ const listWorkItems = `-- name: ListWorkItems :many
 SELECT
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
   is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
-  cover_kind, cover_color_token, cover_media_id,
+  cover_kind, cover_color_token, cover_media_id, custom_fields,
   archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
 FROM work_item
 WHERE collection_id = $1::uuid
@@ -634,6 +636,7 @@ type ListWorkItemsRow struct {
 	CoverKind       *string
 	CoverColorToken *string
 	CoverMediaID    pgtype.UUID
+	CustomFields    []byte
 	ArchivedAt      pgtype.Timestamptz
 	DeletedAt       pgtype.Timestamptz
 	TrashBatchID    pgtype.UUID
@@ -690,6 +693,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.CoverKind,
 			&i.CoverColorToken,
 			&i.CoverMediaID,
+			&i.CustomFields,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,
@@ -1149,6 +1153,39 @@ func (q *Queries) SetWorkItemCover(ctx context.Context, arg SetWorkItemCoverPara
 		arg.CoverKind,
 		arg.CoverColorToken,
 		arg.CoverMediaID,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setWorkItemCustomFields = `-- name: SetWorkItemCustomFields :execrows
+UPDATE work_item SET
+  custom_fields = $1,
+  updated_at    = $2,
+  version       = version + 1
+WHERE id = $3::uuid AND version = $4
+`
+
+type SetWorkItemCustomFieldsParams struct {
+	CustomFields    []byte
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The entry's custom field document, whole, under the same optimistic lock every write to this row
+// takes. Whole rather than one key at a time, because jsonb_set on a concurrent write would give
+// two writers a last-writer-wins over the *document* with no version to catch it - and the version
+// is exactly what makes two devices writing two different keys resolve rather than overwrite. The
+// application reads the document, applies one key to it and writes it back inside one transaction.
+func (q *Queries) SetWorkItemCustomFields(ctx context.Context, arg SetWorkItemCustomFieldsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemCustomFields,
+		arg.CustomFields,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

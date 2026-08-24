@@ -158,6 +158,8 @@
   "items.auto_assign_no_candidate": "No candidate of the assignment policy can receive this entry at the moment. It stays unassigned.",
   "items.assignee_conflicts_auto_assign": "Name a person or ask for automatic assignment - not both.",
   "items.assignee_must_be_the_creator": "You may only create entries assigned to yourself.",
+  "items.custom_fields_unserialisable": "This installation could not store those custom field values.",
+  "items.custom_fields_unreadable": "The custom field values of that entry could not be read.",
   "items.cover_kind_unknown": "{value} is not a kind of cover. Use COLOR or IMAGE.",
   "items.cover_contradictory": "A COLOR cover carries a colour token and an IMAGE cover a media identifier - exactly one of the two.",
   "items.cover_token_malformed": "The colour token has to fit on one line.",
@@ -191,6 +193,9 @@
   "fields.value_not_an_option": "{value} is not one of the options {key} offers.",
   "fields.value_not_an_account": "{key} expects an account.",
   "fields.value_not_a_url": "{key} expects a web address beginning with http:// or https://.",
+  "fields.options_unserialisable": "This installation is misconfigured and could not store that custom field.",
+  "fields.options_unreadable": "That custom field could not be read.",
+  "fields.deletion_stamp_missing": "This installation is misconfigured and could not delete that custom field.",
   "fields.identity_incomplete": "This installation is misconfigured and could not create that custom field.",
   "fields.kind_unhandled": "This installation could not judge that value.",
 

@@ -669,6 +669,9 @@ type CustomFieldDefinition struct {
 	IsRequired   bool
 	AppliesTo    []ItemType
 	DeletedAt    pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
 }
 
 type DataSubjectRequest struct {
