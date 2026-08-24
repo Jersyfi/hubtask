@@ -150,6 +150,47 @@ func (in Input) IDList(field string) ([]shared.ID, error) {
 	return ids, nil
 }
 
+// StringList returns a declared list of strings, empty when absent. A member that is not a string
+// fails the whole list, for the reason IDList's does: half a list is not a smaller request, it is
+// a different one.
+//
+// The same generosity about a bare value: a single string where a list belongs is the mistake
+// every channel's caller writes at least once, and it means exactly the one-element list.
+func (in Input) StringList(field string) ([]string, error) {
+	raw, present := in[field]
+	if !present || raw == nil {
+		return nil, nil
+	}
+
+	values, ok := raw.([]any)
+	if !ok {
+		if text, isString := raw.(string); isString {
+			return []string{text}, nil
+		}
+		if texts, isStrings := raw.([]string); isStrings {
+			// Already the shape, which is what an in-process caller hands over.
+			return texts, nil
+		}
+		return nil, shared.ErrValidation.
+			WithDetail("usecase.field_type_invalid").
+			WithFields(shared.FieldError{Path: "/" + field, Code: "usecase.field_type_invalid"})
+	}
+
+	texts := make([]string, 0, len(values))
+	for index, value := range values {
+		text, isString := value.(string)
+		if !isString {
+			return nil, shared.ErrValidation.
+				WithDetail("usecase.field_type_invalid").
+				WithFields(shared.FieldError{
+					Path: fieldPath(field, index), Code: "usecase.field_type_invalid",
+				})
+		}
+		texts = append(texts, text)
+	}
+	return texts, nil
+}
+
 // Present reports whether the caller sent the field at all - the distinction OptionalString makes
 // for strings, for the fields where the value itself carries no "absent" spelling. An empty list
 // is a legitimate instruction (empty the group); a missing one is not an instruction.

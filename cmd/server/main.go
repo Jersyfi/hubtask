@@ -259,6 +259,10 @@ func run() error {
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
+	// The vocabulary a workspace adds to its entries. Its own repository beside the items rather
+	// than a method on them: this is what the keys mean, and `work_item.custom_fields` is what an
+	// entry says in it (C-07).
+	customFields := postgres.NewCustomFieldRepository()
 	itemLabels := postgres.NewItemLabelRepository()
 	itemMembers := postgres.NewItemMemberRepository()
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
@@ -593,6 +597,16 @@ func run() error {
 		work.SetCover{Cover: coverWriter}.Descriptor(),
 		work.ClearCover{Cover: coverWriter}.Descriptor(),
 		work.AttachMedia{Writer: attachmentWriter}.Descriptor(),
+
+		work.DefineCustomField{
+			Fields: customFields, Containers: containers, Profiles: profiles,
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		work.ListCustomFields{
+			Fields: customFields, Containers: containers, Authorizer: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		mediaservice.GetMedia{
