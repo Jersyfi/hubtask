@@ -318,6 +318,7 @@
   "lifecycle.removal_reasons_mixed": "This installation is misconfigured and could not record that deletion.",
   "lifecycle.policy_not_found": "No retention period is configured for that kind of data.",
   "lifecycle.run_unrecordable": "This installation could not record what a deletion run did.",
+  "lifecycle.history_not_wired": "This installation is misconfigured: nothing removes the notification history when its period runs out.",
 
   "notifications.tenant_missing": "This installation could not record a notification.",
   "notifications.recipient_missing": "This installation could not record a notification.",

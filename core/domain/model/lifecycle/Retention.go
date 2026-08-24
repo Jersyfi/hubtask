@@ -16,6 +16,13 @@ type DataKind string
 // KindTrash is the period a deletion waits out before it becomes permanent (F-09).
 const KindTrash DataKind = "TRASH"
 
+// KindNotification is how long the record of somebody having been told is kept (C-09).
+//
+// The class data-retention.md §3 has been naming against nothing since the document was written.
+// It is here now because there is finally a table under it - a period configured for a kind
+// nothing sweeps would be a promise nothing keeps, which is the reason KindTrash was alone.
+const KindNotification DataKind = "NOTIFICATION"
+
 // Policy is one tenant's period for one kind of data.
 //
 // The narrow version of the rule model in data-retention.md §2: a period, its bounds, and the kind it
@@ -44,6 +51,15 @@ type Policy struct {
 func DefaultPolicies() []Policy {
 	return []Policy{
 		{DataKind: KindTrash, RetainDays: 30, MinDays: 7},
+		// Ninety days, as data-retention.md §3 and data-protection.md §5 both give it.
+		//
+		// No lower bound, and that is a decision rather than an omission. §4.3 makes lower bounds a
+		// precedence rule and names exactly one - "trash, for example, is at least 7 days" - and
+		// nothing in the documents bounds the notification history. Inventing a floor here would be
+		// a retention rule decided in code, which is the one place ADR-0020 says it must not be: a
+		// tenant that wants a shorter notification history is asking for less data to be kept, and
+		// refusing them would be arguing against Art. 25(2) on their behalf.
+		{DataKind: KindNotification, RetainDays: 90},
 	}
 }
 

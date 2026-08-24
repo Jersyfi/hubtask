@@ -10,6 +10,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
@@ -31,8 +32,12 @@ type RunRetention struct {
 	Policies repository.Policies
 	Runs     repository.Runs
 	Purger   Purger
-	Clock    clock.Clock
-	IDs      clock.IDGenerator
+	// History is the notification record's remover (C-09). A second kind rather than a second job,
+	// because a tenant's periods are one thing to evaluate: two schedules would mean two leases,
+	// two logs and two ways for one of them to quietly stop running.
+	History NotificationHistory
+	Clock   clock.Clock
+	IDs     clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals
@@ -47,6 +52,16 @@ type RetentionSignals interface {
 	RetentionDeleted(ctx context.Context, dataKind string, count int64)
 	RetentionBlocked(ctx context.Context, reason string, count int64)
 	RetentionRun(ctx context.Context, dataKind string, seconds float64)
+}
+
+// NotificationHistory is the slice of the notification repository this run removes through.
+//
+// Declared here rather than imported, so that what the retention engine can do to notifications is
+// visible in one place: it can count what is due and remove a batch of it, and it cannot read one,
+// write one or send one.
+type NotificationHistory interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
 // Execute runs one pass for the tenant the transaction is bound to, and reports what it did.
@@ -103,7 +118,7 @@ func (h RunRetention) Execute(
 		return outcome, sweepErr
 	}
 
-	h.report(ctx, outcome, finished.Sub(started))
+	h.report(ctx, domain.KindTrash, outcome, finished.Sub(started))
 
 	// The trail gets one entry per pass rather than one per row: an audit that grew with every
 	// deleted object would grow faster than the payload data it is about (data-retention.md §5).
@@ -113,6 +128,76 @@ func (h RunRetention) Execute(
 			return outcome, err
 		}
 	}
+
+	history, err := h.sweepHistory(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+	// Reported as one outcome, so that the job's decision about coming back straight away covers
+	// both kinds: a pass that emptied the trash and left a full batch of notifications has not
+	// finished, and a job that stopped there would leave them until the next long interval.
+	outcome.Matched += history.Matched
+	outcome.Removed += history.Removed
+	return outcome, nil
+}
+
+// sweepHistory removes one batch of expired notification records (C-09, data-retention.md §3).
+//
+// No tombstone window and no legal hold, and neither is an omission. A notification is not an
+// object a device holds and could recreate - offline-sync.md §4 defines no merge rule for one,
+// because nothing syncs them - and a hold is placed on tenants, containers and items, which is the
+// scope §4.1 names. What governs this history is its period and nothing else.
+func (h RunRetention) sweepHistory(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.History == nil {
+		// Refused rather than skipped. A retention engine that quietly sweeps one kind fewer than
+		// it is configured for is exactly the overlooked derived data of risk R-09
+		// (data-protection.md §5) - and it would look like a working installation for ninety days
+		// before anybody could notice.
+		return Outcome{}, shared.ErrInternal.WithDetail("lifecycle.history_not_wired")
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindNotification)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindNotification, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	// Counted no higher than the batch, because what the caller needs is "is there more after
+	// this" and not a count of the table. Matched is what decides whether the job comes back
+	// straight away, so it has to be the number of rows that were due rather than the number that
+	// went - the same reading Exhausted takes of the trash.
+	matched, err := h.History.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+	removed, sweepErr := h.History.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindNotification, outcome, finished.Sub(started))
+	// No audit entry. The trash's is there because a removal of somebody's work is a decision an
+	// auditor looks for (audit.md §2); the expiry of the record that somebody was emailed ninety
+	// days ago is the machinery doing exactly what the period says, and an entry per pass per
+	// tenant per hour would bury the entries that matter.
 	return outcome, nil
 }
 
@@ -121,14 +206,22 @@ func (h RunRetention) Execute(
 // Zero is published too, and on purpose: a counter that has never been written has no series, and an
 // alert on a deletion run that never happens is an alert that reads "no data" and is believed
 // (observability-reliability.md §4).
-func (h RunRetention) report(ctx context.Context, outcome Outcome, took time.Duration) {
+func (h RunRetention) report(
+	ctx context.Context, dataKind domain.DataKind, outcome Outcome, took time.Duration,
+) {
 	if h.Signals == nil {
 		return
 	}
-	kind := string(domain.KindTrash)
+	kind := string(dataKind)
 
 	h.Signals.RetentionRun(ctx, kind, took.Seconds())
 	h.Signals.RetentionDeleted(ctx, kind, int64(outcome.Removed))
+	if dataKind != domain.KindTrash {
+		// The block reasons are the trash's: a legal hold and the offline window are both about
+		// objects a person owns and a device holds, and reporting a zero for a kind neither can
+		// apply to would put a series in the metrics that can never be anything but zero.
+		return
+	}
 	for _, reason := range []string{BlockedByLegalHold, BlockedByTombstoneWindow} {
 		h.Signals.RetentionBlocked(ctx, reason, int64(outcome.Blocked[reason]))
 	}
