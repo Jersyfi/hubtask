@@ -61,7 +61,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Comments | `comment` | `PERSONAL_CONTENT` | Collaboration | As above | `CASCADE` / `ANONYMIZE` (the author) |
 | Activity history | `activity_entry` | `PERSONAL_CONTENT` | Traceability within the product | With the item | `CASCADE` |
 | Attachments (file, name, checksum) | `media_object`, object storage | `PERSONAL_CONTENT` | The core feature | As above | Reference counting plus the reconciliation job: an object that nothing points at any more is marked, its bytes are removed from storage, and the row goes with a deletion journal entry and a tombstone (C-06, `data-protection.md` §5). The file name is the only free text on the row and travels with it |
-| Custom fields (values) | `work_item.custom_fields` | `PERSONAL_CONTENT` | Extensibility | As above | `CASCADE` |
+| Custom fields (values) | `work_item.custom_fields`, with `work_item.custom_field_refs` naming the definition each value was written under (`NON_PERSONAL` — definition identifiers) | `PERSONAL_CONTENT` | Extensibility | As above | `CASCADE`; a value whose definition was deleted is hidden from every read and goes with the entry (C-07) |
 | Containers, buckets, labels | `container`, `bucket`, `label` | `NON_PERSONAL` | Structure | As above | `CASCADE` |
 | Full-text index | `work_item.search_vector`, optionally a vector index | `PERSONAL_CONTENT` (derived) | Search | With the source row | `CASCADE` |
 | Templates, saved views | `template`, `saved_view` | `PERSONAL_CONTENT` (free text possible) | Productivity | Until deleted | `CASCADE` |

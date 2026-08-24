@@ -33,6 +33,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | An entry's labels | `/items/{id}/labels/{labelId}` | `PUT`, `DELETE` |
 | An entry's members | `/items/{id}/members/{accountId}` | `PUT`, `DELETE` |
 | Custom fields | `/custom-fields` | CRUD |
+| An entry's custom field values | `/items/{id}/custom-fields/{key}` | `PUT` (null clears; one key per call, because the merge rule is per key) |
 | Comments | `/items/{id}/comments` | CRUD |
 | History | `/items/{id}/activity` | `GET` |
 | Attachments/media | `/media`, `/media/{id}` | `POST` (presigned), `GET`, `DELETE` |

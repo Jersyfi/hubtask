@@ -323,7 +323,7 @@ implementation backlog:
 `DuplicateWorkItem` (with or without the subtree), `BulkUpdateWorkItems`.
 
 **Structure** `CreateBucket`, `UpdateBucket`, `ReorderBucket`, `DeleteBucket`,
-`CreateLabel`, `UpdateLabel`, `DeleteLabel`, `DefineCustomField`, `UpdateCustomField`, `DeleteCustomField`.
+`CreateLabel`, `UpdateLabel`, `DeleteLabel`, `DefineCustomField`, `ListCustomFields`, `UpdateCustomField`, `DeleteCustomField`.
 
 **Collaboration** `AddComment`, `EditComment`, `DeleteComment`, `ListActivity`.
 
