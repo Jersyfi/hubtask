@@ -201,7 +201,9 @@ func TestACopyWritesTheRowTheEventTheChangeAndTheHistory(t *testing.T) {
 		t.Errorf("the copy is ranked %q, the original %q", copied.OrderKey, original.OrderKey)
 	}
 
-	if len(h.events.appended) != 1 || len(h.changes.recorded) != 1 {
+	// One event and one change record for the entry, and one more record per element of its three
+	// sets: a set lives beside the row, so the row's snapshot does not carry it.
+	if len(h.events.appended) != 1 || len(h.changes.recorded) != 4 {
 		t.Errorf("%d events and %d change records", len(h.events.appended), len(h.changes.recorded))
 	}
 	if len(h.history.entries) != 1 || h.history.entries[0].Verb != activity.ItemDuplicated {
@@ -267,6 +269,25 @@ func TestACopyCarriesTheLabelsTheMembersAndTheFiles(t *testing.T) {
 	if len(result.DroppedReferences) != 0 {
 		t.Errorf("a copy inside one collection lost %+v", result.DroppedReferences)
 	}
+
+	// And an offline client is told about each of them: the entry's own record is a snapshot of the
+	// row, and a set lives beside the row, so a client that received only the entry would have a
+	// copy with no labels, no members and no files.
+	sets := map[string]string{}
+	for _, change := range h.changes.recorded {
+		if set, carried := change.Payload["set"].(string); carried {
+			sets[set], _ = change.Payload["element_id"].(string)
+		}
+	}
+	for set, wanted := range map[string]string{
+		string(domain.SetLabels):      homeLabelID.String(),
+		string(domain.SetMembers):     colleagueAccountID.String(),
+		string(domain.SetAttachments): attachedFileID.String(),
+	} {
+		if sets[set] != wanted {
+			t.Errorf("the change log records %s as %q, want %q", set, sets[set], wanted)
+		}
+	}
 }
 
 // The acceptance criterion: a subtree of depth 3 produces a subtree of depth 3, with new
@@ -308,9 +329,14 @@ func TestACopyOfASubtreeKeepsItsShapeAndTakesNewIdentifiers(t *testing.T) {
 	}
 	// Every entry of the copy is announced: a client that heard only about the root would have a
 	// subtree whose children it has never been told about.
-	if len(h.events.appended) != 3 || len(h.changes.recorded) != 3 || len(h.history.entries) != 3 {
-		t.Errorf("%d events, %d changes, %d history entries",
-			len(h.events.appended), len(h.changes.recorded), len(h.history.entries))
+	if len(h.events.appended) != 3 || len(h.history.entries) != 3 {
+		t.Errorf("%d events, %d history entries", len(h.events.appended), len(h.history.entries))
+	}
+	// Three entry records, and one per element of the root's three sets - a set lives beside the
+	// row, so the row's snapshot does not carry it (offline-sync.md §4.2).
+	if len(h.changes.recorded) != 6 {
+		t.Errorf("%d change records, want three entries and three set elements",
+			len(h.changes.recorded))
 	}
 	if len(h.audit.entries) != 1 {
 		t.Errorf("one copy wrote %d audit entries", len(h.audit.entries))

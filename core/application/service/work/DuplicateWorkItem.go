@@ -689,17 +689,18 @@ func (h DuplicateWorkItem) copySets(
 	source, copied domain.WorkItem, profile domain.CapabilityProfile,
 	known *vocabulary, made *copies,
 ) error {
-	if err := h.copyLabels(ctx, source, copied, profile, known, made); err != nil {
+	if err := h.copyLabels(ctx, actor, plan, source, copied, profile, known, made); err != nil {
 		return err
 	}
 	if err := h.copyMembers(ctx, actor, plan, source, copied, profile, known, made); err != nil {
 		return err
 	}
-	return h.copyAttachments(ctx, source, copied, profile, made)
+	return h.copyAttachments(ctx, actor, plan, source, copied, profile, made)
 }
 
 func (h DuplicateWorkItem) copyLabels(
-	ctx context.Context, source, copied domain.WorkItem, profile domain.CapabilityProfile,
+	ctx context.Context, actor appshared.ActorContext, plan duplication,
+	source, copied domain.WorkItem, profile domain.CapabilityProfile,
 	known *vocabulary, made *copies,
 ) error {
 	labels, err := h.ItemLabels.List(ctx, source.ID)
@@ -715,7 +716,11 @@ func (h DuplicateWorkItem) copyLabels(
 		case !known.sameCollection && !known.labels[labelID]:
 			made.dropped = append(made.dropped, domain.DroppedLabel(copied.ID, labelID))
 		default:
-			if err := h.ItemLabels.Add(ctx, copied.ID, labelID, h.HLC.Next()); err != nil {
+			tag := h.HLC.Next()
+			if err := h.ItemLabels.Add(ctx, copied.ID, labelID, tag); err != nil {
+				return err
+			}
+			if err := h.recordElement(ctx, actor, plan, copied, domain.SetLabels, labelID, tag); err != nil {
 				return err
 			}
 		}
@@ -747,7 +752,11 @@ func (h DuplicateWorkItem) copyMembers(
 			made.dropped = append(made.dropped, domain.DroppedMember(copied.ID, accountID))
 			continue
 		}
-		if err := h.ItemMembers.Add(ctx, copied.ID, accountID, h.HLC.Next()); err != nil {
+		tag := h.HLC.Next()
+		if err := h.ItemMembers.Add(ctx, copied.ID, accountID, tag); err != nil {
+			return err
+		}
+		if err := h.recordElement(ctx, actor, plan, copied, domain.SetMembers, accountID, tag); err != nil {
 			return err
 		}
 	}
@@ -758,8 +767,8 @@ func (h DuplicateWorkItem) copyMembers(
 // not copied: an attachment is a reference to an object of this tenant, and two entries pointing at
 // one file is what the counter exists to describe (C-06).
 func (h DuplicateWorkItem) copyAttachments(
-	ctx context.Context, source, copied domain.WorkItem, profile domain.CapabilityProfile,
-	made *copies,
+	ctx context.Context, actor appshared.ActorContext, plan duplication,
+	source, copied domain.WorkItem, profile domain.CapabilityProfile, made *copies,
 ) error {
 	files, err := h.Attachments.MediaIDs(ctx, source.ID)
 	if err != nil {
@@ -772,7 +781,8 @@ func (h DuplicateWorkItem) copyAttachments(
 				copied.ID, domain.ReferenceAttachment, mediaID.String()))
 			continue
 		}
-		added, err := h.Attachments.Add(ctx, copied.ID, mediaID, h.HLC.Next())
+		tag := h.HLC.Next()
+		added, err := h.Attachments.Add(ctx, copied.ID, mediaID, tag)
 		if err != nil {
 			return err
 		}
@@ -780,6 +790,9 @@ func (h DuplicateWorkItem) copyAttachments(
 			continue
 		}
 		if err := h.Media.AdjustRefCount(ctx, mediaID, 1); err != nil {
+			return err
+		}
+		if err := h.recordElement(ctx, actor, plan, copied, domain.SetAttachments, mediaID, tag); err != nil {
 			return err
 		}
 	}
@@ -790,6 +803,36 @@ func (h DuplicateWorkItem) copyAttachments(
 		return h.Media.AdjustRefCount(ctx, copied.Cover.MediaID, 1)
 	}
 	return nil
+}
+
+// recordElement writes what an offline client has to be told about one element of one set.
+//
+// One record per element, carrying the element and the tag it was written with, exactly as the use
+// case that adds that element singly writes it (offline-sync.md §4.2). Not an optional extra: the
+// entry's own record is a snapshot of the row, and a set lives beside the row - a client that
+// received only the entry would have a copy with no labels, no members and no files, and nothing
+// would ever tell it otherwise.
+func (h DuplicateWorkItem) recordElement(
+	ctx context.Context, actor appshared.ActorContext, plan duplication, copied domain.WorkItem,
+	set domain.SetName, elementID shared.ID, tag shared.HLC,
+) error {
+	return h.Changes.Record(ctx, changelog.Change{
+		TenantID: copied.TenantID,
+		Entity:   itemTarget,
+		EntityID: copied.ID,
+		Op:       changelog.Upsert,
+		// The hub above the collection, so that a device subscribed to the hub sees it - the
+		// visibility filter a pull applies to a set element (offline-sync.md §3.1), and the same
+		// choice AddLabel, AddMember and AttachMedia make.
+		ContainerID: firstNonZero(plan.destination.ParentID, copied.CollectionID),
+		ActorID:     actor.AccountID,
+		HLC:         tag,
+		Payload: map[string]any{
+			"set":        string(set),
+			"element_id": elementID.String(),
+			"op":         "add",
+		},
+	})
 }
 
 // announce writes what one copied entry owes outwards: the event, and the change log entry a
