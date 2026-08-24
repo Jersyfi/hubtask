@@ -102,3 +102,34 @@ func (q *Queries) ListSystemCapabilityProfiles(ctx context.Context) ([]ListSyste
 	}
 	return items, nil
 }
+
+const listTextLanguages = `-- name: ListTextLanguages :many
+SELECT l.tag::text FROM hubtask_text_languages() AS l(tag, configuration)
+`
+
+// The languages this installation can index, as BCP 47 tags (C-08, ADR-0034).
+//
+// Read from the database rather than listed in Go, because it is the database that decides: the
+// mapping lives in `hubtask_text_languages()`, which joins the tags this product knows against the
+// text search configurations this PostgreSQL was actually built with. A constant in the
+// application would answer for an installation that has one configuration fewer, and a client's
+// language picker would then offer a language that is silently indexed word by word.
+func (q *Queries) ListTextLanguages(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listTextLanguages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var l_tag string
+		if err := rows.Scan(&l_tag); err != nil {
+			return nil, err
+		}
+		items = append(items, l_tag)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

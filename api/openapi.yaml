@@ -4060,6 +4060,17 @@ components:
             a field whose use case this version does not have is not in it, and filtering on it is
             refused rather than silently matching nothing.
           items: { $ref: "#/components/schemas/QueryField" }
+        text_languages:
+          type: array
+          description: >
+            The languages this installation can index the text of, as BCP-47 tags, and what a
+            client's language picker for `content_language` is built from. It is the
+            installation's answer rather than the product's: the mapping from a tag to a text
+            search configuration is in the database, and which of those configurations exist is
+            what its PostgreSQL was built with (ADR-0034). A language that is not in this list is
+            not refused - an entry declaring one is stored and matched word by word, which is the
+            same treatment a script without word boundaries gets.
+          items: { type: string }
         supported_locales:
           type: array
           items:

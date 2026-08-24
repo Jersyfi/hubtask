@@ -32,24 +32,38 @@
 --
 -- The mapping is the primary subtag only. `de-AT` and `de` are one configuration - a stemmer is a
 -- language's, not a region's - and everything unmapped, CJK and Thai included, is `simple`.
+-- The mapping, and the one place it is written down. `/meta/capabilities` answers the same
+-- function, so a client's language picker is this list rather than a constant compiled into it -
+-- and an installation whose PostgreSQL was built without a configuration says so instead of
+-- silently indexing those entries word by word (C-08, ADR-0034).
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION hubtask_text_languages()
+  RETURNS TABLE (tag text, configuration text) LANGUAGE sql STABLE PARALLEL SAFE AS
+$$
+  SELECT m.tag, c.cfgname::text
+    FROM (VALUES
+      ('ar','arabic'),    ('hy','armenian'),   ('eu','basque'),      ('ca','catalan'),
+      ('da','danish'),    ('nl','dutch'),      ('en','english'),     ('fi','finnish'),
+      ('fr','french'),    ('de','german'),     ('el','greek'),       ('hi','hindi'),
+      ('hu','hungarian'), ('id','indonesian'), ('ga','irish'),       ('it','italian'),
+      ('lt','lithuanian'),('ne','nepali'),     ('nb','norwegian'),   ('nn','norwegian'),
+      ('no','norwegian'), ('pt','portuguese'), ('ro','romanian'),    ('ru','russian'),
+      ('sr','serbian'),   ('es','spanish'),    ('sv','swedish'),     ('ta','tamil'),
+      ('tr','turkish'),   ('yi','yiddish')
+    ) AS m(tag, cfgname)
+    JOIN pg_ts_config c ON c.cfgname = m.cfgname
+   ORDER BY m.tag
+$$;
+-- +goose StatementEnd
+
 -- +goose StatementBegin
 CREATE OR REPLACE FUNCTION hubtask_text_config(language text) RETURNS regconfig
   LANGUAGE sql STABLE PARALLEL SAFE AS
 $$
   SELECT coalesce(
-    (SELECT c.oid::regconfig
-       FROM (VALUES
-         ('ar','arabic'),    ('hy','armenian'),   ('eu','basque'),      ('ca','catalan'),
-         ('da','danish'),    ('nl','dutch'),      ('en','english'),     ('fi','finnish'),
-         ('fr','french'),    ('de','german'),     ('el','greek'),       ('hi','hindi'),
-         ('hu','hungarian'), ('id','indonesian'), ('ga','irish'),       ('it','italian'),
-         ('lt','lithuanian'),('ne','nepali'),     ('nb','norwegian'),   ('nn','norwegian'),
-         ('no','norwegian'), ('pt','portuguese'), ('ro','romanian'),    ('ru','russian'),
-         ('sr','serbian'),   ('es','spanish'),    ('sv','swedish'),     ('ta','tamil'),
-         ('tr','turkish'),   ('yi','yiddish')
-       ) AS m(tag, cfgname)
-       JOIN pg_ts_config c ON c.cfgname = m.cfgname
-      WHERE m.tag = lower(split_part(btrim(coalesce(language, '')), '-', 1))
+    (SELECT l.configuration::regconfig
+       FROM hubtask_text_languages() l
+      WHERE l.tag = lower(split_part(btrim(coalesce(language, '')), '-', 1))
       LIMIT 1),
     'simple'::regconfig)
 $$;

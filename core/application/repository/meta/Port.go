@@ -34,3 +34,17 @@ type CapabilityProfiles interface {
 	// never allowed to sit at, which is a widening produced by a narrowing.
 	ListSystem(ctx context.Context) ([]work.CapabilityProfile, error)
 }
+
+// TextLanguages reads which languages this installation can index the text of (C-08, ADR-0034).
+//
+// A port rather than a constant, because the answer is the installation's rather than the
+// product's: the mapping from a BCP 47 tag to a text search configuration is in the database, and
+// which of those configurations exist is what the PostgreSQL binary was built with. A list
+// compiled into the application would answer for an installation that has one fewer, and a
+// client's language picker would then offer a language whose entries are silently indexed word by
+// word.
+type TextLanguages interface {
+	// List returns the tags, in a stable order. An installation that can index nothing beyond
+	// exact words answers an empty list, which is a statement rather than a failure.
+	List(ctx context.Context) ([]string, error)
+}

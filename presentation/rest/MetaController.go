@@ -126,6 +126,14 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		limits[name] = value
 	}
 
+	// Always an array, empty for an installation whose PostgreSQL can index nothing beyond exact
+	// words: absent would read as "this server does not know about languages", which is a
+	// different statement and one a client would act on.
+	textLanguages := source.TextLanguages
+	if textLanguages == nil {
+		textLanguages = []string{}
+	}
+
 	productVersion := source.ProductVersion
 	apiVersion := source.APIVersion
 	tenancy := openapi.CapabilitiesTenancyMode(source.TenancyMode)
@@ -137,6 +145,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		TenancyMode:    &tenancy,
 		ItemTypes:      &itemTypes,
 		QueryFields:    &queryFields,
+		TextLanguages:  &textLanguages,
 		Roles:          &roles,
 		Limits:         &limits,
 		Features:       &features,

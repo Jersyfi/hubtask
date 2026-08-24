@@ -1915,7 +1915,10 @@ type Capabilities struct {
 		WeekStart *string                                `json:"week_start,omitempty"`
 	} `json:"supported_locales,omitempty"`
 	TenancyMode *CapabilitiesTenancyMode `json:"tenancy_mode,omitempty"`
-	ViewLayouts *[]string                `json:"view_layouts,omitempty"`
+
+	// TextLanguages The languages this installation can index the text of, as BCP-47 tags, and what a client's language picker for `content_language` is built from. It is the installation's answer rather than the product's: the mapping from a tag to a text search configuration is in the database, and which of those configurations exist is what its PostgreSQL was built with (ADR-0034). A language that is not in this list is not refused - an entry declaring one is stored and matched word by word, which is the same treatment a script without word boundaries gets.
+	TextLanguages *[]string `json:"text_languages,omitempty"`
+	ViewLayouts   *[]string `json:"view_layouts,omitempty"`
 }
 
 // CapabilitiesSupportedLocalesDirection defines model for Capabilities.SupportedLocales.Direction.

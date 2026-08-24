@@ -672,6 +672,7 @@ func run() error {
 		controller.Clock = clockadapter.System{}
 		controller.Capabilities = meta.GetCapabilities{
 			Profiles:   profiles,
+			Languages:  postgres.NewTextLanguageRepository(),
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 		}
