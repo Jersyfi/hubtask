@@ -5,6 +5,7 @@ package rest
 
 import (
 	"context"
+	"net/http"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -51,6 +52,24 @@ type RestController struct {
 	// Clock judges an expiring capability. The one place this layer needs the time, and a port
 	// rather than time.Now so that a test can stand at the moment a token expires.
 	Clock clock.Clock
+
+	// Stream serves `GET /stream`, which is not a catalogue entry either: it is a connection being
+	// held rather than an operation being invoked, so there is nothing for MCP or an automation
+	// rule to call (C-10). Nil leaves the route answering the pending 404, which is what an
+	// installation built without it should say.
+	Stream *StreamController
+}
+
+// StreamChanges opens the change stream. Delegated rather than embedded, so that the field being
+// nil is an answer rather than a panic.
+func (c *RestController) StreamChanges(
+	w http.ResponseWriter, r *http.Request, params openapi.StreamChangesParams,
+) {
+	if c.Stream == nil {
+		c.pending.StreamChanges(w, r, params)
+		return
+	}
+	c.Stream.StreamChanges(w, r, params)
 }
 
 func NewRestController() *RestController { return &RestController{} }
