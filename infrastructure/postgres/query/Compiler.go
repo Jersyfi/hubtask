@@ -43,10 +43,24 @@ func (b Boundary) IsZero() bool { return b.ID.IsZero() }
 // FindWorkItemRow, which is what the adapter scans into: a column added to one and not the other is
 // a mismatch the scan reports on the first row rather than a wrong answer.
 const (
+	// visibleCustomFields is the projection of `custom_fields` every read answers with: only the
+	// keys a live definition stands behind. The same expression the sqlc reads use (Work.sql,
+	// FindWorkItem), so the query endpoint and the plain reads hide a deleted definition's values
+	// identically (C-07). The stored document is untouched - the hiding is in the answer.
+	// jsonb_build_object() with no arguments is the empty document. The literal spelling '{}'
+	// would be shorter, and it is unavailable on purpose: this package's alphabet has no braces,
+	// so that the fuzz gate can prove no fragment of a request ever reaches the text (FuzzCompile).
+	visibleCustomFields = `(SELECT coalesce(jsonb_object_agg(kv.key, kv.value), jsonb_build_object()) ` +
+		`FROM jsonb_each(wi.custom_fields) AS kv WHERE EXISTS (` +
+		`SELECT 1 FROM custom_field_definition cfd WHERE cfd.deleted_at IS NULL ` +
+		`AND cfd.key = kv.key ` +
+		`AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)))::jsonb ` +
+		`AS custom_fields`
+
 	itemColumns = `wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, ` +
 		`wi.depth, wi.title, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, ` +
 		`wi.bucket_id, wi.order_key, wi.assignee_id, ` +
-		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, wi.custom_fields, ` +
+		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, ` + visibleCustomFields + `, ` +
 		`wi.archived_at, wi.deleted_at, ` +
 		`wi.trash_batch_id, ` +
 		`wi.created_by, wi.created_at, wi.updated_at, wi.version`
@@ -348,29 +362,45 @@ func (b *builder) leaf(node view.Node) {
 // operators fall back to `->>`, which is a text comparison the index cannot serve - bounded, as
 // every query here is, by the mandatory scope and the statement timeout.
 func (b *builder) customField(node view.Node, key string) {
+	// Every branch is conjoined with the live-definition check, so a filter answers over exactly
+	// the document a read answers with: a value whose definition was deleted matches nothing, and
+	// IS_NULL treats it as not set. Without this, a filter would be the one read that can still
+	// see what every other read hides.
 	switch node.Op {
 	case view.OpIsNull:
-		// The key is absent from the document, which is the only "not set" there is: a cleared key
-		// is removed rather than stored as a null (work.WorkItem.WithCustomField).
-		b.write(`NOT jsonb_exists(wi.custom_fields, `)
+		// The key is absent from the visible document: never stored, cleared, or stored under a
+		// definition that is gone.
+		b.write(`(NOT jsonb_exists(wi.custom_fields, `)
 		b.param(key)
+		b.write(`) OR NOT `)
+		b.liveDefinition(key)
 		b.write(`)`)
 	case view.OpEq:
+		b.write(`(`)
 		b.contains(key, node.Values[0])
+		b.write(` AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
 	case view.OpNeq:
-		// An entry that holds nothing under the key counts as "not that one", for the reason
-		// bucket_id NEQ does: three-valued logic would drop the row instead of answering.
+		// An entry that visibly holds nothing under the key counts as "not that one", for the
+		// reason bucket_id NEQ does: three-valued logic would drop the row instead of answering.
 		b.write(`NOT (`)
 		b.contains(key, node.Values[0])
+		b.write(` AND `)
+		b.liveDefinition(key)
 		b.write(`)`)
 	case view.OpIn:
 		b.write(`(`)
 		b.customText(key)
 		b.write(` = ANY(`)
 		b.param(textsOf(node.Values, customValueText))
-		b.write(`::text[]))`)
+		b.write(`::text[]) AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
 	case view.OpNotIn:
-		b.write(`(`)
+		b.write(`(NOT `)
+		b.liveDefinition(key)
+		b.write(` OR `)
 		b.customText(key)
 		b.write(` IS NULL OR `)
 		b.customText(key)
@@ -381,16 +411,28 @@ func (b *builder) customField(node view.Node, key string) {
 		// Two questions behind one spelling, and both are answered: a MULTI_SELECT that holds the
 		// element, or a text that contains it. The document decides which applies per row, which
 		// is the only honest reading when the kind is data.
-		b.write(`(`)
+		b.write(`((`)
 		b.containsElement(key, node.Values[0])
 		b.write(` OR position(lower(`)
 		b.text(node.Values[0])
 		b.write(`) IN lower(coalesce(`)
 		b.customText(key)
-		b.write(`, ''))) > 0)`)
+		b.write(`, ''))) > 0) AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
 	default:
 		b.fail(errOperatorNotCompilable(node.Op))
 	}
+}
+
+// liveDefinition is the check that a definition currently stands behind the key, in the entry's
+// own collection or workspace-wide. It lands on cfd_scope_idx, so it costs an index lookup beside
+// whatever the main predicate costs.
+func (b *builder) liveDefinition(key string) {
+	b.write(`EXISTS (SELECT 1 FROM custom_field_definition cfd WHERE cfd.deleted_at IS NULL ` +
+		`AND cfd.key = `)
+	b.param(key)
+	b.write(` AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL))`)
 }
 
 // contains writes the indexable equality: does the document hold this key with this value.

@@ -354,15 +354,17 @@ type Items interface {
 	// from the answer, and the caller reads an absent key as zero.
 	CountOpenByAssignee(ctx context.Context, accounts []shared.ID) (map[shared.ID]int, error)
 
-	// SetCustomFields writes the entry's custom field document, whole, or reports a version
+	// SetCustomField writes one key of the entry's custom field document, or reports a version
 	// conflict. Its own method for the reason SetCover is: one decision about one column, never
 	// spending a rename's version.
 	//
-	// The whole document rather than one key, and the application is what applies the key to it -
-	// inside the same transaction that read it. A statement that edited one key in place would
-	// give two concurrent writers a last-writer-wins over the document with no version to catch
-	// it, which is the loss the per-key merge rule exists to prevent (offline-sync.md §4.2).
-	SetCustomFields(ctx context.Context, item work.WorkItem, expectedVersion int) error
+	// One key rather than the whole document, and that is a data-safety rule as much as a merge
+	// one. The stored document may hold values whose definitions were deleted - visible to no
+	// read, but kept (C-07) - and a write that replaced it with what a read answered would erase
+	// them. The item carries the wanted state; what is written is the one key, taken from it: a
+	// present key is set, an absent one removed. The version predicate is what makes two devices
+	// writing two different keys resolve rather than overwrite (offline-sync.md §4.2).
+	SetCustomField(ctx context.Context, item work.WorkItem, key string, expectedVersion int) error
 
 	// SetCover writes the cover, set or cleared, or reports a version conflict. Its own method
 	// for the reason SetAssignee is: one decision about one field, never spending a rename's

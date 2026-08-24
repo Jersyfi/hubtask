@@ -210,6 +210,9 @@ func TestTheValuesTravelWithTheEntry(t *testing.T) {
 	seedContainerTenants(ctx, t)
 	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
 	task := seedTask(ctx, t, tenantA, authorA, collection)
+	// The key needs a live definition: the reads answer only what one stands behind, so a value
+	// written under an undefined key would be stored and invisible - which is its own test below.
+	definedField(ctx, t, tenantA, collection, "priority", work.CustomFieldText)
 
 	item := findItem(ctx, t, tenantA, task)
 	if item.CustomFields != nil {
@@ -221,9 +224,9 @@ func TestTheValuesTravelWithTheEntry(t *testing.T) {
 		t.Fatal("writing a key reported that nothing moved")
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().SetCustomFields(ctx, written, item.Version)
+		return itemRepo().SetCustomField(ctx, written, "priority", item.Version)
 	}); err != nil {
-		t.Fatalf("writing the document: %v", err)
+		t.Fatalf("writing the key: %v", err)
 	}
 
 	stored := findItem(ctx, t, tenantA, task)
@@ -238,7 +241,7 @@ func TestTheValuesTravelWithTheEntry(t *testing.T) {
 		t.Fatal("clearing a key reported that nothing moved")
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().SetCustomFields(ctx, cleared, stored.Version)
+		return itemRepo().SetCustomField(ctx, cleared, "priority", stored.Version)
 	}); err != nil {
 		t.Fatalf("clearing: %v", err)
 	}
@@ -317,10 +320,10 @@ func TestACustomFieldOfAnotherTenantIsOutOfReach(t *testing.T) {
 	t.Run("the values on an entry", func(t *testing.T) {
 		task := seedTask(ctx, t, tenantA, authorA, collection)
 		item := findItem(ctx, t, tenantA, task)
-		written, _ := item.WithCustomField("priority", "high", changedAt)
+		written, _ := item.WithCustomField(defined.Key, "high", changedAt)
 
 		err := write(ctx, t, tenantB, func(ctx context.Context) error {
-			return itemRepo().SetCustomFields(ctx, written, item.Version)
+			return itemRepo().SetCustomField(ctx, written, defined.Key, item.Version)
 		})
 		if !errors.Is(err, shared.ErrVersionConflict) {
 			t.Errorf("tenant B wrote tenant A's custom fields: %v", err)

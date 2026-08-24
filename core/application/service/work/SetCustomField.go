@@ -266,7 +266,10 @@ func (h SetCustomField) write(
 		// between the read and here is still caught.
 		expected = before.Version
 	}
-	if err := h.Items.SetCustomFields(ctx, after, expected); err != nil {
+	// One key reaches the row, taken from the wanted state. The rest of the document - including
+	// any values whose definitions were deleted, which no read answers and this call never saw -
+	// stays exactly as stored (repository.Items.SetCustomField).
+	if err := h.Items.SetCustomField(ctx, after, cmd.Key, expected); err != nil {
 		return domain.WorkItem{}, err
 	}
 	after.Version = expected + 1

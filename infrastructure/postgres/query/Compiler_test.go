@@ -114,7 +114,9 @@ func TestTheScopeIsTheAnchorTheUseCaseResolved(t *testing.T) {
 
 func TestTheLifecycleStampsFollowTheRequest(t *testing.T) {
 	both := compile(t, nil, view.Spec{IncludeArchived: true, IncludeTrashed: true})
-	if strings.Contains(both.SQL, "deleted_at IS NULL") || strings.Contains(both.SQL, "archived_at IS NULL") {
+	// The prefixed spellings, deliberately: the visible-fields projection checks the *definition*
+	// table's deleted_at, which is not the entry's lifecycle and is there on every query.
+	if strings.Contains(both.SQL, "wi.deleted_at IS NULL") || strings.Contains(both.SQL, "wi.archived_at IS NULL") {
 		t.Errorf("a query that asked for everything still excludes: %s", both.SQL)
 	}
 

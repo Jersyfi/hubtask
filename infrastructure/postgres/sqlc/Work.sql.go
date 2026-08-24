@@ -230,12 +230,26 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 
 const findWorkItem = `-- name: FindWorkItem :one
 SELECT
-  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
-  cover_kind, cover_color_token, cover_media_id, custom_fields,
-  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
-FROM work_item
-WHERE id = $1
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  -- The visible custom fields: only the keys a live definition stands behind. The hiding happens
+  -- here rather than in Go, so that every read of an entry - the find, the list, the query
+  -- endpoint - hides a deleted definition's values identically, and a definition recreated under
+  -- the same key exposes nothing of what the old one held (C-07). The values themselves stay in
+  -- the row untouched, which is the whole shape of the soft delete.
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.key = kv.key
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.id = $1
 `
 
 type FindWorkItemRow struct {
@@ -583,27 +597,37 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 
 const listWorkItems = `-- name: ListWorkItems :many
 SELECT
-  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
-  cover_kind, cover_color_token, cover_media_id, custom_fields,
-  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
-FROM work_item
-WHERE collection_id = $1::uuid
-  AND parent_id IS NOT DISTINCT FROM $2::uuid
-  AND deleted_at IS NULL
-  AND ($3::boolean OR archived_at IS NULL)
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.key = kv.key
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.collection_id = $1::uuid
+  AND wi.parent_id IS NOT DISTINCT FROM $2::uuid
+  AND wi.deleted_at IS NULL
+  AND ($3::boolean OR wi.archived_at IS NULL)
   -- The entries the caller may see, when that is fewer than the level: null is no restriction at
   -- all, which is what every caller holding a role on the collection passes (C-04).
   AND (
     $4::uuid[] IS NULL
-    OR id = ANY($4::uuid[])
+    OR wi.id = ANY($4::uuid[])
   )
   AND (
     $5::text IS NULL
-    OR (order_key COLLATE "C", id)
+    OR (wi.order_key COLLATE "C", wi.id)
        > ($5::text COLLATE "C", $6::uuid)
   )
-ORDER BY order_key COLLATE "C", id
+ORDER BY wi.order_key COLLATE "C", wi.id
 LIMIT $7
 `
 
@@ -1163,29 +1187,36 @@ func (q *Queries) SetWorkItemCover(ctx context.Context, arg SetWorkItemCoverPara
 	return result.RowsAffected(), nil
 }
 
-const setWorkItemCustomFields = `-- name: SetWorkItemCustomFields :execrows
+const setWorkItemCustomField = `-- name: SetWorkItemCustomField :execrows
 UPDATE work_item SET
-  custom_fields = $1,
-  updated_at    = $2,
-  version       = version + 1
-WHERE id = $3::uuid AND version = $4
+  custom_fields = CASE
+    WHEN $1::jsonb IS NULL THEN custom_fields - $2::text
+    ELSE jsonb_set(custom_fields, ARRAY[$2::text], $1::jsonb, true)
+  END,
+  updated_at = $3,
+  version    = version + 1
+WHERE id = $4::uuid AND version = $5
 `
 
-type SetWorkItemCustomFieldsParams struct {
-	CustomFields    []byte
+type SetWorkItemCustomFieldParams struct {
+	Value           []byte
+	Key             string
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
 
-// The entry's custom field document, whole, under the same optimistic lock every write to this row
-// takes. Whole rather than one key at a time, because jsonb_set on a concurrent write would give
-// two writers a last-writer-wins over the *document* with no version to catch it - and the version
-// is exactly what makes two devices writing two different keys resolve rather than overwrite. The
-// application reads the document, applies one key to it and writes it back inside one transaction.
-func (q *Queries) SetWorkItemCustomFields(ctx context.Context, arg SetWorkItemCustomFieldsParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setWorkItemCustomFields,
-		arg.CustomFields,
+// One key of the entry's custom field document, under the same optimistic lock every write to this
+// row takes. One key rather than the whole document, and that is a data-safety decision as much as
+// a merge one: the row may hold values whose definitions were deleted - visible to no read, but
+// kept - and a write that replaced the document with what a read answered would erase them. A NULL
+// value removes the key, which is the one spelling "cleared" has (the reads cannot tell a stored
+// null from an absent key, so storing one would create a state nothing can see). The version
+// predicate is what makes two devices writing two different keys resolve rather than overwrite.
+func (q *Queries) SetWorkItemCustomField(ctx context.Context, arg SetWorkItemCustomFieldParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemCustomField,
+		arg.Value,
+		arg.Key,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

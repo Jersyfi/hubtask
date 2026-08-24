@@ -225,12 +225,26 @@ SELECT
 -- Trashed and archived items are returned rather than filtered out, for the reason FindContainer
 -- returns them: the repository reports what is stored and judges none of it (I-W4).
 SELECT
-  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
-  cover_kind, cover_color_token, cover_media_id, custom_fields,
-  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
-FROM work_item
-WHERE id = $1;
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  -- The visible custom fields: only the keys a live definition stands behind. The hiding happens
+  -- here rather than in Go, so that every read of an entry - the find, the list, the query
+  -- endpoint - hides a deleted definition's values identically, and a definition recreated under
+  -- the same key exposes nothing of what the old one held (C-07). The values themselves stay in
+  -- the row untouched, which is the whole shape of the soft delete.
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.key = kv.key
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.id = $1;
 
 -- name: LastWorkItemOrderKey :one
 -- The highest rank among the siblings of a new item: same collection, same parent. A NULL parent
@@ -278,27 +292,37 @@ INSERT INTO work_item (
 -- Everything else - the keyset, the collation, the row read beyond the page - is as ListContainers,
 -- and for the same reasons.
 SELECT
-  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id,
-  cover_kind, cover_color_token, cover_media_id, custom_fields,
-  archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version
-FROM work_item
-WHERE collection_id = sqlc.arg('collection_id')::uuid
-  AND parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
-  AND deleted_at IS NULL
-  AND (sqlc.arg('include_archived')::boolean OR archived_at IS NULL)
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.key = kv.key
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
+  AND wi.deleted_at IS NULL
+  AND (sqlc.arg('include_archived')::boolean OR wi.archived_at IS NULL)
   -- The entries the caller may see, when that is fewer than the level: null is no restriction at
   -- all, which is what every caller holding a role on the collection passes (C-04).
   AND (
     sqlc.narg('restrict_to')::uuid[] IS NULL
-    OR id = ANY(sqlc.narg('restrict_to')::uuid[])
+    OR wi.id = ANY(sqlc.narg('restrict_to')::uuid[])
   )
   AND (
     sqlc.narg('cursor_order_key')::text IS NULL
-    OR (order_key COLLATE "C", id)
+    OR (wi.order_key COLLATE "C", wi.id)
        > (sqlc.narg('cursor_order_key')::text COLLATE "C", sqlc.narg('cursor_id')::uuid)
   )
-ORDER BY order_key COLLATE "C", id
+ORDER BY wi.order_key COLLATE "C", wi.id
 LIMIT sqlc.arg('page_size');
 -- name: ChildCompletion :one
 -- How many children an item has, and how many of them are done. The two numbers the roll-up decides
@@ -496,14 +520,19 @@ UPDATE work_item SET
   version           = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
--- name: SetWorkItemCustomFields :execrows
--- The entry's custom field document, whole, under the same optimistic lock every write to this row
--- takes. Whole rather than one key at a time, because jsonb_set on a concurrent write would give
--- two writers a last-writer-wins over the *document* with no version to catch it - and the version
--- is exactly what makes two devices writing two different keys resolve rather than overwrite. The
--- application reads the document, applies one key to it and writes it back inside one transaction.
+-- name: SetWorkItemCustomField :execrows
+-- One key of the entry's custom field document, under the same optimistic lock every write to this
+-- row takes. One key rather than the whole document, and that is a data-safety decision as much as
+-- a merge one: the row may hold values whose definitions were deleted - visible to no read, but
+-- kept - and a write that replaced the document with what a read answered would erase them. A NULL
+-- value removes the key, which is the one spelling "cleared" has (the reads cannot tell a stored
+-- null from an absent key, so storing one would create a state nothing can see). The version
+-- predicate is what makes two devices writing two different keys resolve rather than overwrite.
 UPDATE work_item SET
-  custom_fields = sqlc.arg('custom_fields'),
-  updated_at    = sqlc.arg('updated_at'),
-  version       = version + 1
+  custom_fields = CASE
+    WHEN sqlc.narg('value')::jsonb IS NULL THEN custom_fields - sqlc.arg('key')::text
+    ELSE jsonb_set(custom_fields, ARRAY[sqlc.arg('key')::text], sqlc.narg('value')::jsonb, true)
+  END,
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');

@@ -386,14 +386,14 @@ func (r ItemRepository) SetCover(ctx context.Context, item work.WorkItem, expect
 	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
 }
 
-// SetCustomFields writes the entry's custom field document, whole.
+// SetCustomField writes one key of the entry's custom field document.
 //
-// Whole rather than one key, because the version is what makes two devices writing two different
-// keys resolve rather than overwrite: the application reads the document, applies its key and
-// writes it back inside one transaction, and a concurrent writer's version is what stops the
-// second write from landing on a document it never saw.
-func (r ItemRepository) SetCustomFields(
-	ctx context.Context, item work.WorkItem, expectedVersion int,
+// One key rather than the whole document: the row may hold values whose definitions were deleted -
+// hidden from every read, but kept - and a write that replaced the document with what a read
+// answered would erase them. The value travels as jsonb; nil (the key absent from the wanted
+// state) removes it, which is the one spelling "cleared" has.
+func (r ItemRepository) SetCustomField(
+	ctx context.Context, item work.WorkItem, key string, expectedVersion int,
 ) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -403,38 +403,39 @@ func (r ItemRepository) SetCustomFields(
 	if err != nil {
 		return err
 	}
-	document, err := customFieldsOf(item.CustomFields)
+	value, err := customValueOf(item.CustomFields, key)
 	if err != nil {
 		return err
 	}
 
-	affected, err := queries.SetWorkItemCustomFields(ctx, sqlc.SetWorkItemCustomFieldsParams{
-		CustomFields: document,
-		UpdatedAt:    timestampOf(item.UpdatedAt),
-		ID:           id,
+	affected, err := queries.SetWorkItemCustomField(ctx, sqlc.SetWorkItemCustomFieldParams{
+		Value:     value,
+		Key:       key,
+		UpdatedAt: timestampOf(item.UpdatedAt),
+		ID:        id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
 		ExpectedVersion: int32(expectedVersion),
 	})
 	if err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("writing the custom fields of %s: %w", item.ID, err))
+			WithCause(fmt.Errorf("writing a custom field of %s: %w", item.ID, err))
 	}
 	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
 }
 
-// customFieldsOf renders the document for the column. An empty map is `{}` rather than SQL NULL,
-// because the column is NOT NULL and "this entry carries nothing" is a document rather than the
-// absence of one.
-func customFieldsOf(values map[string]any) ([]byte, error) {
-	if len(values) == 0 {
-		return []byte("{}"), nil
+// customValueOf renders one key's value for the statement, nil when the wanted state does not
+// carry it - which the statement reads as "remove the key".
+func customValueOf(values map[string]any, key string) ([]byte, error) {
+	value, held := values[key]
+	if !held {
+		return nil, nil
 	}
 
-	document, err := json.Marshal(values)
+	document, err := json.Marshal(value)
 	if err != nil {
-		// The values passed the domain's validation, so every one of them has a JSON spelling.
-		// Reaching this is a defect rather than input (security.md §9).
+		// The value passed the domain's validation, so it has a JSON spelling. Reaching this is a
+		// defect rather than input (security.md §9).
 		return nil, shared.ErrInternal.WithDetail("items.custom_fields_unserialisable").WithCause(err)
 	}
 	return document, nil
