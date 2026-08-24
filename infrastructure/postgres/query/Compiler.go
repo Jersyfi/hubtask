@@ -72,6 +72,15 @@ const (
 		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version`
 )
 
+// searchText is the expression the trigram index is built over, written here exactly as migration
+// 0020 writes it.
+//
+// The planner matches an expression index by comparing expression trees, so the two spellings have
+// to be identical: a coalesce written differently here would build the index and never use it, and
+// nothing would fail - the search would simply scan the whole table. Which is why the migration
+// names this constant and this constant names the migration.
+const searchText = `(coalesce(wi.title, '') || ' ' || coalesce(wi.notes, ''))`
+
 // The two prefixes a column expression can carry: the table alias inside the query, and nothing at
 // all in the outer select of a grouped one, where the subquery is the only relation in scope.
 const (
@@ -151,6 +160,112 @@ func Count(search repository.ItemSearch) (Statement, error) {
 	return b.statement()
 }
 
+// Search compiles the full text search: one page of entries in the order the database ranked them
+// (C-08, ADR-0034).
+//
+// Three things are here that no other statement in this package has.
+//
+// The join to `container`, so that each row carries the hub it sits under. The search spans hubs,
+// so the permission is asked about each row's place in the tree, and reading the collections back
+// afterwards would be a query per collection in the page.
+//
+// The rank, which is the ordering. `ts_rank_cd` over the document, taking whichever of the two
+// tsqueries answered better - the searcher's configuration or `simple` - because a row found by
+// one of them and not the other would otherwise rank last however well it matched. The weights the
+// document carries do the rest: a hit in a title outranks one buried in a note (migration 0019).
+//
+// And the keyset over that rank. Both keys descend, which is what lets the boundary be one row
+// comparison rather than the three-clause form a mixed ordering needs; the identifier is a UUIDv7,
+// so descending on it means equally-ranked entries come newest first.
+func Search(search repository.TextSearch, boundary SearchBoundary, probe int) (Statement, error) {
+	b := newBuilder(repository.ItemSearch{Language: search.Request.Language})
+
+	b.write(`SELECT `, itemColumns, `, c.parent_id, `)
+	b.rank(search.Request)
+	b.write(` AS rank FROM work_item wi JOIN container c ON c.id = wi.collection_id WHERE `)
+	b.searchPredicates(search)
+
+	if !boundary.IsZero() {
+		b.write(` AND (`)
+		b.rank(search.Request)
+		b.write(`, wi.id) < (`)
+		b.param(boundary.Rank)
+		b.write(`::real, `)
+		b.uuid(boundary.ID)
+		b.write(`)`)
+	}
+
+	b.write(` ORDER BY rank DESC, wi.id DESC LIMIT `)
+	b.param(int64(probe))
+	return b.statement()
+}
+
+// SearchBoundary is a decoded search cursor: the rank of the last row of the previous page, and the
+// identifier that breaks a tie between equal ranks.
+type SearchBoundary struct {
+	Rank float32
+	ID   shared.ID
+}
+
+// IsZero reports the first page.
+func (b SearchBoundary) IsZero() bool { return b.ID.IsZero() }
+
+// rank writes the relevance expression: the better of the two configurations' answers.
+func (b *builder) rank(request view.Search) {
+	b.write(`greatest(ts_rank_cd(wi.search_document, `)
+	b.languageQuery(request.Words)
+	b.write(`), ts_rank_cd(wi.search_document, `)
+	b.simpleQuery(request.Words)
+	b.write(`))`)
+}
+
+// searchPredicates writes what the search matches: the scope, the lifecycle, the narrowing, and the
+// match itself.
+func (b *builder) searchPredicates(search repository.TextSearch) {
+	b.scope(search.Anchor)
+	b.restriction(search.RestrictTo)
+	b.lifecycle(view.Spec{
+		IncludeArchived: search.Request.IncludeArchived,
+		IncludeTrashed:  search.Request.IncludeTrashed,
+	})
+
+	b.write(` AND (wi.search_document @@ `)
+	b.languageQuery(search.Request.Words)
+	b.write(` OR wi.search_document @@ `)
+	b.simpleQuery(search.Request.Words)
+
+	// The supplement for the scripts a tsquery cannot serve. A run of characters without word
+	// boundaries is one token, so a query for part of it matches nothing - which is why this
+	// branch is decided by the *words*, in the domain, rather than by the entries (i18n-l10n.md
+	// §5, view.Search.WithoutWordBoundaries).
+	//
+	// ILIKE over the expression migration 0020 indexed, so the trigram index answers it. Below
+	// three characters the index cannot narrow anything and the recheck does the work; the answer
+	// is the same, which is what matters for a query somebody typed two characters into.
+	if search.Request.WithoutWordBoundaries() {
+		b.write(` OR `, searchText, ` ILIKE `)
+		b.likePattern(search.Request.Words)
+	}
+	b.write(`)`)
+}
+
+// languageQuery parses the words under the searcher's configuration, and simpleQuery under the one
+// an entry that stated no language was indexed with. Both bind their values; neither writes any
+// part of the request into the statement (rule 9, T-06).
+func (b *builder) languageQuery(words string) {
+	b.write(`websearch_to_tsquery(hubtask_text_config(`)
+	b.param(b.language)
+	b.write(`::text), `)
+	b.words(words)
+	b.write(`)`)
+}
+
+func (b *builder) simpleQuery(words string) {
+	b.write(`websearch_to_tsquery('simple', `)
+	b.words(words)
+	b.write(`)`)
+}
+
 // predicates writes what every shape of the query shares: the scope, the lifecycle, the filter.
 func (b *builder) predicates(search repository.ItemSearch) {
 	b.scope(search.Anchor)
@@ -218,6 +333,12 @@ func (b *builder) scope(anchor repository.Anchor) {
 		if !anchor.IncludeDescendants {
 			b.write(` AND wi.parent_id IS NULL`)
 		}
+
+	case repository.AnchorTenant:
+		// Everything the transaction can see. Row level security has already bounded that to one
+		// tenant, and the predicate says so rather than relying on it silently: it is true whether
+		// or not a policy is in force, and it is the column a planner can use.
+		b.write(`wi.tenant_id = current_tenant_id()`)
 
 	case repository.AnchorHub:
 		// The hub's collections, as a subquery rather than a list the use case read first: the list

@@ -396,6 +396,8 @@
   "dependency.too_many_redirects": "The address redirected more than {limit} times. Hubtask stopped following it.",
   "dependency.response_too_large": "The answer was larger than the permitted {limit_bytes} bytes.",
 
+  "search.words_required": "Say what to look for.",
+  "search.words_too_long": "A search may be at most {maximum} characters long.",
   "query.scope_required": "Say where to search: a hub, a collection, or an entry.",
   "query.scope_ambiguous": "Search in one place at a time - a container or an entry, not both.",
   "query.scope_not_found": "There is nothing to search there.",

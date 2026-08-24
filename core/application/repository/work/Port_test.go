@@ -100,6 +100,9 @@ func (itemDouble) RestoreBatch(context.Context, ItemTrash) (int, error)  { retur
 func (itemDouble) Query(context.Context, ItemSearch) (ItemQueryResult, error) {
 	return ItemQueryResult{}, nil
 }
+func (itemDouble) Search(context.Context, TextSearch) (ItemHitPage, error) {
+	return ItemHitPage{}, nil
+}
 
 var _ Items = itemDouble{}
 

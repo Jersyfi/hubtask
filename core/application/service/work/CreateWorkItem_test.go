@@ -39,6 +39,11 @@ type items struct {
 	result   repository.ItemQueryResult
 	searched []repository.ItemSearch
 	queryErr error
+	// hits is what Search answers with, and searchedText is every request it was handed (C-08's
+	// full text search).
+	hits         repository.ItemHitPage
+	searchedText []repository.TextSearch
+	searchErr    error
 	// children is what ChildCompletion answers, per parent, and completions records every write
 	// SetCompletion took - the roll-up tests care about both: one is the state it decided from, the
 	// other is what it decided.
@@ -317,6 +322,18 @@ func (i *items) Query(_ context.Context, search repository.ItemSearch) (reposito
 		return repository.ItemQueryResult{}, i.queryErr
 	}
 	return i.result, nil
+}
+
+// Search records the request the use case built and answers with what the test staged, for the
+// reason Query does: what a search *asks for* is the use case's business - the scope it resolved,
+// the narrowing it decided, the language it filled in - and what that becomes in SQL is proved
+// against a real database instead.
+func (i *items) Search(_ context.Context, search repository.TextSearch) (repository.ItemHitPage, error) {
+	i.searchedText = append(i.searchedText, search)
+	if i.searchErr != nil {
+		return repository.ItemHitPage{}, i.searchErr
+	}
+	return i.hits, nil
 }
 
 // RestoreBatch clears the stamp on every row of one deletion, keyed on the batch rather than on the

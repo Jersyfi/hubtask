@@ -93,6 +93,34 @@ func (b *builder) text(value view.Value) {
 	b.write(`::text, NFC)`)
 }
 
+// words binds the text of a search, normalised the way the documents it is compared against were
+// written. The same reasoning as text(), one layer up: the caller's words are a value and never a
+// fragment of the statement.
+func (b *builder) words(value string) {
+	b.write(`normalize(`)
+	b.param(value)
+	b.write(`::text, NFC)`)
+}
+
+// likePattern binds the same words as a substring pattern, for the trigram branch of a search.
+//
+// LIKE's own wildcards are escaped in the *value* rather than removed from it: somebody searching
+// for "50%" means the two characters, and an unescaped pattern would quietly search for everything
+// beginning with 50. The escape happens here rather than in SQL because it is a property of the
+// value, and the value is bound - no byte of it reaches the text either way (rule 9, T-06).
+//
+// The `%` on both sides are constants of this package, which is what keeps this a substring search
+// rather than a pattern the caller writes.
+func (b *builder) likePattern(words string) {
+	b.write(`('%' || normalize(`)
+	b.param(likeWildcards.Replace(words))
+	b.write(`::text, NFC) || '%')`)
+}
+
+// likeWildcards escapes what LIKE reads as a wildcard. The backslash goes first: escaping it after
+// the others would escape the escapes.
+var likeWildcards = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
 // value writes one comparison value with the type its column expects.
 func (b *builder) value(field view.Field, value view.Value) {
 	if value.IsPlaceholder() {

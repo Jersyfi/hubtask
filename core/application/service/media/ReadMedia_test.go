@@ -453,6 +453,11 @@ func (i *workItems) Query(
 ) (workrepo.ItemQueryResult, error) {
 	return workrepo.ItemQueryResult{}, nil
 }
+func (i *workItems) Search(
+	context.Context, workrepo.TextSearch,
+) (workrepo.ItemHitPage, error) {
+	return workrepo.ItemHitPage{}, nil
+}
 
 func listingHarness() (ListAttachments, *objects, *authorizer) {
 	records, permission := newObjects(), &authorizer{}

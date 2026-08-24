@@ -1045,6 +1045,52 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items:search:
+    post:
+      tags: [items]
+      operationId: searchItems
+      summary: Full-text search over the entries a caller may see
+      description: |
+        Finds entries by the words in their titles and notes, best match first. A `POST` for the
+        reason the query is one - the request is a document rather than a set of parameters - and
+        it reads: nothing is written, and the same request may be repeated.
+
+        Two languages are in play and they are different questions. An entry is indexed under the
+        language it was written in (`content_language`), so a German entry is found by an inflected
+        German word and an English one by a stemmed English word. The *query* is read under the
+        caller's language, which is this request's `language` or the caller's locale. An entry that
+        states no language is matched word by word and is found by any caller. Which languages this
+        installation can index at all is answered by `GET /meta/capabilities` under
+        `text_languages`; a language it has no configuration for searches word by word rather than
+        failing.
+
+        A script without word boundaries - Japanese, Chinese, Korean, Thai - additionally matches on
+        substrings, because a run of such characters is one token and no word search can find part
+        of it.
+
+        Unanchored unless a container is named, and this is the one read of the API that is: it
+        answers what the caller may see rather than refusing what they may not, so a page can be
+        shorter than the size asked for. Walk on until `has_more` is false rather than stopping at
+        the first short page. Naming a hub is the exception - a client that named a hub it cannot
+        read is told so.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemSearchQuery"
+      responses:
+        "200":
+          description: The hits, best match first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItemPage"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:complete:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -2385,6 +2431,39 @@ components:
             $ref: "#/components/schemas/Container"
         page:
           $ref: "#/components/schemas/PageInfo"
+
+    ItemSearchQuery:
+      type: object
+      required: [q]
+      description: >
+        One full-text search. Everything but `q` narrows or pages it; there is no filter grammar
+        here, because a search that also filtered would be `POST /items:query` with a `MATCHES`
+        condition - which is the same index and is what that endpoint is for.
+      properties:
+        q:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: >
+            What to look for. Quoted phrases, `or` between words and a leading minus for exclusion
+            work as they do in a web search box; anything else is read as words to find.
+        container_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The hub or collection to search in. Omitted searches everything the caller may see.
+        language:
+          type: [string, "null"]
+          description: >
+            BCP-47. The language the *words* are in, not the entries: it decides how the query is
+            read. Omitted takes the caller's locale.
+        include_archived: { type: boolean, default: false }
+        include_trashed: { type: boolean, default: false }
+        page:
+          type: object
+          properties:
+            cursor: { type: [string, "null"] }
+            size: { type: integer, minimum: 1, maximum: 200, default: 50 }
 
     WorkItemPage:
       type: object

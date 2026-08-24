@@ -6,8 +6,10 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -272,4 +274,117 @@ func queryFailed(what string, err error) error {
 	return shared.ErrUnavailable.
 		WithDetail("postgres.query_failed").
 		WithCause(fmt.Errorf("%s: %w", what, err))
+}
+
+// Search answers the full text search: one page of entries in the order the database ranked them
+// (C-08).
+//
+// It sits beside the query language's half rather than among the generated statements for the same
+// reason that one does: the statement is compiled from a validated request, and it runs on the
+// transaction the unit of work opened. What is different is the walk - a search is ordered by a
+// rank the query computes rather than by a column, so the cursor carries that rank.
+func (r ItemRepository) Search(
+	ctx context.Context, search repository.TextSearch,
+) (repository.ItemHitPage, error) {
+	tx, err := FromContext(ctx)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
+	boundary, err := r.searchBoundary(search.Request.Cursor)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
+	size := search.Request.Size
+	statement, err := query.Search(search, boundary, int(pageProbe(size)))
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
+	hits, err := readHits(ctx, tx, statement)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
+	var page repository.ItemHitPage
+	page.Hits, page.Info = pageOf(hits, size, r.cursors, func(last repository.ItemHit) security.Position {
+		return security.At(rankKey(last.Rank), last.Item.ID)
+	})
+	return page, nil
+}
+
+// readHits runs the compiled statement and maps every row: the item as every other read maps it,
+// the hub beside it, and the rank the ordering was built from.
+func readHits(
+	ctx context.Context, tx pgx.Tx, statement query.Statement,
+) ([]repository.ItemHit, error) {
+	rows, err := tx.Query(ctx, statement.SQL, statement.Args...)
+	if err != nil {
+		return nil, queryFailed("running the search", err)
+	}
+	defer rows.Close()
+
+	hits := make([]repository.ItemHit, 0, 64)
+	for rows.Next() {
+		var (
+			row  sqlc.FindWorkItemRow
+			hub  pgtype.UUID
+			rank float32
+		)
+		if err := rows.Scan(
+			&row.ID, &row.TenantID, &row.CollectionID, &row.Type, &row.ParentID, &row.Path,
+			&row.Depth, &row.Title, &row.Notes, &row.IsCompleted, &row.CompletedAt, &row.CompletedBy,
+			&row.BucketID, &row.OrderKey, &row.AssigneeID,
+			&row.CoverKind, &row.CoverColorToken, &row.CoverMediaID, &row.CustomFields,
+			&row.ContentLanguage,
+			&row.ArchivedAt, &row.DeletedAt,
+			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
+			&hub, &rank,
+		); err != nil {
+			return nil, queryFailed("reading a search hit", err)
+		}
+
+		item, err := itemFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		hubID, err := optionalID(hub)
+		if err != nil {
+			return nil, err
+		}
+		hits = append(hits, repository.ItemHit{Item: item, HubID: hubID, Rank: rank})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, queryFailed("running the search", err)
+	}
+	return hits, nil
+}
+
+// searchBoundary decodes the cursor a search is continuing from.
+func (r ItemRepository) searchBoundary(cursor string) (query.SearchBoundary, error) {
+	if cursor == "" {
+		return query.SearchBoundary{}, nil
+	}
+	position, err := r.cursors.Decode(cursor)
+	if err != nil {
+		return query.SearchBoundary{}, err
+	}
+
+	rank, err := strconv.ParseFloat(position.SortKey(), 32)
+	if err != nil {
+		// The cursor is this server's own, signed, and it decoded - so a key that is not a number
+		// is a defect here rather than something a client sent (security.CursorCodec).
+		return query.SearchBoundary{}, shared.ErrValidation.
+			WithDetail("page.cursor_invalid").
+			WithCause(fmt.Errorf("the rank in the cursor is not a number: %w", err))
+	}
+	return query.SearchBoundary{Rank: float32(rank), ID: position.ID}, nil
+}
+
+// rankKey renders a rank for the cursor. Thirty-two bits, formatted with the precision that reads
+// back as the same float: the boundary is compared against `real` in the statement, and a value
+// that lost a digit on the way out would skip a row or repeat one.
+func rankKey(rank float32) string {
+	return strconv.FormatFloat(float64(rank), 'g', -1, 32)
 }

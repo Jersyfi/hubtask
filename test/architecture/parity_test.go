@@ -78,6 +78,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.GetWorkItem{}.Descriptor(),
 		work.ListWorkItems{}.Descriptor(),
 		work.QueryItems{}.Descriptor(),
+		work.SearchItems{}.Descriptor(),
 		work.ListActivity{}.Descriptor(),
 		work.CompleteWorkItem{}.Descriptor(),
 		work.ReopenWorkItem{}.Descriptor(),

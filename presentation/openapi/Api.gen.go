@@ -2331,6 +2331,24 @@ type ItemQueryResult struct {
 	Total *int `json:"total"`
 }
 
+// ItemSearchQuery One full-text search. Everything but `q` narrows or pages it; there is no filter grammar here, because a search that also filtered would be `POST /items:query` with a `MATCHES` condition - which is the same index and is what that endpoint is for.
+type ItemSearchQuery struct {
+	// ContainerId The hub or collection to search in. Omitted searches everything the caller may see.
+	ContainerId     *openapi_types.UUID `json:"container_id,omitempty"`
+	IncludeArchived *bool               `json:"include_archived,omitempty"`
+	IncludeTrashed  *bool               `json:"include_trashed,omitempty"`
+
+	// Language BCP-47. The language the *words* are in, not the entries: it decides how the query is read. Omitted takes the caller's locale.
+	Language *string `json:"language,omitempty"`
+	Page     *struct {
+		Cursor *string `json:"cursor,omitempty"`
+		Size   *int    `json:"size,omitempty"`
+	} `json:"page,omitempty"`
+
+	// Q What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find.
+	Q string `json:"q"`
+}
+
 // ItemType Extensible; /meta/capabilities returns the valid values.
 type ItemType string
 
@@ -3484,6 +3502,9 @@ type BulkItemsJSONRequestBody BulkItemsJSONBody
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
 
+// SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
+type SearchItemsJSONRequestBody = ItemSearchQuery
+
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
 
@@ -3717,6 +3738,9 @@ type ServerInterface interface {
 	// QueryItems The generic query - the basis for list, kanban, and timeline
 	// (POST /items:query)
 	QueryItems(w http.ResponseWriter, r *http.Request)
+	// SearchItems Full-text search over the entries a caller may see
+	// (POST /items:search)
+	SearchItems(w http.ResponseWriter, r *http.Request)
 
 	// (POST /media)
 	RequestMediaUpload(w http.ResponseWriter, r *http.Request, params RequestMediaUploadParams)
@@ -6979,6 +7003,20 @@ func (siw *ServerInterfaceWrapper) QueryItems(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// SearchItems operation middleware
+func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchItems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RequestMediaUpload operation middleware
 func (siw *ServerInterfaceWrapper) RequestMediaUpload(w http.ResponseWriter, r *http.Request) {
 
@@ -7694,6 +7732,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}", wrapper.GetWorkItem)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:search", wrapper.SearchItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)
