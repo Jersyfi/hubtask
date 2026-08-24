@@ -376,5 +376,5 @@ The complete DDL: [`../../db/schema.sql`](../../db/schema.sql). The principles:
 * Set relations (labels, members) as join tables rather than JSON arrays — filterability takes
   precedence.
 * `custom_fields` as `jsonb` with a GIN index; validation happens in the domain code.
-* Full text: a generated `tsvector` column with a language-dependent configuration per item.
+* Full text: a `tsvector` column with a language-dependent configuration per item, maintained by a trigger rather than generated — a generated column cannot choose its configuration ([ADR-0034](../adr/ADR-0034-language-dependent-search.md)) — plus a trigram index for the scripts that have no word boundaries.
 * Trash and archive as timestamps rather than separate tables (restoring without moving data).
