@@ -91,6 +91,10 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_notifications_recorded_total` | Counter | `category`, `channel`, `state` | Who is told what, and how much of it is suppressed (C-09) |
 | `hubtask_notification_send_duration_seconds` | Histogram | `category`, `channel` | How long a message takes to leave |
 | `hubtask_notification_failures_total` | Counter | `category`, `channel`, `reason` | A mail server that is down, told apart from an address that is refused |
+| `hubtask_stream_connections` | Gauge | — | Change streams a process is holding open (C-10) |
+| `hubtask_stream_duration_seconds` | Histogram | — | A one-second stream is a client reconnecting in a loop; a day-long one is working |
+| `hubtask_stream_refused_total` | Counter | `reason` | Which cap refused a connection: credential, tenant, process, or a drain |
+| `hubtask_stream_records_total` | Counter | — | Change records delivered; against the log's growth, whether the streams keep up |
 | `hubtask_rule_runs_total` | Counter | `result`, `trigger_type` | SLO-7 |
 | `hubtask_rule_disabled_total` | Counter | `reason` | Makes self-protection visible |
 | `hubtask_webhook_deliveries_total` | Counter | `result` (`ok`/`retry`/`dead`), `status_class` | SLO-6 |
@@ -213,6 +217,7 @@ schema version — everything is reported as a code with a severity, not as free
 | PostgreSQL | `/readyz` red, no traffic accepted, reconnection with backoff; **no** process exit | `503` with a message code, `Retry-After` |
 | Object storage (S3/MinIO) | Core features normal; upload/download disabled, `degraded_features` set | Attachments temporarily unavailable, tasks work |
 | SMTP / push | Notifications stay in the queue and are caught up; no loss | The reminder arrives late, with an in-app notice |
+| `LISTEN/NOTIFY` (the stream's wake-up) | Streams fall back to their idle poll interval; no record is lost or reordered | Changes arrive within seconds instead of immediately |
 | AI provider | AI suggestions disappear, every manual route remains | The feature is greyed out with a reason |
 | External search index (optional) | Fallback to PostgreSQL full-text search | Slower, slightly different search |
 | NATS (optional) | Fallback to the database outbox dispatch | No visible change |
