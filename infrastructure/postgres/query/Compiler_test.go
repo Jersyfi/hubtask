@@ -177,9 +177,15 @@ func TestTheOperatorsCompile(t *testing.T) {
 			`(starts_with(lower(wi.title), lower(normalize($2::text, NFC))))`, nil,
 		},
 		{
-			"full text, in the configuration the column was built with",
+			// Two branches, and the argument order is the point: the configuration is a bound
+			// parameter resolved in the database, so the tag never becomes text (C-08, ADR-0034).
+			// The `simple` branch is what finds an entry that stated no language at all.
+			"full text, under the searcher's configuration and under simple",
 			map[string]any{"field": "text", "op": "MATCHES", "value": "quarterly report"},
-			`(wi.search_vector @@ websearch_to_tsquery('simple', normalize($2::text, NFC)))`, nil,
+			`(wi.search_document @@ websearch_to_tsquery(hubtask_text_config($2::text), ` +
+				`normalize($3::text, NFC)) OR wi.search_document @@ ` +
+				`websearch_to_tsquery('simple', normalize($4::text, NFC)))`,
+			[]any{"", "quarterly report", "quarterly report"},
 		},
 		{
 			"one label",
@@ -530,4 +536,34 @@ func documentOf(t *testing.T, document string) any {
 		t.Fatalf("the fixture is not JSON: %v", err)
 	}
 	return raw
+}
+
+// The searcher's language reaches the statement as a bound parameter and nothing else. It is the
+// one value of a compiled query that comes from a preference rather than from the grammar, and the
+// rule is the same for it as for every other: no byte of it becomes SQL text (rule 9, T-06).
+func TestTheSearchersLanguageIsBoundRatherThanWritten(t *testing.T) {
+	search := searchOf(t, map[string]any{
+		"field": "text", "op": "MATCHES", "value": "quarterly report",
+	}, view.Spec{})
+	search.Language = "de-AT'; DROP TABLE work_item; --"
+
+	statement, err := Rows(search, Boundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	if strings.Contains(statement.SQL, "de-AT") || strings.Contains(statement.SQL, "DROP") {
+		t.Fatalf("the language reached the statement's text:\n  %s", statement.SQL)
+	}
+	if !contains(statement.Args, search.Language) {
+		t.Errorf("the language is not among the arguments: %v", statement.Args)
+	}
+}
+
+func contains(args []any, want string) bool {
+	for _, arg := range args {
+		if value, ok := arg.(string); ok && value == want {
+			return true
+		}
+	}
+	return false
 }

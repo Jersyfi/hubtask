@@ -81,7 +81,7 @@ const (
 
 // Rows compiles an ungrouped query: one page of entries in one order.
 func Rows(search repository.ItemSearch, boundary Boundary, probe int) (Statement, error) {
-	b := &builder{}
+	b := newBuilder(search)
 
 	b.write(`SELECT `, itemColumns, ` FROM work_item wi WHERE `)
 	b.predicates(search)
@@ -110,7 +110,7 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 		return Statement{}, errFieldNotCompilable(search.Spec.GroupBy.Field)
 	}
 
-	b := &builder{}
+	b := newBuilder(search)
 	b.write(`SELECT `, groupedColumns, ` FROM (SELECT `, itemColumns, `, row_number() OVER (`,
 		`PARTITION BY `, group, ` ORDER BY `)
 	b.ordering(search.Spec.Sort, itemPrefix)
@@ -134,7 +134,7 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 // Count compiles the second pass an exact count costs: the same filter, without order, page or
 // projection.
 func Count(search repository.ItemSearch) (Statement, error) {
-	b := &builder{}
+	b := newBuilder(search)
 
 	if group, ok := column(search.Spec.GroupBy.Field, itemPrefix); ok {
 		// The key comes back as text whatever the column holds, because a group key is text
@@ -161,6 +161,32 @@ func (b *builder) predicates(search repository.ItemSearch) {
 		b.node(*search.Spec.Filter)
 		b.write(`)`)
 	}
+}
+
+// fullText writes the MATCHES predicate: the words, read under the searcher's configuration and
+// under `simple`, against the document the trigger maintains (C-08, ADR-0034).
+//
+// Two branches rather than one, and neither of them is the entry's own configuration. A document
+// is built under the language its entry names, so the exact question - "parse these words the way
+// this row was indexed" - would need the row before the query, and an index scan needs the query
+// to be one value for the whole scan. Two constants are two index scans and a bitmap OR, which the
+// planner does; a per-row tsquery is a sequential scan, which it also does, once per search, over
+// every entry in the tenant.
+//
+// The `simple` branch is what makes the pair honest. An entry that states no language is indexed
+// word by word, and the searcher's stemmer would ask for a lexeme such a document never holds.
+//
+// The configuration is a bound parameter resolved by hubtask_text_config, so no byte of the tag
+// reaches the statement's text (rule 9, T-06) - and a tag this installation has no configuration
+// for resolves to `simple` rather than failing the query.
+func (b *builder) fullText(value view.Value) {
+	b.write(`wi.search_document @@ websearch_to_tsquery(hubtask_text_config(`)
+	b.param(b.language)
+	b.write(`::text), `)
+	b.text(value)
+	b.write(`) OR wi.search_document @@ websearch_to_tsquery('simple', `)
+	b.text(value)
+	b.write(`)`)
 }
 
 // restriction narrows the answer to the entries the caller may see, when that is fewer than the
@@ -278,11 +304,7 @@ func (b *builder) leaf(node view.Node) {
 		b.members(node)
 		return
 	case view.FieldText:
-		// The same text search configuration the generated column was built with. A query parsed
-		// under a different one would match nothing and look like an empty result.
-		b.write(`wi.search_vector @@ websearch_to_tsquery('simple', `)
-		b.text(node.Values[0])
-		b.write(`)`)
+		b.fullText(node.Values[0])
 		return
 	}
 

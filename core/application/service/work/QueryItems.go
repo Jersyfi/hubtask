@@ -77,7 +77,13 @@ func (h QueryItems) Execute(
 	var result repository.ItemQueryResult
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		result, err = h.Items.Query(ctx, repository.ItemSearch{Anchor: anchor, Spec: resolved})
+		result, err = h.Items.Query(ctx, repository.ItemSearch{
+			Anchor: anchor, Spec: resolved,
+			// The searcher's language, for MATCHES to read the words under. The entry's own is
+			// what its document was built under, and the two are deliberately different questions
+			// (ADR-0034, ItemSearch.Language).
+			Language: actor.Locale,
+		})
 		return err
 	})
 	if err != nil {

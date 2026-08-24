@@ -249,6 +249,15 @@ type Anchor struct {
 type ItemSearch struct {
 	Anchor Anchor
 	Spec   view.Spec
+	// Language is the tag the query's own words are read under - the searcher's, resolved by the
+	// use case, and empty for a caller whose language nothing said.
+	//
+	// The searcher's rather than the entry's, and the difference is the whole reason it is here.
+	// An entry's document is built under the configuration its own language names (ADR-0034), and
+	// a query parsed per row would be exact and unindexable: an index scan needs the query to be
+	// one value for the whole scan. So the words are parsed under the searcher's configuration and
+	// under `simple`, which is two constants and two index scans.
+	Language string
 	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is
 	// empty - the read half of C-04, exactly as ItemQuery carries it for the plain level list.
 	RestrictTo []shared.ID

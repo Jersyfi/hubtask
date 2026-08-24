@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -24,6 +25,15 @@ type builder struct {
 	sql  strings.Builder
 	args []any
 	err  error
+	// language is the tag the searcher's words are parsed under, empty for a caller whose language
+	// nothing said. Only MATCHES reads it, and it is on the builder rather than passed down because
+	// the walk that reaches a leaf carries nothing else of the request either.
+	language string
+}
+
+// newBuilder starts a statement for one query.
+func newBuilder(search repository.ItemSearch) *builder {
+	return &builder{language: search.Language}
 }
 
 // write appends constant text. Every argument is a literal of this package or a value returned by
