@@ -2157,6 +2157,61 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/due:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    put:
+      tags: [items]
+      operationId: setDueDate
+      description: >
+        Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written
+        together because the three describe one date (i18n-l10n.md §4). An all-day due date is a
+        date in the given zone, never a midnight that shifts with the viewer. A zone that is not
+        an IANA name is refused. Moving a due date is this call again. The same three fields on
+        the create and update paths dispatch into this writer, so a due date means the same thing
+        whichever door it came through.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DueDateInput"
+      responses:
+        "200":
+          description: The entry, due date set
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: clearDueDate
+      description: >
+        Takes the due date off the entry - the instant, the all-day flag and the zone together,
+        because none of them means anything alone. Idempotent: an entry with no due date succeeds
+        and announces nothing.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: The entry, due date cleared
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}/attachments:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -2897,6 +2952,21 @@ components:
         color_token: { type: [string, "null"] }
         media_id: { type: [string, "null"], format: uuid }
 
+    DueDateInput:
+      type: object
+      description: >
+        What the due date shall be. The instant is required; the flag and the zone qualify it and
+        cannot be stored without it. An all-day due date carries due_date_only true and is read as
+        a date in due_time_zone - the stored instant answers identically to every reader, and
+        nothing the server emits renders it as a moment (i18n-l10n.md §4).
+      required: [due_at]
+      properties:
+        due_at: { type: string, format: date-time }
+        due_date_only: { type: boolean, default: false }
+        due_time_zone:
+          type: [string, "null"]
+          description: An IANA time zone, such as Europe/Berlin. Anything else is refused.
+
     CustomFieldDefinition:
       type: object
       description: >
@@ -3175,9 +3245,15 @@ components:
         notes: { type: [string, "null"] }
         bucket_id: { type: [string, "null"], format: uuid }
         before_item_id: { type: [string, "null"], format: uuid }
+        start_at: { type: [string, "null"], format: date-time }
         due_at: { type: [string, "null"], format: date-time }
         due_date_only: { type: boolean, default: false }
-        due_time_zone: { type: [string, "null"] }
+        due_time_zone:
+          type: [string, "null"]
+          description: >
+            An IANA time zone. Stored beside the instant, never folded into it: an all-day due
+            date (due_date_only) is a date in this zone, not a midnight that shifts with the
+            viewer (i18n-l10n.md §4). Refused without a due_at.
         label_ids:
           type: array
           items: { type: string, format: uuid }
@@ -3206,9 +3282,15 @@ components:
         title: { type: string, minLength: 1, maxLength: 500 }
         notes: { type: [string, "null"] }
         bucket_id: { type: [string, "null"], format: uuid }
-        due_at: { type: [string, "null"], format: date-time }
+        start_at: { type: [string, "null"], format: date-time }
+        due_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            null clears the due date, the all-day flag and the zone together - the three fields
+            describe one date and none of them means anything alone.
         due_date_only: { type: boolean }
-        due_time_zone: { type: [string, "null"] }
+        due_time_zone: { type: [string, "null"], description: An IANA time zone. Refused without a due_at. }
         assignee_id: { type: [string, "null"], format: uuid }
         cover: { $ref: "#/components/schemas/Cover" }
         custom_fields:
