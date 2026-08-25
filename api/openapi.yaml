@@ -41,6 +41,167 @@ tags:
   - name: sync
 
 paths:
+  /views:
+    get:
+      tags: [views]
+      operationId: listSavedViews
+      description: >
+        The saved views the caller may see. Naming a container answers the caller's own views plus
+        what is shared into that container's path - the collection's, its hub's and the
+        workspace-wide ones, computed in the query rather than filtered after a page. Naming none
+        answers the caller's own views alone.
+      parameters:
+        - name: container_id
+          in: query
+          required: false
+          description: >
+            The container whose shared views are wanted, together with the caller's own. Omitted
+            answers the caller's own alone.
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The views
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SavedView"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [views]
+      operationId: createSavedView
+      description: >
+        Saves a view: a query in the DSL of POST /items:query, the layout it is drawn in, and the
+        fields the client shows. The query is validated here, against the same catalogue and the
+        same bounds as an ad-hoc one and with the same codes - a saved view that failed at read
+        time would be a broken bookmark nobody can repair. The layout is validated against the
+        declared set (/meta/capabilities, view_layouts), stored, echoed back, and never consulted:
+        what a layout looks like is the client's business, which is what makes new views possible
+        without a backend change. The creator owns the view, and it starts PRIVATE unless sharing
+        says otherwise, under the same rules as :share.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedViewCreate"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedView"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /views/{viewId}:
+    parameters:
+      - $ref: "#/components/parameters/ViewId"
+    get:
+      tags: [views]
+      operationId: getSavedView
+      description: >
+        One saved view. A view the caller may not see - another account's private view, or one
+        shared into a scope the caller holds nothing on - is not found, in exactly the words a
+        genuinely missing one produces.
+      responses:
+        "200":
+          description: The view
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedView"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [views]
+      operationId: updateSavedView
+      description: >
+        Changes a view's own fields. A field that is not sent is left alone. The scope and the
+        sharing are not among them: where a view lives is decided when it is created, and sharing
+        is :share - one decision with its own permission, not a field of an edit.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/SavedViewUpdate"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedView"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [views]
+      operationId: deleteSavedView
+      description: >
+        Deletes the view. A calendar feed that served it keeps its token and serves nothing,
+        saying why - the feed's view reference nulls rather than cascading, because a feed is the
+        subscriber's and a view is the workspace's.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /views/{viewId}:share:
+    parameters:
+      - $ref: "#/components/parameters/ViewId"
+    post:
+      tags: [views]
+      operationId: shareSavedView
+      description: >
+        Decides who sees the view: PRIVATE keeps it the owner's, SCOPE shares it with everyone who
+        may read the view's scope. Sharing publishes workspace furniture, so it asks the STRUCTURE
+        permission on the scope's path - a view over a collection cannot be pushed onto people by
+        somebody who may not shape that collection. An ACCOUNT-scoped view names no audience and
+        cannot be shared. PUBLIC_LINK is declared and refused by name: the calendar feed is this
+        version's only public reader and carries its own token, and a browsable public link is a
+        product decision no task takes in passing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedViewShare"
+      responses:
+        "200":
+          description: The view, sharing decided
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedView"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /meta/capabilities:
     get:
       tags: [meta]
@@ -2505,6 +2666,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    ViewId:
+      name: viewId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     CustomFieldKey:
       name: key
       in: path
@@ -2966,6 +3132,107 @@ components:
         due_time_zone:
           type: [string, "null"]
           description: An IANA time zone, such as Europe/Berlin. Anything else is refused.
+
+    SavedView:
+      type: object
+      description: >
+        A saved query with the layout it is drawn in. The server stores the query, validates it
+        against the same catalogue as POST /items:query, and interprets neither the layout nor the
+        visible fields - both are the client's vocabulary, echoed back exactly as stored.
+      required: [id, scope_type, owner_id, name, layout, query, grouping, visible_fields, sharing, version]
+      properties:
+        id: { type: string, format: uuid }
+        scope_type:
+          type: string
+          enum: [TENANT, HUB, COLLECTION, ACCOUNT]
+          description: >
+            Where the view lives, which is who it can be shared with: a container's members, the
+            workspace, or - for ACCOUNT - nobody but its owner.
+        scope_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
+        owner_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        layout:
+          type: string
+          description: >
+            One of the declared set (/meta/capabilities, view_layouts). Stored and echoed, never
+            consulted.
+        query:
+          type: object
+          additionalProperties: true
+          description: The query document of POST /items:query, stored as sent.
+        grouping:
+          type: object
+          additionalProperties: true
+        visible_fields:
+          type: array
+          items: { type: string }
+        sharing:
+          type: string
+          enum: [PRIVATE, SCOPE, PUBLIC_LINK]
+        created_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    SavedViewCreate:
+      type: object
+      required: [scope_type, name, layout, query]
+      properties:
+        scope_type:
+          type: string
+          enum: [TENANT, HUB, COLLECTION, ACCOUNT]
+        scope_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The container for HUB and COLLECTION. Omitted for TENANT, and for ACCOUNT - an
+            account-scoped view is always the caller's own.
+        name: { type: string, minLength: 1, maxLength: 200 }
+        layout: { type: string }
+        query:
+          type: object
+          additionalProperties: true
+        grouping:
+          type: object
+          additionalProperties: true
+        visible_fields:
+          type: array
+          items: { type: string }
+        sharing:
+          type: string
+          enum: [PRIVATE, SCOPE, PUBLIC_LINK]
+          default: PRIVATE
+          description: >
+            SCOPE at creation asks the same permission :share does. PUBLIC_LINK is refused by
+            name.
+
+    SavedViewUpdate:
+      type: object
+      description: >
+        JSON Merge Patch; a field that is not sent is left alone. The scope and the sharing are
+        not here - where a view lives is decided at creation, and sharing is :share.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        layout: { type: string }
+        query:
+          type: object
+          additionalProperties: true
+        grouping:
+          type: object
+          additionalProperties: true
+        visible_fields:
+          type: array
+          items: { type: string }
+
+    SavedViewShare:
+      type: object
+      required: [sharing]
+      properties:
+        sharing:
+          type: string
+          enum: [PRIVATE, SCOPE, PUBLIC_LINK]
 
     CustomFieldDefinition:
       type: object
