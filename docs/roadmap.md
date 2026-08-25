@@ -176,7 +176,7 @@ cut into issues when it opens, from the then-current state of this file and the 
 
 | Milestone | Opens with | Builds the surface for | Contents |
 |---|---|---|---|
-| **F1 — Foundations** | `0.4.0` | up to `0.3.0` | The component workbench decision and design-system wave 1; the three §9 gaps that block it (iconography, contrast verification in CI, voice and tone) and the wordmark the website needs; the application frame — layout, navigation, `data-theme`, the message-code renderer, problem-details rendering, `HealthBanner` from `/meta/health`, the capability manifest, the maturity banner; sign-in and session; and the data seam: `packages/sync-engine` with its three ports, an online-only pass-through and the Svelte binding, so that no component ever talks to `@hubtask/api-client` directly. Plus the pre-release website |
+| **F1 — Foundations** | `0.4.0` | up to `0.3.0` | The component workbench decision and design-system wave 1; the three §9 gaps that block it (iconography, contrast verification in CI, voice and tone) and the wordmark the website needs; the application frame — layout, navigation, `data-theme`, the message-code renderer, problem-details rendering, `HealthBanner` from `/meta/health`, the capability manifest, the maturity banner; sign-in and session; and the data seam: `packages/sync-engine` with its three ports, an online-only pass-through and the Svelte binding, so that no component ever talks to `@hubtask/api-client` directly. And the pre-release website, whose own requirement follows this table |
 | **F2 — The working surface** | `0.4.5` | `0.2.0` | Wave 2; hubs, collections and the five levels, buckets, labels, ordering and drag and drop, trash and archive, the activity history; the query language made visible — `SearchField`, `QueryBuilder`, `ViewSwitcher` for list and kanban, `TaskRow`, `WorkItemCard`, `BucketColumn`, `LabelChip` and `LabelPicker`, `CapabilityGate`. This is where the tool becomes usable for its own development: daily work moves out of `hubctl` and into the app, which is what risk R-08 was waiting for |
 | **F3 — Collaboration, content, time** | `0.5.0` | `0.3.0` and `0.4.0` | Comments, members and assignment, covers, attachments with presigned upload, custom fields, notifications, the SSE stream, bulk and duplicate — `CommentThread`, `AssigneeControl`, `CustomFieldRenderer`, `ActivityFeed`; and the time surfaces `DueDateControl`, `ReminderEditor`, `RecurrenceEditor`, templates, saved views with their `layout` hint, the timeline, and calendar feed management |
 | **F4 — Automation, administration, tenant** | `0.6.0` | `0.4.5` and `0.5.0` | The jumble inbox, `AutomationRuleCard` and `RunStatusBadge`, dry run, webhook subscriptions, personal access tokens and service accounts; the administration area — tenant settings, `RoleBadge` and `PermissionMatrix`, quotas, the OIDC connection, MFA, sessions and step-up, backup and restore, retention with its preview, audit query, export and `:verify`, data subject requests. Administration is the one area the mobile client does not carry, so its routes are tagged by area here (ADR-0032), long before there is a mobile build to exclude them from |
@@ -186,6 +186,52 @@ cut into issues when it opens, from the then-current state of this file and the 
 Each of the five open points in [`design-system.md`](./design/design-system.md) §9 therefore has an
 owner: iconography, the wordmark, contrast verification and voice and tone in F1, platform
 adaptation with the mobile shell in F6.
+
+### The website: a pre-release site from the `0.4.0` window
+
+> **`hubtask.eu` carries a pre-release site from the `0.4.0` window onwards.** It shows what the
+> project intends to be and advertises it — before there is a product to sign into. It is the
+> public face of the whole `0.x` phase, not a placeholder that goes up shortly before the launch.
+
+The website is the one surface with an audience before the product has users, which is why it comes
+first in the track rather than last. It has two stops: the **pre-release site** in F1, and the
+**1.0 site** at convergence (documentation, the licence notice, downloads for the shells, the
+accessibility statement). Because it is unversioned and continuously deployed
+([ADR-0035](./adr/ADR-0035-one-product-version.md)), its content can move as often as the message
+does without touching a release.
+
+**Decided, and needing no brief:** SvelteKit with `adapter-static`, fully prerendered
+([ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)); every value from the design system
+([ADR-0029](./adr/ADR-0029-design-system-tokens.md)), with wave 4 as its component budget; never
+embedded in the binary and never a second product surface — information only, no sign-in, no task
+management ([ADR-0027](./adr/ADR-0027-monorepo-structure.md),
+[ADR-0028](./adr/ADR-0028-embedded-web-ui.md)); and the client requirement above about cookies
+applies to it before it applies to anything else.
+
+**Open, and awaited from the owner** — named here so it is visible what waits on what:
+
+* positioning and messaging: what the site claims the product is, and for whom;
+* the page structure and how much of the roadmap is shown in public;
+* visual direction beyond the tokens, and the wordmark F1 produces;
+* what may be promised about dates, editions and price
+  ([licensing-editions.md](./architecture/licensing-editions.md) describes the model; what is
+  advertised from it is a separate decision);
+* whether there is a waiting list, a newsletter or an early-access signup — each collects personal
+  data and therefore needs a data-catalogue entry with a legal basis and a deletion path
+  ([data-protection.md](./architecture/data-protection.md)), and consent for anything
+  non-essential;
+* the launch moment.
+
+**The split that lets work start before the brief exists.** The scaffold, the deployment lane, the
+design-system wiring and a minimal holding page are buildable now and are one work package. The
+content wave is a **second** work package that is explicitly allowed to sit unstarted without
+blocking F1; it begins when the brief does, in whichever milestone that turns out to be. What must
+not happen is content invented in the absence of a brief and then defended because it is already
+live.
+
+Where the built files are actually served from is undecided: there is a `website` job that lints,
+type-checks and builds, and none that deploys. It is open point **CI-4** in
+[ci-cd.md](./architecture/ci-cd.md) §8.
 
 A dedicated arc42 client-architecture document is written with the sync-engine package, once
 there is a first implementation to describe. What was settled in preparation and stays binding:
