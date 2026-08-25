@@ -420,6 +420,7 @@ func run() error {
 	// through (D-01).
 	dueDateWriter := work.DueDateWriter{
 		Items: items, Containers: containers, Profiles: profiles, Reminders: reminders,
+		Jobs:       jobs,
 		Authorizer: authorizer,
 		Events:     outbox, Changes: changes, Audit: auditSink, Activity: journal,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -493,6 +494,7 @@ func run() error {
 	reminderWriter := work.ReminderWriter{
 		Reminders: reminders, Items: items, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Visibility: authorizer, Changes: changes, Audit: auditSink,
+		Jobs:       jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 

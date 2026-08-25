@@ -44,6 +44,7 @@ type dueDateHarness struct {
 	audit      *sink
 	history    *journal
 	authorizer *authorizer
+	jobs       *jobs
 	uow        *unitOfWork
 }
 
@@ -55,11 +56,11 @@ func newDueDateHarness(t *testing.T, rows []domain.CapabilityProfile) *dueDateHa
 		containers: &containers{stored: map[shared.ID]domain.Container{}},
 		reminders:  newReminders(),
 		events:     &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
-		authorizer: &authorizer{}, uow: &unitOfWork{},
+		authorizer: &authorizer{}, jobs: &jobs{}, uow: &unitOfWork{},
 	}
 
 	writer := DueDateWriter{
-		Items: h.items, Containers: h.containers, Reminders: h.reminders,
+		Items: h.items, Containers: h.containers, Reminders: h.reminders, Jobs: h.jobs,
 		Profiles: &profiles{rows: rows}, Authorizer: h.authorizer,
 		Events: h.events, Changes: h.changes, Audit: h.audit,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
@@ -467,6 +468,11 @@ func TestMovingTheDueDateReschedulesTheRelativeReminders(t *testing.T) {
 	}
 	if !moved.FireAt.Equal(berlinFriday.Add(-time.Hour)) {
 		t.Errorf("it now fires at %v rather than an hour before the new date", moved.FireAt)
+	}
+	// And the schedule follows the reminder: a wake-up still pointing at the old moment would
+	// fire it late (D-03).
+	if len(h.jobs.enqueued) != 1 || !h.jobs.enqueued[0].RunAt.Equal(moved.FireAt.UTC()) {
+		t.Errorf("the wake-up asked for is %+v", h.jobs.enqueued)
 	}
 	// Derived, so it merges with nothing and is recorded as nothing: the due date's own entries
 	// are the record of what happened here.

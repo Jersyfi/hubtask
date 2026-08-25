@@ -189,6 +189,14 @@ func (w ReminderWriter) change(
 		); err != nil {
 			return err
 		}
+		// An edit can bring the moment forward, and a wake-up that was scheduled for the old one
+		// would fire too late. The other direction needs nothing: a wake-up that is too early
+		// finds nothing due and reschedules itself.
+		if err := scheduleReminderFire(
+			ctx, w.Jobs, wanted.TenantID, earliestMoment(wanted.FireAt),
+		); err != nil {
+			return err
+		}
 		changed = wanted
 		return nil
 	})

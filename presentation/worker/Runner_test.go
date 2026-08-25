@@ -38,6 +38,7 @@ func (u *unitOfWork) WithinReadOnly(ctx context.Context, scope persistence.Scope
 
 type queueDouble struct {
 	claimable []queue.Job
+	held      []shared.ID
 	completed []shared.ID
 	repeated  map[shared.ID]time.Time
 	failures  []queue.Failure
@@ -56,6 +57,11 @@ func (q *queueDouble) Claim(_ context.Context, lease queue.Lease) ([]queue.Job, 
 	}
 	q.claimable = nil
 	return claimed, nil
+}
+
+func (q *queueDouble) Hold(_ context.Context, job queue.Job) error {
+	q.held = append(q.held, job.ID)
+	return nil
 }
 
 func (q *queueDouble) Complete(_ context.Context, job queue.Job) error {

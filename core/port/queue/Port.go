@@ -54,6 +54,17 @@ const (
 	// transaction holds a database connection for as long as somebody else's machine takes (§8).
 	KindNotificationDeliver Kind = "notification.deliver"
 
+	// KindReminderFire is the first job in this system that exists because of a stored future
+	// timestamp rather than because something just happened (D-03).
+	//
+	// One job per tenant, seeded by the write that made something due - a reminder written, a due
+	// date moved - with RunAt at the moment that write brought forward, because nothing may
+	// enumerate tenants (multi-tenancy.md §2.1) and a scheduler therefore cannot create one job
+	// per tenant even if it wanted to. It reschedules itself to the next moment the tenant owes
+	// and completes when it owes none, which is what keeps a quiet tenant costing nothing: the
+	// next write re-seeds it.
+	KindReminderFire Kind = "reminder.fire"
+
 	// KindRetentionSweep removes what one tenant's retention periods say may go (ADR-0020).
 	//
 	// One job per tenant, which reschedules itself forever: a poller lives as one row rather than
@@ -210,6 +221,19 @@ type Queue interface {
 	// use FOR UPDATE SKIP LOCKED, so several workers claim disjoint batches without waiting for
 	// each other (ADR-0008).
 	Claim(ctx context.Context, lease Lease) ([]Job, error)
+
+	// Hold takes the row lock on one claimed job for the rest of the caller's transaction.
+	//
+	// It exists for the one duty whose correctness depends on it (D-03). A job that decides when
+	// it next runs reads that moment from the data, and a write committing between that read and
+	// the reschedule would find the row RUNNING - where Enqueue's conflict clause cannot pull a
+	// wake-up forward - and its reminder would wait for a wake-up nobody scheduled. Held from the
+	// start of the pass, such a write instead waits for the pass to end and then meets either a
+	// pending row it can pull forward or a finished one it may replace.
+	//
+	// Every other handler is welcome to ignore it: a poller that always comes back has nothing to
+	// lose by missing a pull-forward.
+	Hold(ctx context.Context, job Job) error
 
 	// Complete finishes a job for good. Called in the same transaction as the handler's effect,
 	// and refused when the job's lease no longer holds.

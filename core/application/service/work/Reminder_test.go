@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 var (
@@ -142,6 +143,7 @@ type reminderHarness struct {
 	containers *containers
 	changes    *changes
 	audit      *sink
+	jobs       *jobs
 	visibility *visibility
 	authorizer *authorizer
 }
@@ -153,7 +155,7 @@ func newReminderHarness(t *testing.T, rows []domain.CapabilityProfile) *reminder
 		reminders:  newReminders(),
 		items:      &items{stored: map[shared.ID]domain.WorkItem{}},
 		containers: &containers{stored: map[shared.ID]domain.Container{}},
-		changes:    &changes{}, audit: &sink{},
+		changes:    &changes{}, audit: &sink{}, jobs: &jobs{},
 		visibility: newVisibility(accountID, otherAccount),
 		authorizer: &authorizer{},
 	}
@@ -161,7 +163,7 @@ func newReminderHarness(t *testing.T, rows []domain.CapabilityProfile) *reminder
 	writer := ReminderWriter{
 		Reminders: h.reminders, Items: h.items, Containers: h.containers,
 		Profiles: &profiles{rows: rows}, Authorizer: h.authorizer, Visibility: h.visibility,
-		Changes: h.changes, Audit: h.audit,
+		Changes: h.changes, Audit: h.audit, Jobs: h.jobs,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 	}
 	h.create = CreateReminder{Writer: writer}
@@ -506,5 +508,76 @@ func TestTheReminderChannelsAreTheNotificationChannels(t *testing.T) {
 		if string(channel) != string(sent[i]) {
 			t.Errorf("channel %d is %q here and %q there", i, channel, sent[i])
 		}
+	}
+}
+
+// The write is what seeds the schedule: nothing may enumerate tenants, so a wake-up exists because
+// somebody made something due, not because a scheduler went looking (D-03).
+func TestWritingAReminderSeedsTheTenantsWakeUp(t *testing.T) {
+	h := newReminderHarness(t, reminderProfiles())
+	due := remindedDue(t)
+	h.withItem(due)
+
+	reminder, err := h.create.Execute(t.Context(), actor(), CreateReminderCommand{
+		ItemID: remindedItem, OffsetSpec: "REL:-PT1H",
+	})
+	if err != nil {
+		t.Fatalf("creating the reminder failed: %v", err)
+	}
+
+	if len(h.jobs.enqueued) != 1 {
+		t.Fatalf("%d jobs were asked for", len(h.jobs.enqueued))
+	}
+	seeded := h.jobs.enqueued[0]
+	if seeded.Kind != queue.KindReminderFire || seeded.TenantID != tenantID {
+		t.Errorf("the job asked for is %+v", seeded)
+	}
+	// The tenant, so a request writing five reminders leaves one job - and the moment, so a nearer
+	// reminder pulls an existing wake-up forward rather than adding a second.
+	if seeded.DedupeKey != tenantID.String() {
+		t.Errorf("the dedupe key is %q rather than the tenant", seeded.DedupeKey)
+	}
+	if !seeded.RunAt.Equal(reminder.FireAt.UTC()) {
+		t.Errorf("the wake-up is at %v rather than %v", seeded.RunAt, reminder.FireAt)
+	}
+
+	// An edit that brings the moment forward brings the wake-up with it.
+	spec := "REL:-PT3H"
+	changed, err := h.update.Execute(t.Context(), actor(), ChangeReminderCommand{
+		ItemID: remindedItem, ReminderID: reminder.ID, ExpectedVersion: reminder.Version,
+		Patch: domain.ReminderPatch{OffsetSpec: &spec},
+	})
+	if err != nil {
+		t.Fatalf("the update failed: %v", err)
+	}
+	if len(h.jobs.enqueued) != 2 {
+		t.Fatalf("the edit asked for %d jobs", len(h.jobs.enqueued)-1)
+	}
+	if !h.jobs.enqueued[1].RunAt.Equal(changed.FireAt.UTC()) {
+		t.Errorf("the wake-up did not follow the edit: %v", h.jobs.enqueued[1].RunAt)
+	}
+}
+
+// A reminder with no moment - a relative one on an entry whose date is gone - schedules nothing:
+// there is nothing to wake for until a date comes back.
+func TestAReminderWithoutAMomentSchedulesNothing(t *testing.T) {
+	h := newReminderHarness(t, reminderProfiles())
+	due := remindedDue(t)
+	h.withItem(due)
+	stored := h.withReminder("REL:-PT1H", due)
+
+	orphaned, _, err := stored.Rescheduled(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.reminders.stored[stored.ID] = orphaned
+
+	if err := scheduleReminderFire(
+		t.Context(), h.jobs, tenantID, earliestMoment(orphaned.FireAt),
+	); err != nil {
+		t.Fatalf("scheduling failed: %v", err)
+	}
+	if len(h.jobs.enqueued) != 0 {
+		t.Errorf("a reminder with no moment asked for %+v", h.jobs.enqueued)
 	}
 }
