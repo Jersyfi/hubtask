@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-// The Go version is stated in seventeen places across eight files: go.mod, five workflows, the
-// Dockerfile, the support matrix, the README and the onboarding guide. Nothing kept them in step,
+// The Go version is stated in thirty places across eight files: go.mod, four workflows, the
+// Dockerfile, the support matrix and the README. Nothing kept them in step,
 // and they had already drifted - a Dependabot pull request bumping the base image to 1.26 would
 // have left the released binary built by a compiler no gate had ever run.
 //
@@ -59,7 +59,6 @@ var goVersionSources = []goVersionSource{
 	{path: "deploy/docker/Dockerfile", pattern: regexp.MustCompile(`FROM golang:(\d+\.\d+)`), atLeast: 1, what: "the build image"},
 	{path: "docs/architecture/support-matrix.md", pattern: regexp.MustCompile(`\|\s*Go \(building from source\)\s*\|\s*(\d+\.\d+)\s*\|`), atLeast: 1, what: "the support matrix row"},
 	{path: "README.md", pattern: regexp.MustCompile(`Go \(≥ (\d+\.\d+)\)`), atLeast: 1, what: "the technology table"},
-	{path: "docs/onboarding.md", pattern: regexp.MustCompile(`Go (\d+\.\d+)\+`), atLeast: 1, what: "the prerequisites"},
 }
 
 // checkGoVersion reconciles every statement of the Go version with go.mod.

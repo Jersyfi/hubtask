@@ -120,6 +120,7 @@ permissions:
   a stale one, or none at all, and a pin nothing can resolve is not a stricter pin but a step that
   never runs.
 * Repository setting "Allow select actions" with an allowlist.
+* Repository security settings: secret scanning with push protection, and Dependabot alerts.
 * No `pull_request_target`; contributions from forks run without secrets.
 * Publishing only through a GitHub **environment** (`production`) with an approval rule.
 * `cosign` keyless via the workflow's OIDC token — no private key in the repository.
