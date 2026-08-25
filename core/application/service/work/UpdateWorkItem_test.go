@@ -59,6 +59,7 @@ func newUpdateHarness() *updateHarness {
 		// The D-01 machinery, over the same fakes: the patch is its second caller.
 		DueDates: DueDateWriter{
 			Items: store, Containers: containerStore, Profiles: profileRows,
+			Reminders:  newReminders(),
 			Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
 			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 			UnitOfWork: h.uow, Clock: clock.Fixed(updateNow), IDs: &ids{}, HLC: &hlcSource{},

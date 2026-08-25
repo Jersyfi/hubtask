@@ -47,6 +47,10 @@ type DueDateWriter struct {
 	Items      repository.Items
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Reminders is here because a due date that moves takes the relative reminders with it: the
+	// reminder lives on the same entry, so its moment is recomputed in the same transaction rather
+	// than by a job that would leave the two disagreeing until it ran (D-02).
+	Reminders  repository.Reminders
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -223,6 +227,9 @@ func (w DueDateWriter) write(
 	if err := w.Events.Append(ctx, announcement); err != nil {
 		return domain.WorkItem{}, err
 	}
+	if err := w.rescheduleReminders(ctx, after); err != nil {
+		return domain.WorkItem{}, err
+	}
 	if err := w.recordChanges(ctx, after, actor, changes); err != nil {
 		return domain.WorkItem{}, err
 	}
@@ -233,6 +240,40 @@ func (w DueDateWriter) write(
 		return domain.WorkItem{}, err
 	}
 	return after, nil
+}
+
+// rescheduleReminders moves every relative reminder of the entry to the moment the new due date
+// implies, in the transaction that moved the date.
+//
+// In the same transaction deliberately: the reminder lives on the same entry, and a job doing this
+// afterwards would leave a window in which the row says one thing and the schedule another - which
+// is exactly the window a reminder would fire in. Absolute reminders and reminders that have
+// already fired are not touched, which the domain decides (Reminder.Rescheduled); a due date that
+// was cleared leaves the relative ones without a moment rather than deleting them, because nobody
+// asked for the reminder to go.
+//
+// Nothing is recorded for it: fire_at is derived from the offset and the entry's date, so no
+// client merges it and no auditor reads it as a separate act - the audit entry for the due date
+// is the record of what happened here.
+func (w DueDateWriter) rescheduleReminders(ctx context.Context, item domain.WorkItem) error {
+	pending, err := w.Reminders.ListPendingForItem(ctx, item.ID)
+	if err != nil {
+		return err
+	}
+
+	for _, reminder := range pending {
+		rescheduled, moved, err := reminder.Rescheduled(item.Due)
+		if err != nil {
+			return err
+		}
+		if !moved {
+			continue
+		}
+		if err := w.Reminders.Reschedule(ctx, rescheduled); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // recordChanges writes what an offline client has to be told: one entry per field of the trio

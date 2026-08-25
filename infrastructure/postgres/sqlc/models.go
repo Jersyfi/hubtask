@@ -907,6 +907,8 @@ type Reminder struct {
 	State      string
 	FireAt     pgtype.Timestamptz
 	CreatedAt  pgtype.Timestamptz
+	Version    int32
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type RestoreRun struct {

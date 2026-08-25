@@ -1019,16 +1019,16 @@ func (e JobRefStatus) Valid() bool {
 
 // Defines values for MediaObjectStatus.
 const (
-	PENDING MediaObjectStatus = "PENDING"
-	READY   MediaObjectStatus = "READY"
+	MediaObjectStatusPENDING MediaObjectStatus = "PENDING"
+	MediaObjectStatusREADY   MediaObjectStatus = "READY"
 )
 
 // Valid indicates whether the value is a known member of the MediaObjectStatus enum.
 func (e MediaObjectStatus) Valid() bool {
 	switch e {
-	case PENDING:
+	case MediaObjectStatusPENDING:
 		return true
-	case READY:
+	case MediaObjectStatusREADY:
 		return true
 	default:
 		return false
@@ -1173,6 +1173,42 @@ func (e QueryFieldKind) Valid() bool {
 	case Text:
 		return true
 	case Timestamp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReminderChannel.
+const (
+	EMAIL ReminderChannel = "EMAIL"
+)
+
+// Valid indicates whether the value is a known member of the ReminderChannel enum.
+func (e ReminderChannel) Valid() bool {
+	switch e {
+	case EMAIL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReminderState.
+const (
+	ReminderStateCANCELLED ReminderState = "CANCELLED"
+	ReminderStatePENDING   ReminderState = "PENDING"
+	ReminderStateSENT      ReminderState = "SENT"
+)
+
+// Valid indicates whether the value is a known member of the ReminderState enum.
+func (e ReminderState) Valid() bool {
+	switch e {
+	case ReminderStateCANCELLED:
+		return true
+	case ReminderStatePENDING:
+		return true
+	case ReminderStateSENT:
 		return true
 	default:
 		return false
@@ -2704,6 +2740,51 @@ type QueryField struct {
 // QueryFieldKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
 type QueryFieldKind string
 
+// Reminder defines model for Reminder.
+type Reminder struct {
+	Channels  []ReminderChannel `json:"channels"`
+	CreatedAt time.Time         `json:"created_at"`
+
+	// FireAt The moment the server will fire at, and its value alone: for ABS the instant itself, for REL the due date plus the offset, recomputed whenever the due date moves. Null for a relative reminder whose entry has lost its due date - the reminder stays, because the date may come back and nobody asked for the reminder to go.
+	FireAt *time.Time         `json:"fire_at,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
+	ItemId openapi_types.UUID `json:"item_id"`
+
+	// OffsetSpec REL:<ISO-8601 duration> counted from the entry's due date - negative for before it - or ABS:<RFC 3339 instant>, a fixed moment. Years and months are refused in a duration: they are calendar arithmetic rather than a length of time, and a reminder that meant two different things in two months would be a promise this offset cannot keep.
+	OffsetSpec string `json:"offset_spec"`
+
+	// Recipients Who is reminded. Empty means the assignee and the entry's members, resolved when the reminder fires rather than when it is written - so somebody added to the entry tomorrow is reached tomorrow.
+	Recipients []openapi_types.UUID `json:"recipients"`
+
+	// State Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
+	State     ReminderState `json:"state"`
+	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
+	Version   int           `json:"version"`
+}
+
+// ReminderChannel What carries the reminder. EMAIL is what this installation sends on; the channels arc42 §5.2 names beside it arrive with the tasks that build them, and a client tolerates a value it does not know (offline-sync.md §9).
+type ReminderChannel string
+
+// ReminderInput defines model for ReminderInput.
+type ReminderInput struct {
+	// Channels Omitted means EMAIL, the one channel this installation sends on.
+	Channels   *[]ReminderChannel `json:"channels,omitempty"`
+	OffsetSpec string             `json:"offset_spec"`
+
+	// Recipients Omitted or empty means the assignee and the entry's members. Everybody named has to be able to reach the entry, exactly as an assignee has to (C-01).
+	Recipients *[]openapi_types.UUID `json:"recipients,omitempty"`
+}
+
+// ReminderState Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
+type ReminderState string
+
+// ReminderUpdate A merge patch. An absent member is not touched; a member that is sent replaces what is stored, lists included - channels and recipients are chosen whole.
+type ReminderUpdate struct {
+	Channels   *[]ReminderChannel    `json:"channels,omitempty"`
+	OffsetSpec *string               `json:"offset_spec,omitempty"`
+	Recipients *[]openapi_types.UUID `json:"recipients,omitempty"`
+}
+
 // RestoreRequest defines model for RestoreRequest.
 type RestoreRequest struct {
 	ArchiveId string `json:"archive_id"`
@@ -3206,6 +3287,9 @@ type PageSize = int
 // ParentId defines model for ParentId.
 type ParentId = openapi_types.UUID
 
+// ReminderId defines model for ReminderId.
+type ReminderId = openapi_types.UUID
+
 // ViewId defines model for ViewId.
 type ViewId = openapi_types.UUID
 
@@ -3492,6 +3576,24 @@ type ClearDueDateParams struct {
 
 // SetDueDateParams defines parameters for SetDueDate.
 type SetDueDateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// CreateReminderParams defines parameters for CreateReminder.
+type CreateReminderParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DeleteReminderParams defines parameters for DeleteReminder.
+type DeleteReminderParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateReminderParams defines parameters for UpdateReminder.
+type UpdateReminderParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -3787,6 +3889,12 @@ type SetCustomFieldJSONRequestBody = CustomFieldValue
 // SetDueDateJSONRequestBody defines body for SetDueDate for application/json ContentType.
 type SetDueDateJSONRequestBody = DueDateInput
 
+// CreateReminderJSONRequestBody defines body for CreateReminder for application/json ContentType.
+type CreateReminderJSONRequestBody = ReminderInput
+
+// UpdateReminderJSONRequestBody defines body for UpdateReminder for application/json ContentType.
+type UpdateReminderJSONRequestBody = ReminderUpdate
+
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
 
@@ -4017,6 +4125,18 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/members/{accountId})
 	AddMember(w http.ResponseWriter, r *http.Request, itemId ItemId, accountId AccountId)
+
+	// (GET /items/{itemId}/reminders)
+	ListReminders(w http.ResponseWriter, r *http.Request, itemId ItemId)
+
+	// (POST /items/{itemId}/reminders)
+	CreateReminder(w http.ResponseWriter, r *http.Request, itemId ItemId, params CreateReminderParams)
+
+	// (DELETE /items/{itemId}/reminders/{reminderId})
+	DeleteReminder(w http.ResponseWriter, r *http.Request, itemId ItemId, reminderId ReminderId, params DeleteReminderParams)
+
+	// (PATCH /items/{itemId}/reminders/{reminderId})
+	UpdateReminder(w http.ResponseWriter, r *http.Request, itemId ItemId, reminderId ReminderId, params UpdateReminderParams)
 
 	// (POST /items/{itemId}:archive)
 	ArchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ArchiveWorkItemParams)
@@ -6784,6 +6904,200 @@ func (siw *ServerInterfaceWrapper) AddMember(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// ListReminders operation middleware
+func (siw *ServerInterfaceWrapper) ListReminders(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListReminders(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateReminder operation middleware
+func (siw *ServerInterfaceWrapper) CreateReminder(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateReminderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateReminder(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteReminder operation middleware
+func (siw *ServerInterfaceWrapper) DeleteReminder(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "reminderId" -------------
+	var reminderId ReminderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "reminderId", r.PathValue("reminderId"), &reminderId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "reminderId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteReminderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteReminder(w, r, itemId, reminderId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateReminder operation middleware
+func (siw *ServerInterfaceWrapper) UpdateReminder(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "reminderId" -------------
+	var reminderId ReminderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "reminderId", r.PathValue("reminderId"), &reminderId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "reminderId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateReminderParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateReminder(w, r, itemId, reminderId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ArchiveWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) ArchiveWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -8584,6 +8898,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.SetCover)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/due", wrapper.ClearDueDate)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/due", wrapper.SetDueDate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/reminders", wrapper.ListReminders)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/reminders", wrapper.CreateReminder)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/reminders/{reminderId}", wrapper.DeleteReminder)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}/reminders/{reminderId}", wrapper.UpdateReminder)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/attachments", wrapper.ListAttachments)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/attachments/{mediaId}", wrapper.DetachMedia)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/attachments/{mediaId}", wrapper.AttachMedia)

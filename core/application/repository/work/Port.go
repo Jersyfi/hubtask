@@ -720,6 +720,44 @@ type Comments interface {
 	SetDeleted(ctx context.Context, comment work.Comment, expectedVersion int) error
 }
 
+// Reminders stores the promises to say something about an entry at a particular moment (D-02).
+//
+// No page and no cursor: what one entry may carry is bounded where reminders are written, which is
+// what makes the list one answer rather than a sequence of them. And no query about what is due -
+// that is the scheduler's question, and it arrives with the task that fires them (D-03).
+type Reminders interface {
+	// Find returns the reminder, or ErrNotFound if it does not exist *for this tenant*.
+	Find(ctx context.Context, id shared.ID) (work.Reminder, error)
+
+	// ListForItem returns one entry's reminders, oldest first.
+	ListForItem(ctx context.Context, itemID shared.ID) ([]work.Reminder, error)
+
+	// ListPendingForItem returns the entry's reminders that are still waiting - what a moved due
+	// date has to recompute.
+	ListPendingForItem(ctx context.Context, itemID shared.ID) ([]work.Reminder, error)
+
+	// CountForItem returns how many reminders the entry carries, for the bound the domain holds.
+	// Read inside the writing transaction, so that two concurrent creations cannot both find room
+	// for the last one.
+	CountForItem(ctx context.Context, itemID shared.ID) (int, error)
+
+	// Insert writes a new reminder.
+	Insert(ctx context.Context, reminder work.Reminder) error
+
+	// Update writes the edited fields and the moment they imply, or reports a version conflict. A
+	// reminder that is no longer pending is never matched: one that fired while the edit was in
+	// flight loses to the firing.
+	Update(ctx context.Context, reminder work.Reminder, expectedVersion int) error
+
+	// Reschedule writes a recomputed fire_at alone, spending no version and leaving no stamp: it
+	// is derived from the entry's due date, so nobody edited the row.
+	Reschedule(ctx context.Context, reminder work.Reminder) error
+
+	// Delete removes the row, or reports a version conflict. A hard delete: what somebody deleted
+	// is gone, and the tombstone offline clients need is the change log's (offline-sync.md §7).
+	Delete(ctx context.Context, id shared.ID, expectedVersion int) error
+}
+
 // AutoAssignPolicies stores the assignment policy per scope (domain-model.md §3.6).
 //
 // One policy per scope, and the upsert is the whole write vocabulary: the policy is the

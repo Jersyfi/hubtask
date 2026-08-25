@@ -551,6 +551,7 @@ func newItemHarness() *itemHarness {
 		// The D-01 machinery, over the same fakes: the create path is its second caller.
 		DueDates: DueDateWriter{
 			Items: store, Containers: containerStore, Profiles: h.profiles,
+			Reminders:  newReminders(),
 			Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
 			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},

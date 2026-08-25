@@ -4,6 +4,7 @@
 package work
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -68,6 +69,44 @@ func NewDueDate(at *time.Time, dateOnly bool, zone string) (*DueDate, error) {
 		}
 	}
 	return &DueDate{At: at.UTC(), DateOnly: dateOnly, TimeZone: zone}, nil
+}
+
+// Anchor is the instant everything counting from a due date counts from (D-02, and the recurrence
+// that follows it).
+//
+// For a due date that is an instant, that is the instant. For an all-day due date it is the start
+// of that date in its own zone, which is the only reading that survives a time change: "the day it
+// is due" is a date in a place, and midnight UTC is the wrong moment in every place but one. A
+// date without a zone is read in UTC - the same fallback NewDueDate leaves open by allowing the
+// zone to be empty.
+//
+// The zone is loaded rather than trusted: it was validated when it was written, so a name that no
+// longer loads is this installation's tzdata disagreeing with its own rows, which is an internal
+// fault and not something a caller can fix.
+func (d *DueDate) Anchor() (time.Time, error) {
+	if d == nil {
+		return time.Time{}, shared.ErrInternal.
+			WithDetail("items.due_date_absent").
+			WithCause(errors.New("an anchor was asked of an entry with no due date"))
+	}
+	if !d.DateOnly {
+		return d.At.UTC(), nil
+	}
+
+	location := time.UTC
+	if d.TimeZone != "" {
+		loaded, err := time.LoadLocation(d.TimeZone)
+		if err != nil {
+			return time.Time{}, shared.ErrInternal.
+				WithDetail("items.due_time_zone_unknown").
+				WithCause(err)
+		}
+		location = loaded
+	}
+	local := d.At.In(location)
+	return time.Date(
+		local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location,
+	).UTC(), nil
 }
 
 // Equal reports whether two due dates say the same thing. Instants compare as instants, so the

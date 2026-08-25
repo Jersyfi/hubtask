@@ -38,6 +38,7 @@ type dueDateHarness struct {
 	clear      ClearDueDate
 	items      *items
 	containers *containers
+	reminders  *reminders
 	events     *events
 	changes    *changes
 	audit      *sink
@@ -52,12 +53,13 @@ func newDueDateHarness(t *testing.T, rows []domain.CapabilityProfile) *dueDateHa
 	h := &dueDateHarness{
 		items:      &items{stored: map[shared.ID]domain.WorkItem{}},
 		containers: &containers{stored: map[shared.ID]domain.Container{}},
+		reminders:  newReminders(),
 		events:     &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
 		authorizer: &authorizer{}, uow: &unitOfWork{},
 	}
 
 	writer := DueDateWriter{
-		Items: h.items, Containers: h.containers,
+		Items: h.items, Containers: h.containers, Reminders: h.reminders,
 		Profiles: &profiles{rows: rows}, Authorizer: h.authorizer,
 		Events: h.events, Changes: h.changes, Audit: h.audit,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
@@ -417,4 +419,71 @@ func TestTheDueDateChannelsReachTheSameCommand(t *testing.T) {
 			t.Fatalf("the untyped clearing failed: %v", err)
 		}
 	})
+}
+
+// A due date that moves takes the entry's relative reminders with it, in the same transaction: a
+// job doing it afterwards would leave a window in which the row says one thing and the schedule
+// another, and that window is exactly when a reminder would fire (D-02).
+func TestMovingTheDueDateReschedulesTheRelativeReminders(t *testing.T) {
+	h := newDueDateHarness(t, dueDateProfiles())
+	item := h.withItem(domain.ItemTask)
+
+	earlier := berlinFriday.Add(-72 * time.Hour)
+	due, err := domain.NewDueDate(&earlier, false, "Europe/Berlin")
+	if err != nil {
+		t.Fatalf("the fixture due date does not build: %v", err)
+	}
+	item.Due = due
+	h.items.stored[dueItem] = item
+
+	relative, err := domain.NewReminder(domain.NewReminderInput{
+		ID: "0192f000-0000-7000-8000-0000000000e1", TenantID: tenantID, ItemID: dueItem,
+		OffsetSpec: "REL:-PT1H", Due: due, Now: now,
+	})
+	if err != nil {
+		t.Fatalf("the relative reminder does not build: %v", err)
+	}
+	absolute, err := domain.NewReminder(domain.NewReminderInput{
+		ID: "0192f000-0000-7000-8000-0000000000e2", TenantID: tenantID, ItemID: dueItem,
+		OffsetSpec: "ABS:2026-09-01T08:00:00Z", Now: now,
+	})
+	if err != nil {
+		t.Fatalf("the absolute reminder does not build: %v", err)
+	}
+	h.reminders.stored[relative.ID] = relative
+	h.reminders.stored[absolute.ID] = absolute
+
+	if _, err := h.set.Execute(t.Context(), actor(), dueCmd(t)); err != nil {
+		t.Fatalf("moving the due date failed: %v", err)
+	}
+
+	if len(h.reminders.reschedules) != 1 {
+		t.Fatalf("%d reminders were rescheduled, want the relative one alone",
+			len(h.reminders.reschedules))
+	}
+	moved := h.reminders.reschedules[0]
+	if moved.ID != relative.ID {
+		t.Errorf("the reminder rescheduled is %s", moved.ID)
+	}
+	if !moved.FireAt.Equal(berlinFriday.Add(-time.Hour)) {
+		t.Errorf("it now fires at %v rather than an hour before the new date", moved.FireAt)
+	}
+	// Derived, so it merges with nothing and is recorded as nothing: the due date's own entries
+	// are the record of what happened here.
+	for _, change := range h.changes.recorded {
+		if change.Entity == "reminder" {
+			t.Errorf("the rescheduling was recorded as a change: %+v", change)
+		}
+	}
+
+	// And clearing the date leaves the reminder standing with no moment at all.
+	if _, err := h.clear.Execute(t.Context(), actor(), DueDateCommand{ItemID: dueItem}); err != nil {
+		t.Fatalf("clearing the due date failed: %v", err)
+	}
+	if len(h.reminders.reschedules) != 2 {
+		t.Fatalf("clearing rescheduled %d reminders", len(h.reminders.reschedules)-1)
+	}
+	if orphaned := h.reminders.reschedules[1]; orphaned.FireAt != nil {
+		t.Errorf("the reminder still fires at %v after the date was cleared", orphaned.FireAt)
+	}
 }
