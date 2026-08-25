@@ -412,6 +412,20 @@ func (pending) ShareSavedView(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// The recurrence operations answer as pending until D-04 registers their use cases; the routes
+// exist because the contract declares them.
+func (pending) GetRecurrence(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) SetRecurrence(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetRecurrenceParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveRecurrence(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.RemoveRecurrenceParams) {
+	notAvailable(w, r)
+}
+
 // The reminder operations are overridden by RestController, for the reason given at
 // CreateContainer.
 func (pending) ListReminders(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {

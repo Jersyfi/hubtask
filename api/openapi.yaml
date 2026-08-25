@@ -35,6 +35,7 @@ tags:
   - name: structure
   - name: comments
   - name: reminders
+  - name: recurrence
   - name: media
   - name: audit
   - name: backup
@@ -2374,6 +2375,81 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/recurrence:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [recurrence]
+      operationId: getRecurrence
+      description: >
+        The entry's series, or 404 when it has none. The resource table of api-guidelines.md §2
+        named only the writers; a rule a client can set and never read back is one it cannot show,
+        so the read is here and the table says so too (D-04).
+      responses:
+        "200":
+          description: The rule
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recurrence"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [recurrence]
+      operationId: setRecurrence
+      description: >
+        Puts a series on the entry, or changes the one it has - the same call for both, because a
+        rule is one thing an entry either carries or does not. Only a TASK may carry one: a series
+        applies to the whole subtree, so a work package or an activity is refused with
+        capability_not_supported.
+
+        The rule is RFC 5545 and needs its IANA zone: daylight saving is resolved through the zone
+        and never through an offset, which is what keeps 09:00 at 09:00 across a transition. A rule
+        the library cannot parse, a rule without a zone, and a rule whose expansion inside its own
+        horizon exceeds the bound in /meta/capabilities are each refused with a field error rather
+        than stored and discovered by the scheduler.
+
+        Nothing is materialised here. The occurrences follow in a later version of this
+        installation; what this call does is store the rule.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecurrenceInput"
+      responses:
+        "200":
+          description: The rule, set or changed
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recurrence"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [recurrence]
+      operationId: removeRecurrence
+      description: >
+        Takes the series off the entry. Occurrences that were already materialised stay exactly
+        where they are: they are ordinary entries the moment they exist, and deleting somebody's
+        next three weeks because they stopped a series would be a deletion nobody asked for.
+        Idempotent - an entry with no series succeeds and announces nothing.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}/reminders:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -4099,6 +4175,79 @@ components:
         deleted_at: { type: [string, "null"], format: date-time }
         version: { type: integer }
 
+
+    Recurrence:
+      type: object
+      required: [id, item_id, rrule, time_zone, mode, horizon_days, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        item_id:
+          type: string
+          format: uuid
+          description: The entry the series belongs to - the one the occurrences are copied from.
+        rrule:
+          type: string
+          maxLength: 1024
+          example: "FREQ=WEEKLY;BYDAY=MO"
+          description: >
+            An RFC 5545 recurrence rule, stored as it was given. The DTSTART is the entry's own
+            due date rather than part of this string: a series is when this entry repeats, and two
+            starts would be two answers to that.
+        time_zone:
+          type: string
+          example: "Europe/Berlin"
+          description: >
+            The IANA zone the rule is read in, required. Daylight saving is resolved through it and
+            never through a UTC offset, which is what keeps 09:00 at 09:00 across a transition
+            (i18n-l10n.md §4).
+        mode:
+          $ref: "#/components/schemas/RecurrenceMode"
+        horizon_days:
+          type: integer
+          minimum: 1
+          maximum: 365
+          default: 90
+          description: >
+            How far ahead occurrences are materialised, in days. A rolling window rather than the
+            whole series: a rule with no end would otherwise be an infinite list of entries.
+        ends_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the series stops. At most one of ends_at and max_count.
+        max_count:
+          type: [integer, "null"]
+          minimum: 1
+          description: How many occurrences the series produces at most. At most one of the two.
+        last_materialized_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            How far the materialisation has come. The server's own bookkeeping - a client reads it
+            and never writes it.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        version: { type: integer }
+
+    RecurrenceMode:
+      type: string
+      enum: [ON_SCHEDULE, ON_COMPLETION]
+      description: >
+        ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was
+        done - a rent payment does not wait. ON_COMPLETION creates the next one only once its
+        predecessor is completed - a task that means "again, two weeks after I last did it"
+        (arc42 §6.3).
+
+    RecurrenceInput:
+      type: object
+      required: [rrule, time_zone, mode]
+      properties:
+        rrule: { type: string, maxLength: 1024, example: "FREQ=WEEKLY;BYDAY=MO" }
+        time_zone: { type: string, example: "Europe/Berlin" }
+        mode:
+          $ref: "#/components/schemas/RecurrenceMode"
+        horizon_days: { type: integer, minimum: 1, maximum: 365, default: 90 }
+        ends_at: { type: [string, "null"], format: date-time }
+        max_count: { type: [integer, "null"], minimum: 1 }
 
     Reminder:
       type: object

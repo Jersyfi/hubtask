@@ -39,7 +39,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | History | `/items/{id}/activity` | `GET` |
 | Attachments/media | `/media`, `/media/{id}` | `POST` (presigned), `GET`, `DELETE` |
 | Reminders | `/items/{id}/reminders` | CRUD |
-| Recurrence | `/items/{id}/recurrence` | `PUT`, `DELETE`, `POST :skip` |
+| Recurrence | `/items/{id}/recurrence` | `GET`, `PUT`, `DELETE`, `POST :skip` (the read joined in D-04: a rule a client can set and never read back is one it cannot show) |
 | Templates | `/templates` | CRUD, `:instantiate` |
 | Views | `/views` | CRUD, `:share`, `:export` |
 | Jumble | `/jumble/entries` | `GET`, `POST`, `:convert`, `:dismiss` |
