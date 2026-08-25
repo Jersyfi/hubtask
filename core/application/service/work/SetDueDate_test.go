@@ -44,6 +44,7 @@ type dueDateHarness struct {
 	audit      *sink
 	history    *journal
 	authorizer *authorizer
+	jobs       *jobs
 	uow        *unitOfWork
 }
 
@@ -55,11 +56,11 @@ func newDueDateHarness(t *testing.T, rows []domain.CapabilityProfile) *dueDateHa
 		containers: &containers{stored: map[shared.ID]domain.Container{}},
 		reminders:  newReminders(),
 		events:     &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
-		authorizer: &authorizer{}, uow: &unitOfWork{},
+		authorizer: &authorizer{}, jobs: &jobs{}, uow: &unitOfWork{},
 	}
 
 	writer := DueDateWriter{
-		Items: h.items, Containers: h.containers, Reminders: h.reminders,
+		Items: h.items, Containers: h.containers, Reminders: h.reminders, Jobs: h.jobs,
 		Profiles: &profiles{rows: rows}, Authorizer: h.authorizer,
 		Events: h.events, Changes: h.changes, Audit: h.audit,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
@@ -467,6 +468,16 @@ func TestMovingTheDueDateReschedulesTheRelativeReminders(t *testing.T) {
 	}
 	if !moved.FireAt.Equal(berlinFriday.Add(-time.Hour)) {
 		t.Errorf("it now fires at %v rather than an hour before the new date", moved.FireAt)
+	}
+	// And the schedule follows the date: a wake-up still pointing at the old moment would fire it
+	// late (D-03). The moment asked for is the earliest of what this write made due - here the
+	// lead before the deadline, which comes before the reminder does.
+	if len(h.jobs.enqueued) != 1 {
+		t.Fatalf("the wake-ups asked for are %+v", h.jobs.enqueued)
+	}
+	wantWakeUp := berlinFriday.Add(-domain.DueSoonLead)
+	if !h.jobs.enqueued[0].RunAt.Equal(wantWakeUp) {
+		t.Errorf("the wake-up is at %v rather than %v", h.jobs.enqueued[0].RunAt, wantWakeUp)
 	}
 	// Derived, so it merges with nothing and is recorded as nothing: the due date's own entries
 	// are the record of what happened here.

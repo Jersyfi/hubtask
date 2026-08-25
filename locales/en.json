@@ -48,6 +48,7 @@
 
   "config.backup_not_configured": "No backup target is configured. A restore drill is a release criterion.",
   "config.smtp_missing": "No SMTP server is configured. Notifications by email are unavailable.",
+  "config.smtp_missing_with_reminders": "No SMTP server is configured, and this installation fires reminders. They are recorded and wait in the queue; nobody is told until a mail server is configured.",
   "config.base_url_missing": "HUBTASK_BASE_URL is not set. Links in emails and feeds will be wrong.",
   "config.oidc_missing_in_multi_tenancy": "Multi-tenant operation without an OIDC issuer. Only personal access tokens will work.",
   "config.egress_allowlist_missing": "No egress allowlist is configured. In multi-tenant operation, outbound calls should be restricted to known hosts.",
@@ -326,6 +327,7 @@
   "events.comment_not_deleted": "This installation could not announce that deletion.",
   "events.assignee_missing": "This installation could not announce that change.",
   "events.due_unchanged": "This installation could not announce that change.",
+  "events.due_missing": "This installation is misconfigured and could not announce a deadline.",
   "events.account_missing": "This installation could not announce that change.",
 
   "shared.id_malformed": "{value} is not a valid identifier.",
@@ -360,6 +362,10 @@
   "email.comment.subject.withheld": "There is a new comment",
   "email.comment.body": "{actor} wrote a comment on “{title}”. Follow the link to read it.\n\n{link}",
   "email.comment.body.withheld": "{actor} wrote a comment. Follow the link to read it.\n\n{link}",
+  "email.reminder.subject": "Reminder: “{title}”",
+  "email.reminder.subject.withheld": "A reminder from Hubtask",
+  "email.reminder.body": "You asked to be reminded about “{title}”.\n\n{link}",
+  "email.reminder.body.withheld": "You asked to be reminded about something.\n\n{link}",
   "email.invitation.subject": "You have been invited to Hubtask",
   "email.invitation.subject.withheld": "You have been invited to Hubtask",
   "email.invitation.body": "{actor} invited you. Follow the link to set up your account.\n\n{link}",

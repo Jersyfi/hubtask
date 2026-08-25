@@ -55,6 +55,7 @@ type Metrics struct {
 	notificationsRec  metric.Int64Counter
 	notificationsSent metric.Float64Histogram
 	notificationsFail metric.Int64Counter
+	reminderDelay     metric.Float64Histogram
 	streamsOpen       metric.Int64UpDownCounter
 	streamDuration    metric.Float64Histogram
 	streamRefused     metric.Int64Counter
@@ -336,6 +337,19 @@ func (m *Metrics) notificationInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("notification failure counter: %w", err)
 	}
+	if m.reminderDelay, err = meter.Float64Histogram(
+		namespace+"_reminder_delivery_delay_seconds",
+		metric.WithDescription(
+			"How late a reminder was against the moment it promised, by channel."),
+		metric.WithUnit("s"),
+		// The boundaries are SLO-5's: the objective is "within 60 s", so the buckets have to be
+		// able to answer that question exactly rather than around it - which is why 60 is one of
+		// them and 120, alert A-08's threshold, is the next. Past an hour the question is no
+		// longer how late but whether the scheduler is running at all, which A-06 answers.
+		metric.WithExplicitBucketBoundaries(1, 5, 15, 30, 60, 120, 300, 900, 3600),
+	); err != nil {
+		return fmt.Errorf("reminder delay histogram: %w", err)
+	}
 	return nil
 }
 
@@ -368,6 +382,17 @@ func (m *Metrics) NotificationFailed(ctx context.Context, category, channel, rea
 		attribute.String("category", category),
 		attribute.String("channel", channel),
 		attribute.String("reason", reason),
+	))
+}
+
+// ReminderFired records how late one reminder was against the moment it promised (SLO-5, D-03).
+//
+// The delay rather than the send: a reminder that left on time and then waited an hour for a mail
+// server is a different failure, and the notification metrics already measure that one. What this
+// answers is whether the schedule kept its promise.
+func (m *Metrics) ReminderFired(ctx context.Context, channel string, delaySeconds float64) {
+	m.reminderDelay.Record(ctx, delaySeconds, metric.WithAttributes(
+		attribute.String("channel", channel),
 	))
 }
 

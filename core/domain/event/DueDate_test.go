@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -75,5 +76,69 @@ func TestADueEventAboutNothingMovingIsRefused(t *testing.T) {
 	bare := task()
 	if _, err := NewItemDueChanged(eventID, bare, nil, by(), occurred, Cause{}); err == nil {
 		t.Fatal("an event about no due date at all was built")
+	}
+}
+
+// The two announcements the scheduler makes (D-03). One shape for both, so that a consumer reads
+// them with one piece of code: what tells them apart is the type and the threshold.
+func TestTheSchedulingAnnouncementsCarryTheDeadlineAndItsThreshold(t *testing.T) {
+	due := occurred.Add(24 * time.Hour)
+	item := task()
+	item.Due = &work.DueDate{At: due, DateOnly: true, TimeZone: "Europe/Berlin"}
+
+	for name, c := range map[string]struct {
+		build         func() (Envelope, error)
+		wantType      Type
+		wantThreshold string
+	}{
+		"due soon": {
+			build: func() (Envelope, error) {
+				return NewItemDueSoon(eventID, item, "PT24H", occurred, Cause{})
+			},
+			wantType: ItemDueSoon, wantThreshold: "PT24H",
+		},
+		"overdue": {
+			build: func() (Envelope, error) {
+				return NewItemOverdue(eventID, item, occurred, Cause{})
+			},
+			wantType: ItemOverdue, wantThreshold: "PT0S",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			envelope, err := c.build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			if envelope.Type != c.wantType || envelope.Subject != ItemSubject(item.ID) {
+				t.Errorf("unexpected envelope: %+v", envelope)
+			}
+			// Nobody caused it: the clock did, and an announcement naming a person would be a
+			// notification suppressed as self-caused for somebody who did nothing.
+			if envelope.Actor.Kind != shared.ActorSystem || !envelope.Actor.ID.IsZero() {
+				t.Errorf("the announcement was caused by %+v", envelope.Actor)
+			}
+			if envelope.Payload["threshold_spec"] != c.wantThreshold {
+				t.Errorf("the threshold is %v", envelope.Payload["threshold_spec"])
+			}
+			if envelope.Payload["due_date_only"] != true ||
+				envelope.Payload["time_zone"] != "Europe/Berlin" {
+				t.Errorf("the deadline reads as %+v", envelope.Payload)
+			}
+			if at, ok := envelope.Payload["due_at"].(time.Time); !ok || !at.Equal(due) {
+				t.Errorf("the deadline is %v rather than %v", envelope.Payload["due_at"], due)
+			}
+		})
+	}
+}
+
+// An announcement about a deadline that is not there is the caller and the event disagreeing - a
+// defect rather than anything a client sent.
+func TestASchedulingAnnouncementRefusesAnEntryWithoutADeadline(t *testing.T) {
+	if _, err := NewItemOverdue(eventID, task(), occurred, Cause{}); err == nil {
+		t.Fatal("an entry with no due date was announced overdue")
+	}
+	if _, err := NewItemDueSoon(eventID, task(), "PT24H", occurred, Cause{}); err == nil {
+		t.Fatal("an entry with no due date was announced as approaching")
 	}
 }

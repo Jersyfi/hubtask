@@ -452,6 +452,66 @@ func TestTheCompletionEventsMatchTheirSchemas(t *testing.T) {
 	}
 }
 
+// The two announcements the scheduler makes (D-03). Nobody caused them, so the actor is the
+// system - and both carry a threshold, which is what lets one consumer read both.
+func TestTheSchedulingAnnouncementsMatchTheirSchemas(t *testing.T) {
+	due := time.Date(2026, 9, 4, 15, 0, 0, 0, time.UTC)
+	item := completedItem(t)
+	item.Completion = work.Completion{}
+	item.Due = &work.DueDate{At: due, TimeZone: "Europe/Berlin"}
+
+	cases := map[string]struct {
+		eventType event.Type
+		build     func() (event.Envelope, error)
+	}{
+		"due soon": {event.ItemDueSoon, func() (event.Envelope, error) {
+			return event.NewItemDueSoon(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e6"), item,
+				"PT24H", due.Add(-24*time.Hour), event.Cause{})
+		}},
+		"overdue": {event.ItemOverdue, func() (event.Envelope, error) {
+			return event.NewItemOverdue(
+				shared.MustParseID("0192f000-0000-7000-8000-0000000000e7"), item,
+				due, event.Cause{})
+		}},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			envelope, err := c.build()
+			if err != nil {
+				t.Fatalf("building the event: %v", err)
+			}
+
+			body, err := json.Marshal(eventbus.ToCloudEvent(envelope, "urn:hubtask:test"))
+			if err != nil {
+				t.Fatalf("rendering the event: %v", err)
+			}
+
+			problems, err := loadEventSchema(t, c.eventType).validateAgainst("root", body)
+			if err != nil {
+				t.Fatalf("validating: %v", err)
+			}
+			for _, problem := range problems {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// An announcement about a deadline that is not there is the caller and the event disagreeing.
+func TestASchedulingAnnouncementNeedsADueDate(t *testing.T) {
+	bare := completedItem(t)
+	bare.Completion = work.Completion{}
+
+	if _, err := event.NewItemOverdue(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e8"), bare,
+		time.Date(2026, 9, 4, 15, 0, 0, 0, time.UTC), event.Cause{},
+	); err == nil {
+		t.Fatal("an entry with no due date was announced overdue")
+	}
+}
+
 // The schemas pin `is_completed` to one value each, which is what stops the two events being told apart
 // by a payload field rather than by their type. An event carrying the wrong state has to fail its schema.
 func TestACompletionEventCannotCarryTheOppositeState(t *testing.T) {

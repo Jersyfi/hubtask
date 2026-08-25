@@ -201,7 +201,7 @@ schema version — everything is reported as a code with a severity, not as free
 | **Load shedding** | Above a threshold for `inflight_requests`, new *non-interactive* requests (bulk, export, search) are rejected with `503` + `Retry-After`, before latency tips over for everyone. |
 | **Rate limits** | Internally too: automation rules have throttles per rule and per tenant. |
 | **A queue instead of synchrony** | Everything external goes through the outbox or jobs. A hanging webhook recipient cannot delay an API response. |
-| **Idempotency** | `Idempotency-Key` on the outside, `job.dedup_key` on the inside, `delivery_id` for webhooks. At-least-once plus idempotency = effectively exactly-once. |
+| **Idempotency** | `Idempotency-Key` on the outside, `job.dedupe_key` on the inside (the column's own spelling, corrected here by D-03), `delivery_id` for webhooks. At-least-once plus idempotency = effectively exactly-once. |
 | **Poison pill protection** | After *n* failed attempts → dead letter with full context, a metric, and admin visibility; the queue stays clear. |
 | **Optimistic locking** | A `version` per aggregate, a `409` with a machine-readable conflict instead of data loss through last-write-wins. |
 | **Panic recovery** | Middleware per request, a wrapper per job, and a **ban on bare goroutines**: concurrency only through `SafeGo(ctx, name, fn)` with recover plus a metric. An architecture test verifies that `go ` occurs only in `shared/concurrency`. |
@@ -276,7 +276,7 @@ Symptom-based, each with a runbook. The thresholds are starting values for provi
 | A-18 | A tenant exceeds 90% of a quota | info | Capacity planning |
 
 For **self-hosting** there is a reduced variant: a standard Grafana dashboard and an alert rule file
-with A-03, A-04, A-05, A-07, A-12 — plus the warnings from `/meta/health`, which are visible even
+with A-03, A-04, A-05, A-07, A-08, A-12 — plus the warnings from `/meta/health`, which are visible even
 without Prometheus.
 
 ---
@@ -286,12 +286,12 @@ without Prometheus.
 Shipped under `deploy/observability/`:
 
 * `dashboards/overview.json` — RED per route, SLO burn, saturation, version situation *(shipped)*
-* `dashboards/pipeline.json` — outbox, jobs, automation, webhooks, reminders *(shipped; automation,
-  webhooks and reminders join it as those features arrive)*
+* `dashboards/pipeline.json` — outbox, jobs, automation, webhooks, reminders *(shipped; the
+  reminder row arrived with D-03, automation and webhooks join it as those features arrive)*
 * `dashboards/tenant.json` — quotas, top tenants (only with the tenant label enabled) *(with
   multi-tenant operation, `0.6.0`)*
 * `alerts/prometheus-rules.yaml` — the alert catalogue as rules *(shipped: the reduced
-  self-hosting set A-03, A-04, A-05, A-07, A-12; the full catalogue with provider operation)*
+  self-hosting set A-03, A-04, A-05, A-07, A-08, A-12; the full catalogue with provider operation)*
 * `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up *(shipped, one per shipped alert)*
 
 Any alert without a runbook does not ship. That is `make gate-observability`, which checks it in

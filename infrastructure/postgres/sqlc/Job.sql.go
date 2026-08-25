@@ -182,6 +182,30 @@ func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) error {
 	return err
 }
 
+const holdJob = `-- name: HoldJob :one
+SELECT id FROM job
+WHERE id = $1 AND state = 'RUNNING' AND locked_until = $2
+FOR UPDATE
+`
+
+type HoldJobParams struct {
+	ID    pgtype.UUID
+	Lease pgtype.Timestamptz
+}
+
+// The row lock a pass takes on its own job, held until the caller's transaction ends (D-03).
+//
+// SELECT ... FOR UPDATE rather than an UPDATE: nothing about the row changes, and what is wanted
+// is only that a concurrent Enqueue on this dedupe key waits for the pass rather than finding the
+// row RUNNING and doing nothing. The lease is in the predicate for the reason every other
+// statement here carries it: a worker that fell behind and lost the job locks nothing.
+func (q *Queries) HoldJob(ctx context.Context, arg HoldJobParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, holdJob, arg.ID, arg.Lease)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const jobQueueDepth = `-- name: JobQueueDepth :many
 SELECT kind, count(*) AS pending
 FROM job

@@ -420,6 +420,7 @@ func run() error {
 	// through (D-01).
 	dueDateWriter := work.DueDateWriter{
 		Items: items, Containers: containers, Profiles: profiles, Reminders: reminders,
+		Jobs:       jobs,
 		Authorizer: authorizer,
 		Events:     outbox, Changes: changes, Audit: auditSink, Activity: journal,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -493,6 +494,7 @@ func run() error {
 	reminderWriter := work.ReminderWriter{
 		Reminders: reminders, Items: items, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Visibility: authorizer, Changes: changes, Audit: auditSink,
+		Jobs:       jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
@@ -1005,7 +1007,33 @@ func run() error {
 		},
 	}
 
+	// The firing of what is due. It reads the reminders, writes the records through the same
+	// notification path everything else uses, and decides when to come back - which is why it
+	// holds its own job row for the pass (D-03).
+	reminderFiring := worker.ReminderFiring{
+		Firing: work.FireReminders{
+			Reminders: reminders, Items: items, Schedule: items, Containers: containers,
+			ItemMembers: itemMembers,
+			Visibility:  authorizer,
+			Notifier: notification.RecordReminder{
+				Notifications: notifications, Preferences: notificationPreferences,
+				Accounts: accounts, Jobs: jobs,
+				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
+			Events: outbox, Changes: changes,
+			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Signals: metrics,
+			BatchSize: work.DefaultReminderBatch,
+		},
+		Queue: jobs,
+		Clock: clockadapter.System{},
+		// A batch that filled comes straight back, at the same short wait the other pollers use
+		// for the same reason; a wake-up that is due now waits a moment rather than spinning.
+		Continuation: cfg.Queue.OutboxMinInterval,
+		MinimumWait:  cfg.Queue.OutboxMinInterval,
+	}
+
 	handlers := map[queueport.Kind]queueport.Handler{
+		queueport.KindReminderFire:        reminderFiring,
 		queueport.KindOutboxDispatch:      dispatcher,
 		queueport.KindRetentionSweep:      retention,
 		queueport.KindMediaReconcile:      mediaReconciliation,

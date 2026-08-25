@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -50,7 +51,10 @@ type DueDateWriter struct {
 	// Reminders is here because a due date that moves takes the relative reminders with it: the
 	// reminder lives on the same entry, so its moment is recomputed in the same transaction rather
 	// than by a job that would leave the two disagreeing until it ran (D-02).
-	Reminders  repository.Reminders
+	Reminders repository.Reminders
+	// Jobs is where the tenant's next wake-up is asked for, in the transaction that moved the
+	// date: a reminder that came forward with it needs the schedule to come forward too (D-03).
+	Jobs       queue.Queue
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -261,6 +265,7 @@ func (w DueDateWriter) rescheduleReminders(ctx context.Context, item domain.Work
 		return err
 	}
 
+	var earliest time.Time
 	for _, reminder := range pending {
 		rescheduled, moved, err := reminder.Rescheduled(item.Due)
 		if err != nil {
@@ -272,8 +277,28 @@ func (w DueDateWriter) rescheduleReminders(ctx context.Context, item domain.Work
 		if err := w.Reminders.Reschedule(ctx, rescheduled); err != nil {
 			return err
 		}
+		earliest = earliestMoment(&earliest, rescheduled.FireAt)
 	}
-	return nil
+
+	// The wake-up follows the reminders and the date itself, in the same transaction: a date
+	// pulled forward moves its reminders with it, and a schedule still pointing at the old moment
+	// would fire them late (D-03). A date pushed back needs nothing - a wake-up that is too early
+	// finds nothing due and reschedules itself.
+	moments := append([]*time.Time{&earliest}, dueMoments(item.Due)...)
+	return scheduleReminderFire(ctx, w.Jobs, item.TenantID, earliestMoment(moments...))
+}
+
+// dueMoments is what a due date owes the scheduler beyond its reminders: the moment it comes
+// within the lead, and the moment it passes. Both are announced once (D-03), and the entry's own
+// stamps were just cleared by the write, so both are ahead again whatever was announced before.
+func dueMoments(due *domain.DueDate) []*time.Time {
+	if due == nil {
+		return nil
+	}
+
+	approaching := due.At.Add(-domain.DueSoonLead)
+	passing := due.At
+	return []*time.Time{&approaching, &passing}
 }
 
 // recordChanges writes what an offline client has to be told: one entry per field of the trio

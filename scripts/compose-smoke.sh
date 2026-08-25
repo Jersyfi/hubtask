@@ -163,6 +163,104 @@ if ! curl -fsS "http://127.0.0.1:$HTTP_PORT/api/v1/meta/capabilities" | grep -q 
 	failures=$((failures + 1))
 fi
 
+# The first timed duty, against the real image (D-03). Nothing else in this repository proves that
+# a stored future timestamp becomes work in a running installation: the unit tests fire the pass by
+# calling it, and the integration suite drives it inside a transaction of its own. Here nobody
+# calls anything - a row says a moment, and the scheduler and the worker in the container do the
+# rest.
+#
+# The fixture is written with SQL because hubctl has no reminder verb until D-09. What it writes is
+# exactly what the API write writes: the reminder, and the wake-up job the writer seeds beside it.
+psql_run() {
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" exec -T db psql -U hubtask -d hubtask -tA -c "$1"
+}
+
+SMOKE_TENANT="01936f2a-7c1e-7000-8000-0000000000d0"
+SMOKE_ITEM="01936f2a-7c1e-7000-8000-0000000000d4"
+# Far enough ahead that the fixture is committed before the moment arrives, near enough that the
+# check does not become a wait.
+FIRE_AT="$(psql_run "SELECT (now() + interval '5 seconds')::text")"
+
+psql_run "
+BEGIN;
+INSERT INTO tenant (id, slug, display_name)
+  VALUES ('$SMOKE_TENANT', 'smoke', 'Smoke') ON CONFLICT (id) DO NOTHING;
+INSERT INTO account (id, tenant_id, display_name, email)
+  VALUES ('01936f2a-7c1e-7000-8000-0000000000d1', '$SMOKE_TENANT', 'Smoke', 'smoke@example.org')
+  ON CONFLICT (id) DO NOTHING;
+INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
+  VALUES ('01936f2a-7c1e-7000-8000-0000000000d2', '$SMOKE_TENANT', 'HUB', 'Smoke hub', 'a0',
+          '01936f2a-7c1e-7000-8000-0000000000d1');
+INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
+  VALUES ('01936f2a-7c1e-7000-8000-0000000000d3', '$SMOKE_TENANT', 'COLLECTION',
+          '01936f2a-7c1e-7000-8000-0000000000d2', 'Smoke collection', 'a0',
+          '01936f2a-7c1e-7000-8000-0000000000d1');
+INSERT INTO work_item (id, tenant_id, collection_id, type, path, depth, title, order_key,
+                       assignee_id, due_at, created_by)
+  VALUES ('$SMOKE_ITEM', '$SMOKE_TENANT', '01936f2a-7c1e-7000-8000-0000000000d3', 'TASK',
+          '/$SMOKE_ITEM/', 1, 'A deadline that reminds', 'a0',
+          '01936f2a-7c1e-7000-8000-0000000000d1', '$FIRE_AT'::timestamptz + interval '1 hour',
+          '01936f2a-7c1e-7000-8000-0000000000d1');
+INSERT INTO reminder (id, tenant_id, item_id, offset_spec, fire_at)
+  VALUES ('01936f2a-7c1e-7000-8000-0000000000d5', '$SMOKE_TENANT', '$SMOKE_ITEM',
+          'ABS:' || to_char('$FIRE_AT'::timestamptz at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SSZ'),
+          '$FIRE_AT');
+INSERT INTO job (id, tenant_id, kind, payload, dedupe_key, run_at)
+  VALUES ('01936f2a-7c1e-7000-8000-0000000000d6', '$SMOKE_TENANT', 'reminder.fire', '{}'::jsonb,
+          '$SMOKE_TENANT', '$FIRE_AT');
+COMMIT;" > /dev/null
+
+# SLO-5 asks for 99% of reminders within 60 seconds of their moment. The budget here is twice that,
+# because a smoke check on a cold container is not a measurement - what is being proved is that the
+# duty runs at all, and the histogram below is where the punctuality is actually read.
+fired=""
+reminder_started=$SECONDS
+while [ $((SECONDS - reminder_started)) -lt 120 ]; do
+	if [ "$(psql_run "SELECT state FROM reminder WHERE id = '01936f2a-7c1e-7000-8000-0000000000d5'")" = "SENT" ]; then
+		fired="yes"
+		break
+	fi
+	sleep 2
+done
+
+if [ -z "$fired" ]; then
+	echo "FAILED: the reminder did not fire within 120s of its moment"
+	psql_run "SELECT kind, state, attempts, run_at, last_error FROM job WHERE kind = 'reminder.fire'"
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 50
+	exit 1
+fi
+echo "reminders: fired $((SECONDS - reminder_started))s after the moment it promised"
+
+# The record is what a person is eventually told from, and it exists whether or not there is a mail
+# server: this stack has none, so the message waits in the queue and the record says PENDING.
+recorded="$(psql_run "SELECT count(*) FROM notification
+	WHERE category = 'REMINDER' AND item_id = '$SMOKE_ITEM'")"
+if [ "${recorded:-0}" -lt 1 ]; then
+	echo "FAILED: the reminder fired without writing a notification record"
+	exit 1
+fi
+
+# The deadline is an hour after the reminder, so the same pass announced it as approaching. That
+# event is what the 0.5.0 rule engine will subscribe to.
+announced="$(psql_run "SELECT count(*) FROM outbox_event
+	WHERE event_type = 'de.hubtask.work.item.due_soon.v1' AND tenant_id = '$SMOKE_TENANT'")"
+if [ "${announced:-0}" -lt 1 ]; then
+	echo "FAILED: the approaching deadline was not announced"
+	exit 1
+fi
+
+# And SLO-5's own number exists in the scrape rather than only in the code.
+if ! curl -fsS "http://127.0.0.1:$OPS_PORT/metrics" | grep -q "^hubtask_reminder_delivery_delay_seconds"; then
+	echo "FAILED: the reminder delay histogram is missing from the scrape"
+	exit 1
+fi
+
+# An installation that fires reminders and has no mail server says so where an operator looks.
+if ! curl -fsS "http://127.0.0.1:$OPS_PORT/meta/health" | grep -q "smtp_missing_with_reminders"; then
+	echo "FAILED: /meta/health does not warn that reminders have nowhere to go"
+	exit 1
+fi
+
 # Exactly two containers keep running. The README promises self-hosting in two, the migration is
 # a job that finishes, and this is the line that stops a third from appearing unnoticed.
 #

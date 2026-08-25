@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -164,6 +165,13 @@ func (reminderDouble) Insert(context.Context, work.Reminder) error          { re
 func (reminderDouble) Update(context.Context, work.Reminder, int) error     { return nil }
 func (reminderDouble) Reschedule(context.Context, work.Reminder) error      { return nil }
 func (reminderDouble) Delete(context.Context, shared.ID, int) error         { return nil }
+func (reminderDouble) ClaimDue(context.Context, time.Time, int) ([]work.Reminder, error) {
+	return nil, nil
+}
+func (reminderDouble) Settle(context.Context, shared.ID, work.ReminderState) (bool, error) {
+	return false, nil
+}
+func (reminderDouble) NextMoment(context.Context) (*time.Time, error) { return nil, nil }
 
 var _ Reminders = reminderDouble{}
 

@@ -263,36 +263,14 @@ func (r RecordNotifications) record(
 	})
 }
 
-// decide asks the domain whether this person is told, having read what they said.
+// decide asks the domain whether this person is told, having read what they said. The reading
+// itself is shared with the reminder path (Decide.go): one place decides, so a category cannot be
+// told about under one set of rules and suppressed under another.
 func (r RecordNotifications) decide(
 	ctx context.Context, written domain.Notification, recipientID shared.ID,
 	category domain.Category,
 ) (domain.Decision, error) {
-	account, err := r.Accounts.Find(ctx, recipientID)
-	if errors.Is(err, shared.ErrNotFound) {
-		// The account went between the event and the dispatch. There is nowhere to send, which is
-		// what the domain calls it - and no record either, because the foreign key would refuse
-		// one. Reported as a decision so the caller's insert fails cleanly rather than here.
-		return domain.Decision{Reason: domain.ReasonNoAddress}, nil
-	}
-	if err != nil {
-		return domain.Decision{}, err
-	}
-
-	preference, err := r.Preferences.Find(ctx, recipientID, category, domain.ChannelEmail)
-	switch {
-	case errors.Is(err, shared.ErrNotFound):
-		// Saying nothing is the default, and the default is on. Written down once, in the domain.
-		preference = domain.DefaultPreference(
-			written.TenantID, recipientID, category, domain.ChannelEmail)
-	case err != nil:
-		return domain.Decision{}, err
-	}
-
-	return domain.Decide(written, domain.Recipient{
-		AccountID:  recipientID,
-		HasAddress: account.Email != "",
-	}, preference), nil
+	return decideFor(ctx, r.Accounts, r.Preferences, written, recipientID, category)
 }
 
 func (r RecordNotifications) report(ctx context.Context, written domain.Notification) {

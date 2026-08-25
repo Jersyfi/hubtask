@@ -137,6 +137,22 @@ const (
 	// scheduling event from an edit: a rule that reacts to a rename must not fire when a deadline
 	// moves, and the scheduler must not parse a change set to learn what it is waiting for.
 	ItemDueChanged Type = "de.hubtask.work.item.due_changed.v1"
+	// ItemDueSoon announces that an entry's due date is coming up: the scheduler saw it cross the
+	// lead the payload names, and said so once. Consumers: automation, reminders (D-03).
+	//
+	// Its own event rather than a reminder, because the two answer different questions: a reminder
+	// is somebody's own arrangement with the clock, and this is the fact that a deadline is
+	// approaching - which a rule can react to for an entry nobody set a reminder on. The lead is a
+	// fixed one and travels in the payload, so that "due soon" means the same thing to every rule
+	// in a workspace rather than depending on whether somebody set a reminder.
+	ItemDueSoon Type = "de.hubtask.work.item.due_soon.v1"
+	// ItemOverdue announces that an entry's due date has passed with the work not done. Consumers:
+	// automation (the 0.5.0 rule engine's example rule triggers on it), reminders.
+	//
+	// Announced once per due date: a rule that escalated an overdue entry every time a scheduler
+	// looked at it would escalate it forever, so the announcement is bookkeeping on the entry and
+	// a date that moves is a new deadline that may be missed again.
+	ItemOverdue Type = "de.hubtask.work.item.overdue.v1"
 	// ItemArchived announces that an entry is kept and read-only. Consumers: automation, search
 	// (an archived entry drops out of the default index), SSE.
 	//
@@ -255,6 +271,7 @@ var types = [...]Type{
 	ContainerArchived, ContainerUnarchived, ContainerDeleted, ContainerRestored,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved, ItemDueChanged,
+	ItemDueSoon, ItemOverdue,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemPurged,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted,

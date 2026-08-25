@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -59,6 +60,10 @@ type ReminderWriter struct {
 	Visibility Visibility
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
+	// Jobs is where the tenant's next wake-up is asked for. The write that makes something due is
+	// what seeds it, because nothing may enumerate tenants (multi-tenancy.md §2.1) - the same
+	// shape the retention sweep and the media reconciliation already have (D-03).
+	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -171,6 +176,11 @@ func (h CreateReminder) Execute(
 		}
 		if err := w.recordAudit(
 			ctx, reminder, actor, ReminderCreatedAction, reminderAuditChanges(reminder), now,
+		); err != nil {
+			return err
+		}
+		if err := scheduleReminderFire(
+			ctx, w.Jobs, reminder.TenantID, earliestMoment(reminder.FireAt),
 		); err != nil {
 			return err
 		}
@@ -332,6 +342,47 @@ func instantOrNil(at *time.Time) any {
 		return nil
 	}
 	return at.UTC().Format(time.RFC3339Nano)
+}
+
+// scheduleReminderFire asks for the tenant's next wake-up, in the transaction that made something
+// due.
+//
+// The same transaction on purpose: a reminder whose wake-up was never scheduled would wait for the
+// next write to notice it, and nothing would say why. The dedupe key is the tenant, so a request
+// that writes five reminders leaves one job - and a tenant whose wake-up is already waiting has it
+// pulled forward rather than duplicated, which is what EnqueueJob's LEAST(run_at) is for.
+//
+// A moment that is zero is nothing to wake for: an offset with no due date to count from leaves
+// the reminder standing without one, and there is nothing to schedule until a date comes back. A
+// nil queue is a build without one, which the composition root does not produce and a test may.
+func scheduleReminderFire(
+	ctx context.Context, jobs queue.Queue, tenantID shared.ID, at time.Time,
+) error {
+	if jobs == nil || at.IsZero() {
+		return nil
+	}
+	return jobs.Enqueue(ctx, queue.Request{
+		Kind:      queue.KindReminderFire,
+		TenantID:  tenantID,
+		DedupeKey: tenantID.String(),
+		RunAt:     at.UTC(),
+	})
+}
+
+// earliestMoment answers the first of the moments given, ignoring the ones that are not there. It
+// is what a write hands to scheduleReminderFire: several reminders may have moved, and the wake-up
+// belongs to the nearest of them.
+func earliestMoment(moments ...*time.Time) time.Time {
+	var earliest time.Time
+	for _, moment := range moments {
+		if moment == nil || moment.IsZero() {
+			continue
+		}
+		if earliest.IsZero() || moment.Before(earliest) {
+			earliest = *moment
+		}
+	}
+	return earliest
 }
 
 // reminderOutput is the shape every channel returns: the field names of the contract

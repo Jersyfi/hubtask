@@ -116,6 +116,7 @@ type noJobs struct{}
 
 func (noJobs) Enqueue(context.Context, queue.Request) error            { return nil }
 func (noJobs) Claim(context.Context, queue.Lease) ([]queue.Job, error) { return nil, nil }
+func (noJobs) Hold(context.Context, queue.Job) error                   { return nil }
 func (noJobs) Complete(context.Context, queue.Job) error               { return nil }
 func (noJobs) Repeat(context.Context, queue.Job, time.Time) error      { return nil }
 func (noJobs) Fail(context.Context, queue.Failure) error               { return nil }

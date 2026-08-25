@@ -83,3 +83,38 @@ WHERE id = sqlc.arg('id')::uuid
 DELETE FROM reminder
 WHERE id = sqlc.arg('id')::uuid
   AND version = sqlc.arg('expected_version');
+
+-- name: ListDueReminders :many
+-- What the firing pass takes: this tenant's reminders whose moment has come, oldest first.
+--
+-- FOR UPDATE SKIP LOCKED for the reason the job queue uses it (ADR-0008): two passes that overlap
+-- take disjoint sets instead of waiting for each other, and neither sees a row the other is
+-- already firing. It is the second lock on the same duty, and the cheaper one - the first is the
+-- guarded PENDING -> SENT transition, which is what actually makes a leader failover harmless.
+--
+-- A reminder with no moment is not due: a relative one whose entry lost its due date has nothing
+-- to count from, and NULL <= now is unknown rather than true - the condition is written out so
+-- that a reader does not have to know that.
+SELECT id, tenant_id, item_id, offset_spec, channels, recipients, state, fire_at,
+       created_at, updated_at, version
+FROM reminder
+WHERE state = 'PENDING'
+  AND fire_at IS NOT NULL
+  AND fire_at <= sqlc.arg('now')
+ORDER BY fire_at, id
+LIMIT sqlc.arg('batch_size')
+FOR UPDATE SKIP LOCKED;
+
+-- name: SetReminderState :execrows
+-- The guarded transition. PENDING is in the predicate rather than trusted to the caller's read:
+-- that is what makes firing exactly-once across a leader failover, because the row leaves PENDING
+-- once and the transaction that moved it is the one that wrote the notification.
+UPDATE reminder SET state = sqlc.arg('state')
+WHERE id = sqlc.arg('id')::uuid AND state = 'PENDING';
+
+-- name: NextReminderMoment :one
+-- When this tenant next owes something. NULL when it owes nothing, which is what lets the job
+-- finish rather than idle forever - the next write re-seeds it (D-03).
+SELECT min(fire_at)::timestamptz AS next_at
+FROM reminder
+WHERE state = 'PENDING' AND fire_at IS NOT NULL;

@@ -3,12 +3,15 @@
 #
 # The self-hosting alert set (observability-reliability.md §10).
 #
-# Five rules, not eighteen. The catalogue's full set is written for provider operation with an
+# Six rules, not eighteen. The catalogue's full set is written for provider operation with an
 # on-call rota and an error budget; a self-hosted installation has one person, who is asleep, and
 # an alert that fires for a symptom nobody will act on trains that person to ignore the next one.
 # What is left is the set where doing nothing loses data or leaves the installation broken:
 # A-03 (nobody is serving), A-04 (a defect), A-05 (events are stuck), A-07 (work was finally
-# given up on), A-12 (the backup is not happening).
+# given up on), A-12 (the backup is not happening), and A-08 (D-03), which joins them because a
+# reminder that does not arrive is not a symptom somebody can catch up on afterwards: the moment
+# it was for has passed, and to the person waiting for it the failure is indistinguishable from
+# the reminder never having been set.
 #
 # Every rule carries a `runbook` annotation naming a file under deploy/observability/runbooks/.
 # That is not decoration: §11 says an alert without a runbook does not ship, and the gate in
@@ -64,6 +67,21 @@ groups:
           summary: "Events are reaching their consumers late"
           description: "Outbox lag P99 is above 60s - the dispatcher is behind or not running."
           runbook: RB-A05-outbox-lag.md
+
+      - alert: HubtaskReminderDelay
+        # A-08. SLO-5 promises 99% of reminders within 60 seconds; the alert waits for a P95 above
+        # twice that over half an hour, so a single late pass after a restart does not raise a
+        # ticket. Nothing is lost when it fires - the reminders are still pending and still fire -
+        # but a deadline reminder that arrives late has lost most of its purpose.
+        expr: histogram_quantile(0.95, sum(rate(hubtask_reminder_delivery_delay_seconds_bucket[30m])) by (le)) > 120
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-08
+        annotations:
+          summary: "Reminders are firing late"
+          description: "Reminder delay P95 is above 120s - the firing pass is behind or not running."
+          runbook: RB-A08-reminder-delay.md
 
       - alert: HubtaskDeadLetter
         # A-07. A dead letter is work the system finally gave up on after exhausting its retries.

@@ -130,6 +130,79 @@ func (q *Queries) InsertReminder(ctx context.Context, arg InsertReminderParams) 
 	return err
 }
 
+const listDueReminders = `-- name: ListDueReminders :many
+SELECT id, tenant_id, item_id, offset_spec, channels, recipients, state, fire_at,
+       created_at, updated_at, version
+FROM reminder
+WHERE state = 'PENDING'
+  AND fire_at IS NOT NULL
+  AND fire_at <= $1
+ORDER BY fire_at, id
+LIMIT $2
+FOR UPDATE SKIP LOCKED
+`
+
+type ListDueRemindersParams struct {
+	Now       pgtype.Timestamptz
+	BatchSize int32
+}
+
+type ListDueRemindersRow struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	ItemID     pgtype.UUID
+	OffsetSpec string
+	Channels   []string
+	Recipients []pgtype.UUID
+	State      string
+	FireAt     pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+	Version    int32
+}
+
+// What the firing pass takes: this tenant's reminders whose moment has come, oldest first.
+//
+// FOR UPDATE SKIP LOCKED for the reason the job queue uses it (ADR-0008): two passes that overlap
+// take disjoint sets instead of waiting for each other, and neither sees a row the other is
+// already firing. It is the second lock on the same duty, and the cheaper one - the first is the
+// guarded PENDING -> SENT transition, which is what actually makes a leader failover harmless.
+//
+// A reminder with no moment is not due: a relative one whose entry lost its due date has nothing
+// to count from, and NULL <= now is unknown rather than true - the condition is written out so
+// that a reader does not have to know that.
+func (q *Queries) ListDueReminders(ctx context.Context, arg ListDueRemindersParams) ([]ListDueRemindersRow, error) {
+	rows, err := q.db.Query(ctx, listDueReminders, arg.Now, arg.BatchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDueRemindersRow{}
+	for rows.Next() {
+		var i ListDueRemindersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.OffsetSpec,
+			&i.Channels,
+			&i.Recipients,
+			&i.State,
+			&i.FireAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPendingRemindersOfItem = `-- name: ListPendingRemindersOfItem :many
 SELECT id, tenant_id, item_id, offset_spec, channels, recipients, state, fire_at,
        created_at, updated_at, version
@@ -247,6 +320,21 @@ func (q *Queries) ListRemindersOfItem(ctx context.Context, itemID pgtype.UUID) (
 	return items, nil
 }
 
+const nextReminderMoment = `-- name: NextReminderMoment :one
+SELECT min(fire_at)::timestamptz AS next_at
+FROM reminder
+WHERE state = 'PENDING' AND fire_at IS NOT NULL
+`
+
+// When this tenant next owes something. NULL when it owes nothing, which is what lets the job
+// finish rather than idle forever - the next write re-seeds it (D-03).
+func (q *Queries) NextReminderMoment(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, nextReminderMoment)
+	var next_at pgtype.Timestamptz
+	err := row.Scan(&next_at)
+	return next_at, err
+}
+
 const setReminderFireAt = `-- name: SetReminderFireAt :execrows
 UPDATE reminder SET
   fire_at = $1
@@ -266,6 +354,27 @@ type SetReminderFireAtParams struct {
 // this runs.
 func (q *Queries) SetReminderFireAt(ctx context.Context, arg SetReminderFireAtParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setReminderFireAt, arg.FireAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setReminderState = `-- name: SetReminderState :execrows
+UPDATE reminder SET state = $1
+WHERE id = $2::uuid AND state = 'PENDING'
+`
+
+type SetReminderStateParams struct {
+	State string
+	ID    pgtype.UUID
+}
+
+// The guarded transition. PENDING is in the predicate rather than trusted to the caller's read:
+// that is what makes firing exactly-once across a leader failover, because the row leaves PENDING
+// once and the transaction that moved it is the one that wrote the notification.
+func (q *Queries) SetReminderState(ctx context.Context, arg SetReminderStateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setReminderState, arg.State, arg.ID)
 	if err != nil {
 		return 0, err
 	}

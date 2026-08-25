@@ -1,7 +1,7 @@
 {
   "uid": "hubtask-pipeline",
-  "title": "Hubtask \u2014 Pipeline",
-  "description": "The work that happens outside a request: the outbox, the job queue and the scheduler (ADR-0007, ADR-0008). Automation, webhooks and reminders join it as those arrive.",
+  "title": "Hubtask — Pipeline",
+  "description": "The work that happens outside a request: the outbox, the job queue and the scheduler (ADR-0007, ADR-0008). Reminders joined it with D-03; automation and webhooks join as those arrive.",
   "tags": [
     "hubtask"
   ],
@@ -273,6 +273,67 @@
           "expr": "sum by (job_type) (rate(hubtask_job_dead_letter_total[10m]))",
           "legendFormat": "dead letter {{job_type}}",
           "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Reminder delay (SLO-5)",
+      "description": "How late a reminder was against the moment it promised. SLO-5 asks for 99% within 60 s; alert A-08 raises a ticket when the P95 passes 120 s. A schedule that is on time with a mail server that is down shows up in the notification panels, not here.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, channel) (rate(hubtask_reminder_delivery_delay_seconds_bucket[30m])))",
+          "legendFormat": "p95 {{channel}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(hubtask_reminder_delivery_delay_seconds_bucket[30m])))",
+          "legendFormat": "p99",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Reminders fired",
+      "description": "Reminders that became notifications, by channel. A flat line where reminders exist is the shape A-08 eventually alerts on: nothing is firing.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (channel) (rate(hubtask_reminder_delivery_delay_seconds_count[10m]))",
+          "legendFormat": "{{channel}}",
+          "refId": "A"
         }
       ]
     }

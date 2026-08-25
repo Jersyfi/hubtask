@@ -130,6 +130,32 @@ func (q Queue) Claim(ctx context.Context, lease queue.Lease) ([]queue.Job, error
 	return jobs, nil
 }
 
+// Hold takes the row lock on the job for the rest of the caller's transaction (queue.Queue.Hold).
+//
+// A missing row is the fence answering: the lease expired and somebody else has the job, so this
+// pass has nothing to hold and nothing to write - the same answer Complete gives, so the caller
+// rolls back rather than working on.
+func (q Queue) Hold(ctx context.Context, job queue.Job) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, lease, err := fence(job)
+	if err != nil {
+		return err
+	}
+
+	if _, err := queries.HoldJob(ctx, sqlc.HoldJobParams{ID: id, Lease: lease}); err != nil {
+		if IsNoRows(err) {
+			return leaseHeld(0, job)
+		}
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("holding job %s: %w", job.ID, err))
+	}
+	return nil
+}
+
 // Complete finishes a job for good, in the transaction that carries its effect.
 func (q Queue) Complete(ctx context.Context, job queue.Job) error {
 	queries, err := queriesFrom(ctx)

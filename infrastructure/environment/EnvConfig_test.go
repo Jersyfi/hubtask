@@ -373,18 +373,39 @@ func TestS3WithCredentialsIsAccepted(t *testing.T) {
 }
 
 // Without SMTP nothing breaks: notifications are caught up later (ADR-0016). It is a warning,
-// not an error.
+// not an error - and which warning it is depends on whether this installation fires anything.
 func TestNoSMTPIsAWarningNotAnError(t *testing.T) {
 	withRequiredSecrets(t)
 
-	cfg, err := load(t)
-	if err != nil {
-		t.Fatalf("load failed: %v", err)
-	}
+	t.Run("an installation that sends nothing", func(t *testing.T) {
+		t.Setenv("HUBTASK_ROLES", "api")
+		cfg, err := load(t)
+		if err != nil {
+			t.Fatalf("load failed: %v", err)
+		}
 
-	if !hasWarning(New("v", "c").Warnings(cfg), "config.smtp_missing") {
-		t.Error("a missing SMTP configuration produces no warning")
-	}
+		if !hasWarning(New("v", "c").Warnings(cfg), "config.smtp_missing") {
+			t.Error("a missing SMTP configuration produces no warning")
+		}
+	})
+
+	// The warning observability-reliability.md §7 promises: the reminders will fire, the records
+	// will exist, and nobody will be told until somebody configures a mail server (D-03).
+	t.Run("an installation that fires reminders", func(t *testing.T) {
+		t.Setenv("HUBTASK_ROLES", "api,worker,scheduler")
+		cfg, err := load(t)
+		if err != nil {
+			t.Fatalf("load failed: %v", err)
+		}
+
+		warnings := New("v", "c").Warnings(cfg)
+		if !hasWarning(warnings, "config.smtp_missing_with_reminders") {
+			t.Error("an installation that fires reminders is not warned about missing SMTP")
+		}
+		if hasWarning(warnings, "config.smtp_missing") {
+			t.Error("both warnings were reported for one missing mail server")
+		}
+	})
 }
 
 func TestConfiguredSMTPMustBeComplete(t *testing.T) {

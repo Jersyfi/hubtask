@@ -45,6 +45,17 @@ WHERE id IN (
 )
 RETURNING id, tenant_id, kind, payload, attempts, max_attempts, locked_until;
 
+-- The row lock a pass takes on its own job, held until the caller's transaction ends (D-03).
+--
+-- SELECT ... FOR UPDATE rather than an UPDATE: nothing about the row changes, and what is wanted
+-- is only that a concurrent Enqueue on this dedupe key waits for the pass rather than finding the
+-- row RUNNING and doing nothing. The lease is in the predicate for the reason every other
+-- statement here carries it: a worker that fell behind and lost the job locks nothing.
+-- name: HoldJob :one
+SELECT id FROM job
+WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease')
+FOR UPDATE;
+
 -- name: CompleteJob :execrows
 UPDATE job SET
   state        = 'SUCCEEDED',
