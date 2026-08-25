@@ -102,7 +102,10 @@ HUB=$(bin/hubctl container create --type HUB --name "Personal" | awk 'NR==2 {pri
 bin/hubctl container create --type COLLECTION --parent "$HUB" --name "Errands"
 bin/hubctl item create --collection "$COLLECTION" --type TASK --title "Buy milk"
 bin/hubctl item complete "$ITEM"
+bin/hubctl comment add "$ITEM" --body "Done on the way home"
+bin/hubctl search milk
 bin/hubctl trash ls
+bin/hubctl watch                             # follow the change stream; Ctrl-C ends it
 ```
 
 Errors are the message catalogue's sentences rather than the problem document behind them — the

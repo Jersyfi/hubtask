@@ -54,9 +54,12 @@ const defaultRetryAfter = time.Second
 // defends a server from targets its *users* named; here the user is the principal, and the most
 // ordinary thing they do is run `hubctl --url http://localhost:8080` against `make run`.
 type Client struct {
-	base      string
-	token     secret.Secret
-	transport port.Port
+	base  string
+	token secret.Secret
+	// transport is the GuardedClient itself rather than the port, because the CLI is the one
+	// consumer of the streaming half - Do for the calls, Stream for `hubctl watch` - and the port
+	// deliberately does not know about streams (nothing in core consumes one).
+	transport *httpclient.GuardedClient
 	catalogue i18n.Catalogue
 
 	// Notice reports something the user should know that is not the answer - so far, that a call
@@ -105,6 +108,66 @@ func (c *Client) Get(ctx context.Context, path string, query url.Values, into an
 // optional request body expect.
 func (c *Client) Post(ctx context.Context, path string, body, into any) error {
 	return c.call(ctx, http.MethodPost, path, nil, body, nil, into)
+}
+
+// Put writes one addressed resource - a custom field's value, an attachment's membership. The
+// operations behind it are idempotent by contract, which is what makes PUT the right verb.
+func (c *Client) Put(ctx context.Context, path string, body, into any) error {
+	return c.call(ctx, http.MethodPut, path, nil, body, nil, into)
+}
+
+// OpenStream connects to the change stream (C-10) and hands the open response back. The caller
+// owns the body: it reads the events, it closes it, and its context is what bounds a connection
+// that is deliberately unbounded past the headers.
+func (c *Client) OpenStream(ctx context.Context, lastEventID string) (httpclient.StreamResponse, error) {
+	request := port.Request{
+		Method:      http.MethodGet,
+		URL:         c.base + streamPath,
+		TargetClass: "hubtask-api",
+		Header: map[string][]string{
+			"Accept":        {"text/event-stream"},
+			"Authorization": {"Bearer " + c.token.Reveal()},
+			"User-Agent":    {"hubctl/" + version},
+		},
+	}
+	if lastEventID != "" {
+		request.Header["Last-Event-ID"] = []string{lastEventID}
+	}
+	response, err := c.transport.Stream(ctx, request)
+	if err != nil {
+		return httpclient.StreamResponse{}, c.transportError(err)
+	}
+	return response, nil
+}
+
+// Upload puts staged bytes where requestMediaUpload said to put them.
+//
+// The target is called as given: it is a capability URL - a presigned object-storage address, or
+// this server's token-protected content route - and the token in it is the whole credential. No
+// Authorization header travels with it, deliberately: a presigned target would refuse a request
+// that carries a second credential, and the content route accepts none by contract.
+func (c *Client) Upload(ctx context.Context, method, target string, data []byte) error {
+	if method == "" {
+		method = http.MethodPut
+	}
+	request := port.Request{
+		Method:      method,
+		URL:         target,
+		TargetClass: "hubtask-media",
+		Header: map[string][]string{
+			"Content-Type": {"application/octet-stream"},
+			"User-Agent":   {"hubctl/" + version},
+		},
+		Body: data,
+	}
+	response, err := c.send(ctx, request)
+	if err != nil {
+		return err
+	}
+	if response.Status >= http.StatusBadRequest {
+		return c.problem(response)
+	}
+	return nil
 }
 
 // Delete removes, with the version the caller read as a precondition (ADR-0025). An empty

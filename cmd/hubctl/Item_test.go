@@ -114,6 +114,62 @@ func TestCompletingAnItemCallsTheActionSuffix(t *testing.T) {
 	}
 }
 
+func TestAssigningAnItemSendsTheAccountAndShowsTheAssignee(t *testing.T) {
+	const accountID = "01936f2a-7c1e-7000-8000-0000000000a1"
+	stub := serveJSON(t, http.StatusOK,
+		`{"id":"`+itemID+`","type":"TASK","title":"Buy milk","version":3,
+		  "collection_id":"`+collectionID+`","completion":{"is_completed":false},
+		  "assignee_id":"`+accountID+`"}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"item", "assign", itemID, "--account", accountID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if want := APIPath + "/items/" + itemID + ":assign"; stub.request.URL.Path != want {
+		t.Errorf("path %q, want %q", stub.request.URL.Path, want)
+	}
+	if !strings.Contains(stub.body, `"account_id":"`+accountID+`"`) {
+		t.Errorf("the body %q does not carry the account", stub.body)
+	}
+	if !strings.Contains(out, accountID) {
+		t.Errorf("the answer does not show the assignee: %q", out)
+	}
+}
+
+func TestAssigningAnItemNeedsAnAccount(t *testing.T) {
+	stub := serve(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("a call was made without an account")
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "item", "assign", itemID)
+	if code != exitUsage {
+		t.Fatalf("exit %d, want %d", code, exitUsage)
+	}
+	if !strings.Contains(errOut, "--account") {
+		t.Errorf("the message %q does not name what is missing", errOut)
+	}
+}
+
+func TestUnassigningAnItemSendsNoBody(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, oneItem)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "item", "unassign", itemID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if want := APIPath + "/items/" + itemID + ":unassign"; stub.request.URL.Path != want {
+		t.Errorf("path %q, want %q", stub.request.URL.Path, want)
+	}
+	if stub.body != "" {
+		t.Errorf("an unassign carries no body, sent %q", stub.body)
+	}
+	// Nobody assigned any more, so the column shows a dash rather than a row of zeroes.
+	if !strings.Contains(out, "-") {
+		t.Errorf("the answer does not show the entry unassigned: %q", out)
+	}
+}
+
 func TestMovingAnItemNeedsADestination(t *testing.T) {
 	stub := serve(t, func(http.ResponseWriter, *http.Request) {
 		t.Error("a call was made without a destination")

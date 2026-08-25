@@ -212,6 +212,76 @@ func (c *GuardedClient) send(ctx context.Context, req port.Request, url, class s
 	}, nil
 }
 
+// StreamResponse is an answer whose body is still arriving. The caller owns Body and must close
+// it; closing it is also how the caller ends a stream the server would happily keep feeding.
+type StreamResponse struct {
+	Status int
+	Header map[string][]string
+	Body   io.ReadCloser
+}
+
+// Stream makes a call whose response body is handed to the caller instead of being read here -
+// a server-sent event stream lives until somebody hangs up, and a client that buffered it whole
+// would never hand over a byte.
+//
+// The guard is the same as Do's: the URL check, the resolve-before-connect, the dial-time
+// control and the redirect re-check all apply, because a stream is exactly as capable of being
+// pointed somewhere it should not go (T-07). What differs is the bounds. There is no overall
+// deadline - the connection attempt, the TLS handshake and the wait for headers stay bounded by
+// the transport's timeouts, and past the headers an open stream is the point, not a hang. And
+// there is no response size cap - the body is unbounded by design, and bounding what one read
+// may carry is the caller's job, since only the caller knows its framing. Liveness past the
+// headers is also the caller's: it owns the read loop, so it is the one place a stalled stream
+// can be noticed (rule 7 is satisfied by the caller's context, which cancels the body mid-read).
+//
+// No span and no duration metric, deliberately: the lifetime of a stream measures how long the
+// caller stayed, not how the target behaved, and averaging it into the outbound histogram would
+// bury the signal that histogram exists for.
+func (c *GuardedClient) Stream(ctx context.Context, req port.Request) (StreamResponse, error) {
+	target, err := c.guard.CheckURL(req.URL)
+	if err != nil {
+		return StreamResponse{}, err
+	}
+	if _, err := c.guard.Resolve(ctx, target.Hostname()); err != nil {
+		return StreamResponse{}, err
+	}
+	class := req.TargetClass
+	if class == "" {
+		class = "unclassified"
+	}
+	method := req.Method
+	if method == "" {
+		method = http.MethodGet
+	}
+
+	var body io.Reader
+	if len(req.Body) > 0 {
+		body = bytes.NewReader(req.Body)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, method, target.String(), body)
+	if err != nil {
+		return StreamResponse{}, shared.ErrValidation.
+			WithDetail(codeTargetMalformed).
+			WithParams(map[string]string{"target": target.String()}).
+			WithCause(fmt.Errorf("building the request: %w", err))
+	}
+	for name, values := range req.Header {
+		for _, value := range values {
+			httpReq.Header.Add(name, value)
+		}
+	}
+
+	httpResp, err := c.client.Do(httpReq) //nolint:bodyclose // handing the open body to the caller is the point; StreamResponse says the caller closes it
+	if err != nil {
+		return StreamResponse{}, transportError(class, err)
+	}
+	return StreamResponse{
+		Status: httpResp.StatusCode,
+		Header: httpResp.Header,
+		Body:   httpResp.Body,
+	}, nil
+}
+
 // checkRedirect re-checks every hop. The guard's dial-time control already refuses a private
 // address, but a redirect also has to satisfy the scheme rule and the allowlist - "301 to
 // file:///etc/passwd" and "301 to a host nobody put on the list" are both the point of the

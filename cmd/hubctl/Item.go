@@ -45,6 +45,18 @@ func itemGroup() group {
 				run:     itemMove,
 			},
 			{
+				name:    "assign",
+				usage:   "<id> --account <id>",
+				summary: "hand an entry to an account",
+				run:     itemAssign,
+			},
+			{
+				name:    "unassign",
+				usage:   "<id>",
+				summary: "take the assignee off an entry",
+				run:     itemUnassign,
+			},
+			{
 				name:    "rm",
 				usage:   "<id> [--expect-version <n>]",
 				summary: "move an entry to the trash",
@@ -248,6 +260,59 @@ func itemMove(ctx context.Context, cli *CLI, args []string) error {
 	return nil
 }
 
+func itemAssign(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "item assign <id> --account <id>"
+	item, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "item", "assign", "<id> --account <id>")
+	account := flags.String("account", "", "the account to hand the entry to")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+	if *account == "" {
+		return usagef("say who to assign: --account <id>")
+	}
+	assignee, err := cli.parseID("--account", *account)
+	if err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var assigned openapi.WorkItem
+	body := openapi.Assignment{AccountId: assignee}
+	if err := client.Post(ctx, itemsPath+"/"+item.String()+":assign", body, &assigned); err != nil {
+		return err
+	}
+	return cli.Emit(assigned, itemTable([]openapi.WorkItem{assigned}))
+}
+
+func itemUnassign(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "item unassign <id>"
+	item, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "item", "unassign", "<id>")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var unassigned openapi.WorkItem
+	if err := client.Post(ctx, itemsPath+"/"+item.String()+":unassign", nil, &unassigned); err != nil {
+		return err
+	}
+	return cli.Emit(unassigned, itemTable([]openapi.WorkItem{unassigned}))
+}
+
 func itemTrash(ctx context.Context, cli *CLI, args []string) error {
 	const usage = "item rm <id> [--expect-version <n>]"
 	item, rest, err := cli.takeID(args, usage)
@@ -296,8 +361,9 @@ func itemTable(items []openapi.WorkItem) Table {
 			string(item.Type),
 			item.Title,
 			yesNo(item.Completion.IsCompleted),
+			id(item.AssigneeId),
 			strconv.Itoa(item.Version),
 		})
 	}
-	return Table{Columns: []string{"id", "type", "title", "done", "version"}, Rows: rows}
+	return Table{Columns: []string{"id", "type", "title", "done", "assignee", "version"}, Rows: rows}
 }
