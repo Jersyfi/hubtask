@@ -122,6 +122,8 @@
   "items.due_time_zone_invalid": "{value} is not a time zone. Use an IANA name such as Europe/Berlin.",
   "items.due_time_zone_without_date": "A time zone qualifies a due date. Send due_at with it, or leave both out.",
   "items.due_date_only_without_date": "An all-day flag qualifies a due date. Send due_at with it, or leave both out.",
+  "items.due_date_absent": "That entry has no due date.",
+  "items.due_time_zone_unknown": "That entry's time zone is not one this installation knows.",
   "items.profile_mismatched": "This installation is misconfigured and could not create that entry.",
   "items.identity_incomplete": "This installation is misconfigured and could not create that entry.",
   "items.path_malformed": "This installation is misconfigured and could not create that entry.",
@@ -529,6 +531,24 @@
   "views.query_undecodable": "This installation is misconfigured and could not read that view.",
   "views.sharing_undecided": "This installation is misconfigured and could not store that view.",
   "views.identity_incomplete": "This installation is misconfigured and could not store that view.",
+
+  "reminders.offset_spec_required": "A reminder needs to say when it fires.",
+  "reminders.offset_spec_invalid": "{value} is neither REL: with a duration such as -PT1H nor ABS: with a moment such as 2026-09-01T08:00:00Z.",
+  "reminders.offset_spec_too_long": "That is longer than a reminder's offset may be.",
+  "reminders.offset_calendar_unit": "A reminder counts in weeks, days, hours, minutes and seconds. Years and months are calendar arithmetic and would mean a different length in every month.",
+  "reminders.offset_out_of_range": "That offset is longer than any reminder means.",
+  "reminders.due_date_required": "A reminder counted from the due date needs the entry to have one.",
+  "reminders.channel_unknown": "{value} is not a channel this installation sends on.",
+  "reminders.recipient_required": "A recipient needs an account. Leave the list empty to reach the assignee and the entry's members.",
+  "reminders.recipient_without_access": "That account cannot see this entry and cannot be reminded of it.",
+  "reminders.too_many": "An entry carries at most {maximum} reminders.",
+  "reminders.too_many_recipients": "A reminder reaches at most {maximum} named recipients. Leave the list empty to reach the assignee and the entry's members.",
+  "reminders.not_pending": "That reminder is {state} and cannot be changed.",
+  "reminders.not_found": "There is no such reminder.",
+  "reminders.not_on_item": "That reminder belongs to another entry.",
+  "reminders.reminder_id_required": "Which reminder? Send reminder_id.",
+  "reminders.update_empty": "The update names no field. Send at least one.",
+  "reminders.version_conflict": "The reminder changed while you were editing it. Read it again and reapply.",
 
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }
