@@ -386,7 +386,8 @@ func (pending) RetainItem(w http.ResponseWriter, r *http.Request, _ openapi_type
 	notAvailable(w, r)
 }
 
-// The saved view operations land as D-07 registers each use case.
+// The saved view operations are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) ListSavedViews(w http.ResponseWriter, r *http.Request, _ openapi.ListSavedViewsParams) {
 	notAvailable(w, r)
 }

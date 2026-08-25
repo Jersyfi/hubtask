@@ -300,6 +300,8 @@ func run() error {
 	// than a method on them: this is what the keys mean, and `work_item.custom_fields` is what an
 	// entry says in it (C-07).
 	customFields := postgres.NewCustomFieldRepository()
+	// The bookmark shelf (D-07): stored queries, interpreted by nobody on this side of a client.
+	savedViews := postgres.NewSavedViewRepository()
 	itemLabels := postgres.NewItemLabelRepository()
 	itemMembers := postgres.NewItemMemberRepository()
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
@@ -430,6 +432,15 @@ func run() error {
 		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,
+	}
+
+	// The three changes to an existing view share one dependency set (work.SavedViewWriter): the
+	// same find, the same visibility, the same ownership question (D-07). `authorizer` appears
+	// twice on purpose - the audited permission question and the silent visibility question are
+	// two doors into the same service.
+	savedViewWriter := work.SavedViewWriter{
+		Views: savedViews, Containers: containers, Authorizer: authorizer, Permits: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
 
 	// An edit and a deletion of a definition share one dependency set (work.CustomFieldWriter):
@@ -704,6 +715,21 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateCustomField{Writer: customFieldWriter}.Descriptor(),
 		work.DeleteCustomField{Writer: customFieldWriter}.Descriptor(),
+		work.CreateSavedView{
+			Views: savedViews, Containers: containers, Authorizer: authorizer,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		work.ListSavedViews{
+			Views: savedViews, Containers: containers, Authorizer: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.GetSavedView{
+			Views: savedViews, Containers: containers, Permits: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.UpdateSavedView{Writer: savedViewWriter}.Descriptor(),
+		work.DeleteSavedView{Writer: savedViewWriter}.Descriptor(),
+		work.ShareSavedView{Writer: savedViewWriter}.Descriptor(),
 		work.SetCustomField{
 			Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
 			Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
