@@ -805,6 +805,26 @@ type Reminders interface {
 	NextMoment(ctx context.Context) (*time.Time, error)
 }
 
+// Recurrences stores the series beside the entries (D-04).
+//
+// Every method starts from the entry, because every route does: the rule is a sub-resource of the
+// entry it repeats, and one entry has at most one (the unique index in migration 0028 is what
+// makes "at most one" true of the table rather than of a writer).
+type Recurrences interface {
+	// FindForItem returns the entry's series, or ErrNotFound when it has none *in this tenant*.
+	FindForItem(ctx context.Context, itemID shared.ID) (work.RecurrenceRule, error)
+
+	// Insert writes a new series and points the entry at it.
+	Insert(ctx context.Context, rule work.RecurrenceRule) error
+
+	// Update writes the whole document under the optimistic lock, or reports a version conflict.
+	Update(ctx context.Context, rule work.RecurrenceRule, expectedVersion int) error
+
+	// Delete removes the series and clears the entry's pointer, or reports a version conflict.
+	// The occurrences it produced are ordinary entries and are not touched.
+	Delete(ctx context.Context, rule work.RecurrenceRule, expectedVersion int) error
+}
+
 // AutoAssignPolicies stores the assignment policy per scope (domain-model.md §3.6).
 //
 // One policy per scope, and the upsert is the whole write vocabulary: the policy is the

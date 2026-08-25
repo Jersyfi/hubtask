@@ -895,6 +895,7 @@ type RecurrenceRule struct {
 	LastMaterializedAt pgtype.Timestamptz
 	CreatedAt          pgtype.Timestamptz
 	Version            int32
+	UpdatedAt          pgtype.Timestamptz
 }
 
 type Reminder struct {

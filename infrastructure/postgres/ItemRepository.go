@@ -1087,6 +1087,10 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 	if err != nil {
 		return work.WorkItem{}, err
 	}
+	recurrenceRuleID, err := optionalID(row.RecurrenceRuleID)
+	if err != nil {
+		return work.WorkItem{}, err
+	}
 
 	return work.WorkItem{
 		ID:           id,
@@ -1103,21 +1107,22 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 			CompletedAt: optionalTime(row.CompletedAt),
 			CompletedBy: completedBy,
 		},
-		BucketID:        bucketID,
-		OrderKey:        row.OrderKey,
-		AssigneeID:      assigneeID,
-		StartAt:         optionalTime(row.StartAt),
-		Due:             dueFrom(row.DueAt, row.DueDateOnly, row.DueTimeZone),
-		Cover:           cover,
-		CustomFields:    customFields,
-		ContentLanguage: stringFrom(row.ContentLanguage),
-		ArchivedAt:      optionalTime(row.ArchivedAt),
-		DeletedAt:       optionalTime(row.DeletedAt),
-		TrashBatchID:    trashBatchID,
-		CreatedBy:       createdBy,
-		CreatedAt:       timeFrom(row.CreatedAt),
-		UpdatedAt:       timeFrom(row.UpdatedAt),
-		Version:         int(row.Version),
+		BucketID:         bucketID,
+		OrderKey:         row.OrderKey,
+		AssigneeID:       assigneeID,
+		StartAt:          optionalTime(row.StartAt),
+		Due:              dueFrom(row.DueAt, row.DueDateOnly, row.DueTimeZone),
+		Cover:            cover,
+		CustomFields:     customFields,
+		ContentLanguage:  stringFrom(row.ContentLanguage),
+		RecurrenceRuleID: recurrenceRuleID,
+		ArchivedAt:       optionalTime(row.ArchivedAt),
+		DeletedAt:        optionalTime(row.DeletedAt),
+		TrashBatchID:     trashBatchID,
+		CreatedBy:        createdBy,
+		CreatedAt:        timeFrom(row.CreatedAt),
+		UpdatedAt:        timeFrom(row.UpdatedAt),
+		Version:          int(row.Version),
 	}, nil
 }
 

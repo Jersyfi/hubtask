@@ -533,10 +533,14 @@ CREATE TABLE recurrence_rule (
   max_count     integer,
   last_materialized_at timestamptz,
   created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz,
   version       integer NOT NULL DEFAULT 1,
   CONSTRAINT recurrence_rule_source_item_id_fkey
     FOREIGN KEY (tenant_id, source_item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
+-- One series per entry: the entry points at its rule and the rule points back, and without this
+-- the two could disagree about which rule an entry repeats by (D-04).
+CREATE UNIQUE INDEX recurrence_rule_source_idx ON recurrence_rule (source_item_id);
 
 CREATE TABLE reminder (
   id           uuid PRIMARY KEY,
