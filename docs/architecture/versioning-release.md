@@ -11,6 +11,10 @@ Binding: **Semantic Versioning 2.0.0** (`MAJOR.MINOR.PATCH`).
 | Product / git tag | `vX.Y.Z` | The single leading version, derived from the Conventional Commits |
 | Container image | `hubtask/server:X.Y.Z`, plus `:X.Y`, `:X`, `:latest` (stable only), `:sha-<commit>` | The digest is recorded in the release |
 | Helm chart | `version` (chart) independent, `appVersion` = product version | A chart change without a code change bumps only `version` |
+| Web app bundle | none of its own | Built from the same commit and embedded in the binary ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)). It is not released on its own, so it is not versioned on its own ([ADR-0035](../adr/ADR-0035-one-product-version.md)) |
+| Tauri shells | `appVersion` = product version, plus a platform build counter per build | The stores require a monotonic counter (`CFBundleVersion`, Android `versionCode`) that SemVer does not provide. A store-only fix — signing, metadata, a rejected listing — bumps the counter, never the product version |
+| Website (`hubtask.eu`) | unversioned | Continuously deployed and identified by its commit; it carries no compatibility surface, so a version would state nothing |
+| Workspace packages (`apps/*`, `packages/*`) | `private: true`; the `version` field is not a product statement | Nothing is published to a registry, and the release automation does not read them |
 | REST API | Path major `/api/v1`; `info.version` = product version | A breaking change ⇒ a new path major *and* a new product major |
 | Event types | Suffix `.v1` per event | Additive fields need no new version |
 | MCP tools | The tool name is stable | Parameters may only be added |
@@ -101,6 +105,7 @@ production the rule is: fix forwards).
 | Deprecation | At least two minor releases of notice, announced in the changelog, `Deprecation`/`Sunset` headers, an entry in the capability manifest |
 | Security updates | A patch on every supported major; an advisory with CVSS |
 | Pre-releases | `X.Y.Z-rc.N` with the image tag `:rc`; no production commitment |
+| Client maturity | `experimental` → `preview` → `stable`, stated per release in `CHANGELOG.md` and by the application itself until it is `stable`. It is a statement about a release, not a runtime capability, so it does not appear in `/meta/capabilities` ([ADR-0035](../adr/ADR-0035-one-product-version.md)) |
 
 ---
 
@@ -127,3 +132,30 @@ production the rule is: fix forwards).
 | Freedom from panics | Test runs with no `hubtask_panics_recovered_total > 0`; no `go` statement outside `core/shared/concurrency` |
 | Migration check | Migration against the previous state plus a rolling update simulation |
 | Generated code | `make generate` produces no diff |
+
+---
+
+## 7. How a major is finished
+
+A major is not finished when its last feature merges. It is finished in three movements, and every
+major — `1.0.0`, `2.0.0`, and each one after — runs them in this order
+([ADR-0035](../adr/ADR-0035-one-product-version.md) §5):
+
+1. **Parallel development.** Tracks run alongside each other and may lag each other. The client
+   track runs one milestone window behind the core, so that it builds against contracts that have
+   settled rather than against ones still moving. An incomplete client is the normal state here; a
+   client that does not build is a defect like any other.
+2. **Convergence.** A milestone of its own, whose purpose is that the tracks arrive at the same
+   place: the clients meet the capability matrix
+   ([ADR-0032](../adr/ADR-0032-client-capability-matrix.md)), the maturity stage goes to `stable`,
+   the **scope window closes**, and everything with external lead time — store review above all —
+   is set in motion. New requirements are accepted up to the day it opens. After it there are
+   defects only; anything else waits for the next minor or is an exception with its own ADR.
+3. **Stabilisation.** The major's prerequisites are demonstrated and only defects are fixed.
+
+**A major is released when the server, the clients and the website are finished together, from one
+commit.** There is no arrangement in which the product ships and a client follows later, because
+with one version there is no number in which that could be said.
+
+The milestones of the current major are in [roadmap.md](../roadmap.md); this section is the shape
+they instantiate, and it outlives them.

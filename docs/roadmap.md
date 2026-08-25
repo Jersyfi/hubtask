@@ -1,10 +1,14 @@
 # Implementation Plan
 
 Versioning follows [SemVer](./architecture/versioning-release.md). Before `1.0.0`, minor releases
-may contain breaks; with `1.0.0`, API v1 is promised stable.
+may contain breaks; with `1.0.0`, API v1 is promised stable. There is **one** version for the
+product and every first-party client ([ADR-0035](./adr/ADR-0035-one-product-version.md)).
 
-The order follows the requirement: **the core is built completely first, then automation, and the
-frontend last** (its design and feature set are still open).
+The order follows the requirement: **the core is built completely first**, then automation and
+operations. The client track no longer waits for the end of that — it runs **alongside from
+`0.4.0`**, one milestone window behind the core, so that every screen is built on a contract that
+has already settled (phase 5). Both tracks meet in the convergence milestone `0.9.5`, and `1.0.0`
+is released when the server, the clients and the website are finished together.
 
 ---
 
@@ -115,7 +119,61 @@ the complete alert catalogue A-01…A-18 with runbooks, SLO dashboards, and the 
 
 ---
 
-## Phase 4 — Stabilisation (`1.0.0`)
+## Requirements that arrive late
+
+New requirements will arrive while this plan runs, and some of them will change the core and the
+client at the same time. That is ordinary work rather than an exception, and it is handled like
+this:
+
+1. **The contract moves first.** `api/openapi.yaml`, then `make generate`, then `make api-client`,
+   then the implementation ([ADR-0004](./adr/ADR-0004-api-first-openapi.md)); a change to the data
+   model brings its migration in the same order, expand before contract.
+2. **The pull request that changes the contract carries the client fix.** The generated client
+   makes a break visible at typecheck time inside that very change. Fixing it there is what keeps
+   `main` green, and what makes the real cost of a rename visible while reconsidering it is still
+   cheap ([ADR-0035](./adr/ADR-0035-one-product-version.md) §4).
+3. **Both sides get an issue, and the two are linked.** Where the change is additive they are
+   separate pull requests and the client one lands in its own window. Where it removes or renames
+   something a client already ships, they land together.
+4. **The window closes when `0.9.5` opens.** Until that day a new requirement is scheduled into a
+   milestone like any other. After it there are only defects: a new requirement waits for `1.1.0`,
+   or it is an exception with its own ADR that says what it costs and why the freeze does not apply
+   to it.
+
+Rule 4 is what makes the freeze real. A stabilisation phase that still accepts features is not a
+stabilisation phase, and every date after it is a guess.
+
+---
+
+## Phase 4 — Convergence and stabilisation (`0.9.5` – `1.0.0`)
+
+A major is finished in three movements: parallel development, a **convergence milestone that
+freezes the scope**, then stabilisation ([ADR-0035](./adr/ADR-0035-one-product-version.md) §5).
+`1.0.0` is the first time the project runs them; `2.0` and every major after it follow the same
+shape, which is why the rule lives in
+[versioning-release.md](./architecture/versioning-release.md) rather than only here.
+
+### `0.9.5` Convergence — where the two tracks arrive
+
+Not a feature milestone. It holds exactly the work that can be done neither earlier nor later:
+
+* **The coverage report.** Every use case of the catalogue, where it is reachable in each client,
+  and every deliberate omission with its reason — written to `docs/evidence/` and reviewed, in the
+  manner of the resilience evidence already there. The capability matrix
+  ([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)) is either met or amended by supersede;
+  it is not quietly missed.
+* **The maturity stage goes to `stable`.** The preview banner comes off, and from that moment a
+  client regression blocks a release exactly as an API regression does (ADR-0035 §2).
+* **The scope window closes**, per rule 4 above, on the day this milestone opens.
+* **Everything with external lead time starts here**: the shells cut release candidates, installers
+  are signed, store listings are submitted. Store review is a queue somebody else owns, which is
+  precisely why it cannot be a week inside `1.0.0`.
+* **The website switches to its 1.0 content**, and the arc42 client-architecture chapter is
+  current rather than promised.
+* **The two backlogs become one.** From here there is no core track and no client track, only a
+  product being stabilised.
+
+### `1.0.0` Stabilisation
 
 Prerequisites for `1.0.0`:
 
@@ -133,10 +191,17 @@ Prerequisites for `1.0.0`:
 12. Backup and restore verified: BK-1…BK-10 green, a documented restore drill from every released target type, and the golden archives of every major version importable.
 13. Retention rules exercised: RE-1…RE-9 green, and at least one complete run of a multi-stage chain in a production environment.
 14. Offline synchronisation accepted: SY-1…SY-12 green, and the conformance test passed against at least one real client.
+15. Client parity demonstrated: end-user features and profile configuration on web, desktop and mobile, administration on web and desktop; the mobile administration exclusion is the only restriction, and it behaves as [ADR-0032](./adr/ADR-0032-client-capability-matrix.md) describes — the capability is named and linked to the web app, never silently absent.
+16. Accessibility demonstrated: WCAG 2.2 AA for the web app and the shells that render it, with the accessibility statement published (European Accessibility Act, [data-protection.md](./architecture/data-protection.md) §7).
+17. Offline conformance from a first-party client: `hubctl sync-conformance` passed by `packages/sync-engine` against a real instance — criterion 14's "at least one real client" is named rather than hoped for.
+18. The webview matrix green: the smoke suite passes on WebView2, WKWebView and WebKitGTK. One codebase across three engines is where a rendering defect hides.
+19. The clients distributed: signed installers for Windows, macOS and Linux, live store listings for iOS and Android, and one updater run exercised end to end from a released version to its successor.
+20. The website deployed from the release commit, carrying the 1.0 content, the licence notice and the download links.
+21. The design system holds: no literal colour, spacing, radius or duration value anywhere (the lint proves it), contrast measured in CI rather than asserted, and waves 1 to 3 complete or the gap named with its reason.
 
 ---
 
-## Phase 5 — Frontend (in parallel from `0.4.0`, with its own versioning)
+## Phase 5 — The client track (in parallel from `0.4.0`)
 
 The stack is decided: Svelte 5 with the webapp as a plain Vite SPA
 ([ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)), Tauri 2 shells for desktop and mobile
@@ -144,19 +209,100 @@ with the PWA path closed ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md)), parity
 tenant administration reached via the web on mobile
 ([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)), and one product UI plus a
 framework-agnostic sync engine ([ADR-0033](./adr/ADR-0033-shared-client-architecture.md)). The
-scaffolds live in milestone `0.3.5` (W-06–W-09); the work packages of the frontend track follow
-below, each cut into issues only when its milestone opens, from the then-current state of this
-file and the accepted ADRs.
+scaffolds live in milestone `0.3.5` (W-06–W-09). What was missing was the schedule.
 
-| Work package | Decision it implements |
-|---|---|
-| Sync-engine package: ports, store schema, mutation queue, HLC, the §9 test harness against fakes — before any shell | [ADR-0033](./adr/ADR-0033-shared-client-architecture.md), [ADR-0021](./adr/ADR-0021-offline-sync.md) |
-| Design-system component layer, wave by wave per `design-system.md` §4, plus the component workbench decision | [ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md), [ADR-0029](./adr/ADR-0029-design-system-tokens.md) |
-| Tauri 2 desktop shell (Windows/macOS/Linux): thin shell, SQLite + keystore persistence behind the `Storage` port, updater and distribution | [ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0033](./adr/ADR-0033-shared-client-architecture.md) |
-| Tauri 2 mobile shell (iOS/Android): shell, signing, store pipeline, and the capability-matrix implementation (admin routes excluded, the "lives on the web" affordance) | [ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0032](./adr/ADR-0032-client-capability-matrix.md) |
-| Celebration kit: the three slots with intensity-guardrail tokens, tier triggers from domain events, the per-user switch | `design-system.md` §7 |
-| Onboarding tour: the pattern's components, and the tour content per client | `design-system.md` §8 |
-| Website: SvelteKit + `adapter-static` scaffold, prerendered | [ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md) |
+Four rules govern the track. They are what make a client built alongside a moving core affordable
+rather than a source of permanent rework.
+
+**One version, and no second one.** [ADR-0035](./adr/ADR-0035-one-product-version.md): the client
+is not versioned separately — the web app is embedded in the binary and released with it, the
+shells carry the product version plus a platform build counter, the website is unversioned. What a
+second number would have expressed is expressed by a maturity stage instead: `experimental`, then
+`preview`, then `stable` at convergence.
+
+**The client track runs one milestone window behind the core.** A client milestone builds the
+surface for a core milestone that has already shipped. The client therefore works against a
+contract that has just settled rather than one still moving, and the cost of the parallelism stays
+bounded to the window it occurs in.
+
+**Incomplete is normal; broken is a defect.** A use case without a screen is the expected state for
+most of the `0.x` phase, and the maturity stage says so. A red client lane is not the frontend
+catching up: build, lint, typecheck and test are green at every commit, on the same terms as the Go
+gates. And because `packages/api-client` is generated from the specification, a contract change
+turns the client red in the pull request that makes it — which is why that pull request carries the
+client fix (ADR-0035 §4).
+
+**`F1`…`F6` are milestones, not versions.** They are planning buckets holding the client issues;
+nothing is released by them. Tasks are numbered `F1-01`, `F2-01` and so on, and each milestone is
+cut into issues when it opens, from the then-current state of this file and the accepted ADRs.
+
+| Milestone | Opens with | Builds the surface for | Contents |
+|---|---|---|---|
+| **F1 — Foundations** | `0.4.0` | up to `0.3.0` | The component workbench decision and design-system wave 1; the three §9 gaps that block it (iconography, contrast verification in CI, voice and tone) and the wordmark the website needs; the application frame — layout, navigation, `data-theme`, the message-code renderer, problem-details rendering, `HealthBanner` from `/meta/health`, the capability manifest, the maturity banner; sign-in and session; and the data seam: `packages/sync-engine` with its three ports, an online-only pass-through and the Svelte binding, so that no component ever talks to `@hubtask/api-client` directly. And the pre-release website, whose own requirement follows this table |
+| **F2 — The working surface** | `0.4.5` | `0.2.0` | Wave 2; hubs, collections and the five levels, buckets, labels, ordering and drag and drop, trash and archive, the activity history; the query language made visible — `SearchField`, `QueryBuilder`, `ViewSwitcher` for list and kanban, `TaskRow`, `WorkItemCard`, `BucketColumn`, `LabelChip` and `LabelPicker`, `CapabilityGate`. This is where the tool becomes usable for its own development: daily work moves out of `hubctl` and into the app, which is what risk R-08 was waiting for |
+| **F3 — Collaboration, content, time** | `0.5.0` | `0.3.0` and `0.4.0` | Comments, members and assignment, covers, attachments with presigned upload, custom fields, notifications, the SSE stream, bulk and duplicate — `CommentThread`, `AssigneeControl`, `CustomFieldRenderer`, `ActivityFeed`; and the time surfaces `DueDateControl`, `ReminderEditor`, `RecurrenceEditor`, templates, saved views with their `layout` hint, the timeline, and calendar feed management |
+| **F4 — Automation, administration, tenant** | `0.6.0` | `0.4.5` and `0.5.0` | The jumble inbox, `AutomationRuleCard` and `RunStatusBadge`, dry run, webhook subscriptions, personal access tokens and service accounts; the administration area — tenant settings, `RoleBadge` and `PermissionMatrix`, quotas, the OIDC connection, MFA, sessions and step-up, backup and restore, retention with its preview, audit query, export and `:verify`, data subject requests. Administration is the one area the mobile client does not carry, so its routes are tagged by area here (ADR-0032), long before there is a mobile build to exclude them from |
+| **F5 — AI, i18n, accessibility** | `0.7.0` | `0.7.0` and `0.8.0` | `AISuggestion` — visually separable, and gone without residue when AI is switched off — semantic search, and the AI paths of the jumble and of decomposition; language switching, CLDR formats and the RTL audit against design-system rule 3; and accessibility: WCAG 2.2 AA, keyboard operability, `focus-visible`, a screen-reader pass, and the accessibility statement the European Accessibility Act expects |
+| **F6 — Offline, the shells, the moments** | `0.8.5` | `0.8.5` | The sync engine becomes what its name says: local store, mutation queue, HLC, cursor and tombstone handling, `ACCESS_REVOKED` and `sync.cursor_too_old` behaviour, `SyncStatus` and `ConflictResolver`, the `offline-sync.md` §9 harness against fakes, and `hubctl sync-conformance` passed against a first-party client. Then the Tauri desktop shell — SQLite and keystore behind the `Storage` port, updater, signed distribution, the webview smoke matrix — and after it the mobile shell with signing, the store pipeline, platform adaptation (§9's last gap) and the capability matrix made real — the admin routes F4 tagged are excluded from this build, and each appears as the affordance ADR-0032 asks for: named, and linked to the web app of the server the client is signed into. The celebration kit and the onboarding tour close the milestone: the tour's last step is the first celebration, so they arrive together |
+
+Each of the five open points in [`design-system.md`](./design/design-system.md) §9 therefore has an
+owner: iconography, the wordmark, contrast verification and voice and tone in F1, platform
+adaptation with the mobile shell in F6.
+
+**F1 is open**, and its backlog is [`backlog/milestone-F1.md`](./backlog/milestone-F1.md) —
+twelve tasks, F1-01…F1-12. Cutting it found one thing this table could not: the client has no way
+to learn which account it is signed in as, because nothing reads an `Account` and
+`/accounts/{accountId}/preferences` needs an id it never receives. Since "locale and time zone
+through the account preference" is a binding requirement above, F1 carries **one core task**
+(`GET /accounts/me`, additive and specification first) — the first worked example of the rule for
+a requirement that touches both sides, and a reminder that a client milestone may find a gap in
+the contract rather than only build on it.
+
+### The website: a pre-release site from the `0.4.0` window
+
+> **`hubtask.eu` carries a pre-release site from the `0.4.0` window onwards.** It shows what the
+> project intends to be and advertises it — before there is a product to sign into. It is the
+> public face of the whole `0.x` phase, not a placeholder that goes up shortly before the launch.
+
+The website is the one surface with an audience before the product has users, which is why it comes
+first in the track rather than last. It has two stops: the **pre-release site** in F1, and the
+**1.0 site** at convergence (documentation, the licence notice, downloads for the shells, the
+accessibility statement). Because it is unversioned and continuously deployed
+([ADR-0035](./adr/ADR-0035-one-product-version.md)), its content can move as often as the message
+does without touching a release.
+
+**Decided, and needing no brief:** SvelteKit with `adapter-static`, fully prerendered
+([ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)); every value from the design system
+([ADR-0029](./adr/ADR-0029-design-system-tokens.md)), with wave 4 as its component budget; never
+embedded in the binary and never a second product surface — information only, no sign-in, no task
+management ([ADR-0027](./adr/ADR-0027-monorepo-structure.md),
+[ADR-0028](./adr/ADR-0028-embedded-web-ui.md)); and the client requirement above about cookies
+applies to it before it applies to anything else.
+
+**Open, and awaited from the owner** — named here so it is visible what waits on what:
+
+* positioning and messaging: what the site claims the product is, and for whom;
+* the page structure and how much of the roadmap is shown in public;
+* visual direction beyond the tokens, and the wordmark F1 produces;
+* what may be promised about dates, editions and price
+  ([licensing-editions.md](./architecture/licensing-editions.md) describes the model; what is
+  advertised from it is a separate decision);
+* whether there is a waiting list, a newsletter or an early-access signup — each collects personal
+  data and therefore needs a data-catalogue entry with a legal basis and a deletion path
+  ([data-protection.md](./architecture/data-protection.md)), and consent for anything
+  non-essential;
+* the launch moment.
+
+**The split that lets work start before the brief exists.** The scaffold, the deployment lane, the
+design-system wiring and a minimal holding page are buildable now and are one work package. The
+content wave is a **second** work package that is explicitly allowed to sit unstarted without
+blocking F1; it begins when the brief does, in whichever milestone that turns out to be. What must
+not happen is content invented in the absence of a brief and then defended because it is already
+live.
+
+Where the built files are actually served from is undecided: there is a `website` job that lints,
+type-checks and builds, and none that deploys. It is open point **CI-4** in
+[ci-cd.md](./architecture/ci-cd.md) §8.
 
 A dedicated arc42 client-architecture document is written with the sync-engine package, once
 there is a first implementation to describe. What was settled in preparation and stays binding:
@@ -166,6 +312,12 @@ there is a first implementation to describe. What was settled in preparation and
 * Binding requirements on every frontend: locale and time zone handling through the account
   preference, RTL support, message codes instead of server text, tolerant behaviour towards unknown
   fields, and offline-tolerant writing with an `Idempotency-Key`.
+* **Accessibility: WCAG 2.2 AA**, with an accessibility statement published for the released
+  clients. [`data-protection.md`](./architecture/data-protection.md) §7 names this list as where
+  the European Accessibility Act lands, and it is demonstrated for `1.0.0` rather than asserted.
+* **No non-essential cookies without consent** — the second client requirement `data-protection.md`
+  §7 places here. The backend uses bearer tokens rather than tracking cookies; nothing a client adds
+  may quietly reintroduce them, the website included.
 * **Offline conformance** per [offline-sync.md](./architecture/offline-sync.md) §9: client-assigned
   UUIDv7, an `op_id` per mutation, an HLC per field change, local deletion on `ACCESS_REVOKED` and
   `sync.gone`, a full resynchronisation on `sync.cursor_too_old`, and encrypted local storage with
@@ -175,7 +327,7 @@ there is a first implementation to describe. What was settled in preparation and
   cache only, and no client merges — merging belongs on the server
   ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0033](./adr/ADR-0033-shared-client-architecture.md)).
 * As an interim solution, `hubctl` (the CLI) plus a minimal reference client serve for dogfooding —
-  not a product decision, just a tool (risk R-08).
+  not a product decision, just a tool (risk R-08). F2 is where that interim ends.
 
 ---
 
