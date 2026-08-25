@@ -80,6 +80,12 @@ type group struct {
 	name     string
 	summary  string
 	commands []command
+
+	// usage and run make the group itself the command: `hubctl search`, `hubctl watch`. Some of
+	// what a person does is a verb with no noun to hang it under, and forcing one - `hubctl item
+	// search`? - would misname what it does. A group has either commands or run, never both.
+	usage string
+	run   func(ctx context.Context, cli *CLI, args []string) error
 }
 
 // usageError is a mistake in the invocation rather than in the world. It exits 2; every other
@@ -102,7 +108,10 @@ var errHelpRequested = errors.New("help requested")
 
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
-	return []group{authGroup(), containerGroup(), itemGroup(), commentGroup(), fieldGroup(), trashGroup()}
+	return []group{
+		authGroup(), containerGroup(), itemGroup(), commentGroup(), fieldGroup(), trashGroup(),
+		searchGroup(),
+	}
 }
 
 // Run is main without the process. It returns the exit code rather than calling os.Exit, which is
@@ -178,6 +187,11 @@ func dispatch(ctx context.Context, cli *CLI, args []string) error {
 		if g.name != name {
 			continue
 		}
+		if g.run != nil {
+			ctx, cancel := context.WithTimeout(ctx, cli.Timeout)
+			defer cancel()
+			return g.run(ctx, cli, args[1:])
+		}
 		if len(args) == 1 {
 			return usagef("%s needs a command: %s", g.name, strings.Join(verbs(g), ", "))
 		}
@@ -246,6 +260,10 @@ Commands:
 	// eighty-column terminal.
 	for _, g := range groups() {
 		printf(w, "  %s - %s\n", g.name, g.summary)
+		if g.run != nil {
+			printf(w, "      %s\n", strings.TrimSpace(g.name+" "+g.usage))
+			continue
+		}
 		tabbed := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 		for _, c := range g.commands {
 			printf(tabbed, "      %s\t%s\n", strings.TrimSpace(c.name+" "+c.usage), c.summary)
@@ -258,10 +276,12 @@ Commands:
 // commandFlags builds a flag set that reports its mistakes under the command's own name, so that
 // `hubctl container create --nonsense` says which command was meant rather than which binary.
 func commandFlags(cli *CLI, group, name, usage string) *flag.FlagSet {
-	flags := flag.NewFlagSet(group+" "+name, flag.ContinueOnError)
+	// A top-level verb passes an empty name; trimming keeps its usage line from carrying the gap.
+	command := strings.TrimSpace(group + " " + name)
+	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(cli.Err)
 	flags.Usage = func() {
-		printf(cli.Err, "Usage:\n  hubctl %s %s %s\n\nFlags:\n", group, name, usage)
+		printf(cli.Err, "Usage:\n  hubctl %s %s\n\nFlags:\n", command, usage)
 		flags.PrintDefaults()
 	}
 	return flags
