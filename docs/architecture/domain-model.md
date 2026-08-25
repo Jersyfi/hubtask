@@ -342,8 +342,13 @@ every unreferenced file, now" is not a button anybody should be given, and the w
 is the configuration rather than a call.
 
 **Scheduling** `CreateReminder`, `ListReminders`, `UpdateReminder`, `DeleteReminder`,
-`SetRecurrence`, `UpdateRecurrence`, `RemoveRecurrence`, `SkipOccurrence`,
-`MaterializeOccurrences` (internal).
+`FireReminders` (internal), `SetRecurrence`, `UpdateRecurrence`, `RemoveRecurrence`,
+`SkipOccurrence`, `MaterializeOccurrences` (internal).
+
+The two internal ones are deliberately not registered in the three channels: the catalogue is what
+a person, an agent or a rule may ask for, and "fire everybody's reminders now" is not something
+anybody should be able to ask for — the way to influence when a reminder fires is the reminder
+(D-03, and the same reasoning C-06 applied to `ReconcileMedia`).
 
 **Templates** `CreateTemplate`, `UpdateTemplate`, `DeleteTemplate`, `InstantiateTemplate`.
 

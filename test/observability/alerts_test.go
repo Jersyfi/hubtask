@@ -138,11 +138,15 @@ func TestEveryAlertCarriesWhatAnOperatorNeeds(t *testing.T) {
 	}
 }
 
-// The self-hosting set is a decision, not an accident: five alerts where doing nothing loses data
-// or leaves the installation broken (§10). Pinning it here means adding a sixth is a deliberate
-// act - somebody has to change this list and say why in the pull request.
+// The self-hosting set is a decision, not an accident: alerts where doing nothing loses data or
+// leaves the installation broken (§10). Pinning it here means adding one is a deliberate act -
+// somebody has to change this list and say why in the pull request.
+//
+// A-08 was added by D-03, and the argument is in the rules file: a reminder that does not arrive
+// cannot be caught up on afterwards, because the moment it was for has passed - which puts it with
+// the losses rather than with the symptoms.
 func TestTheSelfHostingSetIsExactlyWhatWasDecided(t *testing.T) {
-	want := []string{"A-03", "A-04", "A-05", "A-07", "A-12"}
+	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12"}
 
 	var got []string
 	for _, alert := range alerts(t) {
