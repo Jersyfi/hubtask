@@ -147,6 +147,26 @@ func (commentDouble) SetDeleted(context.Context, work.Comment, int) error {
 
 var _ Comments = commentDouble{}
 
+// The reminder store's double, for the same reason the others exist.
+type reminderDouble struct{}
+
+func (reminderDouble) Find(context.Context, shared.ID) (work.Reminder, error) {
+	return work.Reminder{}, shared.ErrNotFound
+}
+func (reminderDouble) ListForItem(context.Context, shared.ID) ([]work.Reminder, error) {
+	return nil, nil
+}
+func (reminderDouble) ListPendingForItem(context.Context, shared.ID) ([]work.Reminder, error) {
+	return nil, nil
+}
+func (reminderDouble) CountForItem(context.Context, shared.ID) (int, error) { return 0, nil }
+func (reminderDouble) Insert(context.Context, work.Reminder) error          { return nil }
+func (reminderDouble) Update(context.Context, work.Reminder, int) error     { return nil }
+func (reminderDouble) Reschedule(context.Context, work.Reminder) error      { return nil }
+func (reminderDouble) Delete(context.Context, shared.ID, int) error         { return nil }
+
+var _ Reminders = reminderDouble{}
+
 // The sibling level is decided by two identifiers, not one: the same parent in another collection
 // is not a sibling, and a port that took only the parent could not express the level directly
 // under a collection at all.

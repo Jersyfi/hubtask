@@ -542,10 +542,13 @@ CREATE TABLE reminder (
   state        text NOT NULL DEFAULT 'PENDING' CHECK (state IN ('PENDING','SENT','CANCELLED')),
   fire_at      timestamptz,
   created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz,
+  version      integer NOT NULL DEFAULT 1,
   CONSTRAINT reminder_item_id_fkey
     FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX reminder_due_idx ON reminder (tenant_id, state, fire_at);
+CREATE INDEX reminder_item_idx ON reminder (item_id, created_at, id);
 
 -- ======================== Views, Templates, Jumble =========================
 
