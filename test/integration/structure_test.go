@@ -1010,17 +1010,17 @@ func TestAMoveToAnotherCollectionDropsWhatTheDestinationCannotResolve(t *testing
 		t.Fatalf("moving the subtree: %v", err)
 	}
 
-	kinds := map[work.ReferenceKind]shared.ID{}
+	kinds := map[work.ReferenceKind]string{}
 	for _, reference := range dropped {
 		if reference.ItemID != task {
 			t.Errorf("a loss is attributed to %s", reference.ItemID)
 		}
 		kinds[reference.Kind] = reference.ID
 	}
-	if kinds[work.ReferenceLabel] != label.ID {
+	if kinds[work.ReferenceLabel] != label.ID.String() {
 		t.Errorf("the label was not reported as lost: %+v", dropped)
 	}
-	if kinds[work.ReferenceBucket] != bucket.ID {
+	if kinds[work.ReferenceBucket] != bucket.ID.String() {
 		t.Errorf("the bucket was not reported as lost: %+v", dropped)
 	}
 

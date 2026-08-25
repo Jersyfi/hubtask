@@ -46,8 +46,10 @@ buckets, labels, ordering (drag and drop), query DSL v1, trash/archive, activity
 ### `0.3.0` Collaboration and content
 Comments, members and assignment, automatic assignment (every strategy), covers (colour/image
 upload), media and attachments with presigned upload, custom fields, full-text search, notifications
-(email), the SSE stream, and bulk plus duplicate — the two item operations the specification has
-declared since `0.1.0` and no milestone owned.
+(email), the SSE stream, and bulk plus duplicate — the two item operations the use case catalogue
+has named since the beginning and no milestone owned. `POST /items:bulk` had been in the
+specification since A-06 and answered `route.operation_not_available`; `:duplicate` was in no
+document but the catalogue, and C-11 is where it entered the contract.
 
 ### `0.3.5` The workspace
 The repository becomes a monorepo: `apps/webapp` (the to-do application), `apps/website`

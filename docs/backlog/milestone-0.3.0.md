@@ -19,10 +19,16 @@ not `:pull` and `:push`.
 
 Three decisions taken while writing this backlog, so that nobody re-derives them later:
 
-* **`POST /items:bulk` and `:duplicate` join this milestone** (C-11). Both routes have been in the
-  specification since A-06 and answer `route.operation_not_available`; no milestone owned them.
-  They are item-shaped work and 0.3.0 is the last milestone that belongs to items — from 0.4.0 the
-  subject is time. The roadmap line for 0.3.0 is extended to match.
+* **`POST /items:bulk` and `:duplicate` join this milestone** (C-11). They are item-shaped work and
+  0.3.0 is the last milestone that belongs to items — from 0.4.0 the subject is time. The roadmap
+  line for 0.3.0 is extended to match.
+
+  Corrected while implementing C-11: only `:bulk` was in the specification, declared since A-06 and
+  answering `route.operation_not_available`. `:duplicate` was named by the use case catalogue in
+  `domain-model.md` §5 and by no path at all, so the task's first step added it to
+  `api/openapi.yaml` rather than finding it there. The operation identifier of the bulk route
+  changed with it — `bulkItems` became `bulkUpdateWorkItems`, because every channel identity is
+  derived from the use case name and the parity gate compares the two.
 * **The event stream is `GET /api/v1/stream`** (C-10). `api-guidelines.md` §2 and
   `offline-sync.md` §3.3 name it differently; the API guidelines are the contract authority and the
   `:verb` suffix belongs to POST actions, so the sentence in `offline-sync.md` §3.3 is corrected by
@@ -478,9 +484,10 @@ are a metric and a delivered batch is a span, so the stream is visible in the da
 
 *Depends on: C-01, C-06, C-07 — it sets and copies what they add.*
 
-`BulkUpdateWorkItems` and `DuplicateWorkItem`, with or without the subtree. Both routes are in the
-specification and answer `route.operation_not_available` today; the decision to give them this
-milestone is recorded at the top of this document.
+`BulkUpdateWorkItems` and `DuplicateWorkItem`, with or without the subtree. `:bulk` is in the
+specification and answers `route.operation_not_available` today; `:duplicate` is in the use case
+catalogue and in no path, so the specification gains it first (see the correction at the top of this
+document). The decision to give them this milestone is recorded there too.
 
 `api-guidelines.md` §5 fixes the semantics: at most 500 operations, a result per operation in the
 body with HTTP 200, and `atomic: true` meaning all or nothing. The trap is the partial case. A bulk

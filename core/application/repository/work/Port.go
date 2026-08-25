@@ -99,6 +99,25 @@ type Level struct {
 	ParentID     shared.ID
 }
 
+// Copy is one entry a duplication writes: the row it wants, and which definition each of its
+// custom field values belongs to.
+//
+// The references travel beside the entry rather than on it, because they are not part of what the
+// domain models an entry as: `custom_field_refs` says which definition a value was written under,
+// which is what keeps a deleted-and-recreated key from resurrecting what the old one held (C-07,
+// migration 0018). The map is keyed exactly as the document is, and a document key without one is
+// a defect the adapter refuses rather than a value written under nothing.
+//
+// Everything else the copy decides - the new identifier, the path, the rank, the references the
+// destination could resolve - is decided in the application layer and arrives here settled
+// (ADR-0005).
+type Copy struct {
+	Item work.WorkItem
+	// FieldDefinitions maps each custom field key of Item to the definition it is written under in
+	// the destination collection.
+	FieldDefinitions map[string]shared.ID
+}
+
 // Move is everything a subtree move needs decided before it runs.
 //
 // The paths are passed rather than derived here, because deriving them is the domain's job: Placement and
@@ -445,6 +464,34 @@ type Items interface {
 
 	// Insert writes a new item.
 	Insert(ctx context.Context, item work.WorkItem) error
+
+	// Subtree returns everything below one entry, the entry itself excluded, parents before their
+	// children - so that one pass over the rows always meets an entry after the one it hangs from,
+	// which is what lets a copy carry its mapping from old identifier to new one forwards.
+	//
+	// Trashed rows are not in it: they are on their way out, and a copy carrying them would put
+	// back what somebody deleted. Archived ones are, because being put away is a place rather than
+	// a deletion.
+	//
+	// The limit is a bound rather than a page, and it is the caller's: a duplication is one
+	// transaction, so a subtree bigger than the caller is willing to write in one is refused rather
+	// than copied halfway. One row beyond the limit comes back when there is one, which is how the
+	// caller tells "as large as allowed" from "larger than allowed".
+	Subtree(ctx context.Context, item work.WorkItem, limit int) ([]work.WorkItem, error)
+
+	// InsertCopy writes a new entry that carries another one's description: its title and notes,
+	// the column and the person it was on, its cover and its custom field values.
+	//
+	// Its own method rather than more fields on Insert, because the two write different things. A
+	// create writes what its use case owns and leaves the rest for the use case that owns it; a
+	// copy writes what another row already carries, at once, because there is nothing to decide
+	// about it a second time and writing it through five more statements would spend five versions
+	// on an entry a moment old.
+	//
+	// What it does not carry is the completion - which names a person and a moment, and would be a
+	// false record on an entry that person never touched - and the deletion stamps. The archive
+	// stamp travels, so that an entry put away below the copied one is not silently brought back.
+	InsertCopy(ctx context.Context, duplicate Copy) error
 
 	// SetArchived writes an item's archive stamp, set or cleared, or reports a version conflict.
 	//

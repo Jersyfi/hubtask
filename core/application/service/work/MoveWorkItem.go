@@ -5,7 +5,6 @@ package work
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
@@ -237,7 +236,7 @@ func (w PlacementWriter) read(ctx context.Context, cmd MoveWorkItemCommand) (pla
 		return placement{}, err
 	}
 
-	source, err := w.findCollection(ctx, item.CollectionID)
+	source, err := findCollection(ctx, w.Containers, item.CollectionID)
 	if err != nil {
 		return placement{}, err
 	}
@@ -251,7 +250,7 @@ func (w PlacementWriter) read(ctx context.Context, cmd MoveWorkItemCommand) (pla
 
 	var parent *domain.WorkItem
 	if !targetParentID.IsZero() {
-		found, err := w.findParent(ctx, targetParentID)
+		found, err := findParentItem(ctx, w.Items, targetParentID)
 		if err != nil {
 			return placement{}, err
 		}
@@ -274,13 +273,13 @@ func (w PlacementWriter) read(ctx context.Context, cmd MoveWorkItemCommand) (pla
 				})
 		}
 		if parent.CollectionID != source.ID {
-			if destination, err = w.findCollection(ctx, parent.CollectionID); err != nil {
+			if destination, err = findCollection(ctx, w.Containers, parent.CollectionID); err != nil {
 				return placement{}, err
 			}
 		}
 	case !cmd.TargetCollectionID.IsZero():
 		// The top level of a named collection.
-		if destination, err = w.findNamedCollection(ctx, cmd.TargetCollectionID); err != nil {
+		if destination, err = findTargetCollection(ctx, w.Containers, cmd.TargetCollectionID); err != nil {
 			return placement{}, err
 		}
 	case cmd.ParentGiven:
@@ -633,41 +632,6 @@ func (w PlacementWriter) findItem(ctx context.Context, id shared.ID) (domain.Wor
 	return findItem(ctx, w.Items, id)
 }
 
-func (w PlacementWriter) findParent(ctx context.Context, id shared.ID) (domain.WorkItem, error) {
-	parent, err := w.Items.Find(ctx, id)
-	if err != nil {
-		if errors.Is(err, shared.ErrNotFound) {
-			return domain.WorkItem{}, shared.ErrNotFound.
-				WithDetail("items.parent_not_found").
-				WithParams(map[string]string{"parent_id": id.String()}).
-				WithFields(shared.FieldError{Path: "/target_parent_id", Code: "items.parent_not_found"})
-		}
-		return domain.WorkItem{}, err
-	}
-	return parent, nil
-}
-
-func (w PlacementWriter) findCollection(ctx context.Context, id shared.ID) (domain.Container, error) {
-	return findCollection(ctx, w.Containers, id)
-}
-
-// findNamedCollection reads a collection the caller named, where absent is the caller's mistake and says so.
-func (w PlacementWriter) findNamedCollection(ctx context.Context, id shared.ID) (domain.Container, error) {
-	collection, err := w.Containers.Find(ctx, id)
-	if err != nil {
-		if errors.Is(err, shared.ErrNotFound) {
-			return domain.Container{}, shared.ErrNotFound.
-				WithDetail("items.collection_not_found").
-				WithParams(map[string]string{"collection_id": id.String()}).
-				WithFields(shared.FieldError{
-					Path: "/target_collection_id", Code: "items.collection_not_found",
-				})
-		}
-		return domain.Container{}, err
-	}
-	return collection, nil
-}
-
 func notEditable(item domain.WorkItem) error {
 	detail := "items.archived"
 	if item.IsTrashed() {
@@ -840,7 +804,7 @@ func moveOutput(result MoveResult) usecase.Output {
 		dropped = append(dropped, usecase.Output{
 			"item_id": reference.ItemID.String(),
 			"kind":    string(reference.Kind),
-			"id":      reference.ID.String(),
+			"id":      reference.ID,
 			"code":    reference.Code,
 		})
 	}

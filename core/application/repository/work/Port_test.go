@@ -93,7 +93,11 @@ func (itemDouble) MoveSubtree(
 func (itemDouble) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }
-func (itemDouble) Insert(context.Context, work.WorkItem) error           { return nil }
+func (itemDouble) Insert(context.Context, work.WorkItem) error { return nil }
+func (itemDouble) Subtree(context.Context, work.WorkItem, int) ([]work.WorkItem, error) {
+	return nil, nil
+}
+func (itemDouble) InsertCopy(context.Context, Copy) error                { return nil }
 func (itemDouble) SetArchived(context.Context, work.WorkItem, int) error { return nil }
 func (itemDouble) TrashSubtree(context.Context, ItemTrash) (int, error)  { return 0, nil }
 func (itemDouble) RestoreBatch(context.Context, ItemTrash) (int, error)  { return 0, nil }

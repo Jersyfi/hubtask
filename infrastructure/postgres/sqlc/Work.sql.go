@@ -424,6 +424,97 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 	return err
 }
 
+const insertWorkItemCopy = `-- name: InsertWorkItemCopy :exec
+INSERT INTO work_item (
+  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
+  bucket_id, order_key, assignee_id,
+  cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
+  content_language, archived_at, created_by, created_at, updated_at, version
+) VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6,
+  normalize($7::text, NFC),
+  $8, $9, $10,
+  $11,
+  $12, $13, $14,
+  $15::jsonb, $16::jsonb,
+  $17, $18, $19,
+  $20, $20, 1
+)
+`
+
+type InsertWorkItemCopyParams struct {
+	ID              pgtype.UUID
+	CollectionID    pgtype.UUID
+	Type            ItemType
+	ParentID        pgtype.UUID
+	Path            string
+	Depth           int32
+	Title           string
+	Notes           *string
+	BucketID        pgtype.UUID
+	OrderKey        string
+	AssigneeID      pgtype.UUID
+	CoverKind       *string
+	CoverColorToken *string
+	CoverMediaID    pgtype.UUID
+	CustomFields    []byte
+	CustomFieldRefs []byte
+	ContentLanguage *string
+	ArchivedAt      pgtype.Timestamptz
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+}
+
+// A copy of an entry: a new row that carries the description of another one (C-11).
+//
+// Its own statement rather than more columns on InsertWorkItem, because the two write different
+// things. A create writes what its use case owns and leaves every other column NULL, deliberately,
+// so that a field arrives through the use case that owns it; a copy writes the fields another row
+// already carries, all at once, because there is nothing to decide about them a second time and
+// writing them through five more statements would spend five versions on an entry that was born a
+// moment ago.
+//
+// What is not here is what a copy does not carry: the completion, which names a person and a moment
+// and would be a false record on an entry that person never touched, the deletion stamps, and the
+// trash batch. The archive stamp is here, because an entry that was put away below the copied one
+// stays put away in the copy rather than being silently brought back.
+//
+// The custom field document and its definition references arrive together and already resolved
+// against the destination: which definition a value belongs to is decided where the losses are
+// reported (I-W6), not here.
+//
+// The columns no use case writes yet are absent: the schedule (start_at, due_at, due_date_only,
+// due_time_zone), the recurrence rule and the jumble provenance. They are NULL on every row this
+// installation has, so carrying them would be copying a value nothing can have set. Whichever
+// milestone gives a column its first writer gives it a line here in the same change - a copy that
+// silently lost somebody's due date would be worse than the one it lost.
+func (q *Queries) InsertWorkItemCopy(ctx context.Context, arg InsertWorkItemCopyParams) error {
+	_, err := q.db.Exec(ctx, insertWorkItemCopy,
+		arg.ID,
+		arg.CollectionID,
+		arg.Type,
+		arg.ParentID,
+		arg.Path,
+		arg.Depth,
+		arg.Title,
+		arg.Notes,
+		arg.BucketID,
+		arg.OrderKey,
+		arg.AssigneeID,
+		arg.CoverKind,
+		arg.CoverColorToken,
+		arg.CoverMediaID,
+		arg.CustomFields,
+		arg.CustomFieldRefs,
+		arg.ContentLanguage,
+		arg.ArchivedAt,
+		arg.CreatedBy,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const lastContainerOrderKey = `-- name: LastContainerOrderKey :one
 SELECT order_key
 FROM container
@@ -1327,4 +1418,134 @@ func (q *Queries) SetWorkItemPlacement(ctx context.Context, arg SetWorkItemPlace
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const subtreeOfWorkItem = `-- name: SubtreeOfWorkItem :many
+SELECT
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.content_language,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.path LIKE $1::text || '%'
+  AND wi.id <> $2::uuid
+  AND wi.deleted_at IS NULL
+ORDER BY wi.depth, wi.order_key COLLATE "C", wi.id
+LIMIT $3
+`
+
+type SubtreeOfWorkItemParams struct {
+	PathPrefix string
+	ItemID     pgtype.UUID
+	RowLimit   int32
+}
+
+type SubtreeOfWorkItemRow struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	CollectionID    pgtype.UUID
+	Type            ItemType
+	ParentID        pgtype.UUID
+	Path            string
+	Depth           int32
+	Title           string
+	Notes           *string
+	IsCompleted     bool
+	CompletedAt     pgtype.Timestamptz
+	CompletedBy     pgtype.UUID
+	BucketID        pgtype.UUID
+	OrderKey        string
+	AssigneeID      pgtype.UUID
+	CoverKind       *string
+	CoverColorToken *string
+	CoverMediaID    pgtype.UUID
+	CustomFields    []byte
+	ContentLanguage *string
+	ArchivedAt      pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	TrashBatchID    pgtype.UUID
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
+// Everything below one entry, the entry itself excluded: what a copy of a subtree reads before it
+// writes anything (C-11).
+//
+// The prefix match is MoveWorkItemSubtree's, and for the same reasons: every descendant's path
+// begins with the entry's own, `LIKE prefix || '%'` is the form wi_path_idx
+// (tenant_id, path text_pattern_ops) serves as an index scan, and a path built from UUIDs and
+// separators can hold no LIKE metacharacter. The entry itself matches its own prefix and is
+// excluded, because the caller already holds it and copies it under rules of its own.
+//
+// Trashed rows are left out. They are on their way out of the system, and a copy that carried them
+// would put back what somebody deleted; an archived one is copied, because it is a place rather
+// than a deletion and the copy keeps it (C-11).
+//
+// Ordered by depth first, so that a caller walking the rows always meets a parent before its
+// children and can carry the mapping from old identifier to new one forwards in one pass. The rank
+// decides within a level, in byte order, exactly as every other ordered read of this table
+// (ADR-0022): a rank is a fractional index and the database's collation would compare it as words.
+//
+// The limit is the caller's bound rather than a page: a copy is one transaction, and a subtree
+// larger than the caller allows is refused rather than copied halfway. One row beyond the bound is
+// read on purpose, so that "too large" is distinguishable from "exactly at the bound".
+func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemParams) ([]SubtreeOfWorkItemRow, error) {
+	rows, err := q.db.Query(ctx, subtreeOfWorkItem, arg.PathPrefix, arg.ItemID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SubtreeOfWorkItemRow{}
+	for rows.Next() {
+		var i SubtreeOfWorkItemRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.Type,
+			&i.ParentID,
+			&i.Path,
+			&i.Depth,
+			&i.Title,
+			&i.Notes,
+			&i.IsCompleted,
+			&i.CompletedAt,
+			&i.CompletedBy,
+			&i.BucketID,
+			&i.OrderKey,
+			&i.AssigneeID,
+			&i.CoverKind,
+			&i.CoverColorToken,
+			&i.CoverMediaID,
+			&i.CustomFields,
+			&i.ContentLanguage,
+			&i.ArchivedAt,
+			&i.DeletedAt,
+			&i.TrashBatchID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

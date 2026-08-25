@@ -517,7 +517,7 @@ func TestAMoveToAnotherCollectionReportsWhatItDropped(t *testing.T) {
 		t.Fatalf("the losses are %+v, want the column", result.DroppedReferences)
 	}
 	if reference := result.DroppedReferences[0]; reference.Kind != domain.ReferenceBucket ||
-		reference.ID != lost || reference.ItemID != movedPackID {
+		reference.ID != lost.String() || reference.ItemID != movedPackID {
 		t.Errorf("unexpected loss: %+v", reference)
 	}
 	if !result.Item.BucketID.IsZero() {

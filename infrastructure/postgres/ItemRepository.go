@@ -795,6 +795,165 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 	return nil
 }
 
+// Subtree reads everything below one entry, parents before their children.
+//
+// One row beyond the caller's limit is asked for, so that the caller can tell a subtree that fits
+// from one that does not: the statement answering exactly `limit` rows says nothing about whether
+// there is a row after them.
+func (r ItemRepository) Subtree(
+	ctx context.Context, item work.WorkItem, limit int,
+) ([]work.WorkItem, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return nil, err
+	}
+	if limit < 0 || limit > math.MaxInt32-1 {
+		return nil, shared.ErrInternal.
+			WithDetail("items.subtree_limit_invalid").
+			WithParams(map[string]string{"limit": strconv.Itoa(limit)})
+	}
+
+	rows, err := queries.SubtreeOfWorkItem(ctx, sqlc.SubtreeOfWorkItemParams{
+		PathPrefix: item.Path,
+		ItemID:     id,
+		RowLimit:   int32(limit) + 1,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the subtree of %s: %w", item.ID, err))
+	}
+
+	subtree := make([]work.WorkItem, 0, len(rows))
+	for _, row := range rows {
+		descendant, err := itemFrom(sqlc.FindWorkItemRow(row))
+		if err != nil {
+			return nil, err
+		}
+		subtree = append(subtree, descendant)
+	}
+	return subtree, nil
+}
+
+// InsertCopy writes an entry that carries another one's description.
+func (r ItemRepository) InsertCopy(ctx context.Context, duplicate repository.Copy) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	item := duplicate.Item
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+	collection, err := uuidOf(item.CollectionID)
+	if err != nil {
+		return err
+	}
+	parent, err := optionalUUID(item.ParentID)
+	if err != nil {
+		return err
+	}
+	bucket, err := optionalUUID(item.BucketID)
+	if err != nil {
+		return err
+	}
+	assignee, err := optionalUUID(item.AssigneeID)
+	if err != nil {
+		return err
+	}
+	createdBy, err := uuidOf(item.CreatedBy)
+	if err != nil {
+		return err
+	}
+	depth, err := columnDepth(item.Depth)
+	if err != nil {
+		return err
+	}
+	fields, refs, err := customDocumentsOf(duplicate)
+	if err != nil {
+		return err
+	}
+
+	params := sqlc.InsertWorkItemCopyParams{
+		ID:              id,
+		CollectionID:    collection,
+		Type:            sqlc.ItemType(item.Type),
+		ParentID:        parent,
+		Path:            item.Path,
+		Depth:           depth,
+		Title:           item.Title,
+		Notes:           optionalText(item.Notes),
+		BucketID:        bucket,
+		OrderKey:        item.OrderKey,
+		AssigneeID:      assignee,
+		CustomFields:    fields,
+		CustomFieldRefs: refs,
+		ContentLanguage: optionalText(item.ContentLanguage),
+		CreatedBy:       createdBy,
+		CreatedAt:       timestampOf(item.CreatedAt),
+	}
+	if item.ArchivedAt != nil {
+		params.ArchivedAt = timestampOf(*item.ArchivedAt)
+	}
+	if item.Cover != nil {
+		kind := string(item.Cover.Kind)
+		params.CoverKind = &kind
+		if item.Cover.ColorToken != "" {
+			token := item.Cover.ColorToken
+			params.CoverColorToken = &token
+		}
+		if params.CoverMediaID, err = optionalUUID(item.Cover.MediaID); err != nil {
+			return err
+		}
+	}
+
+	if err := queries.InsertWorkItemCopy(ctx, params); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the copy of the work item: %w", err))
+	}
+	return nil
+}
+
+// customDocumentsOf renders the copy's custom fields and the definitions they belong to as the two
+// jsonb documents the row carries.
+//
+// A value whose definition the caller did not name is refused rather than written: the reference is
+// what a read resolves a value through, and a value standing behind nothing would be invisible to
+// every read while occupying the key (C-07). Both documents are always written, as `{}` for an
+// entry carrying nothing, because the columns are NOT NULL.
+func customDocumentsOf(duplicate repository.Copy) (fields, refs []byte, err error) {
+	values := map[string]any{}
+	references := map[string]string{}
+
+	for key, value := range duplicate.Item.CustomFields {
+		definition, named := duplicate.FieldDefinitions[key]
+		if !named || definition.IsZero() {
+			return nil, nil, shared.ErrInternal.
+				WithDetail("items.custom_field_reference_missing").
+				WithParams(map[string]string{"key": key})
+		}
+		values[key] = value
+		references[key] = definition.String()
+	}
+
+	if fields, err = json.Marshal(values); err != nil {
+		// Every value here passed the domain's validation, so it has a JSON spelling. Reaching
+		// this is a defect rather than input (security.md §9).
+		return nil, nil, shared.ErrInternal.WithDetail("items.custom_fields_unserialisable").WithCause(err)
+	}
+	if refs, err = json.Marshal(references); err != nil {
+		return nil, nil, shared.ErrInternal.WithDetail("items.custom_fields_unserialisable").WithCause(err)
+	}
+	return fields, refs, nil
+}
+
 // columnDepth narrows the depth to the column's width.
 //
 // Refused rather than clamped, unlike the pool and batch sizes elsewhere in this package. Those

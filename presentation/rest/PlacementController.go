@@ -6,6 +6,8 @@ package rest
 import (
 	"net/http"
 
+	"github.com/google/uuid"
+
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -118,21 +120,36 @@ func moveResultResponse(out usecase.Output) (openapi.WorkItem, openapi.MoveResul
 	nested, _ := out["item"].(usecase.Output)
 	item := workItemResponse(nested)
 
-	// An empty array rather than absent or null. It is empty because nothing yet can fail to resolve in a new
-	// collection (I-W6), and it is an array because a client that iterates it should not have to nil-check the
-	// field the day it fills.
-	dropped := []openapi.DroppedReference{}
-	if references, ok := out["dropped_references"].([]usecase.Output); ok {
-		for _, reference := range references {
-			dropped = append(dropped, openapi.DroppedReference{
-				Kind: openapi.DroppedReferenceKind(reference.String("kind")),
-				Id:   reference.String("id"),
-				Code: reference.String("code"),
-			})
-		}
-	}
+	return item, openapi.MoveResult{Item: item, DroppedReferences: droppedReferencesResponse(out)}
+}
 
-	return item, openapi.MoveResult{Item: item, DroppedReferences: dropped}
+// droppedReferencesResponse maps what an operation could not carry over (I-W6). Shared by the move
+// and the copy, which report the same losses in the same shape and would otherwise be two mappings
+// of one answer.
+//
+// An empty array rather than absent or null: a client that iterates the losses should not have to
+// nil-check the field on the operations that happen to lose nothing.
+func droppedReferencesResponse(out usecase.Output) []openapi.DroppedReference {
+	dropped := []openapi.DroppedReference{}
+
+	references, ok := out["dropped_references"].([]usecase.Output)
+	if !ok {
+		return dropped
+	}
+	for _, reference := range references {
+		entry := openapi.DroppedReference{
+			Kind: openapi.DroppedReferenceKind(reference.String("kind")),
+			Id:   reference.String("id"),
+			Code: reference.String("code"),
+		}
+		if itemID, err := uuid.Parse(reference.String("item_id")); err == nil {
+			// The entry that lost it. Absent rather than zero when the answer did not name one: a
+			// null identifier would read as an entry, and no entry has that identifier.
+			entry.ItemId = &itemID
+		}
+		dropped = append(dropped, entry)
+	}
+	return dropped
 }
 
 // ifMatchOf reads the header the generated parameters of these two operations do not carry.

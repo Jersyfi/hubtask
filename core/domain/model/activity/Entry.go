@@ -24,7 +24,7 @@ import (
 // the message catalogue is keyed by - renaming one is a breaking change to every translation.
 type Verb string
 
-// The verbs of the history: the seventeen things that can happen to an entry.
+// The verbs of the history: the things that can happen to an entry.
 //
 // Item-level throughout. `ActivityEntry` is keyed on the item (domain-model.md §3.5) and
 // `/items/{id}/activity` is the only reader the contract declares (api-guidelines.md §2), so a hub
@@ -71,6 +71,14 @@ const (
 	// the comment carries its own edited_at and its tombstone, and the thread is where both are
 	// read - a history entry beside them would describe the same fact in a second place.
 	ItemCommented Verb = "item.commented"
+	// ItemDuplicated is the first step of a copy's history (C-11). Its own verb rather than
+	// `item.created`, because the two are different things to read - "somebody copied this from
+	// somewhere" is what a person needs in order to understand an entry that arrived with a
+	// history-less past - and because two use cases sharing a verb is what the gate forbids. The
+	// event is an `item.created` all the same: what happened to the world is that an entry came
+	// into being, and a consumer that reacts to new entries has to react to this one
+	// (domain-model.md §4).
+	ItemDuplicated Verb = "item.duplicated"
 )
 
 var verbs = [...]Verb{
@@ -78,7 +86,7 @@ var verbs = [...]Verb{
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemLabelAdded, ItemLabelRemoved,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
 	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
-	ItemCustomFieldSet, ItemCommented,
+	ItemCustomFieldSet, ItemCommented, ItemDuplicated,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

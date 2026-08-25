@@ -1426,11 +1426,97 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:duplicate:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: duplicateWorkItem
+      description: >
+        Copies the entry, and everything below it when `include_subtree` is set. The copy is a new
+        entry rather than a fork of a conversation: the description travels - the notes, the labels,
+        the members, the assignee, the attachments and the custom field values, as far as the
+        capability profile of each type allows - and the comments and the history do not.
+
+
+        What the destination cannot resolve is reported rather than dropped in silence, exactly as a
+        move reports it (invariant I-W6): a copy into another collection leaves behind the labels of
+        the vocabulary it came from, the column of the board it sat on, and the values of custom
+        fields that collection does not define.
+
+
+        The copy is open and carries fresh ranks at the end of its level; an entry that was archived
+        below the copied one stays archived in the copy, and trashed entries are not copied at all.
+        The title is copied unchanged - a server that invented "Copy of …" would be writing display
+        text (ADR-0011) - so a client that wants a different one sends it.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                include_subtree:
+                  type: boolean
+                  default: false
+                  description: >
+                    Whether everything below the entry is copied with it. Omitted copies the entry
+                    alone, and its children stay where they are.
+                target_parent_id:
+                  type: [string, "null"]
+                  format: uuid
+                  description: >
+                    The entry the copy sits under. Null puts it at the top level of a collection,
+                    which then has to be named by target_collection_id; omitted puts the copy beside
+                    the original.
+                target_collection_id:
+                  type: string
+                  format: uuid
+                  description: >
+                    The destination collection. May be omitted when target_parent_id is given: an
+                    entry's collection is the one its parent is in.
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                  description: The title of the copy. Omitted keeps the original's.
+      responses:
+        "201":
+          description: Duplicated
+          headers:
+            ETag:
+              schema: { type: string }
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DuplicateResult"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items:bulk:
     post:
       tags: [items]
-      operationId: bulkItems
-      description: Up to 500 operations; `atomic=true` enforces all-or-nothing.
+      operationId: bulkUpdateWorkItems
+      description: |
+        Up to 500 operations, each of them one of the operations this API offers on an entry
+        singly, applied in the order they are sent. The answer is HTTP 200 with a result per
+        operation, and the status of each operation is in that result: a bulk that half succeeded
+        is not a failed request, and a client reads what happened per operation rather than from
+        one status covering 500 of them.
+
+        An operation applies exactly as it would on its own - its own permission check, its own
+        event, its own entry in the item's history and its own per-field records for offline
+        clients. One event covering 500 entries would break a merge in a way nothing downstream
+        recovers from, and one history entry for a bulk hides what the history exists to show.
+
+        `atomic: true` makes it all or nothing: the first refusal rolls the whole bulk back and
+        every result reports what happened, the refusal in its place and the rest as not applied.
+        Without it, the operations that succeeded stay applied and the ones that failed carry their
+        problem.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -1444,14 +1530,19 @@ paths:
                 atomic:
                   type: boolean
                   default: false
+                  description: >
+                    All or nothing. Without it a bulk applies what it can and reports the rest.
                 operations:
                   type: array
+                  minItems: 1
                   maxItems: 500
                   items:
                     $ref: "#/components/schemas/BulkOperation"
       responses:
         "200":
-          description: The result per operation
+          description: >
+            The result per operation, in the order the operations were sent. HTTP 200 says the bulk
+            was carried out, never that every operation in it succeeded.
           content:
             application/json:
               schema:
@@ -3153,8 +3244,13 @@ components:
           description: >
             The entry that lost it. A move carries a whole subtree, so one operation can drop
             references from several entries at once.
-        kind: { type: string, enum: [LABEL, BUCKET, MEMBER, CUSTOM_FIELD] }
-        id: { type: string, description: The reference that could not be carried over. }
+        kind: { type: string, enum: [LABEL, BUCKET, MEMBER, ASSIGNEE, ATTACHMENT, CUSTOM_FIELD] }
+        id:
+          type: string
+          description: >
+            The reference that could not be carried over: an identifier for a label, a column or an
+            account, and the key itself for a custom field, which has no identifier in a collection
+            that does not define it.
         code: { type: string, description: A stable message code saying why. }
 
     FilterNode:
@@ -3308,23 +3404,70 @@ components:
 
     BulkOperation:
       type: object
+      description: >
+        One operation of a bulk: which of the single-entry operations to carry out, on which entry,
+        with the body that operation takes on its own.
       required: [op]
       properties:
         op:
           type: string
+          description: >
+            The operation. Each one is the same operation the route of the same name performs -
+            CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is
+            PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a
+            caller may do one entry at a time, never more.
           enum: [CREATE_ITEM, UPDATE_ITEM, COMPLETE_ITEM, REOPEN_ITEM, MOVE_ITEM, TRASH_ITEM, ADD_LABEL, REMOVE_LABEL, ASSIGN]
-        item_id: { type: string, format: uuid }
+        item_id:
+          type: string
+          format: uuid
+          description: >
+            The entry the operation is about. Required by every operation except CREATE_ITEM, which
+            has no entry yet.
         payload:
           type: object
           additionalProperties: true
+          description: >
+            What the single-entry operation takes in its body, by the field names it takes there. A
+            field the operation does not know is refused by name rather than ignored.
 
     BulkResult:
       type: object
+      description: >
+        What one operation of a bulk did. Exactly one of `item` and `problem` is present, except
+        for an operation that never ran because an atomic bulk was rolled back - which carries
+        neither and says so by its status.
+      required: [index, status]
       properties:
-        index: { type: integer }
-        status: { type: integer }
+        index:
+          type: integer
+          description: The position of the operation in the request, counted from zero.
+        status:
+          type: integer
+          description: >
+            The status this operation would have answered on its own: 200 or 201 for one that was
+            applied, the refusal's status for one that failed, and 409 for an operation of an
+            atomic bulk that was rolled back because another one failed.
         item: { $ref: "#/components/schemas/WorkItem" }
         problem: { $ref: "#/components/schemas/Problem" }
+
+    DuplicateResult:
+      type: object
+      description: >
+        What a duplicate produced: the copy, what it could not carry over, and how big it was.
+      required: [item, dropped_references, copied]
+      properties:
+        item: { $ref: "#/components/schemas/WorkItem" }
+        dropped_references:
+          type: array
+          description: >
+            Labels, buckets, members or custom fields the destination collection could not resolve
+            and that the copy therefore does not carry (invariant I-W6: unresolvable references are
+            reported back, never silently dropped). Always present; empty when nothing was lost.
+          items:
+            $ref: "#/components/schemas/DroppedReference"
+        copied:
+          type: integer
+          description: How many entries the copy consists of, the copied entry itself included.
 
     Bucket:
       type: object

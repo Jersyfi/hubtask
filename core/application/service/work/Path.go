@@ -28,6 +28,10 @@ func containerPath(container domain.Container) []identity.Scope {
 	return service.ContainerScopes(container)
 }
 
+// noID is the zero identifier, spelled once. A copy clears several fields to it, and a literal
+// conversion at each of them would be the same statement written five ways.
+const noID = shared.ID("")
+
 // idOrNil is how an optional identifier reaches a projection or an audit entry: the canonical spelling, or an
 // explicit null. Nothing here decides that an absent identifier means anything - a null parent says "at the
 // top level" by being null, and leaving the field out would say "this server does not know about parents".
