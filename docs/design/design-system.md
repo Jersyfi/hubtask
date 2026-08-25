@@ -273,3 +273,8 @@ teaches the screenshots.
   measured. This belongs in CI as an automated test, not in a one-off check.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
 - **Voice and tone** — one page of writing rules for buttons, errors and empty states.
+
+Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
+list: iconography, the wordmark, contrast verification in CI and voice and tone in `F1`, because
+the component layer cannot be built without them; platform adaptation in `F6`, with the mobile
+shell that raises the question.
