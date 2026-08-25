@@ -2461,8 +2461,9 @@ paths:
       operationId: deleteReminder
       description: >
         Removes the reminder. A hard delete of one row: a reminder is created and deleted whole,
-        and what a person deleted is gone rather than kept as a tombstone with a state. Idempotent -
-        deleting a reminder that is not there succeeds.
+        and what a person deleted is gone rather than kept as a tombstone with a state - so a
+        second deletion answers 404, the same answer any other missing sub-resource gives, rather
+        than pretending to have removed something twice.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       responses:

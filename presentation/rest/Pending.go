@@ -412,8 +412,8 @@ func (pending) ShareSavedView(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
-// The reminder operations answer as pending until D-02 registers their use cases; the routes
-// exist because the contract declares them.
+// The reminder operations are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) ListReminders(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }

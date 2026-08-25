@@ -302,6 +302,7 @@ func run() error {
 	customFields := postgres.NewCustomFieldRepository()
 	// The bookmark shelf (D-07): stored queries, interpreted by nobody on this side of a client.
 	savedViews := postgres.NewSavedViewRepository()
+	reminders := postgres.NewReminderRepository()
 	itemLabels := postgres.NewItemLabelRepository()
 	itemMembers := postgres.NewItemMemberRepository()
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
@@ -482,6 +483,16 @@ func run() error {
 		Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
+	// The reminder's three writes share one dependency set (work.ReminderWriter): the same reads,
+	// the same permission question, the same two records. `authorizer` appears twice on purpose -
+	// the actor's own permission and the question about whether a named recipient can see the
+	// entry are two questions answered by the same service (D-02).
+	reminderWriter := work.ReminderWriter{
+		Reminders: reminders, Items: items, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Visibility: authorizer, Changes: changes, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
 	// The bulk performs the other use cases, so it needs the catalogue that is built from its own
@@ -702,6 +713,13 @@ func run() error {
 		work.ClearCover{Cover: coverWriter}.Descriptor(),
 		work.SetDueDate{Due: dueDateWriter}.Descriptor(),
 		work.ClearDueDate{Due: dueDateWriter}.Descriptor(),
+		work.CreateReminder{Writer: reminderWriter}.Descriptor(),
+		work.ListReminders{
+			Reminders: reminders, Items: items, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.UpdateReminder{Writer: reminderWriter}.Descriptor(),
+		work.DeleteReminder{Writer: reminderWriter}.Descriptor(),
 		work.AttachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		work.DefineCustomField{
