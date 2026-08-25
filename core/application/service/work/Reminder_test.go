@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ type reminders struct {
 	// two is that one spends a version and the other does not.
 	updates     []reminderWrite
 	reschedules []domain.Reminder
+	settled     []domain.Reminder
 	deleted     []reminderWrite
 }
 
@@ -110,6 +112,63 @@ func (r *reminders) Reschedule(_ context.Context, reminder domain.Reminder) erro
 	stored.FireAt = reminder.FireAt
 	r.stored[reminder.ID] = stored
 	return nil
+}
+
+// ClaimDue is the firing pass's read: what is due, oldest first, at most limit of them. The fake
+// answers the same order the statement does, because the pass's batching depends on it.
+func (r *reminders) ClaimDue(
+	_ context.Context, now time.Time, limit int,
+) ([]domain.Reminder, error) {
+	var due []domain.Reminder
+	for _, reminder := range r.stored {
+		if reminder.State != domain.ReminderPending || reminder.FireAt == nil {
+			continue
+		}
+		if reminder.FireAt.After(now) {
+			continue
+		}
+		due = append(due, reminder)
+	}
+	sort.Slice(due, func(i, j int) bool {
+		if due[i].FireAt.Equal(*due[j].FireAt) {
+			return due[i].ID < due[j].ID
+		}
+		return due[i].FireAt.Before(*due[j].FireAt)
+	})
+	if limit > 0 && len(due) > limit {
+		due = due[:limit]
+	}
+	return due, nil
+}
+
+// Settle is the guarded transition: it moves a reminder out of PENDING once, and reports who did
+// it - which is what the fake has to model, because that is the whole of the exactly-once
+// argument.
+func (r *reminders) Settle(
+	_ context.Context, id shared.ID, state domain.ReminderState,
+) (bool, error) {
+	stored, found := r.stored[id]
+	if !found || stored.State != domain.ReminderPending {
+		return false, nil
+	}
+	stored.State = state
+	r.stored[id] = stored
+	r.settled = append(r.settled, stored)
+	return true, nil
+}
+
+func (r *reminders) NextMoment(_ context.Context) (*time.Time, error) {
+	var next *time.Time
+	for _, reminder := range r.stored {
+		if reminder.State != domain.ReminderPending || reminder.FireAt == nil {
+			continue
+		}
+		if next == nil || reminder.FireAt.Before(*next) {
+			moment := *reminder.FireAt
+			next = &moment
+		}
+	}
+	return next, nil
 }
 
 func (r *reminders) Delete(_ context.Context, id shared.ID, expectedVersion int) error {

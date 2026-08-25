@@ -6,6 +6,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -270,6 +271,81 @@ func (r ReminderRepository) Delete(
 			WithCause(fmt.Errorf("deleting the reminder %s: %w", id, err))
 	}
 	return reminderConflictIfUntouched(affected, id, expectedVersion)
+}
+
+// ClaimDue takes what is due, locking the rows for the caller's transaction.
+func (r ReminderRepository) ClaimDue(
+	ctx context.Context, now time.Time, limit int,
+) ([]work.Reminder, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ListDueReminders(ctx, sqlc.ListDueRemindersParams{
+		Now: timestampOf(now),
+		//nolint:gosec // G115: the batch is this process's own constant, not a value from a request
+		BatchSize: int32(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("claiming the due reminders: %w", err))
+	}
+
+	reminders := make([]work.Reminder, 0, len(rows))
+	for _, row := range rows {
+		reminder, err := reminderFrom(
+			row.ID, row.TenantID, row.ItemID, row.OffsetSpec, row.Channels, row.Recipients,
+			row.State, row.FireAt, row.CreatedAt, row.UpdatedAt, row.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+		reminders = append(reminders, reminder)
+	}
+	return reminders, nil
+}
+
+// Settle writes the guarded transition and reports whether this caller made it.
+func (r ReminderRepository) Settle(
+	ctx context.Context, id shared.ID, state work.ReminderState,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	reminderID, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+
+	affected, err := queries.SetReminderState(ctx, sqlc.SetReminderStateParams{
+		State: state.String(),
+		ID:    reminderID,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("settling the reminder %s: %w", id, err))
+	}
+	return affected != 0, nil
+}
+
+// NextMoment answers when the tenant next owes a reminder.
+func (r ReminderRepository) NextMoment(ctx context.Context) (*time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	next, err := queries.NextReminderMoment(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the tenant's next reminder: %w", err))
+	}
+	return optionalTime(next), nil
 }
 
 // reminderConflictIfUntouched is the shared answer for a write that matched nothing: the row moved

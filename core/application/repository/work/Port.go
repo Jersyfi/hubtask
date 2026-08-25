@@ -756,6 +756,19 @@ type Reminders interface {
 	// Delete removes the row, or reports a version conflict. A hard delete: what somebody deleted
 	// is gone, and the tombstone offline clients need is the change log's (offline-sync.md §7).
 	Delete(ctx context.Context, id shared.ID, expectedVersion int) error
+
+	// ClaimDue takes the tenant's reminders whose moment has come, oldest first and at most limit
+	// of them, locking the rows for the caller's transaction so that two overlapping passes take
+	// disjoint sets (D-03).
+	ClaimDue(ctx context.Context, now time.Time, limit int) ([]work.Reminder, error)
+
+	// Settle moves a reminder out of PENDING and reports whether this caller was the one who did
+	// it. False is not an error: somebody else fired it, and the caller writes nothing.
+	Settle(ctx context.Context, id shared.ID, state work.ReminderState) (bool, error)
+
+	// NextMoment answers when the tenant next owes a reminder, or nil when it owes none - which
+	// is what lets the firing job finish instead of idling forever.
+	NextMoment(ctx context.Context) (*time.Time, error)
 }
 
 // AutoAssignPolicies stores the assignment policy per scope (domain-model.md §3.6).
