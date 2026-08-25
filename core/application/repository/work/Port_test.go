@@ -175,6 +175,18 @@ func (reminderDouble) NextMoment(context.Context) (*time.Time, error) { return n
 
 var _ Reminders = reminderDouble{}
 
+// The series store's double, for the same reason the others exist.
+type recurrenceDouble struct{}
+
+func (recurrenceDouble) FindForItem(context.Context, shared.ID) (work.RecurrenceRule, error) {
+	return work.RecurrenceRule{}, shared.ErrNotFound
+}
+func (recurrenceDouble) Insert(context.Context, work.RecurrenceRule) error      { return nil }
+func (recurrenceDouble) Update(context.Context, work.RecurrenceRule, int) error { return nil }
+func (recurrenceDouble) Delete(context.Context, work.RecurrenceRule, int) error { return nil }
+
+var _ Recurrences = recurrenceDouble{}
+
 // The sibling level is decided by two identifiers, not one: the same parent in another collection
 // is not a sibling, and a port that took only the parent could not express the level directly
 // under a collection at all.

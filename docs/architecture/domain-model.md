@@ -242,6 +242,13 @@ both sides and a move is a value moving rather than a different act, and clearin
 the way `item.unassigned` is — "the deadline is gone" is a different sentence from "the deadline
 moved". The event is `item.due_changed` for all of it (§4).
 
+Milestone 0.4.0 also adds the three series verbs, `item.recurrence_set`,
+`item.recurrence_changed` and `item.recurrence_removed` (D-04). Three rather than one, because
+they are three different sentences to the person reading the history — this entry repeats now,
+what it repeats by has changed, it stops repeating — and their change set is compact: what the
+rule *is* belongs to the rule, and a history that restated it would be a second copy going stale
+beside it.
+
 The `changeSet` keeps the field names always and the values only where the product needs them: a
 rename carries both titles, a note carries `changed: true` and none of its text. Where the type's
 `HISTORY` capability is compact — an activity, per the matrix in §2 — the verb, the actor and the
@@ -342,8 +349,14 @@ every unreferenced file, now" is not a button anybody should be given, and the w
 is the configuration rather than a call.
 
 **Scheduling** `CreateReminder`, `ListReminders`, `UpdateReminder`, `DeleteReminder`,
-`FireReminders` (internal), `SetRecurrence`, `UpdateRecurrence`, `RemoveRecurrence`,
+`FireReminders` (internal), `SetRecurrence`, `GetRecurrence`, `RemoveRecurrence`,
 `SkipOccurrence`, `MaterializeOccurrences` (internal).
+
+`SetRecurrence` is also the `UpdateRecurrence` this list used to name separately (D-04): a series
+is one document rather than six settings, the route is one `PUT`, and a caller sending it neither
+knows nor cares whether the entry already had one — what differs is the trail, where the audit
+entry and the history verb say which of the two happened. `GetRecurrence` joined for the reason
+the read of a saved view did: a rule a client can set and never read back is one it cannot show.
 
 The two internal ones are deliberately not registered in the three channels: the catalogue is what
 a person, an agent or a rule may ask for, and "fire everybody's reminders now" is not something

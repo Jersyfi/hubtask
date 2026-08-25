@@ -373,7 +373,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language,
+  wi.content_language, wi.recurrence_rule_id,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -381,37 +381,38 @@ WHERE wi.id = $1
 `
 
 type FindWorkItemRow struct {
-	ID              pgtype.UUID
-	TenantID        pgtype.UUID
-	CollectionID    pgtype.UUID
-	Type            ItemType
-	ParentID        pgtype.UUID
-	Path            string
-	Depth           int32
-	Title           string
-	Notes           *string
-	IsCompleted     bool
-	CompletedAt     pgtype.Timestamptz
-	CompletedBy     pgtype.UUID
-	BucketID        pgtype.UUID
-	OrderKey        string
-	AssigneeID      pgtype.UUID
-	StartAt         pgtype.Timestamptz
-	DueAt           pgtype.Timestamptz
-	DueDateOnly     bool
-	DueTimeZone     *string
-	CoverKind       *string
-	CoverColorToken *string
-	CoverMediaID    pgtype.UUID
-	CustomFields    []byte
-	ContentLanguage *string
-	ArchivedAt      pgtype.Timestamptz
-	DeletedAt       pgtype.Timestamptz
-	TrashBatchID    pgtype.UUID
-	CreatedBy       pgtype.UUID
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	Version         int32
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	CollectionID     pgtype.UUID
+	Type             ItemType
+	ParentID         pgtype.UUID
+	Path             string
+	Depth            int32
+	Title            string
+	Notes            *string
+	IsCompleted      bool
+	CompletedAt      pgtype.Timestamptz
+	CompletedBy      pgtype.UUID
+	BucketID         pgtype.UUID
+	OrderKey         string
+	AssigneeID       pgtype.UUID
+	StartAt          pgtype.Timestamptz
+	DueAt            pgtype.Timestamptz
+	DueDateOnly      bool
+	DueTimeZone      *string
+	CoverKind        *string
+	CoverColorToken  *string
+	CoverMediaID     pgtype.UUID
+	CustomFields     []byte
+	ContentLanguage  *string
+	RecurrenceRuleID pgtype.UUID
+	ArchivedAt       pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	TrashBatchID     pgtype.UUID
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	Version          int32
 }
 
 // Trashed and archived items are returned rather than filtered out, for the reason FindContainer
@@ -444,6 +445,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.CoverMediaID,
 		&i.CustomFields,
 		&i.ContentLanguage,
+		&i.RecurrenceRuleID,
 		&i.ArchivedAt,
 		&i.DeletedAt,
 		&i.TrashBatchID,
@@ -857,7 +859,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language,
+  wi.content_language, wi.recurrence_rule_id,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -891,37 +893,38 @@ type ListWorkItemsParams struct {
 }
 
 type ListWorkItemsRow struct {
-	ID              pgtype.UUID
-	TenantID        pgtype.UUID
-	CollectionID    pgtype.UUID
-	Type            ItemType
-	ParentID        pgtype.UUID
-	Path            string
-	Depth           int32
-	Title           string
-	Notes           *string
-	IsCompleted     bool
-	CompletedAt     pgtype.Timestamptz
-	CompletedBy     pgtype.UUID
-	BucketID        pgtype.UUID
-	OrderKey        string
-	AssigneeID      pgtype.UUID
-	StartAt         pgtype.Timestamptz
-	DueAt           pgtype.Timestamptz
-	DueDateOnly     bool
-	DueTimeZone     *string
-	CoverKind       *string
-	CoverColorToken *string
-	CoverMediaID    pgtype.UUID
-	CustomFields    []byte
-	ContentLanguage *string
-	ArchivedAt      pgtype.Timestamptz
-	DeletedAt       pgtype.Timestamptz
-	TrashBatchID    pgtype.UUID
-	CreatedBy       pgtype.UUID
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	Version         int32
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	CollectionID     pgtype.UUID
+	Type             ItemType
+	ParentID         pgtype.UUID
+	Path             string
+	Depth            int32
+	Title            string
+	Notes            *string
+	IsCompleted      bool
+	CompletedAt      pgtype.Timestamptz
+	CompletedBy      pgtype.UUID
+	BucketID         pgtype.UUID
+	OrderKey         string
+	AssigneeID       pgtype.UUID
+	StartAt          pgtype.Timestamptz
+	DueAt            pgtype.Timestamptz
+	DueDateOnly      bool
+	DueTimeZone      *string
+	CoverKind        *string
+	CoverColorToken  *string
+	CoverMediaID     pgtype.UUID
+	CustomFields     []byte
+	ContentLanguage  *string
+	RecurrenceRuleID pgtype.UUID
+	ArchivedAt       pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	TrashBatchID     pgtype.UUID
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	Version          int32
 }
 
 // One level of one collection, in its manual order: the items directly in the collection when no
@@ -977,6 +980,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.CoverMediaID,
 			&i.CustomFields,
 			&i.ContentLanguage,
+			&i.RecurrenceRuleID,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,
@@ -1668,7 +1672,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language,
+  wi.content_language, wi.recurrence_rule_id,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -1686,37 +1690,38 @@ type SubtreeOfWorkItemParams struct {
 }
 
 type SubtreeOfWorkItemRow struct {
-	ID              pgtype.UUID
-	TenantID        pgtype.UUID
-	CollectionID    pgtype.UUID
-	Type            ItemType
-	ParentID        pgtype.UUID
-	Path            string
-	Depth           int32
-	Title           string
-	Notes           *string
-	IsCompleted     bool
-	CompletedAt     pgtype.Timestamptz
-	CompletedBy     pgtype.UUID
-	BucketID        pgtype.UUID
-	OrderKey        string
-	AssigneeID      pgtype.UUID
-	StartAt         pgtype.Timestamptz
-	DueAt           pgtype.Timestamptz
-	DueDateOnly     bool
-	DueTimeZone     *string
-	CoverKind       *string
-	CoverColorToken *string
-	CoverMediaID    pgtype.UUID
-	CustomFields    []byte
-	ContentLanguage *string
-	ArchivedAt      pgtype.Timestamptz
-	DeletedAt       pgtype.Timestamptz
-	TrashBatchID    pgtype.UUID
-	CreatedBy       pgtype.UUID
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	Version         int32
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	CollectionID     pgtype.UUID
+	Type             ItemType
+	ParentID         pgtype.UUID
+	Path             string
+	Depth            int32
+	Title            string
+	Notes            *string
+	IsCompleted      bool
+	CompletedAt      pgtype.Timestamptz
+	CompletedBy      pgtype.UUID
+	BucketID         pgtype.UUID
+	OrderKey         string
+	AssigneeID       pgtype.UUID
+	StartAt          pgtype.Timestamptz
+	DueAt            pgtype.Timestamptz
+	DueDateOnly      bool
+	DueTimeZone      *string
+	CoverKind        *string
+	CoverColorToken  *string
+	CoverMediaID     pgtype.UUID
+	CustomFields     []byte
+	ContentLanguage  *string
+	RecurrenceRuleID pgtype.UUID
+	ArchivedAt       pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	TrashBatchID     pgtype.UUID
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	Version          int32
 }
 
 // Everything below one entry, the entry itself excluded: what a copy of a subtree reads before it
@@ -1774,6 +1779,7 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.CoverMediaID,
 			&i.CustomFields,
 			&i.ContentLanguage,
+			&i.RecurrenceRuleID,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,

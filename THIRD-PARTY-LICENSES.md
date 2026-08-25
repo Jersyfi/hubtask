@@ -55,6 +55,7 @@ it does not touch the conversion the paragraph above is about.
 | [github.com/prometheus/otlptranslator](https://github.com/prometheus/otlptranslator/blob/v1.0.0/LICENSE) | Apache-2.0 |
 | [github.com/prometheus/procfs](https://github.com/prometheus/procfs/blob/v0.21.1/LICENSE) | Apache-2.0 |
 | [github.com/sethvargo/go-retry](https://github.com/sethvargo/go-retry/blob/v0.4.0/LICENSE) | Apache-2.0 |
+| [github.com/teambition/rrule-go](https://github.com/teambition/rrule-go/blob/v1.8.2/LICENSE) | MIT |
 | [go.opentelemetry.io/auto/sdk](https://github.com/open-telemetry/opentelemetry-go-instrumentation/blob/sdk/v1.2.1/sdk/LICENSE) | Apache-2.0 |
 | [go.opentelemetry.io/otel](https://github.com/open-telemetry/opentelemetry-go/blob/v1.45.0/LICENSE) | Apache-2.0 |
 | [go.opentelemetry.io/otel/exporters/otlp/otlptrace](https://github.com/open-telemetry/opentelemetry-go/blob/exporters/otlp/otlptrace/v1.45.0/exporters/otlp/otlptrace/LICENSE) | Apache-2.0 |

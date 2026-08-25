@@ -51,6 +51,7 @@ import (
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	recurrenceadapter "github.com/Jersyfi/hubtask/infrastructure/recurrence"
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
@@ -303,6 +304,7 @@ func run() error {
 	// The bookmark shelf (D-07): stored queries, interpreted by nobody on this side of a client.
 	savedViews := postgres.NewSavedViewRepository()
 	reminders := postgres.NewReminderRepository()
+	recurrences := postgres.NewRecurrenceRepository()
 	itemLabels := postgres.NewItemLabelRepository()
 	itemMembers := postgres.NewItemMemberRepository()
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
@@ -495,6 +497,17 @@ func run() error {
 		Reminders: reminders, Items: items, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Visibility: authorizer, Changes: changes, Audit: auditSink,
 		Jobs:       jobs,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
+	// Both directions of a series share one dependency set (work.RecurrenceWriter). The expander
+	// is the library ADR-0008 chose, as a port: the writer asks it whether a text is a rule at all
+	// before anything is stored, so a broken series is refused where somebody wrote it rather than
+	// discovered by the scheduler (D-04).
+	recurrenceWriter := work.RecurrenceWriter{
+		Recurrences: recurrences, Items: items, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Expander: recurrenceadapter.New(),
+		Changes: changes, Audit: auditSink, Activity: journal,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
@@ -723,6 +736,12 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateReminder{Writer: reminderWriter}.Descriptor(),
 		work.DeleteReminder{Writer: reminderWriter}.Descriptor(),
+		work.SetRecurrence{Writer: recurrenceWriter}.Descriptor(),
+		work.RemoveRecurrence{Writer: recurrenceWriter}.Descriptor(),
+		work.GetRecurrence{
+			Recurrences: recurrences, Items: items, Containers: containers,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.AttachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		work.DefineCustomField{

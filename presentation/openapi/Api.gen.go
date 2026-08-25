@@ -1179,6 +1179,24 @@ func (e QueryFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for RecurrenceMode.
+const (
+	ONCOMPLETION RecurrenceMode = "ON_COMPLETION"
+	ONSCHEDULE   RecurrenceMode = "ON_SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the RecurrenceMode enum.
+func (e RecurrenceMode) Valid() bool {
+	switch e {
+	case ONCOMPLETION:
+		return true
+	case ONSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReminderChannel.
 const (
 	EMAIL ReminderChannel = "EMAIL"
@@ -2740,6 +2758,53 @@ type QueryField struct {
 // QueryFieldKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
 type QueryFieldKind string
 
+// Recurrence defines model for Recurrence.
+type Recurrence struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// EndsAt When the series stops. At most one of ends_at and max_count.
+	EndsAt *time.Time `json:"ends_at,omitempty"`
+
+	// HorizonDays How far ahead occurrences are materialised, in days. A rolling window rather than the whole series: a rule with no end would otherwise be an infinite list of entries.
+	HorizonDays int                `json:"horizon_days"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// ItemId The entry the series belongs to - the one the occurrences are copied from.
+	ItemId openapi_types.UUID `json:"item_id"`
+
+	// LastMaterializedAt How far the materialisation has come. The server's own bookkeeping - a client reads it and never writes it.
+	LastMaterializedAt *time.Time `json:"last_materialized_at,omitempty"`
+
+	// MaxCount How many occurrences the series produces at most. At most one of the two.
+	MaxCount *int `json:"max_count,omitempty"`
+
+	// Mode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it" (arc42 §6.3).
+	Mode RecurrenceMode `json:"mode"`
+
+	// Rrule An RFC 5545 recurrence rule, stored as it was given. The DTSTART is the entry's own due date rather than part of this string: a series is when this entry repeats, and two starts would be two answers to that.
+	Rrule string `json:"rrule"`
+
+	// TimeZone The IANA zone the rule is read in, required. Daylight saving is resolved through it and never through a UTC offset, which is what keeps 09:00 at 09:00 across a transition (i18n-l10n.md §4).
+	TimeZone  string     `json:"time_zone"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	Version   int        `json:"version"`
+}
+
+// RecurrenceInput defines model for RecurrenceInput.
+type RecurrenceInput struct {
+	EndsAt      *time.Time `json:"ends_at,omitempty"`
+	HorizonDays *int       `json:"horizon_days,omitempty"`
+	MaxCount    *int       `json:"max_count,omitempty"`
+
+	// Mode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it" (arc42 §6.3).
+	Mode     RecurrenceMode `json:"mode"`
+	Rrule    string         `json:"rrule"`
+	TimeZone string         `json:"time_zone"`
+}
+
+// RecurrenceMode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it" (arc42 §6.3).
+type RecurrenceMode string
+
 // Reminder defines model for Reminder.
 type Reminder struct {
 	Channels  []ReminderChannel `json:"channels"`
@@ -3580,6 +3645,18 @@ type SetDueDateParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// RemoveRecurrenceParams defines parameters for RemoveRecurrence.
+type RemoveRecurrenceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetRecurrenceParams defines parameters for SetRecurrence.
+type SetRecurrenceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // CreateReminderParams defines parameters for CreateReminder.
 type CreateReminderParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -3889,6 +3966,9 @@ type SetCustomFieldJSONRequestBody = CustomFieldValue
 // SetDueDateJSONRequestBody defines body for SetDueDate for application/json ContentType.
 type SetDueDateJSONRequestBody = DueDateInput
 
+// SetRecurrenceJSONRequestBody defines body for SetRecurrence for application/json ContentType.
+type SetRecurrenceJSONRequestBody = RecurrenceInput
+
 // CreateReminderJSONRequestBody defines body for CreateReminder for application/json ContentType.
 type CreateReminderJSONRequestBody = ReminderInput
 
@@ -4125,6 +4205,15 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/members/{accountId})
 	AddMember(w http.ResponseWriter, r *http.Request, itemId ItemId, accountId AccountId)
+
+	// (DELETE /items/{itemId}/recurrence)
+	RemoveRecurrence(w http.ResponseWriter, r *http.Request, itemId ItemId, params RemoveRecurrenceParams)
+
+	// (GET /items/{itemId}/recurrence)
+	GetRecurrence(w http.ResponseWriter, r *http.Request, itemId ItemId)
+
+	// (PUT /items/{itemId}/recurrence)
+	SetRecurrence(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetRecurrenceParams)
 
 	// (GET /items/{itemId}/reminders)
 	ListReminders(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -6904,6 +6993,132 @@ func (siw *ServerInterfaceWrapper) AddMember(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// RemoveRecurrence operation middleware
+func (siw *ServerInterfaceWrapper) RemoveRecurrence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveRecurrenceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveRecurrence(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRecurrence operation middleware
+func (siw *ServerInterfaceWrapper) GetRecurrence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRecurrence(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetRecurrence operation middleware
+func (siw *ServerInterfaceWrapper) SetRecurrence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetRecurrenceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetRecurrence(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListReminders operation middleware
 func (siw *ServerInterfaceWrapper) ListReminders(w http.ResponseWriter, r *http.Request) {
 
@@ -8898,6 +9113,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.SetCover)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/due", wrapper.ClearDueDate)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/due", wrapper.SetDueDate)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/recurrence", wrapper.RemoveRecurrence)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/recurrence", wrapper.GetRecurrence)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/recurrence", wrapper.SetRecurrence)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/reminders", wrapper.ListReminders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/reminders", wrapper.CreateReminder)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/reminders/{reminderId}", wrapper.DeleteReminder)

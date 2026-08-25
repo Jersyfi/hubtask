@@ -432,6 +432,9 @@
   "activity.item_custom_field_set": "{actor} filled in a field",
   "activity.item_due_set": "{actor} set the due date",
   "activity.item_due_cleared": "{actor} removed the due date",
+  "activity.item_recurrence_set": "{actor} made this repeat",
+  "activity.item_recurrence_changed": "{actor} changed how this repeats",
+  "activity.item_recurrence_removed": "{actor} stopped this repeating",
   "activity.item_commented": "{actor} commented",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
@@ -555,6 +558,25 @@
   "reminders.reminder_id_required": "Which reminder? Send reminder_id.",
   "reminders.update_empty": "The update names no field. Send at least one.",
   "reminders.version_conflict": "The reminder changed while you were editing it. Read it again and reapply.",
+
+  "recurrence.rrule_required": "A series needs a rule.",
+  "recurrence.rrule_too_long": "A rule may be at most {maximum} characters long.",
+  "recurrence.rrule_invalid": "{value} is not a recurrence rule this installation can read.",
+  "recurrence.rrule_carries_start": "A rule carries no DTSTART: a series starts at the entry's due date.",
+  "recurrence.rrule_carries_end": "A rule carries no UNTIL or COUNT: send ends_at or max_count instead.",
+  "recurrence.rrule_not_single": "One rule per series. Exception dates and additional rules are not stored in this version.",
+  "recurrence.rrule_too_dense": "That rule produces more than {maximum} occurrences inside its own horizon. Repeat less often, or shorten the horizon.",
+  "recurrence.time_zone_required": "A series needs a time zone. Daylight saving is resolved through it.",
+  "recurrence.time_zone_invalid": "{value} is not a time zone. Use an IANA name such as Europe/Berlin.",
+  "recurrence.mode_unknown": "{value} is not a recurrence mode. Use ON_SCHEDULE or ON_COMPLETION.",
+  "recurrence.horizon_out_of_range": "The horizon is between {minimum} and {maximum} days.",
+  "recurrence.end_spec_ambiguous": "A series ends by date or by count, not by both.",
+  "recurrence.max_count_invalid": "A series produces at least one occurrence.",
+  "recurrence.end_before_start": "The series would end before it starts.",
+  "recurrence.ends_at_malformed": "{value} is not a moment in time. Use RFC 3339, such as 2026-12-31T23:59:00Z.",
+  "recurrence.due_date_required": "A series counts from the entry's due date. Give the entry one first.",
+  "recurrence.not_found": "That entry has no series.",
+  "recurrence.version_conflict": "The series changed while you were editing it. Read it again and reapply.",
 
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }
