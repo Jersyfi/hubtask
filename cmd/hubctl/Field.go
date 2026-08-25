@@ -150,16 +150,16 @@ func fieldSet(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "field", "set", "<item-id> <key> --value <value> | --clear")
 	value := flags.String("value", "",
 		"the value; numbers, booleans and arrays are read as JSON, anything else as text")
-	clear := flags.Bool("clear", false, "remove the value stored under the key")
+	remove := flags.Bool("clear", false, "remove the value stored under the key")
 	if err := parseOnlyFlags(flags, rest[1:], usage); err != nil {
 		return err
 	}
-	if *clear == (*value != "") {
+	if *remove == (*value != "") {
 		return usagef("say what to write: --value <value>, or --clear to remove it")
 	}
 
 	body := openapi.CustomFieldValue{}
-	if !*clear {
+	if !*remove {
 		body.Value = fieldValue(*value)
 	}
 

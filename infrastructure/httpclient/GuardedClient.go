@@ -271,7 +271,7 @@ func (c *GuardedClient) Stream(ctx context.Context, req port.Request) (StreamRes
 		}
 	}
 
-	httpResp, err := c.client.Do(httpReq)
+	httpResp, err := c.client.Do(httpReq) //nolint:bodyclose // handing the open body to the caller is the point; StreamResponse says the caller closes it
 	if err != nil {
 		return StreamResponse{}, transportError(class, err)
 	}
