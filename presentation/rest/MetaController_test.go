@@ -40,6 +40,7 @@ func manifest() usecase.Capabilities {
 			MaxDepth:          3,
 		}},
 		QueryFields:   view.Fields(),
+		ViewLayouts:   view.Layouts(),
 		TextLanguages: []string{"de", "en"},
 		Limits:        map[string]int64{"max_body_bytes": 1 << 20},
 		Features:      map[string]bool{"mail": false},
@@ -65,12 +66,23 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 			Sortable  bool     `json:"sortable"`
 			Groupable bool     `json:"groupable"`
 		} `json:"query_fields"`
+		ViewLayouts []string `json:"view_layouts"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatalf("the manifest is not JSON: %v", err)
 	}
 	if len(body.QueryFields) != len(view.Fields()) {
 		t.Fatalf("%d fields published, %d in the grammar", len(body.QueryFields), len(view.Fields()))
+	}
+	// The layout set the saved views validate against (D-07): published verbatim, so a client
+	// knows the spellings this installation stores.
+	if len(body.ViewLayouts) != len(view.Layouts()) {
+		t.Fatalf("%d layouts published, %d declared", len(body.ViewLayouts), len(view.Layouts()))
+	}
+	for index, layout := range view.Layouts() {
+		if body.ViewLayouts[index] != string(layout) {
+			t.Errorf("layout %d is %q, want %q", index, body.ViewLayouts[index], layout)
+		}
 	}
 
 	published := map[string]bool{}

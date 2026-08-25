@@ -386,6 +386,32 @@ func (pending) RetainItem(w http.ResponseWriter, r *http.Request, _ openapi_type
 	notAvailable(w, r)
 }
 
+// The saved view operations are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) ListSavedViews(w http.ResponseWriter, r *http.Request, _ openapi.ListSavedViewsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateSavedView(w http.ResponseWriter, r *http.Request, _ openapi.CreateSavedViewParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetSavedView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateSavedView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId, _ openapi.UpdateSavedViewParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteSavedView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId, _ openapi.DeleteSavedViewParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ShareSavedView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId, _ openapi.ShareSavedViewParams) {
+	notAvailable(w, r)
+}
+
 // QueryItems is overridden by RestController, for the reason given at CreateContainer.
 func (pending) QueryItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

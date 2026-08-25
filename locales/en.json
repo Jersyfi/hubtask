@@ -507,5 +507,28 @@
   "query.parameters_inconsistent": "This installation is misconfigured and could not run that search.",
   "query.placeholder_unresolved": "This installation is misconfigured and could not run that search.",
 
+  "views.name_empty": "A view needs a name.",
+  "views.name_too_long": "The name may be at most {maximum} characters long.",
+  "views.name_malformed": "The name has to fit on one line.",
+  "views.layout_unknown": "{value} is not a layout this installation stores. /meta/capabilities lists them under view_layouts.",
+  "views.sharing_unknown": "{value} is not a sharing mode. Use PRIVATE or SCOPE.",
+  "views.public_link_not_available": "A public link is not offered in this version. Share into the scope, or use a calendar feed for a public reader.",
+  "views.account_scope_not_shareable": "A personal view names no audience to share with. Save it on the collection, the hub or the workspace to share it.",
+  "views.scope_unknown": "{value} is not a view scope. Use TENANT, HUB, COLLECTION or ACCOUNT.",
+  "views.scope_id_required": "This scope names a container. Send scope_id with it.",
+  "views.scope_id_not_allowed": "A workspace-wide view names no container. Leave scope_id out.",
+  "views.scope_container_mismatched": "The container is not a {scope_type}.",
+  "views.query_required": "A view is a saved query. Send one.",
+  "views.visible_fields_too_many": "At most {maximum} visible fields.",
+  "views.visible_field_malformed": "A visible field is a short name on one line.",
+  "views.not_found": "There is no such view.",
+  "views.view_id_required": "Which view? Send view_id.",
+  "views.update_empty": "The update names no field. Send at least one.",
+  "views.version_conflict": "The view changed while you were editing it. Reload it and try again.",
+  "views.query_unencodable": "This installation is misconfigured and could not store that view.",
+  "views.query_undecodable": "This installation is misconfigured and could not read that view.",
+  "views.sharing_undecided": "This installation is misconfigured and could not store that view.",
+  "views.identity_incomplete": "This installation is misconfigured and could not store that view.",
+
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }

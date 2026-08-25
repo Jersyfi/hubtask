@@ -134,6 +134,12 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		textLanguages = []string{}
 	}
 
+	// The set a saved view's layout is validated against (D-07): stored, echoed, never consulted.
+	viewLayouts := make([]string, 0, len(source.ViewLayouts))
+	for _, layout := range source.ViewLayouts {
+		viewLayouts = append(viewLayouts, string(layout))
+	}
+
 	productVersion := source.ProductVersion
 	apiVersion := source.APIVersion
 	tenancy := openapi.CapabilitiesTenancyMode(source.TenancyMode)
@@ -145,6 +151,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		TenancyMode:    &tenancy,
 		ItemTypes:      &itemTypes,
 		QueryFields:    &queryFields,
+		ViewLayouts:    &viewLayouts,
 		TextLanguages:  &textLanguages,
 		Roles:          &roles,
 		Limits:         &limits,

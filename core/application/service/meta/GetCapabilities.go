@@ -23,10 +23,11 @@ const APIVersion = "v1"
 // Capabilities is the self-description clients configure themselves from instead of hard-coding
 // values (api-guidelines.md §1).
 //
-// What is deliberately absent: view layouts, automation triggers and event types. They are
-// declared in the schema and will be answered by the tasks that build them. An empty list would
-// read as "this installation has none", which is a different statement from "this part of the
-// contract is not implemented yet" - and the first of those is a lie a client would act on.
+// What is deliberately absent: automation triggers and event types. They are declared in the
+// schema and will be answered by the tasks that build them. An empty list would read as "this
+// installation has none", which is a different statement from "this part of the contract is not
+// implemented yet" - and the first of those is a lie a client would act on. The view layouts left
+// this sentence with D-07, which is the task that gave them a writer.
 type Capabilities struct {
 	ProductVersion string
 	APIVersion     string
@@ -39,6 +40,11 @@ type Capabilities struct {
 	// database: a manifest that listed a field the grammar refuses would send a client to build a
 	// filter editor for a query that cannot run.
 	QueryFields []view.Field
+	// ViewLayouts is the set a saved view's layout is validated against (D-07). The declaration
+	// is the whole of the server's involvement: a layout is stored, echoed back, and never
+	// consulted, which is what makes new frontend views possible without a backend change
+	// (api-guidelines.md §3).
+	ViewLayouts []view.Layout
 	// TextLanguages are the languages this installation can index the text of, as BCP 47 tags
 	// (C-08, ADR-0034).
 	//
@@ -141,6 +147,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		TenancyMode:    string(g.Config.Tenancy),
 		ItemTypes:      profiles,
 		QueryFields:    view.Fields(),
+		ViewLayouts:    view.Layouts(),
 		TextLanguages:  languages,
 		Roles:          roleMatrix(),
 		Limits: map[string]int64{

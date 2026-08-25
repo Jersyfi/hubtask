@@ -230,16 +230,16 @@ func (e AuditEntrySeverity) Valid() bool {
 
 // Defines values for AutoAssignCandidateKind.
 const (
-	ACCOUNT AutoAssignCandidateKind = "ACCOUNT"
-	GROUP   AutoAssignCandidateKind = "GROUP"
+	AutoAssignCandidateKindACCOUNT AutoAssignCandidateKind = "ACCOUNT"
+	AutoAssignCandidateKindGROUP   AutoAssignCandidateKind = "GROUP"
 )
 
 // Valid indicates whether the value is a known member of the AutoAssignCandidateKind enum.
 func (e AutoAssignCandidateKind) Valid() bool {
 	switch e {
-	case ACCOUNT:
+	case AutoAssignCandidateKindACCOUNT:
 		return true
-	case GROUP:
+	case AutoAssignCandidateKindGROUP:
 		return true
 	default:
 		return false
@@ -1377,6 +1377,117 @@ func (e RoleDescriptionPermissions) Valid() bool {
 	case RoleDescriptionPermissionsSTRUCTURE:
 		return true
 	case RoleDescriptionPermissionsWRITEITEMS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SavedViewScopeType.
+const (
+	SavedViewScopeTypeACCOUNT    SavedViewScopeType = "ACCOUNT"
+	SavedViewScopeTypeCOLLECTION SavedViewScopeType = "COLLECTION"
+	SavedViewScopeTypeHUB        SavedViewScopeType = "HUB"
+	SavedViewScopeTypeTENANT     SavedViewScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the SavedViewScopeType enum.
+func (e SavedViewScopeType) Valid() bool {
+	switch e {
+	case SavedViewScopeTypeACCOUNT:
+		return true
+	case SavedViewScopeTypeCOLLECTION:
+		return true
+	case SavedViewScopeTypeHUB:
+		return true
+	case SavedViewScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SavedViewSharing.
+const (
+	SavedViewSharingPRIVATE    SavedViewSharing = "PRIVATE"
+	SavedViewSharingPUBLICLINK SavedViewSharing = "PUBLIC_LINK"
+	SavedViewSharingSCOPE      SavedViewSharing = "SCOPE"
+)
+
+// Valid indicates whether the value is a known member of the SavedViewSharing enum.
+func (e SavedViewSharing) Valid() bool {
+	switch e {
+	case SavedViewSharingPRIVATE:
+		return true
+	case SavedViewSharingPUBLICLINK:
+		return true
+	case SavedViewSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SavedViewCreateScopeType.
+const (
+	SavedViewCreateScopeTypeACCOUNT    SavedViewCreateScopeType = "ACCOUNT"
+	SavedViewCreateScopeTypeCOLLECTION SavedViewCreateScopeType = "COLLECTION"
+	SavedViewCreateScopeTypeHUB        SavedViewCreateScopeType = "HUB"
+	SavedViewCreateScopeTypeTENANT     SavedViewCreateScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the SavedViewCreateScopeType enum.
+func (e SavedViewCreateScopeType) Valid() bool {
+	switch e {
+	case SavedViewCreateScopeTypeACCOUNT:
+		return true
+	case SavedViewCreateScopeTypeCOLLECTION:
+		return true
+	case SavedViewCreateScopeTypeHUB:
+		return true
+	case SavedViewCreateScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SavedViewCreateSharing.
+const (
+	SavedViewCreateSharingPRIVATE    SavedViewCreateSharing = "PRIVATE"
+	SavedViewCreateSharingPUBLICLINK SavedViewCreateSharing = "PUBLIC_LINK"
+	SavedViewCreateSharingSCOPE      SavedViewCreateSharing = "SCOPE"
+)
+
+// Valid indicates whether the value is a known member of the SavedViewCreateSharing enum.
+func (e SavedViewCreateSharing) Valid() bool {
+	switch e {
+	case SavedViewCreateSharingPRIVATE:
+		return true
+	case SavedViewCreateSharingPUBLICLINK:
+		return true
+	case SavedViewCreateSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SavedViewShareSharing.
+const (
+	SavedViewShareSharingPRIVATE    SavedViewShareSharing = "PRIVATE"
+	SavedViewShareSharingPUBLICLINK SavedViewShareSharing = "PUBLIC_LINK"
+	SavedViewShareSharingSCOPE      SavedViewShareSharing = "SCOPE"
+)
+
+// Valid indicates whether the value is a known member of the SavedViewShareSharing enum.
+func (e SavedViewShareSharing) Valid() bool {
+	switch e {
+	case SavedViewShareSharingPRIVATE:
+		return true
+	case SavedViewShareSharingPUBLICLINK:
+		return true
+	case SavedViewShareSharingSCOPE:
 		return true
 	default:
 		return false
@@ -2706,6 +2817,75 @@ type RoleItemAccess struct {
 	Read *ItemAccess `json:"read,omitempty"`
 }
 
+// SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
+type SavedView struct {
+	CreatedAt *time.Time             `json:"created_at,omitempty"`
+	Grouping  map[string]interface{} `json:"grouping"`
+	Id        openapi_types.UUID     `json:"id"`
+
+	// Layout One of the declared set (/meta/capabilities, view_layouts). Stored and echoed, never consulted.
+	Layout  string             `json:"layout"`
+	Name    string             `json:"name"`
+	OwnerId openapi_types.UUID `json:"owner_id"`
+
+	// Query The query document of POST /items:query, stored as sent.
+	Query map[string]interface{} `json:"query"`
+
+	// ScopeId The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
+	ScopeId *openapi_types.UUID `json:"scope_id,omitempty"`
+
+	// ScopeType Where the view lives, which is who it can be shared with: a container's members, the workspace, or - for ACCOUNT - nobody but its owner.
+	ScopeType     SavedViewScopeType `json:"scope_type"`
+	Sharing       SavedViewSharing   `json:"sharing"`
+	Version       int                `json:"version"`
+	VisibleFields []string           `json:"visible_fields"`
+}
+
+// SavedViewScopeType Where the view lives, which is who it can be shared with: a container's members, the workspace, or - for ACCOUNT - nobody but its owner.
+type SavedViewScopeType string
+
+// SavedViewSharing defines model for SavedView.Sharing.
+type SavedViewSharing string
+
+// SavedViewCreate defines model for SavedViewCreate.
+type SavedViewCreate struct {
+	Grouping *map[string]interface{} `json:"grouping,omitempty"`
+	Layout   string                  `json:"layout"`
+	Name     string                  `json:"name"`
+	Query    map[string]interface{}  `json:"query"`
+
+	// ScopeId The container for HUB and COLLECTION. Omitted for TENANT, and for ACCOUNT - an account-scoped view is always the caller's own.
+	ScopeId   *openapi_types.UUID      `json:"scope_id,omitempty"`
+	ScopeType SavedViewCreateScopeType `json:"scope_type"`
+
+	// Sharing SCOPE at creation asks the same permission :share does. PUBLIC_LINK is refused by name.
+	Sharing       *SavedViewCreateSharing `json:"sharing,omitempty"`
+	VisibleFields *[]string               `json:"visible_fields,omitempty"`
+}
+
+// SavedViewCreateScopeType defines model for SavedViewCreate.ScopeType.
+type SavedViewCreateScopeType string
+
+// SavedViewCreateSharing SCOPE at creation asks the same permission :share does. PUBLIC_LINK is refused by name.
+type SavedViewCreateSharing string
+
+// SavedViewShare defines model for SavedViewShare.
+type SavedViewShare struct {
+	Sharing SavedViewShareSharing `json:"sharing"`
+}
+
+// SavedViewShareSharing defines model for SavedViewShare.Sharing.
+type SavedViewShareSharing string
+
+// SavedViewUpdate JSON Merge Patch; a field that is not sent is left alone. The scope and the sharing are not here - where a view lives is decided at creation, and sharing is :share.
+type SavedViewUpdate struct {
+	Grouping      *map[string]interface{} `json:"grouping,omitempty"`
+	Layout        *string                 `json:"layout,omitempty"`
+	Name          *string                 `json:"name,omitempty"`
+	Query         *map[string]interface{} `json:"query,omitempty"`
+	VisibleFields *[]string               `json:"visible_fields,omitempty"`
+}
+
 // SyncChange defines model for SyncChange.
 type SyncChange struct {
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
@@ -3025,6 +3205,9 @@ type PageSize = int
 
 // ParentId defines model for ParentId.
 type ParentId = openapi_types.UUID
+
+// ViewId defines model for ViewId.
+type ViewId = openapi_types.UUID
 
 // InviteAccountParams defines parameters for InviteAccount.
 type InviteAccountParams struct {
@@ -3496,6 +3679,39 @@ type EmptyTrashParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListSavedViewsParams defines parameters for ListSavedViews.
+type ListSavedViewsParams struct {
+	// ContainerId The container whose shared views are wanted, together with the caller's own. Omitted answers the caller's own alone.
+	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
+}
+
+// CreateSavedViewParams defines parameters for CreateSavedView.
+type CreateSavedViewParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DeleteSavedViewParams defines parameters for DeleteSavedView.
+type DeleteSavedViewParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateSavedViewParams defines parameters for UpdateSavedView.
+type UpdateSavedViewParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ShareSavedViewParams defines parameters for ShareSavedView.
+type ShareSavedViewParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateAccountPreferencesJSONRequestBody defines body for UpdateAccountPreferences for application/json ContentType.
 type UpdateAccountPreferencesJSONRequestBody = AccountPreferences
 
@@ -3612,6 +3828,15 @@ type SyncPullJSONRequestBody = SyncPullRequest
 
 // SyncPushJSONRequestBody defines body for SyncPush for application/json ContentType.
 type SyncPushJSONRequestBody = SyncPushRequest
+
+// CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
+type CreateSavedViewJSONRequestBody = SavedViewCreate
+
+// UpdateSavedViewApplicationMergePatchPlusJSONRequestBody defines body for UpdateSavedView for application/merge-patch+json ContentType.
+type UpdateSavedViewApplicationMergePatchPlusJSONRequestBody = SavedViewUpdate
+
+// ShareSavedViewJSONRequestBody defines body for ShareSavedView for application/json ContentType.
+type ShareSavedViewJSONRequestBody = SavedViewShare
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -3900,6 +4125,24 @@ type ServerInterface interface {
 	// EmptyTrash Remove everything in the trash for good
 	// (POST /trash:empty)
 	EmptyTrash(w http.ResponseWriter, r *http.Request, params EmptyTrashParams)
+
+	// (GET /views)
+	ListSavedViews(w http.ResponseWriter, r *http.Request, params ListSavedViewsParams)
+
+	// (POST /views)
+	CreateSavedView(w http.ResponseWriter, r *http.Request, params CreateSavedViewParams)
+
+	// (DELETE /views/{viewId})
+	DeleteSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId, params DeleteSavedViewParams)
+
+	// (GET /views/{viewId})
+	GetSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId)
+
+	// (PATCH /views/{viewId})
+	UpdateSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId, params UpdateSavedViewParams)
+
+	// (POST /views/{viewId}:share)
+	ShareSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId, params ShareSavedViewParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -7861,6 +8104,275 @@ func (siw *ServerInterfaceWrapper) EmptyTrash(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListSavedViews operation middleware
+func (siw *ServerInterfaceWrapper) ListSavedViews(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSavedViewsParams
+
+	// ------------- Optional query parameter "container_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "container_id", r.URL.Query(), &params.ContainerId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "container_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "container_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSavedViews(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSavedView operation middleware
+func (siw *ServerInterfaceWrapper) CreateSavedView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateSavedViewParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSavedView(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSavedView operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSavedView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId ViewId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", r.PathValue("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteSavedViewParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSavedView(w, r, viewId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSavedView operation middleware
+func (siw *ServerInterfaceWrapper) GetSavedView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId ViewId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", r.PathValue("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSavedView(w, r, viewId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSavedView operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSavedView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId ViewId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", r.PathValue("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateSavedViewParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSavedView(w, r, viewId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShareSavedView operation middleware
+func (siw *ServerInterfaceWrapper) ShareSavedView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId ViewId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", r.PathValue("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ShareSavedViewParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShareSavedView(w, r, viewId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -7981,6 +8493,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/views", wrapper.ListSavedViews)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views", wrapper.CreateSavedView)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/views/{viewId}", wrapper.DeleteSavedView)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/views/{viewId}", wrapper.GetSavedView)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/views/{viewId}", wrapper.UpdateSavedView)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:share", wrapper.ShareSavedView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/capabilities", wrapper.GetCapabilities)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/health", wrapper.GetHealthReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/audit", wrapper.ListAuditEntries)

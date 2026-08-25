@@ -346,8 +346,10 @@ is the configuration rather than a call.
 
 **Templates** `CreateTemplate`, `UpdateTemplate`, `DeleteTemplate`, `InstantiateTemplate`.
 
-**Views & query** `QueryItems` (the query DSL), `CreateSavedView`, `UpdateSavedView`, `DeleteSavedView`,
-`ShareSavedView`, `ExportView` (CSV/JSON/ICS).
+**Views & query** `QueryItems` (the query DSL), `CreateSavedView`, `ListSavedViews`, `GetSavedView`,
+`UpdateSavedView`, `DeleteSavedView`, `ShareSavedView`, `ExportView` (CSV/JSON/ICS). The list and
+the get joined with D-07, the way `ListCustomFields` joined with C-07: `/views` says CRUD, and a
+view nobody can read back is not a view.
 
 **Jumble** `SubmitJumbleEntry`, `ConvertJumbleEntry`, `DismissJumbleEntry`, `SuggestFromJumbleEntry` (AI, optional).
 
