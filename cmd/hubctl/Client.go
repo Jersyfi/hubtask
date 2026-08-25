@@ -107,6 +107,12 @@ func (c *Client) Post(ctx context.Context, path string, body, into any) error {
 	return c.call(ctx, http.MethodPost, path, nil, body, nil, into)
 }
 
+// Put writes one addressed resource - a custom field's value, an attachment's membership. The
+// operations behind it are idempotent by contract, which is what makes PUT the right verb.
+func (c *Client) Put(ctx context.Context, path string, body, into any) error {
+	return c.call(ctx, http.MethodPut, path, nil, body, nil, into)
+}
+
 // Delete removes, with the version the caller read as a precondition (ADR-0025). An empty
 // version sends no If-Match, which the API answers with a precondition failure where it needs
 // one - the refusal belongs to the server, not to a guess made here.
