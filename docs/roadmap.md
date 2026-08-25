@@ -7,7 +7,8 @@ product and every first-party client ([ADR-0035](./adr/ADR-0035-one-product-vers
 The order follows the requirement: **the core is built completely first**, then automation and
 operations. The client track no longer waits for the end of that — it runs **alongside from
 `0.4.0`**, one milestone window behind the core, so that every screen is built on a contract that
-has already settled (phase 5).
+has already settled (phase 5). Both tracks meet in the convergence milestone `0.9.5`, and `1.0.0`
+is released when the server, the clients and the website are finished together.
 
 ---
 
@@ -118,7 +119,61 @@ the complete alert catalogue A-01…A-18 with runbooks, SLO dashboards, and the 
 
 ---
 
-## Phase 4 — Stabilisation (`1.0.0`)
+## Requirements that arrive late
+
+New requirements will arrive while this plan runs, and some of them will change the core and the
+client at the same time. That is ordinary work rather than an exception, and it is handled like
+this:
+
+1. **The contract moves first.** `api/openapi.yaml`, then `make generate`, then `make api-client`,
+   then the implementation ([ADR-0004](./adr/ADR-0004-api-first-openapi.md)); a change to the data
+   model brings its migration in the same order, expand before contract.
+2. **The pull request that changes the contract carries the client fix.** The generated client
+   makes a break visible at typecheck time inside that very change. Fixing it there is what keeps
+   `main` green, and what makes the real cost of a rename visible while reconsidering it is still
+   cheap ([ADR-0035](./adr/ADR-0035-one-product-version.md) §4).
+3. **Both sides get an issue, and the two are linked.** Where the change is additive they are
+   separate pull requests and the client one lands in its own window. Where it removes or renames
+   something a client already ships, they land together.
+4. **The window closes when `0.9.5` opens.** Until that day a new requirement is scheduled into a
+   milestone like any other. After it there are only defects: a new requirement waits for `1.1.0`,
+   or it is an exception with its own ADR that says what it costs and why the freeze does not apply
+   to it.
+
+Rule 4 is what makes the freeze real. A stabilisation phase that still accepts features is not a
+stabilisation phase, and every date after it is a guess.
+
+---
+
+## Phase 4 — Convergence and stabilisation (`0.9.5` – `1.0.0`)
+
+A major is finished in three movements: parallel development, a **convergence milestone that
+freezes the scope**, then stabilisation ([ADR-0035](./adr/ADR-0035-one-product-version.md) §5).
+`1.0.0` is the first time the project runs them; `2.0` and every major after it follow the same
+shape, which is why the rule lives in
+[versioning-release.md](./architecture/versioning-release.md) rather than only here.
+
+### `0.9.5` Convergence — where the two tracks arrive
+
+Not a feature milestone. It holds exactly the work that can be done neither earlier nor later:
+
+* **The coverage report.** Every use case of the catalogue, where it is reachable in each client,
+  and every deliberate omission with its reason — written to `docs/evidence/` and reviewed, in the
+  manner of the resilience evidence already there. The capability matrix
+  ([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)) is either met or amended by supersede;
+  it is not quietly missed.
+* **The maturity stage goes to `stable`.** The preview banner comes off, and from that moment a
+  client regression blocks a release exactly as an API regression does (ADR-0035 §2).
+* **The scope window closes**, per rule 4 above, on the day this milestone opens.
+* **Everything with external lead time starts here**: the shells cut release candidates, installers
+  are signed, store listings are submitted. Store review is a queue somebody else owns, which is
+  precisely why it cannot be a week inside `1.0.0`.
+* **The website switches to its 1.0 content**, and the arc42 client-architecture chapter is
+  current rather than promised.
+* **The two backlogs become one.** From here there is no core track and no client track, only a
+  product being stabilised.
+
+### `1.0.0` Stabilisation
 
 Prerequisites for `1.0.0`:
 
@@ -136,6 +191,13 @@ Prerequisites for `1.0.0`:
 12. Backup and restore verified: BK-1…BK-10 green, a documented restore drill from every released target type, and the golden archives of every major version importable.
 13. Retention rules exercised: RE-1…RE-9 green, and at least one complete run of a multi-stage chain in a production environment.
 14. Offline synchronisation accepted: SY-1…SY-12 green, and the conformance test passed against at least one real client.
+15. Client parity demonstrated: end-user features and profile configuration on web, desktop and mobile, administration on web and desktop; the mobile administration exclusion is the only restriction, and it behaves as [ADR-0032](./adr/ADR-0032-client-capability-matrix.md) describes — the capability is named and linked to the web app, never silently absent.
+16. Accessibility demonstrated: WCAG 2.2 AA for the web app and the shells that render it, with the accessibility statement published (European Accessibility Act, [data-protection.md](./architecture/data-protection.md) §7).
+17. Offline conformance from a first-party client: `hubctl sync-conformance` passed by `packages/sync-engine` against a real instance — criterion 14's "at least one real client" is named rather than hoped for.
+18. The webview matrix green: the smoke suite passes on WebView2, WKWebView and WebKitGTK. One codebase across three engines is where a rendering defect hides.
+19. The clients distributed: signed installers for Windows, macOS and Linux, live store listings for iOS and Android, and one updater run exercised end to end from a released version to its successor.
+20. The website deployed from the release commit, carrying the 1.0 content, the licence notice and the download links.
+21. The design system holds: no literal colour, spacing, radius or duration value anywhere (the lint proves it), contrast measured in CI rather than asserted, and waves 1 to 3 complete or the gap named with its reason.
 
 ---
 
