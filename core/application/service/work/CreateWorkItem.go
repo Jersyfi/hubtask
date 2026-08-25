@@ -646,6 +646,13 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 		// the ordinary case (C-07).
 		"custom_fields": customFieldsOutput(item.CustomFields),
 		"order_key":     item.OrderKey,
+		// The schedule, always present and null for an entry that has none (D-01). The flag rides
+		// along even then: a client renders "all day or not" unconditionally, and the stored
+		// default is false.
+		"start_at":      timeOrNil(item.StartAt),
+		"due_at":        dueTimeOrNil(item.Due),
+		"due_date_only": item.Due != nil && item.Due.DateOnly,
+		"due_time_zone": dueZoneOrNil(item.Due),
 		// Always present, as null for an entry whose language nobody stated: a client's language
 		// picker reads it back to show what the entry is indexed under, and a missing key would
 		// read as "this server does not know about languages" (C-08).
@@ -664,6 +671,22 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 		out["notes"] = item.Notes
 	}
 	return out
+}
+
+// dueTimeOrNil and dueZoneOrNil spell the trio's optional halves the way every other optional
+// field of the projection is spelled: null for an entry that has none.
+func dueTimeOrNil(due *domain.DueDate) any {
+	if due == nil {
+		return nil
+	}
+	return due.At
+}
+
+func dueZoneOrNil(due *domain.DueDate) any {
+	if due == nil || due.TimeZone == "" {
+		return nil
+	}
+	return due.TimeZone
 }
 
 // Descriptor is the catalogue entry. Registering it is what makes the use case reachable through

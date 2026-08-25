@@ -276,7 +276,8 @@ func (pending) SetCustomField(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
-// The due date pair lands as D-01 registers the use cases.
+// SetDueDate and ClearDueDate are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) SetDueDate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetDueDateParams) {
 	notAvailable(w, r)
 }

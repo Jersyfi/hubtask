@@ -97,6 +97,8 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		mediaservice.ConfirmMediaUpload{}.Descriptor(),
 		work.SetCover{}.Descriptor(),
 		work.ClearCover{}.Descriptor(),
+		work.SetDueDate{}.Descriptor(),
+		work.ClearDueDate{}.Descriptor(),
 		work.AttachMedia{}.Descriptor(),
 		work.DefineCustomField{}.Descriptor(),
 		work.ListCustomFields{}.Descriptor(),

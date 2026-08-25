@@ -329,6 +329,16 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	if values, carried := out["custom_fields"].(map[string]any); carried {
 		item.CustomFields = &values
 	}
+	// The schedule (D-01). The flag rides along only when a due date is there: the schema defaults
+	// it to false, and a flag on an entry with no date is a state nothing can store.
+	item.StartAt, item.DueAt = optionalTimeField(out["start_at"]), optionalTimeField(out["due_at"])
+	if item.DueAt != nil {
+		flag, _ := out["due_date_only"].(bool)
+		item.DueDateOnly = &flag
+		if zone := out.String("due_time_zone"); zone != "" {
+			item.DueTimeZone = &zone
+		}
+	}
 	item.ArchivedAt, item.DeletedAt = optionalTimeField(out["archived_at"]), optionalTimeField(out["deleted_at"])
 	return item
 }
