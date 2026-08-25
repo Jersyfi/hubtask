@@ -87,6 +87,10 @@ HUBTASK_VERSION=$TAG
 HUBTASK_PORT=$HTTP_PORT
 HUBTASK_OPS_PORT=$OPS_PORT
 ENV
+# The address clients reach the installation under, not the container's own. The media upload
+# target is minted from this (infrastructure/storage/LocalTransfers.go), and the compose default
+# of localhost:8080 would hand hubctl a URL that nothing on the host answers.
+echo "HUBTASK_BASE_URL=http://127.0.0.1:$HTTP_PORT" >> "$ENV_FILE"
 
 echo "--- bringing up the reference stack from $IMAGE:$TAG ---"
 (
