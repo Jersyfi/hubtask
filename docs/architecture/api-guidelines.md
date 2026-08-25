@@ -34,6 +34,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | An entry's members | `/items/{id}/members/{accountId}` | `PUT`, `DELETE` |
 | Custom fields | `/custom-fields` | CRUD |
 | An entry's custom field values | `/items/{id}/custom-fields/{key}` | `PUT` (null clears; one key per call, because the merge rule is per key) |
+| An entry's due date | `/items/{id}/due` | `PUT`, `DELETE` (the trio travels together; the same three fields on create and update dispatch into the same writer, D-01) |
 | Comments | `/items/{id}/comments` | CRUD |
 | History | `/items/{id}/activity` | `GET` |
 | Attachments/media | `/media`, `/media/{id}` | `POST` (presigned), `GET`, `DELETE` |

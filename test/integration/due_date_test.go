@@ -93,6 +93,68 @@ func TestTheDatabaseRefusesAQualifierWithoutItsDate(t *testing.T) {
 	}
 }
 
+// TestTwoDevicesMovingDateAndZoneConvergeToBoth is the acceptance sentence about the merge rule,
+// at the level this milestone owns: the trio merges as scalars per field (offline-sync.md §4.2),
+// and the version predicate is what turns a concurrent write into a re-read and a retry rather
+// than an overwrite. Device A moves the date, device B the zone; B is told the row moved, re-reads
+// - the merge onto what A left - and nothing of either device's field is lost.
+func TestTwoDevicesMovingDateAndZoneConvergeToBoth(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	id := seedTask(ctx, t, tenantA, authorA, collection)
+
+	start := findWorkItem(ctx, t, tenantA, id)
+	start.Due = &work.DueDate{At: created.Add(24 * time.Hour), TimeZone: "Europe/Berlin"}
+	start.UpdatedAt = created.Add(time.Hour)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetDueDate(ctx, start, start.Version)
+	}); err != nil {
+		t.Fatalf("seeding the due date: %v", err)
+	}
+
+	// Both devices read the same state.
+	seen := findWorkItem(ctx, t, tenantA, id)
+
+	// Device A moves the date and lands first.
+	fromA := seen
+	fromA.Due = &work.DueDate{At: created.Add(96 * time.Hour), TimeZone: seen.Due.TimeZone}
+	fromA.UpdatedAt = created.Add(2 * time.Hour)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetDueDate(ctx, fromA, seen.Version)
+	}); err != nil {
+		t.Fatalf("device A: %v", err)
+	}
+
+	// Device B moves the zone against the state it read, and the version is what catches it.
+	fromB := seen
+	fromB.Due = &work.DueDate{At: seen.Due.At, TimeZone: "America/Sao_Paulo"}
+	fromB.UpdatedAt = created.Add(2 * time.Hour)
+	staleErr := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetDueDate(ctx, fromB, seen.Version)
+	})
+	if !errors.Is(staleErr, shared.ErrVersionConflict) {
+		t.Fatalf("the concurrent write answered %v, want a version conflict", staleErr)
+	}
+
+	// B re-reads and retries with its one field on top of what is now there - the per-field
+	// merge, which is the whole client protocol.
+	current := findWorkItem(ctx, t, tenantA, id)
+	retryB := current
+	retryB.Due = &work.DueDate{At: current.Due.At, TimeZone: "America/Sao_Paulo"}
+	retryB.UpdatedAt = created.Add(3 * time.Hour)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetDueDate(ctx, retryB, current.Version)
+	}); err != nil {
+		t.Fatalf("device B's retry: %v", err)
+	}
+
+	converged := findWorkItem(ctx, t, tenantA, id)
+	if converged.Due == nil || !converged.Due.At.Equal(created.Add(96*time.Hour)) ||
+		converged.Due.TimeZone != "America/Sao_Paulo" {
+		t.Fatalf("the trio converged to %+v", converged.Due)
+	}
+}
+
 // Gate SG-3 for the new statement.
 func TestADueDateCannotBeWrittenAcrossTheTenantBoundary(t *testing.T) {
 	ctx := context.Background()
