@@ -57,6 +57,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
       -o /out/hubtask ./cmd/server && \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
       -trimpath -ldflags "-s -w" -o /out/hubtask-migrate ./cmd/migrate
+# The writable state directories, prepared here because the final image has no shell to create
+# them with. See the COPY below for why they must exist in the image at all.
+RUN mkdir -p /out/state/media /out/state/backups
 
 # Time zone data and root certificates from a package image, not hand-assembled.
 FROM alpine:3.24 AS certs
@@ -68,6 +71,11 @@ COPY --from=certs /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=build /out/hubtask /usr/local/bin/hubtask
 COPY --from=build /out/hubtask-migrate /usr/local/bin/hubtask-migrate
 COPY --from=build /src/locales /app/locales
+# The media and backup directories, owned by the runtime user. A named volume mounted over a
+# path that is absent from the image is created root-owned, and the nonroot process cannot write
+# into it - the media path of the reference stack was dead until C-13's session, its first
+# consumer, noticed. Numeric ids because distroless resolves no names at COPY time.
+COPY --from=build --chown=65532:65532 /out/state/ /var/lib/hubtask/
 
 USER nonroot:nonroot
 WORKDIR /app
