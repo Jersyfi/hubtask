@@ -522,6 +522,9 @@
   "views.visible_fields_too_many": "At most {maximum} visible fields.",
   "views.visible_field_malformed": "A visible field is a short name on one line.",
   "views.not_found": "There is no such view.",
+  "views.version_conflict": "The view changed while you were editing it. Reload it and try again.",
+  "views.query_unencodable": "This installation is misconfigured and could not store that view.",
+  "views.query_undecodable": "This installation is misconfigured and could not read that view.",
   "views.sharing_undecided": "This installation is misconfigured and could not store that view.",
   "views.identity_incomplete": "This installation is misconfigured and could not store that view.",
 
