@@ -149,6 +149,15 @@ type WorkItem struct {
 	// a genuine conflict with one answer (offline-sync.md §4.2).
 	ContentLanguage string
 
+	// RecurrenceRuleID is the series this entry is the template of, and empty for an entry that
+	// repeats never (D-04). The link is on the entry rather than the rule holding a list, because
+	// a series has exactly one template - and it is what tells a reader, without a second query,
+	// that changing this entry changes what every occurrence will look like.
+	//
+	// The server decides it: it is set by the writer that stores a rule and cleared by the one
+	// that removes it, and a client that sent one would be claiming a series exists.
+	RecurrenceRuleID shared.ID
+
 	ArchivedAt   *time.Time
 	DeletedAt    *time.Time
 	TrashBatchID shared.ID
