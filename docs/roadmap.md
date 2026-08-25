@@ -67,7 +67,9 @@ wiring, the embedded pipeline proven against the real bundle, and the workspace 
 ### `0.4.0` Time
 Due dates (including all-day, time zones), reminders (predefined + custom), recurrence (RRULE, both
 modes, DST tests), the scheduler role, the job queue, the retention job, the ICS calendar feed,
-templates, and saved views including layout hints for list/kanban/timeline.
+templates, and saved views including layout hints for list/kanban/timeline. The scheduler role, the
+job queue, and the retention job were built ahead of schedule (A-08, B-10, C-09); what this
+milestone adds to them is the first duty that turns a stored future timestamp into work.
 
 **The result of phase 1:** the core is functionally complete per the product idea — without a
 frontend.
