@@ -48,6 +48,7 @@
 
   "config.backup_not_configured": "No backup target is configured. A restore drill is a release criterion.",
   "config.smtp_missing": "No SMTP server is configured. Notifications by email are unavailable.",
+  "config.smtp_missing_with_reminders": "No SMTP server is configured, and this installation fires reminders. They are recorded and wait in the queue; nobody is told until a mail server is configured.",
   "config.base_url_missing": "HUBTASK_BASE_URL is not set. Links in emails and feeds will be wrong.",
   "config.oidc_missing_in_multi_tenancy": "Multi-tenant operation without an OIDC issuer. Only personal access tokens will work.",
   "config.egress_allowlist_missing": "No egress allowlist is configured. In multi-tenant operation, outbound calls should be restricted to known hosts.",

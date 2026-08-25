@@ -181,7 +181,16 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 		w = append(w, env.Warning{Code: "config.backup_not_configured", Severity: "warn"})
 	}
 	if cfg.Mail.Host == "" {
-		w = append(w, env.Warning{Code: "config.smtp_missing", Severity: "info"})
+		// Two different statements, and the roles decide which one it is. An installation that
+		// serves the API and sends nothing has no mail server, which is worth knowing; one that
+		// runs the worker or the scheduler fires reminders that have nowhere to go, which is the
+		// promised warning of observability-reliability.md §7 - the record exists, the message
+		// waits in the queue, and nobody is told until somebody configures SMTP (D-03).
+		if cfg.HasRole(env.RoleWorker) || cfg.HasRole(env.RoleScheduler) {
+			w = append(w, env.Warning{Code: "config.smtp_missing_with_reminders", Severity: "warn"})
+		} else {
+			w = append(w, env.Warning{Code: "config.smtp_missing", Severity: "info"})
+		}
 	}
 	if cfg.BaseURL == "" {
 		w = append(w, env.Warning{Code: "config.base_url_missing", Severity: "warn"})
