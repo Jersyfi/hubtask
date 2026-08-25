@@ -79,7 +79,8 @@ func TestParseFilterRefuses(t *testing.T) {
 		{"no field", map[string]any{"op": "EQ", "value": "x"}, "query.field_required", filterPath + "/field"},
 		{
 			"a field this installation does not serve",
-			leaf("due_at", "LTE", "2026-08-31T23:59:59Z"), "query.field_unknown", filterPath + "/field",
+			leaf("recurrence_rule_id", "EQ", "0192f000-0000-7000-8000-000000000001"),
+			"query.field_unknown", filterPath + "/field",
 		},
 		{
 			"an operator the field does not permit",

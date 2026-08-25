@@ -40,10 +40,12 @@ const (
 // client comes to believe it stored something (domain-model.md §2, ADR-0006).
 //
 // What it does not change: where the item sits (MoveWorkItem), whether it is done
-// (CompleteWorkItem), which labels it carries (AddLabel - a set is not a field), and the fields
-// whose use cases arrive later, the due date and the assignee. A single endpoint that wrote all of
-// them would need one audit entry covering everything and one event nobody could subscribe to
-// narrowly.
+// (CompleteWorkItem), which labels it carries (AddLabel - a set is not a field), and the assignee,
+// which is an action route because two ways to write that column would be two places deciding
+// whether the person may see the entry. The due date left that list with D-01, and in a
+// particular way: the contract has carried the three due fields on this schema since 0.1.0, so
+// the patch serves them - by dispatching into the writer the SetDueDate pair owns, which is how
+// the fields keep one validation, one event and one history whichever door they arrive through.
 type UpdateWorkItem struct {
 	Items      repository.Items
 	Buckets    repository.Buckets
@@ -58,6 +60,8 @@ type UpdateWorkItem struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
+	// DueDates is the writer the patch dispatches the due trio into (D-01).
+	DueDates DueDateWriter
 }
 
 // UpdateCommand is the input, typed.
@@ -66,6 +70,10 @@ type UpdateCommand struct {
 	// Attributes carries a pointer per field, so that "set it to nothing" and "do not touch it" stay
 	// two different requests all the way down from the merge patch that expressed them.
 	Attributes domain.ItemAttributes
+	// Due is the patch's touch on the due trio, nil when it left the trio alone. Raw rather than
+	// resolved, because the target is only decidable against the stored trio, which is read
+	// inside the transaction.
+	Due *domain.DuePatch
 	// ExpectedVersion is the version the caller read, from If-Match. Zero means the caller read none
 	// and accepts whatever is there (api-guidelines.md §5).
 	ExpectedVersion int
@@ -135,7 +143,19 @@ func (h UpdateWorkItem) Execute(
 		if err != nil {
 			return err
 		}
-		if len(changes) == 0 {
+
+		// The due trio resolves against the stored one before anything is written, so that a
+		// patch refused for its due date leaves the title alone too - a merge patch is one
+		// request, and half of one applied is a state nobody asked for.
+		var targetDue *domain.DueDate
+		dueTouched := cmd.Due != nil && !cmd.Due.IsEmpty()
+		if dueTouched {
+			if targetDue, err = cmd.Due.Applied(item.Due); err != nil {
+				return err
+			}
+		}
+
+		if len(changes) == 0 && (!dueTouched || targetDue.Equal(item.Due)) {
 			// The item already says what the caller asked it to say. Nothing is written, no version is
 			// spent and nothing is announced - which is what makes a client that echoes the whole object
 			// back harmless rather than merely accepted.
@@ -150,8 +170,30 @@ func (h UpdateWorkItem) Execute(
 			return nil
 		}
 
-		updated, err = h.write(ctx, actor, wanted, changes, profile, cmd.ExpectedVersion, item.Version, now)
-		return err
+		current, expected := item, cmd.ExpectedVersion
+		if len(changes) > 0 {
+			if updated, err = h.write(ctx, actor, wanted, changes, profile, expected, item.Version, now); err != nil {
+				return err
+			}
+			// The due write follows against the version the first write produced: the If-Match
+			// matched the state the caller read, and the patch is one request spending what it
+			// spends in sequence.
+			current, expected = updated, updated.Version
+		}
+		if dueTouched && !targetDue.Equal(current.Due) {
+			wantedDue, dueChanges, err := current.WithDueDate(targetDue, profile, now)
+			if err != nil {
+				return err
+			}
+			if len(dueChanges) > 0 {
+				if updated, err = h.DueDates.write(
+					ctx, actor, current, wantedDue, dueChanges, expected, profile, now,
+				); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return domain.WorkItem{}, err
@@ -301,13 +343,16 @@ func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: UpdateWorkItemName,
 		Summary: "Changes an item's own fields: its title, its notes where the type carries them, " +
-			"and the language they are written in. " +
-			"A field that is not sent is left alone; sending `notes` as null clears it. Idempotent: an " +
+			"the language they are written in, its start, and its due date. " +
+			"A field that is not sent is left alone; sending `notes` as null clears it, and sending " +
+			"`due_at` as null clears the due date, the all-day flag and the zone together. Idempotent: an " +
 			"update that asks for what is already stored succeeds, writes nothing and announces nothing. " +
 			"Writing notes to a type whose capability profile does not carry NOTES - an activity - is " +
 			"refused rather than ignored.",
 		SideEffects: "Writes the changed fields, announces " + string(event.ItemUpdated) +
-			" with a change set, records one change per field for offline clients, and writes an audit entry.",
+			" with a change set - or " + string(event.ItemDueChanged) + " for the due trio, which " +
+			"dispatches into the SetDueDate writer - records one change per field for offline " +
+			"clients, and writes an audit entry.",
 		TokenScope: itemsWrite,
 		Input: []usecase.Field{
 			{
@@ -339,6 +384,26 @@ func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 					"the statement, omitted leaves it as it is. The entry is re-indexed under the " +
 					"new configuration on this write; entries whose language did not change are " +
 					"left alone.",
+			},
+			{
+				Name: "start_at", Kind: usecase.KindString,
+				Description: "When the work begins, RFC 3339 - the timeline view's field. Empty " +
+					"clears it, omitted leaves it as it is.",
+			},
+			{
+				Name: "due_at", Kind: usecase.KindString,
+				Description: "When the entry is due, RFC 3339. Empty clears the due date, the " +
+					"all-day flag and the zone together; omitted leaves the trio as it is.",
+			},
+			{
+				Name: "due_date_only", Kind: usecase.KindBool,
+				Description: "True for an all-day due date: due_at is read as a date in " +
+					"due_time_zone, never as an instant. Refused without a due date.",
+			},
+			{
+				Name: "due_time_zone", Kind: usecase.KindString,
+				Description: "The IANA time zone the due date is local to, such as Europe/Berlin. " +
+					"Refused without a due date.",
 			},
 			{
 				Name: "expected_version", Kind: usecase.KindInt,
@@ -387,7 +452,44 @@ func (h UpdateWorkItem) invoke(
 		}
 		cmd.Attributes.BucketID = &bucketID
 	}
-	if cmd.Attributes.IsEmpty() {
+	// The start is read by presence too: empty clears it - the zero time is the domain's spelling
+	// of that - and absent leaves it alone.
+	if raw := in.OptionalString("start_at"); raw != nil {
+		startAt := time.Time{}
+		if *raw != "" {
+			parsed, err := parseInstantField(*raw, "start_at")
+			if err != nil {
+				return nil, err
+			}
+			startAt = parsed
+		}
+		cmd.Attributes.StartAt = &startAt
+	}
+	// The due trio travels as the raw patch: which members were sent and what each said. The
+	// target is only decidable against the stored trio, which the use case reads inside its
+	// transaction (D-01).
+	patch := domain.DuePatch{}
+	if raw := in.OptionalString("due_at"); raw != nil {
+		patch.AtPresent = true
+		if *raw != "" {
+			parsed, err := parseInstantField(*raw, "due_at")
+			if err != nil {
+				return nil, err
+			}
+			patch.At = &parsed
+		}
+	}
+	if in.Present("due_date_only") {
+		flag := in.Bool("due_date_only")
+		patch.DateOnly = &flag
+	}
+	if raw := in.OptionalString("due_time_zone"); raw != nil {
+		patch.TimeZone = raw
+	}
+	if !patch.IsEmpty() {
+		cmd.Due = &patch
+	}
+	if cmd.Attributes.IsEmpty() && cmd.Due == nil {
 		return nil, shared.ErrValidation.
 			WithDetail("items.update_empty").
 			WithFields(shared.FieldError{Path: "/", Code: "items.update_empty"})

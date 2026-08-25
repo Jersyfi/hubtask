@@ -332,6 +332,44 @@ func NewItemUnassigned(id shared.ID, item work.WorkItem, assigneeID shared.ID, a
 	return newItemAssignment(id, ItemUnassigned, item, assigneeID, actor, occurredAt, cause)
 }
 
+// NewItemDueChanged announces that an entry's due date moved: set, moved, or cleared
+// (domain-model.md §4).
+//
+// Both sides of the move travel rather than a snapshot, because that is what the consumers react
+// to: a relative reminder follows `new_due_at`, and a consumer that only saw the new value could
+// not tell a set from a move. Which movement it was is read from which side is absent - no old
+// value is a set, no new value is a clear. The zone and the flag travel beside the new instant,
+// never folded into it: an all-day due date is a date in that zone, not a midnight that shifts
+// with the viewer (i18n-l10n.md §4, §7).
+func NewItemDueChanged(id shared.ID, item work.WorkItem, oldDue *work.DueDate, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if oldDue.Equal(item.Due) {
+		// An event about nothing moving. The writer only announces what changed, so the two
+		// agreeing is the writer and the event disagreeing - a defect rather than something a
+		// client sent (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.due_unchanged")
+	}
+
+	payload := map[string]any{
+		"item_id":       item.ID.String(),
+		"collection_id": item.CollectionID.String(),
+	}
+	if oldDue != nil {
+		payload["old_due_at"] = oldDue.At.UTC()
+	}
+	if item.Due != nil {
+		payload["new_due_at"] = item.Due.At.UTC()
+		payload["due_date_only"] = item.Due.DateOnly
+		if item.Due.TimeZone != "" {
+			payload["time_zone"] = item.Due.TimeZone
+		}
+	}
+
+	return NewEnvelope(id, ItemDueChanged, item.TenantID,
+		ItemSubject(item.ID), actor, occurredAt, cause, payload)
+}
+
 func newItemAssignment(id shared.ID, eventType Type, item work.WorkItem, assigneeID shared.ID,
 	actor Actor, occurredAt time.Time, cause Cause,
 ) (Envelope, error) {

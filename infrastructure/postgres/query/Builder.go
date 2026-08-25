@@ -218,6 +218,10 @@ func column(field view.Field, prefix string) (string, bool) {
 		return prefix + `updated_at`, true
 	case view.FieldCompletedAt:
 		return prefix + `completed_at`, true
+	case view.FieldStartAt:
+		return prefix + `start_at`, true
+	case view.FieldDueAt:
+		return prefix + `due_at`, true
 	case view.FieldArchivedAt:
 		return prefix + `archived_at`, true
 	case view.FieldAssigneeID:
@@ -280,10 +284,24 @@ func Key(term view.SortTerm, item work.WorkItem) string {
 		return timeKey(item.UpdatedAt)
 	case view.FieldCompletedAt:
 		return optionalTimeKey(item.Completion.CompletedAt)
+	case view.FieldStartAt:
+		return optionalTimeKey(item.StartAt)
+	case view.FieldDueAt:
+		return optionalTimeKey(dueAtOf(item))
 	case view.FieldArchivedAt:
 		return optionalTimeKey(item.ArchivedAt)
 	}
 	return keyNull
+}
+
+// dueAtOf reads the instant off the trio, which is the one member the query language serves: the
+// flag and the zone qualify how a client renders it, not when it is (D-01).
+func dueAtOf(item work.WorkItem) *time.Time {
+	if item.Due == nil {
+		return nil
+	}
+	instant := item.Due.At
+	return &instant
 }
 
 // optionalTimeKey is the same for a stamp that may not be there at all - which is what makes the

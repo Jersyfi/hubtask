@@ -89,6 +89,8 @@ type items struct {
 	covers []attributeWrite
 	// The custom field side (C-07), same shape again.
 	customFields []attributeWrite
+	// The due date side (D-01), same shape again.
+	dueDates []attributeWrite
 	// The copy side (C-11): every call to InsertCopy, and the failure a test asks the subtree read
 	// for.
 	copies     []repository.Copy
@@ -155,6 +157,19 @@ func (i *items) SetCustomField(
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.customFields = append(i.customFields, attributeWrite{item: item, expectedVersion: expectedVersion})
+	written := item
+	written.Version = expectedVersion + 1
+	i.stored[item.ID] = written
+	return nil
+}
+
+// SetDueDate mirrors SetCover: the same optimistic lock, the same version bump on the stored
+// row, recorded in dueDates so the D-01 tests can say what was written.
+func (i *items) SetDueDate(_ context.Context, item domain.WorkItem, expectedVersion int) error {
+	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
+		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.dueDates = append(i.dueDates, attributeWrite{item: item, expectedVersion: expectedVersion})
 	written := item
 	written.Version = expectedVersion + 1
 	i.stored[item.ID] = written
@@ -268,7 +283,11 @@ func (i *items) SetAttributes(_ context.Context, item domain.WorkItem, expectedV
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.attributes = append(i.attributes, attributeWrite{item: item, expectedVersion: expectedVersion})
-	i.stored[item.ID] = item
+	// Stored with the version the statement behind it produces, as SetArchived models it: the due
+	// write of the same patch goes against the version this write left (D-01).
+	written := item
+	written.Version = expectedVersion + 1
+	i.stored[item.ID] = written
 	return nil
 }
 
@@ -528,6 +547,13 @@ func newItemHarness() *itemHarness {
 			Policies: h.policies,
 			Groups:   &groupStore{members: map[shared.ID][]shared.ID{}},
 			Random:   clock.NewScripted(0),
+		},
+		// The D-01 machinery, over the same fakes: the create path is its second caller.
+		DueDates: DueDateWriter{
+			Items: store, Containers: containerStore, Profiles: h.profiles,
+			Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		},
 	}
 
@@ -1113,13 +1139,13 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	}
 	for _, owned := range []string{
 		"type", "title", "collection_id", "parent_id", "notes", "bucket_id",
-		"assignee_id", "auto_assign",
+		"assignee_id", "auto_assign", "start_at", "due_at", "due_date_only", "due_time_zone",
 	} {
 		if !declared[owned] {
 			t.Errorf("%s is not declared", owned)
 		}
 	}
-	for _, later := range []string{"label_ids", "member_ids", "due_at", "cover"} {
+	for _, later := range []string{"label_ids", "member_ids", "cover"} {
 		if declared[later] {
 			t.Errorf("%s is declared, though no use case writes it yet", later)
 		}

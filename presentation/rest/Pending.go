@@ -276,6 +276,16 @@ func (pending) SetCustomField(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// SetDueDate and ClearDueDate are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) SetDueDate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetDueDateParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ClearDueDate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ClearDueDateParams) {
+	notAvailable(w, r)
+}
+
 // The media operations land one by one as C-06 registers each use case.
 func (pending) SetCover(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetCoverParams) {
 	notAvailable(w, r)

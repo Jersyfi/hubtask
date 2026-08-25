@@ -236,7 +236,11 @@ Milestone 0.3.0 adds `item.assigned`, `item.unassigned`, `item.member_added`,
 `item.assigned` and not a removal followed by an addition: the assignee is a scalar, so it is one
 step, and both sides of it are in the change set. `item.commented` is the one comment verb: an
 edit and a deletion write no history, because the comment carries its own `editedAt` and its
-tombstone, and the thread is where both are read.
+tombstone, and the thread is where both are read. Milestone 0.4.0 adds `item.due_set` and
+`item.due_cleared`: one verb covers setting and moving a due date, because the change set carries
+both sides and a move is a value moving rather than a different act, and clearing is its own verb
+the way `item.unassigned` is — "the deadline is gone" is a different sentence from "the deadline
+moved". The event is `item.due_changed` for all of it (§4).
 
 The `changeSet` keeps the field names always and the values only where the product needs them: a
 rename carries both titles, a note carries `changed: true` and none of its text. Where the type's
