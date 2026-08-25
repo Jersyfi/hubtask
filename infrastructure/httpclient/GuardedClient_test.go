@@ -6,6 +6,7 @@ package httpclient_test
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -436,5 +437,94 @@ func TestTheSpanCarriesNoURL(t *testing.T) {
 	}
 	if spans[0].SpanKind() != trace.SpanKindClient {
 		t.Errorf("span kind = %v, want client", spans[0].SpanKind())
+	}
+}
+
+// The whole point of Stream: a byte written after the headers reaches the caller while the
+// connection is still open, and the response size cap does not apply - a stream is unbounded by
+// design and the caller bounds its own reads.
+func TestAStreamHandsOverBytesWhileTheConnectionLives(t *testing.T) {
+	firstRead := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		flusher := w.(http.Flusher)
+		_, _ = w.Write([]byte("first\n"))
+		flusher.Flush()
+		// The second chunk only goes out once the first was read on the other side, which is
+		// what proves the hand-over happens mid-connection rather than at its end.
+		<-firstRead
+		_, _ = w.Write([]byte(strings.Repeat("x", 64) + "\n"))
+		flusher.Flush()
+	}))
+	defer server.Close()
+
+	// A cap far below what the stream carries: Do would refuse this response, Stream must not.
+	client := openClient(t, env.OutboundConfig{MaxResponseBytes: 8})
+	resp, err := client.Stream(context.Background(), port.Request{URL: server.URL, TargetClass: "hubtask-api"})
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	chunk := make([]byte, 6)
+	if _, err := io.ReadFull(resp.Body, chunk); err != nil {
+		t.Fatalf("reading the first chunk: %v", err)
+	}
+	if string(chunk) != "first\n" {
+		t.Errorf("first chunk %q", chunk)
+	}
+	close(firstRead)
+	rest, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("reading the rest: %v", err)
+	}
+	if len(rest) != 65 {
+		t.Errorf("the stream was cut short: %d bytes of 65", len(rest))
+	}
+}
+
+// The guard is the same guard: a stream to a loopback target is refused exactly as a call is.
+func TestAStreamToALoopbackTargetIsRefusedByDefault(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("should never be reached"))
+	}))
+	defer server.Close()
+
+	cfg := env.OutboundConfig{Timeout: time.Second, ConnectTimeout: time.Second, MaxResponseBytes: 1024}
+	client := httpclient.NewGuardedClient(cfg, httpclient.NewGuard(cfg))
+
+	_, err := client.Stream(context.Background(), port.Request{URL: server.URL, TargetClass: "hubtask-api"})
+	if err == nil {
+		t.Fatal("a loopback target was streamed from")
+	}
+	if !httpclient.IsBlocked(err) {
+		t.Errorf("error = %v, want a blocked target", err)
+	}
+}
+
+// Cancelling the context ends a blocked read: the caller's context is the stream's deadline,
+// which is what stands in for the per-call budget a stream cannot have (rule 7).
+func TestCancellingTheContextEndsAStreamMidRead(t *testing.T) {
+	connected := make(chan struct{})
+	hold := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.(http.Flusher).Flush()
+		close(connected)
+		<-hold
+	}))
+	defer server.Close()
+	defer close(hold)
+
+	client := openClient(t, env.OutboundConfig{})
+	ctx, cancel := context.WithCancel(context.Background())
+	resp, err := client.Stream(ctx, port.Request{URL: server.URL, TargetClass: "hubtask-api"})
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	<-connected
+	cancel()
+	if _, err := io.ReadAll(resp.Body); err == nil {
+		t.Error("the read survived the cancelled context")
 	}
 }
