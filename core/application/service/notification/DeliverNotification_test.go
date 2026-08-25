@@ -150,6 +150,38 @@ func TestAnEmailIsRenderedInTheRecipientsLocale(t *testing.T) {
 	}
 }
 
+// A reminder rides the same delivery as everything else, and gets the one pair of message codes
+// with no actor in it: nobody caused it, and a sentence naming somebody would name the clock
+// (D-03).
+func TestAReminderIsRenderedInItsOwnWordsAndInTheRecipientsLocale(t *testing.T) {
+	fixture := delivery(t, domain.CategoryReminder, true)
+	fixture.delivery.Accounts = newAccounts(
+		person(anna, "Anna", "anna@example.org", "en"),
+		person(bert, "Bert", "bert@example.org", "de-AT"),
+	)
+
+	if err := fixture.delivery.
+		Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+
+	message := fixture.mailbox.sent[0]
+	if !strings.Contains(message.Subject, "email.reminder.subject") {
+		t.Errorf("the subject is %q rather than the reminder's", message.Subject)
+	}
+	if !strings.Contains(message.Body, "email.reminder.body") {
+		t.Errorf("the body is %q rather than the reminder's", message.Body)
+	}
+	if !strings.HasPrefix(message.Subject, "[de]") {
+		t.Errorf("a German-speaking recipient was reminded in English: %q", message.Subject)
+	}
+	// The title travels and the link travels; nothing names an actor, because the catalogue entry
+	// for a reminder has no placeholder for one.
+	if !strings.Contains(message.Subject, "title=") || !strings.Contains(message.Body, "link=") {
+		t.Errorf("the message carries %q / %q", message.Subject, message.Body)
+	}
+}
+
 // The acceptance criterion of data-protection.md §9: no rendered email carries item content beyond
 // the title. Not a habit but a test over the output.
 func TestNoRenderedEmailCarriesContentBeyondTheTitle(t *testing.T) {
