@@ -88,11 +88,22 @@ const (
 	// into being, and a consumer that reacts to new entries has to react to this one
 	// (domain-model.md §4).
 	ItemDuplicated Verb = "item.duplicated"
+	// The series verbs (D-04). Three rather than one, because they are three different sentences
+	// to the person reading the history: this entry repeats now, what it repeats by has changed,
+	// it stops repeating. The change set is compact for all three - what the rule *is* belongs to
+	// the rule, and a history that restated it would be a second copy going stale beside it.
+	//
+	// Nothing here is written when an occurrence is created: that entry has a history of its own
+	// (D-05), and the series' verbs are about the template.
+	ItemRecurrenceSet     Verb = "item.recurrence_set"
+	ItemRecurrenceChanged Verb = "item.recurrence_changed"
+	ItemRecurrenceRemoved Verb = "item.recurrence_removed"
 )
 
 var verbs = [...]Verb{
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved, ItemReordered,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemLabelAdded, ItemLabelRemoved,
+	ItemRecurrenceSet, ItemRecurrenceChanged, ItemRecurrenceRemoved,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
 	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
 	ItemCustomFieldSet, ItemDueSet, ItemDueCleared, ItemCommented, ItemDuplicated,

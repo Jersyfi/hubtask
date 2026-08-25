@@ -412,8 +412,8 @@ func (pending) ShareSavedView(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
-// The recurrence operations answer as pending until D-04 registers their use cases; the routes
-// exist because the contract declares them.
+// The recurrence operations are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) GetRecurrence(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }

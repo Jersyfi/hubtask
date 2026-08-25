@@ -432,6 +432,9 @@
   "activity.item_custom_field_set": "{actor} filled in a field",
   "activity.item_due_set": "{actor} set the due date",
   "activity.item_due_cleared": "{actor} removed the due date",
+  "activity.item_recurrence_set": "{actor} made this repeat",
+  "activity.item_recurrence_changed": "{actor} changed how this repeats",
+  "activity.item_recurrence_removed": "{actor} stopped this repeating",
   "activity.item_commented": "{actor} commented",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
@@ -570,6 +573,7 @@
   "recurrence.end_spec_ambiguous": "A series ends by date or by count, not by both.",
   "recurrence.max_count_invalid": "A series produces at least one occurrence.",
   "recurrence.end_before_start": "The series would end before it starts.",
+  "recurrence.ends_at_malformed": "{value} is not a moment in time. Use RFC 3339, such as 2026-12-31T23:59:00Z.",
   "recurrence.due_date_required": "A series counts from the entry's due date. Give the entry one first.",
   "recurrence.not_found": "That entry has no series.",
   "recurrence.version_conflict": "The series changed while you were editing it. Read it again and reapply.",
