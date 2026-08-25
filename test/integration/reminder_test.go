@@ -402,3 +402,87 @@ func TestRemindersAreInvisibleFromAnotherTenant(t *testing.T) {
 		}
 	})
 }
+
+// The merge rule offline-sync.md §4.2 gains for a reminder, proved the way D-01 proved the due
+// trio's: two devices editing two different fields converge to both, because each field is its own
+// change log entry and the version predicate makes the loser re-read rather than overwrite.
+//
+// The second field is the recipients rather than the channels: this installation sends on one
+// channel, so a channel list has nothing to change to, and the rule under test is per field rather
+// than about any particular pair.
+func TestTwoDevicesEditingAReminderConvergeToBothFields(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+	recipient := seedAccount(ctx, t, tenantA)
+
+	due := dueIn(t, "2026-09-01T17:00:00Z")
+	seen := seedReminder(ctx, t, tenantA, task, "REL:-PT1H", due)
+
+	// Device A moves the offset.
+	spec := "REL:-PT2H"
+	fromA, _, err := seen.Patched(work.ReminderPatch{OffsetSpec: &spec}, due, created.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("device A's patch was refused: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return reminderRepo().Update(ctx, fromA, seen.Version)
+	}); err != nil {
+		t.Fatalf("device A's write: %v", err)
+	}
+
+	// Device B names a recipient against the state it read, and the version is what catches it.
+	named := []shared.ID{recipient}
+	fromB, _, err := seen.Patched(
+		work.ReminderPatch{Recipients: &named}, due, created.Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("device B's patch was refused: %v", err)
+	}
+	staleErr := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return reminderRepo().Update(ctx, fromB, seen.Version)
+	})
+	if !errors.Is(staleErr, shared.ErrVersionConflict) {
+		t.Fatalf("the concurrent write answered %v, want a version conflict", staleErr)
+	}
+
+	// B re-reads and retries with its one field on top of what is now there - the per-field merge,
+	// which is the whole client protocol.
+	var current work.Reminder
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		current, err = reminderRepo().Find(ctx, seen.ID)
+		return err
+	}); err != nil {
+		t.Fatalf("device B's re-read: %v", err)
+	}
+	retryB, _, err := current.Patched(
+		work.ReminderPatch{Recipients: &named}, due, created.Add(3*time.Hour))
+	if err != nil {
+		t.Fatalf("device B's retry was refused: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return reminderRepo().Update(ctx, retryB, current.Version)
+	}); err != nil {
+		t.Fatalf("device B's retry: %v", err)
+	}
+
+	var converged work.Reminder
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		converged, err = reminderRepo().Find(ctx, seen.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if converged.Offset.Spec != "REL:-PT2H" {
+		t.Errorf("device A's offset was lost: %s", converged.Offset.Spec)
+	}
+	if work.RecipientList(converged.Recipients) != recipient.String() {
+		t.Errorf("device B's recipient was lost: %v", converged.Recipients)
+	}
+	// And the moment follows the field that decides it, without either device having sent one.
+	if got := converged.FireAt.UTC().Format(time.RFC3339); got != "2026-09-01T15:00:00Z" {
+		t.Errorf("the converged reminder fires at %s", got)
+	}
+}

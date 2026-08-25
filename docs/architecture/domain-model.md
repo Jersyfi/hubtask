@@ -341,8 +341,9 @@ usable. `AttachMedia` and `DetachMedia` were missing from this list while the ev
 every unreferenced file, now" is not a button anybody should be given, and the way to influence it
 is the configuration rather than a call.
 
-**Scheduling** `CreateReminder`, `UpdateReminder`, `DeleteReminder`, `SetRecurrence`,
-`UpdateRecurrence`, `RemoveRecurrence`, `SkipOccurrence`, `MaterializeOccurrences` (internal).
+**Scheduling** `CreateReminder`, `ListReminders`, `UpdateReminder`, `DeleteReminder`,
+`SetRecurrence`, `UpdateRecurrence`, `RemoveRecurrence`, `SkipOccurrence`,
+`MaterializeOccurrences` (internal).
 
 **Templates** `CreateTemplate`, `UpdateTemplate`, `DeleteTemplate`, `InstantiateTemplate`.
 

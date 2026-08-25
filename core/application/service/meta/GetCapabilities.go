@@ -155,6 +155,10 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			"max_upload_bytes":          g.Config.Request.MaxUploadBytes,
 			"rate_limit_per_minute":     int64(g.Config.RateLimit.TokenPerMinute),
 			"anonymous_rate_per_minute": int64(g.Config.RateLimit.AnonymousPerMinute),
+			// The bound that makes an entry's reminder list answerable in one page (D-02). A
+			// constant rather than configuration: it is a shape of the product, and a client
+			// reads it here rather than discovering it by being refused.
+			"max_reminders_per_item": int64(work.MaxRemindersPerItem),
 		},
 		Features: map[string]bool{
 			// What is configured, not what is implemented. A client uses this to decide whether
