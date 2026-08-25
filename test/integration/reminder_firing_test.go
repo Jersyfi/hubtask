@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -332,6 +333,70 @@ func TestTheOverdueAnnouncementHappensOnceAndNotForClosedWork(t *testing.T) {
 	}
 	if announced := second.events.typed(event.ItemOverdue); len(announced) != 0 {
 		t.Errorf("the deadline was announced again: %+v", announced)
+	}
+}
+
+// RT-3's property, for this kind: a pass that dies before its transaction commits leaves the
+// reminder pending and nothing sent, and the next pass fires it exactly once.
+//
+// The death is a rollback rather than a killed process - RT-3 proves the lease machinery itself
+// with a real SIGKILL, and what is left to prove here is that this handler's effect is inside the
+// transaction that completes the job. If it were not, the reminder below would come back SENT with
+// nobody told.
+func TestAPassThatDiesBeforeItsCommitLosesNothingAndDoublesNothing(t *testing.T) {
+	ctx := context.Background()
+	seedFiringTenant(ctx, t)
+	_, collection := hubWithCollection(ctx, t, firingTenant, firingAuthor)
+	task := seedTask(ctx, t, firingTenant, firingAuthor, collection)
+
+	promised := created.Add(time.Hour)
+	reminder := seedReminder(ctx, t, firingTenant, task,
+		"ABS:"+promised.Format(time.RFC3339), nil)
+
+	died := newFiring(t, promised.Add(time.Minute))
+	interrupted := errors.New("the worker died here")
+	err := write(ctx, t, firingTenant, func(ctx context.Context) error {
+		if _, err := died.pass.Execute(ctx, firingActor()); err != nil {
+			return err
+		}
+		return interrupted
+	})
+	if !errors.Is(err, interrupted) {
+		t.Fatalf("the transaction ended with %v", err)
+	}
+
+	var stored workdomain.Reminder
+	if err := read(ctx, t, firingTenant, func(ctx context.Context) error {
+		var err error
+		stored, err = reminderRepo().Find(ctx, reminder.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if stored.State != workdomain.ReminderPending {
+		t.Fatalf("the reminder is %s, though the pass never committed", stored.State)
+	}
+
+	// The next attempt, which is what the queue does when a lease expires.
+	retried := newFiring(t, promised.Add(2*time.Minute))
+	if err := write(ctx, t, firingTenant, func(ctx context.Context) error {
+		_, err := retried.pass.Execute(ctx, firingActor())
+		return err
+	}); err != nil {
+		t.Fatalf("the retry failed: %v", err)
+	}
+	if retried.told.count() != 1 {
+		t.Errorf("the retry told %d people", retried.told.count())
+	}
+	if err := read(ctx, t, firingTenant, func(ctx context.Context) error {
+		var err error
+		stored, err = reminderRepo().Find(ctx, reminder.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if stored.State != workdomain.ReminderSent {
+		t.Errorf("after the retry the reminder is %s", stored.State)
 	}
 }
 
