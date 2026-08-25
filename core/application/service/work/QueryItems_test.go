@@ -166,6 +166,7 @@ func TestQueryItemsResolvesThePlaceholders(t *testing.T) {
 			"filter": map[string]any{"op": "AND", "nodes": []any{
 				map[string]any{"field": "created_by", "op": "EQ", "value": "@me"},
 				map[string]any{"field": "created_at", "op": "GTE", "value": "@today"},
+				map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P3D"},
 			}},
 		})
 	if err != nil {
@@ -173,7 +174,7 @@ func TestQueryItemsResolvesThePlaceholders(t *testing.T) {
 	}
 
 	filter := store.searched[0].Spec.Filter
-	if filter == nil || len(filter.Nodes) != 2 {
+	if filter == nil || len(filter.Nodes) != 3 {
 		t.Fatalf("the filter arrived as %+v", filter)
 	}
 	if got := filter.Nodes[0].Values[0]; got.IsPlaceholder() || got.ID != accountID {
@@ -184,6 +185,11 @@ func TestQueryItemsResolvesThePlaceholders(t *testing.T) {
 	want := time.Date(2026, 8, 17, 0, 0, 0, 0, time.FixedZone("CEST", 2*60*60))
 	if got := filter.Nodes[1].Values[0]; got.IsPlaceholder() || !got.Time.Equal(want) {
 		t.Errorf("@today resolved to %s, want %s", got.Time, want.UTC())
+	}
+	// The lift B-12's acceptance anticipated (D-01): "due in the next three days" is a calendar
+	// offset from that same midnight, in the actor's zone - not seventy-two clock hours.
+	if got := filter.Nodes[2].Values[0]; got.IsPlaceholder() || !got.Time.Equal(want.AddDate(0, 0, 3)) {
+		t.Errorf("@today+P3D resolved to %s, want %s", got.Time, want.AddDate(0, 0, 3).UTC())
 	}
 }
 
@@ -207,7 +213,8 @@ func TestQueryItemsRefusesWhatTheGrammarRefuses(t *testing.T) {
 			usecase.Input{
 				"scope_container_id": readCollectionID.String(),
 				"filter": map[string]any{
-					"field": "due_at", "op": "LTE", "value": "2026-09-01T00:00:00Z",
+					"field": "recurrence_rule_id", "op": "EQ",
+					"value": "0192f000-0000-7000-8000-000000000001",
 				},
 			},
 			"query.field_unknown",

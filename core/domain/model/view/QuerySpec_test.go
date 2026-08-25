@@ -82,7 +82,7 @@ func TestParseSort(t *testing.T) {
 		},
 		{
 			"a field nobody serves",
-			[]any{map[string]any{"field": "due_at"}}, "query.field_unknown",
+			[]any{map[string]any{"field": "recurrence_rule_id"}}, "query.field_unknown",
 		},
 		{
 			"a direction that is not one",

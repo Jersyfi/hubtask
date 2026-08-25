@@ -357,6 +357,93 @@ func TestTheAssigneeAndTheMembersAnswerAgainstTheDatabase(t *testing.T) {
 	}
 }
 
+// The two fields D-01 gave use cases: answerable, sortable with the nulls placed, asked of the
+// real columns and wi_due_idx - a filter that compiles and then fails to plan shows up here and
+// nowhere earlier.
+func TestTheScheduleAnswersAgainstTheDatabase(t *testing.T) {
+	ctx := context.Background()
+	f := queryFixture(ctx, t)
+
+	nearDue := created.Add(24 * time.Hour)
+	farDue := created.Add(96 * time.Hour)
+	startAt := created.Add(12 * time.Hour)
+	// Read back rather than trusted from the fixture: the fixture's own seeding has already
+	// spent versions on some of these rows.
+	near := findWorkItem(ctx, t, tenantA, f.tasks[0].ID)
+	far := findWorkItem(ctx, t, tenantA, f.tasks[3].ID)
+	withStart := findWorkItem(ctx, t, tenantA, f.tasks[1].ID)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		near.Due = &work.DueDate{At: nearDue, DateOnly: true, TimeZone: "Europe/Berlin"}
+		near.UpdatedAt = changedAt
+		if err := itemRepo().SetDueDate(ctx, near, near.Version); err != nil {
+			return err
+		}
+		far.Due = &work.DueDate{At: farDue}
+		far.UpdatedAt = changedAt
+		if err := itemRepo().SetDueDate(ctx, far, far.Version); err != nil {
+			return err
+		}
+		withStart.StartAt = &startAt
+		withStart.UpdatedAt = changedAt
+		return itemRepo().SetAttributes(ctx, withStart, withStart.Version)
+	}); err != nil {
+		t.Fatalf("seeding the schedule: %v", err)
+	}
+
+	for _, test := range []struct {
+		name   string
+		filter any
+		want   []string
+	}{
+		{
+			"due before a moment",
+			map[string]any{
+				"field": "due_at", "op": "LTE", "value": created.Add(48 * time.Hour).Format(time.RFC3339),
+			},
+			[]string{"Alpha milk"},
+		},
+		{
+			"due in a window",
+			map[string]any{"field": "due_at", "op": "BETWEEN", "value": []any{
+				created.Format(time.RFC3339), created.Add(120 * time.Hour).Format(time.RFC3339),
+			}},
+			[]string{"Alpha milk", "Delta cheese"},
+		},
+		{
+			"no due date at all",
+			map[string]any{"field": "due_at", "op": "IS_NULL"},
+			[]string{"Beta bread", "Epsilon detail"},
+		},
+		{
+			"started before a moment",
+			map[string]any{
+				"field": "start_at", "op": "LT", "value": created.Add(13 * time.Hour).Format(time.RFC3339),
+			},
+			[]string{"Beta bread"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result := queried(ctx, t, tenantA, searchIn(t, f.collection, test.filter, view.Spec{}))
+			assertTitles(t, titlesOf(result.Items), test.want)
+		})
+	}
+
+	// The sort every "what is next" list is drawn in: by the due date, the undated entries last
+	// (api-guidelines.md §3).
+	t.Run("sorted by the due date with the nulls last", func(t *testing.T) {
+		sort, err := view.ParseSort([]any{map[string]any{"field": "due_at", "nulls": "LAST"}}, "/sort")
+		if err != nil {
+			t.Fatalf("the grammar refused the sort: %v", err)
+		}
+		result := queried(ctx, t, tenantA, searchIn(t, f.collection, nil, view.Spec{Sort: sort}))
+
+		titles := titlesOf(result.Items)
+		if len(titles) != 4 || titles[0] != "Alpha milk" || titles[1] != "Delta cheese" {
+			t.Fatalf("the order is %v", titles)
+		}
+	})
+}
+
 func withFixtureIDs(filter any, f fixture) any {
 	document, ok := filter.(map[string]any)
 	if !ok {
