@@ -132,7 +132,8 @@ INSERT INTO access_token
     (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
   VALUES ('$TOKEN_ROW_ID', '$TENANT_ID', '$ACCOUNT_ID', 'the end-to-end session',
           decode('$TOKEN_HASH', 'hex'), 'hbt_pat_',
-          ARRAY['containers:read','containers:write','items:read','items:write','trash:read'],
+          ARRAY['containers:read','containers:write','items:read','items:write','trash:read',
+                'comments:write','media:read','media:write'],
           now() + interval '1 hour')
   ON CONFLICT (id) DO NOTHING;
 SQL
@@ -206,6 +207,83 @@ completed="$(hubctl --json item ls --collection "$COLLECTION_ID" --parent "$PACK
 expect_contains "the activity is done" "$completed" '"is_completed": true'
 expect_contains "the task is done" \
 	"$(hubctl --json item ls --collection "$COLLECTION_ID")" '"is_completed": true'
+
+echo "--- an assignee ---"
+# The seeded account holds the tenant's OWNER membership, so it can see everything and the
+# assignment sticks. Unassigned again right away: the watch below wants its first assignment to
+# be a real transition, because an idempotent assign announces nothing.
+assigned="$(hubctl item assign "$TASK_ID" --account "$ACCOUNT_ID")"
+expect_contains "item assign" "$assigned" "$ACCOUNT_ID"
+hubctl item unassign "$TASK_ID" >/dev/null
+
+echo "--- the stream, watched ---"
+# The binary itself rather than the shell function, so that the SIGINT below reaches hubctl and
+# not a subshell wrapped around it - the clean exit on Ctrl-C is exactly what is under test.
+WATCH_LOG="$WORK_DIR/watch.log"
+"$WORK_DIR/hubctl" watch > "$WATCH_LOG" 2> "$WORK_DIR/watch.err" &
+WATCH_PID=$!
+# The stream starts "from now", so an event fired before the connection stands would be lost and
+# the check would hang. Rather than trusting a sleep to cover the connection time, keep causing
+# real transitions until one is seen through the stream.
+event_seen=""
+for i in $(seq 1 15); do
+	if [ $((i % 2)) -eq 1 ]; then
+		hubctl item assign "$TASK_ID" --account "$ACCOUNT_ID" >/dev/null
+	else
+		hubctl item unassign "$TASK_ID" >/dev/null
+	fi
+	sleep 2
+	if grep -q "$TASK_ID" "$WATCH_LOG"; then
+		event_seen="yes"
+		break
+	fi
+done
+if [ -z "$event_seen" ]; then
+	fail "hubctl watch saw no event caused by a second hubctl invocation"
+	cat "$WORK_DIR/watch.err"
+fi
+kill -INT "$WATCH_PID"
+set +e
+wait "$WATCH_PID"
+watch_code=$?
+set -e
+if [ "$watch_code" -ne 0 ]; then
+	fail "hubctl watch exited $watch_code on SIGINT, want a clean 0"
+	cat "$WORK_DIR/watch.err"
+fi
+
+echo "--- the conversation ---"
+COMMENT_ID="$(hubctl comment add "$TASK_ID" --body 'Skimmed or whole?' | first_id)"
+[ -n "$COMMENT_ID" ] || { echo "FAILED: adding the comment produced no identifier"; exit 1; }
+hubctl comment add "$TASK_ID" --body 'Whole.' --reply-to "$COMMENT_ID" >/dev/null
+conversation="$(hubctl comment ls "$TASK_ID")"
+expect_contains "comment ls" "$conversation" "Skimmed or whole?"
+expect_contains "comment ls" "$conversation" "Whole."
+# The reply carries its parent in the reply-to column, so a thread is readable from the listing.
+expect_contains "the reply names its parent" \
+	"$(printf '%s\n' "$conversation" | grep 'Whole.')" "$COMMENT_ID"
+
+echo "--- a file, uploaded and attached ---"
+printf 'the shopping list' > "$WORK_DIR/list.txt"
+uploaded="$(hubctl media upload "$WORK_DIR/list.txt")"
+expect_contains "media upload" "$uploaded" "READY"
+expect_contains "media upload" "$uploaded" "list.txt"
+MEDIA_ID="$(printf '%s\n' "$uploaded" | first_id)"
+[ -n "$MEDIA_ID" ] || { echo "FAILED: the upload produced no identifier"; exit 1; }
+attached="$(hubctl media attach "$TASK_ID" --media "$MEDIA_ID")"
+expect_contains "media attach" "$attached" "$MEDIA_ID"
+
+echo "--- a custom field, defined and written ---"
+defined="$(hubctl field define --key urgency --kind SELECT --collection "$COLLECTION_ID" --options low,high)"
+expect_contains "field define" "$defined" "urgency"
+expect_contains "field ls" "$(hubctl field ls --collection "$COLLECTION_ID")" "urgency"
+written="$(hubctl --json field set "$TASK_ID" urgency --value high)"
+expect_contains "field set" "$written" '"urgency": "high"'
+
+echo "--- found by a word ---"
+found="$(hubctl search milk)"
+expect_contains "search" "$found" "$TASK_ID"
+expect_missing "search" "$(hubctl search aisle)" "$TASK_ID"
 
 echo "--- to the trash, and back ---"
 hubctl item rm "$TASK_ID" 2>/dev/null
