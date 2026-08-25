@@ -89,6 +89,8 @@ type items struct {
 	covers []attributeWrite
 	// The custom field side (C-07), same shape again.
 	customFields []attributeWrite
+	// The due date side (D-01), same shape again.
+	dueDates []attributeWrite
 	// The copy side (C-11): every call to InsertCopy, and the failure a test asks the subtree read
 	// for.
 	copies     []repository.Copy
@@ -155,6 +157,19 @@ func (i *items) SetCustomField(
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.customFields = append(i.customFields, attributeWrite{item: item, expectedVersion: expectedVersion})
+	written := item
+	written.Version = expectedVersion + 1
+	i.stored[item.ID] = written
+	return nil
+}
+
+// SetDueDate mirrors SetCover: the same optimistic lock, the same version bump on the stored
+// row, recorded in dueDates so the D-01 tests can say what was written.
+func (i *items) SetDueDate(_ context.Context, item domain.WorkItem, expectedVersion int) error {
+	if item.ID == i.conflictOn || i.stored[item.ID].Version != expectedVersion {
+		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
+	}
+	i.dueDates = append(i.dueDates, attributeWrite{item: item, expectedVersion: expectedVersion})
 	written := item
 	written.Version = expectedVersion + 1
 	i.stored[item.ID] = written

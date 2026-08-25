@@ -227,7 +227,8 @@ SELECT
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
   wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
-  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields: only the values whose own definition still lives. The hiding
   -- happens here rather than in Go, so that every read of an entry - the find, the list, the
   -- query endpoint - hides a deleted definition's values identically. Identity rather than key,
@@ -270,16 +271,18 @@ LIMIT 1;
 --
 -- The fields this use case does not own are absent rather than defaulted: labels, members,
 -- assignee, due date, cover, custom fields and the recurrence rule are written by the use cases
--- that own them, and their columns carry NULL until then.
+-- that own them, and their columns carry NULL until then. The due date a create declares reaches
+-- the row through that writer in the same transaction (D-01), exactly as an assignee does; the
+-- start is the create's own, a plain attribute beside the notes.
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  bucket_id, order_key, content_language, created_by, created_at, updated_at, version
+  bucket_id, order_key, start_at, content_language, created_by, created_at, updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
   normalize(sqlc.arg('title')::text, NFC),
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
-  sqlc.narg('content_language'), sqlc.arg('created_by'),
+  sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.arg('created_by'),
   sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
 
@@ -308,7 +311,8 @@ INSERT INTO work_item (
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
   wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
-  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
      FROM jsonb_each(wi.custom_fields) AS kv
@@ -347,14 +351,15 @@ LIMIT sqlc.arg('row_limit');
 -- against the destination: which definition a value belongs to is decided where the losses are
 -- reported (I-W6), not here.
 --
--- The columns no use case writes yet are absent: the schedule (start_at, due_at, due_date_only,
--- due_time_zone), the recurrence rule and the jumble provenance. They are NULL on every row this
--- installation has, so carrying them would be copying a value nothing can have set. Whichever
--- milestone gives a column its first writer gives it a line here in the same change - a copy that
--- silently lost somebody's due date would be worse than the one it lost.
+-- The columns no use case writes yet are absent: the recurrence rule and the jumble provenance.
+-- They are NULL on every row this installation has, so carrying them would be copying a value
+-- nothing can have set. Whichever milestone gives a column its first writer gives it a line here
+-- in the same change - a copy that silently lost somebody's due date would be worse than the one
+-- it lost. The schedule left that list with D-01, which is why its four columns are here.
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
   bucket_id, order_key, assignee_id,
+  start_at, due_at, due_date_only, due_time_zone,
   cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
   content_language, archived_at, created_by, created_at, updated_at, version
 ) VALUES (
@@ -363,6 +368,8 @@ INSERT INTO work_item (
   normalize(sqlc.arg('title')::text, NFC),
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
   sqlc.narg('assignee_id'),
+  sqlc.narg('start_at'), sqlc.narg('due_at'), coalesce(sqlc.narg('due_date_only'), false),
+  sqlc.narg('due_time_zone'),
   sqlc.narg('cover_kind'), sqlc.narg('cover_color_token'), sqlc.narg('cover_media_id'),
   sqlc.arg('custom_fields')::jsonb, sqlc.arg('custom_field_refs')::jsonb,
   sqlc.narg('content_language'), sqlc.narg('archived_at'), sqlc.arg('created_by'),
@@ -384,7 +391,8 @@ INSERT INTO work_item (
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
   wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
-  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
      FROM jsonb_each(wi.custom_fields) AS kv
@@ -489,9 +497,28 @@ UPDATE work_item SET
   title            = sqlc.arg('title'),
   notes            = sqlc.narg('notes'),
   bucket_id        = sqlc.narg('bucket_id'),
+  start_at         = sqlc.narg('start_at'),
   content_language = sqlc.narg('content_language'),
   updated_at       = sqlc.arg('updated_at'),
   version          = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: SetWorkItemDueDate :execrows
+-- The due trio, set or cleared whole, under the same optimistic lock every write to this row
+-- takes (api-guidelines.md §5).
+--
+-- Its own statement rather than columns added to SetWorkItemAttributes, for the reason the
+-- assignee has one: a due date is one decision about one date, and a statement that wrote the
+-- title alongside it would make moving a deadline spend the version of a rename nobody asked
+-- for. The three columns travel together because none of them means anything alone (D-01,
+-- i18n-l10n.md §4) - which fields *moved* is the application's answer, recorded in the change
+-- log per field; the row simply says what is now true.
+UPDATE work_item SET
+  due_at        = sqlc.narg('due_at'),
+  due_date_only = coalesce(sqlc.narg('due_date_only'), false),
+  due_time_zone = sqlc.narg('due_time_zone'),
+  updated_at    = sqlc.arg('updated_at'),
+  version       = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
 -- name: MoveWorkItemSubtree :execrows

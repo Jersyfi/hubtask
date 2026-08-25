@@ -232,7 +232,8 @@ const findWorkItem = `-- name: FindWorkItem :one
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
   wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
-  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields: only the values whose own definition still lives. The hiding
   -- happens here rather than in Go, so that every read of an entry - the find, the list, the
   -- query endpoint - hides a deleted definition's values identically. Identity rather than key,
@@ -271,6 +272,10 @@ type FindWorkItemRow struct {
 	BucketID        pgtype.UUID
 	OrderKey        string
 	AssigneeID      pgtype.UUID
+	StartAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	DueDateOnly     bool
+	DueTimeZone     *string
 	CoverKind       *string
 	CoverColorToken *string
 	CoverMediaID    pgtype.UUID
@@ -306,6 +311,10 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.BucketID,
 		&i.OrderKey,
 		&i.AssigneeID,
+		&i.StartAt,
+		&i.DueAt,
+		&i.DueDateOnly,
+		&i.DueTimeZone,
 		&i.CoverKind,
 		&i.CoverColorToken,
 		&i.CoverMediaID,
@@ -370,14 +379,14 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 const insertWorkItem = `-- name: InsertWorkItem :exec
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
-  bucket_id, order_key, content_language, created_by, created_at, updated_at, version
+  bucket_id, order_key, start_at, content_language, created_by, created_at, updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   normalize($7::text, NFC),
   $8, $9, $10,
-  $11, $12,
-  $13, $13, 1
+  $11, $12, $13,
+  $14, $14, 1
 )
 `
 
@@ -392,6 +401,7 @@ type InsertWorkItemParams struct {
 	Notes           *string
 	BucketID        pgtype.UUID
 	OrderKey        string
+	StartAt         pgtype.Timestamptz
 	ContentLanguage *string
 	CreatedBy       pgtype.UUID
 	CreatedAt       pgtype.Timestamptz
@@ -404,7 +414,9 @@ type InsertWorkItemParams struct {
 //
 // The fields this use case does not own are absent rather than defaulted: labels, members,
 // assignee, due date, cover, custom fields and the recurrence rule are written by the use cases
-// that own them, and their columns carry NULL until then.
+// that own them, and their columns carry NULL until then. The due date a create declares reaches
+// the row through that writer in the same transaction (D-01), exactly as an assignee does; the
+// start is the create's own, a plain attribute beside the notes.
 func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) error {
 	_, err := q.db.Exec(ctx, insertWorkItem,
 		arg.ID,
@@ -417,6 +429,7 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 		arg.Notes,
 		arg.BucketID,
 		arg.OrderKey,
+		arg.StartAt,
 		arg.ContentLanguage,
 		arg.CreatedBy,
 		arg.CreatedAt,
@@ -428,6 +441,7 @@ const insertWorkItemCopy = `-- name: InsertWorkItemCopy :exec
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
   bucket_id, order_key, assignee_id,
+  start_at, due_at, due_date_only, due_time_zone,
   cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
   content_language, archived_at, created_by, created_at, updated_at, version
 ) VALUES (
@@ -436,10 +450,12 @@ INSERT INTO work_item (
   normalize($7::text, NFC),
   $8, $9, $10,
   $11,
-  $12, $13, $14,
-  $15::jsonb, $16::jsonb,
-  $17, $18, $19,
-  $20, $20, 1
+  $12, $13, coalesce($14, false),
+  $15,
+  $16, $17, $18,
+  $19::jsonb, $20::jsonb,
+  $21, $22, $23,
+  $24, $24, 1
 )
 `
 
@@ -455,6 +471,10 @@ type InsertWorkItemCopyParams struct {
 	BucketID        pgtype.UUID
 	OrderKey        string
 	AssigneeID      pgtype.UUID
+	StartAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	DueDateOnly     interface{}
+	DueTimeZone     *string
 	CoverKind       *string
 	CoverColorToken *string
 	CoverMediaID    pgtype.UUID
@@ -484,11 +504,11 @@ type InsertWorkItemCopyParams struct {
 // against the destination: which definition a value belongs to is decided where the losses are
 // reported (I-W6), not here.
 //
-// The columns no use case writes yet are absent: the schedule (start_at, due_at, due_date_only,
-// due_time_zone), the recurrence rule and the jumble provenance. They are NULL on every row this
-// installation has, so carrying them would be copying a value nothing can have set. Whichever
-// milestone gives a column its first writer gives it a line here in the same change - a copy that
-// silently lost somebody's due date would be worse than the one it lost.
+// The columns no use case writes yet are absent: the recurrence rule and the jumble provenance.
+// They are NULL on every row this installation has, so carrying them would be copying a value
+// nothing can have set. Whichever milestone gives a column its first writer gives it a line here
+// in the same change - a copy that silently lost somebody's due date would be worse than the one
+// it lost. The schedule left that list with D-01, which is why its four columns are here.
 func (q *Queries) InsertWorkItemCopy(ctx context.Context, arg InsertWorkItemCopyParams) error {
 	_, err := q.db.Exec(ctx, insertWorkItemCopy,
 		arg.ID,
@@ -502,6 +522,10 @@ func (q *Queries) InsertWorkItemCopy(ctx context.Context, arg InsertWorkItemCopy
 		arg.BucketID,
 		arg.OrderKey,
 		arg.AssigneeID,
+		arg.StartAt,
+		arg.DueAt,
+		arg.DueDateOnly,
+		arg.DueTimeZone,
 		arg.CoverKind,
 		arg.CoverColorToken,
 		arg.CoverMediaID,
@@ -698,7 +722,8 @@ const listWorkItems = `-- name: ListWorkItems :many
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
   wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
-  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
      FROM jsonb_each(wi.custom_fields) AS kv
@@ -757,6 +782,10 @@ type ListWorkItemsRow struct {
 	BucketID        pgtype.UUID
 	OrderKey        string
 	AssigneeID      pgtype.UUID
+	StartAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	DueDateOnly     bool
+	DueTimeZone     *string
 	CoverKind       *string
 	CoverColorToken *string
 	CoverMediaID    pgtype.UUID
@@ -815,6 +844,10 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.BucketID,
 			&i.OrderKey,
 			&i.AssigneeID,
+			&i.StartAt,
+			&i.DueAt,
+			&i.DueDateOnly,
+			&i.DueTimeZone,
 			&i.CoverKind,
 			&i.CoverColorToken,
 			&i.CoverMediaID,
@@ -1166,16 +1199,18 @@ UPDATE work_item SET
   title            = $1,
   notes            = $2,
   bucket_id        = $3,
-  content_language = $4,
-  updated_at       = $5,
+  start_at         = $4,
+  content_language = $5,
+  updated_at       = $6,
   version          = version + 1
-WHERE id = $6::uuid AND version = $7
+WHERE id = $7::uuid AND version = $8
 `
 
 type SetWorkItemAttributesParams struct {
 	Title           string
 	Notes           *string
 	BucketID        pgtype.UUID
+	StartAt         pgtype.Timestamptz
 	ContentLanguage *string
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
@@ -1203,6 +1238,7 @@ func (q *Queries) SetWorkItemAttributes(ctx context.Context, arg SetWorkItemAttr
 		arg.Title,
 		arg.Notes,
 		arg.BucketID,
+		arg.StartAt,
 		arg.ContentLanguage,
 		arg.UpdatedAt,
 		arg.ID,
@@ -1343,6 +1379,49 @@ func (q *Queries) SetWorkItemCustomField(ctx context.Context, arg SetWorkItemCus
 	return result.RowsAffected(), nil
 }
 
+const setWorkItemDueDate = `-- name: SetWorkItemDueDate :execrows
+UPDATE work_item SET
+  due_at        = $1,
+  due_date_only = coalesce($2, false),
+  due_time_zone = $3,
+  updated_at    = $4,
+  version       = version + 1
+WHERE id = $5::uuid AND version = $6
+`
+
+type SetWorkItemDueDateParams struct {
+	DueAt           pgtype.Timestamptz
+	DueDateOnly     *bool
+	DueTimeZone     *string
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The due trio, set or cleared whole, under the same optimistic lock every write to this row
+// takes (api-guidelines.md §5).
+//
+// Its own statement rather than columns added to SetWorkItemAttributes, for the reason the
+// assignee has one: a due date is one decision about one date, and a statement that wrote the
+// title alongside it would make moving a deadline spend the version of a rename nobody asked
+// for. The three columns travel together because none of them means anything alone (D-01,
+// i18n-l10n.md §4) - which fields *moved* is the application's answer, recorded in the change
+// log per field; the row simply says what is now true.
+func (q *Queries) SetWorkItemDueDate(ctx context.Context, arg SetWorkItemDueDateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemDueDate,
+		arg.DueAt,
+		arg.DueDateOnly,
+		arg.DueTimeZone,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setWorkItemOrderKey = `-- name: SetWorkItemOrderKey :execrows
 UPDATE work_item SET
   order_key  = $1,
@@ -1424,7 +1503,8 @@ const subtreeOfWorkItem = `-- name: SubtreeOfWorkItem :many
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
   wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
-  wi.assignee_id, wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
      FROM jsonb_each(wi.custom_fields) AS kv
@@ -1467,6 +1547,10 @@ type SubtreeOfWorkItemRow struct {
 	BucketID        pgtype.UUID
 	OrderKey        string
 	AssigneeID      pgtype.UUID
+	StartAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	DueDateOnly     bool
+	DueTimeZone     *string
 	CoverKind       *string
 	CoverColorToken *string
 	CoverMediaID    pgtype.UUID
@@ -1527,6 +1611,10 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.BucketID,
 			&i.OrderKey,
 			&i.AssigneeID,
+			&i.StartAt,
+			&i.DueAt,
+			&i.DueDateOnly,
+			&i.DueTimeZone,
 			&i.CoverKind,
 			&i.CoverColorToken,
 			&i.CoverMediaID,

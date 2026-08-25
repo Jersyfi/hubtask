@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -216,6 +217,7 @@ func (r ItemRepository) SetAttributes(ctx context.Context, item work.WorkItem, e
 		Title:           item.Title,
 		Notes:           optionalText(item.Notes),
 		BucketID:        bucket,
+		StartAt:         optionalTimestamp(item.StartAt),
 		ContentLanguage: optionalText(item.ContentLanguage),
 		UpdatedAt:       timestampOf(item.UpdatedAt),
 		ID:              id,
@@ -341,6 +343,46 @@ func (r ItemRepository) SetAssignee(ctx context.Context, item work.WorkItem, exp
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the assignee of %s: %w", item.ID, err))
+	}
+	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
+}
+
+// SetDueDate writes the due trio, set or cleared whole, or reports a version conflict.
+//
+// The whole item is passed and the trio read off it, as SetAssignee does and for the same reason:
+// the decision about what the row should say has already been taken, and the three columns travel
+// together because none of them means anything alone (D-01).
+func (r ItemRepository) SetDueDate(ctx context.Context, item work.WorkItem, expectedVersion int) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+
+	params := sqlc.SetWorkItemDueDateParams{
+		UpdatedAt: timestampOf(item.UpdatedAt),
+		ID:        id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	}
+	if item.Due != nil {
+		params.DueAt = timestampOf(item.Due.At)
+		dateOnly := item.Due.DateOnly
+		params.DueDateOnly = &dateOnly
+		if item.Due.TimeZone != "" {
+			zone := item.Due.TimeZone
+			params.DueTimeZone = &zone
+		}
+	}
+
+	affected, err := queries.SetWorkItemDueDate(ctx, params)
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the due date of %s: %w", item.ID, err))
 	}
 	return versionConflictIfUntouched(affected, item.ID, expectedVersion)
 }
@@ -783,6 +825,7 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 		Notes:           optionalText(item.Notes),
 		BucketID:        bucket,
 		OrderKey:        item.OrderKey,
+		StartAt:         optionalTimestamp(item.StartAt),
 		ContentLanguage: optionalText(item.ContentLanguage),
 		CreatedBy:       createdBy,
 		CreatedAt:       timestampOf(item.CreatedAt),
@@ -892,11 +935,21 @@ func (r ItemRepository) InsertCopy(ctx context.Context, duplicate repository.Cop
 		BucketID:        bucket,
 		OrderKey:        item.OrderKey,
 		AssigneeID:      assignee,
+		StartAt:         optionalTimestamp(item.StartAt),
 		CustomFields:    fields,
 		CustomFieldRefs: refs,
 		ContentLanguage: optionalText(item.ContentLanguage),
 		CreatedBy:       createdBy,
 		CreatedAt:       timestampOf(item.CreatedAt),
+	}
+	if item.Due != nil {
+		params.DueAt = timestampOf(item.Due.At)
+		dateOnly := item.Due.DateOnly
+		params.DueDateOnly = &dateOnly
+		if item.Due.TimeZone != "" {
+			zone := item.Due.TimeZone
+			params.DueTimeZone = &zone
+		}
 	}
 	if item.ArchivedAt != nil {
 		params.ArchivedAt = timestampOf(*item.ArchivedAt)
@@ -969,6 +1022,26 @@ func columnDepth(depth int) (int32, error) {
 	return int32(depth), nil
 }
 
+// dueFrom folds the three schedule columns back into the one value they store (D-01). The flag
+// and the zone mean nothing without the instant, and the table's CHECK guarantees they are never
+// stored without one - so a row with no instant answers no due date at all.
+func dueFrom(at pgtype.Timestamptz, dateOnly bool, zone *string) *work.DueDate {
+	instant := optionalTime(at)
+	if instant == nil {
+		return nil
+	}
+	return &work.DueDate{At: instant.UTC(), DateOnly: dateOnly, TimeZone: stringFrom(zone)}
+}
+
+// optionalTimestamp is timestampOf for an instant that may be absent: nil reaches the column as
+// NULL rather than as the zero time, which would be a moment in the year one.
+func optionalTimestamp(value *time.Time) pgtype.Timestamptz {
+	if value == nil {
+		return pgtype.Timestamptz{}
+	}
+	return timestampOf(*value)
+}
+
 func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
@@ -1033,6 +1106,8 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		BucketID:        bucketID,
 		OrderKey:        row.OrderKey,
 		AssigneeID:      assigneeID,
+		StartAt:         optionalTime(row.StartAt),
+		Due:             dueFrom(row.DueAt, row.DueDateOnly, row.DueTimeZone),
 		Cover:           cover,
 		CustomFields:    customFields,
 		ContentLanguage: stringFrom(row.ContentLanguage),
