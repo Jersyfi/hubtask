@@ -8,8 +8,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -48,8 +50,11 @@ type ReminderSignals interface {
 // commit together. A process killed halfway leaves none of them and the reminders are still
 // pending when the job is claimed again - nothing is lost and nothing is doubled (test RT-3).
 type FireReminders struct {
-	Reminders   repository.Reminders
-	Items       repository.Items
+	Reminders repository.Reminders
+	Items     repository.Items
+	// Schedule is the scan the two announcements run on: the same repository as Items, under the
+	// narrow interface that says what this pass may do with it.
+	Schedule    repository.DueAnnouncements
 	Containers  repository.Containers
 	ItemMembers repository.ItemMembers
 	// Visibility answers whether a named recipient can still see the entry. A membership revoked
@@ -57,8 +62,13 @@ type FireReminders struct {
 	// the same question D-02 asked at the write, asked again at the moment it matters.
 	Visibility Visibility
 	Notifier   ReminderNotifier
-	Clock      clock.Clock
-	Signals    ReminderSignals
+	// Events is where the two scheduling announcements go: item.due_soon and item.overdue are
+	// facts about a deadline rather than messages to a person, and what reacts to them is
+	// automation (D-03, domain-model.md §4).
+	Events  outbox.Events
+	Clock   clock.Clock
+	IDs     clock.IDGenerator
+	Signals ReminderSignals
 	// BatchSize bounds one pass. A pass is one transaction, and a transaction that fired ten
 	// thousand reminders would hold its locks for as long as that took.
 	BatchSize int
@@ -67,12 +77,22 @@ type FireReminders struct {
 // ReminderOutcome is what one pass did and what it leaves behind.
 type ReminderOutcome struct {
 	// Fired counts the reminders that became notifications, Cancelled the ones whose entry no
-	// longer warrants one.
+	// longer warrants one, and Announced the deadlines the pass told automation about.
 	Fired     int
 	Cancelled int
+	Announced int
 	// NextAt is when the tenant next owes a reminder, and nil when it owes none - which is what
 	// lets the job finish instead of idling forever.
 	NextAt *time.Time
+}
+
+// FilledBatch reports whether the pass ran into its own bound, in which case there is known work
+// left and the job comes straight back for it rather than sleeping until the next moment.
+func (o ReminderOutcome) FilledBatch(batch int) bool {
+	if batch <= 0 {
+		return false
+	}
+	return o.Fired+o.Cancelled >= batch || o.Announced >= batch
 }
 
 // DefaultReminderBatch is how many reminders one pass settles. Large enough that a normal tenant
@@ -107,15 +127,84 @@ func (h FireReminders) Execute(
 		}
 	}
 
-	// Read after the settling, so that what it answers is what is left rather than what was there
-	// when the pass began. A full batch leaves the rest of it in this answer, and the job comes
-	// straight back for it.
-	next, err := h.Reminders.NextMoment(ctx)
+	announced, err := h.announce(ctx, now)
 	if err != nil {
 		return ReminderOutcome{}, err
 	}
-	outcome.NextAt = next
+	outcome.Announced = announced
+
+	// Read after everything the pass wrote, so that what it answers is what is left rather than
+	// what was there when the pass began. A full batch leaves the rest of it in this answer, and
+	// the job comes straight back for it.
+	nextReminder, err := h.Reminders.NextMoment(ctx)
+	if err != nil {
+		return ReminderOutcome{}, err
+	}
+	nextAnnouncement, err := h.Schedule.NextDueAnnouncement(ctx, domain.DueSoonLead)
+	if err != nil {
+		return ReminderOutcome{}, err
+	}
+	if moment := earliestMoment(nextReminder, nextAnnouncement); !moment.IsZero() {
+		outcome.NextAt = &moment
+	}
 	return outcome, nil
+}
+
+// announce tells automation what the clock has just made true: a deadline that has come within the
+// lead, and one that has passed with the work not done.
+//
+// Both are claimed and stamped in one statement, which is what makes each of them happen once per
+// due date (D-03): a second pass finds nothing left to claim. A date that moves clears the stamps
+// where it is written, because a new deadline may be approached and missed again.
+//
+// The order matters for an entry whose deadline is already past: due_soon is claimed first, so a
+// deadline that arrived while nothing was running is announced as approaching and then as missed,
+// rather than only as missed. That is the sequence a rule reads, and it is the same one it would
+// have read had the scheduler never been away.
+func (h FireReminders) announce(ctx context.Context, now time.Time) (int, error) {
+	soon, err := h.Schedule.ClaimDueSoon(ctx, now, now.Add(domain.DueSoonLead), h.batch())
+	if err != nil {
+		return 0, err
+	}
+	for _, claimed := range soon {
+		if err := h.publish(ctx, claimed, domain.DueSoonThresholdSpec, now); err != nil {
+			return 0, err
+		}
+	}
+
+	overdue, err := h.Schedule.ClaimOverdue(ctx, now, h.batch())
+	if err != nil {
+		return 0, err
+	}
+	for _, claimed := range overdue {
+		if err := h.publish(ctx, claimed, "", now); err != nil {
+			return 0, err
+		}
+	}
+	return len(soon) + len(overdue), nil
+}
+
+// publish writes one announcement to the outbox. The threshold decides which of the two it is: the
+// lead for the approach, nothing for the deadline itself.
+func (h FireReminders) publish(
+	ctx context.Context, claimed repository.DueAnnouncement, thresholdSpec string, now time.Time,
+) error {
+	// What the event needs and nothing more. The scan reads four fields precisely so that a pass
+	// announcing a deadline never carries a title or a note (rule 10).
+	item := domain.WorkItem{
+		ID: claimed.ItemID, TenantID: claimed.TenantID, CollectionID: claimed.CollectionID,
+		Due: &claimed.Due,
+	}
+
+	announcement, err := event.NewItemOverdue(h.IDs.NewID(), item, now, event.Cause{})
+	if thresholdSpec != "" {
+		announcement, err = event.NewItemDueSoon(
+			h.IDs.NewID(), item, thresholdSpec, now, event.Cause{})
+	}
+	if err != nil {
+		return err
+	}
+	return h.Events.Append(ctx, announcement)
 }
 
 // settle decides what becomes of one reminder and writes it, reporting whether it fired.

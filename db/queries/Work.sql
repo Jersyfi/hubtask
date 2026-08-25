@@ -513,12 +513,19 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- for. The three columns travel together because none of them means anything alone (D-01,
 -- i18n-l10n.md §4) - which fields *moved* is the application's answer, recorded in the change
 -- log per field; the row simply says what is now true.
+--
+-- The two announcement stamps are cleared with it (D-03): a date that moves is a new deadline,
+-- which may be approached and missed again, and a stamp left standing would silence the
+-- announcement for it. Cleared here rather than by the caller, because they are bookkeeping about
+-- this column and nothing outside this statement writes it.
 UPDATE work_item SET
-  due_at        = sqlc.narg('due_at'),
-  due_date_only = coalesce(sqlc.narg('due_date_only'), false),
-  due_time_zone = sqlc.narg('due_time_zone'),
-  updated_at    = sqlc.arg('updated_at'),
-  version       = version + 1
+  due_at                = sqlc.narg('due_at'),
+  due_date_only         = coalesce(sqlc.narg('due_date_only'), false),
+  due_time_zone         = sqlc.narg('due_time_zone'),
+  due_soon_announced_at = NULL,
+  overdue_announced_at  = NULL,
+  updated_at            = sqlc.arg('updated_at'),
+  version               = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
 -- name: MoveWorkItemSubtree :execrows
@@ -664,3 +671,57 @@ UPDATE work_item SET
   updated_at = sqlc.arg('updated_at'),
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: ClaimDueSoonItems :many
+-- The entries whose deadline has come within the lead and have not been announced yet, claimed and
+-- stamped in one statement (D-03).
+--
+-- One statement rather than a select and an update, which is what makes the announcement
+-- exactly-once: the stamp is written by the same UPDATE that returns the row, so two passes over
+-- the same entry - another leader, a retried job - cannot both see it as unannounced. The same
+-- reasoning as the reminder's guarded transition, in the shape a scan needs.
+--
+-- Only open entries: something completed, trashed or archived is not approaching anything, which
+-- is also what the index this runs on is partial over.
+UPDATE work_item SET due_soon_announced_at = sqlc.arg('now')
+WHERE id IN (
+  SELECT due.id FROM work_item AS due
+  WHERE due.due_at IS NOT NULL
+    AND due.due_at <= sqlc.arg('threshold')
+    AND due.due_soon_announced_at IS NULL
+    AND due.deleted_at IS NULL AND due.archived_at IS NULL AND due.is_completed = false
+  ORDER BY due.due_at
+  FOR UPDATE SKIP LOCKED
+  LIMIT sqlc.arg('batch_size')
+)
+RETURNING id, tenant_id, collection_id, due_at, due_date_only, due_time_zone;
+
+-- name: ClaimOverdueItems :many
+-- The same scan for the deadline itself: entries whose date has passed with the work not done.
+UPDATE work_item SET overdue_announced_at = sqlc.arg('now')
+WHERE id IN (
+  SELECT due.id FROM work_item AS due
+  WHERE due.due_at IS NOT NULL
+    AND due.due_at <= sqlc.arg('now')
+    AND due.overdue_announced_at IS NULL
+    AND due.deleted_at IS NULL AND due.archived_at IS NULL AND due.is_completed = false
+  ORDER BY due.due_at
+  FOR UPDATE SKIP LOCKED
+  LIMIT sqlc.arg('batch_size')
+)
+RETURNING id, tenant_id, collection_id, due_at, due_date_only, due_time_zone;
+
+-- name: NextDueAnnouncement :one
+-- When this tenant next owes an announcement: the lead before a deadline that has not been
+-- announced as approaching, or the deadline itself where only the overdue announcement is left.
+-- NULL when it owes none, which is half of what lets the firing job finish (D-03).
+SELECT min(
+  CASE WHEN due_soon_announced_at IS NULL
+       THEN due_at - make_interval(secs => sqlc.arg('lead_seconds')::double precision)
+       ELSE due_at
+  END
+)::timestamptz AS next_at
+FROM work_item
+WHERE due_at IS NOT NULL
+  AND deleted_at IS NULL AND archived_at IS NULL AND is_completed = false
+  AND (due_soon_announced_at IS NULL OR overdue_announced_at IS NULL);

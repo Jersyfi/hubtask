@@ -370,6 +370,56 @@ func NewItemDueChanged(id shared.ID, item work.WorkItem, oldDue *work.DueDate, a
 		ItemSubject(item.ID), actor, occurredAt, cause, payload)
 }
 
+// NewItemDueSoon announces that an entry's deadline is approaching (domain-model.md §4).
+//
+// The threshold travels with it rather than being implied: a rule that reacts to "due soon" has to
+// be able to say what soon meant, and a consumer reading an event from a year ago has to be able to
+// read it against the lead that was in force then. Nobody caused it - the clock did - so the actor
+// is the system.
+func NewItemDueSoon(
+	id shared.ID, item work.WorkItem, thresholdSpec string, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newDueMoment(id, ItemDueSoon, item, thresholdSpec, occurredAt, cause)
+}
+
+// NewItemOverdue announces that an entry's due date has passed with the work not done.
+//
+// The threshold is zero and says so, rather than being left out: one shape for both events is what
+// lets a consumer read them with one piece of code, and "the moment itself" is a threshold like any
+// other.
+func NewItemOverdue(
+	id shared.ID, item work.WorkItem, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newDueMoment(id, ItemOverdue, item, "PT0S", occurredAt, cause)
+}
+
+// newDueMoment is the shape both scheduling announcements share.
+func newDueMoment(
+	id shared.ID, eventType Type, item work.WorkItem, thresholdSpec string,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if item.Due == nil {
+		// An announcement about a deadline that is not there. The scan only claims entries that
+		// have one, so this is the caller and the event disagreeing - a defect rather than
+		// anything a client sent (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.due_missing")
+	}
+
+	payload := map[string]any{
+		"item_id":        item.ID.String(),
+		"collection_id":  item.CollectionID.String(),
+		"due_at":         item.Due.At.UTC(),
+		"due_date_only":  item.Due.DateOnly,
+		"threshold_spec": thresholdSpec,
+	}
+	if item.Due.TimeZone != "" {
+		payload["time_zone"] = item.Due.TimeZone
+	}
+
+	return NewEnvelope(id, eventType, item.TenantID,
+		ItemSubject(item.ID), Actor{Kind: shared.ActorSystem}, occurredAt, cause, payload)
+}
+
 func newItemAssignment(id shared.ID, eventType Type, item work.WorkItem, assigneeID shared.ID,
 	actor Actor, occurredAt time.Time, cause Cause,
 ) (Envelope, error) {

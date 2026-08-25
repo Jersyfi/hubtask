@@ -80,7 +80,7 @@ func (f ReminderFiring) next(outcome work.ReminderOutcome) queue.Result {
 	if wait < f.MinimumWait {
 		wait = f.MinimumWait
 	}
-	if outcome.Fired+outcome.Cancelled >= f.Firing.BatchSize && f.Firing.BatchSize > 0 {
+	if outcome.FilledBatch(f.Firing.BatchSize) {
 		wait = f.Continuation
 	}
 	return queue.Result{Repeat: true, RepeatAfter: wait}

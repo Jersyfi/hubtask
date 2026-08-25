@@ -324,6 +324,8 @@ CREATE TABLE work_item (
   -- The language-dependent document the search reads, maintained by the trigger below and dropping
   -- the generated column above in a later migration (C-08, migration 0019, ADR-0034).
   search_document    tsvector,
+  due_soon_announced_at timestamptz,
+  overdue_announced_at  timestamptz,
   archived_at        timestamptz,
   deleted_at         timestamptz,
   trash_batch_id     uuid,
@@ -355,6 +357,10 @@ CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, 
   WHERE deleted_at IS NULL AND archived_at IS NULL;
 CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
   WHERE deleted_at IS NULL AND archived_at IS NULL AND is_completed = false;
+CREATE INDEX wi_due_announce_idx ON work_item (tenant_id, due_at)
+  WHERE due_at IS NOT NULL
+    AND deleted_at IS NULL AND archived_at IS NULL AND is_completed = false
+    AND (due_soon_announced_at IS NULL OR overdue_announced_at IS NULL);
 CREATE INDEX wi_assignee_idx ON work_item (tenant_id, assignee_id, is_completed, due_at)
   WHERE deleted_at IS NULL;
 CREATE INDEX wi_parent_idx   ON work_item (tenant_id, parent_id, order_key);

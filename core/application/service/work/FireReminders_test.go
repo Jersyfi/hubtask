@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -49,6 +51,50 @@ func (s *reminderSignals) ReminderFired(_ context.Context, channel string, delay
 	s.delays = append(s.delays, delaySeconds)
 }
 
+// announcements is the scheduling scan as a pass sees it: what a deadline has made true, claimed
+// and stamped once. The fake stamps by removing the entry from its own list, which is the same
+// exactly-once the statement gets from claiming and stamping in one go.
+type announcements struct {
+	soon    []repository.DueAnnouncement
+	overdue []repository.DueAnnouncement
+	next    *time.Time
+}
+
+func (a *announcements) ClaimDueSoon(
+	_ context.Context, _, threshold time.Time, limit int,
+) ([]repository.DueAnnouncement, error) {
+	claimed := a.take(&a.soon, threshold, limit)
+	return claimed, nil
+}
+
+func (a *announcements) ClaimOverdue(
+	_ context.Context, now time.Time, limit int,
+) ([]repository.DueAnnouncement, error) {
+	claimed := a.take(&a.overdue, now, limit)
+	return claimed, nil
+}
+
+func (a *announcements) take(
+	from *[]repository.DueAnnouncement, boundary time.Time, limit int,
+) []repository.DueAnnouncement {
+	var claimed, left []repository.DueAnnouncement
+	for _, candidate := range *from {
+		if len(claimed) < limit && !candidate.Due.At.After(boundary) {
+			claimed = append(claimed, candidate)
+			continue
+		}
+		left = append(left, candidate)
+	}
+	*from = left
+	return claimed
+}
+
+func (a *announcements) NextDueAnnouncement(
+	_ context.Context, _ time.Duration,
+) (*time.Time, error) {
+	return a.next, nil
+}
+
 type firingHarness struct {
 	firing     FireReminders
 	reminders  *reminders
@@ -58,6 +104,8 @@ type firingHarness struct {
 	visibility *visibility
 	notifier   *notifier
 	signals    *reminderSignals
+	schedule   *announcements
+	events     *events
 }
 
 // firedAt is the moment the pass runs at: an hour after the reminders below promised, so the
@@ -75,11 +123,14 @@ func newFiringHarness(t *testing.T) *firingHarness {
 		visibility: newVisibility(accountID, otherAccount),
 		notifier:   &notifier{},
 		signals:    &reminderSignals{},
+		schedule:   &announcements{},
+		events:     &events{},
 	}
 	h.firing = FireReminders{
-		Reminders: h.reminders, Items: h.items, Containers: h.containers,
+		Reminders: h.reminders, Items: h.items, Schedule: h.schedule, Containers: h.containers,
 		ItemMembers: h.members, Visibility: h.visibility, Notifier: h.notifier,
-		Clock: clock.Fixed(firedAt), Signals: h.signals, BatchSize: 2,
+		Events: h.events,
+		Clock:  clock.Fixed(firedAt), IDs: &ids{}, Signals: h.signals, BatchSize: 2,
 	}
 
 	h.containers.stored[hubID] = domain.Container{
@@ -313,5 +364,104 @@ func TestAPassWithoutATenantIsRefused(t *testing.T) {
 	if refusal := shared.AsError(err); refusal == nil ||
 		refusal.DetailCode != "reminders.fire_without_tenant" {
 		t.Fatalf("refused as %v", err)
+	}
+}
+
+// The two announcements the same pass makes, and what tells them apart: the threshold. Nobody
+// caused either, so the actor on both is the system.
+func TestThePassAnnouncesWhatTheClockHasMadeTrue(t *testing.T) {
+	h := newFiringHarness(t)
+	h.withItem()
+
+	approaching := repository.DueAnnouncement{
+		ItemID: remindedItem, TenantID: tenantID, CollectionID: collectionID,
+		Due: domain.DueDate{At: firedAt.Add(6 * time.Hour), TimeZone: "Europe/Berlin"},
+	}
+	missed := repository.DueAnnouncement{
+		ItemID: shared.MustParseID("0192f000-0000-7000-8000-0000000000fc"), TenantID: tenantID, CollectionID: collectionID,
+		Due: domain.DueDate{At: firedAt.Add(-2 * time.Hour)},
+	}
+	h.schedule.soon = []repository.DueAnnouncement{approaching}
+	h.schedule.overdue = []repository.DueAnnouncement{missed}
+
+	outcome, err := h.firing.Execute(t.Context(), systemActor())
+	if err != nil {
+		t.Fatalf("the pass failed: %v", err)
+	}
+	if outcome.Announced != 2 {
+		t.Fatalf("the pass announced %d", outcome.Announced)
+	}
+	if len(h.events.appended) != 2 {
+		t.Fatalf("the events are %+v", h.events.appended)
+	}
+
+	soon := h.events.appended[0]
+	if soon.Type != event.ItemDueSoon {
+		t.Errorf("the first announcement is %s", soon.Type)
+	}
+	if soon.Payload["threshold_spec"] != domain.DueSoonThresholdSpec {
+		t.Errorf("the threshold is %v", soon.Payload["threshold_spec"])
+	}
+	if soon.Payload["item_id"] != remindedItem.String() ||
+		soon.Payload["collection_id"] != collectionID.String() {
+		t.Errorf("the announcement is about %+v", soon.Payload)
+	}
+	if soon.Actor.Kind != shared.ActorSystem {
+		t.Errorf("the announcement was caused by %v", soon.Actor)
+	}
+	// Rule 10: what the pass carries is a deadline, never a title or a note.
+	if _, carried := soon.Payload["title"]; carried {
+		t.Error("the announcement carries the entry's title")
+	}
+
+	overdue := h.events.appended[1]
+	if overdue.Type != event.ItemOverdue || overdue.Payload["threshold_spec"] != "PT0S" {
+		t.Errorf("the second announcement is %s with %v",
+			overdue.Type, overdue.Payload["threshold_spec"])
+	}
+}
+
+// Claimed once means announced once: the second pass finds nothing left, which is what keeps a
+// rule from escalating the same overdue entry forever.
+func TestADeadlineIsAnnouncedOnce(t *testing.T) {
+	h := newFiringHarness(t)
+	h.withItem()
+	h.schedule.overdue = []repository.DueAnnouncement{{
+		ItemID: remindedItem, TenantID: tenantID, CollectionID: collectionID,
+		Due: domain.DueDate{At: firedAt.Add(-time.Hour)},
+	}}
+
+	if _, err := h.firing.Execute(t.Context(), systemActor()); err != nil {
+		t.Fatalf("the first pass failed: %v", err)
+	}
+	outcome, err := h.firing.Execute(t.Context(), systemActor())
+	if err != nil {
+		t.Fatalf("the second pass failed: %v", err)
+	}
+
+	if outcome.Announced != 0 || len(h.events.appended) != 1 {
+		t.Errorf("the deadline was announced %d times", len(h.events.appended))
+	}
+}
+
+// What the pass leaves behind is the earliest of the two clocks it watches: the next reminder and
+// the next announcement. Whichever comes first is when the job comes back.
+func TestTheNextMomentIsTheEarliestOfBothSchedules(t *testing.T) {
+	h := newFiringHarness(t)
+	h.withItem()
+	announcement := firedAt.Add(30 * time.Minute)
+	h.schedule.next = &announcement
+
+	reminder := h.withDueReminder(reminderID)
+	later := firedAt.Add(2 * time.Hour)
+	reminder.FireAt = &later
+	h.reminders.stored[reminder.ID] = reminder
+
+	outcome, err := h.firing.Execute(t.Context(), systemActor())
+	if err != nil {
+		t.Fatalf("the pass failed: %v", err)
+	}
+	if outcome.NextAt == nil || !outcome.NextAt.Equal(announcement) {
+		t.Errorf("the pass comes back at %v rather than %v", outcome.NextAt, announcement)
 	}
 }

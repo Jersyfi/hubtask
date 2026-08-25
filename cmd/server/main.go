@@ -1012,14 +1012,16 @@ func run() error {
 	// holds its own job row for the pass (D-03).
 	reminderFiring := worker.ReminderFiring{
 		Firing: work.FireReminders{
-			Reminders: reminders, Items: items, Containers: containers, ItemMembers: itemMembers,
-			Visibility: authorizer,
+			Reminders: reminders, Items: items, Schedule: items, Containers: containers,
+			ItemMembers: itemMembers,
+			Visibility:  authorizer,
 			Notifier: notification.RecordReminder{
 				Notifications: notifications, Preferences: notificationPreferences,
 				Accounts: accounts, Jobs: jobs,
 				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			},
-			Clock: clockadapter.System{}, Signals: metrics,
+			Events: outbox,
+			Clock:  clockadapter.System{}, IDs: ids, Signals: metrics,
 			BatchSize: work.DefaultReminderBatch,
 		},
 		Queue: jobs,

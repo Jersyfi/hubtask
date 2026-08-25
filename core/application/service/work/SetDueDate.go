@@ -280,11 +280,25 @@ func (w DueDateWriter) rescheduleReminders(ctx context.Context, item domain.Work
 		earliest = earliestMoment(&earliest, rescheduled.FireAt)
 	}
 
-	// The wake-up follows the reminders, in the same transaction: a date pulled forward moves its
-	// reminders with it, and a schedule still pointing at the old moment would fire them late
-	// (D-03). A date pushed back needs nothing - a wake-up that is too early finds nothing due and
-	// reschedules itself.
-	return scheduleReminderFire(ctx, w.Jobs, item.TenantID, earliest)
+	// The wake-up follows the reminders and the date itself, in the same transaction: a date
+	// pulled forward moves its reminders with it, and a schedule still pointing at the old moment
+	// would fire them late (D-03). A date pushed back needs nothing - a wake-up that is too early
+	// finds nothing due and reschedules itself.
+	moments := append([]*time.Time{&earliest}, dueMoments(item.Due)...)
+	return scheduleReminderFire(ctx, w.Jobs, item.TenantID, earliestMoment(moments...))
+}
+
+// dueMoments is what a due date owes the scheduler beyond its reminders: the moment it comes
+// within the lead, and the moment it passes. Both are announced once (D-03), and the entry's own
+// stamps were just cleared by the write, so both are ahead again whatever was announced before.
+func dueMoments(due *domain.DueDate) []*time.Time {
+	if due == nil {
+		return nil
+	}
+
+	approaching := due.At.Add(-domain.DueSoonLead)
+	passing := due.At
+	return []*time.Time{&approaching, &passing}
 }
 
 // recordChanges writes what an offline client has to be told: one entry per field of the trio

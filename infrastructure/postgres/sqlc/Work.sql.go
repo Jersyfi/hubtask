@@ -42,6 +42,130 @@ func (q *Queries) ChildCompletion(ctx context.Context, parentID pgtype.UUID) (Ch
 	return i, err
 }
 
+const claimDueSoonItems = `-- name: ClaimDueSoonItems :many
+UPDATE work_item SET due_soon_announced_at = $1
+WHERE id IN (
+  SELECT due.id FROM work_item AS due
+  WHERE due.due_at IS NOT NULL
+    AND due.due_at <= $2
+    AND due.due_soon_announced_at IS NULL
+    AND due.deleted_at IS NULL AND due.archived_at IS NULL AND due.is_completed = false
+  ORDER BY due.due_at
+  FOR UPDATE SKIP LOCKED
+  LIMIT $3
+)
+RETURNING id, tenant_id, collection_id, due_at, due_date_only, due_time_zone
+`
+
+type ClaimDueSoonItemsParams struct {
+	Now       pgtype.Timestamptz
+	Threshold pgtype.Timestamptz
+	BatchSize int32
+}
+
+type ClaimDueSoonItemsRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	DueAt        pgtype.Timestamptz
+	DueDateOnly  bool
+	DueTimeZone  *string
+}
+
+// The entries whose deadline has come within the lead and have not been announced yet, claimed and
+// stamped in one statement (D-03).
+//
+// One statement rather than a select and an update, which is what makes the announcement
+// exactly-once: the stamp is written by the same UPDATE that returns the row, so two passes over
+// the same entry - another leader, a retried job - cannot both see it as unannounced. The same
+// reasoning as the reminder's guarded transition, in the shape a scan needs.
+//
+// Only open entries: something completed, trashed or archived is not approaching anything, which
+// is also what the index this runs on is partial over.
+func (q *Queries) ClaimDueSoonItems(ctx context.Context, arg ClaimDueSoonItemsParams) ([]ClaimDueSoonItemsRow, error) {
+	rows, err := q.db.Query(ctx, claimDueSoonItems, arg.Now, arg.Threshold, arg.BatchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimDueSoonItemsRow{}
+	for rows.Next() {
+		var i ClaimDueSoonItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.DueAt,
+			&i.DueDateOnly,
+			&i.DueTimeZone,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const claimOverdueItems = `-- name: ClaimOverdueItems :many
+UPDATE work_item SET overdue_announced_at = $1
+WHERE id IN (
+  SELECT due.id FROM work_item AS due
+  WHERE due.due_at IS NOT NULL
+    AND due.due_at <= $1
+    AND due.overdue_announced_at IS NULL
+    AND due.deleted_at IS NULL AND due.archived_at IS NULL AND due.is_completed = false
+  ORDER BY due.due_at
+  FOR UPDATE SKIP LOCKED
+  LIMIT $2
+)
+RETURNING id, tenant_id, collection_id, due_at, due_date_only, due_time_zone
+`
+
+type ClaimOverdueItemsParams struct {
+	Now       pgtype.Timestamptz
+	BatchSize int32
+}
+
+type ClaimOverdueItemsRow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	DueAt        pgtype.Timestamptz
+	DueDateOnly  bool
+	DueTimeZone  *string
+}
+
+// The same scan for the deadline itself: entries whose date has passed with the work not done.
+func (q *Queries) ClaimOverdueItems(ctx context.Context, arg ClaimOverdueItemsParams) ([]ClaimOverdueItemsRow, error) {
+	rows, err := q.db.Query(ctx, claimOverdueItems, arg.Now, arg.BatchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimOverdueItemsRow{}
+	for rows.Next() {
+		var i ClaimOverdueItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.DueAt,
+			&i.DueDateOnly,
+			&i.DueTimeZone,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const containerOrderKeyNeighbours = `-- name: ContainerOrderKeyNeighbours :one
 WITH level AS (
   SELECT id, order_key
@@ -929,6 +1053,29 @@ func (q *Queries) MoveWorkItemSubtree(ctx context.Context, arg MoveWorkItemSubtr
 	return result.RowsAffected(), nil
 }
 
+const nextDueAnnouncement = `-- name: NextDueAnnouncement :one
+SELECT min(
+  CASE WHEN due_soon_announced_at IS NULL
+       THEN due_at - make_interval(secs => $1::double precision)
+       ELSE due_at
+  END
+)::timestamptz AS next_at
+FROM work_item
+WHERE due_at IS NOT NULL
+  AND deleted_at IS NULL AND archived_at IS NULL AND is_completed = false
+  AND (due_soon_announced_at IS NULL OR overdue_announced_at IS NULL)
+`
+
+// When this tenant next owes an announcement: the lead before a deadline that has not been
+// announced as approaching, or the deadline itself where only the overdue announcement is left.
+// NULL when it owes none, which is half of what lets the firing job finish (D-03).
+func (q *Queries) NextDueAnnouncement(ctx context.Context, leadSeconds float64) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, nextDueAnnouncement, leadSeconds)
+	var next_at pgtype.Timestamptz
+	err := row.Scan(&next_at)
+	return next_at, err
+}
+
 const orderKeyNeighbours = `-- name: OrderKeyNeighbours :one
 WITH level AS (
   SELECT id, order_key
@@ -1381,11 +1528,13 @@ func (q *Queries) SetWorkItemCustomField(ctx context.Context, arg SetWorkItemCus
 
 const setWorkItemDueDate = `-- name: SetWorkItemDueDate :execrows
 UPDATE work_item SET
-  due_at        = $1,
-  due_date_only = coalesce($2, false),
-  due_time_zone = $3,
-  updated_at    = $4,
-  version       = version + 1
+  due_at                = $1,
+  due_date_only         = coalesce($2, false),
+  due_time_zone         = $3,
+  due_soon_announced_at = NULL,
+  overdue_announced_at  = NULL,
+  updated_at            = $4,
+  version               = version + 1
 WHERE id = $5::uuid AND version = $6
 `
 
@@ -1407,6 +1556,11 @@ type SetWorkItemDueDateParams struct {
 // for. The three columns travel together because none of them means anything alone (D-01,
 // i18n-l10n.md §4) - which fields *moved* is the application's answer, recorded in the change
 // log per field; the row simply says what is now true.
+//
+// The two announcement stamps are cleared with it (D-03): a date that moves is a new deadline,
+// which may be approached and missed again, and a stamp left standing would silence the
+// announcement for it. Cleared here rather than by the caller, because they are bookkeeping about
+// this column and nothing outside this statement writes it.
 func (q *Queries) SetWorkItemDueDate(ctx context.Context, arg SetWorkItemDueDateParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setWorkItemDueDate,
 		arg.DueAt,

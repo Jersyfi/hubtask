@@ -326,6 +326,7 @@
   "events.comment_not_deleted": "This installation could not announce that deletion.",
   "events.assignee_missing": "This installation could not announce that change.",
   "events.due_unchanged": "This installation could not announce that change.",
+  "events.due_missing": "This installation is misconfigured and could not announce a deadline.",
   "events.account_missing": "This installation could not announce that change.",
 
   "shared.id_malformed": "{value} is not a valid identifier.",

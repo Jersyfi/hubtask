@@ -72,6 +72,19 @@ const MaxReminderRecipients = 50
 // from the same number the specification declares.
 const MaxReminderOffsetSpecLength = 64
 
+// DueSoonLead is how far ahead of a deadline `item.due_soon` is announced, and DueSoonThresholdSpec
+// is the same value as the event carries it (D-03, domain-model.md §4).
+//
+// A fixed lead rather than one derived from the entry's own reminders, and the decision is worth
+// keeping: a rule that reacts to "due soon" has to mean the same thing for every entry in a
+// workspace, and a threshold that followed whatever reminder somebody happened to set would make
+// the event fire at the same moment as that reminder - telling automation exactly what the
+// reminder already said, and saying nothing at all about an entry nobody set one on.
+const (
+	DueSoonLead          = 24 * time.Hour
+	DueSoonThresholdSpec = "PT24H"
+)
+
 // MaxReminderOffset is the longest relative offset that means anything: ten years before or after
 // a due date. Not a technical limit but a plausibility one - a duration beyond it is a typo or an
 // attempt to overflow the arithmetic, and neither should reach the scheduler.

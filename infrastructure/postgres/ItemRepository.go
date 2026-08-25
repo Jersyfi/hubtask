@@ -1120,3 +1120,122 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		Version:         int(row.Version),
 	}, nil
 }
+
+// ClaimDueSoon takes the entries whose deadline has come within the lead and stamps them as
+// announced, in one statement.
+func (r ItemRepository) ClaimDueSoon(
+	ctx context.Context, now, threshold time.Time, limit int,
+) ([]repository.DueAnnouncement, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ClaimDueSoonItems(ctx, sqlc.ClaimDueSoonItemsParams{
+		Now:       timestampOf(now),
+		Threshold: timestampOf(threshold),
+		//nolint:gosec // G115: the batch is this process's own constant, not a value from a request
+		BatchSize: int32(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("claiming the entries due soon: %w", err))
+	}
+
+	claimed := make([]repository.DueAnnouncement, 0, len(rows))
+	for _, row := range rows {
+		announcement, err := announcementFrom(
+			row.ID, row.TenantID, row.CollectionID, row.DueAt, row.DueDateOnly, row.DueTimeZone)
+		if err != nil {
+			return nil, err
+		}
+		claimed = append(claimed, announcement)
+	}
+	return claimed, nil
+}
+
+// ClaimOverdue takes the entries whose deadline has passed with the work not done.
+func (r ItemRepository) ClaimOverdue(
+	ctx context.Context, now time.Time, limit int,
+) ([]repository.DueAnnouncement, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ClaimOverdueItems(ctx, sqlc.ClaimOverdueItemsParams{
+		Now: timestampOf(now),
+		//nolint:gosec // G115: the batch is this process's own constant, not a value from a request
+		BatchSize: int32(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("claiming the overdue entries: %w", err))
+	}
+
+	claimed := make([]repository.DueAnnouncement, 0, len(rows))
+	for _, row := range rows {
+		announcement, err := announcementFrom(
+			row.ID, row.TenantID, row.CollectionID, row.DueAt, row.DueDateOnly, row.DueTimeZone)
+		if err != nil {
+			return nil, err
+		}
+		claimed = append(claimed, announcement)
+	}
+	return claimed, nil
+}
+
+// NextDueAnnouncement answers when the tenant next owes an announcement.
+func (r ItemRepository) NextDueAnnouncement(
+	ctx context.Context, lead time.Duration,
+) (*time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	next, err := queries.NextDueAnnouncement(ctx, lead.Seconds())
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the tenant's next announcement: %w", err))
+	}
+	return optionalTime(next), nil
+}
+
+// announcementFrom maps a claimed row onto what the announcement carries, through the same mapper
+// every other read of the trio uses - so a scan and a read cannot disagree about what a due date
+// is.
+func announcementFrom(
+	id, tenantID, collectionID pgtype.UUID, dueAt pgtype.Timestamptz,
+	dateOnly bool, zone *string,
+) (repository.DueAnnouncement, error) {
+	itemID, err := idFrom(id)
+	if err != nil {
+		return repository.DueAnnouncement{}, err
+	}
+	tenant, err := idFrom(tenantID)
+	if err != nil {
+		return repository.DueAnnouncement{}, err
+	}
+	collection, err := idFrom(collectionID)
+	if err != nil {
+		return repository.DueAnnouncement{}, err
+	}
+	if !dueAt.Valid {
+		return repository.DueAnnouncement{}, shared.ErrInternal.WithDetail("postgres.row_incoherent")
+	}
+
+	due := dueFrom(dueAt, dateOnly, zone)
+	if due == nil {
+		return repository.DueAnnouncement{}, shared.ErrInternal.
+			WithDetail("postgres.row_incoherent").
+			WithCause(fmt.Errorf("the due date of entry %s does not read as one", itemID))
+	}
+
+	return repository.DueAnnouncement{
+		ItemID: itemID, TenantID: tenant, CollectionID: collection, Due: *due,
+	}, nil
+}

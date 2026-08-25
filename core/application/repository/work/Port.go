@@ -352,6 +352,40 @@ type ItemQueryResult struct {
 // One repository for all three levels, because they are one aggregate (ADR-0006). A repository
 // per level would be three sets of the same five queries, and the cross-tenant test would have to
 // be written three times to prove the same thing.
+// DueAnnouncements is the scheduling scan's slice of the entries (D-03).
+//
+// Its own interface rather than three more methods on Items, for the reason the notification
+// consumer declares slices of what it reads: what the firing pass may do to the work management
+// context is visible in one place - it claims what a deadline has made true, and it cannot write
+// an entry, complete one or read anybody's notes. The same repository serves it.
+type DueAnnouncements interface {
+	// ClaimDueSoon takes the open entries whose due date has come within the lead, stamping each
+	// as announced in the same statement - which is what makes the announcement exactly-once
+	// across two leaders and a retried job.
+	ClaimDueSoon(ctx context.Context, now, threshold time.Time, limit int) ([]DueAnnouncement, error)
+
+	// ClaimOverdue does the same for the deadline itself: open entries whose date has passed with
+	// the work not done.
+	ClaimOverdue(ctx context.Context, now time.Time, limit int) ([]DueAnnouncement, error)
+
+	// NextDueAnnouncement answers when the tenant next owes one of the two announcements, or nil
+	// when it owes none.
+	NextDueAnnouncement(ctx context.Context, lead time.Duration) (*time.Time, error)
+}
+
+// DueAnnouncement is one entry a scheduling scan has claimed: what the announcement is about, and
+// the due date it is about (D-03).
+//
+// Four fields rather than the aggregate, because that is what the scan reads and what the event
+// carries. Reading the whole entry to announce its deadline would put the title, the notes and the
+// custom fields through a pass that must not carry any of them.
+type DueAnnouncement struct {
+	ItemID       shared.ID
+	TenantID     shared.ID
+	CollectionID shared.ID
+	Due          work.DueDate
+}
+
 type Items interface {
 	// Find returns the item, or ErrNotFound if it does not exist *for this tenant*. Trashed and
 	// archived items come back as they are stored: whether one may take children is the domain's

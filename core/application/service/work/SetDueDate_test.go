@@ -469,10 +469,15 @@ func TestMovingTheDueDateReschedulesTheRelativeReminders(t *testing.T) {
 	if !moved.FireAt.Equal(berlinFriday.Add(-time.Hour)) {
 		t.Errorf("it now fires at %v rather than an hour before the new date", moved.FireAt)
 	}
-	// And the schedule follows the reminder: a wake-up still pointing at the old moment would
-	// fire it late (D-03).
-	if len(h.jobs.enqueued) != 1 || !h.jobs.enqueued[0].RunAt.Equal(moved.FireAt.UTC()) {
-		t.Errorf("the wake-up asked for is %+v", h.jobs.enqueued)
+	// And the schedule follows the date: a wake-up still pointing at the old moment would fire it
+	// late (D-03). The moment asked for is the earliest of what this write made due - here the
+	// lead before the deadline, which comes before the reminder does.
+	if len(h.jobs.enqueued) != 1 {
+		t.Fatalf("the wake-ups asked for are %+v", h.jobs.enqueued)
+	}
+	wantWakeUp := berlinFriday.Add(-domain.DueSoonLead)
+	if !h.jobs.enqueued[0].RunAt.Equal(wantWakeUp) {
+		t.Errorf("the wake-up is at %v rather than %v", h.jobs.enqueued[0].RunAt, wantWakeUp)
 	}
 	// Derived, so it merges with nothing and is recorded as nothing: the due date's own entries
 	// are the record of what happened here.

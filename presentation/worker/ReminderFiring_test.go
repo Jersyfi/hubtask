@@ -47,13 +47,34 @@ func (s *schedule) Update(context.Context, workdomain.Reminder, int) error { ret
 func (s *schedule) Reschedule(context.Context, workdomain.Reminder) error  { return nil }
 func (s *schedule) Delete(context.Context, shared.ID, int) error           { return nil }
 
-var _ workrepo.Reminders = (*schedule)(nil)
+var (
+	_ workrepo.Reminders        = (*schedule)(nil)
+	_ workrepo.DueAnnouncements = (*schedule)(nil)
+)
+
+// The scheduling scan, as a pass with nothing to announce sees it.
+func (s *schedule) ClaimDueSoon(
+	context.Context, time.Time, time.Time, int,
+) ([]workrepo.DueAnnouncement, error) {
+	return nil, nil
+}
+
+func (s *schedule) ClaimOverdue(
+	context.Context, time.Time, int,
+) ([]workrepo.DueAnnouncement, error) {
+	return nil, nil
+}
+
+func (s *schedule) NextDueAnnouncement(context.Context, time.Duration) (*time.Time, error) {
+	return nil, nil
+}
 
 func firingFor(next *time.Time, at time.Time) (ReminderFiring, *queueDouble) {
 	jobs := newQueue()
 	return ReminderFiring{
 		Firing: work.FireReminders{
-			Reminders: &schedule{next: next}, Clock: clock.Fixed(at), BatchSize: 10,
+			Reminders: &schedule{next: next}, Schedule: &schedule{},
+			Clock: clock.Fixed(at), BatchSize: 10,
 		},
 		Queue:        jobs,
 		Clock:        clock.Fixed(at),
