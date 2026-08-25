@@ -54,9 +54,12 @@ const defaultRetryAfter = time.Second
 // defends a server from targets its *users* named; here the user is the principal, and the most
 // ordinary thing they do is run `hubctl --url http://localhost:8080` against `make run`.
 type Client struct {
-	base      string
-	token     secret.Secret
-	transport port.Port
+	base  string
+	token secret.Secret
+	// transport is the GuardedClient itself rather than the port, because the CLI is the one
+	// consumer of the streaming half - Do for the calls, Stream for `hubctl watch` - and the port
+	// deliberately does not know about streams (nothing in core consumes one).
+	transport *httpclient.GuardedClient
 	catalogue i18n.Catalogue
 
 	// Notice reports something the user should know that is not the answer - so far, that a call
@@ -111,6 +114,30 @@ func (c *Client) Post(ctx context.Context, path string, body, into any) error {
 // operations behind it are idempotent by contract, which is what makes PUT the right verb.
 func (c *Client) Put(ctx context.Context, path string, body, into any) error {
 	return c.call(ctx, http.MethodPut, path, nil, body, nil, into)
+}
+
+// OpenStream connects to the change stream (C-10) and hands the open response back. The caller
+// owns the body: it reads the events, it closes it, and its context is what bounds a connection
+// that is deliberately unbounded past the headers.
+func (c *Client) OpenStream(ctx context.Context, lastEventID string) (httpclient.StreamResponse, error) {
+	request := port.Request{
+		Method:      http.MethodGet,
+		URL:         c.base + streamPath,
+		TargetClass: "hubtask-api",
+		Header: map[string][]string{
+			"Accept":        {"text/event-stream"},
+			"Authorization": {"Bearer " + c.token.Reveal()},
+			"User-Agent":    {"hubctl/" + version},
+		},
+	}
+	if lastEventID != "" {
+		request.Header["Last-Event-ID"] = []string{lastEventID}
+	}
+	response, err := c.transport.Stream(ctx, request)
+	if err != nil {
+		return httpclient.StreamResponse{}, c.transportError(err)
+	}
+	return response, nil
 }
 
 // Upload puts staged bytes where requestMediaUpload said to put them.

@@ -86,6 +86,9 @@ type group struct {
 	// search`? - would misname what it does. A group has either commands or run, never both.
 	usage string
 	run   func(ctx context.Context, cli *CLI, args []string) error
+	// unbounded skips the per-command deadline. Only for a command whose whole point is to stay
+	// connected: its connection attempt stays bounded by the transport, and Ctrl-C is its end.
+	unbounded bool
 }
 
 // usageError is a mistake in the invocation rather than in the world. It exits 2; every other
@@ -110,7 +113,7 @@ var errHelpRequested = errors.New("help requested")
 func groups() []group {
 	return []group{
 		authGroup(), containerGroup(), itemGroup(), commentGroup(), fieldGroup(), mediaGroup(),
-		trashGroup(), searchGroup(),
+		trashGroup(), searchGroup(), watchGroup(),
 	}
 }
 
@@ -188,8 +191,11 @@ func dispatch(ctx context.Context, cli *CLI, args []string) error {
 			continue
 		}
 		if g.run != nil {
-			ctx, cancel := context.WithTimeout(ctx, cli.Timeout)
-			defer cancel()
+			if !g.unbounded {
+				bounded, cancel := context.WithTimeout(ctx, cli.Timeout)
+				defer cancel()
+				ctx = bounded
+			}
 			return g.run(ctx, cli, args[1:])
 		}
 		if len(args) == 1 {
