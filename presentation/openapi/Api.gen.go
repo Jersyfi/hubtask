@@ -2155,6 +2155,15 @@ type DroppedReference struct {
 // DroppedReferenceKind defines model for DroppedReference.Kind.
 type DroppedReferenceKind string
 
+// DueDateInput What the due date shall be. The instant is required; the flag and the zone qualify it and cannot be stored without it. An all-day due date carries due_date_only true and is read as a date in due_time_zone - the stored instant answers identically to every reader, and nothing the server emits renders it as a moment (i18n-l10n.md §4).
+type DueDateInput struct {
+	DueAt       time.Time `json:"due_at"`
+	DueDateOnly *bool     `json:"due_date_only,omitempty"`
+
+	// DueTimeZone An IANA time zone, such as Europe/Berlin. Anything else is refused.
+	DueTimeZone *string `json:"due_time_zone,omitempty"`
+}
+
 // DuplicateResult What a duplicate produced: the copy, what it could not carry over, and how big it was.
 type DuplicateResult struct {
 	// Copied How many entries the copy consists of, the copied entry itself included.
@@ -2916,12 +2925,15 @@ type WorkItemCreate struct {
 	CustomFields    *map[string]interface{} `json:"custom_fields,omitempty"`
 	DueAt           *time.Time              `json:"due_at,omitempty"`
 	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
-	DueTimeZone     *string                 `json:"due_time_zone,omitempty"`
-	LabelIds        *[]openapi_types.UUID   `json:"label_ids,omitempty"`
-	MemberIds       *[]openapi_types.UUID   `json:"member_ids,omitempty"`
-	Notes           *string                 `json:"notes,omitempty"`
-	ParentId        *openapi_types.UUID     `json:"parent_id,omitempty"`
-	Title           string                  `json:"title"`
+
+	// DueTimeZone An IANA time zone. Stored beside the instant, never folded into it: an all-day due date (due_date_only) is a date in this zone, not a midnight that shifts with the viewer (i18n-l10n.md §4). Refused without a due_at.
+	DueTimeZone *string               `json:"due_time_zone,omitempty"`
+	LabelIds    *[]openapi_types.UUID `json:"label_ids,omitempty"`
+	MemberIds   *[]openapi_types.UUID `json:"member_ids,omitempty"`
+	Notes       *string               `json:"notes,omitempty"`
+	ParentId    *openapi_types.UUID   `json:"parent_id,omitempty"`
+	StartAt     *time.Time            `json:"start_at,omitempty"`
+	Title       string                `json:"title"`
 
 	// Type Extensible; /meta/capabilities returns the valid values.
 	Type ItemType `json:"type"`
@@ -2942,11 +2954,16 @@ type WorkItemUpdate struct {
 	ContentLanguage *string                 `json:"content_language,omitempty"`
 	Cover           *Cover                  `json:"cover,omitempty"`
 	CustomFields    *map[string]interface{} `json:"custom_fields,omitempty"`
-	DueAt           *time.Time              `json:"due_at,omitempty"`
-	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
-	DueTimeZone     *string                 `json:"due_time_zone,omitempty"`
-	Notes           *string                 `json:"notes,omitempty"`
-	Title           *string                 `json:"title,omitempty"`
+
+	// DueAt null clears the due date, the all-day flag and the zone together - the three fields describe one date and none of them means anything alone.
+	DueAt       *time.Time `json:"due_at,omitempty"`
+	DueDateOnly *bool      `json:"due_date_only,omitempty"`
+
+	// DueTimeZone An IANA time zone. Refused without a due_at.
+	DueTimeZone *string    `json:"due_time_zone,omitempty"`
+	Notes       *string    `json:"notes,omitempty"`
+	StartAt     *time.Time `json:"start_at,omitempty"`
+	Title       *string    `json:"title,omitempty"`
 }
 
 // AccountId defines model for AccountId.
@@ -3284,6 +3301,18 @@ type SetCustomFieldParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ClearDueDateParams defines parameters for ClearDueDate.
+type ClearDueDateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetDueDateParams defines parameters for SetDueDate.
+type SetDueDateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ArchiveWorkItemParams defines parameters for ArchiveWorkItem.
 type ArchiveWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -3539,6 +3568,9 @@ type SetCoverJSONRequestBody = CoverInput
 // SetCustomFieldJSONRequestBody defines body for SetCustomField for application/json ContentType.
 type SetCustomFieldJSONRequestBody = CustomFieldValue
 
+// SetDueDateJSONRequestBody defines body for SetDueDate for application/json ContentType.
+type SetDueDateJSONRequestBody = DueDateInput
+
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
 
@@ -3742,6 +3774,12 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/custom-fields/{key})
 	SetCustomField(w http.ResponseWriter, r *http.Request, itemId ItemId, key CustomFieldKey, params SetCustomFieldParams)
+
+	// (DELETE /items/{itemId}/due)
+	ClearDueDate(w http.ResponseWriter, r *http.Request, itemId ItemId, params ClearDueDateParams)
+
+	// (PUT /items/{itemId}/due)
+	SetDueDate(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetDueDateParams)
 
 	// (DELETE /items/{itemId}/labels/{labelId})
 	RemoveLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
@@ -6263,6 +6301,106 @@ func (siw *ServerInterfaceWrapper) SetCustomField(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ClearDueDate operation middleware
+func (siw *ServerInterfaceWrapper) ClearDueDate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ClearDueDateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ClearDueDate(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetDueDate operation middleware
+func (siw *ServerInterfaceWrapper) SetDueDate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetDueDateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetDueDate(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RemoveLabel operation middleware
 func (siw *ServerInterfaceWrapper) RemoveLabel(w http.ResponseWriter, r *http.Request) {
 
@@ -7926,6 +8064,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/custom-fields/{key}", wrapper.SetCustomField)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.ClearCover)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.SetCover)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/due", wrapper.ClearDueDate)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/due", wrapper.SetDueDate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/attachments", wrapper.ListAttachments)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/attachments/{mediaId}", wrapper.DetachMedia)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/attachments/{mediaId}", wrapper.AttachMedia)

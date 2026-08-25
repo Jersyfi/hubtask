@@ -115,6 +115,13 @@ func TestACopyCarriesTheDescriptionAndNotTheCompletion(t *testing.T) {
 	original.CustomFields = map[string]any{field.Key: "the value"}
 	original.ContentLanguage = "en"
 	original.ArchivedAt = &archivedAt
+	// The schedule travels whole (D-01): a copy that silently lost somebody's due date would be
+	// worse than the one it lost.
+	startAt := created.Add(30 * time.Minute)
+	original.StartAt = &startAt
+	original.Due = &work.DueDate{
+		At: created.Add(48 * time.Hour), DateOnly: true, TimeZone: "Europe/Berlin",
+	}
 	// The state a copy does not take over: somebody completed the original, at a moment, and the
 	// copy was never completed by anybody.
 	original.Completion = work.Completion{IsCompleted: true, CompletedAt: &archivedAt, CompletedBy: authorA}
@@ -140,6 +147,12 @@ func TestACopyCarriesTheDescriptionAndNotTheCompletion(t *testing.T) {
 	}
 	if stored.CustomFields[field.Key] != "the value" {
 		t.Errorf("the copy reads the custom fields as %v", stored.CustomFields)
+	}
+	if stored.StartAt == nil || !stored.StartAt.Equal(startAt) {
+		t.Errorf("the copy lost the start: %v", stored.StartAt)
+	}
+	if !stored.Due.Equal(original.Due) {
+		t.Errorf("the copy lost the due date: %+v, want %+v", stored.Due, original.Due)
 	}
 	// The archive stamp travels, so that an entry put away below the copied one is not silently
 	// brought back.

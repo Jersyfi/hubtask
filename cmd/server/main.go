@@ -411,6 +411,16 @@ func run() error {
 		Groups: groups, Random: clockadapter.CryptoRandom{},
 	}
 
+	// Both directions of an entry's due date share one dependency set, for the same reason
+	// (work.DueDateWriter). The pair's own routes, the merge patch and the create path all
+	// dispatch into this one instance, so a due date means the same thing whichever door it came
+	// through (D-01).
+	dueDateWriter := work.DueDateWriter{
+		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	// Both directions of an entry's cover share one dependency set, for the same reason
 	// (work.CoverWriter). The media record store is here rather than in the media package's own
 	// wiring, because a cover is a reference an item holds: this is where the counter moves
@@ -525,6 +535,7 @@ func run() error {
 			IDs:        ids,
 			HLC:        hybrid,
 			AutoAssign: autoAssign,
+			DueDates:   dueDateWriter,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
@@ -540,6 +551,7 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+			DueDates:   dueDateWriter,
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
@@ -677,6 +689,8 @@ func run() error {
 		}.Descriptor(),
 		work.SetCover{Cover: coverWriter}.Descriptor(),
 		work.ClearCover{Cover: coverWriter}.Descriptor(),
+		work.SetDueDate{Due: dueDateWriter}.Descriptor(),
+		work.ClearDueDate{Due: dueDateWriter}.Descriptor(),
 		work.AttachMedia{Writer: attachmentWriter}.Descriptor(),
 
 		work.DefineCustomField{

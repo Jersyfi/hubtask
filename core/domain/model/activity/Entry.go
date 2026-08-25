@@ -67,6 +67,15 @@ const (
 	// the event catalogue names no cover event (domain-model.md §4).
 	ItemCoverSet     Verb = "item.cover_set"
 	ItemCoverCleared Verb = "item.cover_cleared"
+	// The due date pair (D-01). Their own verbs rather than `item.updated`, for the reason the
+	// cover pair has them: a history that rendered moving a deadline and renaming an entry as the
+	// same sentence would be a history nobody reads twice - and two use cases sharing a verb is
+	// what the gate forbids. One verb covers setting and moving, because the change set carries
+	// both sides and a move is a value moving rather than a different act; clearing is its own
+	// verb the way unassigning is, because "the deadline is gone" is a different sentence from
+	// "the deadline moved". The event is `item.due_changed` for all of it (domain-model.md §4).
+	ItemDueSet     Verb = "item.due_set"
+	ItemDueCleared Verb = "item.due_cleared"
 	// ItemCommented is the one comment verb (C-03). An edit and a deletion do not write history:
 	// the comment carries its own edited_at and its tombstone, and the thread is where both are
 	// read - a history entry beside them would describe the same fact in a second place.
@@ -86,7 +95,7 @@ var verbs = [...]Verb{
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemLabelAdded, ItemLabelRemoved,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
 	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
-	ItemCustomFieldSet, ItemCommented, ItemDuplicated,
+	ItemCustomFieldSet, ItemDueSet, ItemDueCleared, ItemCommented, ItemDuplicated,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

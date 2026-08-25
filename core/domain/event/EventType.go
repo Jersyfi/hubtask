@@ -127,6 +127,16 @@ const (
 	// ItemMemberRemoved announces that an account is off an entry's member list. Consumers:
 	// notification.
 	ItemMemberRemoved Type = "de.hubtask.work.item.member_removed.v1"
+	// ItemDueChanged announces that an entry's due date moved: set, moved to another moment, or
+	// cleared. Consumers: the scheduler and the calendar feed (domain-model.md §4) - a relative
+	// reminder follows the new instant, and a feed re-renders the entry.
+	//
+	// One type for all three movements rather than a set/cleared pair, because the catalogue
+	// declares one and the payload carries both sides: a consumer that cares which movement it was
+	// reads which side is absent. Separate from ItemUpdated on the reasoning that separates every
+	// scheduling event from an edit: a rule that reacts to a rename must not fire when a deadline
+	// moves, and the scheduler must not parse a change set to learn what it is waiting for.
+	ItemDueChanged Type = "de.hubtask.work.item.due_changed.v1"
 	// ItemArchived announces that an entry is kept and read-only. Consumers: automation, search
 	// (an archived entry drops out of the default index), SSE.
 	//
@@ -244,7 +254,7 @@ var types = [...]Type{
 	ContainerCreated, ContainerRenamed, ContainerPoliciesUpdated, ContainerMoved,
 	ContainerArchived, ContainerUnarchived, ContainerDeleted, ContainerRestored,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
-	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
+	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved, ItemDueChanged,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemPurged,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted,

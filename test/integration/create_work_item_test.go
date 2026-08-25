@@ -65,6 +65,16 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 		Clock:      fixed,
 		IDs:        ids,
 		HLC:        hybrid,
+		// The D-01 machinery, over the same adapters: a create declaring a due date dispatches
+		// into it inside the create's transaction.
+		DueDates: work.DueDateWriter{
+			Items: itemRepo(), Containers: containerRepo(),
+			Profiles:   postgres.NewCapabilityProfileRepository(),
+			Authorizer: authorizer, Events: postgres.NewOutbox(jobQueue(t)),
+			Changes: postgres.NewChangeLog(), Audit: sink,
+			Activity:   work.ActivityJournal{Entries: historyRepo(), IDs: ids},
+			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+		},
 	}.Descriptor())
 	if err != nil {
 		t.Fatalf("building the catalogue: %v", err)
@@ -318,15 +328,15 @@ func TestAFieldNoUseCaseWritesYetIsRefusedByName(t *testing.T) {
 	_, err := itemCatalogueFor(ctx, t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
 		usecase.Input{
 			"type": "TASK", "collection_id": collection.String(), "title": "Buy milk",
-			"due_at": "2026-09-01T09:00:00Z",
+			"member_ids": []any{"0192f000-0000-7000-8000-00000000000e"},
 		})
 	if !errors.Is(err, shared.ErrValidation) {
 		t.Fatalf("error = %v, want a validation error", err)
 	}
 
 	fields := shared.AsError(err).Fields
-	if len(fields) != 1 || fields[0].Path != "/due_at" {
-		t.Errorf("field errors = %v, want one naming /due_at", fields)
+	if len(fields) != 1 || fields[0].Path != "/member_ids" {
+		t.Errorf("field errors = %v, want one naming /member_ids", fields)
 	}
 }
 

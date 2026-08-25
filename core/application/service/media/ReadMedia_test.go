@@ -432,6 +432,8 @@ func (i *workItems) SetCustomField(
 	return nil
 }
 func (i *workItems) SetCover(context.Context, work.WorkItem, int) error { return nil }
+
+func (i *workItems) SetDueDate(context.Context, work.WorkItem, int) error { return nil }
 func (i *workItems) MoveSubtree(
 	context.Context, workrepo.Move,
 ) (int, []work.DroppedReference, error) {

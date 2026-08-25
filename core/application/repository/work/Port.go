@@ -442,6 +442,12 @@ type Items interface {
 	// version.
 	SetCover(ctx context.Context, item work.WorkItem, expectedVersion int) error
 
+	// SetDueDate writes the due trio, set or cleared whole, or reports a version conflict. Its
+	// own method for the reason SetAssignee is: one decision about one date, never spending a
+	// rename's version. The three columns travel together because none of them means anything
+	// alone (D-01, i18n-l10n.md §4).
+	SetDueDate(ctx context.Context, item work.WorkItem, expectedVersion int) error
+
 	// MoveSubtree rewrites where an item and everything below it sits, drops the references the
 	// destination cannot resolve, and returns how many rows it touched together with what was lost.
 	//

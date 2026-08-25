@@ -75,12 +75,11 @@ func (f Field) Permits(op Operator) bool { return slices.Contains(f.Operators, o
 
 // The fields this version serves.
 //
-// Deliberately not every column `work_item` has. `due_at`, `start_at` and the custom fields have
-// had columns and indexes since the first migration, and no use case writes any of them yet - a
-// filter on them would match nothing, and a client could not tell that from a collection in which
-// nothing is due. They are refused by name until the milestone that fills them, which is the honest
-// answer and the one a client can act on. The assignee and the members left this sentence with
-// C-01, which is the task that gave them use cases.
+// Deliberately not every column `work_item` has: a field is served here once a use case writes
+// it, because a filter on a column nothing fills would match nothing, and a client could not tell
+// that from a collection in which nothing is due. The assignee and the members left that refusal
+// with C-01, and `due_at` and `start_at` with D-01 - the schedule's first writers are what made
+// them answerable.
 const (
 	FieldType        = "type"
 	FieldParentID    = "parent_id"
@@ -95,6 +94,8 @@ const (
 	FieldCreatedAt   = "created_at"
 	FieldUpdatedAt   = "updated_at"
 	FieldCompletedAt = "completed_at"
+	FieldStartAt     = "start_at"
+	FieldDueAt       = "due_at"
 	FieldArchivedAt  = "archived_at"
 	FieldLabels      = "labels"
 	FieldAssigneeID  = "assignee_id"
@@ -224,6 +225,19 @@ var catalogue = []Field{
 	},
 	{
 		Name: FieldCompletedAt, Kind: KindTimestamp,
+		Operators: []Operator{OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
+		Nullable:  true, Sortable: true,
+	},
+	{
+		// The timeline's pair (D-01, api-guidelines.md §3): the timeline view sorts by the start
+		// and windows with BETWEEN over both. What a query compares is the instant alone - the
+		// all-day flag and the zone say how a client renders a due date, not when it is.
+		Name: FieldStartAt, Kind: KindTimestamp,
+		Operators: []Operator{OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
+		Nullable:  true, Sortable: true,
+	},
+	{
+		Name: FieldDueAt, Kind: KindTimestamp,
 		Operators: []Operator{OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
 		Nullable:  true, Sortable: true,
 	},

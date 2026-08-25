@@ -59,6 +59,8 @@ func (s *itemStore) SetCustomField(
 	return nil
 }
 func (s *itemStore) SetCover(context.Context, work.WorkItem, int) error { return nil }
+
+func (s *itemStore) SetDueDate(context.Context, work.WorkItem, int) error { return nil }
 func (s *itemStore) MoveSubtree(context.Context, workrepo.Move) (int, []work.DroppedReference, error) {
 	return 0, nil, nil
 }

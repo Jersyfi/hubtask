@@ -85,6 +85,8 @@ func (itemDouble) SetCustomField(
 	return nil
 }
 func (itemDouble) SetCover(context.Context, work.WorkItem, int) error { return nil }
+
+func (itemDouble) SetDueDate(context.Context, work.WorkItem, int) error { return nil }
 func (itemDouble) MoveSubtree(
 	context.Context, Move,
 ) (int, []work.DroppedReference, error) {
