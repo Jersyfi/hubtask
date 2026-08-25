@@ -117,6 +117,9 @@
   "items.title_too_long": "The title may be at most {maximum} characters long.",
   "items.title_malformed": "The title has to fit on one line. Longer text belongs in the notes.",
   "items.content_language_invalid": "{value} is not a language tag. Use a code like de, de-AT or zh-Hans.",
+  "items.due_time_zone_invalid": "{value} is not a time zone. Use an IANA name such as Europe/Berlin.",
+  "items.due_time_zone_without_date": "A time zone qualifies a due date. Send due_at with it, or leave both out.",
+  "items.due_date_only_without_date": "An all-day flag qualifies a due date. Send due_at with it, or leave both out.",
   "items.profile_mismatched": "This installation is misconfigured and could not create that entry.",
   "items.identity_incomplete": "This installation is misconfigured and could not create that entry.",
   "items.path_malformed": "This installation is misconfigured and could not create that entry.",
@@ -318,6 +321,7 @@
   "events.media_missing": "This installation could not announce that change.",
   "events.comment_not_deleted": "This installation could not announce that deletion.",
   "events.assignee_missing": "This installation could not announce that change.",
+  "events.due_unchanged": "This installation could not announce that change.",
   "events.account_missing": "This installation could not announce that change.",
 
   "shared.id_malformed": "{value} is not a valid identifier.",
@@ -416,6 +420,8 @@
   "activity.item_cover_set": "{actor} chose a cover for this entry",
   "activity.item_cover_cleared": "{actor} took the cover off this entry",
   "activity.item_custom_field_set": "{actor} filled in a field",
+  "activity.item_due_set": "{actor} set the due date",
+  "activity.item_due_cleared": "{actor} removed the due date",
   "activity.item_commented": "{actor} commented",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
