@@ -4,7 +4,7 @@ A record of every data category the system processes, with its purpose, classifi
 locations, retention, and deletion path. The basis for the record of processing activities
 (GDPR Art. 30) that every operator keeps for themselves.
 
-* **Version:** 0.3.0 · **As of:** 2026-08-24 · **Maintenance:** by pull request, so changes are traceable
+* **Version:** 0.4.0 · **As of:** 2026-08-25 · **Maintenance:** by pull request, so changes are traceable
 * **Concept:** [../architecture/data-protection.md](../architecture/data-protection.md)
 * **Consistency check:** gate PG-7 compares this record against the database schema; a table with personal content that is missing here fails the build.
 
@@ -65,7 +65,8 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Containers, buckets, labels | `container`, `bucket`, `label` | `NON_PERSONAL` | Structure | As above | `CASCADE` |
 | Full-text index | `work_item.search_document` (and `work_item.search_vector` until a later migration drops it), optionally a vector index | `PERSONAL_CONTENT` (derived) | Search | With the source row | `CASCADE` |
 | Content language | `work_item.content_language` | `NON_PERSONAL` | Which text search configuration the entry is indexed under (C-08, ADR-0034) | With the source row | `CASCADE` |
-| Templates, saved views | `template`, `saved_view` | `PERSONAL_CONTENT` (free text possible) | Productivity | Until deleted | `CASCADE` |
+| Templates | `template` | `PERSONAL_CONTENT` (free text possible) | Productivity | Until deleted | `CASCADE` |
+| Saved views | `saved_view` (name is free text; the query may quote content in filter values) | `PERSONAL_CONTENT` | Productivity: bookmarked queries (D-07) | Until deleted | `CASCADE` with the tenant; the delete endpoint removes the row hard, and a calendar feed that served it keeps its token and loses the reference (`calendar_feed.view_id` is `ON DELETE SET NULL`) |
 | Jumble entries (raw text from mail/webhook) | `jumble_entry` | `PERSONAL_CONTENT` | Quick capture | Until converted, otherwise 90 days | `RETENTION` |
 | Trash marker | `work_item.deleted_at` | `NON_PERSONAL` | Restore | 30 days | `RETENTION` (hard delete) |
 | Label and attachment links | `item_label`, `item_attachment` | `NON_PERSONAL` | Structure; the content sits in the row they point at | With the item | `CASCADE` |
