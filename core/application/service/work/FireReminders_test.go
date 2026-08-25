@@ -106,6 +106,7 @@ type firingHarness struct {
 	signals    *reminderSignals
 	schedule   *announcements
 	events     *events
+	changes    *changes
 }
 
 // firedAt is the moment the pass runs at: an hour after the reminders below promised, so the
@@ -125,12 +126,14 @@ func newFiringHarness(t *testing.T) *firingHarness {
 		signals:    &reminderSignals{},
 		schedule:   &announcements{},
 		events:     &events{},
+		changes:    &changes{},
 	}
 	h.firing = FireReminders{
 		Reminders: h.reminders, Items: h.items, Schedule: h.schedule, Containers: h.containers,
 		ItemMembers: h.members, Visibility: h.visibility, Notifier: h.notifier,
-		Events: h.events,
-		Clock:  clock.Fixed(firedAt), IDs: &ids{}, Signals: h.signals, BatchSize: 2,
+		Events: h.events, Changes: h.changes,
+		Clock: clock.Fixed(firedAt), IDs: &ids{}, HLC: &hlcSource{},
+		Signals: h.signals, BatchSize: 2,
 	}
 
 	h.containers.stored[hubID] = domain.Container{
@@ -200,6 +203,18 @@ func TestFiringSettlesTheReminderTellsSomebodyAndReportsTheDelay(t *testing.T) {
 	if len(h.signals.delays) != 1 || h.signals.delays[0] != time.Hour.Seconds() {
 		t.Errorf("the delay reported is %v", h.signals.delays)
 	}
+	// And the device that scheduled a local notification for this reminder learns that the server
+	// fired it (offline-sync.md §8): one entry, the one field that moved, caused by nobody.
+	if len(h.changes.recorded) != 1 {
+		t.Fatalf("the change entries are %+v", h.changes.recorded)
+	}
+	recorded := h.changes.recorded[0]
+	if recorded.Entity != "reminder" || recorded.Payload["state"] != "SENT" {
+		t.Errorf("the change entry is %+v", recorded)
+	}
+	if !recorded.ActorID.IsZero() {
+		t.Errorf("the firing was recorded as %s's change", recorded.ActorID)
+	}
 	if h.signals.channels[0] != "EMAIL" {
 		t.Errorf("the channel reported is %q", h.signals.channels[0])
 	}
@@ -265,6 +280,10 @@ func TestAReminderOnAnEntryNobodyWantsIsCancelled(t *testing.T) {
 			}
 			if len(h.signals.delays) != 0 {
 				t.Error("a cancelled reminder was counted against the punctuality objective")
+			}
+			if len(h.changes.recorded) != 1 ||
+				h.changes.recorded[0].Payload["state"] != "CANCELLED" {
+				t.Errorf("the change entries are %+v", h.changes.recorded)
 			}
 		})
 	}

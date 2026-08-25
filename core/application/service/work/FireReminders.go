@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -65,9 +66,14 @@ type FireReminders struct {
 	// Events is where the two scheduling announcements go: item.due_soon and item.overdue are
 	// facts about a deadline rather than messages to a person, and what reacts to them is
 	// automation (D-03, domain-model.md §4).
-	Events  outbox.Events
+	Events outbox.Events
+	// Changes is how a device learns that a reminder fired. offline-sync.md §8 requires a client
+	// to reconcile the local notification it scheduled, and it can only do that if the server's
+	// decision reaches it - so the state the pass writes travels like any other field.
+	Changes changelog.ChangeLog
 	Clock   clock.Clock
 	IDs     clock.IDGenerator
+	HLC     clock.HLCSource
 	Signals ReminderSignals
 	// BatchSize bounds one pass. A pass is one transaction, and a transaction that fired ten
 	// thousand reminders would hold its locks for as long as that took.
@@ -230,10 +236,11 @@ func (h FireReminders) settle(
 		// §8 says so from the client's side - a device that reminds about a task completed long
 		// ago is the failure being avoided. CANCELLED is the state that exists for exactly this,
 		// and the row goes on saying why nothing was sent.
-		if _, err := h.Reminders.Settle(ctx, reminder.ID, domain.ReminderCancelled); err != nil {
+		moved, err := h.Reminders.Settle(ctx, reminder.ID, domain.ReminderCancelled)
+		if err != nil || !moved {
 			return false, err
 		}
-		return false, nil
+		return false, h.recordState(ctx, reminder, item, domain.ReminderCancelled)
 	}
 
 	moved, err := h.Reminders.Settle(ctx, reminder.ID, domain.ReminderSent)
@@ -248,8 +255,33 @@ func (h FireReminders) settle(
 	if err := h.Notifier.Execute(ctx, reminder.TenantID, item.ID, recipients); err != nil {
 		return false, err
 	}
+	if err := h.recordState(ctx, reminder, item, domain.ReminderSent); err != nil {
+		return false, err
+	}
 	h.report(ctx, reminder, now)
 	return true, nil
+}
+
+// recordState tells offline clients what the server decided about a reminder.
+//
+// One entry carrying the one field that moved, exactly as an edit records one per field
+// (offline-sync.md §4.2). The actor is nobody: a state written by the clock is not somebody's
+// change, and a device filtering its own writes out of a pull must not filter this one away.
+func (h FireReminders) recordState(
+	ctx context.Context, reminder domain.Reminder, item domain.WorkItem, state domain.ReminderState,
+) error {
+	if h.Changes == nil {
+		return nil
+	}
+	return h.Changes.Record(ctx, changelog.Change{
+		TenantID:    reminder.TenantID,
+		Entity:      reminderTarget,
+		EntityID:    reminder.ID,
+		Op:          changelog.Upsert,
+		ContainerID: item.CollectionID,
+		HLC:         h.HLC.Next(),
+		Payload:     map[string]any{"state": state.String()},
+	})
 }
 
 // recipients is who is told: the accounts the reminder names, or - for the empty list - the

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -401,6 +402,145 @@ func TestRemindersAreInvisibleFromAnotherTenant(t *testing.T) {
 			t.Fatalf("tenant B's delete answered %v", writeErr)
 		}
 	})
+
+	// The three the firing pass runs on (D-03). A pass in the wrong tenant claims nothing, settles
+	// nothing and is told the tenant owes nothing - which is what keeps one tenant's scheduler
+	// from firing another's reminders.
+	t.Run("claim due", func(t *testing.T) {
+		var claimed []work.Reminder
+		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+			var err error
+			claimed, err = reminderRepo().ClaimDue(ctx, created.Add(72*time.Hour), 10)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		for _, candidate := range claimed {
+			if candidate.ID == reminder.ID {
+				t.Fatal("tenant B claimed tenant A's reminder")
+			}
+		}
+	})
+
+	t.Run("settle", func(t *testing.T) {
+		var moved bool
+		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+			var err error
+			moved, err = reminderRepo().Settle(ctx, reminder.ID, work.ReminderSent)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if moved {
+			t.Fatal("tenant B fired tenant A's reminder")
+		}
+
+		var stored work.Reminder
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			var err error
+			stored, err = reminderRepo().Find(ctx, reminder.ID)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if stored.State != work.ReminderPending {
+			t.Errorf("tenant A's reminder is %s", stored.State)
+		}
+	})
+
+	t.Run("next moment", func(t *testing.T) {
+		var next *time.Time
+		if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+			var err error
+			next, err = reminderRepo().NextMoment(ctx)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if next != nil {
+			t.Errorf("tenant B is told it owes a reminder at %v", next)
+		}
+	})
+}
+
+// Gate SG-3 for the scheduling scan (D-03): one negative per method. A pass in the wrong tenant
+// announces nothing, and the entry it could not see keeps its deadline unannounced.
+func TestTheDueAnnouncementScanStopsAtTheTenantBoundary(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+
+	overdue := created.Add(time.Hour)
+	item := findWorkItem(ctx, t, tenantA, task)
+	item.Due = &work.DueDate{At: overdue}
+	item.UpdatedAt = overdue
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetDueDate(ctx, item, item.Version)
+	}); err != nil {
+		t.Fatalf("setting the due date: %v", err)
+	}
+
+	later := overdue.Add(time.Hour)
+
+	t.Run("claim due soon", func(t *testing.T) {
+		var claimed []repository.DueAnnouncement
+		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+			var err error
+			claimed, err = itemRepo().ClaimDueSoon(ctx, later, later.Add(24*time.Hour), 10)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		for _, announcement := range claimed {
+			if announcement.ItemID == task {
+				t.Fatal("tenant B claimed tenant A's approaching deadline")
+			}
+		}
+	})
+
+	t.Run("claim overdue", func(t *testing.T) {
+		var claimed []repository.DueAnnouncement
+		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+			var err error
+			claimed, err = itemRepo().ClaimOverdue(ctx, later, 10)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		for _, announcement := range claimed {
+			if announcement.ItemID == task {
+				t.Fatal("tenant B claimed tenant A's missed deadline")
+			}
+		}
+	})
+
+	t.Run("next announcement", func(t *testing.T) {
+		var next *time.Time
+		if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+			var err error
+			next, err = itemRepo().NextDueAnnouncement(ctx, 24*time.Hour)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if next != nil {
+			t.Errorf("tenant B is told it owes an announcement at %v", next)
+		}
+	})
+
+	// And tenant A's entry still owes both announcements: nothing was stamped by the passes above.
+	var owed *time.Time
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		owed, err = itemRepo().NextDueAnnouncement(ctx, 24*time.Hour)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if owed == nil {
+		t.Error("tenant A's deadline was announced by a pass in another tenant")
+	}
 }
 
 // The merge rule offline-sync.md §4.2 gains for a reminder, proved the way D-01 proved the due
