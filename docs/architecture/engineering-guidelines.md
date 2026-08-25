@@ -63,6 +63,7 @@ injected.
 12. Retention and sync: the new data kind is added to the retention catalogue, a merge rule is defined for every new field, and the archive format and import path are adjusted for model changes (BK-4).
 13. Documentation updated (the arc42 section, an ADR for an architectural decision, the changelog via the commit).
 14. The Conventional Commit title is correct; a breaking change is marked.
+15. **Client impact** settled: a change to `api/openapi.yaml` carries its client fix in the same pull request — `packages/api-client` regenerated and the web app building green ([ADR-0035](../adr/ADR-0035-one-product-version.md) §4). A core task adds no screens, but it may not leave the client lane red either.
 
 ---
 

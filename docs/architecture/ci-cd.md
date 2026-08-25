@@ -120,6 +120,7 @@ permissions:
   a stale one, or none at all, and a pin nothing can resolve is not a stricter pin but a step that
   never runs.
 * Repository setting "Allow select actions" with an allowlist.
+* Repository security settings: secret scanning with push protection, and Dependabot alerts.
 * No `pull_request_target`; contributions from forks run without secrets.
 * Publishing only through a GitHub **environment** (`production`) with an approval rule.
 * `cosign` keyless via the workflow's OIDC token — no private key in the repository.
@@ -206,6 +207,7 @@ for that (open point CI-1).
 | CI-1 | Self-hosted runner for load tests | `0.6.0` |
 | CI-2 | Whether to enable the merge queue (worthwhile once several contributors work in parallel) | As needed |
 | CI-3 | Enforce image signature verification at deployment (Kyverno/Sigstore policy) | `0.9.0` |
+| CI-4 | Where `hubtask.eu` is served from, and which workflow deploys it — the `website` job builds and lints, nothing publishes | `0.4.0` (the pre-release site, [roadmap](../roadmap.md) phase 5) |
 
 ---
 
