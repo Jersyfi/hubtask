@@ -351,11 +351,17 @@ LIMIT sqlc.arg('row_limit');
 -- against the destination: which definition a value belongs to is decided where the losses are
 -- reported (I-W6), not here.
 --
--- The columns no use case writes yet are absent: the recurrence rule and the jumble provenance.
--- They are NULL on every row this installation has, so carrying them would be copying a value
--- nothing can have set. Whichever milestone gives a column its first writer gives it a line here
--- in the same change - a copy that silently lost somebody's due date would be worse than the one
--- it lost. The schedule left that list with D-01, which is why its four columns are here.
+-- The jumble provenance is absent because no use case writes it yet: it is NULL on every row this
+-- installation has, so carrying it would be copying a value nothing can have set. Whichever
+-- milestone gives it a writer gives it a line here in the same change - a copy that silently lost
+-- somebody's due date would be worse than the one it lost. The schedule left that list with D-01,
+-- which is why its four columns are here.
+--
+-- recurrence_rule_id has a writer since D-04 and is deliberately *not* carried (D-05). It says
+-- which series an entry belongs to, and a copy belongs to no series: duplicating a recurring task
+-- gives somebody a task like it, not a second template producing the same occurrences. The
+-- materialisation writes the pointer itself, through the statement that owns it, precisely because
+-- an occurrence is the one copy that does belong to a series.
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
   bucket_id, order_key, assignee_id,

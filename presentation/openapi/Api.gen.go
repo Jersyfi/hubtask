@@ -3657,6 +3657,12 @@ type SetRecurrenceParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SkipOccurrenceParams defines parameters for SkipOccurrence.
+type SkipOccurrenceParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // CreateReminderParams defines parameters for CreateReminder.
 type CreateReminderParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -4214,6 +4220,9 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/recurrence)
 	SetRecurrence(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetRecurrenceParams)
+
+	// (POST /items/{itemId}/recurrence:skip)
+	SkipOccurrence(w http.ResponseWriter, r *http.Request, itemId ItemId, params SkipOccurrenceParams)
 
 	// (GET /items/{itemId}/reminders)
 	ListReminders(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -7119,6 +7128,56 @@ func (siw *ServerInterfaceWrapper) SetRecurrence(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// SkipOccurrence operation middleware
+func (siw *ServerInterfaceWrapper) SkipOccurrence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SkipOccurrenceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SkipOccurrence(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListReminders operation middleware
 func (siw *ServerInterfaceWrapper) ListReminders(w http.ResponseWriter, r *http.Request) {
 
@@ -9116,6 +9175,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/recurrence", wrapper.RemoveRecurrence)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/recurrence", wrapper.GetRecurrence)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/recurrence", wrapper.SetRecurrence)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/recurrence:skip", wrapper.SkipOccurrence)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/reminders", wrapper.ListReminders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/reminders", wrapper.CreateReminder)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/reminders/{reminderId}", wrapper.DeleteReminder)

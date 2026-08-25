@@ -412,6 +412,12 @@ func (pending) ShareSavedView(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// SkipOccurrence answers as pending until D-05 registers its use case; the route exists because
+// the contract declares it.
+func (pending) SkipOccurrence(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SkipOccurrenceParams) {
+	notAvailable(w, r)
+}
+
 // The recurrence operations are overridden by RestController, for the reason given at
 // CreateContainer.
 func (pending) GetRecurrence(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
