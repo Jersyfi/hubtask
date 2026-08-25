@@ -419,8 +419,9 @@ func run() error {
 	// dispatch into this one instance, so a due date means the same thing whichever door it came
 	// through (D-01).
 	dueDateWriter := work.DueDateWriter{
-		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
-		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal,
+		Items: items, Containers: containers, Profiles: profiles, Reminders: reminders,
+		Authorizer: authorizer,
+		Events:     outbox, Changes: changes, Audit: auditSink, Activity: journal,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
