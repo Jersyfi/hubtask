@@ -34,6 +34,7 @@ tags:
   - name: items
   - name: structure
   - name: comments
+  - name: reminders
   - name: media
   - name: audit
   - name: backup
@@ -2373,6 +2374,103 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/reminders:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [reminders]
+      operationId: listReminders
+      description: >
+        The entry's reminders, oldest first. Readable by whoever may read the entry, and unpaged:
+        an entry carries at most max_reminders_per_item of them, which is the bound that makes a
+        page unnecessary rather than an omission.
+      responses:
+        "200":
+          description: The entry's reminders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reminder"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [reminders]
+      operationId: createReminder
+      description: >
+        Puts a reminder on the entry. offset_spec has two forms and no third: REL:<duration> is an
+        ISO-8601 duration counted from the due date, so the entry needs one - without it there is
+        no moment to fire at - and ABS:<instant> is a fixed moment no due date moves. A preset is
+        a client's vocabulary for a common offset; what travels is the offset itself.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReminderInput"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/reminders/{reminderId}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+      - $ref: "#/components/parameters/ReminderId"
+    patch:
+      tags: [reminders]
+      operationId: updateReminder
+      description: >
+        Changes a reminder. A merge patch: a field that is not sent is not touched, and each field
+        that moves is its own change log entry, so two devices editing the offset and the channels
+        converge to both (offline-sync.md §4.2). Recipients and channels are chosen whole - the
+        list sent replaces the list stored.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReminderUpdate"
+      responses:
+        "200":
+          description: Changed
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [reminders]
+      operationId: deleteReminder
+      description: >
+        Removes the reminder. A hard delete of one row: a reminder is created and deleted whole,
+        and what a person deleted is gone rather than kept as a tombstone with a state. Idempotent -
+        deleting a reminder that is not there succeeds.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}/attachments:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -2694,6 +2792,11 @@ components:
       schema: { type: string, format: uuid }
     CommentId:
       name: commentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ReminderId:
+      name: reminderId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -3995,6 +4098,97 @@ components:
         deleted_at: { type: [string, "null"], format: date-time }
         version: { type: integer }
 
+
+    Reminder:
+      type: object
+      required: [id, item_id, offset_spec, channels, recipients, state, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        item_id: { type: string, format: uuid }
+        offset_spec:
+          type: string
+          maxLength: 64
+          example: "REL:-PT1H"
+          description: >
+            REL:<ISO-8601 duration> counted from the entry's due date - negative for before it -
+            or ABS:<RFC 3339 instant>, a fixed moment. Years and months are refused in a duration:
+            they are calendar arithmetic rather than a length of time, and a reminder that meant
+            two different things in two months would be a promise this offset cannot keep.
+        channels:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ReminderChannel"
+        recipients:
+          type: array
+          items: { type: string, format: uuid }
+          description: >
+            Who is reminded. Empty means the assignee and the entry's members, resolved when the
+            reminder fires rather than when it is written - so somebody added to the entry
+            tomorrow is reached tomorrow.
+        state:
+          $ref: "#/components/schemas/ReminderState"
+        fire_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            The moment the server will fire at, and its value alone: for ABS the instant itself,
+            for REL the due date plus the offset, recomputed whenever the due date moves. Null for
+            a relative reminder whose entry has lost its due date - the reminder stays, because
+            the date may come back and nobody asked for the reminder to go.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        version: { type: integer }
+
+    ReminderChannel:
+      type: string
+      enum: [EMAIL]
+      description: >
+        What carries the reminder. EMAIL is what this installation sends on; the channels arc42
+        §5.2 names beside it arrive with the tasks that build them, and a client tolerates a value
+        it does not know (offline-sync.md §9).
+
+    ReminderState:
+      type: string
+      enum: [PENDING, SENT, CANCELLED]
+      description: >
+        Where the reminder stands, written by the server and never by a client: PENDING until it
+        fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it
+        rather than cancelling it.
+
+    ReminderInput:
+      type: object
+      required: [offset_spec]
+      properties:
+        offset_spec: { type: string, maxLength: 64, example: "REL:-PT1H" }
+        channels:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ReminderChannel"
+          description: Omitted means EMAIL, the one channel this installation sends on.
+        recipients:
+          type: array
+          items: { type: string, format: uuid }
+          description: >
+            Omitted or empty means the assignee and the entry's members. Everybody named has to be
+            able to reach the entry, exactly as an assignee has to (C-01).
+
+    ReminderUpdate:
+      type: object
+      description: >
+        A merge patch. An absent member is not touched; a member that is sent replaces what is
+        stored, lists included - channels and recipients are chosen whole.
+      properties:
+        offset_spec: { type: string, maxLength: 64 }
+        channels:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ReminderChannel"
+        recipients:
+          type: array
+          items: { type: string, format: uuid }
 
     AuditEntry:
       type: object

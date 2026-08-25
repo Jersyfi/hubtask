@@ -412,6 +412,24 @@ func (pending) ShareSavedView(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// The reminder operations answer as pending until D-02 registers their use cases; the routes
+// exist because the contract declares them.
+func (pending) ListReminders(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateReminder(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CreateReminderParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateReminder(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ReminderId, _ openapi.UpdateReminderParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteReminder(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.ReminderId, _ openapi.DeleteReminderParams) {
+	notAvailable(w, r)
+}
+
 // QueryItems is overridden by RestController, for the reason given at CreateContainer.
 func (pending) QueryItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
