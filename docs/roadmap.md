@@ -1,10 +1,13 @@
 # Implementation Plan
 
 Versioning follows [SemVer](./architecture/versioning-release.md). Before `1.0.0`, minor releases
-may contain breaks; with `1.0.0`, API v1 is promised stable.
+may contain breaks; with `1.0.0`, API v1 is promised stable. There is **one** version for the
+product and every first-party client ([ADR-0035](./adr/ADR-0035-one-product-version.md)).
 
-The order follows the requirement: **the core is built completely first, then automation, and the
-frontend last** (its design and feature set are still open).
+The order follows the requirement: **the core is built completely first**, then automation and
+operations. The client track no longer waits for the end of that — it runs **alongside from
+`0.4.0`**, one milestone window behind the core, so that every screen is built on a contract that
+has already settled (phase 5).
 
 ---
 
@@ -136,7 +139,7 @@ Prerequisites for `1.0.0`:
 
 ---
 
-## Phase 5 — Frontend (in parallel from `0.4.0`, with its own versioning)
+## Phase 5 — The client track (in parallel from `0.4.0`)
 
 The stack is decided: Svelte 5 with the webapp as a plain Vite SPA
 ([ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md)), Tauri 2 shells for desktop and mobile
@@ -144,19 +147,45 @@ with the PWA path closed ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md)), parity
 tenant administration reached via the web on mobile
 ([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)), and one product UI plus a
 framework-agnostic sync engine ([ADR-0033](./adr/ADR-0033-shared-client-architecture.md)). The
-scaffolds live in milestone `0.3.5` (W-06–W-09); the work packages of the frontend track follow
-below, each cut into issues only when its milestone opens, from the then-current state of this
-file and the accepted ADRs.
+scaffolds live in milestone `0.3.5` (W-06–W-09). What was missing was the schedule.
 
-| Work package | Decision it implements |
-|---|---|
-| Sync-engine package: ports, store schema, mutation queue, HLC, the §9 test harness against fakes — before any shell | [ADR-0033](./adr/ADR-0033-shared-client-architecture.md), [ADR-0021](./adr/ADR-0021-offline-sync.md) |
-| Design-system component layer, wave by wave per `design-system.md` §4, plus the component workbench decision | [ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md), [ADR-0029](./adr/ADR-0029-design-system-tokens.md) |
-| Tauri 2 desktop shell (Windows/macOS/Linux): thin shell, SQLite + keystore persistence behind the `Storage` port, updater and distribution | [ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0033](./adr/ADR-0033-shared-client-architecture.md) |
-| Tauri 2 mobile shell (iOS/Android): shell, signing, store pipeline, and the capability-matrix implementation (admin routes excluded, the "lives on the web" affordance) | [ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0032](./adr/ADR-0032-client-capability-matrix.md) |
-| Celebration kit: the three slots with intensity-guardrail tokens, tier triggers from domain events, the per-user switch | `design-system.md` §7 |
-| Onboarding tour: the pattern's components, and the tour content per client | `design-system.md` §8 |
-| Website: SvelteKit + `adapter-static` scaffold, prerendered | [ADR-0030](./adr/ADR-0030-svelte-frontend-framework.md) |
+Four rules govern the track. They are what make a client built alongside a moving core affordable
+rather than a source of permanent rework.
+
+**One version, and no second one.** [ADR-0035](./adr/ADR-0035-one-product-version.md): the client
+is not versioned separately — the web app is embedded in the binary and released with it, the
+shells carry the product version plus a platform build counter, the website is unversioned. What a
+second number would have expressed is expressed by a maturity stage instead: `experimental`, then
+`preview`, then `stable` at convergence.
+
+**The client track runs one milestone window behind the core.** A client milestone builds the
+surface for a core milestone that has already shipped. The client therefore works against a
+contract that has just settled rather than one still moving, and the cost of the parallelism stays
+bounded to the window it occurs in.
+
+**Incomplete is normal; broken is a defect.** A use case without a screen is the expected state for
+most of the `0.x` phase, and the maturity stage says so. A red client lane is not the frontend
+catching up: build, lint, typecheck and test are green at every commit, on the same terms as the Go
+gates. And because `packages/api-client` is generated from the specification, a contract change
+turns the client red in the pull request that makes it — which is why that pull request carries the
+client fix (ADR-0035 §4).
+
+**`F1`…`F6` are milestones, not versions.** They are planning buckets holding the client issues;
+nothing is released by them. Tasks are numbered `F1-01`, `F2-01` and so on, and each milestone is
+cut into issues when it opens, from the then-current state of this file and the accepted ADRs.
+
+| Milestone | Opens with | Builds the surface for | Contents |
+|---|---|---|---|
+| **F1 — Foundations** | `0.4.0` | up to `0.3.0` | The component workbench decision and design-system wave 1; the three §9 gaps that block it (iconography, contrast verification in CI, voice and tone) and the wordmark the website needs; the application frame — layout, navigation, `data-theme`, the message-code renderer, problem-details rendering, `HealthBanner` from `/meta/health`, the capability manifest, the maturity banner; sign-in and session; and the data seam: `packages/sync-engine` with its three ports, an online-only pass-through and the Svelte binding, so that no component ever talks to `@hubtask/api-client` directly. Plus the pre-release website |
+| **F2 — The working surface** | `0.4.5` | `0.2.0` | Wave 2; hubs, collections and the five levels, buckets, labels, ordering and drag and drop, trash and archive, the activity history; the query language made visible — `SearchField`, `QueryBuilder`, `ViewSwitcher` for list and kanban, `TaskRow`, `WorkItemCard`, `BucketColumn`, `LabelChip` and `LabelPicker`, `CapabilityGate`. This is where the tool becomes usable for its own development: daily work moves out of `hubctl` and into the app, which is what risk R-08 was waiting for |
+| **F3 — Collaboration, content, time** | `0.5.0` | `0.3.0` and `0.4.0` | Comments, members and assignment, covers, attachments with presigned upload, custom fields, notifications, the SSE stream, bulk and duplicate — `CommentThread`, `AssigneeControl`, `CustomFieldRenderer`, `ActivityFeed`; and the time surfaces `DueDateControl`, `ReminderEditor`, `RecurrenceEditor`, templates, saved views with their `layout` hint, the timeline, and calendar feed management |
+| **F4 — Automation, administration, tenant** | `0.6.0` | `0.4.5` and `0.5.0` | The jumble inbox, `AutomationRuleCard` and `RunStatusBadge`, dry run, webhook subscriptions, personal access tokens and service accounts; the administration area — tenant settings, `RoleBadge` and `PermissionMatrix`, quotas, the OIDC connection, MFA, sessions and step-up, backup and restore, retention with its preview, audit query, export and `:verify`, data subject requests. Administration is the one area the mobile client does not carry, so its routes are tagged by area here (ADR-0032), long before there is a mobile build to exclude them from |
+| **F5 — AI, i18n, accessibility** | `0.7.0` | `0.7.0` and `0.8.0` | `AISuggestion` — visually separable, and gone without residue when AI is switched off — semantic search, and the AI paths of the jumble and of decomposition; language switching, CLDR formats and the RTL audit against design-system rule 3; and accessibility: WCAG 2.2 AA, keyboard operability, `focus-visible`, a screen-reader pass, and the accessibility statement the European Accessibility Act expects |
+| **F6 — Offline, the shells, the moments** | `0.8.5` | `0.8.5` | The sync engine becomes what its name says: local store, mutation queue, HLC, cursor and tombstone handling, `ACCESS_REVOKED` and `sync.cursor_too_old` behaviour, `SyncStatus` and `ConflictResolver`, the `offline-sync.md` §9 harness against fakes, and `hubctl sync-conformance` passed against a first-party client. Then the Tauri desktop shell — SQLite and keystore behind the `Storage` port, updater, signed distribution, the webview smoke matrix — and after it the mobile shell with signing, the store pipeline and platform adaptation (§9's last gap). The celebration kit and the onboarding tour close the milestone: the tour's last step is the first celebration, so they arrive together |
+
+Each of the five open points in [`design-system.md`](./design/design-system.md) §9 therefore has an
+owner: iconography, the wordmark, contrast verification and voice and tone in F1, platform
+adaptation with the mobile shell in F6.
 
 A dedicated arc42 client-architecture document is written with the sync-engine package, once
 there is a first implementation to describe. What was settled in preparation and stays binding:
@@ -166,6 +195,12 @@ there is a first implementation to describe. What was settled in preparation and
 * Binding requirements on every frontend: locale and time zone handling through the account
   preference, RTL support, message codes instead of server text, tolerant behaviour towards unknown
   fields, and offline-tolerant writing with an `Idempotency-Key`.
+* **Accessibility: WCAG 2.2 AA**, with an accessibility statement published for the released
+  clients. [`data-protection.md`](./architecture/data-protection.md) §7 names this list as where
+  the European Accessibility Act lands, and it is demonstrated for `1.0.0` rather than asserted.
+* **No non-essential cookies without consent** — the second client requirement `data-protection.md`
+  §7 places here. The backend uses bearer tokens rather than tracking cookies; nothing a client adds
+  may quietly reintroduce them, the website included.
 * **Offline conformance** per [offline-sync.md](./architecture/offline-sync.md) §9: client-assigned
   UUIDv7, an `op_id` per mutation, an HLC per field change, local deletion on `ACCESS_REVOKED` and
   `sync.gone`, a full resynchronisation on `sync.cursor_too_old`, and encrypted local storage with
@@ -175,7 +210,7 @@ there is a first implementation to describe. What was settled in preparation and
   cache only, and no client merges — merging belongs on the server
   ([ADR-0031](./adr/ADR-0031-tauri-app-shell.md), [ADR-0033](./adr/ADR-0033-shared-client-architecture.md)).
 * As an interim solution, `hubctl` (the CLI) plus a minimal reference client serve for dogfooding —
-  not a product decision, just a tool (risk R-08).
+  not a product decision, just a tool (risk R-08). F2 is where that interim ends.
 
 ---
 
