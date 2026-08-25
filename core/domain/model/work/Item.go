@@ -179,6 +179,11 @@ type NewWorkItemInput struct {
 	// waiting to be applied.
 	ContentLanguage string
 
+	// StartAt is when the work begins, nil for no start (D-01). The due date is deliberately not
+	// beside it: it arrives through the writer that owns the trio, in the same transaction, the
+	// way an assignee does.
+	StartAt *time.Time
+
 	// Profile is the capability profile in force for this type, which is data rather than code
 	// (ADR-0006) and therefore has to be handed in. It decides which of the optional fields above
 	// this item may carry at all.
@@ -241,6 +246,12 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		return WorkItem{}, shared.ErrInternal.WithDetail("items.identity_incomplete")
 	}
 
+	var startAt *time.Time
+	if in.StartAt != nil && !in.StartAt.IsZero() {
+		instant := in.StartAt.UTC()
+		startAt = &instant
+	}
+
 	return WorkItem{
 		ID:           in.ID,
 		TenantID:     in.TenantID,
@@ -251,6 +262,7 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		Depth:        in.Depth,
 		Title:        title,
 		Notes:        notes,
+		StartAt:      startAt,
 		// An item starts open. There is no way to create a completed one, and that is deliberate:
 		// completion is an event with a time and an actor, and inventing one at creation would
 		// put a lie in the history (I-W5, B-07).

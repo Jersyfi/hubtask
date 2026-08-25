@@ -535,6 +535,7 @@ func run() error {
 			IDs:        ids,
 			HLC:        hybrid,
 			AutoAssign: autoAssign,
+			DueDates:   dueDateWriter,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
@@ -550,6 +551,7 @@ func run() error {
 			Clock:      clockadapter.System{},
 			IDs:        ids,
 			HLC:        hybrid,
+			DueDates:   dueDateWriter,
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),

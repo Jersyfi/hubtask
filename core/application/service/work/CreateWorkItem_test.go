@@ -283,7 +283,11 @@ func (i *items) SetAttributes(_ context.Context, item domain.WorkItem, expectedV
 		return shared.ErrVersionConflict.WithDetail("items.version_conflict")
 	}
 	i.attributes = append(i.attributes, attributeWrite{item: item, expectedVersion: expectedVersion})
-	i.stored[item.ID] = item
+	// Stored with the version the statement behind it produces, as SetArchived models it: the due
+	// write of the same patch goes against the version this write left (D-01).
+	written := item
+	written.Version = expectedVersion + 1
+	i.stored[item.ID] = written
 	return nil
 }
 
@@ -543,6 +547,13 @@ func newItemHarness() *itemHarness {
 			Policies: h.policies,
 			Groups:   &groupStore{members: map[shared.ID][]shared.ID{}},
 			Random:   clock.NewScripted(0),
+		},
+		// The D-01 machinery, over the same fakes: the create path is its second caller.
+		DueDates: DueDateWriter{
+			Items: store, Containers: containerStore, Profiles: h.profiles,
+			Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+			UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		},
 	}
 
@@ -1128,13 +1139,13 @@ func TestTheDescriptorDeclaresWhatEveryChannelNeeds(t *testing.T) {
 	}
 	for _, owned := range []string{
 		"type", "title", "collection_id", "parent_id", "notes", "bucket_id",
-		"assignee_id", "auto_assign",
+		"assignee_id", "auto_assign", "start_at", "due_at", "due_date_only", "due_time_zone",
 	} {
 		if !declared[owned] {
 			t.Errorf("%s is not declared", owned)
 		}
 	}
-	for _, later := range []string{"label_ids", "member_ids", "due_at", "cover"} {
+	for _, later := range []string{"label_ids", "member_ids", "cover"} {
 		if declared[later] {
 			t.Errorf("%s is declared, though no use case writes it yet", later)
 		}

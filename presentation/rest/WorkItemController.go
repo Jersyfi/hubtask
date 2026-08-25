@@ -56,6 +56,20 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 	if body.AutoAssign != nil {
 		in["auto_assign"] = *body.AutoAssign
 	}
+	// The schedule the create path serves since D-01: the start as the create's own field, and
+	// the due trio dispatching into the writer the due route owns.
+	if body.StartAt != nil {
+		in["start_at"] = body.StartAt.Format(time.RFC3339Nano)
+	}
+	if body.DueAt != nil {
+		in["due_at"] = body.DueAt.Format(time.RFC3339Nano)
+	}
+	if body.DueDateOnly != nil {
+		in["due_date_only"] = *body.DueDateOnly
+	}
+	if body.DueTimeZone != nil {
+		in["due_time_zone"] = *body.DueTimeZone
+	}
 	withUnservedItemFields(body, in)
 
 	out, err := c.UseCases.Invoke(r.Context(), createWorkItemUseCase, actor, in)
@@ -122,6 +136,29 @@ func (c *RestController) UpdateWorkItem(
 		// indexed under the language it already declared.
 		in["content_language"] = stringOrEmpty(body.ContentLanguage)
 	}
+	// The schedule (D-01), by presence like everything above. Null reaches the catalogue as the
+	// empty string; for `due_at` that clears the trio whole, per the contract.
+	if present["start_at"] {
+		in["start_at"] = ""
+		if body.StartAt != nil {
+			in["start_at"] = body.StartAt.Format(time.RFC3339Nano)
+		}
+	}
+	if present["due_at"] {
+		in["due_at"] = ""
+		if body.DueAt != nil {
+			in["due_at"] = body.DueAt.Format(time.RFC3339Nano)
+		}
+	}
+	if present["due_date_only"] {
+		in["due_date_only"] = body.DueDateOnly != nil && *body.DueDateOnly
+	}
+	if present["due_time_zone"] {
+		in["due_time_zone"] = ""
+		if body.DueTimeZone != nil {
+			in["due_time_zone"] = *body.DueTimeZone
+		}
+	}
 	withUnservedItemUpdateFields(body, present, in)
 
 	if version, ok := versionFromIfMatch(params.IfMatch); ok {
@@ -176,25 +213,15 @@ func uuidOrEmpty(value *openapi_types.UUID) string {
 // the check that makes the assignment mean anything. Refused by name here, so that a client sending
 // it is told where to send it instead rather than believing it was stored.
 //
-// The others disappear when their use case lands: the cover in 0.3.0, the due date in 0.4.0, the
-// custom fields with theirs. The bucket left this list with B-09.
+// The others disappear when their use case lands: the cover in 0.3.0, the custom fields with
+// theirs. The bucket left this list with B-09, and the due date with D-01 - the patch now
+// dispatches the trio into the writer the due route owns.
 func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[string]bool, in usecase.Input) {
-	for _, field := range []string{"assignee_id", "due_at", "due_time_zone"} {
-		if present[field] {
-			in[field] = ""
+	if present["assignee_id"] {
+		in["assignee_id"] = ""
+		if body.AssigneeId != nil {
+			in["assignee_id"] = body.AssigneeId.String()
 		}
-	}
-	if present["assignee_id"] && body.AssigneeId != nil {
-		in["assignee_id"] = body.AssigneeId.String()
-	}
-	if present["due_at"] && body.DueAt != nil {
-		in["due_at"] = body.DueAt.Format(time.RFC3339)
-	}
-	if present["due_time_zone"] && body.DueTimeZone != nil {
-		in["due_time_zone"] = *body.DueTimeZone
-	}
-	if present["due_date_only"] {
-		in["due_date_only"] = body.DueDateOnly != nil && *body.DueDateOnly
 	}
 	if present["cover"] {
 		in["cover"] = map[string]any{}
@@ -223,7 +250,7 @@ func withUnservedItemUpdateFields(body openapi.WorkItemUpdate, present map[strin
 // already assigned, by name or by the collection's policy. `member_ids` stays for the reason
 // `label_ids` stayed after B-09: the endpoint that owns the set is its own
 // (`/items/{id}/members/{accountId}`), and no task has yet decided that a create may seed it.
-// The cover follows in 0.3.0, the due date in 0.4.0. The bucket left this list with B-09.
+// The cover follows in 0.3.0. The bucket left this list with B-09, and the due date with D-01.
 func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
 	if body.BeforeItemId != nil {
 		in["before_item_id"] = body.BeforeItemId.String()
@@ -233,15 +260,6 @@ func withUnservedItemFields(body openapi.WorkItemCreate, in usecase.Input) {
 	}
 	if body.MemberIds != nil {
 		in["member_ids"] = uuidList(*body.MemberIds)
-	}
-	if body.DueAt != nil {
-		in["due_at"] = body.DueAt.Format(time.RFC3339)
-	}
-	if body.DueDateOnly != nil {
-		in["due_date_only"] = *body.DueDateOnly
-	}
-	if body.DueTimeZone != nil {
-		in["due_time_zone"] = *body.DueTimeZone
 	}
 	if body.Cover != nil {
 		in["cover"] = map[string]any{}

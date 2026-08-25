@@ -53,12 +53,13 @@ type Ownership interface {
 
 // CreateWorkItemCommand is the input, typed.
 //
-// The fields are the ones this use case owns. Everything else the contract's WorkItemCreate
-// declares - the labels, the members, the due date, the cover, the custom fields - belongs to a
+// The fields are the ones this use case owns or dispatches. Everything else the contract's
+// WorkItemCreate declares - the labels, the members, the cover, the custom fields - belongs to a
 // use case that has not landed yet, and is refused rather than accepted and dropped: the
 // catalogue does not declare those fields, so a request carrying one comes back naming it
 // (usecase.field_unknown) instead of returning a 201 for an item that is not what the caller
-// asked for. The assignee and auto_assign joined with C-02, which is the task C-01 left them to.
+// asked for. The assignee and auto_assign joined with C-02, which is the task C-01 left them to;
+// the schedule joined with D-01, the due date dispatching the way the assignee does.
 type CreateWorkItemCommand struct {
 	Type domain.ItemType
 	// CollectionID may be left empty when ParentID is given: an item's collection is the one its
@@ -80,6 +81,13 @@ type CreateWorkItemCommand struct {
 	// locale (i18n-l10n.md §5). What it decides is the text search configuration the entry is
 	// indexed under, which is the whole of why it is worth carrying (ADR-0034).
 	ContentLanguage string
+	// StartAt is when the work begins, nil for no start - the create's own field, a plain
+	// attribute beside the notes (D-01).
+	StartAt *time.Time
+	// Due creates the entry already carrying a due date (D-01): the same validation and the same
+	// records as PUT /items/{id}/due, in the same transaction as the creation - the way an
+	// explicit assignee reuses the :assign machinery. Nil for none.
+	Due *domain.DueDate
 }
 
 // CreateWorkItem creates a task, a work package, or an activity.
@@ -111,6 +119,9 @@ type CreateWorkItem struct {
 	// explicit `auto_assign` ask - and its Assignment writer is also how an explicit assignee is
 	// written, with the same guards and the same four records as :assign.
 	AutoAssign AutoAssignWorkItem
+	// DueDates is the writer the declared due fields dispatch into, reused whole for the same
+	// reason (D-01).
+	DueDates DueDateWriter
 }
 
 // Execute creates the item and returns it, together with what automatic assignment did when it
@@ -204,16 +215,39 @@ func (h CreateWorkItem) Execute(
 		}
 
 		created = item
-		if plan == nil {
-			return nil
+		if plan != nil {
+			// The entry exists; now it lands on somebody, with the same records the standalone
+			// assignment writes - the second event is what a notification reacts to (C-09
+			// subscribes to item.assigned, not to every create), and it is why the assignment is
+			// not baked into the inserted row.
+			if created, outcome, err = plan.apply(ctx, actor, item, now); err != nil {
+				return err
+			}
 		}
-
-		// The entry exists; now it lands on somebody, with the same records the standalone
-		// assignment writes - the second event is what a notification reacts to (C-09 subscribes
-		// to item.assigned, not to every create), and it is why the assignment is not baked into
-		// the inserted row.
-		created, outcome, err = plan.apply(ctx, actor, item, now)
-		return err
+		if cmd.Due != nil {
+			// And its due date, through the writer that owns the trio (D-01): the same reasoning
+			// as the assignment above - the scheduler reacts to item.due_changed, not to every
+			// create - and the same records whichever door a due date arrives through. A type
+			// whose profile does not carry DUE_DATE refuses here, and the refusal takes the
+			// whole creation with it: a merge of one request half-applied is a state nobody
+			// asked for.
+			profile, err := profileOf(ctx, h.Profiles, created.Type)
+			if err != nil {
+				return err
+			}
+			wantedDue, dueChanges, err := created.WithDueDate(cmd.Due, profile, now)
+			if err != nil {
+				return err
+			}
+			if len(dueChanges) > 0 {
+				if created, err = h.DueDates.write(
+					ctx, actor, created, wantedDue, dueChanges, 0, profile, now,
+				); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return domain.WorkItem{}, nil, err
@@ -441,6 +475,7 @@ func (h CreateWorkItem) build(
 		// language is the common case, and an entry that stated no language at all would be
 		// indexed word by word - which is the worse guess of the two.
 		ContentLanguage: languageOr(cmd.ContentLanguage, actor.Locale),
+		StartAt:         cmd.StartAt,
 		Profile:         profile,
 		Path:            placement.PathOf(id),
 		Depth:           placement.Depth,
@@ -761,6 +796,27 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 					"including that nobody was eligible, which leaves the entry unassigned rather " +
 					"than failing the creation.",
 			},
+			{
+				Name: "start_at", Kind: usecase.KindString,
+				Description: "When the work begins, RFC 3339 - the timeline view's field. " +
+					"Omitted for an entry with no start.",
+			},
+			{
+				Name: "due_at", Kind: usecase.KindString,
+				Description: "When the entry is due, RFC 3339, with the same rules as the due " +
+					"date route: the entry is created already carrying it, and the scheduler " +
+					"hears " + string(event.ItemDueChanged) + " beside the create.",
+			},
+			{
+				Name: "due_date_only", Kind: usecase.KindBool,
+				Description: "True for an all-day due date: due_at is read as a date in " +
+					"due_time_zone, never as an instant. Refused without due_at.",
+			},
+			{
+				Name: "due_time_zone", Kind: usecase.KindString,
+				Description: "The IANA time zone the due date is local to, such as " +
+					"Europe/Berlin. Refused without due_at.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ItemCreatedAction, TargetType: itemTarget,
@@ -793,7 +849,7 @@ func (h CreateWorkItem) invoke(
 		return nil, err
 	}
 
-	item, outcome, err := h.Execute(ctx, actor, CreateWorkItemCommand{
+	cmd := CreateWorkItemCommand{
 		Type:            domain.ItemType(in.String("type")),
 		CollectionID:    collectionID,
 		ParentID:        parentID,
@@ -803,7 +859,23 @@ func (h CreateWorkItem) invoke(
 		AssigneeID:      assigneeID,
 		AutoAssign:      in.Bool("auto_assign"),
 		ContentLanguage: in.String("content_language"),
-	})
+	}
+	if raw := in.String("start_at"); raw != "" {
+		startAt, err := parseInstantField(raw, "start_at")
+		if err != nil {
+			return nil, err
+		}
+		cmd.StartAt = &startAt
+	}
+	// The trio parses whenever any of its members was sent, so a qualifier without its date is
+	// refused here by the same rule the route applies - not silently dropped.
+	if in.Present("due_at") || in.Present("due_date_only") || in.Present("due_time_zone") {
+		if cmd.Due, err = dueDateOf(in); err != nil {
+			return nil, err
+		}
+	}
+
+	item, outcome, err := h.Execute(ctx, actor, cmd)
 	if err != nil {
 		return nil, err
 	}

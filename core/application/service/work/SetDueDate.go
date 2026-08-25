@@ -449,21 +449,23 @@ func dueDateOf(in usecase.Input) (*domain.DueDate, error) {
 		// domain decides what a qualifier without its date means.
 		return domain.NewDueDate(nil, in.Bool("due_date_only"), in.String("due_time_zone"))
 	}
-	at, err := parseDueInstant(raw)
+	at, err := parseInstantField(raw, "due_at")
 	if err != nil {
 		return nil, err
 	}
 	return domain.NewDueDate(&at, in.Bool("due_date_only"), in.String("due_time_zone"))
 }
 
-// parseDueInstant reads the one spelling the contract declares, RFC 3339.
-func parseDueInstant(raw string) (time.Time, error) {
+// parseInstantField reads the one spelling the contract declares, RFC 3339, and refuses anything
+// else with the field the client sent - the same shape for the due date and the start.
+func parseInstantField(raw, field string) (time.Time, error) {
 	at, err := time.Parse(time.RFC3339, raw)
 	if err != nil {
+		code := "items." + field + "_malformed"
 		return time.Time{}, shared.ErrValidation.
-			WithDetail("items.due_at_malformed").
+			WithDetail(code).
 			WithParams(map[string]string{"value": raw}).
-			WithFields(shared.FieldError{Path: "/due_at", Code: "items.due_at_malformed"})
+			WithFields(shared.FieldError{Path: "/" + field, Code: code})
 	}
 	return at, nil
 }

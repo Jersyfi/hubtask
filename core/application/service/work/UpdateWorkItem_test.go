@@ -49,12 +49,20 @@ func newUpdateHarness() *updateHarness {
 		events: &events{}, changes: &changes{}, audit: &sink{}, history: &journal{},
 		authorizer: &authorizer{}, uow: &unitOfWork{},
 	}
+	profileRows := &profiles{rows: dueDateProfiles()}
 	h.handler = UpdateWorkItem{
 		Items: store, Buckets: board, Containers: containerStore,
-		Profiles:   &profiles{rows: systemProfiles()},
+		Profiles:   profileRows,
 		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
 		Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
 		UnitOfWork: h.uow, Clock: clock.Fixed(updateNow), IDs: &ids{}, HLC: &hlcSource{},
+		// The D-01 machinery, over the same fakes: the patch is its second caller.
+		DueDates: DueDateWriter{
+			Items: store, Containers: containerStore, Profiles: profileRows,
+			Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+			Activity:   ActivityJournal{Entries: h.history, IDs: &ids{}},
+			UnitOfWork: h.uow, Clock: clock.Fixed(updateNow), IDs: &ids{}, HLC: &hlcSource{},
+		},
 	}
 
 	containerStore.stored[hubID] = domain.Container{

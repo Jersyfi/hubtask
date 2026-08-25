@@ -79,6 +79,65 @@ func (d *DueDate) Equal(other *DueDate) bool {
 	return d.At.Equal(other.At) && d.DateOnly == other.DateOnly && d.TimeZone == other.TimeZone
 }
 
+// DuePatch is a merge patch's touch on the trio: which members were sent, and what each said.
+// Nil pointers mean "not touched", exactly as ItemAttributes spells it - the target trio is only
+// decidable against the stored one, so the patch travels raw and is applied where that is known.
+type DuePatch struct {
+	// At is the instant the patch names, and nil for `due_at: null` - but only when AtPresent
+	// says the member was sent at all.
+	At        *time.Time
+	AtPresent bool
+	DateOnly  *bool
+	TimeZone  *string
+}
+
+// IsEmpty reports whether the patch touches the trio at all.
+func (p DuePatch) IsEmpty() bool {
+	return !p.AtPresent && p.DateOnly == nil && p.TimeZone == nil
+}
+
+// Applied merges the patch onto the stored trio and answers the target, validated.
+//
+// `due_at: null` clears the three together (api/openapi.yaml, WorkItemUpdate): the qualifiers
+// fall with their date rather than surviving to contradict it, and only a qualifier the same
+// patch re-asserts reaches NewDueDate to be refused. Every other combination starts from what is
+// stored and overrides what was sent - which is how a device that moves the zone alone leaves
+// the date alone, the case the per-field merge rule exists for (offline-sync.md §4.2).
+func (p DuePatch) Applied(current *DueDate) (*DueDate, error) {
+	if p.AtPresent && p.At == nil {
+		var flag bool
+		if p.DateOnly != nil {
+			flag = *p.DateOnly
+		}
+		var zone string
+		if p.TimeZone != nil {
+			zone = *p.TimeZone
+		}
+		return NewDueDate(nil, flag, zone)
+	}
+
+	var at *time.Time
+	if current != nil {
+		instant := current.At
+		at = &instant
+	}
+	if p.AtPresent {
+		at = p.At
+	}
+	flag := current != nil && current.DateOnly
+	if p.DateOnly != nil {
+		flag = *p.DateOnly
+	}
+	var zone string
+	if current != nil {
+		zone = current.TimeZone
+	}
+	if p.TimeZone != nil {
+		zone = *p.TimeZone
+	}
+	return NewDueDate(at, flag, zone)
+}
+
 // WithDueDate returns the item carrying the given due date - or none, for nil - and reports which
 // of the three fields moved, each as its own change (offline-sync.md §4.2: one change log entry
 // per field, so two devices moving the date and the zone independently converge to both).
