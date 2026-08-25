@@ -258,3 +258,91 @@ func TestASeriesIsInvisibleFromAnotherTenant(t *testing.T) {
 		}
 	})
 }
+
+// The merge rule offline-sync.md §4.2 gains for a series, proved the way D-01 and D-02 proved
+// theirs: two devices changing two different fields converge to both, because each field is its own
+// change log entry and the version predicate makes the loser re-read rather than overwrite.
+func TestTwoDevicesChangingASeriesConvergeToBothFields(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+
+	due := created.Add(24 * time.Hour)
+	dueDate, err := work.NewDueDate(&due, false, "Europe/Berlin")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	seen := seriesFor(t, tenantA, task, "FREQ=WEEKLY;BYDAY=MO")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return recurrenceRepo().Insert(ctx, seen)
+	}); err != nil {
+		t.Fatalf("writing the series: %v", err)
+	}
+
+	// Device A changes the rule.
+	fromA, _, err := seen.Changed(work.RecurrenceSpec{
+		RRULE: "FREQ=WEEKLY;BYDAY=TU", TimeZone: seen.TimeZone, Mode: seen.Mode.String(),
+		HorizonDays: seen.HorizonDays,
+	}, dueDate, created.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("device A's change was refused: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return recurrenceRepo().Update(ctx, fromA, seen.Version)
+	}); err != nil {
+		t.Fatalf("device A's write: %v", err)
+	}
+
+	// Device B shortens the horizon against the state it read, and the version catches it.
+	fromB, _, err := seen.Changed(work.RecurrenceSpec{
+		RRULE: seen.RRULE, TimeZone: seen.TimeZone, Mode: seen.Mode.String(), HorizonDays: 30,
+	}, dueDate, created.Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("device B's change was refused: %v", err)
+	}
+	staleErr := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return recurrenceRepo().Update(ctx, fromB, seen.Version)
+	})
+	if !errors.Is(staleErr, shared.ErrVersionConflict) {
+		t.Fatalf("the concurrent write answered %v, want a version conflict", staleErr)
+	}
+
+	// B re-reads and retries with its one field on top of what is now there.
+	var current work.RecurrenceRule
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		current, err = recurrenceRepo().FindForItem(ctx, task)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	retryB, _, err := current.Changed(work.RecurrenceSpec{
+		RRULE: current.RRULE, TimeZone: current.TimeZone, Mode: current.Mode.String(),
+		HorizonDays: 30,
+	}, dueDate, created.Add(3*time.Hour))
+	if err != nil {
+		t.Fatalf("device B's retry was refused: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return recurrenceRepo().Update(ctx, retryB, current.Version)
+	}); err != nil {
+		t.Fatalf("device B's retry: %v", err)
+	}
+
+	var converged work.RecurrenceRule
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		converged, err = recurrenceRepo().FindForItem(ctx, task)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if converged.RRULE != "FREQ=WEEKLY;BYDAY=TU" {
+		t.Errorf("device A's rule was lost: %s", converged.RRULE)
+	}
+	if converged.HorizonDays != 30 {
+		t.Errorf("device B's horizon was lost: %d", converged.HorizonDays)
+	}
+}
