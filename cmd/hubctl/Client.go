@@ -113,6 +113,36 @@ func (c *Client) Put(ctx context.Context, path string, body, into any) error {
 	return c.call(ctx, http.MethodPut, path, nil, body, nil, into)
 }
 
+// Upload puts staged bytes where requestMediaUpload said to put them.
+//
+// The target is called as given: it is a capability URL - a presigned object-storage address, or
+// this server's token-protected content route - and the token in it is the whole credential. No
+// Authorization header travels with it, deliberately: a presigned target would refuse a request
+// that carries a second credential, and the content route accepts none by contract.
+func (c *Client) Upload(ctx context.Context, method, target string, data []byte) error {
+	if method == "" {
+		method = http.MethodPut
+	}
+	request := port.Request{
+		Method:      method,
+		URL:         target,
+		TargetClass: "hubtask-media",
+		Header: map[string][]string{
+			"Content-Type": {"application/octet-stream"},
+			"User-Agent":   {"hubctl/" + version},
+		},
+		Body: data,
+	}
+	response, err := c.send(ctx, request)
+	if err != nil {
+		return err
+	}
+	if response.Status >= http.StatusBadRequest {
+		return c.problem(response)
+	}
+	return nil
+}
+
 // Delete removes, with the version the caller read as a precondition (ADR-0025). An empty
 // version sends no If-Match, which the API answers with a precondition failure where it needs
 // one - the refusal belongs to the server, not to a guess made here.

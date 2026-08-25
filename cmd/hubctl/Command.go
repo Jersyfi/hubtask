@@ -109,8 +109,8 @@ var errHelpRequested = errors.New("help requested")
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
 	return []group{
-		authGroup(), containerGroup(), itemGroup(), commentGroup(), fieldGroup(), trashGroup(),
-		searchGroup(),
+		authGroup(), containerGroup(), itemGroup(), commentGroup(), fieldGroup(), mediaGroup(),
+		trashGroup(), searchGroup(),
 	}
 }
 
