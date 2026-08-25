@@ -12,9 +12,11 @@
 // breaker, the guarded client, the health registry, and the metrics - because the property is a
 // property of their composition, not of any one of them.
 //
-// The optional dependency here is an HTTP service standing in for object storage. When the S3,
-// SMTP, and AI adapters exist, RT-1 grows a container-backed sibling; the composition it checks
-// is the same one.
+// The optional dependency here is an HTTP service standing in for the one adapter that does not
+// exist yet: the AI provider - 0.7.0 builds it, and fills this row of the degradation table with
+// a container the way C-12 filled the other two. Object storage and SMTP have outgrown the
+// stand-in: their RT-1 runs against real containers, stopped mid-flight, in
+// rt1_container_dependency_test.go. The composition both files check is the same one.
 package resilience
 
 import (
