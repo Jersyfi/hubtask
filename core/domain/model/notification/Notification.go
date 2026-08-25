@@ -38,6 +38,12 @@ const (
 	CategoryMembership Category = "MEMBERSHIP"
 	// CategoryComment is somebody writing on an entry: `comment.created`.
 	CategoryComment Category = "COMMENT"
+	// CategoryReminder is a moment somebody asked to be told about: a reminder firing (D-03).
+	//
+	// Its own category rather than a shade of assignment or membership, because the switch is a
+	// different one: somebody who does not want to hear that a comment arrived may still want to
+	// hear that their own deadline is an hour away - they asked for that one.
+	CategoryReminder Category = "REMINDER"
 	// CategoryInvitation is the way in. Its own category and deliberately not part of
 	// MEMBERSHIP: an invitation is the message that decides whether somebody can use the system
 	// at all, and a preference switching it off would be a preference locking somebody out.
@@ -48,6 +54,7 @@ const (
 func Categories() []Category {
 	return []Category{
 		CategoryAssignment, CategoryMembership, CategoryComment, CategoryInvitation,
+		CategoryReminder,
 	}
 }
 
