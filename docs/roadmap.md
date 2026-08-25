@@ -249,6 +249,15 @@ Each of the five open points in [`design-system.md`](./design/design-system.md) 
 owner: iconography, the wordmark, contrast verification and voice and tone in F1, platform
 adaptation with the mobile shell in F6.
 
+**F1 is open**, and its backlog is [`backlog/milestone-F1.md`](./backlog/milestone-F1.md) —
+twelve tasks, F1-01…F1-12. Cutting it found one thing this table could not: the client has no way
+to learn which account it is signed in as, because nothing reads an `Account` and
+`/accounts/{accountId}/preferences` needs an id it never receives. Since "locale and time zone
+through the account preference" is a binding requirement above, F1 carries **one core task**
+(`GET /accounts/me`, additive and specification first) — the first worked example of the rule for
+a requirement that touches both sides, and a reminder that a client milestone may find a gap in
+the contract rather than only build on it.
+
 ### The website: a pre-release site from the `0.4.0` window
 
 > **`hubtask.eu` carries a pre-release site from the `0.4.0` window onwards.** It shows what the
