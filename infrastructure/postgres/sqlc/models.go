@@ -190,6 +190,7 @@ const (
 	MembershipRoleCONTRIBUTOR MembershipRole = "CONTRIBUTOR"
 	MembershipRoleVIEWER      MembershipRole = "VIEWER"
 	MembershipRoleGUEST       MembershipRole = "GUEST"
+	MembershipRoleAUDITOR     MembershipRole = "AUDITOR"
 )
 
 func (e *MembershipRole) Scan(src interface{}) error {

@@ -88,6 +88,13 @@ var roleItemAccess = map[identity.Role]map[ItemAction]ItemAccess{
 	identity.RoleGuest: {
 		ItemRead: AccessAll, ItemCreate: AccessNone, ItemChange: AccessNone, ItemComment: AccessAll,
 	},
+	// The row of four noes, written out rather than left to the unknown-role default. An auditor
+	// reads the trail and no content (audit.md §5), and that is a decision this table has to
+	// state: the default is for a role this build does not know, and reading a deliberate refusal
+	// out of the same silence would make the two indistinguishable.
+	identity.RoleAuditor: {
+		ItemRead: AccessNone, ItemCreate: AccessNone, ItemChange: AccessNone, ItemComment: AccessNone,
+	},
 }
 
 // ItemAccessOf reports how far the role reaches for one kind of access. An unknown role reaches

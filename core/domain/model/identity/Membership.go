@@ -9,7 +9,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Role is what an account may do within a scope (domain-model.md §3.2, ADR-0005). The six values
+// Role is what an account may do within a scope (domain-model.md §3.2, ADR-0005). The seven values
 // are the ones the database constrains (db/schema.sql, membership_role).
 type Role string
 
@@ -20,12 +20,25 @@ const (
 	RoleContributor Role = "CONTRIBUTOR"
 	RoleViewer      Role = "VIEWER"
 	RoleGuest       Role = "GUEST"
+	// RoleAuditor reads the evidence and none of the work: the audit trail, and no container, no
+	// entry, no comment (audit.md §5). It exists because the alternative, in practice, is giving
+	// an auditor administrator rights - a permissions problem that arises precisely where
+	// evidence is being demanded.
+	RoleAuditor Role = "AUDITOR"
 )
 
 // roles are ordered from the most to the least powerful. The order is the definition of "the
 // highest role along the path" - the one rule the whole inheritance rests on - so it lives in one
 // place rather than in a comparison written out wherever two roles meet.
-var roles = [...]Role{RoleOwner, RoleAdmin, RoleMember, RoleContributor, RoleViewer, RoleGuest}
+//
+// AUDITOR is last, and it is the one value the order does not really describe. It carries a
+// permission no other role has and lacks the one every other role has, so there is no place in a
+// line where it belongs. Last is the harmless place: "the highest role along the path" can then
+// never let it displace a content role held beside it, and what actually decides a permission is
+// the union over the memberships rather than the maximum (core/domain/service.Allows).
+var roles = [...]Role{
+	RoleOwner, RoleAdmin, RoleMember, RoleContributor, RoleViewer, RoleGuest, RoleAuditor,
+}
 
 // Roles returns every defined role, strongest first.
 func Roles() []Role { return roles[:] }

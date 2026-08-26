@@ -150,7 +150,10 @@ CREATE TABLE account_group_member (
 );
 
 CREATE TYPE membership_scope AS ENUM ('TENANT', 'HUB', 'COLLECTION', 'ITEM');
-CREATE TYPE membership_role  AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST');
+-- AUDITOR is last because it is not a rung on the same ladder: it reads the audit trail and the
+-- configuration and no content (audit.md §5). Appended rather than sorted in, for the reason
+-- 0042_auditor_role.sql gives.
+CREATE TYPE membership_role  AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR');
 
 CREATE TABLE membership (
   id          uuid PRIMARY KEY,

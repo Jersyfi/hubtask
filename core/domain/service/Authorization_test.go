@@ -45,6 +45,18 @@ func TestTheRoleMatrix(t *testing.T) {
 		{identity.RoleViewer, service.PermissionRead, true},
 		{identity.RoleGuest, service.PermissionWriteItems, false},
 		{identity.RoleGuest, service.PermissionRead, true},
+		// The auditor's row is the one that is not a rung on the ladder: the whole trail, and
+		// nothing that anybody wrote (audit.md §5).
+		{identity.RoleAuditor, service.PermissionAuditRead, true},
+		{identity.RoleAuditor, service.PermissionRead, false},
+		{identity.RoleAuditor, service.PermissionWriteItems, false},
+		{identity.RoleAuditor, service.PermissionStructure, false},
+		{identity.RoleOwner, service.PermissionAuditRead, true},
+		{identity.RoleAdmin, service.PermissionAuditRead, true},
+		// A member reads their own events instead, which is the absence of this permission
+		// rather than a weaker version of it.
+		{identity.RoleMember, service.PermissionAuditRead, false},
+		{identity.RoleViewer, service.PermissionAuditRead, false},
 	}
 
 	for _, c := range cases {
@@ -53,11 +65,19 @@ func TestTheRoleMatrix(t *testing.T) {
 		}
 	}
 
-	// Every role carries at least the right to see something, and an invented one carries nothing.
+	// Every role carries at least the right to see something, and an invented one carries
+	// nothing. The auditor is the exception and the reason the loop names one: it sees the trail
+	// and none of the work, which is what the role is for.
 	for _, role := range identity.Roles() {
+		if role == identity.RoleAuditor {
+			continue
+		}
 		if !service.RoleAllows(role, service.PermissionRead) {
 			t.Errorf("%s cannot read anything", role)
 		}
+	}
+	if len(service.PermissionsOf(identity.RoleAuditor)) != 1 {
+		t.Error("the auditor carries something besides reading the trail")
 	}
 	if service.RoleAllows("SUPERUSER", service.PermissionRead) {
 		t.Error("a role that does not exist was granted a permission")
