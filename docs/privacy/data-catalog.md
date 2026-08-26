@@ -118,7 +118,8 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Consents and withdrawals (purpose, when granted, when taken back, by whom) | `consent_record` | `PERSONAL_TECHNICAL` (a reference and two moments, no content) | Showing which optional processing was lawful when (Art. 7(1)) | With the account; a withdrawal is recorded rather than deleted | `CASCADE` |
 | Audit pseudonyms (an actor identifier and a label with no meaning outside the workspace) | `audit_pseudonym` | `PERSONAL_TECHNICAL` (a reference; it holds no name) | Answering an erased actor's entries without a name, where the trail itself cannot be edited (audit.md §6) | With the audit period | `IMMUTABLE` (append-only for the reason the trail is) |
 | Data subject exports (a Hubtask archive of one person's data) | The backup target the case named | `PERSONAL_CONTENT` | Access and portability (Art. 15, 20) | Whatever the target keeps; handed to the person and not read back by this system | The operator, at the target |
-| Retention rules | `retention_policy` | `NON_PERSONAL` | Storage limitation | Permanent | — |
+| Retention bounds per data kind | `retention_policy` | `NON_PERSONAL` | Storage limitation | Permanent | — |
+| Retention rules (the data kind, the period, the action, the operator's justification, who wrote it) | `retention_rule` | `PERSONAL_TECHNICAL` (the author's reference; the justification is the operator's own words, not a person's data) | Storage limitation as a workspace configures it (ADR-0020) | With the workspace | `CASCADE` |
 | Jobs (type, parameters as references) | `job` | `PERSONAL_TECHNICAL` | Background processing | 7 days after completion | `RETENTION` |
 | Idempotency keys | `idempotency_key` | `PERSONAL_TECHNICAL` | Protection against double processing | 24 hours | `RETENTION` |
 | Usage figures (aggregates) | `usage_record` | `NON_PERSONAL` | Billing (opt-in) | 3 years when enabled | `RETENTION` |
