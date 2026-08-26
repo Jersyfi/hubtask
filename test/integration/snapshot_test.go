@@ -33,7 +33,7 @@ func TestAWriteDuringASnapshotIsInvisibleToIt(t *testing.T) {
 
 	before := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, before, freshName(t), "s0"))
+		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, before, freshName(t), "ae"))
 	}); err != nil {
 		t.Fatalf("seeding the container that was already there: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestAWriteDuringASnapshotIsInvisibleToIt(t *testing.T) {
 			// the ordinary case rather than a contrived one: a backup runs for minutes and the
 			// installation keeps working.
 			if err := write(ctx, t, tenantA, func(writeCtx context.Context) error {
-				return containerRepo().Insert(writeCtx, containerIn(tenantA, authorA, during, freshName(t), "s1"))
+				return containerRepo().Insert(writeCtx, containerIn(tenantA, authorA, during, freshName(t), "af"))
 			}); err != nil {
 				return err
 			}
@@ -137,7 +137,7 @@ func TestASnapshotCannotWrite(t *testing.T) {
 
 	err := snapshotUnitOfWork(ctx, t).WithinSnapshot(ctx, persistence.Scope{TenantID: tenantA},
 		func(snapshotCtx context.Context, _ time.Time) error {
-			return containerRepo().Insert(snapshotCtx, containerIn(tenantA, authorA, freshID(t), freshName(t), "s2"))
+			return containerRepo().Insert(snapshotCtx, containerIn(tenantA, authorA, freshID(t), freshName(t), "ag"))
 		})
 	if err == nil {
 		t.Fatal("a write inside a snapshot succeeded")
@@ -152,7 +152,7 @@ func TestASnapshotSeesOnlyItsOwnTenant(t *testing.T) {
 
 	inA := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, inA, freshName(t), "s3"))
+		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, inA, freshName(t), "ah"))
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}

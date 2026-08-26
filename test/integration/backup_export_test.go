@@ -52,7 +52,7 @@ func TestTheExportPagesWithoutRepeatingOrSkippingARow(t *testing.T) {
 	for i := range 7 {
 		id := freshID(t)
 		written[id] = true
-		hub := containerIn(tenantA, authorA, id, freshName(t), "e"+string(rune('0'+i)))
+		hub := containerIn(tenantA, authorA, id, freshName(t), "a"+string(rune('0'+i)))
 		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 			return containerRepo().Insert(ctx, hub)
 		}); err != nil {
@@ -84,7 +84,7 @@ func TestAnExportedRowCarriesNoTenantIdentifier(t *testing.T) {
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "e9"))
+		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "aa"))
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestADeltaExportAnswersOnlyWhatChangedAfterThePeriod(t *testing.T) {
 
 	early := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, early, freshName(t), "f0"))
+		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, early, freshName(t), "ab"))
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestADeltaExportAnswersOnlyWhatChangedAfterThePeriod(t *testing.T) {
 	// Stamped after the cut by hand: the rows carry the domain's clock rather than the database's,
 	// which is exactly the property an incremental relies on - what a row says about itself is
 	// what decides whether it is in the period.
-	after := containerIn(tenantA, authorA, late, freshName(t), "f1")
+	after := containerIn(tenantA, authorA, late, freshName(t), "ac")
 	after.CreatedAt, after.UpdatedAt = cut.Add(time.Minute), cut.Add(time.Minute)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		return containerRepo().Insert(ctx, after)
@@ -184,7 +184,7 @@ func TestAnotherTenantExportsNoneOfIt(t *testing.T) {
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "f7"))
+		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "ad"))
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
