@@ -26,7 +26,7 @@ const (
 // cannot be reissued is this one: without it the archive is unreadable for ever
 // (backup-restore.md §4). An environment variable and standard input are the two ways to hand a
 // secret over that do not write it down.
-const envBackupPassphrase = "HUBTASK_BACKUP_PASSPHRASE"
+const envBackupPassphrase = "HUBTASK_BACKUP_PASSPHRASE" //nolint:gosec // G101: the name of an environment variable, not a secret.
 
 func backupGroup() group {
 	return group{
