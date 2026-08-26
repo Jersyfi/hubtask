@@ -22,6 +22,8 @@ const (
 	createDataSubjectRequestUseCase = "CreateDataSubjectRequest"
 	listDataSubjectRequestsUseCase  = "ListDataSubjectRequests"
 	updateDataSubjectRequestUseCase = "UpdateDataSubjectRequest"
+	restrictProcessingUseCase       = "RestrictProcessing"
+	withdrawConsentUseCase          = "WithdrawConsent"
 )
 
 // ListDataSubjectRequests answers GET /privacy/requests.
@@ -162,4 +164,80 @@ func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {
 		request.CompletedAt = &completed
 	}
 	return request
+}
+
+// RestrictProcessing answers POST /accounts/{accountId}:restrict.
+func (c *RestController) RestrictProcessing(
+	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId,
+) {
+	var body openapi.ProcessingRestriction
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+
+	in := usecase.Input{"account_id": accountID.String(), "restricted": body.Restricted}
+	if body.Reason != nil {
+		in["reason"] = *body.Reason
+	}
+
+	out, ok := c.read(w, r, restrictProcessingUseCase, in)
+	if !ok {
+		return
+	}
+
+	// The account as the contract's `Account` schema, narrowed to what this call changed: the
+	// identifier and the state. A restriction touches nothing else about a person, and answering
+	// their name and address here would be answering more than the caller asked about.
+	writeJSON(w, r, http.StatusOK, openapi.Account{
+		Id:     uuidValue(out.String("id")),
+		Status: openapi.AccountStatus(out.String("status")),
+	})
+}
+
+// WithdrawConsent answers POST /privacy/consents:withdraw.
+func (c *RestController) WithdrawConsent(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ConsentWithdrawal
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+
+	in := usecase.Input{"purpose": body.Purpose}
+	if body.AccountId != nil {
+		in["account_id"] = body.AccountId.String()
+	}
+	if body.Reason != nil {
+		in["reason"] = *body.Reason
+	}
+
+	out, ok := c.read(w, r, withdrawConsentUseCase, in)
+	if !ok {
+		return
+	}
+
+	record := openapi.ConsentRecord{
+		Id:        uuidValue(out.String("id")),
+		Purpose:   out.String("purpose"),
+		Granted:   boolAt(out, "granted"),
+		GrantedAt: timePointer(out["granted_at"]),
+	}
+	record.AccountId = uuidOrNil(out.String("account_id"))
+	if revoked, ok := out["revoked_at"].(time.Time); ok {
+		record.RevokedAt = &revoked
+	}
+	if source := out.String("source"); source != "" {
+		value := openapi.ConsentRecordSource(source)
+		record.Source = &value
+	}
+	writeJSON(w, r, http.StatusOK, record)
+}
+
+// timePointer is timeValue for a field the generated type carries as a pointer.
+func timePointer(value any) *time.Time {
+	at, ok := value.(time.Time)
+	if !ok {
+		return nil
+	}
+	return &at
 }

@@ -175,3 +175,64 @@ func TestAnEmptyCaseListIsAnEmptyArray(t *testing.T) {
 		t.Errorf("an empty list came back as %s", body)
 	}
 }
+
+// The restriction and the withdrawal over REST.
+func TestARestrictionIsAppliedAndAnswersTheAccountState(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"id": "0192f000-0000-7000-8000-00000000000d", "status": "RESTRICTED",
+	}}
+
+	recorder := privacyRequest(t, registry, http.MethodPost,
+		"/accounts/0192f000-0000-7000-8000-00000000000d:restrict",
+		`{"restricted":true,"reason":"Art. 18 request"}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("the restriction answered %d: %s", recorder.Code, recorder.Body)
+	}
+	if !strings.Contains(recorder.Body.String(), `"status":"RESTRICTED"`) {
+		t.Errorf("the account came back as %s", recorder.Body)
+	}
+
+	for field, want := range map[string]any{
+		"account_id": "0192f000-0000-7000-8000-00000000000d",
+		"restricted": true,
+		"reason":     "Art. 18 request",
+	} {
+		if registry.in[field] != want {
+			t.Errorf("%s reached the catalogue as %v, want %v", field, registry.in[field], want)
+		}
+	}
+	if registry.name != restrictProcessingUseCase {
+		t.Errorf("the request ran %q", registry.name)
+	}
+}
+
+func TestAWithdrawalComesBackAsTheRecord(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"id":         "0192f000-0000-7000-8000-00000000000f",
+		"account_id": "0192f000-0000-7000-8000-00000000000d",
+		"purpose":    "ai_processing",
+		"granted":    false,
+		"granted_at": time.Date(2026, 8, 26, 10, 0, 0, 0, time.UTC),
+		"revoked_at": time.Date(2026, 8, 26, 10, 0, 0, 0, time.UTC),
+		"source":     "user",
+	}}
+
+	recorder := privacyRequest(t, registry, http.MethodPost, "/privacy/consents:withdraw",
+		`{"purpose":"ai_processing","reason":"Objection"}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("the withdrawal answered %d: %s", recorder.Code, recorder.Body)
+	}
+
+	body := recorder.Body.String()
+	for _, wanted := range []string{
+		`"purpose":"ai_processing"`, `"granted":false`, `"revoked_at":"2026-08-26T10:00:00Z"`,
+		`"source":"user"`,
+	} {
+		if !strings.Contains(body, wanted) {
+			t.Errorf("the record %s is missing %s", body, wanted)
+		}
+	}
+	if registry.in["purpose"] != "ai_processing" || registry.name != withdrawConsentUseCase {
+		t.Errorf("the request ran %q with %v", registry.name, registry.in)
+	}
+}

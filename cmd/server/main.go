@@ -525,6 +525,9 @@ func run() error {
 	autoAssign := work.AutoAssignWorkItem{
 		Assignment: assignment, Policies: postgres.AutoAssignPolicyRepository{},
 		Groups: groups, Random: clockadapter.CryptoRandom{},
+		// Art. 18 as a technical state: a person under a restriction of processing is left out of
+		// the draw rather than assigned work by machine (E-10, data-protection.md §4).
+		Accounts: accounts,
 	}
 
 	// Both directions of an entry's due date share one dependency set, for the same reason
@@ -869,6 +872,14 @@ func run() error {
 		privacyservice.CreateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
 		privacyservice.ListDataSubjectRequests{Cases: privacyCases}.Descriptor(),
 		privacyservice.UpdateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
+		privacyservice.RestrictProcessing{
+			Subjects: privacyStore, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		privacyservice.WithdrawConsent{
+			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		auditservice.ExportAuditTrail{
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,

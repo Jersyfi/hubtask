@@ -155,3 +155,14 @@ FROM membership WHERE id = sqlc.arg('id');
 
 -- name: RevokeMembership :execrows
 DELETE FROM membership WHERE id = sqlc.arg('id');
+
+-- name: RestrictedAccounts :many
+-- Which of the accounts named may not be processed automatically (Art. 18, data-protection.md §4).
+--
+-- Anonymised as well as restricted: an account whose person has been erased is not a candidate for
+-- anything either, and the caller asks one question - "may this system decide something about
+-- them" - rather than two.
+SELECT id
+FROM account
+WHERE id = ANY(sqlc.arg('account_ids')::uuid[])
+  AND status IN ('RESTRICTED', 'ANONYMIZED');

@@ -43,7 +43,12 @@ type AutoAssignWorkItem struct {
 	Assignment AssignmentWriter
 	Policies   repository.AutoAssignPolicies
 	Groups     identityrepo.Groups
-	Random     clock.RandomSource
+	// Accounts answers which candidates are under a restriction of processing. Art. 18 is a
+	// technical state, and an automatic decision about somebody is exactly the processing it
+	// stops (data-protection.md §4, E-10) - so the pool is narrowed here rather than the draw
+	// being allowed to land on them.
+	Accounts identityrepo.Accounts
+	Random   clock.RandomSource
 }
 
 // AutoAssignOutcome is what the run did, beside the entry it did it to. A result rather than an
@@ -141,6 +146,9 @@ func (h AutoAssignWorkItem) eligible(
 	w := h.Assignment
 	path := containerPath(collection)
 	pool := eligiblePool{strategy: definition.Strategy, eligible: map[shared.ID]bool{}}
+	// Everybody the draw could land on, so that the restriction below is one question rather than
+	// one per candidate.
+	var considered []shared.ID
 
 	for position, candidate := range definition.Candidates {
 		switch candidate.Kind {
@@ -155,6 +163,7 @@ func (h AutoAssignWorkItem) eligible(
 			pool.accounts = append(pool.accounts, candidate.ID)
 			pool.positions = append(pool.positions, position)
 			pool.eligible[candidate.ID] = true
+			considered = append(considered, candidate.ID)
 
 		case domain.CandidateGroup:
 			members, err := h.groupMembers(ctx, actor, candidate.ID)
@@ -179,9 +188,61 @@ func (h AutoAssignWorkItem) eligible(
 			pool.groups = append(pool.groups, service.AssignmentGroup{
 				GroupID: candidate.ID, Members: seen,
 			})
+			considered = append(considered, seen...)
 		}
 	}
-	return pool, nil
+
+	return h.withoutRestricted(ctx, pool, considered)
+}
+
+// withoutRestricted takes the people under a restriction of processing out of the pool.
+//
+// One round trip for the whole pool, after it is resolved rather than during: a group's members
+// are only known once the group has been read, and asking per candidate would make the cost of a
+// policy grow with the size of the team.
+//
+// A restriction empties a pocket rather than failing the draw. "Nobody was eligible" is already an
+// answer this use case gives, and it is the right one here: the entry stays unassigned and
+// somebody decides by hand, which is what Art. 18 asks for.
+func (h AutoAssignWorkItem) withoutRestricted(
+	ctx context.Context, pool eligiblePool, considered []shared.ID,
+) (eligiblePool, error) {
+	if h.Accounts == nil || len(considered) == 0 {
+		return pool, nil
+	}
+
+	restricted, err := h.Accounts.Restricted(ctx, considered)
+	if err != nil {
+		return eligiblePool{}, err
+	}
+	if len(restricted) == 0 {
+		return pool, nil
+	}
+
+	kept := eligiblePool{strategy: pool.strategy, eligible: map[shared.ID]bool{}}
+	for i, account := range pool.accounts {
+		if restricted[account] {
+			continue
+		}
+		kept.accounts = append(kept.accounts, account)
+		kept.positions = append(kept.positions, pool.positions[i])
+		kept.eligible[account] = true
+	}
+	for _, group := range pool.groups {
+		members := make([]shared.ID, 0, len(group.Members))
+		for _, member := range group.Members {
+			if !restricted[member] {
+				members = append(members, member)
+			}
+		}
+		if len(members) == 0 {
+			continue
+		}
+		kept.groups = append(kept.groups, service.AssignmentGroup{
+			GroupID: group.GroupID, Members: members,
+		})
+	}
+	return kept, nil
 }
 
 // groupMembers reads one candidate group's members. A group that is gone - deleted since the

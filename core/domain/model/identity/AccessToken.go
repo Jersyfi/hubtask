@@ -26,7 +26,32 @@ const (
 	AccountActive   AccountStatus = "ACTIVE"
 	AccountInvited  AccountStatus = "INVITED"
 	AccountDisabled AccountStatus = "DISABLED"
+	// AccountRestricted is Art. 18 as a technical state (data-protection.md §4, E-10): the person
+	// still works, and what stops is the *processing* of their data - no automatic decision is
+	// made about them, and no AI is shown their content.
+	//
+	// It is deliberately not a lockout. Restricting somebody's processing and disabling their
+	// account are two different answers to two different situations, and giving the first the
+	// effect of the second would punish a person for exercising a right.
+	AccountRestricted AccountStatus = "RESTRICTED"
+	// AccountAnonymized is the end of a life: an erasure carried out in the mode that keeps the
+	// authorship, so that the workspace's own content stays readable and everything of the
+	// person's in it is gone. Such an account cannot act - there is nobody left to act.
+	AccountAnonymized AccountStatus = "ANONYMIZED"
 )
+
+// MayAct reports whether an account in this state may make requests at all.
+func (s AccountStatus) MayAct() bool { return s == AccountActive || s == AccountRestricted }
+
+// ProcessingAllowed reports whether this system may make automatic decisions about the person or
+// pass their content to anything that processes it (Art. 18).
+//
+// The one predicate every such place asks, rather than a status comparison written out wherever
+// automatic processing happens: the rule engine and the AI features arrive later, and what they
+// have to consult should already exist and already be the same question.
+func (s AccountStatus) ProcessingAllowed() bool {
+	return s != AccountRestricted && s != AccountAnonymized
+}
 
 // AccessToken is the stored half of a personal access token. The secret itself is not here and
 // never was: only its hash is stored, and the hash never leaves the persistence adapter
@@ -102,8 +127,12 @@ type Account struct {
 // An invited account counts as unable: the invitation has not been accepted, so nobody has proven
 // they own it. Refusing is 403 rather than 401 - the credential was valid, the account is not,
 // and asking the client to authenticate again would send it round a loop it cannot leave.
+//
+// A **restricted** account may act. Art. 18 restricts what the controller does with the person's
+// data, not what the person may do; treating a restriction as a lockout would punish somebody for
+// exercising a right (E-10). An anonymised one may not: there is nobody left to act.
 func (a Account) Verify() error {
-	if a.Status != AccountActive {
+	if !a.Status.MayAct() {
 		return shared.ErrForbidden.
 			WithDetail("access.account_not_active").
 			WithParams(map[string]string{"status": string(a.Status)})

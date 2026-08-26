@@ -93,6 +93,8 @@ func (pending) UpdateDataSubjectRequest(w http.ResponseWriter, r *http.Request, 
 	notAvailable(w, r)
 }
 
+// RestrictProcessing and WithdrawConsent are overridden by RestController, for the reason
+// ListDataSubjectRequests is.
 func (pending) RestrictProcessing(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)
 }

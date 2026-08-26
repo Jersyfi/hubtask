@@ -101,6 +101,14 @@ type Accounts interface {
 	// concern rather than a general update: an update that can write any column is one that can
 	// write the status by accident.
 	UpdatePreferences(ctx context.Context, account identity.Account, at time.Time) error
+
+	// Restricted answers which of the accounts named may not be processed automatically - Art. 18
+	// as a technical state (data-protection.md §4, E-10).
+	//
+	// A set rather than a question per account, because the caller is a draw over a pool: one
+	// round trip for a policy's candidates instead of one per candidate. Accounts that are not
+	// restricted are simply absent from the answer.
+	Restricted(ctx context.Context, accountIDs []shared.ID) (map[shared.ID]bool, error)
 }
 
 // Groups is the store of named sets of accounts.
