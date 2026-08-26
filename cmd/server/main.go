@@ -440,6 +440,14 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 	}
 
+	// The safeguard that outranks every rule above (E-08). One set for the three use cases, so
+	// that placing a hold and lifting one cannot disagree about which clock recorded them.
+	legalHolds := lifecycle.Holds{
+		Holds:      postgres.NewLegalHoldRepository(),
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	// Every verb that moves an entry between the archive and the trash shares one dependency set.
 	// They are the same walk with a different transition in the middle, and wiring them separately
 	// would be one more place for "restoring records what trashing records" to stop being true
@@ -830,6 +838,9 @@ func run() error {
 		lifecycle.CreateRetentionPolicy{Rules: retentionRules}.Descriptor(),
 		lifecycle.ListRetentionPolicies{Rules: retentionRules}.Descriptor(),
 		lifecycle.PreviewRetentionPolicy{Rules: retentionRules}.Descriptor(),
+		lifecycle.PlaceLegalHold{Holds: legalHolds}.Descriptor(),
+		lifecycle.ReleaseLegalHold{Holds: legalHolds}.Descriptor(),
+		lifecycle.ListLegalHolds{Holds: legalHolds}.Descriptor(),
 		lifecycle.RetainItem{
 			Items: items, Containers: containers,
 			Marking: postgres.NewRetentionMarkingRepository(), Authorizer: authorizer,

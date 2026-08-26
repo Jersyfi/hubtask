@@ -476,7 +476,8 @@ INSERT INTO work_item (
   overdue_announced_at,
   retention_pending_until,
   retention_rule_id,
-  retention_action
+  retention_action,
+  retention_blocked_by
 )
 SELECT
   r.id,
@@ -518,7 +519,8 @@ SELECT
   r.overdue_announced_at,
   r.retention_pending_until,
   r.retention_rule_id,
-  r.retention_action
+  r.retention_action,
+  r.retention_blocked_by
 FROM jsonb_populate_record(
   NULL::work_item,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -562,7 +564,8 @@ ON CONFLICT (id) DO UPDATE SET
   overdue_announced_at = EXCLUDED.overdue_announced_at,
   retention_pending_until = EXCLUDED.retention_pending_until,
   retention_rule_id = EXCLUDED.retention_rule_id,
-  retention_action = EXCLUDED.retention_action
+  retention_action = EXCLUDED.retention_action,
+  retention_blocked_by = EXCLUDED.retention_blocked_by
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsWorkItem :one

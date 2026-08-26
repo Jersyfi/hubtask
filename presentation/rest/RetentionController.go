@@ -220,3 +220,100 @@ func (c *RestController) RetainItem(
 	}
 	writeJSON(w, r, http.StatusOK, workItemResponse(out))
 }
+
+const (
+	placeLegalHoldUseCase   = "PlaceLegalHold"
+	releaseLegalHoldUseCase = "ReleaseLegalHold"
+	listLegalHoldsUseCase   = "ListLegalHolds"
+)
+
+// ListLegalHolds answers GET /legal-holds.
+//
+// An array rather than a page: a workspace has a handful of holds, and a workspace with enough of
+// them to page through has a problem a cursor does not solve.
+func (c *RestController) ListLegalHolds(
+	w http.ResponseWriter, r *http.Request, params openapi.ListLegalHoldsParams,
+) {
+	in := usecase.Input{}
+	if params.IncludeReleased != nil {
+		in["include_released"] = *params.IncludeReleased
+	}
+
+	out, ok := c.read(w, r, listLegalHoldsUseCase, in)
+	if !ok {
+		return
+	}
+
+	holds := []openapi.LegalHold{}
+	for _, row := range rowsOf(out) {
+		holds = append(holds, legalHoldResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, holds)
+}
+
+// PlaceLegalHold answers POST /legal-holds.
+func (c *RestController) PlaceLegalHold(w http.ResponseWriter, r *http.Request) {
+	var body openapi.LegalHoldCreate
+	if err := decodeFrom(r.Body, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+
+	in := usecase.Input{"reason": body.Reason, "scope": string(body.Scope.Kind)}
+	if body.Scope.Id != nil {
+		in["scope_id"] = body.Scope.Id.String()
+	}
+
+	out, ok := c.read(w, r, placeLegalHoldUseCase, in)
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, legalHoldResponse(out))
+}
+
+// ReleaseLegalHold answers POST /legal-holds/{holdId}:release.
+func (c *RestController) ReleaseLegalHold(
+	w http.ResponseWriter, r *http.Request, holdID openapi_types.UUID,
+) {
+	var body openapi.LegalHoldRelease
+	if err := decodeFrom(r.Body, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+
+	out, ok := c.read(w, r, releaseLegalHoldUseCase,
+		usecase.Input{"hold_id": holdID.String(), "reason": body.Reason})
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusOK, legalHoldResponse(out))
+}
+
+// legalHoldResponse maps one hold.
+func legalHoldResponse(out usecase.Output) openapi.LegalHold {
+	id := uuidValue(out.String("id"))
+	placedBy := uuidValue(out.String("placed_by"))
+	placedAt := timeValue(out["placed_at"])
+	hold := openapi.LegalHold{
+		Id: &id, Reason: out.String("reason"), PlacedBy: &placedBy, PlacedAt: &placedAt,
+	}
+	if scope, present := out["scope"].(map[string]any); present {
+		kind, _ := scope["kind"].(string)
+		hold.Scope.Kind = openapi.LegalHoldScopeKind(kind)
+		if value, named := scope["id"].(string); named && value != "" {
+			scopeID := uuidValue(value)
+			hold.Scope.Id = &scopeID
+		}
+	}
+	// The three lifting fields travel together or not at all: a hold with a date and no reason
+	// would be exactly the entry migration 0040 exists to stop.
+	if released := out.String("released_by"); released != "" {
+		by := uuidValue(released)
+		hold.ReleasedBy = &by
+		at := timeValue(out["released_at"])
+		hold.ReleasedAt = &at
+		reason := out.String("released_reason")
+		hold.ReleasedReason = &reason
+	}
+	return hold
+}

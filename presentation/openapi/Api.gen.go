@@ -1107,6 +1107,54 @@ func (e JobStatus) Valid() bool {
 	}
 }
 
+// Defines values for LegalHoldScopeKind.
+const (
+	LegalHoldScopeKindACCOUNT   LegalHoldScopeKind = "ACCOUNT"
+	LegalHoldScopeKindCONTAINER LegalHoldScopeKind = "CONTAINER"
+	LegalHoldScopeKindITEM      LegalHoldScopeKind = "ITEM"
+	LegalHoldScopeKindTENANT    LegalHoldScopeKind = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the LegalHoldScopeKind enum.
+func (e LegalHoldScopeKind) Valid() bool {
+	switch e {
+	case LegalHoldScopeKindACCOUNT:
+		return true
+	case LegalHoldScopeKindCONTAINER:
+		return true
+	case LegalHoldScopeKindITEM:
+		return true
+	case LegalHoldScopeKindTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LegalHoldCreateScopeKind.
+const (
+	LegalHoldCreateScopeKindACCOUNT   LegalHoldCreateScopeKind = "ACCOUNT"
+	LegalHoldCreateScopeKindCONTAINER LegalHoldCreateScopeKind = "CONTAINER"
+	LegalHoldCreateScopeKindITEM      LegalHoldCreateScopeKind = "ITEM"
+	LegalHoldCreateScopeKindTENANT    LegalHoldCreateScopeKind = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the LegalHoldCreateScopeKind enum.
+func (e LegalHoldCreateScopeKind) Valid() bool {
+	switch e {
+	case LegalHoldCreateScopeKindACCOUNT:
+		return true
+	case LegalHoldCreateScopeKindCONTAINER:
+		return true
+	case LegalHoldCreateScopeKindITEM:
+		return true
+	case LegalHoldCreateScopeKindTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MediaObjectStatus.
 const (
 	MediaObjectStatusPENDING MediaObjectStatus = "PENDING"
@@ -2941,6 +2989,48 @@ type LabelUpdate struct {
 	Name        *string `json:"name,omitempty"`
 }
 
+// LegalHold An instruction not to delete something. The first thing every deletion path checks, and the one that overrides a workspace's own configured periods.
+type LegalHold struct {
+	Id       *openapi_types.UUID `json:"id,omitempty"`
+	PlacedAt *time.Time          `json:"placed_at,omitempty"`
+	PlacedBy *openapi_types.UUID `json:"placed_by,omitempty"`
+
+	// Reason Why, in the words of whoever placed it. Operator content rather than user content, and it never travels into a metric or an event - an auditor and an operator reading a blocked run are the only readers.
+	Reason     string              `json:"reason"`
+	ReleasedAt *time.Time          `json:"released_at,omitempty"`
+	ReleasedBy *openapi_types.UUID `json:"released_by,omitempty"`
+
+	// ReleasedReason Why it was lifted. Present only on a hold that has been.
+	ReleasedReason *string `json:"released_reason,omitempty"`
+	Scope          struct {
+		Id *openapi_types.UUID `json:"id,omitempty"`
+
+		// Kind What the hold covers. TENANT names nothing because it covers everything; CONTAINER and ITEM name what they hold, and the hold reaches everything below it.
+		Kind LegalHoldScopeKind `json:"kind"`
+	} `json:"scope"`
+}
+
+// LegalHoldScopeKind What the hold covers. TENANT names nothing because it covers everything; CONTAINER and ITEM name what they hold, and the hold reaches everything below it.
+type LegalHoldScopeKind string
+
+// LegalHoldCreate defines model for LegalHoldCreate.
+type LegalHoldCreate struct {
+	Reason string `json:"reason"`
+	Scope  struct {
+		Id   *openapi_types.UUID      `json:"id,omitempty"`
+		Kind LegalHoldCreateScopeKind `json:"kind"`
+	} `json:"scope"`
+}
+
+// LegalHoldCreateScopeKind defines model for LegalHoldCreate.Scope.Kind.
+type LegalHoldCreateScopeKind string
+
+// LegalHoldRelease defines model for LegalHoldRelease.
+type LegalHoldRelease struct {
+	// Reason Why the hold is being lifted. Required - "released" with no reason is an entry an auditor cannot act on.
+	Reason string `json:"reason"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -4367,6 +4457,11 @@ type CancelJobParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListLegalHoldsParams defines parameters for ListLegalHolds.
+type ListLegalHoldsParams struct {
+	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
+}
+
 // RequestMediaUploadParams defines parameters for RequestMediaUpload.
 type RequestMediaUploadParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -4604,6 +4699,12 @@ type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
+
+// PlaceLegalHoldJSONRequestBody defines body for PlaceLegalHold for application/json ContentType.
+type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
+
+// ReleaseLegalHoldJSONRequestBody defines body for ReleaseLegalHold for application/json ContentType.
+type ReleaseLegalHoldJSONRequestBody = LegalHoldRelease
 
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
@@ -4916,6 +5017,15 @@ type ServerInterface interface {
 	// CancelJob Stop a piece of background work
 	// (POST /jobs/{jobId}:cancel)
 	CancelJob(w http.ResponseWriter, r *http.Request, jobId JobId, params CancelJobParams)
+	// ListLegalHolds The legal holds in force
+	// (GET /legal-holds)
+	ListLegalHolds(w http.ResponseWriter, r *http.Request, params ListLegalHoldsParams)
+	// PlaceLegalHold Place a legal hold
+	// (POST /legal-holds)
+	PlaceLegalHold(w http.ResponseWriter, r *http.Request)
+	// ReleaseLegalHold Lift a legal hold
+	// (POST /legal-holds/{holdId}:release)
+	ReleaseLegalHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID)
 
 	// (POST /media)
 	RequestMediaUpload(w http.ResponseWriter, r *http.Request, params RequestMediaUploadParams)
@@ -8955,6 +9065,79 @@ func (siw *ServerInterfaceWrapper) CancelJob(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// ListLegalHolds operation middleware
+func (siw *ServerInterfaceWrapper) ListLegalHolds(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListLegalHoldsParams
+
+	// ------------- Optional query parameter "include_released" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_released", r.URL.Query(), &params.IncludeReleased, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_released"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_released", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLegalHolds(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlaceLegalHold operation middleware
+func (siw *ServerInterfaceWrapper) PlaceLegalHold(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlaceLegalHold(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReleaseLegalHold operation middleware
+func (siw *ServerInterfaceWrapper) ReleaseLegalHold(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "holdId" -------------
+	var holdId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holdId", r.PathValue("holdId"), &holdId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "holdId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReleaseLegalHold(w, r, holdId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RequestMediaUpload operation middleware
 func (siw *ServerInterfaceWrapper) RequestMediaUpload(w http.ResponseWriter, r *http.Request) {
 
@@ -10337,6 +10520,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jobs/{jobId}:cancel", wrapper.CancelJob)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/trash", wrapper.ListTrash)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/trash:empty", wrapper.EmptyTrash)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/legal-holds", wrapper.ListLegalHolds)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/legal-holds", wrapper.PlaceLegalHold)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/legal-holds/{holdId}:release", wrapper.ReleaseLegalHold)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/retention-policies", wrapper.ListRetentionPolicies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies", wrapper.CreateRetentionPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/retention-policies/{policyId}:preview", wrapper.PreviewRetentionPolicy)

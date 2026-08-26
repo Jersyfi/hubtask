@@ -4,7 +4,10 @@
 package lifecycle_test
 
 import (
+	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -18,6 +21,9 @@ var (
 	packageID    = shared.MustParseID("0192f000-0000-7000-8000-000000000002")
 	accountID    = shared.MustParseID("0192f000-0000-7000-8000-00000000000d")
 	holdID       = shared.MustParseID("0192f000-0000-7000-8000-0000000000f1")
+
+	otherAccountID = shared.MustParseID("0192f000-0000-7000-8000-00000000001d")
+	placedAt       = time.Date(2026, 8, 26, 9, 0, 0, 0, time.UTC)
 )
 
 // A work package three levels down, as a purge would present it: the containers above it, and the
@@ -97,5 +103,144 @@ func TestAContainerTargetIsJudgedByItsOwnPath(t *testing.T) {
 	// empty ItemID - which is what a naive equality would do.
 	if _, blocked := (lifecycle.Holds{hold(lifecycle.HoldItem, "")}).Blocking(container); blocked {
 		t.Error("a hold naming no entry blocked a container")
+	}
+}
+
+// Placing one (E-08): what the model accepts, and the one scope it refuses.
+
+func holdInput(change func(*lifecycle.NewHoldInput)) lifecycle.NewHoldInput {
+	in := lifecycle.NewHoldInput{
+		ID: holdID, Scope: lifecycle.HoldContainer, ScopeID: hubID,
+		Reason: "Pending litigation, ref. 4 O 128/26", PlacedBy: accountID,
+		Now: placedAt,
+	}
+	change(&in)
+	return in
+}
+
+func holdCode(t *testing.T, err error) string {
+	t.Helper()
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) {
+		t.Fatalf("error %v is not a domain error", err)
+	}
+	return domainErr.DetailCode
+}
+
+func TestAHoldIsPlacedWithWhoAndWhy(t *testing.T) {
+	hold, err := lifecycle.NewLegalHold(holdInput(func(*lifecycle.NewHoldInput) {}))
+	if err != nil {
+		t.Fatalf("a valid hold was refused: %v", err)
+	}
+
+	switch {
+	case hold.PlacedBy != accountID:
+		t.Errorf("the hold was placed by %s", hold.PlacedBy)
+	case !hold.PlacedAt.Equal(placedAt):
+		t.Errorf("the hold was placed at %s", hold.PlacedAt)
+	case hold.Released():
+		t.Error("a new hold is already released")
+	}
+}
+
+func TestWhatAHoldCannotMean(t *testing.T) {
+	cases := map[string]struct {
+		change func(*lifecycle.NewHoldInput)
+		code   string
+	}{
+		"a scope nobody defined": {
+			func(in *lifecycle.NewHoldInput) { in.Scope = "EVERYTHING" },
+			lifecycle.CodeHoldScopeInvalid,
+		},
+		"a workspace-wide hold that names something": {
+			func(in *lifecycle.NewHoldInput) { in.Scope = lifecycle.HoldTenant },
+			lifecycle.CodeHoldScopeIDMismatch,
+		},
+		"a container hold that names nothing": {
+			func(in *lifecycle.NewHoldInput) { in.ScopeID = "" },
+			lifecycle.CodeHoldScopeIDMismatch,
+		},
+		"no reason": {
+			func(in *lifecycle.NewHoldInput) { in.Reason = "   " },
+			lifecycle.CodeHoldReasonRequired,
+		},
+		"a reason longer than a reason": {
+			func(in *lifecycle.NewHoldInput) { in.Reason = strings.Repeat("x", 2001) },
+			lifecycle.CodeHoldReasonTooLong,
+		},
+		"nobody placing it": {
+			func(in *lifecycle.NewHoldInput) { in.PlacedBy = "" },
+			lifecycle.CodeHoldIncomplete,
+		},
+	}
+
+	for name, test := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := lifecycle.NewLegalHold(holdInput(test.change))
+			if err == nil {
+				t.Fatal("the hold was accepted")
+			}
+			if code := holdCode(t, err); code != test.code {
+				t.Fatalf("refused with %s, want %s", code, test.code)
+			}
+		})
+	}
+}
+
+// The decision this task had to take rather than inherit: the check constraint accepts ACCOUNT and
+// `Blocking` deliberately ignores it, so storing one would store a hold nobody honours - which is
+// worse than none, because somebody believes it is in force.
+func TestAnAccountHoldIsRefusedRatherThanIgnored(t *testing.T) {
+	_, err := lifecycle.NewLegalHold(holdInput(func(in *lifecycle.NewHoldInput) {
+		in.Scope, in.ScopeID = lifecycle.HoldAccount, accountID
+	}))
+
+	if code := holdCode(t, err); code != lifecycle.CodeHoldAccountScopeUnavailable {
+		t.Fatalf("refused with %s, want %s", code, lifecycle.CodeHoldAccountScopeUnavailable)
+	}
+	if !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("refused with %v, want a conflict - the request is well formed and unanswerable", err)
+	}
+	// And the scope stays a value the model knows, so that E-10 needs no migration to answer one.
+	if !lifecycle.HoldAccount.Valid() {
+		t.Error("the ACCOUNT scope was removed rather than refused")
+	}
+}
+
+func TestLiftingRecordsWhoAndWhyAndHappensOnce(t *testing.T) {
+	hold, err := lifecycle.NewLegalHold(holdInput(func(*lifecycle.NewHoldInput) {}))
+	if err != nil {
+		t.Fatalf("placing: %v", err)
+	}
+
+	releasedAt := placedAt.Add(72 * time.Hour)
+	released, err := hold.Release(otherAccountID, "The proceedings ended", releasedAt)
+	if err != nil {
+		t.Fatalf("releasing: %v", err)
+	}
+
+	switch {
+	case !released.Released():
+		t.Error("a released hold does not say so")
+	case released.ReleasedBy != otherAccountID:
+		t.Errorf("it was lifted by %s", released.ReleasedBy)
+	case !released.ReleasedAt.Equal(releasedAt):
+		t.Errorf("it was lifted at %s", released.ReleasedAt)
+	case released.ReleasedReason != "The proceedings ended":
+		t.Errorf("the reason is %q", released.ReleasedReason)
+	}
+	// The placing is untouched: the record is both ends rather than the latest one.
+	if released.PlacedBy != accountID || !released.PlacedAt.Equal(placedAt) {
+		t.Error("lifting overwrote who placed it")
+	}
+
+	if _, err := released.Release(accountID, "again", releasedAt); err == nil {
+		t.Fatal("a hold was lifted twice")
+	} else if code := holdCode(t, err); code != lifecycle.CodeHoldAlreadyReleased {
+		t.Fatalf("the second lifting was refused with %s", code)
+	}
+
+	if _, err := hold.Release(otherAccountID, "  ", releasedAt); err == nil {
+		t.Fatal("a hold was lifted with no reason")
 	}
 }

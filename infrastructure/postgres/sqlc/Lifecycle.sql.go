@@ -210,6 +210,42 @@ func (q *Queries) ExpiredTrashItems(ctx context.Context, arg ExpiredTrashItemsPa
 	return items, nil
 }
 
+const findLegalHold = `-- name: FindLegalHold :one
+SELECT id, scope_kind, scope_id, reason, placed_by, placed_at,
+       released_by, released_at, released_reason
+FROM legal_hold
+WHERE id = $1
+`
+
+type FindLegalHoldRow struct {
+	ID             pgtype.UUID
+	ScopeKind      string
+	ScopeID        pgtype.UUID
+	Reason         string
+	PlacedBy       pgtype.UUID
+	PlacedAt       pgtype.Timestamptz
+	ReleasedBy     pgtype.UUID
+	ReleasedAt     pgtype.Timestamptz
+	ReleasedReason *string
+}
+
+func (q *Queries) FindLegalHold(ctx context.Context, id pgtype.UUID) (FindLegalHoldRow, error) {
+	row := q.db.QueryRow(ctx, findLegalHold, id)
+	var i FindLegalHoldRow
+	err := row.Scan(
+		&i.ID,
+		&i.ScopeKind,
+		&i.ScopeID,
+		&i.Reason,
+		&i.PlacedBy,
+		&i.PlacedAt,
+		&i.ReleasedBy,
+		&i.ReleasedAt,
+		&i.ReleasedReason,
+	)
+	return i, err
+}
+
 const findRetentionPolicy = `-- name: FindRetentionPolicy :one
 SELECT data_kind, retain_days, min_days, max_days
 FROM retention_policy
@@ -275,6 +311,89 @@ func (q *Queries) FinishRetentionRun(ctx context.Context, arg FinishRetentionRun
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const insertLegalHold = `-- name: InsertLegalHold :exec
+INSERT INTO legal_hold (id, tenant_id, scope_kind, scope_id, reason, placed_by, placed_at)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6
+)
+`
+
+type InsertLegalHoldParams struct {
+	ID        pgtype.UUID
+	ScopeKind string
+	ScopeID   pgtype.UUID
+	Reason    string
+	PlacedBy  pgtype.UUID
+	PlacedAt  pgtype.Timestamptz
+}
+
+// A hold, placed. `placed_by` is not optional: §4.1 makes lifting one auditable, and an obligation
+// with no author is one nobody can be asked about.
+func (q *Queries) InsertLegalHold(ctx context.Context, arg InsertLegalHoldParams) error {
+	_, err := q.db.Exec(ctx, insertLegalHold,
+		arg.ID,
+		arg.ScopeKind,
+		arg.ScopeID,
+		arg.Reason,
+		arg.PlacedBy,
+		arg.PlacedAt,
+	)
+	return err
+}
+
+const listLegalHolds = `-- name: ListLegalHolds :many
+SELECT id, scope_kind, scope_id, reason, placed_by, placed_at,
+       released_by, released_at, released_reason
+FROM legal_hold
+WHERE $1::boolean OR released_at IS NULL
+ORDER BY placed_at DESC, id
+`
+
+type ListLegalHoldsRow struct {
+	ID             pgtype.UUID
+	ScopeKind      string
+	ScopeID        pgtype.UUID
+	Reason         string
+	PlacedBy       pgtype.UUID
+	PlacedAt       pgtype.Timestamptz
+	ReleasedBy     pgtype.UUID
+	ReleasedAt     pgtype.Timestamptz
+	ReleasedReason *string
+}
+
+// Every hold, or only the ones in force. Newest first, because a list of holds is read to answer
+// "what is frozen now" and the answer starts with the most recent decision.
+func (q *Queries) ListLegalHolds(ctx context.Context, includeReleased bool) ([]ListLegalHoldsRow, error) {
+	rows, err := q.db.Query(ctx, listLegalHolds, includeReleased)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLegalHoldsRow{}
+	for rows.Next() {
+		var i ListLegalHoldsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScopeKind,
+			&i.ScopeID,
+			&i.Reason,
+			&i.PlacedBy,
+			&i.PlacedAt,
+			&i.ReleasedBy,
+			&i.ReleasedAt,
+			&i.ReleasedReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const recordDeletions = `-- name: RecordDeletions :exec
@@ -349,6 +468,40 @@ func (q *Queries) RecordTombstones(ctx context.Context, arg RecordTombstonesPara
 		arg.EntityIds,
 	)
 	return err
+}
+
+const releaseLegalHold = `-- name: ReleaseLegalHold :execrows
+UPDATE legal_hold SET
+  released_by     = $1,
+  released_at     = $2,
+  released_reason = $3
+WHERE id = $4
+  AND released_at IS NULL
+`
+
+type ReleaseLegalHoldParams struct {
+	ReleasedBy     pgtype.UUID
+	ReleasedAt     pgtype.Timestamptz
+	ReleasedReason *string
+	ID             pgtype.UUID
+}
+
+// The lifting, and the guard that makes it happen once.
+//
+// `released_at IS NULL` in the predicate rather than a check the caller ran a moment earlier: two
+// requests lifting the same hold would otherwise both succeed, and the second would overwrite who
+// lifted it and when - the one pair of values the record exists to keep.
+func (q *Queries) ReleaseLegalHold(ctx context.Context, arg ReleaseLegalHoldParams) (int64, error) {
+	result, err := q.db.Exec(ctx, releaseLegalHold,
+		arg.ReleasedBy,
+		arg.ReleasedAt,
+		arg.ReleasedReason,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const startRetentionRun = `-- name: StartRetentionRun :exec

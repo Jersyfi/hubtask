@@ -186,7 +186,14 @@ type RetentionState struct {
 	EffectiveAt time.Time
 	// PolicyID is the rule that announced it.
 	PolicyID shared.ID
+	// BlockedBy is why the act is not happening, and empty when nothing is stopping it
+	// (data-retention.md §4, §6). An entry that is blocked has no EffectiveAt: it has no due
+	// moment, which is what keeps the second phase off it.
+	BlockedBy string
 }
+
+// RetentionBlocked reports an announcement something is holding back.
+func (r RetentionState) RetentionBlocked() bool { return r.BlockedBy != "" }
 
 // InRetention reports an entry a rule has announced something about.
 func (i WorkItem) InRetention() bool { return i.Retention != nil }

@@ -787,15 +787,16 @@ type Label struct {
 }
 
 type LegalHold struct {
-	ID         pgtype.UUID
-	TenantID   pgtype.UUID
-	ScopeKind  string
-	ScopeID    pgtype.UUID
-	Reason     string
-	PlacedBy   pgtype.UUID
-	PlacedAt   pgtype.Timestamptz
-	ReleasedBy pgtype.UUID
-	ReleasedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	ScopeKind      string
+	ScopeID        pgtype.UUID
+	Reason         string
+	PlacedBy       pgtype.UUID
+	PlacedAt       pgtype.Timestamptz
+	ReleasedBy     pgtype.UUID
+	ReleasedAt     pgtype.Timestamptz
+	ReleasedReason *string
 }
 
 type MediaObject struct {
@@ -1162,4 +1163,5 @@ type WorkItem struct {
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
+	RetentionBlockedBy    *string
 }

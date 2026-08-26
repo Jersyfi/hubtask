@@ -25,6 +25,31 @@ type LegalHolds interface {
 	Active(ctx context.Context) (domain.Holds, error)
 }
 
+// HoldWriter places and lifts them (E-08).
+//
+// Its own port rather than methods on LegalHolds, for the reason the read and the write of a
+// deletion are kept apart: the deletion paths take the reading half, and a port that carried both
+// would let a purge reach a statement that lifts the hold stopping it.
+type HoldWriter interface {
+	// Place writes a hold.
+	Place(ctx context.Context, hold domain.LegalHold) error
+
+	// Find answers one hold, released or not, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (domain.LegalHold, error)
+
+	// List answers the tenant's holds, newest first. Released ones only when asked for: a list of
+	// holds is read to answer "what is frozen now", and one that has been lifted is what an
+	// auditor reads to see that it was.
+	List(ctx context.Context, includeReleased bool) ([]domain.LegalHold, error)
+
+	// Release lifts one, and answers false for a hold that was already lifted.
+	//
+	// The guard is the statement rather than a check the caller ran a moment earlier: two requests
+	// lifting the same hold would otherwise both succeed, and the second would overwrite who lifted
+	// it and when.
+	Release(ctx context.Context, hold domain.LegalHold) (bool, error)
+}
+
 // Removals records what a hard delete leaves behind.
 //
 // One method writing both records rather than two that a caller has to remember to pair. They are
@@ -156,6 +181,8 @@ type Candidate struct {
 	Pending time.Time
 	Rule    shared.ID
 	Action  domain.Action
+	// BlockedBy is why the act is not happening, and empty when nothing is stopping it.
+	BlockedBy string
 }
 
 // Marking is the two phases of data-retention.md §5 against the objects themselves.
@@ -183,6 +210,17 @@ type Marking interface {
 	Mark(
 		ctx context.Context, ids []shared.ID, ruleID shared.ID,
 		action domain.Action, effectiveAt time.Time,
+	) (int, error)
+
+	// Block records what a rule would do and what is stopping it (§4, §6).
+	//
+	// No due moment, deliberately: an entry that is held back has none, and the absence of one is
+	// what keeps the second phase off it rather than a flag somebody has to remember to check. It
+	// is written on every pass, because a block is a fact about now - the hold may have been
+	// lifted since, and the marking then takes over.
+	Block(
+		ctx context.Context, ids []shared.ID, ruleID shared.ID,
+		action domain.Action, reason string,
 	) (int, error)
 
 	// MarkedDue answers the entries whose grace period has run out.

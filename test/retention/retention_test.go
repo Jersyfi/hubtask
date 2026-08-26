@@ -824,3 +824,142 @@ func TestRE9AChainCountsEachStageFromItsOwnColumn(t *testing.T) {
 }
 
 func graceOf(days int) *int { return &days }
+
+// ── QS-23 (E-08) ──────────────────────────────────────────────────────────────────────────────
+
+// holds is the three legal hold use cases, wired the way the server wires them.
+func (s *suite) holds() lifecycle.Holds {
+	return lifecycle.Holds{
+		Holds:      postgres.NewLegalHoldRepository(),
+		Authorizer: allowAll{},
+		Audit:      postgres.NewAuditSink(ids),
+		UnitOfWork: s.uow,
+		Clock:      clock.Fixed(now),
+		IDs:        ids,
+	}
+}
+
+func (s *suite) actorWithAccount() appshared.ActorContext {
+	return appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: s.tenant, AccountID: s.author,
+		AccountName: "Anna", Locale: "en", TimeZone: "UTC",
+	}
+}
+
+func (s *suite) itemRetention(t *testing.T, id shared.ID) (string, string) {
+	t.Helper()
+
+	var action, blockedBy *string
+	if err := s.admin.QueryRow(s.ctx,
+		`SELECT retention_action, retention_blocked_by FROM work_item WHERE id = $1`,
+		id.String()).Scan(&action, &blockedBy); err != nil {
+		t.Fatalf("reading the entry's retention: %v", err)
+	}
+	return textOr(action), textOr(blockedBy)
+}
+
+func textOr(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+// QS-23, end to end rather than by construction: a hold placed through the use case stops a
+// retention run and a manual purge, and shows up in the run's blocked reasons and on the object.
+func TestQS23AHoldPlacedThroughTheAPIStopsEveryDeletion(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	collectionID := s.collection(t)
+	held := s.completedItem(t, collectionID, 400)
+	trashed := s.trashedItem(t, collectionID, 400)
+	for range 60 {
+		s.completedItem(t, collectionID, 1)
+	}
+
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionHardDelete, GraceDays: graceOf(0),
+	})
+
+	// The hold, placed the way a person places one.
+	hold, err := (lifecycle.PlaceLegalHold{Holds: s.holds()}).Execute(s.ctx, s.actorWithAccount(),
+		lifecycle.PlaceLegalHoldCommand{
+			Scope: lifecycleDomain.HoldContainer, ScopeID: collectionID,
+			Reason: "Pending litigation, ref. 4 O 128/26",
+		})
+	if err != nil {
+		t.Fatalf("placing the hold: %v", err)
+	}
+
+	outcome := s.sweep(t)
+
+	// Nothing went - not the completed entry the rule caught, and not the trashed one the trash's
+	// own period caught.
+	if !s.exists(t, held) {
+		t.Error("a completed entry under a legal hold was deleted")
+	}
+	if !s.exists(t, trashed) {
+		t.Error("a trashed entry under a legal hold was deleted")
+	}
+	if outcome.Blocked[lifecycleDomain.BlockedByLegalHold] == 0 {
+		t.Errorf("the run reported %+v", outcome.Blocked)
+	}
+
+	// The run's own record says so, which is what an operator reads.
+	blocked := s.count(t, `
+		SELECT count(*) FROM retention_run
+		WHERE tenant_id = $1 AND blocked_reasons ? 'legal_hold'`, s.tenant.String())
+	if blocked == 0 {
+		t.Error("no retention run recorded a legal hold among its blocked reasons")
+	}
+
+	// And the object says so, which is what the person looking at it reads.
+	action, reason := s.itemRetention(t, held)
+	if reason != lifecycleDomain.BlockedByLegalHold {
+		t.Errorf("the entry says %q is stopping it", reason)
+	}
+	if action != string(lifecycleDomain.ActionHardDelete) {
+		t.Errorf("the entry says the rule would %q", action)
+	}
+
+	// A manual purge is stopped too: a hold outranks a person emptying their own trash.
+	err = s.uow.Within(s.ctx, persistence.Scope{TenantID: s.tenant}, func(ctx context.Context) error {
+		_, err := s.engineAt(now).Purger.Sweep(ctx, s.actor(), lifecycle.Selection{
+			Cutoff: now, Reason: lifecycleDomain.DeletedByUser,
+		}, now)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("emptying the trash: %v", err)
+	}
+	if !s.exists(t, trashed) {
+		t.Fatal("a manual purge removed an entry under a legal hold")
+	}
+
+	// Lifting it lets the next pass through, and records who and why.
+	if _, err := (lifecycle.ReleaseLegalHold{Holds: s.holds()}).
+		Execute(s.ctx, s.actorWithAccount(), hold.ID, "The proceedings ended"); err != nil {
+		t.Fatalf("lifting the hold: %v", err)
+	}
+
+	lifted := s.count(t, `
+		SELECT count(*) FROM legal_hold
+		WHERE id = $1 AND released_by = $2 AND released_at IS NOT NULL
+		  AND released_reason = 'The proceedings ended'`, hold.ID.String(), s.author.String())
+	if lifted != 1 {
+		t.Fatal("the lifting did not record who, when and why")
+	}
+	entries := s.count(t, `
+		SELECT count(*) FROM audit_log
+		WHERE tenant_id = $1 AND action = 'lifecycle.hold_released'`, s.tenant.String())
+	if entries != 1 {
+		t.Fatalf("%d audit entries for the lifting", entries)
+	}
+
+	// Two passes, because the rule announces before it acts and the grace period is zero.
+	s.sweepAt(t, now.Add(time.Minute))
+	if s.exists(t, held) {
+		t.Error("the entry survived after the hold was lifted")
+	}
+}

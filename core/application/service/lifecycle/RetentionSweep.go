@@ -144,6 +144,13 @@ func (s Sweeper) announce(
 		}
 		if reason, blocked := s.blocked(holds, candidate); blocked {
 			outcome.blocked(reason)
+			// The object is told what is stopping it. §6's whole argument is that retention
+			// nobody can see surprises somebody, and "this would have been deleted and a legal
+			// hold is holding it back" is the half of it a count in a run's report cannot say.
+			if _, err := s.Marking.Block(ctx, []shared.ID{candidate.ID},
+				rule.ID, rule.Action, reason); err != nil {
+				return outcome, err
+			}
 			continue
 		}
 		if _, seen := byRule[rule.ID]; !seen {

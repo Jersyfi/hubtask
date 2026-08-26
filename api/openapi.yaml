@@ -930,6 +930,76 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /legal-holds:
+    get:
+      tags: [retention]
+      operationId: listLegalHolds
+      summary: The legal holds in force
+      description: |
+        A hold overrides every retention rule and every deletion a person asks for, so who placed
+        one and why is part of what it is. Released holds are shown too when asked for: a hold that
+        has been lifted is what an auditor reads to see that it was.
+      parameters:
+        - { name: include_released, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200":
+          description: The holds
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LegalHold" }
+        "403": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [retention]
+      operationId: placeLegalHold
+      summary: Place a legal hold
+      description: |
+        Stops anything under it being deleted: a retention rule, a person emptying their own trash,
+        a hard delete somebody asked for. It outranks the workspace's own configured periods, which
+        is why placing one is not an ordinary member's power. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LegalHoldCreate" }
+      responses:
+        "201":
+          description: Placed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalHold" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+
+  /legal-holds/{holdId}:release:
+    post:
+      tags: [retention]
+      operationId: releaseLegalHold
+      summary: Lift a legal hold
+      description: |
+        Records who lifted it, when, and why. Lifting is the moment the data under it becomes
+        deletable again, so the reason is required rather than optional - "released" with no reason
+        is the entry an auditor cannot act on. Auditable.
+      parameters:
+        - { name: holdId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LegalHoldRelease" }
+      responses:
+        "200":
+          description: Released
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalHold" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+
   /retention-policies:
     get:
       tags: [retention]
@@ -5552,6 +5622,62 @@ components:
             (`container_id`). Absent from a listing that named no container: with nothing to be in
             force *in*, the question has no answer. The narrower rule wins, and a rule switched off
             in a collection lets the wider one through rather than stopping it.
+
+    LegalHold:
+      type: object
+      description: >
+        An instruction not to delete something. The first thing every deletion path checks, and the
+        one that overrides a workspace's own configured periods.
+      required: [id, scope, reason, placed_by, placed_at]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        scope:
+          type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [TENANT, CONTAINER, ITEM, ACCOUNT]
+              description: >
+                What the hold covers. TENANT names nothing because it covers everything; CONTAINER
+                and ITEM name what they hold, and the hold reaches everything below it.
+            id: { type: [string, "null"], format: uuid }
+        reason:
+          type: string
+          description: >
+            Why, in the words of whoever placed it. Operator content rather than user content, and
+            it never travels into a metric or an event - an auditor and an operator reading a
+            blocked run are the only readers.
+        placed_by: { type: string, format: uuid, readOnly: true }
+        placed_at: { type: string, format: date-time, readOnly: true }
+        released_by: { type: [string, "null"], format: uuid, readOnly: true }
+        released_at: { type: [string, "null"], format: date-time, readOnly: true }
+        released_reason:
+          type: [string, "null"]
+          readOnly: true
+          description: Why it was lifted. Present only on a hold that has been.
+
+    LegalHoldCreate:
+      type: object
+      required: [scope, reason]
+      properties:
+        scope:
+          type: object
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [TENANT, CONTAINER, ITEM, ACCOUNT] }
+            id: { type: [string, "null"], format: uuid }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+
+    LegalHoldRelease:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Why the hold is being lifted. Required - "released" with no reason is an entry an auditor cannot act on.
 
     RetentionState:
       type: object

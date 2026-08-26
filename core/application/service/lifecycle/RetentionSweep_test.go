@@ -168,6 +168,11 @@ func TestALegalHoldKeepsAnEntryBackAndIsReported(t *testing.T) {
 	if outcome.Blocked[domain.BlockedByLegalHold] != 1 {
 		t.Fatalf("the pass reported %+v", outcome.Blocked)
 	}
+	// And the object is told: a count in a run's report is what an operator reads, and "this would
+	// have gone and a hold is holding it back" is what the person looking at the entry needs.
+	if len(h.marking.blocked) != 1 || h.marking.blocked[0] != taskID {
+		t.Fatalf("the entry was not told what is stopping it: %+v", h.marking.blocked)
+	}
 }
 
 // Phase two acts on what the grace period has run out on, and the marking goes with the act while

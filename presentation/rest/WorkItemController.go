@@ -448,5 +448,9 @@ func retentionStateResponse(value any) *openapi.RetentionState {
 	if canRetain, told := announced["can_retain"].(bool); told {
 		state.CanRetain = &canRetain
 	}
+	if blocked, held := announced["blocked_by"].(string); held && blocked != "" {
+		reason := openapi.RetentionStateBlockedBy(blocked)
+		state.BlockedBy = &reason
+	}
 	return state
 }

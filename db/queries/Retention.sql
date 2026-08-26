@@ -107,10 +107,29 @@ LIMIT sqlc.arg('batch')::int;
 
 -- name: MarkItemsForRetention :execrows
 -- Phase one: what is coming, when, and under which rule (§5, §6).
+--
+-- The block is cleared with the marking: an entry that was held back and is now announced is an
+-- entry whose obstacle has gone, and a stale reason on it would tell somebody a hold is in force
+-- that was lifted last week.
 UPDATE work_item SET
   retention_pending_until = sqlc.arg('effective_at')::timestamptz,
   retention_rule_id       = sqlc.arg('rule_id'),
-  retention_action        = sqlc.arg('action')
+  retention_action        = sqlc.arg('action'),
+  retention_blocked_by    = NULL
+WHERE id = ANY(sqlc.arg('ids')::uuid[])
+  AND retention_pending_until IS NULL;
+
+-- name: BlockItemsForRetention :execrows
+-- What a rule would do, and what is stopping it (§4, §6).
+--
+-- No `retention_pending_until`, deliberately: an entry that is held back has no due moment, and the
+-- absence of one is what keeps phase two off it rather than a flag somebody has to remember to
+-- check. Re-run on every pass, because a block is a fact about now - the hold may have been lifted
+-- since, and then the marking above takes over.
+UPDATE work_item SET
+  retention_rule_id    = sqlc.arg('rule_id'),
+  retention_action     = sqlc.arg('action'),
+  retention_blocked_by = sqlc.arg('blocked_by')
 WHERE id = ANY(sqlc.arg('ids')::uuid[])
   AND retention_pending_until IS NULL;
 
@@ -127,7 +146,7 @@ LIMIT sqlc.arg('batch')::int;
 
 -- name: FindItemRetention :one
 -- What one entry's marking says, which is what `:retain` reads and what the object carries.
-SELECT retention_pending_until, retention_rule_id, retention_action
+SELECT retention_pending_until, retention_rule_id, retention_action, retention_blocked_by
 FROM work_item
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -138,6 +157,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 UPDATE work_item SET
   retention_pending_until = NULL,
   retention_action        = NULL,
+  retention_blocked_by    = NULL,
   retention_rule_id       = CASE WHEN sqlc.arg('keep_rule')::boolean THEN retention_rule_id END,
   updated_at              = sqlc.arg('now')::timestamptz,
   version                 = version + 1
