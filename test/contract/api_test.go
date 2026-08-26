@@ -205,8 +205,10 @@ func TestEveryErrorMatchesTheProblemSchema(t *testing.T) {
 		path       string
 		wantStatus int
 	}{
-		"an unknown route":      {rest.APIBasePath + "/nothing-here", http.StatusNotFound},
-		"a pending operation":   {rest.APIBasePath + "/backup-targets", http.StatusNotFound},
+		"an unknown route": {rest.APIBasePath + "/nothing-here", http.StatusNotFound},
+		// The example moves as the milestone does: it has to be an operation that genuinely
+		// has no use case yet. /backup-targets was it until E-03 served it.
+		"a pending operation":   {rest.APIBasePath + "/sync/devices", http.StatusNotFound},
 		"outside the base path": {"/nothing-here", http.StatusNotFound},
 	}
 

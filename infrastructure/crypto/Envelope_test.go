@@ -275,3 +275,25 @@ var _ clockport.Entropy = exhausted{}
 func formatted(value any) string {
 	return fmt.Sprintf("%v %+v %#v", value, value, value)
 }
+
+// The bound on what may be sealed. Everything this envelope protects is a small value somebody
+// configured, and the ceiling is what keeps the buffer arithmetic provably safe as well as what
+// keeps a column from being handed a megabyte of "credential".
+func TestAValueTooLargeToBeACredentialIsRefused(t *testing.T) {
+	sealer := envelope(t, key("a", materialA))
+
+	oversized := secret.New(strings.Repeat("a", (1<<20)+1))
+	_, err := sealer.Seal(t.Context(), oversized, purpose)
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("a value larger than the limit was sealed: %v", err)
+	}
+	if code := shared.AsError(err).DetailCode; code != "crypto.value_too_large" {
+		t.Fatalf("detail code %q", code)
+	}
+
+	// And a value at the limit still goes through: the bound is a ceiling, not a margin.
+	atTheLimit := secret.New(strings.Repeat("a", 1<<20))
+	if _, err := sealer.Seal(t.Context(), atTheLimit, purpose); err != nil {
+		t.Fatalf("a value at the limit was refused: %v", err)
+	}
+}

@@ -44,6 +44,15 @@ const (
 	dataLabel = "hubtask/envelope/v1/data:"
 )
 
+// maxPlaintextBytes bounds what this envelope will seal.
+//
+// Everything it protects is a small value a person configured - a password, an access key, a
+// connection string - and a bound is what keeps the arithmetic below provably safe: the capacity
+// of the buffer is a header length plus the plaintext's, and without a ceiling that sum is an
+// overflow away from a negative allocation. An archive is not sealed here; it is encrypted as it
+// streams, which is a different piece of code with a different shape.
+const maxPlaintextBytes = 1 << 20
+
 // The port's codes, referenced here so that this adapter cannot invent a second spelling.
 const (
 	portCodeNoEncryptionKey  = port.CodeNoEncryptionKey
@@ -78,6 +87,14 @@ func (e Envelope) ActiveKeyID() string { return e.ring.ActiveKeyID() }
 func (e Envelope) Seal(
 	_ context.Context, plaintext secret.Secret, purpose port.Purpose,
 ) (port.Sealed, error) {
+	if len(plaintext.Reveal()) > maxPlaintextBytes {
+		// Refused rather than truncated, and refused before the key is touched: a value this
+		// large is not a credential, and sealing part of one would store something that opens to
+		// a broken secret.
+		return port.Sealed{}, shared.ErrValidation.
+			WithDetail("crypto.value_too_large").
+			WithParams(map[string]string{"limit_bytes": fmt.Sprint(maxPlaintextBytes)})
+	}
 	if e.ring.IsEmpty() {
 		// A refusal rather than a plaintext write. An installation that has not been given a key
 		// must not end up with a credential in a column named `credential_enc`.
