@@ -1467,6 +1467,12 @@ ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM hubtask_app;
 GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
 
+-- The pseudonyms an erasure leaves for the trail are append-only for the same reason the trail is:
+-- one that could be updated is a name that could come back, and one that could be deleted is an
+-- erasure that could be undone (E-10, audit.md §6).
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_pseudonym FROM hubtask_app;
+GRANT  SELECT, INSERT ON audit_pseudonym TO hubtask_app;
+
 -- The same for the partitions: a partition addressed directly is a table of its own.
 DO $audit_partitions$
 DECLARE p record;

@@ -54,6 +54,14 @@ CREATE POLICY tenant_isolation ON audit_pseudonym
   USING (tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());
 
+-- The application role may add a pseudonym and read one, and nothing else. A pseudonym that could
+-- be updated is a name that could come back, and one that could be deleted is an erasure that
+-- could be undone - the same discipline `audit_log` itself is under (audit.md §3). The grant is
+-- explicit rather than left to the default privileges, because those follow the role that creates
+-- the table and a migration is not always applied by the same one.
+GRANT SELECT, INSERT ON audit_pseudonym TO hubtask_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_pseudonym FROM hubtask_app;
+
 -- Which workspaces of this installation a person is a member of.
 --
 -- The one question in the system that legitimately crosses the tenant boundary

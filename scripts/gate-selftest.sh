@@ -297,6 +297,15 @@ expect_gate_failure "technology import in the core" gate-architecture core/domai
 
 import _ "database/sql"'
 
+expect_gate_failure "repository method taking a tenant" gate-architecture core/application/repository \
+'package selftest
+
+import "context"
+
+type Selftest interface {
+	Read(ctx context.Context, tenantID string) error
+}'
+
 expect_gate_failure "adapter calls a use case" gate-architecture infrastructure \
 'package selftest
 
