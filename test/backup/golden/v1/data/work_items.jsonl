@@ -1,0 +1,2 @@
+{"id":"0198f0a0-0000-7000-8000-000000010001","op":"UPSERT","updated_at":"2026-08-26T02:00:00Z","data":{"order_key":"a0","state":"OPEN","type":"TASK"}}
+{"id":"0198f0a0-0000-7000-8000-000000010002","op":"UPSERT","updated_at":"2026-08-26T02:00:00Z","data":{"order_key":"a1","state":"DONE","type":"TASK"}}

@@ -93,6 +93,38 @@ Properties:
 * **Encrypted** (§4) — before it leaves the process, not just at the target.
 * **Checksums** per file and over the manifest; `POST /backups/{id}:verify` checks an archive at the target without restoring it.
 
+**The archive is streamed to the target as it is produced, not staged and then transferred** (E-04).
+Both were open and both buy something real: staging makes a checksum over the whole archive trivial
+and a resumption after process death cheap, because the finished part is on local disk; streaming
+keeps memory and disk flat whatever the holding weighs. Streaming wins on the case that decides it —
+this system runs in a container whose writable layer is small and whose data volume is the database,
+and staging a hundred gigabytes there fails at the disk rather than at the target, which is the
+worse of the two failures because it happens on the machine that is still working. What staging
+bought is bought differently: the archive is a directory of members rather than one stream, so a
+checksum per member replaces a checksum over the whole, and a resumption finds what is already at
+the target with one `List` rather than on a scratch disk a restarted container no longer has.
+
+Three consequences follow from that, and they are the format rather than the implementation:
+
+* **`checksums.txt` is written last and is the commit point.** An archive without it is a run that
+  died or one still going — not a damaged archive, and the difference is what §8.1 reports as the
+  checksum status. The manifest names the members and their checksums and therefore cannot name its
+  own, so `checksums.txt` closes over it. What that catches is corruption and not an attacker;
+  against an attacker the defence is the authenticated cipher the members are written through.
+* **The manifest is the one member that is never encrypted.** §8.1 requires the archives at a target
+  to be listed with no state in the database at all, and an operator who has lost the database and
+  holds the target credentials has not necessarily got the archive key yet. From that follows a rule
+  with teeth: no user content in the manifest — counts are by entity, never by name — because
+  whoever holds the storage can read it.
+* **Media are counted, not listed.** A content-addressed file is named after the SHA-256 of its
+  content, so a list of media checksums is a list of the file names; on a holding with a hundred
+  thousand attachments it would be the largest thing in the archive. A medium lives in whichever
+  archive of the chain first referenced it, and a restore resolves a digest by searching the chain
+  from newest to oldest.
+
+**Golden archives** are committed to the repository under `test/backup/golden/` — one per archive
+format version, imported by BK-4, added at a major release ([versioning-release.md](./versioning-release.md) §1, §7).
+
 ---
 
 ## 4. Encryption

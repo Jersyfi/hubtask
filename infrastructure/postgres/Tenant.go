@@ -31,6 +31,7 @@ func NewUnitOfWork(pool *pgxpool.Pool) *UnitOfWork { return &UnitOfWork{pool: po
 var (
 	_ persistence.UnitOfWork  = (*UnitOfWork)(nil)
 	_ persistence.ScopeSource = (*UnitOfWork)(nil)
+	_ persistence.Snapshot    = (*UnitOfWork)(nil)
 )
 
 // contextKey is unexported, so nothing outside this package can put a transaction into a
@@ -51,6 +52,60 @@ func (u *UnitOfWork) Within(ctx context.Context, scope persistence.Scope, fn fun
 // a write that slipped into a query path fails loudly rather than quietly succeeding.
 func (u *UnitOfWork) WithinReadOnly(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
 	return u.run(ctx, scope, pgx.ReadOnly, fn)
+}
+
+// WithinSnapshot runs fn against one consistent point in time (backup-restore.md §5).
+//
+// REPEATABLE READ and read-only together. The isolation level is what makes the archive one point
+// in time rather than a mixture; read-only is what lets PostgreSQL take the cheaper snapshot and
+// what stops an export ever writing. A long-running snapshot holds back vacuum for its duration,
+// which is the cost of a consistent backup and the reason §5 puts the run on a bulkhead pool of
+// its own rather than on the API path.
+func (u *UnitOfWork) WithinSnapshot(
+	ctx context.Context, scope persistence.Scope, fn func(context.Context, time.Time) error,
+) error {
+	if !scope.IsValid() {
+		return shared.ErrInternal.WithDetail("postgres.scope_missing")
+	}
+	// A transaction's isolation level is fixed when it begins, so joining a running one would
+	// quietly hand the caller READ COMMITTED under a method that promises a snapshot.
+	if _, joined := txFromContext(ctx); joined {
+		return shared.ErrInternal.WithDetail("postgres.snapshot_in_transaction")
+	}
+
+	tx, err := u.pool.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel:   pgx.RepeatableRead,
+		AccessMode: pgx.ReadOnly,
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.begin_failed").
+			WithCause(fmt.Errorf("beginning the snapshot: %w", err))
+	}
+	defer func() {
+		rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
+		defer cancel()
+		// A read-only transaction has nothing to commit. Rolling back is the cheaper end and the
+		// one that cannot fail in a way the caller would have to care about.
+		_ = tx.Rollback(rollbackCtx)
+	}()
+
+	if err := applyScope(ctx, tx, scope); err != nil {
+		return err
+	}
+
+	// now() inside a transaction is the transaction's start time, which under REPEATABLE READ is
+	// the instant the snapshot represents. Taken from the database rather than from this process:
+	// it is the clock the rows' own timestamps were written by, and a process clock a second ahead
+	// would leave a hole in the chain that nothing would ever report.
+	var at time.Time
+	if err := tx.QueryRow(ctx, "SELECT now()").Scan(&at); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.snapshot_failed").
+			WithCause(fmt.Errorf("reading the snapshot instant: %w", err))
+	}
+
+	return fn(withScope(withTx(ctx, tx), scope), at.UTC())
 }
 
 func (u *UnitOfWork) run(

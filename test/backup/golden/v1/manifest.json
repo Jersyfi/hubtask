@@ -1,0 +1,211 @@
+{
+  "format_version": 1,
+  "archive_id": "0198f0a0-0000-7000-8000-00000000901d",
+  "schema_version": "0031",
+  "product_version": "0.4.5",
+  "mode": "FULL",
+  "scope": {
+    "kind": "TENANT",
+    "id": "0198f0a0-0000-7000-8000-0000000000aa"
+  },
+  "period": {
+    "from": "0001-01-01T00:00:00Z",
+    "to": "2026-08-26T04:00:00Z"
+  },
+  "snapshot_at": "2026-08-26T04:00:00Z",
+  "encryption": {
+    "mode": "NONE"
+  },
+  "counts": {
+    "account_group_members": 0,
+    "account_groups": 0,
+    "accounts": 1,
+    "activity_entries": 0,
+    "auto_assign_policies": 0,
+    "automation_rules": 0,
+    "buckets": 0,
+    "calendar_feeds": 0,
+    "comments": 1,
+    "consent_records": 0,
+    "containers": 2,
+    "custom_field_definitions": 0,
+    "item_attachments": 0,
+    "item_labels": 0,
+    "item_members": 0,
+    "jumble_entries": 0,
+    "labels": 1,
+    "legal_holds": 0,
+    "media_objects": 0,
+    "memberships": 0,
+    "notification_preferences": 0,
+    "recurrence_rules": 0,
+    "reminders": 0,
+    "retention_policies": 0,
+    "saved_views": 0,
+    "set_elements": 0,
+    "templates": 0,
+    "tenants": 1,
+    "webhook_subscriptions": 0,
+    "work_items": 2
+  },
+  "media_count": 0,
+  "media_bytes": 0,
+  "files": [
+    {
+      "path": "data/tenants.jsonl",
+      "bytes": 140,
+      "sha256": "4192d0797bbcc86c2e3caabd63105bf06228583c254e1b6af0789b97bb90359b",
+      "records": 1
+    },
+    {
+      "path": "data/accounts.jsonl",
+      "bytes": 120,
+      "sha256": "afe2b914f958d7935cacd3325307ec639dc13827787426a90a9c92b8e12a9b2f",
+      "records": 1
+    },
+    {
+      "path": "data/account_groups.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/account_group_members.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/memberships.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/containers.jsonl",
+      "bytes": 277,
+      "sha256": "de36328f88eb59d4a0f3c37565c55eb58d802b658ad4786483b4b3fb1d97584b",
+      "records": 2
+    },
+    {
+      "path": "data/buckets.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/labels.jsonl",
+      "bytes": 132,
+      "sha256": "640d26d18692803d2f55533d663e45eec40cc42ae4d319620d068c925fbca56e",
+      "records": 1
+    },
+    {
+      "path": "data/custom_field_definitions.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/work_items.jsonl",
+      "bytes": 302,
+      "sha256": "8012a2db418f1a56f43b54690e52f97823fcf01394461da92d22a385ab45767e",
+      "records": 2
+    },
+    {
+      "path": "data/item_labels.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/item_members.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/comments.jsonl",
+      "bytes": 122,
+      "sha256": "f0a32ce1b88aaf305c5820d8aad3b5a65133340802ef71adffff1f5c09267580",
+      "records": 1
+    },
+    {
+      "path": "data/activity_entries.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/media_objects.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/item_attachments.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/recurrence_rules.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/reminders.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/saved_views.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/templates.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/jumble_entries.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/auto_assign_policies.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/automation_rules.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/webhook_subscriptions.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/calendar_feeds.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/notification_preferences.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/retention_policies.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/consent_records.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/legal_holds.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/set_elements.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}
