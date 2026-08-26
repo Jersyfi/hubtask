@@ -698,6 +698,12 @@
   "backup.schedule_notification_invalid": "That is not an occasion a backup schedule can tell you about.",
   "backup.retention_negative": "A retention generation cannot be a negative number.",
   "backup.retention_floor_required": "min_keep has to be at least 1, so that a retention rule can never leave you with no backup at all.",
+  "backup.schedule_not_found": "There is no such backup schedule.",
+  "backup.run_not_found": "There is no such backup run.",
+  "backup.run_not_running": "That backup run is already over, so its outcome cannot be written any more.",
+  "backup.no_parent_archive": "There is no earlier backup at that target, so an incremental one has nothing to continue. Run a full backup first.",
+  "backup.schedule_unserialisable": "This installation could not store that retention plan.",
+  "backup.schedule_unreadable": "This installation could not read that schedule's retention plan.",
 
   "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",

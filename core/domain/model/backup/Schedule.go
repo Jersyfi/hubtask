@@ -303,4 +303,87 @@ const (
 	CodeScheduleNotificationInvalid = "backup.schedule_notification_invalid"
 	CodeRetentionNegative           = "backup.retention_negative"
 	CodeRetentionFloorRequired      = "backup.retention_floor_required"
+	CodeScheduleNotFound            = "backup.schedule_not_found"
+	CodeRunNotFound                 = "backup.run_not_found"
+	CodeRunNotRunning               = "backup.run_not_running"
+	CodeNoParentArchive             = "backup.no_parent_archive"
 )
+
+// Trigger is why a run happened.
+type Trigger string
+
+const (
+	TriggerSchedule   Trigger = "SCHEDULE"
+	TriggerManual     Trigger = "MANUAL"
+	TriggerPreRestore Trigger = "PRE_RESTORE"
+	TriggerAPI        Trigger = "API"
+)
+
+var triggers = [...]Trigger{TriggerSchedule, TriggerManual, TriggerPreRestore, TriggerAPI}
+
+func (t Trigger) Valid() bool { return slices.Contains(triggers[:], t) }
+
+// RunStatus is where a run stands.
+type RunStatus string
+
+const (
+	RunRunning   RunStatus = "RUNNING"
+	RunSucceeded RunStatus = "SUCCEEDED"
+	RunFailed    RunStatus = "FAILED"
+	RunCancelled RunStatus = "CANCELLED"
+	// RunExpired is a run whose archive the generation plan has since deleted. The row stays, so
+	// that the history of what was backed up survives the archives themselves.
+	RunExpired RunStatus = "EXPIRED"
+)
+
+func (s RunStatus) Valid() bool {
+	return slices.Contains([]RunStatus{RunRunning, RunSucceeded, RunFailed, RunCancelled, RunExpired}, s)
+}
+
+// Run is one backup, from the moment it claimed its target to whatever it left behind.
+//
+// Its ID is the archive's ID in the manifest at the target. One identifier in two places rather
+// than a mapping between them: a caller who has a run has an archive, and `:verify` and a restore
+// name the thing the caller already holds.
+type Run struct {
+	ID          shared.ID
+	ScheduleID  shared.ID
+	TargetID    shared.ID
+	TenantID    shared.ID
+	ParentRunID shared.ID
+	Trigger     Trigger
+	Mode        Mode
+	Status      RunStatus
+	ArchivePath string
+	SizeBytes   int64
+	ItemCount   int
+	MediaCount  int
+	Checksum    string
+	SnapshotAt  time.Time
+	StartedAt   time.Time
+	FinishedAt  time.Time
+	ErrorCode   string
+	ExpiresAt   time.Time
+	VerifiedAt  time.Time
+	VerifyOK    *bool
+}
+
+// Outcome is how a run ended, as the one statement that closes it takes it.
+type Outcome struct {
+	ID          shared.ID
+	Status      RunStatus
+	ArchivePath string
+	Manifest    []byte
+	SizeBytes   int64
+	ItemCount   int
+	MediaCount  int
+	Checksum    string
+	SnapshotAt  time.Time
+	FinishedAt  time.Time
+	// ErrorCode is the message code of the failure, never a message and never anything the run
+	// was working on (rules 8 and 10).
+	ErrorCode string
+}
+
+// Succeeded reports a run that left an archive behind.
+func (r Run) Succeeded() bool { return r.Status == RunSucceeded }

@@ -34,6 +34,164 @@ func (q *Queries) CountBackupTargets(ctx context.Context) (CountBackupTargetsRow
 	return i, err
 }
 
+const dueBackupSchedules = `-- name: DueBackupSchedules :many
+SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+FROM backup_schedule
+WHERE enabled AND next_run_at IS NOT NULL AND next_run_at <= $1::timestamptz
+ORDER BY next_run_at
+LIMIT $2::int
+`
+
+type DueBackupSchedulesParams struct {
+	Now   pgtype.Timestamptz
+	Batch int32
+}
+
+// What is due now, in the tenant the transaction is bound to.
+//
+// `next_run_at` is a stored decision rather than a rule expanded on the spot: expanding an RRULE
+// costs a library call per schedule, and a poller that did it on every wake-up would do it for
+// every schedule that is not due. The value is written by the pass that last ran, which is the same
+// shape D-03's reminders use.
+func (q *Queries) DueBackupSchedules(ctx context.Context, arg DueBackupSchedulesParams) ([]BackupSchedule, error) {
+	rows, err := q.db.Query(ctx, dueBackupSchedules, arg.Now, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BackupSchedule{}
+	for rows.Next() {
+		var i BackupSchedule
+		if err := rows.Scan(
+			&i.ID,
+			&i.TargetID,
+			&i.TenantID,
+			&i.ScopeKind,
+			&i.ScopeID,
+			&i.Rrule,
+			&i.TimeZone,
+			&i.Mode,
+			&i.FullRrule,
+			&i.IncludeMedia,
+			&i.IncludeAudit,
+			&i.Retention,
+			&i.NotifyOn,
+			&i.Enabled,
+			&i.NextRunAt,
+			&i.CreatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const expireBackupRun = `-- name: ExpireBackupRun :exec
+UPDATE backup_run SET status = 'EXPIRED' WHERE id = $1 AND status = 'SUCCEEDED'
+`
+
+func (q *Queries) ExpireBackupRun(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, expireBackupRun, id)
+	return err
+}
+
+const findBackupRun = `-- name: FindBackupRun :one
+SELECT id, schedule_id, target_id, tenant_id, parent_run_id, trigger, mode, status, archive_path,
+       size_bytes, item_count, media_count, checksum, snapshot_at, started_at, finished_at,
+       error_code, expires_at, verified_at, verify_ok
+FROM backup_run
+WHERE id = $1
+`
+
+type FindBackupRunRow struct {
+	ID          pgtype.UUID
+	ScheduleID  pgtype.UUID
+	TargetID    pgtype.UUID
+	TenantID    pgtype.UUID
+	ParentRunID pgtype.UUID
+	Trigger     string
+	Mode        string
+	Status      string
+	ArchivePath *string
+	SizeBytes   *int64
+	ItemCount   *int32
+	MediaCount  *int32
+	Checksum    *string
+	SnapshotAt  pgtype.Timestamptz
+	StartedAt   pgtype.Timestamptz
+	FinishedAt  pgtype.Timestamptz
+	ErrorCode   *string
+	ExpiresAt   pgtype.Timestamptz
+	VerifiedAt  pgtype.Timestamptz
+	VerifyOk    *bool
+}
+
+func (q *Queries) FindBackupRun(ctx context.Context, id pgtype.UUID) (FindBackupRunRow, error) {
+	row := q.db.QueryRow(ctx, findBackupRun, id)
+	var i FindBackupRunRow
+	err := row.Scan(
+		&i.ID,
+		&i.ScheduleID,
+		&i.TargetID,
+		&i.TenantID,
+		&i.ParentRunID,
+		&i.Trigger,
+		&i.Mode,
+		&i.Status,
+		&i.ArchivePath,
+		&i.SizeBytes,
+		&i.ItemCount,
+		&i.MediaCount,
+		&i.Checksum,
+		&i.SnapshotAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.ErrorCode,
+		&i.ExpiresAt,
+		&i.VerifiedAt,
+		&i.VerifyOk,
+	)
+	return i, err
+}
+
+const findBackupSchedule = `-- name: FindBackupSchedule :one
+SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+FROM backup_schedule
+WHERE id = $1
+`
+
+func (q *Queries) FindBackupSchedule(ctx context.Context, id pgtype.UUID) (BackupSchedule, error) {
+	row := q.db.QueryRow(ctx, findBackupSchedule, id)
+	var i BackupSchedule
+	err := row.Scan(
+		&i.ID,
+		&i.TargetID,
+		&i.TenantID,
+		&i.ScopeKind,
+		&i.ScopeID,
+		&i.Rrule,
+		&i.TimeZone,
+		&i.Mode,
+		&i.FullRrule,
+		&i.IncludeMedia,
+		&i.IncludeAudit,
+		&i.Retention,
+		&i.NotifyOn,
+		&i.Enabled,
+		&i.NextRunAt,
+		&i.CreatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const findBackupTarget = `-- name: FindBackupTarget :one
 SELECT id, tenant_id, name, kind, config, credential_key_id, encryption_mode, encryption_key_id,
        region_note, insecure_ack_by, insecure_ack_at, enabled,
@@ -111,6 +269,166 @@ func (q *Queries) FindBackupTargetCredential(ctx context.Context, id pgtype.UUID
 	return i, err
 }
 
+const finishBackupRun = `-- name: FinishBackupRun :execrows
+UPDATE backup_run SET
+  status       = $1,
+  archive_path = $2,
+  manifest     = $3,
+  size_bytes   = $4,
+  item_count   = $5,
+  media_count  = $6,
+  checksum     = $7,
+  snapshot_at  = COALESCE($8, snapshot_at),
+  finished_at  = $9,
+  error_code   = $10
+WHERE id = $11 AND status = 'RUNNING'
+`
+
+type FinishBackupRunParams struct {
+	Status      string
+	ArchivePath *string
+	Manifest    []byte
+	SizeBytes   *int64
+	ItemCount   *int32
+	MediaCount  *int32
+	Checksum    *string
+	SnapshotAt  pgtype.Timestamptz
+	FinishedAt  pgtype.Timestamptz
+	ErrorCode   *string
+	ID          pgtype.UUID
+}
+
+// What the run wrote, once it has written it. The manifest is kept as a copy so that a listing can
+// answer without reaching the target, and the target stays the source of truth (§8.1).
+func (q *Queries) FinishBackupRun(ctx context.Context, arg FinishBackupRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, finishBackupRun,
+		arg.Status,
+		arg.ArchivePath,
+		arg.Manifest,
+		arg.SizeBytes,
+		arg.ItemCount,
+		arg.MediaCount,
+		arg.Checksum,
+		arg.SnapshotAt,
+		arg.FinishedAt,
+		arg.ErrorCode,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const insertBackupRun = `-- name: InsertBackupRun :execrows
+INSERT INTO backup_run (
+  id, schedule_id, target_id, tenant_id, parent_run_id, trigger, mode, status,
+  snapshot_at, started_at
+)
+SELECT
+  $1, $2, $3, $4,
+  $5, $6, $7, 'RUNNING',
+  $8, $9
+WHERE NOT EXISTS (
+  SELECT 1 FROM backup_run running
+  WHERE running.target_id = $3 AND running.status = 'RUNNING'
+)
+`
+
+type InsertBackupRunParams struct {
+	ID          pgtype.UUID
+	ScheduleID  pgtype.UUID
+	TargetID    pgtype.UUID
+	TenantID    pgtype.UUID
+	ParentRunID pgtype.UUID
+	Trigger     string
+	Mode        string
+	SnapshotAt  pgtype.Timestamptz
+	StartedAt   pgtype.Timestamptz
+}
+
+// The runs.
+//
+// The insert is the lock §5 asks for: one run at a time per target, enforced by the statement
+// rather than by a check the caller ran a moment earlier. A second run finds the WHERE NOT EXISTS
+// false and writes nothing, and `:execrows` is what tells the caller which of the two happened.
+func (q *Queries) InsertBackupRun(ctx context.Context, arg InsertBackupRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertBackupRun,
+		arg.ID,
+		arg.ScheduleID,
+		arg.TargetID,
+		arg.TenantID,
+		arg.ParentRunID,
+		arg.Trigger,
+		arg.Mode,
+		arg.SnapshotAt,
+		arg.StartedAt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const insertBackupSchedule = `-- name: InsertBackupSchedule :exec
+
+INSERT INTO backup_schedule (
+  id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
+  include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+)
+VALUES (
+  $1, $2, $3, $4,
+  $5, $6, $7, $8,
+  $9, $10, $11,
+  $12, $13::text[], true, $14,
+  $15, 1
+)
+`
+
+type InsertBackupScheduleParams struct {
+	ID           pgtype.UUID
+	TargetID     pgtype.UUID
+	TenantID     pgtype.UUID
+	ScopeKind    string
+	ScopeID      pgtype.UUID
+	Rrule        string
+	TimeZone     string
+	Mode         string
+	FullRrule    *string
+	IncludeMedia bool
+	IncludeAudit bool
+	Retention    []byte
+	NotifyOn     []string
+	NextRunAt    pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+}
+
+// ─────────────────────────── The schedules and the runs (E-05) ───────────────────────────
+//
+// backup_schedule and backup_run are both behind row level security, so no statement here carries
+// a tenant condition - with one exception that is named where it appears: the instance-wide
+// schedules belong to no tenant, and the leader reads them under a scope that has none.
+func (q *Queries) InsertBackupSchedule(ctx context.Context, arg InsertBackupScheduleParams) error {
+	_, err := q.db.Exec(ctx, insertBackupSchedule,
+		arg.ID,
+		arg.TargetID,
+		arg.TenantID,
+		arg.ScopeKind,
+		arg.ScopeID,
+		arg.Rrule,
+		arg.TimeZone,
+		arg.Mode,
+		arg.FullRrule,
+		arg.IncludeMedia,
+		arg.IncludeAudit,
+		arg.Retention,
+		arg.NotifyOn,
+		arg.NextRunAt,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const insertBackupTarget = `-- name: InsertBackupTarget :exec
 
 INSERT INTO backup_target (
@@ -174,6 +492,149 @@ func (q *Queries) InsertBackupTarget(ctx context.Context, arg InsertBackupTarget
 		arg.CreatedBy,
 	)
 	return err
+}
+
+const lastSuccessfulBackupPerTarget = `-- name: LastSuccessfulBackupPerTarget :many
+SELECT target_id, max(COALESCE(finished_at, started_at))::timestamptz AS last_success_at
+FROM backup_run
+WHERE status = 'SUCCEEDED'
+GROUP BY target_id
+`
+
+type LastSuccessfulBackupPerTargetRow struct {
+	TargetID      pgtype.UUID
+	LastSuccessAt pgtype.Timestamptz
+}
+
+// The number alert A-12 watches: when each target last had a backup that worked
+// (observability-reliability.md §10). One row per target, and a target that has never had one is
+// absent rather than zero - a gauge of zero reads as "1970" on every dashboard.
+func (q *Queries) LastSuccessfulBackupPerTarget(ctx context.Context) ([]LastSuccessfulBackupPerTargetRow, error) {
+	rows, err := q.db.Query(ctx, lastSuccessfulBackupPerTarget)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LastSuccessfulBackupPerTargetRow{}
+	for rows.Next() {
+		var i LastSuccessfulBackupPerTargetRow
+		if err := rows.Scan(&i.TargetID, &i.LastSuccessAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const latestSuccessfulBackupRun = `-- name: LatestSuccessfulBackupRun :one
+SELECT id, schedule_id, target_id, tenant_id, parent_run_id, trigger, mode, status, archive_path,
+       size_bytes, item_count, media_count, checksum, snapshot_at, started_at, finished_at,
+       error_code, expires_at, verified_at, verify_ok
+FROM backup_run
+WHERE target_id = $1 AND status = 'SUCCEEDED' AND archive_path IS NOT NULL
+ORDER BY snapshot_at DESC NULLS LAST, started_at DESC
+LIMIT 1
+`
+
+type LatestSuccessfulBackupRunRow struct {
+	ID          pgtype.UUID
+	ScheduleID  pgtype.UUID
+	TargetID    pgtype.UUID
+	TenantID    pgtype.UUID
+	ParentRunID pgtype.UUID
+	Trigger     string
+	Mode        string
+	Status      string
+	ArchivePath *string
+	SizeBytes   *int64
+	ItemCount   *int32
+	MediaCount  *int32
+	Checksum    *string
+	SnapshotAt  pgtype.Timestamptz
+	StartedAt   pgtype.Timestamptz
+	FinishedAt  pgtype.Timestamptz
+	ErrorCode   *string
+	ExpiresAt   pgtype.Timestamptz
+	VerifiedAt  pgtype.Timestamptz
+	VerifyOk    *bool
+}
+
+// The archive an incremental continues: the newest run at this target that finished and left
+// something behind. A run that failed is not a parent - there is no archive at the other end of it.
+func (q *Queries) LatestSuccessfulBackupRun(ctx context.Context, targetID pgtype.UUID) (LatestSuccessfulBackupRunRow, error) {
+	row := q.db.QueryRow(ctx, latestSuccessfulBackupRun, targetID)
+	var i LatestSuccessfulBackupRunRow
+	err := row.Scan(
+		&i.ID,
+		&i.ScheduleID,
+		&i.TargetID,
+		&i.TenantID,
+		&i.ParentRunID,
+		&i.Trigger,
+		&i.Mode,
+		&i.Status,
+		&i.ArchivePath,
+		&i.SizeBytes,
+		&i.ItemCount,
+		&i.MediaCount,
+		&i.Checksum,
+		&i.SnapshotAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.ErrorCode,
+		&i.ExpiresAt,
+		&i.VerifiedAt,
+		&i.VerifyOk,
+	)
+	return i, err
+}
+
+const listBackupSchedules = `-- name: ListBackupSchedules :many
+SELECT id, target_id, tenant_id, scope_kind, scope_id, rrule, time_zone, mode, full_rrule,
+       include_media, include_audit, retention, notify_on, enabled, next_run_at, created_at, version
+FROM backup_schedule
+ORDER BY created_at
+`
+
+func (q *Queries) ListBackupSchedules(ctx context.Context) ([]BackupSchedule, error) {
+	rows, err := q.db.Query(ctx, listBackupSchedules)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BackupSchedule{}
+	for rows.Next() {
+		var i BackupSchedule
+		if err := rows.Scan(
+			&i.ID,
+			&i.TargetID,
+			&i.TenantID,
+			&i.ScopeKind,
+			&i.ScopeID,
+			&i.Rrule,
+			&i.TimeZone,
+			&i.Mode,
+			&i.FullRrule,
+			&i.IncludeMedia,
+			&i.IncludeAudit,
+			&i.Retention,
+			&i.NotifyOn,
+			&i.Enabled,
+			&i.NextRunAt,
+			&i.CreatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listBackupTargets = `-- name: ListBackupTargets :many
@@ -246,6 +707,20 @@ func (q *Queries) ListBackupTargets(ctx context.Context) ([]ListBackupTargetsRow
 	return items, nil
 }
 
+const nextBackupScheduleDue = `-- name: NextBackupScheduleDue :one
+SELECT min(next_run_at)::timestamptz AS due
+FROM backup_schedule
+WHERE enabled AND next_run_at IS NOT NULL
+`
+
+// The earliest moment this tenant owes a backup, which is what a poller reschedules itself to.
+func (q *Queries) NextBackupScheduleDue(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, nextBackupScheduleDue)
+	var due pgtype.Timestamptz
+	err := row.Scan(&due)
+	return due, err
+}
+
 const recordBackupTargetTest = `-- name: RecordBackupTargetTest :execrows
 UPDATE backup_target SET
   last_test_at    = $1,
@@ -274,4 +749,58 @@ func (q *Queries) RecordBackupTargetTest(ctx context.Context, arg RecordBackupTa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const recordBackupVerification = `-- name: RecordBackupVerification :execrows
+UPDATE backup_run
+SET verified_at = $1, verify_ok = $2
+WHERE id = $3
+`
+
+type RecordBackupVerificationParams struct {
+	VerifiedAt pgtype.Timestamptz
+	VerifyOk   *bool
+	ID         pgtype.UUID
+}
+
+// What `:verify` found, without touching anything else on the row.
+func (q *Queries) RecordBackupVerification(ctx context.Context, arg RecordBackupVerificationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordBackupVerification, arg.VerifiedAt, arg.VerifyOk, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setBackupRunExpiry = `-- name: SetBackupRunExpiry :exec
+UPDATE backup_run SET expires_at = $1 WHERE id = $2
+`
+
+type SetBackupRunExpiryParams struct {
+	ExpiresAt pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// When the generation plan expects an archive to go. Written after a successful run has decided,
+// and cleared for an archive the plan now intends to keep - a stale date on a kept archive is what
+// an operator would read as "this is about to disappear".
+func (q *Queries) SetBackupRunExpiry(ctx context.Context, arg SetBackupRunExpiryParams) error {
+	_, err := q.db.Exec(ctx, setBackupRunExpiry, arg.ExpiresAt, arg.ID)
+	return err
+}
+
+const setBackupScheduleNextRun = `-- name: SetBackupScheduleNextRun :exec
+UPDATE backup_schedule
+SET next_run_at = $1, version = version + 1
+WHERE id = $2
+`
+
+type SetBackupScheduleNextRunParams struct {
+	NextRunAt pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+func (q *Queries) SetBackupScheduleNextRun(ctx context.Context, arg SetBackupScheduleNextRunParams) error {
+	_, err := q.db.Exec(ctx, setBackupScheduleNextRun, arg.NextRunAt, arg.ID)
+	return err
 }

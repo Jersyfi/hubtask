@@ -105,3 +105,67 @@ type MediaLocation struct {
 	StorageKey string
 	Bytes      int64
 }
+
+// Schedules stores what runs when (E-05, backup-restore.md §5).
+type Schedules interface {
+	// Insert writes a schedule, with the moment it is next due already decided: the rule is
+	// expanded by the use case that created it, not by every read afterwards.
+	Insert(ctx context.Context, schedule domain.Schedule, nextRunAt time.Time) error
+
+	// List answers the schedules visible in the caller's scope, oldest first.
+	List(ctx context.Context) ([]domain.Schedule, error)
+
+	// Find answers one schedule, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (domain.Schedule, error)
+
+	// Due answers the schedules whose moment has come, earliest first. Bounded, because a
+	// backlog of a thousand missed moments must not become a thousand jobs enqueued in one
+	// transaction.
+	Due(ctx context.Context, now time.Time, batch int) ([]domain.Schedule, error)
+
+	// NextDue is the earliest moment anything in scope is owed, and the zero time when nothing
+	// is. It is what a poller reschedules itself to, so that a quiet tenant costs one sleeping
+	// row rather than a wake-up a minute.
+	NextDue(ctx context.Context) (time.Time, error)
+
+	// SetNextRun records when the schedule is next owed. The zero time clears it, which is what a
+	// rule that has run out of occurrences leaves behind.
+	SetNextRun(ctx context.Context, id shared.ID, nextRunAt time.Time) error
+}
+
+// Runs stores what happened (E-05).
+type Runs interface {
+	// Start writes the run and answers whether it got the target.
+	//
+	// False is not an error: §5 asks for a lock against two runs on one target, and a caller that
+	// asked for a second one is asking for something that is already happening. The lock is the
+	// statement rather than a check this method ran a moment earlier.
+	Start(ctx context.Context, run domain.Run) (bool, error)
+
+	// Find answers one run, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (domain.Run, error)
+
+	// Finish records how a run ended and what it left behind. It is refused when the run is no
+	// longer RUNNING, which is what makes a cancelled run stay cancelled.
+	Finish(ctx context.Context, outcome domain.Outcome) error
+
+	// LatestSuccessful is the archive an incremental continues: the newest run at this target
+	// that finished and left something behind. ErrNotFound when there is none, which is what
+	// turns a first incremental into a refusal rather than a chain with no root.
+	LatestSuccessful(ctx context.Context, targetID shared.ID) (domain.Run, error)
+
+	// RecordVerification writes down what `:verify` found.
+	RecordVerification(ctx context.Context, id shared.ID, at time.Time, ok bool) error
+
+	// SetExpiry records when the generation plan expects an archive to go, and clears it for one
+	// the plan now intends to keep.
+	SetExpiry(ctx context.Context, id shared.ID, expiresAt time.Time) error
+
+	// MarkExpired moves a run whose archive has been deleted to EXPIRED.
+	MarkExpired(ctx context.Context, id shared.ID) error
+
+	// LastSuccessPerTarget is the number alert A-12 watches: when each target last had a backup
+	// that worked. A target that has never had one is absent rather than zero - a gauge of zero
+	// reads as 1970 on every dashboard.
+	LastSuccessPerTarget(ctx context.Context) (map[shared.ID]time.Time, error)
+}
