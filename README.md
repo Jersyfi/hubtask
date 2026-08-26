@@ -106,6 +106,13 @@ bin/hubctl comment add "$ITEM" --body "Done on the way home"
 bin/hubctl search milk
 bin/hubctl trash ls
 bin/hubctl watch                             # follow the change stream; Ctrl-C ends it
+
+bin/hubctl due set "$ITEM" --at 2026-09-10   # a day; a timestamp is a moment instead
+bin/hubctl remind add "$ITEM" --at -PT30M    # half an hour before it is due
+bin/hubctl recur set "$ITEM" --rule "FREQ=WEEKLY;BYDAY=MO" --zone Europe/Berlin
+bin/hubctl template instantiate "$TEMPLATE" --collection "$COLLECTION" --anchor 2026-09-07
+bin/hubctl view export "$VIEW" --format ICS --out week.ics
+bin/hubctl calendar mint --view "$VIEW"      # prints the feed URL once; it is the credential
 ```
 
 Errors are the message catalogue's sentences rather than the problem document behind them — the
