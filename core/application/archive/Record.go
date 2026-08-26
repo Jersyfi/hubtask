@@ -69,7 +69,12 @@ type Record struct {
 	// Data is the row. Nil on a tombstone - a deletion carries no content, for the reason
 	// sync.Change gives and one more: the fields of a row that is being deleted are exactly the
 	// personal data an erasure was meant to remove.
-	Data map[string]any `json:"data,omitempty"`
+	//
+	// Written even when it is empty, which is deliberate: `omitempty` would make a row with no
+	// fields beyond its identity - an item_label is exactly that - indistinguishable from a line
+	// that lost its payload. An UPSERT always carries an object and a DELETE always carries null,
+	// so a reader never has to guess which of the two an absent field meant.
+	Data map[string]any `json:"data"`
 	// Blobs are the media this row references, if any. Absent on a tombstone.
 	Blobs []Blob `json:"blobs,omitempty"`
 }

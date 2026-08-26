@@ -296,7 +296,7 @@ func (w *Writer) seal(ctx context.Context, request Request, manifest Manifest) (
 	// The manifest goes to the target in the clear - see the type's own comment for why - so it
 	// is written directly rather than through putMember, which would encrypt it.
 	counter := NewCounter()
-	reader, produced := pipe(ctx, "backup.archive.manifest", func(to io.Writer) error {
+	reader, produced := pipe(ctx, "archive.manifest", func(to io.Writer) error {
 		return manifest.Encode(io.MultiWriter(counter, to))
 	})
 	if _, err := w.store.Put(ctx, request.Prefix+"/"+ManifestName, reader); err != nil {
@@ -311,7 +311,7 @@ func (w *Writer) seal(ctx context.Context, request Request, manifest Manifest) (
 		return Manifest{}, err
 	}
 
-	checksumReader, checksumProduced := pipe(ctx, "backup.archive.checksums", checksums.Encode)
+	checksumReader, checksumProduced := pipe(ctx, "archive.checksums", checksums.Encode)
 	if _, err := w.store.Put(ctx, request.Prefix+"/"+ChecksumsName, checksumReader); err != nil {
 		checksumReader.CloseWithError(err)
 		<-checksumProduced
@@ -330,7 +330,7 @@ func (w *Writer) putMember(
 ) (File, error) {
 	counter := NewCounter()
 
-	reader, produced := pipe(ctx, "backup.archive.member", func(to io.Writer) error {
+	reader, produced := pipe(ctx, "archive.member", func(to io.Writer) error {
 		// The counter sits between the cipher and the target, so what it measures is what the
 		// target stores - which is the checksum `:verify` can check without the archive key.
 		stored := io.MultiWriter(counter, to)
