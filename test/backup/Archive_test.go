@@ -335,9 +335,21 @@ func TestAnIncrementalChainOfTenRunsReproducesTheSource(t *testing.T) {
 
 	restored := map[string]map[string]map[string]any{}
 	for i := len(walked) - 1; i >= 0; i-- {
+		whole := map[string]bool{}
+		for _, name := range walked[i].Manifest.Whole {
+			whole[name] = true
+		}
+
 		for _, entity := range archive.Entities() {
 			if entity.Optional {
 				continue
+			}
+			// The rule the manifest carries: for an entity written whole, the newest archive of
+			// the chain holds the whole truth, and the copies in older archives are superseded
+			// rather than merged. A restore therefore replaces the set instead of adding to it -
+			// which is what makes a delete visible for a table that cannot carry a tombstone.
+			if whole[entity.Name] {
+				restored[entity.Name] = map[string]map[string]any{}
 			}
 			err := reader.Records(ctx, walked[i], entity, key, func(record archive.Record) error {
 				if restored[entity.Name] == nil {

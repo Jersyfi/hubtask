@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
@@ -490,13 +491,20 @@ func (p Performer) Expire(ctx context.Context, in ExpireInput) (domain.Expiry, e
 	}
 
 	reader := archive.NewReader(store, p.Cipher)
-	described, err := reader.List(ctx, archive.Prefix(in.TenantID))
+	described, err := reader.List(ctx, "")
 	if err != nil {
 		return domain.Expiry{}, err
 	}
 
+	scope := archive.Prefix(in.TenantID)
 	archives := make([]domain.Archive, 0, len(described))
 	for _, description := range described {
+		// Somebody else's archives at a shared target are not this plan's to count or delete. The
+		// name is the filter, because the storage port's prefix is a place rather than a string
+		// and an archive's name is a directory under the target's root.
+		if !strings.HasPrefix(description.Prefix, scope) {
+			continue
+		}
 		if !description.Complete {
 			// A run that is still going, or one that died. Neither is something a plan gets to
 			// count or delete: the first is in progress and the second has no manifest anybody
