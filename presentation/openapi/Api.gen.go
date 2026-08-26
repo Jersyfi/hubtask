@@ -990,27 +990,27 @@ func (e ItemType) Valid() bool {
 	}
 }
 
-// Defines values for JobRefStatus.
+// Defines values for JobStatus.
 const (
-	JobRefStatusCANCELLED JobRefStatus = "CANCELLED"
-	JobRefStatusFAILED    JobRefStatus = "FAILED"
-	JobRefStatusQUEUED    JobRefStatus = "QUEUED"
-	JobRefStatusRUNNING   JobRefStatus = "RUNNING"
-	JobRefStatusSUCCEEDED JobRefStatus = "SUCCEEDED"
+	JobStatusCANCELLED JobStatus = "CANCELLED"
+	JobStatusFAILED    JobStatus = "FAILED"
+	JobStatusQUEUED    JobStatus = "QUEUED"
+	JobStatusRUNNING   JobStatus = "RUNNING"
+	JobStatusSUCCEEDED JobStatus = "SUCCEEDED"
 )
 
-// Valid indicates whether the value is a known member of the JobRefStatus enum.
-func (e JobRefStatus) Valid() bool {
+// Valid indicates whether the value is a known member of the JobStatus enum.
+func (e JobStatus) Valid() bool {
 	switch e {
-	case JobRefStatusCANCELLED:
+	case JobStatusCANCELLED:
 		return true
-	case JobRefStatusFAILED:
+	case JobStatusFAILED:
 		return true
-	case JobRefStatusQUEUED:
+	case JobStatusQUEUED:
 		return true
-	case JobRefStatusRUNNING:
+	case JobStatusRUNNING:
 		return true
-	case JobRefStatusSUCCEEDED:
+	case JobStatusSUCCEEDED:
 		return true
 	default:
 		return false
@@ -2635,16 +2635,39 @@ type ItemSearchQuery struct {
 // ItemType Extensible; /meta/capabilities returns the valid values.
 type ItemType string
 
-// JobRef defines model for JobRef.
+// Job Background work, as the caller who asked for it sees it. Deliberately narrow: the queue's row also carries the payload, the attempt count, the lease and the deduplication key, and all four are the queue's business rather than a caller's - a payload can name objects the caller may not resolve, and an attempt count invites a client to reason about a retry policy that is not part of the contract. Widening this later is additive; narrowing it would not be.
+type Job struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// ErrorCode The message code of the last failure, never a message and never free text (ADR-0011). Set on a `FAILED` job, and on a job that is being retried.
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// FinishedAt When the job reached a terminal state. `null` while it has not.
+	FinishedAt *time.Time         `json:"finished_at,omitempty"`
+	JobId      openapi_types.UUID `json:"job_id"`
+
+	// Progress How far along, between 0 and 1, or `null` from a job that cannot say. `null` is the honest answer rather than a number nobody computed - a client renders an indeterminate bar for it.
+	Progress *float32 `json:"progress,omitempty"`
+
+	// ResultUrl Where what the job produced can be fetched, once there is something.
+	ResultUrl *string `json:"result_url,omitempty"`
+
+	// Status What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
+	Status JobStatus `json:"status"`
+}
+
+// JobRef The pointer a `202 Accepted` hands back. It is the same shape as `Job`, narrowed to what is knowable at the moment the work was accepted.
 type JobRef struct {
 	JobId     openapi_types.UUID `json:"job_id"`
 	Progress  *float32           `json:"progress,omitempty"`
 	ResultUrl *string            `json:"result_url,omitempty"`
-	Status    JobRefStatus       `json:"status"`
+
+	// Status What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
+	Status JobStatus `json:"status"`
 }
 
-// JobRefStatus defines model for JobRef.Status.
-type JobRefStatus string
+// JobStatus What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
+type JobStatus string
 
 // Label A tag a collection defines and its entries carry. Defined on the collection rather than on the workspace: a label is a vocabulary the people working in one collection agree on, and a workspace-wide list would make every collection pay for every other's.
 type Label struct {
@@ -3542,6 +3565,9 @@ type IncludeArchived = bool
 // ItemId defines model for ItemId.
 type ItemId = openapi_types.UUID
 
+// JobId defines model for JobId.
+type JobId = openapi_types.UUID
+
 // LabelId defines model for LabelId.
 type LabelId = openapi_types.UUID
 
@@ -4018,6 +4044,12 @@ type BulkUpdateWorkItemsJSONBody struct {
 
 // BulkUpdateWorkItemsParams defines parameters for BulkUpdateWorkItems.
 type BulkUpdateWorkItemsParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CancelJobParams defines parameters for CancelJob.
+type CancelJobParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -4559,6 +4591,12 @@ type ServerInterface interface {
 	// QueryItems The generic query - the basis for list, kanban, and timeline
 	// (POST /items:query)
 	QueryItems(w http.ResponseWriter, r *http.Request)
+	// GetJob How a piece of background work is getting on
+	// (GET /jobs/{jobId})
+	GetJob(w http.ResponseWriter, r *http.Request, jobId JobId)
+	// CancelJob Stop a piece of background work
+	// (POST /jobs/{jobId}:cancel)
+	CancelJob(w http.ResponseWriter, r *http.Request, jobId JobId, params CancelJobParams)
 
 	// (POST /media)
 	RequestMediaUpload(w http.ResponseWriter, r *http.Request, params RequestMediaUploadParams)
@@ -8493,6 +8531,82 @@ func (siw *ServerInterfaceWrapper) QueryItems(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// GetJob operation middleware
+func (siw *ServerInterfaceWrapper) GetJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId JobId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", r.PathValue("jobId"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "jobId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetJob(w, r, jobId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelJob operation middleware
+func (siw *ServerInterfaceWrapper) CancelJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId JobId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", r.PathValue("jobId"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "jobId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CancelJobParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelJob(w, r, jobId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RequestMediaUpload operation middleware
 func (siw *ServerInterfaceWrapper) RequestMediaUpload(w http.ResponseWriter, r *http.Request) {
 
@@ -9843,6 +9957,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups", wrapper.StartBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups/{backupId}:verify", wrapper.VerifyBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/restores", wrapper.StartRestore)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jobs/{jobId}", wrapper.GetJob)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jobs/{jobId}:cancel", wrapper.CancelJob)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/trash", wrapper.ListTrash)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/trash:empty", wrapper.EmptyTrash)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/retention-policies", wrapper.ListRetentionPolicies)

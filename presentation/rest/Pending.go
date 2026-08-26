@@ -91,6 +91,16 @@ func (pending) StartBackup(w http.ResponseWriter, r *http.Request) { notAvailabl
 
 func (pending) VerifyBackup(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
 
+// The two job operations. Overridden by RestController; they stay here because the compile-time
+// assertion is on `pending` itself.
+func (pending) GetJob(w http.ResponseWriter, r *http.Request, _ openapi.JobId) {
+	notAvailable(w, r)
+}
+
+func (pending) CancelJob(w http.ResponseWriter, r *http.Request, _ openapi.JobId, _ openapi.CancelJobParams) {
+	notAvailable(w, r)
+}
+
 // ListContainers is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ListContainers(w http.ResponseWriter, r *http.Request, _ openapi.ListContainersParams) {
 	notAvailable(w, r)
