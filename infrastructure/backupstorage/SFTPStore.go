@@ -77,7 +77,7 @@ func NewSFTPStore(
 		return nil, configInvalid("path", "backup.config_required")
 	}
 
-	verify, err := hostKeyVerifier(spec)
+	verify, algorithms, err := hostKeyVerifier(spec)
 	if err != nil {
 		return nil, err
 	}
@@ -91,10 +91,11 @@ func NewSFTPStore(
 		address: net.JoinHostPort(host, sshPort),
 		root:    root,
 		config: &ssh.ClientConfig{
-			User:            spec.Config.Get("username"),
-			Auth:            methods,
-			HostKeyCallback: verify,
-			Timeout:         timeout,
+			User:              spec.Config.Get("username"),
+			Auth:              methods,
+			HostKeyCallback:   verify,
+			HostKeyAlgorithms: algorithms,
+			Timeout:           timeout,
 		},
 		dialTimes: timeout,
 	}, nil
@@ -107,27 +108,32 @@ func NewSFTPStore(
 // appears in `known_hosts` or `ssh-keyscan` output, or its SHA-256 fingerprint, as `ssh-keygen
 // -lf` prints it. Both are compared against what the server presents; neither is stored back, so
 // a key that changes is a refused connection rather than a silent re-trust.
-func hostKeyVerifier(spec port.Spec) (ssh.HostKeyCallback, error) {
+func hostKeyVerifier(spec port.Spec) (ssh.HostKeyCallback, []string, error) {
 	if authorized := spec.Config.Get("host_key"); authorized != "" {
 		expected, _, _, _, err := ssh.ParseAuthorizedKey([]byte(authorized))
 		if err != nil {
-			return nil, configInvalid("host_key", "backup.host_key_invalid")
+			return nil, nil, configInvalid("host_key", "backup.host_key_invalid")
 		}
 		wanted := expected.Marshal()
-		return func(_ string, _ net.Addr, presented ssh.PublicKey) error {
+		check := func(_ string, _ net.Addr, presented ssh.PublicKey) error {
 			if !equalBytes(wanted, presented.Marshal()) {
 				return errors.New("the target presented a host key that is not the configured one")
 			}
 			return nil
-		}, nil
+		}
+		// The server is asked for the kind of key that was pinned, and only that kind. Without
+		// this the negotiation picks whichever algorithm both sides prefer - typically not the
+		// one the operator copied out of ssh-keyscan - and every connection fails with "the host
+		// key does not match", which is both true and completely misleading.
+		return check, algorithmsFor(expected), nil
 	}
 
 	if fingerprint := spec.Config.Get("host_key_fingerprint"); fingerprint != "" {
 		wanted := strings.TrimSpace(fingerprint)
 		if !strings.HasPrefix(wanted, "SHA256:") {
-			return nil, configInvalid("host_key_fingerprint", "backup.host_key_invalid")
+			return nil, nil, configInvalid("host_key_fingerprint", "backup.host_key_invalid")
 		}
-		return func(_ string, _ net.Addr, presented ssh.PublicKey) error {
+		check := func(_ string, _ net.Addr, presented ssh.PublicKey) error {
 			sum := sha256.Sum256(presented.Marshal())
 			got := "SHA256:" + strings.TrimRight(
 				base64.StdEncoding.EncodeToString(sum[:]), "=")
@@ -135,16 +141,32 @@ func hostKeyVerifier(spec port.Spec) (ssh.HostKeyCallback, error) {
 				return errors.New("the target presented a host key that is not the configured one")
 			}
 			return nil
-		}, nil
+		}
+		// A fingerprint does not say which kind of key it is, so the negotiation stays at its
+		// defaults - and an operator whose server has several keys has to give the fingerprint of
+		// the one it will actually present. The whole key is the spelling that avoids that, which
+		// is why both exist.
+		return check, nil, nil
 	}
 
 	// No trust on first use. A target is created through an API, and a first connection that
 	// accepted whatever answered is a first connection somebody only has to be present for once.
-	return nil, shared.ErrValidation.
+	return nil, nil, shared.ErrValidation.
 		WithDetail("backup.target_invalid").
 		WithFields(shared.FieldError{
 			Path: "/config/host_key", Code: "backup.host_key_required",
 		})
+}
+
+// algorithmsFor is the signature algorithms an RSA host key can be presented with, and the key's
+// own type for everything else. An RSA key is one key with three names - ssh-rsa, rsa-sha2-256 and
+// rsa-sha2-512 differ in the signature rather than in the key - and naming only the first would
+// refuse the two a modern server prefers.
+func algorithmsFor(key ssh.PublicKey) []string {
+	if key.Type() == ssh.KeyAlgoRSA {
+		return []string{ssh.KeyAlgoRSASHA512, ssh.KeyAlgoRSASHA256, ssh.KeyAlgoRSA}
+	}
+	return []string{key.Type()}
 }
 
 // authMethods is how this client proves who it is: a key, a password, or both offered in that

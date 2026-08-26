@@ -45,7 +45,8 @@ func TestBackupTargetConformance(t *testing.T) {
 	t.Run("webdav against Apache", func(t *testing.T) {
 		base := startWebDAV(t)
 		conformance(t, open(t, registry(t, ""), specFor(backup.KindWebDAV,
-			backup.TargetConfig{"url": base}, nil)))
+			backup.TargetConfig{"url": base, "username": davUser},
+			map[string]string{"password": davPassword})))
 	})
 
 	t.Run("sftp against OpenSSH", func(t *testing.T) {

@@ -125,7 +125,7 @@ func (s *WebDAVStore) walk(ctx context.Context, prefix string, depth int) ([]por
 		return nil, nil
 	}
 
-	req := s.request("PROPFIND", prefix)
+	req := s.request("PROPFIND", asCollection(prefix))
 	req.Header["Depth"] = []string{"1"}
 	req.Header["Content-Type"] = []string{"application/xml; charset=utf-8"}
 	req.Body = []byte(propfindBody)
@@ -214,7 +214,7 @@ func (s *WebDAVStore) ensureCollections(ctx context.Context, key string) error {
 	for index := range len(segments) - 1 {
 		collection := strings.Join(segments[:index+1], "/")
 
-		resp, err := s.client.Do(ctx, s.request("MKCOL", collection))
+		resp, err := s.client.Do(ctx, s.request("MKCOL", asCollection(collection)))
 		if err != nil {
 			return s.transport("preparing the collection", err)
 		}
@@ -230,6 +230,19 @@ func (s *WebDAVStore) ensureCollections(ctx context.Context, key string) error {
 		}
 	}
 	return nil
+}
+
+// asCollection is the trailing slash a collection is addressed by.
+//
+// Not decoration: Apache answers a request for a collection without one with a 301 to the same
+// path with one, and this client follows no redirects - a redirect on a signed or authenticated
+// request is how a credential ends up somewhere it was not addressed to (T-07). Asking for the
+// form the server would have redirected to is the fix; refusing the redirect stays right.
+func asCollection(prefix string) string {
+	if prefix == "" || strings.HasSuffix(prefix, "/") {
+		return prefix
+	}
+	return prefix + "/"
 }
 
 // request builds one request against a key, with the credential in a header and never in the URL.

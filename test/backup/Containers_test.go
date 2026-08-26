@@ -35,6 +35,13 @@ import (
 
 // The images, each overridable the way the PostgreSQL and MinIO ones already are, so the support
 // matrix can vary them without a code change.
+// The credential the WebDAV server demands. Fixed, and not a secret: it exists for the length of
+// one container.
+const (
+	davUser     = "hubtask"
+	davPassword = "conformance-secret"
+)
+
 func imageOr(variable, fallback string) string {
 	if image := os.Getenv(variable); image != "" {
 		return image
@@ -102,9 +109,13 @@ func startMinIO(t *testing.T) string {
 	return endpoint
 }
 
-// startWebDAV runs an Apache with the DAV module on. Apache deliberately, and not one of the
-// purpose-built images: its `DavDepthInfinity off` default is what proves the adapter recurses at
-// depth one rather than asking for a depth Apache refuses.
+// startWebDAV runs a WebDAV server. Apache under the hood, which is what makes it worth using:
+// its `DavDepthInfinity off` default is what proves the adapter recurses at depth one rather than
+// asking for a depth Apache refuses - the server answers 403 to anything else, so the assertion is
+// not theoretical.
+//
+// It also demands a credential, which the fake in the adapter's own tests does not: this is where
+// the Basic header is proved against a server that checks it.
 func startWebDAV(t *testing.T) string {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -112,16 +123,14 @@ func startWebDAV(t *testing.T) string {
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image: imageOr("HUBTASK_TEST_HTTPD_IMAGE", "httpd:2.4-alpine"),
-			Files: []testcontainers.ContainerFile{{
-				Reader:            strings.NewReader(davConfiguration),
-				ContainerFilePath: "/usr/local/apache2/conf/httpd.conf",
-				FileMode:          0o644,
-			}},
-			Entrypoint: []string{"sh", "-c",
-				"mkdir -p /var/dav && chown -R daemon:daemon /var/dav && httpd-foreground"},
+			Image: imageOr("HUBTASK_TEST_WEBDAV_IMAGE", "bytemark/webdav:latest"),
+			Env: map[string]string{
+				"USERNAME": davUser,
+				"PASSWORD": davPassword,
+			},
 			ExposedPorts: []string{"80/tcp"},
 			WaitingFor: wait.ForHTTP("/").WithPort("80/tcp").
+				WithBasicAuth(davUser, davPassword).
 				WithStartupTimeout(2 * time.Minute),
 		},
 		Started: true,
@@ -193,36 +202,6 @@ func specFor(kind backup.TargetKind, config backup.TargetConfig, credentials map
 	}
 	return port.Spec{Kind: kind, Config: config, Credentials: wrapped}
 }
-
-// davConfiguration is a complete Apache configuration with the DAV module on and nothing else.
-// Written out rather than patched into the image's default, so that what the server does is
-// visible in this file.
-const davConfiguration = `
-ServerRoot "/usr/local/apache2"
-Listen 80
-LoadModule mpm_event_module modules/mod_mpm_event.so
-LoadModule authn_core_module modules/mod_authn_core.so
-LoadModule authz_core_module modules/mod_authz_core.so
-LoadModule unixd_module modules/mod_unixd.so
-LoadModule log_config_module modules/mod_log_config.so
-LoadModule mime_module modules/mod_mime.so
-LoadModule dir_module modules/mod_dir.so
-LoadModule dav_module modules/mod_dav.so
-LoadModule dav_fs_module modules/mod_dav_fs.so
-User daemon
-Group daemon
-ServerName localhost
-ErrorLog /proc/self/fd/2
-LogLevel warn
-DocumentRoot "/var/dav"
-DavLockDB /tmp/DavLock
-<Directory "/var/dav">
-    Dav On
-    Options Indexes
-    AllowOverride None
-    Require all granted
-</Directory>
-`
 
 // readAll drains what a container exec answered.
 func readAll(from io.Reader) (string, error) {
