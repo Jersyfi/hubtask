@@ -296,26 +296,28 @@ func graceOf(in NewRuleInput, kind Kind) (int, error) {
 	return *in.GraceDays, nil
 }
 
-// notifyOf is the advance warning, defaulted and bounded by the grace period.
+// notifyOf is the advance warning, and today it is always silence.
 //
-// A warning that arrives before the marking would be a warning about something that has not been
-// decided; one that arrives after the act would be a condolence. So it is bounded by the grace
-// period, and a rule with no grace period cannot warn at all.
+// §6 asks for two kinds of visibility: the object carries what is coming, and those affected get a
+// message. The first is built (the marking, and `retention` on the entry through the API); the
+// second needs a notification category the schema does not have, a template the message catalogue
+// does not have, and a way to resolve "the collection's administrators" that nothing asks for yet -
+// which is the notification context's work rather than the retention engine's.
+//
+// So a rule that asks to warn somebody is refused rather than stored, and a rule that asks for
+// nothing gets nothing. That is the same standard `lifecycle.history_not_wired` sets for a data
+// kind nothing sweeps: a configuration nothing enforces is worse than an absent one, because it
+// looks like a working installation until the day somebody is waiting for the warning.
+//
+// The bound is checked all the same, so that the rule the day this becomes possible is the rule
+// that is already written down: a warning before the marking would be about something not yet
+// decided, and one after the act would be a condolence.
 func notifyOf(in NewRuleInput, grace int) (Notify, error) {
-	if in.Notify == nil {
-		if grace == 0 {
-			return Notify{}, nil
-		}
-		return Notify{
-			BeforeDays: min(DefaultNotifyBeforeDays, grace),
-			Recipients: []Recipient{RecipientItemMembers},
-		}, nil
+	if in.Notify == nil || in.Notify.Silent() {
+		return Notify{}, nil
 	}
 
 	notify := *in.Notify
-	if notify.Silent() {
-		return Notify{}, nil
-	}
 	for _, recipient := range notify.Recipients {
 		if !recipient.Valid() {
 			return Notify{}, invalidRule(CodeRecipientInvalid, "/notify/recipients")
@@ -326,7 +328,8 @@ func notifyOf(in NewRuleInput, grace int) (Notify, error) {
 			WithParams(map[string]string{"grace_days": strconv.Itoa(grace)}).
 			WithFields(shared.FieldError{Path: "/notify/before_days", Code: CodeNotifyBeyondGrace})
 	}
-	return notify, nil
+	return Notify{}, shared.ErrConflict.WithDetail(CodeNotifyNotAvailable).
+		WithFields(shared.FieldError{Path: "/notify/recipients", Code: CodeNotifyNotAvailable})
 }
 
 // Applies reports whether a rule covers an object in this hub and this collection.
@@ -423,7 +426,9 @@ const (
 	CodeGraceInvalid          = "lifecycle.grace_invalid"
 	CodeRecipientInvalid      = "lifecycle.recipient_invalid"
 	CodeNotifyBeyondGrace     = "lifecycle.notify_beyond_grace"
+	CodeNotifyNotAvailable    = "lifecycle.notify_not_available"
 	CodeExportTargetRequired  = "lifecycle.export_target_required"
+	CodeExportUnavailable     = "lifecycle.export_unavailable"
 	CodeRuleNotFound          = "lifecycle.rule_not_found"
 	CodeRuleAlreadyExists     = "lifecycle.rule_already_exists"
 	CodeNotMarked             = "lifecycle.not_marked"

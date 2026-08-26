@@ -5224,7 +5224,7 @@ components:
           type: [string, "null"]
           format: uuid
           description: The archive this one continues, on an incremental run.
-        trigger: { type: string, enum: [SCHEDULE, MANUAL, PRE_RESTORE, API] }
+        trigger: { type: string, enum: [SCHEDULE, MANUAL, PRE_RESTORE, PRE_DELETE, API] }
         mode: { type: string, enum: [FULL, INCREMENTAL] }
         status: { type: string, enum: [RUNNING, SUCCEEDED, FAILED, CANCELLED, EXPIRED] }
         archive_path: { type: [string, "null"], description: Where the archive lies at the target }

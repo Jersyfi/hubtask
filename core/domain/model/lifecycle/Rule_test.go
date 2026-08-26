@@ -48,12 +48,10 @@ func TestAValidRuleIsBuilt(t *testing.T) {
 	if rule.GraceDays != domain.DefaultGraceDays {
 		t.Errorf("the grace period is %d, want the documented %d", rule.GraceDays, domain.DefaultGraceDays)
 	}
-	if rule.Notify.Silent() {
-		t.Error("a rule with a grace period warns nobody by default")
-	}
-	if rule.Notify.BeforeDays != domain.DefaultNotifyBeforeDays {
-		t.Errorf("the warning is %d days before, want %d",
-			rule.Notify.BeforeDays, domain.DefaultNotifyBeforeDays)
+	// Nothing warns anybody yet, so a rule that asked for nothing gets nothing rather than a
+	// warning nothing sends.
+	if !rule.Notify.Silent() {
+		t.Errorf("a rule nobody asked to warn carries %+v", rule.Notify)
 	}
 	if !rule.Enabled || rule.Version != 1 {
 		t.Errorf("a new rule is %+v", rule)
@@ -130,6 +128,14 @@ func TestWhatARuleCannotMean(t *testing.T) {
 				}
 			},
 			domain.CodeNotifyBeyondGrace,
+		},
+		"a warning at all, until something sends one": {
+			func(in *domain.NewRuleInput) {
+				in.Notify = &domain.Notify{
+					BeforeDays: 7, Recipients: []domain.Recipient{domain.RecipientItemMembers},
+				}
+			},
+			domain.CodeNotifyNotAvailable,
 		},
 		"an export with nowhere to write it": {
 			func(in *domain.NewRuleInput) { in.Action = domain.ActionExportThenDelete },

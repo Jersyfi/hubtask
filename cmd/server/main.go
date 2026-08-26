@@ -1176,15 +1176,6 @@ func run() error {
 	// The retention run, and the queue's way into it. One pass per job execution, because the
 	// handler runs inside the transaction the runner opened - the job comes back for the next pass
 	// rather than looping inside one transaction (data-retention.md §5).
-	retention := worker.RetentionSweep{
-		Retention: lifecycle.RunRetention{
-			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
-			History: notifications,
-			Clock:   clockadapter.System{}, IDs: ids, Signals: metrics,
-		},
-		Interval:     cfg.Retention.Interval,
-		Continuation: cfg.Queue.OutboxMinInterval,
-	}
 
 	// The reclamation of unreferenced files. The one handler that runs outside the runner's
 	// transaction (queue.Detached): the pass deletes bytes from a bucket between two writes, and a
@@ -1286,6 +1277,30 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
 	}
+	retention := worker.RetentionSweep{
+		Retention: lifecycle.RunRetention{
+			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
+			History: notifications,
+			Clock:   clockadapter.System{}, IDs: ids, Signals: metrics,
+			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
+			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
+			// row that goes.
+			Rules: postgres.NewRetentionRuleRepository(),
+			Sweeper: lifecycle.Sweeper{
+				Rules:   postgres.NewRetentionRuleRepository(),
+				Marking: postgres.NewRetentionMarkingRepository(),
+				Holds:   lifecycleStore, Items: items, Purger: purger, Changes: changes,
+				Export: backupservice.RetentionExport{
+					Performer: backupPerformer, IDs: ids,
+				},
+				Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+				Batch: cfg.Retention.BatchSize,
+			},
+		},
+		Interval:     cfg.Retention.Interval,
+		Continuation: cfg.Queue.OutboxMinInterval,
+	}
+
 	backupPass := backupservice.SchedulePass{
 		Schedules: backupSchedules, Runs: backupRuns, Jobs: jobs,
 		Expander: recurrenceadapter.New(), UnitOfWork: unitOfWork,

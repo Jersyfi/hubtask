@@ -61,6 +61,7 @@ var _ repository.Rules = (*ruleStore)(nil)
 // markingStore is the objects a pass judges, as numbers a test sets.
 type markingStore struct {
 	due        []repository.Candidate
+	dueMarked  []repository.Candidate
 	countDue   int
 	scopeCount int
 	marked     []shared.ID
@@ -94,7 +95,7 @@ func (s *markingStore) Mark(
 }
 
 func (s *markingStore) MarkedDue(_ context.Context, _ time.Time, _ int) ([]repository.Candidate, error) {
-	return nil, nil
+	return s.dueMarked, nil
 }
 
 func (s *markingStore) Marking(_ context.Context, id shared.ID) (repository.Candidate, error) {
@@ -417,7 +418,7 @@ func TestTheRuleDescriptorsTakeWhatTheControllerSends(t *testing.T) {
 		"scope": "COLLECTION", "scope_id": collectionID.String(),
 		"then_after_days": 730, "then_action": "HARD_DELETE",
 		"grace_days": 14, "notify_before_days": 7,
-		"notify_recipients": []any{"ITEM_MEMBERS"},
+		"notify_recipients": []any{},
 		"justification":     "The works council agreed a longer period",
 		"condition":         "", "enabled": true,
 		"export_target_id": collectionID.String(),
@@ -455,9 +456,7 @@ func TestTheHandlersMapWhatTheChannelsSendAndAnswer(t *testing.T) {
 		usecase.Input{
 			"data_kind": "COMPLETED_ITEM", "retain_days": 365, "action": "ARCHIVE",
 			"then_after_days": 730, "then_action": "HARD_DELETE",
-			"grace_days": 21, "notify_before_days": 7,
-			"notify_recipients": []any{"ITEM_MEMBERS", "COLLECTION_ADMINS"},
-			"enabled":           true,
+			"grace_days": 21, "enabled": true,
 		})
 	if err != nil {
 		t.Fatalf("creating through the handler: %v", err)
@@ -473,12 +472,9 @@ func TestTheHandlersMapWhatTheChannelsSendAndAnswer(t *testing.T) {
 	case created.String("then_action") != "HARD_DELETE":
 		t.Errorf("the chain came back as %q", created.String("then_action"))
 	}
-	notify, present := created["notify"].(map[string]any)
-	if !present || notify["before_days"] != 7 {
-		t.Fatalf("the warning came back as %+v", created["notify"])
-	}
-	if recipients, ok := notify["recipients"].([]string); !ok || len(recipients) != 2 {
-		t.Fatalf("the recipients came back as %+v", notify["recipients"])
+	// Nothing warns anybody yet, so the rule carries no warning rather than one nothing sends.
+	if _, present := created["notify"]; present {
+		t.Errorf("the rule came back with a warning: %+v", created["notify"])
 	}
 	if preview, ok := created["preview"].(map[string]any); !ok || preview["matched"] != 4 {
 		t.Fatalf("the answer carries no preview: %+v", created["preview"])

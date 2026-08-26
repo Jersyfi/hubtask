@@ -78,7 +78,9 @@ func TestARuleIsWrittenAndReadBackWhole(t *testing.T) {
 		t.Errorf("the rule came back as %d days of %s", found.RetainDays, found.Action)
 	case found.GraceDays != domain.DefaultGraceDays:
 		t.Errorf("the grace period came back as %d", found.GraceDays)
-	case found.Notify.BeforeDays != domain.DefaultNotifyBeforeDays:
+	// Nothing warns anybody yet, so a rule nobody asked to warn carries no warning rather than one
+	// nothing sends.
+	case !found.Notify.Silent():
 		t.Errorf("the warning came back as %+v", found.Notify)
 	case !found.Enabled:
 		t.Error("a new rule came back switched off")

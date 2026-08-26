@@ -1076,7 +1076,10 @@ CREATE TABLE backup_run (
   target_id     uuid NOT NULL REFERENCES backup_target(id) ON DELETE CASCADE,
   tenant_id     uuid REFERENCES tenant(id) ON DELETE CASCADE,
   parent_run_id uuid REFERENCES backup_run(id) ON DELETE SET NULL,   -- the chain when incremental
-  trigger       text NOT NULL CHECK (trigger IN ('SCHEDULE','MANUAL','PRE_RESTORE','API')),
+  -- PRE_DELETE is the export a retention rule takes before it removes anything
+  -- (data-retention.md §6, migration 0039).
+  trigger       text NOT NULL
+                  CHECK (trigger IN ('SCHEDULE','MANUAL','PRE_RESTORE','PRE_DELETE','API')),
   mode          text NOT NULL CHECK (mode IN ('FULL','INCREMENTAL')),
   status        text NOT NULL DEFAULT 'RUNNING'
                   CHECK (status IN ('RUNNING','SUCCEEDED','FAILED','CANCELLED','EXPIRED')),

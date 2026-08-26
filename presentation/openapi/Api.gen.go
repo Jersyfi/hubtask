@@ -385,6 +385,7 @@ func (e BackupRunStatus) Valid() bool {
 const (
 	BackupRunTriggerAPI        BackupRunTrigger = "API"
 	BackupRunTriggerMANUAL     BackupRunTrigger = "MANUAL"
+	BackupRunTriggerPREDELETE  BackupRunTrigger = "PRE_DELETE"
 	BackupRunTriggerPRERESTORE BackupRunTrigger = "PRE_RESTORE"
 	BackupRunTriggerSCHEDULE   BackupRunTrigger = "SCHEDULE"
 )
@@ -395,6 +396,8 @@ func (e BackupRunTrigger) Valid() bool {
 	case BackupRunTriggerAPI:
 		return true
 	case BackupRunTriggerMANUAL:
+		return true
+	case BackupRunTriggerPREDELETE:
 		return true
 	case BackupRunTriggerPRERESTORE:
 		return true

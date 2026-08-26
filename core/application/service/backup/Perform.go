@@ -596,3 +596,39 @@ func zoneOr(name string) *time.Location {
 	}
 	return zone
 }
+
+// RetentionExport is the archive a retention rule writes before it removes anything
+// (data-retention.md §6, E-07).
+//
+// It sits here rather than in the lifecycle context because writing an archive is this context's
+// work, and the seam the retention engine declares is one method wide. What it does is a full
+// backup run of the tenant, with a trigger of its own: "who wrote this archive, and why" is the
+// question `backup_run.trigger` exists to answer, and an export the machinery took before deleting
+// is not a run anybody asked for.
+type RetentionExport struct {
+	Performer Performer
+	IDs       clock.IDGenerator
+}
+
+// Export writes one archive of the tenant to the target and answers the run it produced.
+func (e RetentionExport) Export(ctx context.Context, targetID shared.ID) (shared.ID, error) {
+	scope, ok := e.Performer.UnitOfWork.(persistence.ScopeSource)
+	if !ok {
+		return "", shared.Internalf("backup: the unit of work cannot say which tenant it is in")
+	}
+	current, found := scope.ScopeFromContext(ctx)
+	if !found || current.TenantID.IsZero() {
+		return "", shared.Internalf("backup: a retention export outside a tenant's transaction")
+	}
+
+	runID := e.IDs.NewID()
+	run, err := e.Performer.Perform(ctx, PerformInput{
+		RunID: runID, TargetID: targetID, TenantID: current.TenantID,
+		Mode: domain.ModeFull, Trigger: domain.TriggerPreDelete,
+		IncludeMedia: true, IncludeAudit: true,
+	})
+	if err != nil {
+		return "", err
+	}
+	return run.ID, nil
+}
