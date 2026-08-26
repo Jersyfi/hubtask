@@ -5494,7 +5494,7 @@ components:
         caller may not resolve, and an attempt count invites a client to reason about a retry
         policy that is not part of the contract. Widening this later is additive; narrowing it
         would not be.
-      required: [job_id, status, created_at]
+      required: [job_id, status, progress, result_url, error_code, created_at, finished_at]
       properties:
         job_id: { type: string, format: uuid }
         status: { $ref: "#/components/schemas/JobStatus" }

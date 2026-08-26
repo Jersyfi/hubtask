@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
@@ -133,6 +134,8 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		mediaservice.ListAttachments{}.Descriptor(),
 		mediaservice.GetMedia{}.Descriptor(),
 		mediaservice.DeleteMedia{}.Descriptor(),
+		jobservice.GetJob{}.Descriptor(),
+		jobservice.CancelJob{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.GrantMembership{}.Descriptor(),

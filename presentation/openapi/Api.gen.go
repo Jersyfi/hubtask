@@ -2640,17 +2640,17 @@ type Job struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// ErrorCode The message code of the last failure, never a message and never free text (ADR-0011). Set on a `FAILED` job, and on a job that is being retried.
-	ErrorCode *string `json:"error_code,omitempty"`
+	ErrorCode *string `json:"error_code"`
 
 	// FinishedAt When the job reached a terminal state. `null` while it has not.
-	FinishedAt *time.Time         `json:"finished_at,omitempty"`
+	FinishedAt *time.Time         `json:"finished_at"`
 	JobId      openapi_types.UUID `json:"job_id"`
 
 	// Progress How far along, between 0 and 1, or `null` from a job that cannot say. `null` is the honest answer rather than a number nobody computed - a client renders an indeterminate bar for it.
-	Progress *float32 `json:"progress,omitempty"`
+	Progress *float32 `json:"progress"`
 
 	// ResultUrl Where what the job produced can be fetched, once there is something.
-	ResultUrl *string `json:"result_url,omitempty"`
+	ResultUrl *string `json:"result_url"`
 
 	// Status What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
 	Status JobStatus `json:"status"`
