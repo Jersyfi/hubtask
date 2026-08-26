@@ -328,9 +328,27 @@ func TestAnIncrementalAsksForWhatChanged(t *testing.T) {
 		if entity.Optional {
 			continue
 		}
-		if asked, found := source.asked[entity.Name]; !found || !asked.Equal(since) {
-			t.Fatalf("%s was asked from %v, want %v", entity, asked, since)
+		want := since
+		if entity.Whole {
+			// An entity whose schema cannot date a change is asked for whole, whatever the run's
+			// mode is: passing it a period would be asking a question it cannot answer, and the
+			// answer it would give - nothing changed - is the one that loses an edit.
+			want = time.Time{}
 		}
+		if asked, found := source.asked[entity.Name]; !found || !asked.Equal(want) {
+			t.Fatalf("%s was asked from %v, want %v", entity, asked, want)
+		}
+	}
+
+	// And the manifest says which those were, because for them the newest archive of a chain holds
+	// the whole truth and a restore replaces rather than merges.
+	manifest, err := NewReader(store, &reversible{}).Describe(t.Context(), incremental.Prefix)
+	if err != nil {
+		t.Fatalf("describe: %v", err)
+	}
+	if len(manifest.Manifest.Whole) != len(WholeEntities()) {
+		t.Fatalf("the manifest names %d whole entities, the registry has %d",
+			len(manifest.Manifest.Whole), len(WholeEntities()))
 	}
 }
 

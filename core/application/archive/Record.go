@@ -216,6 +216,19 @@ type Entity struct {
 	// schedule setting, because including it gives better evidence and keeps personal metadata
 	// longer (backup-restore.md §7).
 	Optional bool
+	// Whole marks an entity that cannot say when one of its rows changed, and is therefore
+	// written complete in every archive - including an incremental one - with a restore replacing
+	// its set rather than merging into it.
+	//
+	// It is a property of the schema rather than a choice. A join table has no timestamp at all,
+	// and a configuration row that carries a creation stamp and no change stamp cannot tell an
+	// edit from silence. Deriving "unchanged" from a column that does not move is how an
+	// incremental chain quietly loses an edit, and there is no column to add here that would not
+	// be a lie until every writer maintained it (E-05).
+	//
+	// All of them are small by nature - the join tables and the configuration - so writing them
+	// whole costs little, and it is the reading that has to be right.
+	Whole bool
 }
 
 // entities is the archive's content, in restore order: a row's parents come before it, so that a
@@ -230,34 +243,34 @@ var entities = []Entity{
 	// something to fill in (backup-restore.md §8.2).
 	{Name: "tenants", Table: "tenant"},
 	{Name: "accounts", Table: "account"},
-	{Name: "account_groups", Table: "account_group"},
-	{Name: "account_group_members", Table: "account_group_member"},
-	{Name: "memberships", Table: "membership"},
+	{Name: "account_groups", Table: "account_group", Whole: true},
+	{Name: "account_group_members", Table: "account_group_member", Whole: true},
+	{Name: "memberships", Table: "membership", Whole: true},
 	{Name: "containers", Table: "container"},
-	{Name: "buckets", Table: "bucket"},
-	{Name: "labels", Table: "label"},
+	{Name: "buckets", Table: "bucket", Whole: true},
+	{Name: "labels", Table: "label", Whole: true},
 	{Name: "custom_field_definitions", Table: "custom_field_definition"},
 	{Name: "work_items", Table: "work_item"},
-	{Name: "item_labels", Table: "item_label"},
-	{Name: "item_members", Table: "item_member"},
+	{Name: "item_labels", Table: "item_label", Whole: true},
+	{Name: "item_members", Table: "item_member", Whole: true},
 	{Name: "comments", Table: "comment"},
 	{Name: "activity_entries", Table: "activity_entry"},
-	{Name: "media_objects", Table: "media_object"},
-	{Name: "item_attachments", Table: "item_attachment"},
+	{Name: "media_objects", Table: "media_object", Whole: true},
+	{Name: "item_attachments", Table: "item_attachment", Whole: true},
 	{Name: "recurrence_rules", Table: "recurrence_rule"},
 	{Name: "reminders", Table: "reminder"},
-	{Name: "saved_views", Table: "saved_view"},
+	{Name: "saved_views", Table: "saved_view", Whole: true},
 	{Name: "templates", Table: "template"},
 	{Name: "jumble_entries", Table: "jumble_entry"},
-	{Name: "auto_assign_policies", Table: "auto_assign_policy"},
+	{Name: "auto_assign_policies", Table: "auto_assign_policy", Whole: true},
 	{Name: "automation_rules", Table: "automation_rule"},
-	{Name: "webhook_subscriptions", Table: "webhook_subscription"},
-	{Name: "calendar_feeds", Table: "calendar_feed"},
+	{Name: "webhook_subscriptions", Table: "webhook_subscription", Whole: true},
+	{Name: "calendar_feeds", Table: "calendar_feed", Whole: true},
 	{Name: "notification_preferences", Table: "notification_preference"},
 	{Name: "retention_policies", Table: "retention_policy"},
-	{Name: "consent_records", Table: "consent_record"},
-	{Name: "legal_holds", Table: "legal_hold"},
-	{Name: "set_elements", Table: "set_element"},
+	{Name: "consent_records", Table: "consent_record", Whole: true},
+	{Name: "legal_holds", Table: "legal_hold", Whole: true},
+	{Name: "set_elements", Table: "set_element", Whole: true},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect.
 	{Name: "audit", Table: "audit_log", Optional: true},
@@ -265,6 +278,30 @@ var entities = []Entity{
 
 // Entities is what an archive holds, in restore order.
 func Entities() []Entity { return slices.Clone(entities) }
+
+// FindEntityByTable answers the entity whose rows come from that table.
+//
+// It exists because the deletion markers are written in the schema's vocabulary - the lifecycle
+// records a tombstone against `work_item`, not against `work_items` - and an exporter turning
+// those into archive lines has to cross from one naming to the other exactly once.
+func FindEntityByTable(table string) (Entity, bool) {
+	index := slices.IndexFunc(entities, func(e Entity) bool { return e.Table == table })
+	if index < 0 {
+		return Entity{}, false
+	}
+	return entities[index], true
+}
+
+// WholeEntities are the entities written complete in every archive, by name.
+func WholeEntities() []string {
+	var names []string
+	for _, entity := range entities {
+		if entity.Whole {
+			names = append(names, entity.Name)
+		}
+	}
+	return names
+}
 
 // FindEntity answers the entity of that name.
 func FindEntity(name string) (Entity, bool) {

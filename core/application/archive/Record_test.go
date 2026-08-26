@@ -272,3 +272,81 @@ func TestEveryExclusionSaysWhy(t *testing.T) {
 		}
 	}
 }
+
+// An entity is a delta only if its table can say when a row changed. The split is a property of
+// the schema rather than a preference, so it is checked against the schema: a migration that gives
+// a join table an `updated_at` should let it become a delta, and one that takes a change stamp away
+// must not leave an entity claiming to be one.
+func TestOnlyEntitiesThatCanDateAChangeAreDeltas(t *testing.T) {
+	schema, err := os.ReadFile("../../../db/schema.sql")
+	if err != nil {
+		t.Fatalf("read schema: %v", err)
+	}
+
+	// The columns that move when a row changes. `created_at` is deliberately not among them: a
+	// creation stamp cannot tell an edit from silence, and `deleted_at` on its own says only that
+	// a row went.
+	stamps := []string{"updated_at", "edited_at", "occurred_at", "processed_at"}
+
+	for _, entity := range Entities() {
+		body := tableBody(t, string(schema), entity.Table)
+		canDate := false
+		for _, stamp := range stamps {
+			if regexp.MustCompile(`(?m)^\s{2}` + stamp + `\s`).MatchString(body) {
+				canDate = true
+			}
+		}
+		switch {
+		case entity.Whole && canDate:
+			t.Errorf("%s is written whole, and %s can date a change - it could be a delta",
+				entity, entity.Table)
+		case !entity.Whole && !canDate:
+			t.Errorf("%s is written as a delta, and %s has no column that moves when a row "+
+				"changes - an incremental would quietly lose an edit", entity, entity.Table)
+		}
+	}
+}
+
+func tableBody(t *testing.T, schema, table string) string {
+	t.Helper()
+
+	match := regexp.MustCompile(`(?s)CREATE TABLE ` + table + ` \((.*?)\n\);`).FindStringSubmatch(schema)
+	if match == nil {
+		t.Fatalf("no CREATE TABLE %s in db/schema.sql", table)
+	}
+	return match[1]
+}
+
+// The entities written whole are the small ones. A join table or a handful of configuration rows
+// costs nothing to repeat in every archive; a table of work items would.
+func TestTheWholeEntitiesAreTheSmallOnes(t *testing.T) {
+	for _, name := range []string{"work_items", "containers", "comments", "activity_entries"} {
+		entity, found := FindEntity(name)
+		if !found {
+			t.Fatalf("no entity %s", name)
+		}
+		if entity.Whole {
+			t.Errorf("%s is written whole in every archive - that is the table that grows", entity)
+		}
+	}
+	if len(WholeEntities()) == 0 {
+		t.Fatal("no entity is written whole, and the join tables cannot date a change")
+	}
+}
+
+// The deletion markers are written in the schema's vocabulary, and crossing to the archive's is
+// something that has to work for every entity that can be deleted.
+func TestATombstonesTableNameFindsItsEntity(t *testing.T) {
+	for _, table := range []string{"work_item", "container", "comment", "label"} {
+		entity, found := FindEntityByTable(table)
+		if !found {
+			t.Fatalf("a tombstone against %s finds no entity", table)
+		}
+		if entity.Table != table {
+			t.Fatalf("%s found %s", table, entity)
+		}
+	}
+	if _, found := FindEntityByTable("access_token"); found {
+		t.Fatal("an excluded table found an entity")
+	}
+}

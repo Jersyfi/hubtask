@@ -205,6 +205,16 @@ type Manifest struct {
 	// largest thing in the archive.
 	MediaCount int64 `json:"media_count"`
 	MediaBytes int64 `json:"media_bytes"`
+	// Whole names the entities this archive carried complete rather than as a delta, even when it
+	// is an incremental one - the join tables and the configuration rows whose schema cannot say
+	// when they changed (Entity.Whole).
+	//
+	// It is in the manifest rather than only in the registry because it is a restore instruction:
+	// for these entities the newest archive of a chain holds the whole truth, and the copies in
+	// older archives are superseded rather than merged. A reader that had to consult its own
+	// build's registry would be a reader deciding from its own version what an older archive
+	// meant.
+	Whole []string `json:"whole,omitempty"`
 	// Files are the data members and their checksums. Media are deliberately absent, for the
 	// reason above.
 	Files []File `json:"files"`
