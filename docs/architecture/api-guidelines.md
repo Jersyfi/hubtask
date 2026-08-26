@@ -168,7 +168,10 @@ The standard mapping: `400 malformed_request`, `401 unauthenticated`, `403 forbi
 
 Scopes: `items:read`, `items:write`, `containers:read`, `containers:write`, `comments:write`,
 `jobs:read`, `jobs:cancel`, `backup:read`, `backup:manage`, `automation:read`, `automation:manage`, `webhooks:manage`,
-`views:manage`, `media:write`, `admin:tenants`, `ai:use`. The two job scopes are two deliberately:
+`views:manage`, `media:write`, `admin:tenants`, `ai:use`, `retention:read`, `retention:manage`,
+`audit:read`, `audit:export`. The two audit scopes are two for the reason the job scopes are:
+reading the trail and carrying a copy of it out of the installation are different acts, and a
+token minted for a dashboard that watches has no business writing an archive to a bucket. The two job scopes are two deliberately:
 polling a long-running operation and stopping it are different questions, and a token minted for a
 client that watches has no business stopping the work it is watching. Without a matching scope → `403 insufficient_scope`, naming the scope
 required.

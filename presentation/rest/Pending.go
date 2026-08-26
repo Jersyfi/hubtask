@@ -73,6 +73,8 @@ func (pending) ListAuditEntries(w http.ResponseWriter, r *http.Request, _ openap
 
 func (pending) VerifyAuditChain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) ExportAuditTrail(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The three target operations. Overridden by RestController; they stay here because the
 // compile-time assertion is on `pending` itself.
 func (pending) ListBackupTargets(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
