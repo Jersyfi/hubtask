@@ -434,8 +434,7 @@ func TestWarningsReportWhatTheOperatorIsMissing(t *testing.T) {
 	warnings := New("v", "c").Warnings(cfg)
 
 	for _, want := range []string{
-		"config.backup_not_configured", // the release criterion nobody notices missing
-		"config.base_url_missing",      // links in emails would be wrong
+		"config.base_url_missing", // links in emails would be wrong
 		"config.oidc_missing_in_multi_tenancy",
 		"config.egress_allowlist_missing", // mandatory in provider operation (T-07)
 		"config.smtp_without_tls",
@@ -446,6 +445,15 @@ func TestWarningsReportWhatTheOperatorIsMissing(t *testing.T) {
 	}
 	if hasWarning(warnings, "config.smtp_missing") {
 		t.Error("SMTP is configured, so the warning must not appear")
+	}
+
+	// config.backup_not_configured is deliberately not here any more (E-03). It used to be keyed
+	// on two environment variables, one of which nothing read and neither of which said whether a
+	// backup target exists - a target is a row in a tenant's database. The question is answered by
+	// the repository's coverage count instead, and the surface that asks it is the tenant-facing
+	// health report, which is still route.operation_not_available.
+	if hasWarning(warnings, "config.backup_not_configured") {
+		t.Error("a warning about backup targets is being derived from the environment again")
 	}
 }
 
