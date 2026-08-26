@@ -949,6 +949,28 @@ type RetentionPolicy struct {
 	UpdatedBy     pgtype.UUID
 }
 
+type RetentionRule struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	ScopeKind      string
+	ScopeID        pgtype.UUID
+	DataKind       string
+	Condition      *string
+	RetainDays     int32
+	Action         string
+	ThenAfterDays  *int32
+	ThenAction     *string
+	GraceDays      int32
+	Notify         []byte
+	Justification  *string
+	Enabled        bool
+	ExportTargetID pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
 type RetentionRun struct {
 	ID             pgtype.UUID
 	TenantID       pgtype.UUID
@@ -1099,42 +1121,45 @@ type WebhookSubscription struct {
 }
 
 type WorkItem struct {
-	ID                 pgtype.UUID
-	TenantID           pgtype.UUID
-	CollectionID       pgtype.UUID
-	Type               ItemType
-	ParentID           pgtype.UUID
-	Path               string
-	Depth              int32
-	Title              string
-	Notes              *string
-	IsCompleted        bool
-	CompletedAt        pgtype.Timestamptz
-	CompletedBy        pgtype.UUID
-	BucketID           pgtype.UUID
-	OrderKey           string
-	StartAt            pgtype.Timestamptz
-	DueAt              pgtype.Timestamptz
-	DueDateOnly        bool
-	DueTimeZone        *string
-	AssigneeID         pgtype.UUID
-	CoverKind          *string
-	CoverColorToken    *string
-	CoverMediaID       pgtype.UUID
-	CustomFields       []byte
-	RecurrenceRuleID   pgtype.UUID
-	OriginJumbleID     pgtype.UUID
-	ContentLanguage    *string
-	SearchVector       interface{}
-	ArchivedAt         pgtype.Timestamptz
-	DeletedAt          pgtype.Timestamptz
-	TrashBatchID       pgtype.UUID
-	CreatedBy          pgtype.UUID
-	CreatedAt          pgtype.Timestamptz
-	UpdatedAt          pgtype.Timestamptz
-	Version            int32
-	CustomFieldRefs    []byte
-	SearchDocument     interface{}
-	DueSoonAnnouncedAt pgtype.Timestamptz
-	OverdueAnnouncedAt pgtype.Timestamptz
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	CollectionID          pgtype.UUID
+	Type                  ItemType
+	ParentID              pgtype.UUID
+	Path                  string
+	Depth                 int32
+	Title                 string
+	Notes                 *string
+	IsCompleted           bool
+	CompletedAt           pgtype.Timestamptz
+	CompletedBy           pgtype.UUID
+	BucketID              pgtype.UUID
+	OrderKey              string
+	StartAt               pgtype.Timestamptz
+	DueAt                 pgtype.Timestamptz
+	DueDateOnly           bool
+	DueTimeZone           *string
+	AssigneeID            pgtype.UUID
+	CoverKind             *string
+	CoverColorToken       *string
+	CoverMediaID          pgtype.UUID
+	CustomFields          []byte
+	RecurrenceRuleID      pgtype.UUID
+	OriginJumbleID        pgtype.UUID
+	ContentLanguage       *string
+	SearchVector          interface{}
+	ArchivedAt            pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	TrashBatchID          pgtype.UUID
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
+	CustomFieldRefs       []byte
+	SearchDocument        interface{}
+	DueSoonAnnouncedAt    pgtype.Timestamptz
+	OverdueAnnouncedAt    pgtype.Timestamptz
+	RetentionPendingUntil pgtype.Timestamptz
+	RetentionRuleID       pgtype.UUID
+	RetentionAction       *string
 }

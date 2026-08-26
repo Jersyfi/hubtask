@@ -326,6 +326,11 @@ CREATE TABLE work_item (
   search_document    tsvector,
   due_soon_announced_at timestamptz,
   overdue_announced_at  timestamptz,
+  -- What a marked object carries between the two phases of a retention run (migration 0038,
+  -- data-retention.md §5, §6): when the act is due, under which rule, and what the act is.
+  retention_pending_until timestamptz,
+  retention_rule_id  uuid,
+  retention_action   text,
   archived_at        timestamptz,
   deleted_at         timestamptz,
   trash_batch_id     uuid,
@@ -1136,7 +1141,48 @@ CREATE TABLE deletion_journal (
 );
 CREATE INDEX deletion_journal_time_idx ON deletion_journal (tenant_id, deleted_at);
 
--- The log of retention runs (the rules themselves: retention_policy, above).
+-- The marked objects are the few, and phase two reads this on every pass (migration 0038).
+CREATE INDEX work_item_retention_idx ON work_item (tenant_id, retention_pending_until)
+  WHERE retention_pending_until IS NOT NULL;
+
+-- The rule model of data-retention.md §2 (migration 0038). It sits beside retention_policy rather
+-- than replacing it: that table's key allows one period per kind per tenant, and a scoped model
+-- needs two rows for one kind. The old rows are carried into this table by the first sweep after
+-- the upgrade, and a later release contracts the old one away.
+CREATE TABLE retention_rule (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  scope_kind      text NOT NULL CHECK (scope_kind IN ('TENANT','HUB','COLLECTION')),
+  scope_id        uuid,                              -- NULL exactly when the scope is the tenant
+  data_kind       text NOT NULL,                     -- the catalogue of §3; no constraint, see 0038
+  condition       text,                              -- CEL, stored and not yet evaluated (0.5.0)
+  retain_days     integer NOT NULL CHECK (retain_days >= 0),
+  action          text NOT NULL
+                    CHECK (action IN ('ARCHIVE','TRASH','ANONYMIZE','HARD_DELETE',
+                                      'EXPORT_THEN_DELETE','NOTIFY_ONLY')),
+  then_after_days integer CHECK (then_after_days IS NULL OR then_after_days >= 0),
+  then_action     text CHECK (then_action IN ('ARCHIVE','TRASH','ANONYMIZE','HARD_DELETE',
+                                              'EXPORT_THEN_DELETE')),
+  grace_days      integer NOT NULL DEFAULT 14 CHECK (grace_days >= 0),
+  notify          jsonb NOT NULL DEFAULT '{}'::jsonb,
+  justification   text,                              -- mandatory beyond the kind's upper bound
+  enabled         boolean NOT NULL DEFAULT true,
+  export_target_id uuid REFERENCES backup_target(id) ON DELETE RESTRICT,
+  created_by      uuid,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  version         integer NOT NULL DEFAULT 1,
+  CONSTRAINT retention_rule_scope_check CHECK ((scope_kind = 'TENANT') = (scope_id IS NULL)),
+  CONSTRAINT retention_rule_chain_check CHECK ((then_after_days IS NULL) = (then_action IS NULL)),
+  UNIQUE (tenant_id, id)
+);
+CREATE UNIQUE INDEX retention_rule_scope_idx ON retention_rule
+  (tenant_id, data_kind, scope_kind,
+   coalesce(scope_id, '00000000-0000-0000-0000-000000000000'::uuid));
+CREATE INDEX retention_rule_lookup_idx
+  ON retention_rule (tenant_id, data_kind) WHERE enabled;
+
+-- The log of retention runs (the rules themselves: retention_rule, above).
 CREATE TABLE retention_run (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1281,6 +1327,7 @@ BEGIN
     'notification','notification_preference',
     'audit_anchor','retention_policy','data_subject_request','consent_record',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
+    'retention_rule',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element'
   ]
   LOOP
