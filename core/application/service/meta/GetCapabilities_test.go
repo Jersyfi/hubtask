@@ -176,6 +176,12 @@ func TestTheManifestReportsTheInstallation(t *testing.T) {
 	if capabilities.Limits["max_body_bytes"] != 1<<20 {
 		t.Errorf("limits = %v", capabilities.Limits)
 	}
+	// The two product-shaped bounds a client needs before it builds an editor: how many reminders
+	// an entry carries, and how large a template's tree may be.
+	if capabilities.Limits["max_reminders_per_item"] != int64(work.MaxRemindersPerItem) ||
+		capabilities.Limits["max_template_nodes"] != int64(work.MaxTemplateNodes) {
+		t.Errorf("the product's own bounds are missing from %v", capabilities.Limits)
+	}
 	if !capabilities.Features["mail"] {
 		t.Error("a configured SMTP server is not reported as a feature")
 	}

@@ -417,6 +417,32 @@ func (pending) SkipOccurrence(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// The template operations are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) ListTemplates(w http.ResponseWriter, r *http.Request, _ openapi.ListTemplatesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateTemplate(w http.ResponseWriter, r *http.Request, _ openapi.CreateTemplateParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetTemplate(w http.ResponseWriter, r *http.Request, _ openapi.TemplateId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateTemplate(w http.ResponseWriter, r *http.Request, _ openapi.TemplateId, _ openapi.UpdateTemplateParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteTemplate(w http.ResponseWriter, r *http.Request, _ openapi.TemplateId, _ openapi.DeleteTemplateParams) {
+	notAvailable(w, r)
+}
+
+func (pending) InstantiateTemplate(w http.ResponseWriter, r *http.Request, _ openapi.TemplateId, _ openapi.InstantiateTemplateParams) {
+	notAvailable(w, r)
+}
+
 // The recurrence operations are overridden by RestController, for the reason given at
 // CreateContainer.
 func (pending) GetRecurrence(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {

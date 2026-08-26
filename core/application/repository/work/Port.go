@@ -848,6 +848,33 @@ type Recurrences interface {
 	Attach(ctx context.Context, itemID, ruleID shared.ID) error
 }
 
+// Templates stores the trees somebody wrote down to stamp out again (D-06).
+type Templates interface {
+	// Find returns the template as it is stored, a deleted one included: whether it may still be
+	// changed is the domain's question, and hiding it would turn "it was deleted" into "it never
+	// existed".
+	Find(ctx context.Context, id shared.ID) (work.Template, error)
+
+	// ListInScopes returns one page of the templates reachable from a container's path - the ones
+	// defined on it and the workspace-wide ones - newest first.
+	ListInScopes(ctx context.Context, scopeIDs []shared.ID, page Page) (TemplatePage, error)
+
+	// Insert writes a new template, or reports that the name is taken in that scope.
+	Insert(ctx context.Context, template work.Template) error
+
+	// Update writes the whole document under the optimistic lock, or reports a version conflict.
+	Update(ctx context.Context, template work.Template, expectedVersion int) error
+
+	// SetDeleted writes the soft deletion, or reports a version conflict.
+	SetDeleted(ctx context.Context, template work.Template, expectedVersion int) error
+}
+
+// TemplatePage is one page of templates and the walk's state.
+type TemplatePage struct {
+	Templates []work.Template
+	Info      PageInfo
+}
+
 // AutoAssignPolicies stores the assignment policy per scope (domain-model.md §3.6).
 //
 // One policy per scope, and the upsert is the whole write vocabulary: the policy is the

@@ -1671,6 +1671,27 @@ func (e SyncPullRequestScopesDepth) Valid() bool {
 	}
 }
 
+// Defines values for TemplateScope.
+const (
+	TemplateScopeCOLLECTION TemplateScope = "COLLECTION"
+	TemplateScopeHUB        TemplateScope = "HUB"
+	TemplateScopeTENANT     TemplateScope = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the TemplateScope enum.
+func (e TemplateScope) Valid() bool {
+	switch e {
+	case TemplateScopeCOLLECTION:
+		return true
+	case TemplateScopeHUB:
+		return true
+	case TemplateScopeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TrashEntryKind.
 const (
 	TrashEntryKindCONTAINER TrashEntryKind = "CONTAINER"
@@ -3147,6 +3168,102 @@ type SyncPushResponse struct {
 	ServerTime *time.Time           `json:"server_time,omitempty"`
 }
 
+// Template defines model for Template.
+type Template struct {
+	CreatedAt   time.Time          `json:"created_at"`
+	Description *string            `json:"description,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+	Name        string             `json:"name"`
+
+	// Nodes The tree, roots first. Each node carries its own children, so the document is the shape the template stamps out rather than a flat list with parent pointers.
+	Nodes []TemplateNode `json:"nodes"`
+
+	// RootType Extensible; /meta/capabilities returns the valid values.
+	RootType ItemType `json:"root_type"`
+
+	// ScopeId The container the template is defined in. Null for a workspace-wide one.
+	ScopeId *openapi_types.UUID `json:"scope_id,omitempty"`
+
+	// ScopeType Where the template is defined and therefore who can use it: the whole workspace, one hub and everything under it, or one collection. Defining one workspace-wide is an administrator's act; defining one in a container follows the role matrix there.
+	ScopeType TemplateScope `json:"scope_type"`
+	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
+	Version   int           `json:"version"`
+}
+
+// TemplateInput defines model for TemplateInput.
+type TemplateInput struct {
+	Description *string        `json:"description,omitempty"`
+	Name        string         `json:"name"`
+	Nodes       []TemplateNode `json:"nodes"`
+
+	// RootType Extensible; /meta/capabilities returns the valid values.
+	RootType ItemType            `json:"root_type"`
+	ScopeId  *openapi_types.UUID `json:"scope_id,omitempty"`
+
+	// ScopeType Where the template is defined and therefore who can use it: the whole workspace, one hub and everything under it, or one collection. Defining one workspace-wide is an administrator's act; defining one in a container follows the role matrix there.
+	ScopeType TemplateScope `json:"scope_type"`
+}
+
+// TemplateInstance defines model for TemplateInstance.
+type TemplateInstance struct {
+	// Created How many entries the template produced, the root included.
+	Created int `json:"created"`
+
+	// DroppedReferences What the target collection could not carry (I-W6).
+	DroppedReferences []DroppedReference `json:"dropped_references"`
+	RootItemId        openapi_types.UUID `json:"root_item_id"`
+	TemplateId        openapi_types.UUID `json:"template_id"`
+}
+
+// TemplateInstantiation defines model for TemplateInstantiation.
+type TemplateInstantiation struct {
+	// AnchorDate The day the relative dates count from, read in the caller's time zone. Absent anchors at the moment of the call.
+	AnchorDate *openapi_types.Date `json:"anchor_date,omitempty"`
+
+	// CollectionId The collection the tree lands in.
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// ParentId The entry the tree hangs from, when the template's root type is one that sits under another. Absent puts it at the top level of the collection.
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+
+	// Title The root entry's title, overriding the template's own.
+	Title *string `json:"title,omitempty"`
+}
+
+// TemplateNode defines model for TemplateNode.
+type TemplateNode struct {
+	// AssigneeId Who this step always belongs to. The assignment rule a template can carry: a fixed person, because the collection's own policy already applies when an entry is created and naming it here would name what happens anyway. Reported and dropped when the person cannot see the target collection (I-W6).
+	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
+	Children   *[]TemplateNode     `json:"children,omitempty"`
+
+	// DueDateOnly True for a node whose due date is a day rather than a moment.
+	DueDateOnly *bool `json:"due_date_only,omitempty"`
+
+	// DueOffset An ISO-8601 duration from the instantiation's anchor - P3D is "three days in", -P1D is "the day before". Absent for a node with no due date. Years and months are refused for the reason a reminder refuses them: they are calendar arithmetic rather than a length of time.
+	DueOffset *string `json:"due_offset,omitempty"`
+	Notes     *string `json:"notes,omitempty"`
+	Title     string  `json:"title"`
+
+	// Type Extensible; /meta/capabilities returns the valid values.
+	Type ItemType `json:"type"`
+}
+
+// TemplatePage defines model for TemplatePage.
+type TemplatePage struct {
+	Data []Template `json:"data"`
+	Page PageInfo   `json:"page"`
+}
+
+// TemplateScope Where the template is defined and therefore who can use it: the whole workspace, one hub and everything under it, or one collection. Defining one workspace-wide is an administrator's act; defining one in a container follows the role matrix there.
+type TemplateScope string
+
+// TemplateUpdate A merge patch. An absent member is not touched; the node tree travels whole.
+type TemplateUpdate struct {
+	Description *string         `json:"description,omitempty"`
+	Name        *string         `json:"name,omitempty"`
+	Nodes       *[]TemplateNode `json:"nodes,omitempty"`
+}
+
 // TrashEntry One deletion, as the trash lists it. A projection rather than the object: it carries what the view shows and what restoring it needs, and reading the entry back in full is a second request to the object's own endpoint.
 type TrashEntry struct {
 	// CollectionId The collection an entry belongs to. Null for a container.
@@ -3354,6 +3471,9 @@ type ParentId = openapi_types.UUID
 
 // ReminderId defines model for ReminderId.
 type ReminderId = openapi_types.UUID
+
+// TemplateId defines model for TemplateId.
+type TemplateId = openapi_types.UUID
 
 // ViewId defines model for ViewId.
 type ViewId = openapi_types.UUID
@@ -3852,6 +3972,38 @@ type StreamChangesParams struct {
 	LastEventID *string `json:"Last-Event-ID,omitempty"`
 }
 
+// ListTemplatesParams defines parameters for ListTemplates.
+type ListTemplatesParams struct {
+	// ContainerId The container whose templates are wanted, together with the ones above it.
+	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
+	Cursor      *Cursor             `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size        *PageSize           `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// CreateTemplateParams defines parameters for CreateTemplate.
+type CreateTemplateParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DeleteTemplateParams defines parameters for DeleteTemplate.
+type DeleteTemplateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateTemplateParams defines parameters for UpdateTemplate.
+type UpdateTemplateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// InstantiateTemplateParams defines parameters for InstantiateTemplate.
+type InstantiateTemplateParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListTrashParams defines parameters for ListTrash.
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -4022,6 +4174,15 @@ type SyncPullJSONRequestBody = SyncPullRequest
 
 // SyncPushJSONRequestBody defines body for SyncPush for application/json ContentType.
 type SyncPushJSONRequestBody = SyncPushRequest
+
+// CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
+type CreateTemplateJSONRequestBody = TemplateInput
+
+// UpdateTemplateJSONRequestBody defines body for UpdateTemplate for application/json ContentType.
+type UpdateTemplateJSONRequestBody = TemplateUpdate
+
+// InstantiateTemplateJSONRequestBody defines body for InstantiateTemplate for application/json ContentType.
+type InstantiateTemplateJSONRequestBody = TemplateInstantiation
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -4337,6 +4498,24 @@ type ServerInterface interface {
 	// SyncPush Transmit local mutations
 	// (POST /sync:push)
 	SyncPush(w http.ResponseWriter, r *http.Request)
+
+	// (GET /templates)
+	ListTemplates(w http.ResponseWriter, r *http.Request, params ListTemplatesParams)
+
+	// (POST /templates)
+	CreateTemplate(w http.ResponseWriter, r *http.Request, params CreateTemplateParams)
+
+	// (DELETE /templates/{templateId})
+	DeleteTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId, params DeleteTemplateParams)
+
+	// (GET /templates/{templateId})
+	GetTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId)
+
+	// (PATCH /templates/{templateId})
+	UpdateTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId, params UpdateTemplateParams)
+
+	// (POST /templates/{templateId}:instantiate)
+	InstantiateTemplate(w http.ResponseWriter, r *http.Request, templateId TemplateId, params InstantiateTemplateParams)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -8605,6 +8784,282 @@ func (siw *ServerInterfaceWrapper) SyncPush(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ListTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListTemplates(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTemplatesParams
+
+	// ------------- Optional query parameter "container_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "container_id", r.URL.Query(), &params.ContainerId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "container_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "container_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTemplates(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateTemplate operation middleware
+func (siw *ServerInterfaceWrapper) CreateTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateTemplateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateTemplate(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteTemplate operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "templateId" -------------
+	var templateId TemplateId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateId", r.PathValue("templateId"), &templateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteTemplateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteTemplate(w, r, templateId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTemplate operation middleware
+func (siw *ServerInterfaceWrapper) GetTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "templateId" -------------
+	var templateId TemplateId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateId", r.PathValue("templateId"), &templateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTemplate(w, r, templateId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTemplate operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "templateId" -------------
+	var templateId TemplateId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateId", r.PathValue("templateId"), &templateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateTemplateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTemplate(w, r, templateId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InstantiateTemplate operation middleware
+func (siw *ServerInterfaceWrapper) InstantiateTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "templateId" -------------
+	var templateId TemplateId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateId", r.PathValue("templateId"), &templateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params InstantiateTemplateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InstantiateTemplate(w, r, templateId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTrash operation middleware
 func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
 
@@ -9081,6 +9536,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/templates", wrapper.ListTemplates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/templates", wrapper.CreateTemplate)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/templates/{templateId}", wrapper.DeleteTemplate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/templates/{templateId}", wrapper.GetTemplate)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/templates/{templateId}", wrapper.UpdateTemplate)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/templates/{templateId}:instantiate", wrapper.InstantiateTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/views", wrapper.ListSavedViews)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views", wrapper.CreateSavedView)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/views/{viewId}", wrapper.DeleteSavedView)

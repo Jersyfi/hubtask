@@ -219,7 +219,7 @@ stateDiagram-v2
 | `CustomFieldDefinition` | `scope(collection\|tenant)`, `key`, `kind` (`TEXT`,`NUMBER`,`DATE`,`SELECT`,`MULTI_SELECT`,`BOOL`,`USER`,`URL`), `options`, `required` | Enables extension without a migration |
 | `Reminder` | `itemId`, `offsetSpec` (`REL:-PT1H` / `ABS:<ts>`), `channels[]`, `recipients[]`, `state` | Predefined (relative presets) and custom |
 | `RecurrenceRule` | `rrule` (RFC 5545), `timeZone`, `mode` (`ON_SCHEDULE`\|`ON_COMPLETION`), `horizonDays`, `endSpec` | See arc42 §6.3 |
-| `Template` | `scope`, `name`, `rootType`, `nodes[]` (a tree with fields, relative due dates `+3d`, assignment rules) | Instantiation produces an item tree |
+| `Template` | `scope`, `name`, `rootType`, `nodes[]` (a tree carrying titles, notes, a relative due date as an ISO-8601 duration such as `P3D`, and a fixed `assigneeId` per node) | Instantiation produces an item tree. The tree is validated against the capability profiles at definition rather than at instantiation, and it holds at most `max_template_nodes` nodes (D-06) |
 | `SavedView` | `scope`, `name`, `layout` (`LIST_COLLAPSED`,`LIST_EXPANDED`,`KANBAN`,`TIMELINE`), `query`, `grouping`, `visibleFields`, `sharing` | `layout` is a hint; the server does not interpret it |
 | `JumbleEntry` | `tenantId`, `channel` (`EMAIL`,`WEBHOOK`,`QUICK_CAPTURE`,`API`), `rawSubject`, `rawBody`, `attachments[]`, `sender`, `status` (`NEW`,`PROCESSED`,`DISMISSED`), `suggestion` (JSONB) | Conversion produces a `WorkItem` and sets `PROCESSED` |
 | `AutoAssignPolicy` | `scope`, `strategy`, `candidates[]` (accounts/groups), `state` (for round robin) | See below |
@@ -363,7 +363,7 @@ a person, an agent or a rule may ask for, and "fire everybody's reminders now" i
 anybody should be able to ask for — the way to influence when a reminder fires is the reminder
 (D-03, and the same reasoning C-06 applied to `ReconcileMedia`).
 
-**Templates** `CreateTemplate`, `UpdateTemplate`, `DeleteTemplate`, `InstantiateTemplate`.
+**Templates** `CreateTemplate`, `ListTemplates`, `GetTemplate`, `UpdateTemplate`, `DeleteTemplate`, `InstantiateTemplate`. The list and the get joined with D-06 for the reason they joined the two lists on either side of this one: `/templates` says CRUD, and a shape nobody can read back is one nobody can edit. Defining, changing and deleting ask for `STRUCTURE` at the template's own scope - a template is a shape other people stamp out, so it belongs with the people who shape the workspace - while instantiating asks only for `WRITE_ITEMS` in the collection it lands in, because using a shape is ordinary work.
 
 **Views & query** `QueryItems` (the query DSL), `CreateSavedView`, `ListSavedViews`, `GetSavedView`,
 `UpdateSavedView`, `DeleteSavedView`, `ShareSavedView`, `ExportView` (CSV/JSON/ICS). The list and
