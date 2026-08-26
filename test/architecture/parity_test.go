@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
@@ -134,6 +135,9 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		mediaservice.ListAttachments{}.Descriptor(),
 		mediaservice.GetMedia{}.Descriptor(),
 		mediaservice.DeleteMedia{}.Descriptor(),
+		backupservice.CreateBackupTarget{}.Descriptor(),
+		backupservice.ListBackupTargets{}.Descriptor(),
+		backupservice.TestBackupTarget{}.Descriptor(),
 		jobservice.GetJob{}.Descriptor(),
 		jobservice.CancelJob{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),

@@ -212,6 +212,82 @@ func (c *GuardedClient) send(ctx context.Context, req port.Request, url, class s
 	}, nil
 }
 
+// Upload makes a call whose *request* body is a stream rather than a slice.
+//
+// The mirror of Stream, and it exists for the same kind of payload seen from the other side: an
+// archive on its way to a backup target has no known length and does not fit in memory, and
+// port.Request carries a []byte because everything else this system sends outwards is a small,
+// already-rendered document (core/port/httpclient). Buffering an archive to satisfy that shape is
+// the OOM kill observability-reliability.md §6 calls an architecture defect (T-17).
+//
+// Every guard applies unchanged - the URL check, the resolve before the connect, the dial-time
+// control, the redirect budget and the response cap - and that is the point: a target whose
+// address came from an API is exactly what rule 6 exists for. What is deliberately absent is the
+// retry the resilient wrapper would otherwise add, because a stream can be read only once and a
+// second attempt would send whatever was left of it.
+func (c *GuardedClient) Upload(
+	ctx context.Context, req port.Request, body io.Reader, length int64,
+) (port.Response, error) {
+	target, err := c.guard.CheckURL(req.URL)
+	if err != nil {
+		return port.Response{}, err
+	}
+	if _, err := c.guard.Resolve(ctx, target.Hostname()); err != nil {
+		return port.Response{}, err
+	}
+
+	class := req.TargetClass
+	if class == "" {
+		class = "unclassified"
+	}
+	method := req.Method
+	if method == "" {
+		method = http.MethodPut
+	}
+
+	started := c.now()
+	defer func() { c.observe(ctx, class, c.now().Sub(started).Seconds()) }()
+
+	httpReq, err := http.NewRequestWithContext(ctx, method, target.String(), body)
+	if err != nil {
+		return port.Response{}, shared.ErrValidation.
+			WithDetail(codeTargetMalformed).
+			WithParams(map[string]string{"target": target.String()}).
+			WithCause(fmt.Errorf("building the request: %w", err))
+	}
+	// A length of -1 means "nobody knows", which net/http turns into chunked transfer encoding.
+	// That is the honest answer for an archive, and a server that cannot take it says so.
+	httpReq.ContentLength = length
+	for name, values := range req.Header {
+		for _, value := range values {
+			httpReq.Header.Add(name, value)
+		}
+	}
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(httpReq.Header))
+
+	httpResp, err := c.client.Do(httpReq)
+	if err != nil {
+		return port.Response{}, transportError(class, err)
+	}
+	defer func() { _ = httpResp.Body.Close() }()
+
+	payload, err := io.ReadAll(io.LimitReader(httpResp.Body, c.cfg.MaxResponseBytes+1))
+	if err != nil {
+		return port.Response{}, transportError(class, err)
+	}
+	if int64(len(payload)) > c.cfg.MaxResponseBytes {
+		return port.Response{}, shared.ErrValidation.
+			WithDetail("dependency.response_too_large").
+			WithParams(map[string]string{"limit_bytes": fmt.Sprint(c.cfg.MaxResponseBytes)})
+	}
+
+	return port.Response{
+		Status: httpResp.StatusCode,
+		Header: httpResp.Header,
+		Body:   payload,
+	}, nil
+}
+
 // StreamResponse is an answer whose body is still arriving. The caller owns Body and must close
 // it; closing it is also how the caller ends a stream the server would happily keep feeding.
 type StreamResponse struct {

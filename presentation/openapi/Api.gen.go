@@ -2029,6 +2029,20 @@ type BackupTargetCreateEncryptionMode string
 // BackupTargetKind defines model for BackupTargetKind.
 type BackupTargetKind string
 
+// BackupTargetProbe What a write-read-delete against the target found. A target that could not be reached is a result rather than an error: it is what the caller asked to find out.
+type BackupTargetProbe struct {
+	// ErrorCode A message code, never the driver's message (ADR-0011).
+	ErrorCode *string `json:"error_code"`
+
+	// FreeBytes How much room is left, or `null` where the protocol cannot say. A bucket cannot say at all.
+	FreeBytes *int    `json:"free_bytes"`
+	LatencyMs float32 `json:"latency_ms"`
+	Ok        bool    `json:"ok"`
+
+	// Writable Whether the write half worked. A target that can be read and not written is a permissions mistake somebody can act on, and it is the common one.
+	Writable bool `json:"writable"`
+}
+
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`

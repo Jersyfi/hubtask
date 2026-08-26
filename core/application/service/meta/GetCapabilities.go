@@ -178,6 +178,15 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// discovers it here rather than by asking for "/" and reading the answer, which is
 			// the same reason every other optional part of the installation is in this map.
 			"web_ui": g.Config.UI.Enabled,
+			// Whether this installation can seal a backup target's credentials at all (E-02,
+			// E-03). A client that offers "add an S3 target" on an installation with no
+			// encryption keyring is offering a form that will be refused at the end; the manifest
+			// says so first.
+			"backup_encryption": g.Config.Encryption.ActiveKeyID() != "",
+			// Whether the caller's tenant may configure a target of its own. Always true when
+			// this installation serves one tenant - there the owner is the operator - and the
+			// operator's switch otherwise (backup-restore.md §2).
+			"backup_targets": g.Config.Tenancy != env.TenancyMulti || g.Config.Backup.TenantTargets,
 		},
 	}, nil
 }

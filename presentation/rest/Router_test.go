@@ -205,13 +205,14 @@ func TestTheControllerRegistersTheSpecificationsRoutes(t *testing.T) {
 // Until a use case lands, an operation the specification declares answers 404 rather than a
 // panic or an empty 200.
 //
-// The example is a backup route rather than a container one: /containers is served since B-04, and this
-// test needs an operation that genuinely has no use case yet. It also has to be one with no path
-// parameter - a probe against `{containerId}` fails to bind before it reaches the pending set.
+// The example moves as the milestone does: it has to be an operation that genuinely has no use
+// case yet, and one with no path parameter - a probe against `{containerId}` fails to bind before
+// it reaches the pending set. It was /backup-targets until E-03 served it; the device list is what
+// is left below /sync.
 func TestAPendingOperationAnswersAProblem(t *testing.T) {
 	response := httptest.NewRecorder()
 	NewRestController().Routes().ServeHTTP(response,
-		httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/backup-targets", nil))
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/sync/devices", nil))
 
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("status %d, want 404", response.Code)

@@ -206,10 +206,20 @@ func TestDriverStaysInThePostgresAdapter(t *testing.T) {
 func TestCryptographyStaysInItsAdapter(t *testing.T) {
 	forbidden := []string{"crypto/aes", "crypto/cipher", "crypto/hkdf", "golang.org/x/crypto"}
 
-	// The two adapters that may: the envelope, and the hashing shelf that peppers tokens.
+	// The two adapters that may use a cipher at all: the envelope, and the hashing shelf that
+	// peppers tokens.
 	allowed := []string{
 		filepath.Clean("../../infrastructure/crypto"),
 		filepath.Clean("../../infrastructure/security"),
+	}
+
+	// And one narrow exception, named here rather than hidden behind a nolint. golang.org/x/crypto
+	// /ssh is a transport rather than a cipher: the SFTP target speaks SSH the way the WebDAV one
+	// speaks TLS, and neither is a second implementation of anything infrastructure/crypto does.
+	// What the rule is actually about - one AES-GCM, one nonce discipline, one place where "where
+	// does the master key live" changes - is untouched by it.
+	transports := map[string]string{
+		filepath.Clean("../../infrastructure/backupstorage"): "golang.org/x/crypto/ssh",
 	}
 
 	forEachGoFile(t, []string{"../../core", "../../presentation", "../../cmd", "../../infrastructure"},
@@ -220,6 +230,9 @@ func TestCryptographyStaysInItsAdapter(t *testing.T) {
 			}
 			for _, imp := range f.Imports {
 				importPath := strings.Trim(imp.Path.Value, `"`)
+				if allowedHere, named := transports[directory]; named && importPath == allowedHere {
+					continue
+				}
 				for _, banned := range forbidden {
 					if importPath == banned || strings.HasPrefix(importPath, banned+"/") {
 						t.Errorf("%s: %s outside infrastructure/crypto - the port is the seam (E-02)",

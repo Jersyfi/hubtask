@@ -179,6 +179,8 @@ Everything else has a self-hosting default:
 | Variable | Default | Meaning |
 |---|---|---|
 | `HUBTASK_ROLES` | `api,worker,scheduler,automation` | Which roles this process starts (ADR-0014) |
+| `HUBTASK_BACKUP_LOCAL_PATH` | `/var/lib/hubtask/backups` | The volume a `local` backup target writes inside. A target's own path is relative to it and cannot leave it, which is what keeps "write my backups to /etc" out of reach of somebody who administers the instance but not the machine. Empty means this installation serves no local targets |
+| `HUBTASK_BACKUP_TENANT_TARGETS` | `false` | Lets a tenant configure its own backup target in provider operation (`backup-restore.md` §2). A backup target is an egress channel, and one a tenant chose is an egress channel the operator did not. It has no meaning in single-tenant operation, where the tenant's owner *is* the instance administrator. A target on a private network additionally needs `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` |
 | `HUBTASK_ENCRYPTION_KEYS` | — | The master keyring for envelope encryption, as key identifiers separated by commas, **current first** (E-02). Lower-case letters, digits and underscores. Empty means this installation encrypts nothing: it starts, and refuses to store anything that would have to be sealed rather than storing it in the clear |
 | `HUBTASK_ENCRYPTION_KEY_<ID>` (`_FILE`) | — | The material of one key named above, at least 32 characters, one variable per key so that each can be its own mounted secret. A key named and not supplied fails startup — a ring quietly missing a key is a value nobody notices until an old archive will not open |
 | `HUBTASK_HTTP_ADDR` / `HUBTASK_OPS_ADDR` | `:8080` / `:9090` | Public and operations port |
