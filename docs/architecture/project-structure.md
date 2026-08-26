@@ -53,6 +53,7 @@ hubtask/
 │   │   │   ├── identity/
 │   │   │   ├── integration/
 │   │   │   └── lifecycle/          # trash/archive/retention
+│   │   ├── archive/                # the backup archive format: Manifest, Record, Writer, Reader (E-04)
 │   │   ├── repository/             # a Port.go per context (repository interfaces)
 │   │   ├── usecase/                # Registry.go — the catalogue of all use cases (REST/MCP/automation)
 │   │   └── shared/                 # Transaction.go, ActorContext.go, Result.go, Pagination.go
@@ -60,7 +61,7 @@ hubtask/
 │   ├── port/                       # outbound ports
 │   │   ├── api/Port.go             # inbound contracts (implemented/consumed by presentation)
 │   │   ├── environment/Port.go     # configuration (from the template, extended)
-│   │   ├── persistence/Port.go     # UnitOfWork, TenantScope
+│   │   ├── persistence/Port.go     # UnitOfWork, Snapshot, TenantScope
 │   │   ├── storage/Port.go         # object storage (S3/local)
 │   │   ├── mail/Port.go            # SMTP sending, IMAP intake
 │   │   ├── notification/Port.go    # channels (mail, webhook, push)

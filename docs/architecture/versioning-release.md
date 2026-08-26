@@ -17,6 +17,7 @@ Binding: **Semantic Versioning 2.0.0** (`MAJOR.MINOR.PATCH`).
 | Workspace packages (`apps/*`, `packages/*`) | `private: true`; the `version` field is not a product statement | Nothing is published to a registry, and the release automation does not read them |
 | REST API | Path major `/api/v1`; `info.version` = product version | A breaking change ⇒ a new path major *and* a new product major |
 | Event types | Suffix `.v1` per event | Additive fields need no new version |
+| Backup archive format | `format_version` in `manifest.json`, independent of the product version | It changes only when a reader that did not know about the change would misread the file. Every major adds a golden archive for the format it writes (§7); a reader refuses a version it does not know rather than importing part of it ([backup-restore.md](./backup-restore.md) §3) |
 | MCP tools | The tool name is stable | Parameters may only be added |
 | Go module | `module …/hubtask` (v0/v1); from v2 onwards the path suffix `/v2` | Relevant only if the module is used as a library |
 | DB migrations | Sequential numbers | Never changed retroactively |
@@ -151,7 +152,15 @@ major — `1.0.0`, `2.0.0`, and each one after — runs them in this order
    the **scope window closes**, and everything with external lead time — store review above all —
    is set in motion. New requirements are accepted up to the day it opens. After it there are
    defects only; anything else waits for the next minor or is an exception with its own ADR.
-3. **Stabilisation.** The major's prerequisites are demonstrated and only defects are fixed.
+3. **Stabilisation.** The major's prerequisites are demonstrated and only defects are fixed. One
+   of those prerequisites is the **golden archive**: before the major is tagged, an archive written
+   by it is committed under `test/backup/golden/v<format-version>/`, and BK-4 imports every
+   directory that is there. A major that changed nothing about the archive format adds nothing —
+   a second byte-identical copy proves nothing, and the directory it would go in already exists.
+   None is ever removed: the oldest one is the only evidence that an archive from years ago still
+   opens, and it becomes worth more, not less, with every release. Regenerating one is a deliberate
+   act at a release (`HUBTASK_WRITE_GOLDEN=1`), never something a test does when it happens to
+   disagree — an archive that rewrites itself when the reader changes proves nothing at all.
 
 **A major is released when the server, the clients and the website are finished together, from one
 commit.** There is no arrangement in which the product ships and a client follows later, because

@@ -456,32 +456,56 @@ func compare(t *testing.T, source *world, restored map[string]map[string]map[str
 
 // ── BK-4 ──────────────────────────────────────────────────────────────────────────────────────
 
-// BK-4: the golden archive in the repository imports.
+// BK-4: the golden archives in the repository import.
 //
-// The archive is committed rather than generated, and that is the whole value of it: a test that
-// writes an archive and reads it back proves the writer and the reader agree with each other,
-// which they always will. This one proves that today's reader agrees with a writer from another
-// release - and it will keep proving it when that writer no longer exists.
-func TestTheGoldenArchiveImports(t *testing.T) {
+// They are committed rather than generated, and that is the whole value of them: a test that writes
+// an archive and reads it back proves the writer and the reader agree with each other, which they
+// always will. These prove that today's reader agrees with a writer from another release - and they
+// will keep proving it when that writer no longer exists.
+//
+// Every directory under golden/ is imported, so adding one at a major release is committing a
+// directory rather than editing this file.
+func TestTheGoldenArchivesImport(t *testing.T) {
 	ctx := context.Background()
 	root, err := filepath.Abs("golden")
 	if err != nil {
-		t.Fatalf("locating the golden archive: %v", err)
+		t.Fatalf("locating the golden archives: %v", err)
 	}
+	archives, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("reading the golden archives: %v", err)
+	}
+	if len(archives) == 0 {
+		t.Fatal("no golden archive in the repository - BK-4 has nothing to import")
+	}
+
 	store := archiveStore(t, root)
 	reader := archive.NewReader(store, realCipher())
 
-	description, err := reader.Describe(ctx, "v1")
+	for _, entry := range archives {
+		if !entry.IsDir() {
+			continue
+		}
+		t.Run(entry.Name(), func(t *testing.T) {
+			importGolden(ctx, t, reader, entry.Name())
+		})
+	}
+}
+
+func importGolden(ctx context.Context, t *testing.T, reader *archive.Reader, prefix string) {
+	t.Helper()
+
+	description, err := reader.Describe(ctx, prefix)
 	if err != nil {
 		t.Fatalf("the golden archive does not describe: %v", err)
 	}
-	if description.Manifest.FormatVersion != 1 {
-		t.Fatalf("the golden archive of format 1 says %d", description.Manifest.FormatVersion)
+	if description.Manifest.FormatVersion < archive.MinimumReadableFormatVersion {
+		t.Fatalf("format version %d is below what this build reads", description.Manifest.FormatVersion)
 	}
 	if !description.Complete {
 		t.Fatal("the golden archive has no checksums.txt")
 	}
-	if err := reader.Verify(ctx, "v1"); err != nil {
+	if err := reader.Verify(ctx, prefix); err != nil {
 		t.Fatalf("the golden archive does not verify: %v", err)
 	}
 
@@ -509,9 +533,10 @@ func TestTheGoldenArchiveImports(t *testing.T) {
 	}
 }
 
-// The golden archive is written by this test with HUBTASK_WRITE_GOLDEN=1, and is otherwise only
-// read. Regenerating it is a deliberate act at a release rather than something a test does when it
-// happens to disagree - an archive that rewrites itself when the reader changes proves nothing.
+// The golden archive of the format this build writes is produced by this test with
+// HUBTASK_WRITE_GOLDEN=1, and is otherwise only read. Regenerating it is a deliberate act at a
+// release rather than something a test does when it happens to disagree - an archive that rewrites
+// itself when the reader changes proves nothing.
 //
 // It is unencrypted on purpose. Format compatibility and encryption are separate promises with
 // separate tests, and the key that would open it would have to live in this repository - where it
@@ -526,7 +551,8 @@ func TestWriteTheGoldenArchive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("locating the golden archive: %v", err)
 	}
-	if err := os.RemoveAll(filepath.Join(root, "v1")); err != nil {
+	current := fmt.Sprintf("v%d", archive.FormatVersion)
+	if err := os.RemoveAll(filepath.Join(root, current)); err != nil {
 		t.Fatalf("clearing the old golden archive: %v", err)
 	}
 	store := archiveStore(t, root)
@@ -549,7 +575,7 @@ func TestWriteTheGoldenArchive(t *testing.T) {
 
 	request := archive.Request{
 		ArchiveID:      shared.MustParseID("0198f0a0-0000-7000-8000-00000000901d"),
-		Prefix:         "v1",
+		Prefix:         current,
 		Scope:          archive.Scope{Kind: archive.ScopeTenant, ID: tenantID.String()},
 		Mode:           archive.ModeFull,
 		SnapshotAt:     theHour(4),
@@ -560,7 +586,7 @@ func TestWriteTheGoldenArchive(t *testing.T) {
 	if _, err := archive.NewWriter(store, realCipher(), source).Write(ctx, request, source); err != nil {
 		t.Fatalf("writing the golden archive: %v", err)
 	}
-	t.Logf("golden archive written to %s - commit it", filepath.Join(root, "v1"))
+	t.Logf("golden archive written to %s - commit it", filepath.Join(root, current))
 }
 
 // ── Rule 10 ───────────────────────────────────────────────────────────────────────────────────
