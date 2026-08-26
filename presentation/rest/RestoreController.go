@@ -161,10 +161,10 @@ func (c *RestController) StartRestore(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Selection != nil {
 		if body.Selection.ContainerIds != nil {
-			in["selection.container_ids"] = identifierList(*body.Selection.ContainerIds)
+			in["selection_container_ids"] = identifierList(*body.Selection.ContainerIds)
 		}
 		if body.Selection.ItemIds != nil {
-			in["selection.item_ids"] = identifierList(*body.Selection.ItemIds)
+			in["selection_item_ids"] = identifierList(*body.Selection.ItemIds)
 		}
 	}
 

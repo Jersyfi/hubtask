@@ -581,6 +581,15 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 				Description: "For a destructive mode, the workspace's name, typed exactly.",
 			},
 			{
+				Name: "selection_container_ids", Kind: usecase.KindIDList,
+				Description: "For a SELECTIVE restore, the collections and hubs to bring back - " +
+					"and with them everything that hangs off one.",
+			},
+			{
+				Name: "selection_item_ids", Kind: usecase.KindIDList,
+				Description: "For a SELECTIVE restore, the entries to bring back.",
+			},
+			{
 				Name: "step_up_token", Kind: usecase.KindString,
 				Description: "For a destructive mode, the proof of a fresh, stronger " +
 					"authentication. No installation can issue one yet, so a destructive mode is " +
@@ -640,8 +649,8 @@ func (h StartRestore) invoke(
 func selectionIn(in usecase.Input) (domain.Selection, error) {
 	var selection domain.Selection
 	for name, into := range map[string]*[]shared.ID{
-		"selection.container_ids": &selection.ContainerIDs,
-		"selection.item_ids":      &selection.ItemIDs,
+		"selection_container_ids": &selection.ContainerIDs,
+		"selection_item_ids":      &selection.ItemIDs,
 	} {
 		if !in.Present(name) {
 			continue

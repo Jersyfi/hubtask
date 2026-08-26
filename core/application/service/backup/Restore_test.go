@@ -503,3 +503,45 @@ func TestTheRestoreDescriptorsSayWhatTheyDo(t *testing.T) {
 		t.Error("reading a restore is not registered as read-only")
 	}
 }
+
+// The registry validates an input against the declared fields before the handler ever sees it, so
+// a field the controller sends and the descriptor does not declare is a 400 on a route that looks
+// implemented. This is the shape the REST controller builds, judged by the descriptor that will
+// receive it.
+func TestTheDeclaredFieldsAreTheOnesTheChannelsSend(t *testing.T) {
+	full := usecase.Input{
+		"target_id":               targetID.String(),
+		"archive_id":              "hubtask-backup-x-20260101T030000Z-full",
+		"mode":                    "SELECTIVE",
+		"target_tenant_id":        tenantID.String(),
+		"conflict_rule":           "SKIP",
+		"dry_run":                 true,
+		"create_safety_backup":    true,
+		"confirmation":            "Acme GmbH",
+		"step_up_token":           "a-proof",
+		"selection_container_ids": []any{tenantID.String()},
+		"selection_item_ids":      []any{tenantID.String()},
+	}
+	if err := (StartRestore{}).Descriptor().ValidateInput(full); err != nil {
+		t.Fatalf("the input the controller builds was refused: %v", err)
+	}
+
+	if err := (GetRestoreRun{}).Descriptor().ValidateInput(
+		usecase.Input{"restore_id": restoreID.String()}); err != nil {
+		t.Fatalf("reading a restore was refused: %v", err)
+	}
+	if err := (ListBackupsAtTarget{}).Descriptor().ValidateInput(usecase.Input{
+		"target_id": targetID.String(), "tenant_id": tenantID.String(), "refresh": true,
+	}); err != nil {
+		t.Fatalf("the listing's input was refused: %v", err)
+	}
+
+	// And the selection actually reaches the request, rather than being declared and dropped.
+	selection, err := selectionIn(full)
+	if err != nil {
+		t.Fatalf("reading the selection: %v", err)
+	}
+	if len(selection.ContainerIDs) != 1 || len(selection.ItemIDs) != 1 {
+		t.Fatalf("the selection came through as %+v", selection)
+	}
+}
