@@ -672,6 +672,10 @@
   "backup.credentials_unserialisable": "This installation could not store that target's credentials.",
   "backup.credentials_unreadable": "This installation could not read that target's credentials.",
 
+  "backup.archive_format_unsupported": "That archive is written in format version {format_version}, and this version of Hubtask reads up to {supported}. Restore it with a newer Hubtask.",
+  "backup.archive_manifest_unreadable": "That archive's manifest could not be read. It is not a Hubtask archive, or it has been altered.",
+  "backup.archive_manifest_invalid": "That archive's manifest is missing {reason}, so it cannot be restored.",
+
   "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",
   "config.backup_single_target": "There is only one backup target. Two, in different places, is the point of the 3-2-1 rule.",
