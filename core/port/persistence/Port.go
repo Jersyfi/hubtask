@@ -16,6 +16,7 @@ package persistence
 
 import (
 	"context"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -80,6 +81,35 @@ type UnitOfWork interface {
 	// Beware replication lag: after a write, read from the primary within the same request
 	// (multi-tenancy.md §7).
 	WithinReadOnly(ctx context.Context, scope Scope, fn func(ctx context.Context) error) error
+}
+
+// Snapshot runs work against one consistent point in time.
+//
+// A separate interface from UnitOfWork rather than a third method on it, and the reason is
+// practical rather than doctrinal: almost nothing needs this. A request reads what is there now,
+// and READ COMMITTED is right for that - it sees each statement's own view and holds no snapshot
+// across a long call. An export is the exception, and an interface every double in the repository
+// has to implement for the sake of one caller is a tax on the other ninety.
+//
+// What it buys is the guarantee backup-restore.md §5 requires: the archive represents one point in
+// time rather than a mixture of before and after. Without it a run that reads containers, then
+// items three minutes later, then comments after that produces an archive in which an item belongs
+// to a container that does not exist yet - which restores as a foreign key violation on the worst
+// possible day.
+type Snapshot interface {
+	// WithinSnapshot runs fn in a read-only transaction with a REPEATABLE READ snapshot, and
+	// tells it when that snapshot was taken.
+	//
+	// The instant comes from the database rather than from the caller's clock, and that is
+	// deliberate: it is what `backup_run.snapshot_at` records, what the manifest carries, and
+	// what the next incremental run reads from. One clock for the whole chain, and it is the
+	// clock the rows' own timestamps were written by - a process clock a second ahead would
+	// produce a chain with a hole in it that nothing would ever report.
+	//
+	// A snapshot cannot join a transaction that is already running: the isolation level of a
+	// transaction is fixed when it begins, so joining would silently give the caller READ
+	// COMMITTED under a method that promises otherwise.
+	WithinSnapshot(ctx context.Context, scope Scope, fn func(ctx context.Context, at time.Time) error) error
 }
 
 // ScopeFromContext returns the scope a unit of work was opened with. It exists so that a
