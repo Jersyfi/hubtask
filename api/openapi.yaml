@@ -44,6 +44,7 @@ tags:
   - name: sync
   - name: views
   - name: calendar
+  - name: jobs
 
 paths:
   /templates:
@@ -773,6 +774,57 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+
+  /jobs/{jobId}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      tags: [jobs]
+      operationId: getJob
+      summary: How a piece of background work is getting on
+      description: >
+        What a `202 Accepted` handed back is polled here. The answer is the status, how far along
+        it is where the job can say so, where the result will be, and the code of the last failure
+        - and nothing else the queue row holds.
+
+        A job belongs to the tenant that asked for it and is answered to that tenant only. A job
+        that belongs to no tenant - the queue's own housekeeping - is answered to nobody here, and
+        is indistinguishable from one that never existed.
+      responses:
+        "200":
+          description: The job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jobs/{jobId}:cancel:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      tags: [jobs]
+      operationId: cancelJob
+      summary: Stop a piece of background work
+      description: >
+        Cooperative, not a kill: it moves the job to `CANCELLED`, and a pass that is under way
+        finds at its next write that the job is no longer its own and leaves nothing behind. What
+        a pass already put outside the database - bytes at a backup target, a message handed to a
+        mail server - a cancellation cannot take back.
+
+        A job that has already finished, failed or been cancelled answers `409`: there is nothing
+        left to stop, and pretending otherwise would let a client believe it had prevented
+        something that had already happened.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: The job, now cancelled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /trash:
     get:
@@ -3231,6 +3283,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     MediaId:
       name: mediaId
       in: path
@@ -5407,14 +5464,61 @@ components:
         last_cursor: { type: [string, "null"] }
         blocked: { type: boolean }
 
+    JobStatus:
+      type: string
+      description: >
+        What a caller sees of a job's life. Five states rather than the queue's six: a job the
+        queue gave up on is `FAILED`, because "it did not work and will not be tried again" is
+        the whole of what a caller can act on, and the dead letter is an operator's word for
+        where the row went.
+      enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]
+
     JobRef:
       type: object
+      description: >
+        The pointer a `202 Accepted` hands back. It is the same shape as `Job`, narrowed to what
+        is knowable at the moment the work was accepted.
       required: [job_id, status]
       properties:
         job_id: { type: string, format: uuid }
-        status: { type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED] }
+        status: { $ref: "#/components/schemas/JobStatus" }
         progress: { type: [number, "null"] }
         result_url: { type: [string, "null"] }
+
+    Job:
+      type: object
+      description: >
+        Background work, as the caller who asked for it sees it. Deliberately narrow: the queue's
+        row also carries the payload, the attempt count, the lease and the deduplication key, and
+        all four are the queue's business rather than a caller's - a payload can name objects the
+        caller may not resolve, and an attempt count invites a client to reason about a retry
+        policy that is not part of the contract. Widening this later is additive; narrowing it
+        would not be.
+      required: [job_id, status, progress, result_url, error_code, created_at, finished_at]
+      properties:
+        job_id: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/JobStatus" }
+        progress:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+          description: >
+            How far along, between 0 and 1, or `null` from a job that cannot say. `null` is the
+            honest answer rather than a number nobody computed - a client renders an
+            indeterminate bar for it.
+        result_url:
+          type: [string, "null"]
+          description: Where what the job produced can be fetched, once there is something.
+        error_code:
+          type: [string, "null"]
+          description: >
+            The message code of the last failure, never a message and never free text
+            (ADR-0011). Set on a `FAILED` job, and on a job that is being retried.
+        created_at: { type: string, format: date-time }
+        finished_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the job reached a terminal state. `null` while it has not.
 
     HealthStatus:
       type: string

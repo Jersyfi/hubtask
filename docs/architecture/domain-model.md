@@ -396,6 +396,16 @@ there is nothing for MCP or an automation rule to call, and it is served by the 
 
 **Search** `SearchItems` (full text, optionally semantic).
 
+**Jobs** `GetJob`, `CancelJob`. The resource three `202 Accepted` responses have been pointing at
+since A-06, registered with E-01. Two permissions rather than one: reading a job is `READ` and
+stopping one is `STRUCTURE`, because "show me" and "stop it" are different questions and a viewer
+who may watch a restore must not be able to abandon it half way. Both are asked at the **tenant**,
+which is not a shortcut - a job is anchored to nothing, so there is no path along which a
+hub-scoped membership could be resolved, and every job kind the system creates today is the
+workspace's rather than one hub's. What a job answers is deliberately narrow: its status, its
+progress where it can compute one, a result reference and the code of the last failure. The
+payload, the attempt count, the lease and the deduplication key are the queue's and stay there.
+
 ---
 
 ## 6. Persistence sketch

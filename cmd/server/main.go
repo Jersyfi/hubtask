@@ -27,6 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
@@ -261,6 +262,9 @@ func run() error {
 	// The queue is wired into the write path before any worker exists: an event carries its own
 	// wake-up, so the dispatcher finds work whether or not this process is the one that runs it.
 	jobs := postgres.NewQueue(ids, clockadapter.System{})
+	// The same rows, asked the other question: jobRecords is what a caller polls, and it
+	// shares no statement with the queue - see infrastructure/postgres/JobRepository.go.
+	jobRecords := postgres.NewJobRepository()
 
 	// One observer for both channels: a use case gets its span through the registry middleware, a
 	// job through the runner's hook. Two constructions would be two tracers with the same name.
@@ -840,6 +844,14 @@ func run() error {
 		mediaservice.ListAttachments{
 			Objects: mediaObjects, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+
+		jobservice.GetJob{
+			Jobs: jobRecords, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		jobservice.CancelJob{
+			Jobs: jobRecords, Authorizer: authorizer, Audit: auditSink,
+			Clock: clockadapter.System{}, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 	)
 	if err != nil {

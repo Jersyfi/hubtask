@@ -11,6 +11,53 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelJob = `-- name: CancelJob :one
+UPDATE job SET
+  state        = 'CANCELLED',
+  finished_at  = $1,
+  locked_until = NULL
+WHERE id = $2
+  AND tenant_id = $3
+  AND state IN ('PENDING', 'RUNNING')
+RETURNING id, tenant_id, state, last_error, created_at, finished_at
+`
+
+type CancelJobParams struct {
+	Now      pgtype.Timestamptz
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+}
+
+type CancelJobRow struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	State      string
+	LastError  *string
+	CreatedAt  pgtype.Timestamptz
+	FinishedAt pgtype.Timestamptz
+}
+
+// Cancellation, and it is the state change alone: no lease is named, because the caller holds
+// none. A pass that is under way is not interrupted - it finds at its next write that the row is
+// no longer RUNNING under its lease, and rolls back rather than applying its work (test RT-3 is
+// the same fence). The lease is cleared so that nothing waits for it to expire.
+//
+// The state condition is what makes a terminal job a conflict rather than a silent overwrite: a
+// job that succeeded a second ago must not read back as cancelled.
+func (q *Queries) CancelJob(ctx context.Context, arg CancelJobParams) (CancelJobRow, error) {
+	row := q.db.QueryRow(ctx, cancelJob, arg.Now, arg.ID, arg.TenantID)
+	var i CancelJobRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.State,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.FinishedAt,
+	)
+	return i, err
+}
+
 const claimJobs = `-- name: ClaimJobs :many
 UPDATE job SET
   state        = 'RUNNING',
@@ -180,6 +227,48 @@ func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) error {
 		arg.MaxAttempts,
 	)
 	return err
+}
+
+const findJob = `-- name: FindJob :one
+SELECT id, tenant_id, state, last_error, created_at, finished_at
+FROM job
+WHERE id = $1 AND tenant_id = $2
+`
+
+type FindJobParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+}
+
+type FindJobRow struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	State      string
+	LastError  *string
+	CreatedAt  pgtype.Timestamptz
+	FinishedAt pgtype.Timestamptz
+}
+
+// What a caller polls, and the only two statements here that are asked on somebody's behalf
+// rather than by a worker. They therefore carry the tenant condition themselves - the job table
+// has no row level security, so there is no policy underneath that would catch a forgotten one,
+// and a NULL tenant_id (the queue's own housekeeping) matches no caller's tenant by construction.
+//
+// The columns are the resource's, not the row's: no payload, no attempt count, no lease, no
+// dedupe key. Selecting them and dropping them later is how one of them eventually reaches a
+// response by accident.
+func (q *Queries) FindJob(ctx context.Context, arg FindJobParams) (FindJobRow, error) {
+	row := q.db.QueryRow(ctx, findJob, arg.ID, arg.TenantID)
+	var i FindJobRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.State,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.FinishedAt,
+	)
+	return i, err
 }
 
 const holdJob = `-- name: HoldJob :one

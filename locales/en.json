@@ -629,5 +629,10 @@
   "calendar.owner_required": "A calendar feed reads as a person. A service account has nobody to read as.",
   "calendar.token_unmintable": "This installation could not draw the randomness a feed token needs. Try again.",
 
+  "jobs.not_found": "There is no such job.",
+  "jobs.job_id_required": "Which job? Send job_id.",
+  "jobs.already_finished": "That job is already {status}. There is nothing left to stop.",
+  "jobs.cancellation_raced": "That job changed while it was being stopped. Ask for it again to see where it stands.",
+
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }
