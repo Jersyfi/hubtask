@@ -195,3 +195,33 @@ WHERE w.deleted_at IS NULL
   AND (sqlc.arg('scope_kind')::text = 'TENANT'
        OR (sqlc.arg('scope_kind')::text = 'HUB' AND c.parent_id = sqlc.arg('scope_id')::uuid)
        OR (sqlc.arg('scope_kind')::text = 'COLLECTION' AND w.collection_id = sqlc.arg('scope_id')::uuid));
+
+-- The numerator of the five-per-cent switch and of a preview, per anchor.
+--
+-- Exact rather than bounded, because §5's switch is about a proportion and a count that stopped at a
+-- batch would under-report exactly the runs the switch exists to catch. Within the rule's scope and
+-- ignoring narrower rules, which over-counts where one exists - and over-counting errs towards
+-- NOTIFY_ONLY, which is the side to err on.
+
+-- name: CountRetentionCandidatesByCompletedAt :one
+SELECT count(*)::bigint
+FROM work_item w
+JOIN container c ON c.id = w.collection_id
+WHERE w.completed_at IS NOT NULL
+  AND w.completed_at < sqlc.arg('cutoff')::timestamptz
+  AND w.deleted_at IS NULL
+  AND w.archived_at IS NULL
+  AND (sqlc.arg('scope_kind')::text = 'TENANT'
+       OR (sqlc.arg('scope_kind')::text = 'HUB' AND c.parent_id = sqlc.arg('scope_id')::uuid)
+       OR (sqlc.arg('scope_kind')::text = 'COLLECTION' AND w.collection_id = sqlc.arg('scope_id')::uuid));
+
+-- name: CountRetentionCandidatesByArchivedAt :one
+SELECT count(*)::bigint
+FROM work_item w
+JOIN container c ON c.id = w.collection_id
+WHERE w.archived_at IS NOT NULL
+  AND w.archived_at < sqlc.arg('cutoff')::timestamptz
+  AND w.deleted_at IS NULL
+  AND (sqlc.arg('scope_kind')::text = 'TENANT'
+       OR (sqlc.arg('scope_kind')::text = 'HUB' AND c.parent_id = sqlc.arg('scope_id')::uuid)
+       OR (sqlc.arg('scope_kind')::text = 'COLLECTION' AND w.collection_id = sqlc.arg('scope_id')::uuid));

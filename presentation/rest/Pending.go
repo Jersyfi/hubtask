@@ -523,6 +523,8 @@ func (pending) GetRestoreRun(w http.ResponseWriter, r *http.Request, _ openapi_t
 	notAvailable(w, r)
 }
 
+// The three retention operations. Overridden by RestController; they stay here for the reason the
+// others do - the compile-time assertion is on `pending` itself.
 func (pending) ListRetentionPolicies(w http.ResponseWriter, r *http.Request, _ openapi.ListRetentionPoliciesParams) {
 	notAvailable(w, r)
 }

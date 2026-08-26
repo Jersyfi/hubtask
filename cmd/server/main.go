@@ -428,6 +428,17 @@ func run() error {
 		TombstoneWindow: cfg.Retention.TombstoneWindow, BatchSize: cfg.Retention.BatchSize,
 	}
 
+	// The rule model of data-retention.md §2 (E-07). One set for the three use cases, so that the
+	// share a newly created rule reports and the share its preview reports come from the same
+	// reading - RE-7 is exactly that they agree.
+	retentionRules := lifecycle.Rules{
+		Rules:      postgres.NewRetentionRuleRepository(),
+		Marking:    postgres.NewRetentionMarkingRepository(),
+		Holds:      lifecycleStore,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	// Every verb that moves an entry between the archive and the trash shares one dependency set.
 	// They are the same walk with a different transition in the middle, and wiring them separately
 	// would be one more place for "restoring records what trashing records" to stop being true
@@ -815,6 +826,9 @@ func run() error {
 		lifecycle.EmptyTrash{
 			Purger: purger, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		lifecycle.CreateRetentionPolicy{Rules: retentionRules}.Descriptor(),
+		lifecycle.ListRetentionPolicies{Rules: retentionRules}.Descriptor(),
+		lifecycle.PreviewRetentionPolicy{Rules: retentionRules}.Descriptor(),
 
 		mediaservice.RequestMediaUpload{
 			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink, Jobs: jobs,

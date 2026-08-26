@@ -205,6 +205,15 @@ type Marking interface {
 	// pass. A parent with any is kept back, and goes on the pass after the last of them.
 	RetainedDescendants(ctx context.Context, ids, going []shared.ID) (map[shared.ID]int, error)
 
+	// CountDue is the numerator of §5's five-per-cent switch and of a preview: how many entries in
+	// the rule's scope are past its cutoff.
+	//
+	// Exact rather than bounded, because the switch is about a proportion and a count that stopped
+	// at a batch would under-report exactly the runs it exists to catch. It ignores narrower rules
+	// inside the scope, which over-counts where one exists - and over-counting errs towards
+	// NOTIFY_ONLY, which is the side to err on.
+	CountDue(ctx context.Context, anchor domain.Anchor, scope domain.Scope, cutoff time.Time) (int, error)
+
 	// CountScope is the denominator of §5's five-per-cent switch: how much the tenant holds in the
 	// scope a rule covers.
 	CountScope(ctx context.Context, scope domain.Scope) (int, error)

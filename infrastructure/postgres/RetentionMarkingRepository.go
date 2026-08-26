@@ -295,6 +295,40 @@ func (r RetentionMarkingRepository) RetainedDescendants(
 	return counted, nil
 }
 
+// CountDue is how many entries in a rule's scope are past its cutoff.
+func (r RetentionMarkingRepository) CountDue(
+	ctx context.Context, anchor domain.Anchor, scope domain.Scope, cutoff time.Time,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	scopeID, err := optionalUUID(scope.ID)
+	if err != nil {
+		return 0, err
+	}
+
+	var due int64
+	switch anchor {
+	case domain.AnchorCompletedAt:
+		due, err = queries.CountRetentionCandidatesByCompletedAt(ctx,
+			sqlc.CountRetentionCandidatesByCompletedAtParams{
+				Cutoff: timestampOf(cutoff), ScopeKind: string(scope.Kind), ScopeID: scopeID,
+			})
+	case domain.AnchorArchivedAt:
+		due, err = queries.CountRetentionCandidatesByArchivedAt(ctx,
+			sqlc.CountRetentionCandidatesByArchivedAtParams{
+				Cutoff: timestampOf(cutoff), ScopeKind: string(scope.Kind), ScopeID: scopeID,
+			})
+	default:
+		return 0, shared.Internalf("postgres: no retention count for the anchor %q", anchor)
+	}
+	if err != nil {
+		return 0, candidateFailure(anchor, err)
+	}
+	return int(due), nil
+}
+
 // CountScope is the denominator of the five-per-cent switch.
 func (r RetentionMarkingRepository) CountScope(
 	ctx context.Context, scope domain.Scope,

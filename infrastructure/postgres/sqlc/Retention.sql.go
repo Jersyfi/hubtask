@@ -143,6 +143,64 @@ func (q *Queries) CountRetainedDescendants(ctx context.Context, arg CountRetaine
 	return items, nil
 }
 
+const countRetentionCandidatesByArchivedAt = `-- name: CountRetentionCandidatesByArchivedAt :one
+SELECT count(*)::bigint
+FROM work_item w
+JOIN container c ON c.id = w.collection_id
+WHERE w.archived_at IS NOT NULL
+  AND w.archived_at < $1::timestamptz
+  AND w.deleted_at IS NULL
+  AND ($2::text = 'TENANT'
+       OR ($2::text = 'HUB' AND c.parent_id = $3::uuid)
+       OR ($2::text = 'COLLECTION' AND w.collection_id = $3::uuid))
+`
+
+type CountRetentionCandidatesByArchivedAtParams struct {
+	Cutoff    pgtype.Timestamptz
+	ScopeKind string
+	ScopeID   pgtype.UUID
+}
+
+func (q *Queries) CountRetentionCandidatesByArchivedAt(ctx context.Context, arg CountRetentionCandidatesByArchivedAtParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRetentionCandidatesByArchivedAt, arg.Cutoff, arg.ScopeKind, arg.ScopeID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countRetentionCandidatesByCompletedAt = `-- name: CountRetentionCandidatesByCompletedAt :one
+
+SELECT count(*)::bigint
+FROM work_item w
+JOIN container c ON c.id = w.collection_id
+WHERE w.completed_at IS NOT NULL
+  AND w.completed_at < $1::timestamptz
+  AND w.deleted_at IS NULL
+  AND w.archived_at IS NULL
+  AND ($2::text = 'TENANT'
+       OR ($2::text = 'HUB' AND c.parent_id = $3::uuid)
+       OR ($2::text = 'COLLECTION' AND w.collection_id = $3::uuid))
+`
+
+type CountRetentionCandidatesByCompletedAtParams struct {
+	Cutoff    pgtype.Timestamptz
+	ScopeKind string
+	ScopeID   pgtype.UUID
+}
+
+// The numerator of the five-per-cent switch and of a preview, per anchor.
+//
+// Exact rather than bounded, because §5's switch is about a proportion and a count that stopped at a
+// batch would under-report exactly the runs the switch exists to catch. Within the rule's scope and
+// ignoring narrower rules, which over-counts where one exists - and over-counting errs towards
+// NOTIFY_ONLY, which is the side to err on.
+func (q *Queries) CountRetentionCandidatesByCompletedAt(ctx context.Context, arg CountRetentionCandidatesByCompletedAtParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRetentionCandidatesByCompletedAt, arg.Cutoff, arg.ScopeKind, arg.ScopeID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countRetentionScope = `-- name: CountRetentionScope :one
 SELECT count(*)::bigint
 FROM work_item w
