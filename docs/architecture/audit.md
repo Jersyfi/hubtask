@@ -96,7 +96,13 @@ responses in clear text (metadata only: provider, model, purpose, scope).
 
 For `changes`, a **field classification** from the data catalogue applies: `OPEN` (the value in
 clear text, e.g. a status change `OPEN → DONE`), `SENSITIVE` (only "changed" plus a hash for
-comparability, e.g. a title), `SECRET` (not at all). This keeps the trail meaningful without it
+comparability, e.g. a title), `SECRET` (not at all).
+
+These three are a *masking policy* rather than a fourth vocabulary of classes, and since E-11 they
+are **derived** from the six of `data-protection.md` §3 by `audit.MaskingFor`: `NON_PERSONAL` and
+`PERSONAL_TECHNICAL` are open, `PERSONAL_BASIC`, `PERSONAL_CONTENT` and `SPECIAL_CATEGORY_RISK` are
+sensitive, `SECRET` is not recorded. A field written with no classification at all is masked rather
+than opened — gate PG-1 refuses one at build time, and the masking refuses one at run time. This keeps the trail meaningful without it
 becoming a data collection in its own right — an audit log that keeps every title change in full
 text undermines the deletion obligation of the very item it documents.
 

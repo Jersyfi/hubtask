@@ -45,7 +45,11 @@ The full record: [data-catalog.md](../privacy/data-catalog.md) (a record of proc
 the sense of Art. 30, versioned in the repository).
 
 Every field in the model carries a classification, held machine-readably in the
-`CustomFieldDefinition` or in the metadata of the domain models:
+`CustomFieldDefinition` or in the metadata of the domain models. Since E-11 the six classes are a
+type - `shared.DataClass` - rather than a list in a document, because three vocabularies had grown
+where there should have been one: this table's six, the data catalogue's five (it had lost
+`SPECIAL_CATEGORY_RISK`), and `audit.md` §4's three, which are not classes at all but a *masking*
+policy. There is one vocabulary and one derivation now, and both are code a gate can read.
 
 | Class | Meaning | Effect in the system |
 |---|---|---|
@@ -55,6 +59,18 @@ Every field in the model carries a classification, held machine-readably in the
 | `PERSONAL_TECHNICAL` | IP address, user agent, session and device characteristics | Stored truncated, short retention |
 | `SPECIAL_CATEGORY_RISK` | The product deliberately collects no such category, but free text can contain health or similar data (Art. 9) | A note to operators in the documentation; heightened care with AI transmission and indexing |
 | `SECRET` | Passwords, tokens, keys | Only hashed/encrypted, never exported, never audited |
+
+**The derivation to the trail's masking** (`audit.MaskingFor`, `audit.md` §4): `NON_PERSONAL` and
+`PERSONAL_TECHNICAL` are recorded as they are, because technical data is already reduced where it
+is written - an address truncated to a prefix, a user agent to a class. `PERSONAL_BASIC`,
+`PERSONAL_CONTENT` and `SPECIAL_CATEGORY_RISK` are recorded as "changed" with a fingerprint.
+`SECRET` is not recorded at all. A class this build does not recognise is treated as the middle
+one, because guessing "record it in clear text" is the one direction that cannot be taken back.
+
+There is one stated exception, and it is stated rather than derived: the **actor's label** is
+`PERSONAL_BASIC` and travels in the trail in clear, because an entry that only pointed at a foreign
+key becomes unreadable once the account is deleted ([audit.md](./audit.md) §2). An erasure answers
+it with a pseudonym at the boundary instead (§6).
 
 The `SPECIAL_CATEGORY_RISK` class is named deliberately: a task manager collects no health data —
 but "reschedule MRI appointment, oncology" sits in a free text field. That is why free text content

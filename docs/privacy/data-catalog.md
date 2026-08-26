@@ -18,7 +18,13 @@ locations, retention, and deletion path. The basis for the record of processing 
 ## 1. Legend
 
 **Classification:** `NON_PERSONAL` · `PERSONAL_BASIC` · `PERSONAL_CONTENT` ·
-`PERSONAL_TECHNICAL` · `SECRET` (see the concept, §3)
+`PERSONAL_TECHNICAL` · `SPECIAL_CATEGORY_RISK` · `SECRET` — the six classes of the concept
+([data-protection.md](../architecture/data-protection.md) §3), which are `shared.DataClass` in code
+since E-11. This legend listed five until then; the missing one was `SPECIAL_CATEGORY_RISK`, which
+is exactly the class a record of processing activities must not be missing.
+
+The trail's masking vocabulary — `OPEN`, `SENSITIVE`, `SECRET` — is **not** a fourth set of classes.
+It is derived from these six by `audit.MaskingFor` ([audit.md](../architecture/audit.md) §4).
 
 **Deletion path:** `CASCADE` (with the parent object) · `ANONYMIZE` (the reference is removed, the
 record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit retention) ·
