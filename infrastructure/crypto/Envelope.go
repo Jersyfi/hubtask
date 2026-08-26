@@ -87,7 +87,11 @@ func (e Envelope) ActiveKeyID() string { return e.ring.ActiveKeyID() }
 func (e Envelope) Seal(
 	_ context.Context, plaintext secret.Secret, purpose port.Purpose,
 ) (port.Sealed, error) {
-	if len(plaintext.Reveal()) > maxPlaintextBytes {
+	// Revealed once, into one variable: three calls would be three places for the bound below and
+	// the allocation further down to be about different values - which is exactly what a static
+	// analyser cannot see through, and it is right not to.
+	value := []byte(plaintext.Reveal())
+	if len(value) > maxPlaintextBytes {
 		// Refused rather than truncated, and refused before the key is touched: a value this
 		// large is not a credential, and sealing part of one would store something that opens to
 		// a broken secret.
@@ -134,12 +138,12 @@ func (e Envelope) Seal(
 		return port.Sealed{}, err
 	}
 
-	sealed := make([]byte, 0, minimumLength+len(plaintext.Reveal()))
+	sealed := make([]byte, 0, minimumLength+len(value))
 	sealed = append(sealed, envelopeVersion)
 	sealed = append(sealed, wrapNonce...)
 	sealed = masterGCM.Seal(sealed, wrapNonce, dataKey, additional(wrapLabel, purpose))
 	sealed = append(sealed, dataNonce...)
-	sealed = dataGCM.Seal(sealed, dataNonce, []byte(plaintext.Reveal()), additional(dataLabel, purpose))
+	sealed = dataGCM.Seal(sealed, dataNonce, value, additional(dataLabel, purpose))
 
 	return port.Sealed{KeyID: e.ring.ActiveKeyID(), Ciphertext: sealed}, nil
 }
