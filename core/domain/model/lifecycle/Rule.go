@@ -126,6 +126,13 @@ type NewRuleInput struct {
 	ExportTargetID shared.ID
 	CreatedBy      shared.ID
 	Now            time.Time
+	// Ceiling is the upper bound in force for this kind, and zero when there is none.
+	//
+	// A parameter rather than a field of the catalogue, because §4.4 makes it the operator's:
+	// "prevent effectively unlimited storage **where the operator has set a maximum period**". The
+	// catalogue's kinds carry no maximum, and `retention_policy.max_days` is where an operator puts
+	// one - so the caller reads it and hands it in, and the domain decides what it means.
+	Ceiling int
 }
 
 // NewRule builds a rule and refuses what the model cannot mean.
@@ -252,22 +259,30 @@ func validateBounds(in NewRuleInput, kind Kind) error {
 			WithFields(shared.FieldError{Path: "/retain_days", Code: CodeBelowLowerBound})
 	}
 	total := in.RetainDays + in.ThenAfterDays
-	if ceiling := kind.Ceiling(); ceiling > 0 && total > ceiling &&
+	if ceiling := ceilingOf(in, kind); ceiling > 0 && total > ceiling &&
 		strings.TrimSpace(in.Justification) == "" {
 		return shared.ErrValidation.WithDetail(CodeJustificationRequired).
 			WithParams(map[string]string{
-				"data_kind": string(in.DataKind), "max_days": strconv.Itoa(ceiling),
+				"data_kind": string(in.DataKind), "max_days": strconv.Itoa(ceilingOf(in, kind)),
 			}).
 			WithFields(shared.FieldError{Path: "/justification", Code: CodeJustificationRequired})
 	}
 	return nil
 }
 
-// ExceedsCeiling reports a rule whose whole chain runs past the kind's upper bound, which is what
-// §4.4 makes auditable. Read from the rule rather than remembered from the request, so that the
-// audit entry and the refusal are decided by the same reading.
-func (r Rule) ExceedsCeiling(kind Kind) bool {
-	ceiling := kind.Ceiling()
+// ceilingOf is the upper bound in force: the operator's where they have set one, and the
+// catalogue's otherwise. Today no kind carries one, so the operator's is the only one there is.
+func ceilingOf(in NewRuleInput, kind Kind) int {
+	if in.Ceiling > 0 {
+		return in.Ceiling
+	}
+	return kind.Ceiling()
+}
+
+// ExceedsCeiling reports a rule whose whole chain runs past an upper bound, which is what §4.4
+// makes auditable. Read from the rule rather than remembered from the request, so that the audit
+// entry and the refusal are decided by the same reading.
+func (r Rule) ExceedsCeiling(ceiling int) bool {
 	return ceiling > 0 && r.RetainDays+r.ThenAfterDays > ceiling
 }
 

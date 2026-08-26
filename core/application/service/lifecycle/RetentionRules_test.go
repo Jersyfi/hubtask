@@ -62,6 +62,7 @@ var _ repository.Rules = (*ruleStore)(nil)
 type markingStore struct {
 	due        []repository.Candidate
 	dueMarked  []repository.Candidate
+	inChain    []repository.Candidate
 	countDue   int
 	scopeCount int
 	marked     []shared.ID
@@ -84,7 +85,7 @@ func (s *markingStore) Due(
 func (s *markingStore) DueInChain(
 	_ context.Context, _ domain.Anchor, _ shared.ID, _ time.Time, _ int,
 ) ([]repository.Candidate, error) {
-	return nil, nil
+	return s.inChain, nil
 }
 
 func (s *markingStore) Mark(

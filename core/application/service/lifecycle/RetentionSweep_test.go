@@ -322,3 +322,85 @@ func TestAnExportWithNoWriterAtAllIsRefused(t *testing.T) {
 		t.Fatalf("refused with %v", err)
 	}
 }
+
+// A chain's second stage asks a different question of a different column: what did *this rule*
+// archive long enough ago. The restriction to its own work is what keeps a chain from sweeping up an
+// entry somebody archived by hand.
+func TestAChainsSecondStageAnnouncesWhatItsFirstOneArchived(t *testing.T) {
+	h := newSweepHarness()
+	rule := h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.ThenAfterDays, in.ThenAction = 730, domain.ActionHardDelete
+	})
+	h.marking.inChain = []repository.Candidate{
+		candidate(taskID, now.AddDate(0, 0, -800)),
+	}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if len(h.marking.marked) != 1 || h.marking.marked[0] != taskID {
+		t.Fatalf("the second stage announced %+v", h.marking.marked)
+	}
+	// What it announced is the second stage's action, not the first one's - an object that said
+	// "will be archived" while it was about to be deleted would be the announcement lying.
+	announced, ok := h.changes.recorded[0].Payload["retention"].(map[string]any)
+	if !ok || announced["action"] != string(domain.ActionHardDelete) {
+		t.Fatalf("the change log says %+v", h.changes.recorded[0].Payload)
+	}
+	if announced["policy_id"] != rule.ID.String() {
+		t.Errorf("the announcement names %v", announced["policy_id"])
+	}
+}
+
+// A rule with no second stage asks the question at all, which is what keeps a one-stage rule from
+// re-announcing what it has already acted on.
+func TestARuleWithNoChainNeverAsksTheSecondQuestion(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(*domain.NewRuleInput) {})
+	h.marking.inChain = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -800))}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if len(h.marking.marked) != 0 {
+		t.Fatalf("a rule with no chain announced a second stage: %+v", h.marking.marked)
+	}
+}
+
+// Phase two trashes as well as archives, and one act is one batch identifier - which is what makes
+// one act one restore (F-09).
+func TestATrashStageMovesTheEntryIntoTheTrash(t *testing.T) {
+	h := newSweepHarness()
+	rule := h.ruleIn(t, func(in *domain.NewRuleInput) { in.Action = domain.ActionTrash })
+	h.marking.dueMarked = []repository.Candidate{{
+		ID: taskID, Type: work.ItemTask, Path: work.RootPath(taskID),
+		CollectionID: collectionID, HubID: hubID,
+		Pending: now.Add(-time.Hour), Rule: rule.ID, Action: domain.ActionTrash,
+	}}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if len(h.marking.trashed) != 1 || h.marking.trashed[0] != taskID {
+		t.Fatalf("the entry was not trashed: %+v", h.marking.trashed)
+	}
+}
+
+// A kind with no rule at all is not read: a pass over a workspace that has configured nothing costs
+// one listing and no query per kind.
+func TestAKindWithNoRuleIsNotRead(t *testing.T) {
+	h := newSweepHarness()
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	outcome, err := h.sweeper().Pass(context.Background(), actor())
+	if err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if len(h.marking.marked) != 0 {
+		t.Fatal("an entry was announced with no rule to announce it")
+	}
+	if outcome.Matched != 0 {
+		t.Errorf("the pass matched %d with nothing configured", outcome.Matched)
+	}
+}

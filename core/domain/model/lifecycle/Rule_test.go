@@ -158,15 +158,14 @@ func TestWhatARuleCannotMean(t *testing.T) {
 
 // §4.4: exceeding the upper bound is allowed and costs a justification, which then reaches the
 // audit. The trash is the one kind with a bound today.
+// §4.4 makes the upper bound the operator's - "where the operator has set a maximum period" - so it
+// is handed in rather than read off the kind, and no kind carries one by default.
 func TestTheUpperBoundIsAJustificationRatherThanARefusal(t *testing.T) {
-	kind, _ := domain.FindKind(domain.KindTrash)
-	if kind.Ceiling() == 0 {
-		t.Skip("no kind has an upper bound yet, so there is nothing to justify")
-	}
+	const ceiling = 400
 
 	beyond := func(in *domain.NewRuleInput) {
 		in.DataKind, in.Action = domain.KindTrash, domain.ActionHardDelete
-		in.RetainDays = kind.Ceiling() + 1
+		in.RetainDays, in.Ceiling = ceiling+1, ceiling
 	}
 
 	_, err := domain.NewRule(ruleInput(beyond))
@@ -181,8 +180,19 @@ func TestTheUpperBoundIsAJustificationRatherThanARefusal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a justified rule was refused: %v", err)
 	}
-	if !rule.ExceedsCeiling(kind) {
+	if !rule.ExceedsCeiling(ceiling) {
 		t.Error("the rule does not know it is past the bound, so nothing will audit it")
+	}
+
+	// Without a bound in force there is nothing to justify, whatever the period is.
+	unbounded, err := domain.NewRule(ruleInput(func(in *domain.NewRuleInput) {
+		in.DataKind, in.Action, in.RetainDays = domain.KindTrash, domain.ActionHardDelete, 100000
+	}))
+	if err != nil {
+		t.Fatalf("a long period with no bound in force was refused: %v", err)
+	}
+	if unbounded.ExceedsCeiling(0) {
+		t.Error("a rule exceeds a bound nobody set")
 	}
 }
 

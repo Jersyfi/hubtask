@@ -68,6 +68,20 @@ func (r RetentionMarkingRepository) Due(
 				HubID: row.HubID, AnchoredAt: row.AnchoredAt, Title: row.Title,
 			}
 		})
+	case domain.AnchorDeletedAt:
+		rows, err := queries.RetentionCandidatesByDeletedAt(ctx,
+			sqlc.RetentionCandidatesByDeletedAtParams{
+				Cutoff: timestampOf(cutoff), Batch: size, OwnChain: false,
+			})
+		if err != nil {
+			return nil, candidateFailure(anchor, err)
+		}
+		return candidatesOf(rows, func(row sqlc.RetentionCandidatesByDeletedAtRow) candidateRow {
+			return candidateRow{
+				ID: row.ID, Type: row.Type, Path: row.Path, CollectionID: row.CollectionID,
+				HubID: row.HubID, AnchoredAt: row.AnchoredAt, Title: row.Title,
+			}
+		})
 	}
 	// An anchor this build has no statement for. A defect rather than input: the catalogue and this
 	// switch are kept in step by a test, so an anchor arriving here means one of the two has moved.
@@ -106,7 +120,7 @@ func (r RetentionMarkingRepository) DueInChain(
 	case domain.AnchorDeletedAt:
 		rows, err := queries.RetentionCandidatesByDeletedAt(ctx,
 			sqlc.RetentionCandidatesByDeletedAtParams{
-				Cutoff: timestampOf(cutoff), Batch: size, RuleID: rule,
+				Cutoff: timestampOf(cutoff), Batch: size, OwnChain: true, RuleID: rule,
 			})
 		if err != nil {
 			return nil, candidateFailure(anchor, err)
@@ -318,6 +332,11 @@ func (r RetentionMarkingRepository) CountDue(
 	case domain.AnchorArchivedAt:
 		due, err = queries.CountRetentionCandidatesByArchivedAt(ctx,
 			sqlc.CountRetentionCandidatesByArchivedAtParams{
+				Cutoff: timestampOf(cutoff), ScopeKind: string(scope.Kind), ScopeID: scopeID,
+			})
+	case domain.AnchorDeletedAt:
+		due, err = queries.CountRetentionCandidatesByDeletedAt(ctx,
+			sqlc.CountRetentionCandidatesByDeletedAtParams{
 				Cutoff: timestampOf(cutoff), ScopeKind: string(scope.Kind), ScopeID: scopeID,
 			})
 	default:

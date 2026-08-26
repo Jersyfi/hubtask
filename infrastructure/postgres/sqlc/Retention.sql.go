@@ -201,6 +201,30 @@ func (q *Queries) CountRetentionCandidatesByCompletedAt(ctx context.Context, arg
 	return column_1, err
 }
 
+const countRetentionCandidatesByDeletedAt = `-- name: CountRetentionCandidatesByDeletedAt :one
+SELECT count(*)::bigint
+FROM work_item w
+JOIN container c ON c.id = w.collection_id
+WHERE w.deleted_at IS NOT NULL
+  AND w.deleted_at < $1::timestamptz
+  AND ($2::text = 'TENANT'
+       OR ($2::text = 'HUB' AND c.parent_id = $3::uuid)
+       OR ($2::text = 'COLLECTION' AND w.collection_id = $3::uuid))
+`
+
+type CountRetentionCandidatesByDeletedAtParams struct {
+	Cutoff    pgtype.Timestamptz
+	ScopeKind string
+	ScopeID   pgtype.UUID
+}
+
+func (q *Queries) CountRetentionCandidatesByDeletedAt(ctx context.Context, arg CountRetentionCandidatesByDeletedAtParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRetentionCandidatesByDeletedAt, arg.Cutoff, arg.ScopeKind, arg.ScopeID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countRetentionScope = `-- name: CountRetentionScope :one
 SELECT count(*)::bigint
 FROM work_item w
@@ -606,15 +630,16 @@ JOIN container c ON c.id = w.collection_id
 WHERE w.deleted_at IS NOT NULL
   AND w.deleted_at < $1::timestamptz
   AND w.retention_pending_until IS NULL
-  AND w.retention_rule_id = $2::uuid
+  AND (NOT $2::boolean OR w.retention_rule_id = $3::uuid)
 ORDER BY w.deleted_at, w.id
-LIMIT $3::int
+LIMIT $4::int
 `
 
 type RetentionCandidatesByDeletedAtParams struct {
-	Cutoff pgtype.Timestamptz
-	RuleID pgtype.UUID
-	Batch  int32
+	Cutoff   pgtype.Timestamptz
+	OwnChain bool
+	RuleID   pgtype.UUID
+	Batch    int32
 }
 
 type RetentionCandidatesByDeletedAtRow struct {
@@ -627,10 +652,15 @@ type RetentionCandidatesByDeletedAtRow struct {
 	Title        string
 }
 
-// The trash, for a chain whose first stage put it there. The trash's own rule governs everything
-// else that is in it, which is why this one is always restricted to a chain.
+// The trash: what the trash's own rule governs, and what a chain whose first stage put it there
+// comes back for.
 func (q *Queries) RetentionCandidatesByDeletedAt(ctx context.Context, arg RetentionCandidatesByDeletedAtParams) ([]RetentionCandidatesByDeletedAtRow, error) {
-	rows, err := q.db.Query(ctx, retentionCandidatesByDeletedAt, arg.Cutoff, arg.RuleID, arg.Batch)
+	rows, err := q.db.Query(ctx, retentionCandidatesByDeletedAt,
+		arg.Cutoff,
+		arg.OwnChain,
+		arg.RuleID,
+		arg.Batch,
+	)
 	if err != nil {
 		return nil, err
 	}

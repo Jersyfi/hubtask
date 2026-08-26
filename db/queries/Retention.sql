@@ -92,8 +92,8 @@ ORDER BY w.archived_at, w.id
 LIMIT sqlc.arg('batch')::int;
 
 -- name: RetentionCandidatesByDeletedAt :many
--- The trash, for a chain whose first stage put it there. The trash's own rule governs everything
--- else that is in it, which is why this one is always restricted to a chain.
+-- The trash: what the trash's own rule governs, and what a chain whose first stage put it there
+-- comes back for.
 SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
        w.deleted_at AS anchored_at, w.title
 FROM work_item w
@@ -101,7 +101,7 @@ JOIN container c ON c.id = w.collection_id
 WHERE w.deleted_at IS NOT NULL
   AND w.deleted_at < sqlc.arg('cutoff')::timestamptz
   AND w.retention_pending_until IS NULL
-  AND w.retention_rule_id = sqlc.arg('rule_id')::uuid
+  AND (NOT sqlc.arg('own_chain')::boolean OR w.retention_rule_id = sqlc.arg('rule_id')::uuid)
 ORDER BY w.deleted_at, w.id
 LIMIT sqlc.arg('batch')::int;
 
@@ -222,6 +222,16 @@ JOIN container c ON c.id = w.collection_id
 WHERE w.archived_at IS NOT NULL
   AND w.archived_at < sqlc.arg('cutoff')::timestamptz
   AND w.deleted_at IS NULL
+  AND (sqlc.arg('scope_kind')::text = 'TENANT'
+       OR (sqlc.arg('scope_kind')::text = 'HUB' AND c.parent_id = sqlc.arg('scope_id')::uuid)
+       OR (sqlc.arg('scope_kind')::text = 'COLLECTION' AND w.collection_id = sqlc.arg('scope_id')::uuid));
+
+-- name: CountRetentionCandidatesByDeletedAt :one
+SELECT count(*)::bigint
+FROM work_item w
+JOIN container c ON c.id = w.collection_id
+WHERE w.deleted_at IS NOT NULL
+  AND w.deleted_at < sqlc.arg('cutoff')::timestamptz
   AND (sqlc.arg('scope_kind')::text = 'TENANT'
        OR (sqlc.arg('scope_kind')::text = 'HUB' AND c.parent_id = sqlc.arg('scope_id')::uuid)
        OR (sqlc.arg('scope_kind')::text = 'COLLECTION' AND w.collection_id = sqlc.arg('scope_id')::uuid));

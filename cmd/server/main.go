@@ -433,6 +433,7 @@ func run() error {
 	// reading - RE-7 is exactly that they agree.
 	retentionRules := lifecycle.Rules{
 		Rules:      postgres.NewRetentionRuleRepository(),
+		Policies:   lifecycleStore,
 		Marking:    postgres.NewRetentionMarkingRepository(),
 		Holds:      lifecycleStore,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,

@@ -5,6 +5,7 @@ package lifecycle
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -48,7 +49,11 @@ const BroadFirstRunShare = 0.05
 
 // Rules is what the three rule use cases share.
 type Rules struct {
-	Rules      repository.Rules
+	Rules repository.Rules
+	// Policies is the old table, read for one thing only: the upper bound an operator has set for
+	// a kind (§4.4). The periods in it are carried into rules by the sweep; the bounds stay where
+	// an operator writes them.
+	Policies   repository.Policies
 	Marking    repository.Marking
 	Holds      repository.LegalHolds
 	Authorizer Authorizer
@@ -138,13 +143,18 @@ func (h CreateRetentionPolicy) Execute(
 	}
 
 	now := h.Rules.Clock.Now()
+	ceiling, err := h.Rules.ceilingFor(ctx, actor, cmd.DataKind)
+	if err != nil {
+		return domain.Rule{}, Preview{}, err
+	}
+
 	rule, err := domain.NewRule(domain.NewRuleInput{
 		ID: h.Rules.IDs.NewID(), TenantID: actor.TenantID, Scope: cmd.Scope,
 		DataKind: cmd.DataKind, Condition: cmd.Condition, RetainDays: cmd.RetainDays,
 		Action: cmd.Action, ThenAfterDays: cmd.ThenAfterDays, ThenAction: cmd.ThenAction,
 		GraceDays: cmd.GraceDays, Notify: cmd.Notify, Justification: cmd.Justification,
 		Enabled: cmd.Enabled, ExportTargetID: cmd.ExportTargetID,
-		CreatedBy: actor.AccountID, Now: now,
+		CreatedBy: actor.AccountID, Now: now, Ceiling: ceiling,
 	})
 	if err != nil {
 		return domain.Rule{}, Preview{}, err
@@ -172,6 +182,35 @@ func (h CreateRetentionPolicy) Execute(
 		return domain.Rule{}, Preview{}, err
 	}
 	return rule, preview, nil
+}
+
+// ceilingFor is the upper bound an operator has set for a kind, and zero where they have set none.
+//
+// Read from the old table rather than from the catalogue, because §4.4 makes it the operator's
+// setting rather than a property of the kind - and that column is where an operator has always put
+// it. Absent is not an error: most kinds have no maximum, which is the honest default for a period
+// the tenant is choosing.
+func (r Rules) ceilingFor(
+	ctx context.Context, actor appshared.ActorContext, kind domain.DataKind,
+) (int, error) {
+	if r.Policies == nil {
+		return 0, nil
+	}
+	var ceiling int
+	err := r.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		policy, err := r.Policies.Find(ctx, kind)
+		if err != nil {
+			if errors.Is(err, shared.ErrNotFound) {
+				return nil
+			}
+			return err
+		}
+		if policy.MaxDays != nil {
+			ceiling = *policy.MaxDays
+		}
+		return nil
+	})
+	return ceiling, err
 }
 
 // EffectiveRule is one rule and where it came from, which is what §6's question needs: "which rules

@@ -9,8 +9,8 @@
 // Not the same tests as the unit ones a layer down. Those prove that the engine decides correctly
 // given what it was handed; these prove that what it is handed is what the database holds - the
 // period, the holds, the order the rows go in, and the records left behind. RE-4, RE-7 and RE-9
-// belong to the parts of ADR-0020 this milestone does not implement (the mark phase, the activation
-// switch and multi-stage chains) and are not here; the gap is on the record in the task's issue.
+// arrived with E-07, which built the parts of ADR-0020 they are about: the marking phase, the
+// activation switch and multi-stage chains.
 package retention
 
 import (
@@ -21,8 +21,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	lifecycleDomain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	work "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -58,6 +60,8 @@ type suite struct {
 	tenant shared.ID
 	author shared.ID
 	run    lifecycle.RunRetention
+	store  postgres.LifecycleRepository
+	window time.Duration
 	uow    persistence.UnitOfWork
 	admin  *pgxpool.Pool
 	ctx    context.Context
@@ -87,27 +91,61 @@ func newSuite(t *testing.T, window time.Duration) *suite {
 	}
 
 	store := postgres.NewLifecycleRepository()
-	s.run = lifecycle.RunRetention{
-		Policies: store, Runs: store, History: postgres.NewNotificationRepository(),
-		Purger: lifecycle.Purger{
-			Trash:    postgres.NewTrashRepository(security.NewCursorCodec(installationSecret)),
-			Expired:  store,
-			Holds:    store,
-			Removals: store,
-			Events:   postgres.NewOutbox(noJobs{}),
-			Audit:    postgres.NewAuditSink(ids),
-			Clock:    clock.Fixed(now),
-			IDs:      ids,
-			// The window is the test's, because it is one of the boundaries under test: RE-1 is
-			// about the period and RE-6 is about the window, and a suite that shared one value
-			// could only ever measure whichever of them was larger.
-			TombstoneWindow: window,
-			BatchSize:       100,
-		},
-		Clock: clock.Fixed(now),
-		IDs:   ids,
-	}
+	s.store = store
+	s.window = window
+	s.run = s.engineAt(now)
 	return s
+}
+
+// engineAt is the engine as the server wires it, at one instant.
+//
+// A function rather than a field, because a chain is a thing that happens over years: RE-9 runs the
+// same engine twice, at two moments that are two periods apart, and an engine with the clock baked
+// in could only ever prove the first stage.
+func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
+	store := s.store
+	purger := lifecycle.Purger{
+		Trash:    postgres.NewTrashRepository(security.NewCursorCodec(installationSecret)),
+		Expired:  store,
+		Holds:    store,
+		Removals: store,
+		Events:   postgres.NewOutbox(noJobs{}),
+		Audit:    postgres.NewAuditSink(ids),
+		Clock:    clock.Fixed(at),
+		IDs:      ids,
+		// The window is the test's, because it is one of the boundaries under test: RE-1 is about
+		// the period and RE-6 is about the window, and a suite that shared one value could only
+		// ever measure whichever of them was larger.
+		TombstoneWindow: s.window,
+		BatchSize:       100,
+	}
+	return lifecycle.RunRetention{
+		Policies: store, Runs: store, History: postgres.NewNotificationRepository(),
+		Purger: purger,
+		Clock:  clock.Fixed(at),
+		IDs:    ids,
+		Rules:  postgres.NewRetentionRuleRepository(),
+		Sweeper: lifecycle.Sweeper{
+			Rules:   postgres.NewRetentionRuleRepository(),
+			Marking: postgres.NewRetentionMarkingRepository(),
+			Holds:   store,
+			Items:   postgres.NewItemRepository(security.NewCursorCodec(installationSecret)),
+			Purger:  purger,
+			Changes: postgres.NewChangeLog(),
+			Clock:   clock.Fixed(at), IDs: ids, HLC: hybridAt(at), Batch: 100,
+		},
+	}
+}
+
+// hybridAt stamps the changes a marking writes. One per engine, because a hybrid clock counts
+// within itself and two engines sharing one would order their entries against each other rather
+// than against the moment each ran at.
+func hybridAt(at time.Time) *clockadapter.HybridClock {
+	hybrid, err := clockadapter.NewHybridClock(clock.Fixed(at), "retention-evidence")
+	if err != nil {
+		panic(err)
+	}
+	return hybrid
 }
 
 // noJobs is the queue as the outbox needs it here. The retention path writes events; whether a
@@ -502,3 +540,287 @@ func (s *suite) notificationExists(ctx context.Context, t *testing.T, id shared.
 	}
 	return found
 }
+
+// ── The rule model (E-07) ─────────────────────────────────────────────────────────────────────
+
+// completedItem writes one entry that was finished `daysAgo` days before the run.
+func (s *suite) completedItem(t *testing.T, collectionID shared.ID, daysAgo int) shared.ID {
+	t.Helper()
+	id := freshID(t)
+	completedAt := now.AddDate(0, 0, -daysAgo)
+
+	if _, err := s.admin.Exec(s.ctx, `
+		INSERT INTO work_item (
+			id, tenant_id, collection_id, type, path, depth, title, order_key,
+			is_completed, completed_at, completed_by, created_by
+		) VALUES ($1, $2, $3, 'TASK', $4, 1, $5, 'a0', true, $6, $7, $7)`,
+		id.String(), s.tenant.String(), collectionID.String(), work.RootPath(id),
+		"Entry "+id.String(), completedAt, s.author.String()); err != nil {
+		t.Fatalf("seeding the completed entry: %v", err)
+	}
+	return id
+}
+
+// rules is the three rule use cases, wired the way the server wires them, with an authorizer that
+// says yes: what is under test here is the engine, and who may configure it is proved a layer down.
+func (s *suite) rules() lifecycle.Rules {
+	return lifecycle.Rules{
+		Rules:      postgres.NewRetentionRuleRepository(),
+		Policies:   s.store,
+		Marking:    postgres.NewRetentionMarkingRepository(),
+		Holds:      s.store,
+		Authorizer: allowAll{},
+		Audit:      postgres.NewAuditSink(ids),
+		UnitOfWork: s.uow,
+		Clock:      clock.Fixed(now),
+		IDs:        ids,
+	}
+}
+
+type allowAll struct{}
+
+func (allowAll) Authorize(context.Context, appshared.ActorContext, access.Request) error {
+	return nil
+}
+
+// createRule writes one rule through the use case, which is the only way a rule is ever written.
+func (s *suite) createRule(
+	t *testing.T, cmd lifecycle.CreateRetentionPolicyCommand,
+) (lifecycleDomain.Rule, lifecycle.Preview) {
+	t.Helper()
+
+	rule, preview, err := (lifecycle.CreateRetentionPolicy{Rules: s.rules()}).
+		Execute(s.ctx, s.actor(), cmd)
+	if err != nil {
+		t.Fatalf("creating the rule: %v", err)
+	}
+	return rule, preview
+}
+
+// sweepAt runs one pass at an instant, which is how a chain is walked: the second stage falls due
+// two periods after the first one acted.
+func (s *suite) sweepAt(t *testing.T, at time.Time) lifecycle.Outcome {
+	t.Helper()
+
+	engine := s.engineAt(at)
+	var outcome lifecycle.Outcome
+	err := s.uow.Within(s.ctx, persistence.Scope{TenantID: s.tenant}, func(ctx context.Context) error {
+		var err error
+		outcome, err = engine.Execute(ctx, s.actor())
+		return err
+	})
+	if err != nil {
+		t.Fatalf("the retention run failed: %v", err)
+	}
+	return outcome
+}
+
+func (s *suite) marking(t *testing.T, id shared.ID) (time.Time, string) {
+	t.Helper()
+
+	var at *time.Time
+	var action *string
+	if err := s.admin.QueryRow(s.ctx,
+		`SELECT retention_pending_until, retention_action FROM work_item WHERE id = $1`,
+		id.String()).Scan(&at, &action); err != nil {
+		t.Fatalf("reading the marking: %v", err)
+	}
+	if at == nil {
+		return time.Time{}, ""
+	}
+	return *at, *action
+}
+
+func (s *suite) archivedAt(t *testing.T, id shared.ID) *time.Time {
+	t.Helper()
+
+	var at *time.Time
+	if err := s.admin.QueryRow(s.ctx,
+		`SELECT archived_at FROM work_item WHERE id = $1`, id.String()).Scan(&at); err != nil {
+		t.Fatalf("reading the archive date: %v", err)
+	}
+	return at
+}
+
+// RE-3, the upper-bound half: exceeding `max_days` demands a justification, and the rule that
+// carries one writes an audit entry saying so.
+func TestRE3TheUpperBoundDemandsAJustification(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+
+	// The bound is the operator's, and this is where an operator puts one (§4.4).
+	const ceiling = 400
+	if _, err := s.admin.Exec(s.ctx, `
+		INSERT INTO retention_policy (tenant_id, data_kind, retain_days, min_days, max_days)
+		VALUES ($1, 'TRASH', 30, 7, $2)
+		ON CONFLICT (tenant_id, data_kind) DO UPDATE SET max_days = excluded.max_days`,
+		s.tenant.String(), ceiling); err != nil {
+		t.Fatalf("setting the upper bound: %v", err)
+	}
+
+	beyond := lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindTrash, RetainDays: ceiling + 1,
+		Action: lifecycleDomain.ActionHardDelete,
+	}
+
+	_, _, err := (lifecycle.CreateRetentionPolicy{Rules: s.rules()}).Execute(s.ctx, s.actor(), beyond)
+	if err == nil {
+		t.Fatal("a period past the upper bound was accepted with no justification")
+	}
+
+	beyond.Justification = "The works council agreed a longer period"
+	rule, _ := s.createRule(t, beyond)
+	if !rule.ExceedsCeiling(ceiling) {
+		t.Fatal("the stored rule does not know it is past the bound")
+	}
+
+	// The justification is in the trail, which is what makes §4.4 evidence rather than a field.
+	entries := s.count(t, `
+		SELECT count(*) FROM audit_log
+		WHERE tenant_id = $1 AND action = 'lifecycle.rule_changed'
+		  AND changes::text LIKE '%works council%'`, s.tenant.String())
+	if entries != 1 {
+		t.Fatalf("%d audit entries carry the justification", entries)
+	}
+}
+
+// RE-4: an object marked in phase one and taken out with `:retain` is not deleted in phase two.
+func TestRE4AnObjectTakenOutIsNotDeleted(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	collectionID := s.collection(t)
+	kept := s.completedItem(t, collectionID, 400)
+	going := s.completedItem(t, collectionID, 400)
+	// A workspace with work in it, so that the two entries are a fraction of what it holds rather
+	// than all of it - a rule that would take everything is the one §5's switch turns into an
+	// announcement, which is RE-7's subject rather than this one's.
+	for range 60 {
+		s.completedItem(t, collectionID, 1)
+	}
+
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionHardDelete, GraceDays: graceOf(14),
+	})
+
+	// Phase one: both are announced, and neither has gone.
+	s.sweep(t)
+	for _, id := range []shared.ID{kept, going} {
+		at, action := s.marking(t, id)
+		if at.IsZero() || action != string(lifecycleDomain.ActionHardDelete) {
+			t.Fatalf("%s was not announced: %s / %q", id, at, action)
+		}
+	}
+
+	// One of them is taken out.
+	if err := s.uow.Within(s.ctx, persistence.Scope{TenantID: s.tenant},
+		func(ctx context.Context) error {
+			_, err := postgres.NewRetentionMarkingRepository().
+				Clear(ctx, []shared.ID{kept}, false, now)
+			return err
+		}); err != nil {
+		t.Fatalf("retaining: %v", err)
+	}
+
+	// Phase two, once the grace period has run out.
+	s.sweepAt(t, now.AddDate(0, 0, 15))
+
+	if !s.exists(t, kept) {
+		t.Error("an entry somebody took out of its period was deleted anyway")
+	}
+	if s.exists(t, going) {
+		t.Error("the entry nobody took out survived phase two")
+	}
+}
+
+// RE-7: the first activation of a broadly matching rule warns instead of deleting, and the share it
+// reports is the share a preview reports.
+func TestRE7ABroadRuleWarnsRatherThanDeletes(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	collectionID := s.collection(t)
+
+	// Ten entries, nine of them past the period: ninety per cent, which is well past the twentieth
+	// the switch is about.
+	var going []shared.ID
+	for range 9 {
+		going = append(going, s.completedItem(t, collectionID, 400))
+	}
+	s.completedItem(t, collectionID, 10)
+
+	rule, preview := s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionHardDelete,
+	})
+
+	if !preview.Broad {
+		t.Fatalf("a rule taking %.0f per cent was not called broad", preview.ShareOfScope*100)
+	}
+	if rule.Action != lifecycleDomain.ActionNotifyOnly {
+		t.Fatalf("the stored rule is a %s rather than an announcement", rule.Action)
+	}
+
+	// The share the activation reported is the share a preview reports, which is what makes the
+	// notice checkable.
+	again, err := (lifecycle.PreviewRetentionPolicy{Rules: s.rules()}).Execute(s.ctx, s.actor(), rule.ID)
+	if err != nil {
+		t.Fatalf("previewing: %v", err)
+	}
+	if again.Matched != preview.Matched || again.ShareOfScope != preview.ShareOfScope {
+		t.Fatalf("the preview says %d / %v and the activation said %d / %v",
+			again.Matched, again.ShareOfScope, preview.Matched, preview.ShareOfScope)
+	}
+
+	// And two passes later nothing has gone: an announcement acts on nothing.
+	s.sweep(t)
+	s.sweepAt(t, now.AddDate(0, 0, 30))
+	for _, id := range going {
+		if !s.exists(t, id) {
+			t.Fatalf("%s was deleted by a rule that was supposed to announce", id)
+		}
+	}
+}
+
+// RE-9: a chained rule passes through completed → archive → deletion, and the anchor of each stage
+// is the right column - the second period counts from the archiving rather than from the
+// completion.
+func TestRE9AChainCountsEachStageFromItsOwnColumn(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	collectionID := s.collection(t)
+	id := s.completedItem(t, collectionID, 400)
+	for range 60 {
+		s.completedItem(t, collectionID, 1)
+	}
+
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionArchive, GraceDays: graceOf(0),
+		ThenAfterDays: 730, ThenAction: lifecycleDomain.ActionHardDelete,
+	})
+
+	// The first stage: announced and acted on in one pass, because the grace period is zero.
+	s.sweep(t)
+	archived := s.archivedAt(t, id)
+	if archived == nil {
+		t.Fatal("the first stage did not archive the entry")
+	}
+	if !archived.Equal(now) {
+		t.Fatalf("the entry was archived at %s rather than at the moment of the run", archived)
+	}
+
+	// A year later - past the first period twice over and short of the second - the entry is still
+	// there. If the second stage counted from the completion it would have gone by now.
+	s.sweepAt(t, now.AddDate(0, 0, 400))
+	if !s.exists(t, id) {
+		t.Fatal("the second stage counted from the completion rather than from the archiving")
+	}
+
+	// And two more years after the archiving, it goes.
+	s.sweepAt(t, now.AddDate(0, 0, 731))
+	if s.exists(t, id) {
+		t.Fatal("the second stage never fired")
+	}
+}
+
+func graceOf(days int) *int { return &days }

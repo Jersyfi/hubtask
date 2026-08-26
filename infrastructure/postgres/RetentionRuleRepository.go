@@ -49,7 +49,9 @@ func (r RetentionRuleRepository) Insert(ctx context.Context, rule domain.Rule) e
 	if err != nil {
 		return err
 	}
-	createdBy, err := uuidOf(rule.CreatedBy)
+	// Optional: a rule the installation wrote for a tenant during an upgrade was created by
+	// nobody, and a column that insisted on an account would make the carry-over impossible.
+	createdBy, err := optionalUUID(rule.CreatedBy)
 	if err != nil {
 		return err
 	}

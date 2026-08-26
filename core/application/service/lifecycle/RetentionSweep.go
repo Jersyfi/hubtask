@@ -88,6 +88,12 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 			return outcome, err
 		}
 		outcome.add(marked)
+
+		chained, err := s.announceChains(ctx, rules, holds, kind, now)
+		if err != nil {
+			return outcome, err
+		}
+		outcome.add(chained)
 	}
 
 	acted, err := s.act(ctx, actor, holds, now)
@@ -165,7 +171,64 @@ func (s Sweeper) announce(
 		// says so - and because a device that learns of the announcement has the grace period to
 		// react, which is what makes removing a live entry safe for a client that was away.
 		for _, candidate := range group[:min(marked, len(group))] {
-			if err := s.announceChange(ctx, candidate, rule, now); err != nil {
+			if err := s.announceStage(ctx, candidate, rule, rule.Action, now); err != nil {
+				return outcome, err
+			}
+		}
+	}
+	return outcome, nil
+}
+
+// announceChains is phase one for a chain's second stage.
+//
+// Its own pass rather than a branch inside the first one, because it asks a different question of a
+// different column: the first stage asks "what has been finished long enough", and this asks "what
+// did *this rule* archive long enough ago". The restriction to the rule's own work is what keeps a
+// chain from sweeping up an entry somebody archived by hand - that entry is not part of anybody's
+// chain, and a rule acting on it would be acting outside what it matched.
+func (s Sweeper) announceChains(
+	ctx context.Context, rules []domain.Rule, holds domain.Holds,
+	kind domain.Kind, now time.Time,
+) (Outcome, error) {
+	outcome := Outcome{Blocked: map[string]int{}}
+
+	for _, rule := range rulesFor(rules, kind.Name) {
+		if !rule.Chained() {
+			continue
+		}
+		anchor, ok := rule.StageAnchor(kind, true)
+		if !ok {
+			// A chain after an action that leaves nothing. The domain refuses one, so this is a
+			// rule written before the check existed rather than one somebody just made.
+			continue
+		}
+
+		candidates, err := s.Marking.DueInChain(ctx, anchor, rule.ID, rule.ThenCutoff(now), s.batch())
+		if err != nil {
+			return outcome, err
+		}
+		outcome.Matched += len(candidates)
+
+		ids := make([]shared.ID, 0, len(candidates))
+		kept := make([]repository.Candidate, 0, len(candidates))
+		for _, candidate := range candidates {
+			if reason, blocked := s.blocked(holds, candidate); blocked {
+				outcome.blocked(reason)
+				continue
+			}
+			ids = append(ids, candidate.ID)
+			kept = append(kept, candidate)
+		}
+		if len(ids) == 0 {
+			continue
+		}
+
+		marked, err := s.Marking.Mark(ctx, ids, rule.ID, rule.ThenAction, s.dueAt(rule, now))
+		if err != nil {
+			return outcome, err
+		}
+		for _, candidate := range kept[:min(marked, len(kept))] {
+			if err := s.announceStage(ctx, candidate, rule, rule.ThenAction, now); err != nil {
 				return outcome, err
 			}
 		}
@@ -355,16 +418,17 @@ func (s Sweeper) blocked(holds domain.Holds, candidate repository.Candidate) (st
 	return domain.FirstBlock(found)
 }
 
-// announceChange tells offline clients what is coming.
-func (s Sweeper) announceChange(
-	ctx context.Context, candidate repository.Candidate, rule domain.Rule, now time.Time,
+// announceStage tells offline clients what is coming, and which stage announced it.
+func (s Sweeper) announceStage(
+	ctx context.Context, candidate repository.Candidate,
+	rule domain.Rule, action domain.Action, now time.Time,
 ) error {
 	return s.Changes.Record(ctx, syncrepo.Change{
 		Entity: itemEntity, EntityID: candidate.ID, Op: syncrepo.Upsert,
 		ContainerID: candidate.CollectionID, HLC: s.HLC.Next(),
 		Payload: map[string]any{
 			"retention": map[string]any{
-				"action":       string(rule.Action),
+				"action":       string(action),
 				"effective_at": s.dueAt(rule, now),
 				"policy_id":    rule.ID.String(),
 			},
