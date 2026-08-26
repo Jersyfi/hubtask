@@ -62,7 +62,11 @@ type ExportedView struct {
 	// have to ask again.
 	Labels map[shared.ID][]shared.ID
 	// Truncated says the result reached view.MaxExportRows and there was more behind it.
-	Truncated   bool
+	Truncated bool
+	// TimeZone is the zone the selection ran under - the caller's own, or the feed owner's. It
+	// decides nothing about which rows came back and everything about which day an all-day entry
+	// falls on when one is rendered (i18n-l10n.md §4).
+	TimeZone    string
 	GeneratedAt time.Time
 }
 
@@ -98,12 +102,32 @@ func (h ExportView) Execute(
 		return ExportedView{}, err
 	}
 
+	exported, err := h.rows(ctx, actor, saved)
+	if err != nil {
+		return ExportedView{}, err
+	}
+
+	if err := h.record(
+		ctx, actor, saved, len(exported.Items), exported.Truncated, exported.GeneratedAt,
+	); err != nil {
+		return ExportedView{}, err
+	}
+	return exported, nil
+}
+
+// rows is the selection without the audit entry: the visibility question, the walk, and the
+// labels. Shared with the calendar feed, which performs the same selection as its owner and
+// records nothing per fetch - a subscription polls every quarter of an hour, and an audit row per
+// poll would bury the entries somebody actually looks for (audit.md §2).
+func (h ExportView) rows(
+	ctx context.Context, actor appshared.ActorContext, saved view.SavedView,
+) (ExportedView, error) {
 	visible, err := viewVisibleTo(ctx, h.UnitOfWork, h.Containers, h.Permits, actor, saved)
 	if err != nil {
 		return ExportedView{}, err
 	}
 	if !visible {
-		return ExportedView{}, viewNotFound(viewID)
+		return ExportedView{}, viewNotFound(saved.ID)
 	}
 
 	items, truncated, err := h.walk(ctx, actor, saved)
@@ -117,12 +141,9 @@ func (h ExportView) Execute(
 		return ExportedView{}, err
 	}
 
-	now := h.Clock.Now()
-	if err := h.record(ctx, actor, saved, len(items), truncated, now); err != nil {
-		return ExportedView{}, err
-	}
 	return ExportedView{
-		View: saved, Items: items, Labels: carried, Truncated: truncated, GeneratedAt: now,
+		View: saved, Items: items, Labels: carried, Truncated: truncated,
+		TimeZone: actor.TimeZone, GeneratedAt: h.Clock.Now(),
 	}, nil
 }
 

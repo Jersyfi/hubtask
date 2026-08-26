@@ -872,6 +872,21 @@ func run() error {
 		// The address a calendar client is handed. Configured rather than taken from the
 		// request's Host, so that one caller cannot decide what the next person's client stores.
 		controller.BaseURL = cfg.BaseURL
+		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
+		// system holds, and every question it asks is asked inwards of the controller (D-08).
+		controller.CalendarFeeds = work.ReadCalendarFeed{
+			Feeds: calendarFeeds, Accounts: postgres.NewAccountRepository(),
+			Export: work.ExportView{
+				Views: savedViews, Containers: containers, Permits: authorizer,
+				Query: work.QueryItems{
+					Items: items, ItemLabels: itemLabels, Containers: containers,
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			},
+			UnitOfWork: unitOfWork,
+		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
 		// call (C-10). The listener is the wake-up; without it the stream still works, at its idle
@@ -970,21 +985,31 @@ func run() error {
 								cfg.RateLimit.AnonymousPerMinute,
 								cfg.RateLimit.TokenPerMinute,
 								cfg.RateLimit.Burst),
-							Next: rest.Localised{
-								Locale: cfg.Locale,
-								Next: rest.Authenticated{
-									Routes:        apiRoutes,
-									Authenticator: authenticate,
-									Locale:        cfg.Locale,
-									Next: rest.Limited{
-										Limiter: limiter,
-										Level:   "tenant",
-										Bucket: rest.TenantBucket(
-											cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-										Next: rest.Idempotent{
-											Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-											Routes: apiRoutes,
-											Next:   apiRoutes,
+							// The feed's own bucket, in front of the lookup rather than behind it:
+							// a subscription polls, and one client polling hard must not shed the
+							// calendar of somebody else behind the same address (D-08, T-21). It
+							// applies to that one route and passes everything else through.
+							Next: rest.Limited{
+								Limiter: limiter,
+								Level:   "feed",
+								Bucket: rest.FeedBucket(
+									cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
+								Next: rest.Localised{
+									Locale: cfg.Locale,
+									Next: rest.Authenticated{
+										Routes:        apiRoutes,
+										Authenticator: authenticate,
+										Locale:        cfg.Locale,
+										Next: rest.Limited{
+											Limiter: limiter,
+											Level:   "tenant",
+											Bucket: rest.TenantBucket(
+												cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+											Next: rest.Idempotent{
+												Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+												Routes: apiRoutes,
+												Next:   apiRoutes,
+											},
 										},
 									},
 								},

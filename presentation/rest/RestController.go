@@ -59,6 +59,11 @@ type RestController struct {
 	// relative address, which is what a client that just called this server can still use.
 	BaseURL string
 
+	// CalendarFeeds serves the public .ics route, which is not a catalogue entry either: it
+	// answers a credential nobody in this system holds, and there is nothing for MCP or an
+	// automation rule to call (D-08). Nil leaves the route answering the pending 404.
+	CalendarFeeds CalendarFeedReader
+
 	// Stream serves `GET /stream`, which is not a catalogue entry either: it is a connection being
 	// held rather than an operation being invoked, so there is nothing for MCP or an automation
 	// rule to call (C-10). Nil leaves the route answering the pending 404, which is what an
