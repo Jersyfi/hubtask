@@ -153,6 +153,14 @@ func (c *Checksums) Verify(path string, content io.Reader) error {
 
 // Digest is the SHA-256 of a stream, hexadecimal and lower case - the one spelling used for a
 // checksum line, a media address and a manifest entry alike.
+//
+// crypto/sha256 in the application layer rather than behind a port, deliberately, and it is worth
+// saying why because the seam next door is strict about exactly this. TestCryptographyStaysInItsAdapter
+// keeps ciphers in infrastructure/crypto so that there is one nonce discipline and one place where
+// "where does the master key live" changes. None of that applies to a hash with no key: there is no
+// key to place, no nonce to get wrong, and no second implementation to diverge from - and SHA-256
+// here is an address and a checksum rather than a secret. Putting it behind a port would buy an
+// interface with one implementation and cost the streaming shape everything above depends on.
 func Digest(r io.Reader) (string, error) {
 	sum := sha256.New()
 	if _, err := io.Copy(sum, r); err != nil {
