@@ -254,36 +254,38 @@ func (a Archivist) writeEntries(
 	ctx context.Context, store backupstorage.Store, key string, in ArchiveRequest,
 ) (member, error) {
 	reader, writer := io.Pipe()
-	done := make(chan member, 1)
-	failed := make(chan error, 1)
+	// Buffered, so that the producer's last act never blocks on a reader that has gone.
+	produced := make(chan produce, 1)
 
 	concurrency.Go(ctx, exportComponent, func(ctx context.Context) {
 		// The initial value is a failure, and it is what a panic leaves behind: the deferred close
 		// then fails the Put rather than ending the stream cleanly, so that an export cut short
 		// can never look complete at the target.
-		var result member
-		var err error = shared.Internalf("audit: the export writer stopped unexpectedly")
+		out := produce{err: shared.Internalf("audit: the export writer stopped unexpectedly")}
 		defer func() {
-			writer.CloseWithError(err)
-			failed <- err
-			done <- result
+			writer.CloseWithError(out.err)
+			produced <- out
 		}()
-		result, err = a.stream(ctx, writer, in)
+		out.member, out.err = a.stream(ctx, writer, in)
 	})
 
-	if _, putErr := store.Put(ctx, key, reader); putErr != nil {
-		// The producer is blocked writing into a pipe nobody is reading any more. Closing the
-		// reading end unblocks it with an error rather than leaving the goroutine there.
-		_ = reader.CloseWithError(putErr)
-		<-failed
-		<-done
-		return member{}, putErr
-	}
-
-	if err := <-failed; err != nil {
+	if _, err := store.Put(ctx, key, reader); err != nil {
+		// The producer may be blocked writing into a pipe nobody is reading any more. Closing the
+		// reading end unblocks it with an error rather than leaving the goroutine there, and the
+		// receive is what makes sure it is finished before this returns.
+		_ = reader.CloseWithError(err)
+		<-produced
 		return member{}, err
 	}
-	return <-done, nil
+
+	out := <-produced
+	return out.member, out.err
+}
+
+// produce is what the writing side finished with: the member it wrote, or why it did not.
+type produce struct {
+	member member
+	err    error
 }
 
 // stream writes every entry of the period, in the format asked for, and keeps what the manifest

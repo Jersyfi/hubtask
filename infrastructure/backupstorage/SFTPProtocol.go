@@ -312,12 +312,18 @@ func (s *sftpSession) request(kind byte, body []byte) (byte, []byte, error) {
 // exceeded it would not fail, it would wrap, and the target would read the next four gigabytes as
 // packets that were never sent.
 func (s *sftpSession) send(kind byte, body []byte) error {
-	if len(body)+1 > maxPacket {
-		return fmt.Errorf("this client tried to send a packet of %d bytes", len(body)+1)
+	// The length the header announces: the kind byte plus the body. Bound once, into a variable,
+	// and every arithmetic below reads that variable - a check on one expression and an allocation
+	// from an equivalent one is a bound a reader has to reconstruct, and an analyser cannot.
+	length := len(body) + 1
+	if length > maxPacket {
+		return fmt.Errorf("this client tried to send a packet of %d bytes", length)
 	}
 
-	frame := make([]byte, 5+len(body))
-	binary.BigEndian.PutUint32(frame, uint32(len(body)+1)) //nolint:gosec // G115: bounded by maxPacket above
+	frame := make([]byte, 4+length)
+	// No suppression needed any more: the bound above is what gosec was being asked to take
+	// on trust before.
+	binary.BigEndian.PutUint32(frame, uint32(length))
 	frame[4] = kind
 	copy(frame[5:], body)
 
