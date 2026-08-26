@@ -518,6 +518,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// The compliance machinery. Each of these is a live case with a deadline or an attestation,
 	// and a restored copy would revive a clock that has already run out.
 	"audit_anchor":         "it attests to the chain in the live audit log, not to a copy of one (E-09)",
+	"audit_pseudonym":      "the result of an erasure over a trail that is never written back; carrying it would let a restore reinstate a name, or remove one it did not (E-10)",
 	"data_subject_request": "a case with a legal deadline; a restored one revives a deadline that has passed (E-10)",
 	"privacy_incident":     "the same reasoning: an incident is handled once",
 	// The backup system's own bookkeeping. An archive describing the runs that produced it would
