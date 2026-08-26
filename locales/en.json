@@ -611,5 +611,12 @@
   "templates.nodes_undecodable": "This installation is misconfigured and could not read that template.",
   "templates.nodes_unencodable": "This installation is misconfigured and could not store that template.",
 
+  "calendar.token_malformed": "That is not a calendar feed address this server minted.",
+  "calendar.token_tenant_missing": "This installation is misconfigured and could not mint a feed token.",
+  "calendar.token_secret_short": "This installation is misconfigured and could not mint a feed token.",
+  "calendar.feed_incomplete": "This installation is misconfigured and could not mint that feed.",
+  "calendar.feed_owner_missing": "This installation is misconfigured and could not mint that feed.",
+  "calendar.view_required": "A feed needs a view to serve. Send view_id.",
+
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }
