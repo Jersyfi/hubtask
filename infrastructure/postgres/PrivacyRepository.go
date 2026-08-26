@@ -37,6 +37,7 @@ var (
 	_ repository.Consents   = PrivacyRepository{}
 	_ repository.Subjects   = PrivacyRepository{}
 	_ repository.Pseudonyms = PrivacyRepository{}
+	_ repository.Erasure    = PrivacyRepository{}
 )
 
 // Insert records a new case.
@@ -487,4 +488,206 @@ func optionalInstant(value time.Time) pgtype.Timestamptz {
 		return pgtype.Timestamptz{}
 	}
 	return timestampOf(value)
+}
+
+// The erasure, one storage location at a time (E-10, data-protection.md §5).
+
+// Anonymise keeps the row and takes everything of the person's out of it.
+func (r PrivacyRepository) Anonymise(
+	ctx context.Context, accountID shared.ID, marker string, at time.Time,
+) (bool, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return false, err
+	}
+
+	rows, err := queries.AnonymiseAccount(ctx, sqlc.AnonymiseAccountParams{
+		ID: id, Marker: marker, UpdatedAt: timestampOf(at),
+	})
+	if err != nil {
+		return false, erasureFailed("anonymising an account", err)
+	}
+	return rows > 0, nil
+}
+
+// Delete removes the account and lets the cascades take the rest.
+func (r PrivacyRepository) Delete(ctx context.Context, accountID shared.ID) (bool, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return false, err
+	}
+
+	rows, err := queries.DeleteAccount(ctx, id)
+	if err != nil {
+		return false, erasureFailed("deleting an account", err)
+	}
+	return rows > 0, nil
+}
+
+// RevokeCredentials removes every token, feed and device of the person.
+func (r PrivacyRepository) RevokeCredentials(
+	ctx context.Context, accountID shared.ID,
+) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+
+	removed := int64(0)
+	for what, remove := range map[string]func(context.Context, pgtype.UUID) (int64, error){
+		"the access tokens":  queries.DeleteCredentialsOfAccount,
+		"the calendar feeds": queries.DeleteFeedsOfAccount,
+		"the sync devices":   queries.DeleteDevicesOfAccount,
+	} {
+		rows, err := remove(ctx, id)
+		if err != nil {
+			return 0, erasureFailed("removing "+what+" of an account", err)
+		}
+		removed += rows
+	}
+	return int(removed), nil
+}
+
+// DiscardNotifications removes what was sent to them and what was about to be.
+func (r PrivacyRepository) DiscardNotifications(
+	ctx context.Context, accountID shared.ID,
+) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+
+	rows, err := queries.DeleteNotificationsOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the notifications of an account", err)
+	}
+	return int(rows), nil
+}
+
+// ReleaseAssignments hands the work back to nobody.
+func (r PrivacyRepository) ReleaseAssignments(
+	ctx context.Context, accountID shared.ID, at time.Time,
+) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+
+	rows, err := queries.ClearAssignmentsOfAccount(ctx, sqlc.ClearAssignmentsOfAccountParams{
+		AccountID: id, UpdatedAt: timestampOf(at),
+	})
+	if err != nil {
+		return 0, erasureFailed("releasing the assignments of an account", err)
+	}
+	return int(rows), nil
+}
+
+// AuthoredComments answers the person's own contributions.
+func (r PrivacyRepository) AuthoredComments(
+	ctx context.Context, accountID shared.ID,
+) ([]repository.Authored, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.CommentsAuthoredBy(ctx, id)
+	if err != nil {
+		return nil, erasureFailed("reading the comments of an account", err)
+	}
+
+	authored := make([]repository.Authored, 0, len(rows))
+	for _, row := range rows {
+		commentID, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		itemID, err := idFrom(row.ItemID)
+		if err != nil {
+			return nil, err
+		}
+		authored = append(authored, repository.Authored{ID: commentID, ItemID: itemID})
+	}
+	return authored, nil
+}
+
+// DeleteAuthoredComments removes them.
+func (r PrivacyRepository) DeleteAuthoredComments(
+	ctx context.Context, accountID shared.ID,
+) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+
+	rows, err := queries.DeleteCommentsAuthoredBy(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the comments of an account", err)
+	}
+	return int(rows), nil
+}
+
+// OrphanedMedia answers the uploads nothing points at any more.
+func (r PrivacyRepository) OrphanedMedia(
+	ctx context.Context, accountID shared.ID,
+) ([]repository.Medium, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.MediaUploadedBy(ctx, id)
+	if err != nil {
+		return nil, erasureFailed("reading the media of an account", err)
+	}
+
+	media := make([]repository.Medium, 0, len(rows))
+	for _, row := range rows {
+		mediaID, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		media = append(media, repository.Medium{ID: mediaID, StorageKey: row.StorageKey})
+	}
+	return media, nil
+}
+
+// DiscardMedium removes one medium's row.
+func (r PrivacyRepository) DiscardMedium(ctx context.Context, mediaID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(mediaID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := queries.DeleteMediaObject(ctx, id); err != nil {
+		return erasureFailed("removing a medium", err)
+	}
+	return nil
+}
+
+// accountQuery is the two lines every statement above starts with.
+func (r PrivacyRepository) accountQuery(
+	ctx context.Context, accountID shared.ID,
+) (*sqlc.Queries, pgtype.UUID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, pgtype.UUID{}, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return nil, pgtype.UUID{}, err
+	}
+	return queries, id, nil
+}
+
+// erasureFailed keeps the driver's message out of the answer, for the reason rule 10 gives: a
+// message from a driver carries the values of the statement, and here those are a person's.
+func erasureFailed(what string, cause error) error {
+	return shared.ErrUnavailable.
+		WithDetail("postgres.query_failed").
+		WithCause(fmt.Errorf("%s: %w", what, cause))
 }

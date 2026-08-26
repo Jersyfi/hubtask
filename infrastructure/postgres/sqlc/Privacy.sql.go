@@ -11,6 +11,46 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const anonymiseAccount = `-- name: AnonymiseAccount :execrows
+
+UPDATE account SET
+  display_name     = $1,
+  email            = NULL,
+  external_subject = NULL,
+  password_hash    = NULL,
+  locale           = NULL,
+  time_zone        = NULL,
+  week_start       = NULL,
+  status           = 'ANONYMIZED',
+  updated_at       = $2,
+  version          = version + 1
+WHERE id = $3 AND tenant_id = current_tenant_id()
+`
+
+type AnonymiseAccountParams struct {
+	Marker    string
+	UpdatedAt pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// ===================== The erasure (Art. 17, QS-19) =========================
+// Every statement below serves one storage location from the data catalogue
+// (data-protection.md §5). They are separate rather than one procedure because the two modes use
+// different subsets of them, and because what each one removed has to be counted for the record.
+// The mode that keeps the authorship: the row stays, and everything of the person's in it goes.
+//
+// The display name becomes a marker rather than an empty string, because the audit trail and the
+// item history both carry a denormalised label and a workspace reading "  " where somebody used to
+// be is worse than one reading "former user". `status` is what stops every automatic decision from
+// then on (identity.AccountStatus.ProcessingAllowed).
+func (q *Queries) AnonymiseAccount(ctx context.Context, arg AnonymiseAccountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, anonymiseAccount, arg.Marker, arg.UpdatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const auditPseudonyms = `-- name: AuditPseudonyms :many
 SELECT actor_id, pseudonym
 FROM audit_pseudonym
@@ -44,6 +84,153 @@ func (q *Queries) AuditPseudonyms(ctx context.Context, actorIds []pgtype.UUID) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const clearAssignmentsOfAccount = `-- name: ClearAssignmentsOfAccount :execrows
+UPDATE work_item SET assignee_id = NULL, updated_at = $1, version = version + 1
+WHERE tenant_id = current_tenant_id() AND assignee_id = $2 AND deleted_at IS NULL
+`
+
+type ClearAssignmentsOfAccountParams struct {
+	UpdatedAt pgtype.Timestamptz
+	AccountID pgtype.UUID
+}
+
+// Work assigned to the person goes back to nobody. The entry belongs to the workspace and stays;
+// the assignment is a fact about a person and does not.
+func (q *Queries) ClearAssignmentsOfAccount(ctx context.Context, arg ClearAssignmentsOfAccountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAssignmentsOfAccount, arg.UpdatedAt, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const commentsAuthoredBy = `-- name: CommentsAuthoredBy :many
+SELECT id, item_id
+FROM comment
+WHERE tenant_id = current_tenant_id() AND author_id = $1
+`
+
+type CommentsAuthoredByRow struct {
+	ID     pgtype.UUID
+	ItemID pgtype.UUID
+}
+
+// The person's own contributions, which `FULL_DELETE` takes and `ANONYMIZE` keeps.
+//
+// Read before they are removed, because each one owes a journal entry and a tombstone: a comment
+// that vanished without either would come back from a restore, or be recreated by a device that
+// was offline (ADR-0020 §6).
+func (q *Queries) CommentsAuthoredBy(ctx context.Context, authorID pgtype.UUID) ([]CommentsAuthoredByRow, error) {
+	rows, err := q.db.Query(ctx, commentsAuthoredBy, authorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CommentsAuthoredByRow{}
+	for rows.Next() {
+		var i CommentsAuthoredByRow
+		if err := rows.Scan(&i.ID, &i.ItemID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteAccount = `-- name: DeleteAccount :execrows
+DELETE FROM account WHERE id = $1 AND tenant_id = current_tenant_id()
+`
+
+// The mode that takes the person with them. The cascades of `0001_init` do the rest: memberships,
+// group memberships, item memberships, tokens, calendar feeds, sync devices, consents and
+// notifications all name the account with ON DELETE CASCADE, and assignments are set to NULL.
+func (q *Queries) DeleteAccount(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAccount, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteCommentsAuthoredBy = `-- name: DeleteCommentsAuthoredBy :execrows
+DELETE FROM comment WHERE tenant_id = current_tenant_id() AND author_id = $1
+`
+
+func (q *Queries) DeleteCommentsAuthoredBy(ctx context.Context, authorID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCommentsAuthoredBy, authorID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteCredentialsOfAccount = `-- name: DeleteCredentialsOfAccount :execrows
+DELETE FROM access_token WHERE account_id = $1
+`
+
+// Every credential the person holds, whichever mode is chosen. An anonymised account keeps its row
+// and must not keep a token that still works.
+func (q *Queries) DeleteCredentialsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCredentialsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteDevicesOfAccount = `-- name: DeleteDevicesOfAccount :execrows
+DELETE FROM sync_device WHERE account_id = $1
+`
+
+func (q *Queries) DeleteDevicesOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDevicesOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteFeedsOfAccount = `-- name: DeleteFeedsOfAccount :execrows
+DELETE FROM calendar_feed WHERE account_id = $1
+`
+
+func (q *Queries) DeleteFeedsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteFeedsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteMediaObject = `-- name: DeleteMediaObject :execrows
+DELETE FROM media_object WHERE tenant_id = current_tenant_id() AND id = $1
+`
+
+func (q *Queries) DeleteMediaObject(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMediaObject, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteNotificationsOfAccount = `-- name: DeleteNotificationsOfAccount :execrows
+DELETE FROM notification WHERE tenant_id = current_tenant_id() AND recipient_id = $1
+`
+
+// What was sent to them, and what was about to be. A notification carries a person's name in the
+// rendering rather than in the row, but the row says who was told what and when.
+func (q *Queries) DeleteNotificationsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteNotificationsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const findDataSubjectRequest = `-- name: FindDataSubjectRequest :one
@@ -336,6 +523,46 @@ func (q *Queries) ListDataSubjectRequests(ctx context.Context, arg ListDataSubje
 			&i.ResultArchive,
 			&i.Notes,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const mediaUploadedBy = `-- name: MediaUploadedBy :many
+SELECT m.id, m.storage_key
+FROM media_object m
+WHERE m.tenant_id = current_tenant_id()
+  AND m.created_by = $1
+  AND NOT EXISTS (
+    SELECT 1 FROM item_attachment a WHERE a.tenant_id = m.tenant_id AND a.media_id = m.id
+  )
+`
+
+type MediaUploadedByRow struct {
+	ID         pgtype.UUID
+	StorageKey string
+}
+
+// The media the person uploaded that nothing points at any more.
+//
+// Only the unattached ones. A file attached to an entry is the workspace's content - somebody
+// else's work refers to it - and removing it would erase a third party's material along with the
+// person's, which is exactly what the two erasure modes exist to keep apart.
+func (q *Queries) MediaUploadedBy(ctx context.Context, createdBy pgtype.UUID) ([]MediaUploadedByRow, error) {
+	rows, err := q.db.Query(ctx, mediaUploadedBy, createdBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MediaUploadedByRow{}
+	for rows.Next() {
+		var i MediaUploadedByRow
+		if err := rows.Scan(&i.ID, &i.StorageKey); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -144,3 +144,91 @@ WHERE tenant_id = current_tenant_id() AND actor_id = ANY(sqlc.arg('actor_ids')::
 -- follows is one ordinary transaction per tenant, under that tenant's own context
 -- (db/migrations/0044_privacy_requests.sql).
 SELECT subject_tenants AS tenant_id FROM subject_tenants(sqlc.arg('subject_email')::text);
+
+-- ===================== The erasure (Art. 17, QS-19) =========================
+-- Every statement below serves one storage location from the data catalogue
+-- (data-protection.md §5). They are separate rather than one procedure because the two modes use
+-- different subsets of them, and because what each one removed has to be counted for the record.
+
+-- name: AnonymiseAccount :execrows
+-- The mode that keeps the authorship: the row stays, and everything of the person's in it goes.
+--
+-- The display name becomes a marker rather than an empty string, because the audit trail and the
+-- item history both carry a denormalised label and a workspace reading "  " where somebody used to
+-- be is worse than one reading "former user". `status` is what stops every automatic decision from
+-- then on (identity.AccountStatus.ProcessingAllowed).
+UPDATE account SET
+  display_name     = sqlc.arg('marker'),
+  email            = NULL,
+  external_subject = NULL,
+  password_hash    = NULL,
+  locale           = NULL,
+  time_zone        = NULL,
+  week_start       = NULL,
+  status           = 'ANONYMIZED',
+  updated_at       = sqlc.arg('updated_at'),
+  version          = version + 1
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id();
+
+-- name: DeleteAccount :execrows
+-- The mode that takes the person with them. The cascades of `0001_init` do the rest: memberships,
+-- group memberships, item memberships, tokens, calendar feeds, sync devices, consents and
+-- notifications all name the account with ON DELETE CASCADE, and assignments are set to NULL.
+DELETE FROM account WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id();
+
+-- name: DeleteCredentialsOfAccount :execrows
+-- Every credential the person holds, whichever mode is chosen. An anonymised account keeps its row
+-- and must not keep a token that still works.
+DELETE FROM access_token WHERE account_id = sqlc.arg('account_id');
+
+-- name: DeleteFeedsOfAccount :execrows
+DELETE FROM calendar_feed WHERE account_id = sqlc.arg('account_id');
+
+-- name: DeleteDevicesOfAccount :execrows
+DELETE FROM sync_device WHERE account_id = sqlc.arg('account_id');
+
+-- name: DeleteNotificationsOfAccount :execrows
+-- What was sent to them, and what was about to be. A notification carries a person's name in the
+-- rendering rather than in the row, but the row says who was told what and when.
+DELETE FROM notification WHERE tenant_id = current_tenant_id() AND recipient_id = sqlc.arg('account_id');
+
+-- name: ClearAssignmentsOfAccount :execrows
+-- Work assigned to the person goes back to nobody. The entry belongs to the workspace and stays;
+-- the assignment is a fact about a person and does not.
+UPDATE work_item SET assignee_id = NULL, updated_at = sqlc.arg('updated_at'), version = version + 1
+WHERE tenant_id = current_tenant_id() AND assignee_id = sqlc.arg('account_id') AND deleted_at IS NULL;
+
+-- name: CommentsAuthoredBy :many
+-- The person's own contributions, which `FULL_DELETE` takes and `ANONYMIZE` keeps.
+--
+-- Read before they are removed, because each one owes a journal entry and a tombstone: a comment
+-- that vanished without either would come back from a restore, or be recreated by a device that
+-- was offline (ADR-0020 §6).
+SELECT id, item_id
+FROM comment
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id');
+
+-- name: DeleteCommentsAuthoredBy :execrows
+DELETE FROM comment WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id');
+
+-- name: MediaUploadedBy :many
+-- The media the person uploaded that nothing points at any more.
+--
+-- Only the unattached ones. A file attached to an entry is the workspace's content - somebody
+-- else's work refers to it - and removing it would erase a third party's material along with the
+-- person's, which is exactly what the two erasure modes exist to keep apart.
+SELECT m.id, m.storage_key
+FROM media_object m
+WHERE m.tenant_id = current_tenant_id()
+  AND m.created_by = sqlc.arg('created_by')
+  AND NOT EXISTS (
+    SELECT 1 FROM item_attachment a WHERE a.tenant_id = m.tenant_id AND a.media_id = m.id
+  );
+
+-- name: DeleteMediaObject :execrows
+DELETE FROM media_object WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
+
+-- What an attached medium keeps is the file and the identifier of whoever uploaded it. After a
+-- full deletion that identifier points at nobody, which is the position `audit_log.actor_id` is in
+-- as well - and `audit_pseudonym` is what answers "who was this" for both. Rewriting the column
+-- would be a second mechanism for one question.

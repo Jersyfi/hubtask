@@ -103,6 +103,64 @@ type Subjects interface {
 	Tenants(ctx context.Context, email string) ([]shared.ID, error)
 }
 
+// Erasure is every storage location a person's data sits in, as the one thing that has to serve
+// them all (data-protection.md §5, risk R-09).
+//
+// A method per location rather than one `Erase`: the two modes use different subsets of them, what
+// each one removed has to be counted for the record, and a location added later is a method added
+// here - which the catalogue's own test reconciles against the document. A single procedure would
+// be a place to forget one silently, which is exactly how "a clean deletion concept becomes untrue
+// over two years" (ADR-0018).
+type Erasure interface {
+	// Anonymise keeps the row and takes everything of the person's out of it, leaving the marker
+	// the audit trail and the item history read as a name.
+	Anonymise(ctx context.Context, accountID shared.ID, marker string, at time.Time) (bool, error)
+
+	// Delete removes the account, and the cascades of `0001_init` take the memberships, the
+	// credentials, the feeds, the devices, the consents and the notifications with it.
+	Delete(ctx context.Context, accountID shared.ID) (bool, error)
+
+	// RevokeCredentials removes every token, calendar feed and sync device of the person. Called
+	// in both modes: an anonymised account keeps its row and must not keep a credential that
+	// still works.
+	RevokeCredentials(ctx context.Context, accountID shared.ID) (int, error)
+
+	// DiscardNotifications removes what was sent to them and what was about to be.
+	DiscardNotifications(ctx context.Context, accountID shared.ID) (int, error)
+
+	// ReleaseAssignments hands the work they were assigned back to nobody. The entries belong to
+	// the workspace and stay.
+	ReleaseAssignments(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
+
+	// AuthoredComments answers the person's own contributions, with the entry each belongs to, so
+	// that a removal can write the journal entry and the tombstone each of them owes.
+	AuthoredComments(ctx context.Context, accountID shared.ID) ([]Authored, error)
+
+	// DeleteAuthoredComments removes them. Only `FULL_DELETE` calls it.
+	DeleteAuthoredComments(ctx context.Context, accountID shared.ID) (int, error)
+
+	// OrphanedMedia answers the media the person uploaded that nothing points at any more, with
+	// the key their bytes live under. A file attached to an entry is the workspace's content and
+	// is not here.
+	OrphanedMedia(ctx context.Context, accountID shared.ID) ([]Medium, error)
+
+	// DiscardMedium removes one medium's row. The bytes are removed by the caller, outside the
+	// transaction, because a bucket is an external dependency (observability-reliability.md §8).
+	DiscardMedium(ctx context.Context, mediaID shared.ID) error
+}
+
+// Authored is one contribution of the person's, and the entry it belongs to.
+type Authored struct {
+	ID     shared.ID
+	ItemID shared.ID
+}
+
+// Medium is one uploaded file: the row and the key its bytes live under.
+type Medium struct {
+	ID         shared.ID
+	StorageKey string
+}
+
 // Pseudonyms is the substitution the audit trail reads at the boundary (audit.md §6).
 //
 // The trail is exempt from erasure and cannot be edited in place - the grants, the trigger and the
