@@ -120,6 +120,14 @@ type Erasure interface {
 	// credentials, the feeds, the devices, the consents and the notifications with it.
 	Delete(ctx context.Context, accountID shared.ID) (bool, error)
 
+	// AutomationsRunningAs counts the automation rules that act as the person.
+	//
+	// It is asked before a full deletion is attempted, because `automation_rule.run_as` is the one
+	// reference to an account the schema declares `ON DELETE RESTRICT`: a rule that acts as
+	// somebody must not quietly start acting as nobody. The deletion is refused with that count
+	// rather than attempted and failed on a foreign key (E-11, PG-2).
+	AutomationsRunningAs(ctx context.Context, accountID shared.ID) (int, error)
+
 	// RevokeCredentials removes every token, calendar feed and sync device of the person. Called
 	// in both modes: an anonymised account keeps its row and must not keep a credential that
 	// still works.
@@ -131,6 +139,14 @@ type Erasure interface {
 	// ReleaseAssignments hands the work they were assigned back to nobody. The entries belong to
 	// the workspace and stay.
 	ReleaseAssignments(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
+
+	// DiscardIntake removes what the person sent in by mail, matched by their address, which is
+	// all an inbound message carries. Only `FULL_DELETE` calls it.
+	DiscardIntake(ctx context.Context, accountID shared.ID) (int, error)
+
+	// ReleaseIntake is the same in the mode that keeps the workspace's content: the text stays and
+	// stops being anybody's.
+	ReleaseIntake(ctx context.Context, accountID shared.ID) (int, error)
 
 	// AuthoredComments answers the person's own contributions, with the entry each belongs to, so
 	// that a removal can write the journal entry and the tombstone each of them owes.

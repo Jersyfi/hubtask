@@ -6,7 +6,7 @@ locations, retention, and deletion path. The basis for the record of processing 
 
 * **Version:** 0.4.0 · **As of:** 2026-08-26 · **Maintenance:** by pull request, so changes are traceable
 * **Concept:** [../architecture/data-protection.md](../architecture/data-protection.md)
-* **Consistency check:** gate PG-7 compares this record against the database schema; a table with personal content that is missing here fails the build.
+* **Consistency check:** gate PG-7 (`test/privacy/PG7_catalogue_test.go`, run by `make gate-privacy-full` in the nightly) compares this record against a migrated database schema; a table with personal content that is missing here fails the build. It runs since E-11 — before that the sentence was a promise.
 
 > This document describes the software. It is **not** an operator's record of processing activities
 > and **not** legal advice — legal bases and recipients depend on the specific installation. The
@@ -18,7 +18,13 @@ locations, retention, and deletion path. The basis for the record of processing 
 ## 1. Legend
 
 **Classification:** `NON_PERSONAL` · `PERSONAL_BASIC` · `PERSONAL_CONTENT` ·
-`PERSONAL_TECHNICAL` · `SECRET` (see the concept, §3)
+`PERSONAL_TECHNICAL` · `SPECIAL_CATEGORY_RISK` · `SECRET` — the six classes of the concept
+([data-protection.md](../architecture/data-protection.md) §3), which are `shared.DataClass` in code
+since E-11. This legend listed five until then; the missing one was `SPECIAL_CATEGORY_RISK`, which
+is exactly the class a record of processing activities must not be missing.
+
+The trail's masking vocabulary — `OPEN`, `SENSITIVE`, `SECRET` — is **not** a fourth set of classes.
+It is derived from these six by `audit.MaskingFor` ([audit.md](../architecture/audit.md) §4).
 
 **Deletion path:** `CASCADE` (with the parent object) · `ANONYMIZE` (the reference is removed, the
 record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit retention) ·
@@ -68,7 +74,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Templates (name, description, and the node tree with its titles and notes) | `template` | `PERSONAL_CONTENT`; the `assignee_id` of a node is `PERSONAL_BASIC` | Productivity: a shape of work that gets stamped out (D-06) | Until deleted | `CASCADE` with the tenant. The delete endpoint is a **soft delete**: the row keeps its text and its `deleted_at`, which is what lets the trees it stamped out stand on their own and what frees the name for a new template at once - the uniqueness index is partial on `deleted_at IS NULL`, so a recreated name is a new row and never resurrects the old content. No retention period sweeps those rows today; they go with the tenant. Deleting an account anonymises `created_by` and leaves a node's `assignee_id` to be dropped at the next instantiation, which reports it rather than assigning to somebody who has gone |
 | Saved views | `saved_view` (name is free text; the query may quote content in filter values) | `PERSONAL_CONTENT` | Productivity: bookmarked queries (D-07) | Until deleted | `CASCADE` with the tenant; the delete endpoint removes the row hard, and a calendar feed that served it keeps its token and loses the reference (`calendar_feed.view_id` is `ON DELETE SET NULL`) |
 | Calendar feed subscriptions (the token's hash, the owner, the view) | `calendar_feed` | `SECRET` (the hash) plus `PERSONAL_BASIC` (which account subscribed to what) | Reading one's own work in a calendar client (D-08) | Until revoked or until the account goes | `CASCADE` with the account - the foreign key is composite on (tenant_id, account_id), so deleting a person takes their subscriptions with them and every URL they handed out stops working. Revoking is a stamp rather than a delete, so `revoked_at` answers "when did that token stop working"; the row then holds no more than a hash nothing can reverse. A deleted view leaves the row with `view_id` null (`ON DELETE SET NULL`) rather than taking it, because a feed is the subscriber's and a view is the workspace's |
-| Jumble entries (raw text from mail/webhook) | `jumble_entry` | `PERSONAL_CONTENT` | Quick capture | Until converted, otherwise 90 days | `RETENTION` |
+| Jumble entries (raw text from mail/webhook) | `jumble_entry` | `PERSONAL_CONTENT` | Quick capture | Until converted, otherwise 90 days | `RETENTION`, and with the sender's erasure: the message goes in a full deletion, and keeps its text without the address in an anonymisation (E-11) |
 | Trash marker | `work_item.deleted_at` | `NON_PERSONAL` | Restore | 30 days | `RETENTION` (hard delete) |
 | Label and attachment links | `item_label`, `item_attachment` | `NON_PERSONAL` | Structure; the content sits in the row they point at | With the item | `CASCADE` |
 | Set membership for offline merging (labels, members, watchers, attachments with their tags) | `set_element` | `PERSONAL_BASIC` (member references) | Merging two devices' edits without losing either | With the item | `CASCADE` |
@@ -94,7 +100,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | AI usage metadata (provider, model, purpose, scope, timestamp) | `audit_log` | `PERSONAL_TECHNICAL` | Transparency, evidence of third-country transfer | The audit period | `IMMUTABLE` |
 | Content transmitted to AI | **not stored** (transmitted to the provider) | `PERSONAL_CONTENT` | AI suggestions | Not stored in the system; at the provider per their agreement | — |
 | Embedding vectors (optional) | `item_embedding` | `PERSONAL_CONTENT` (derived) | Semantic search | With the source row | `CASCADE` |
-| Email intake (sender, subject, body) | `jumble_entry` | `PERSONAL_CONTENT` | Quick capture | See §3 | `RETENTION` |
+| Email intake (sender, subject, body) | `jumble_entry` | `PERSONAL_CONTENT` | Quick capture | See §3 | `RETENTION` / `CASCADE` with the sender's erasure — matched by address, which is all an inbound mail carries |
 | What a subscriber has already consumed (consumer, event, time) | `event_consumption` | `NON_PERSONAL` | At-least-once delivery without a repeated effect (ADR-0007) | With the event, 7 days after delivery | `RETENTION` |
 | Notifications (recipient, category, channel, state, reason, references) | `notification` | `PERSONAL_TECHNICAL` (references only — no title, no note, no comment text) | Telling somebody that work concerns them | 90 days (`NOTIFICATION`, data-retention.md §3) | `RETENTION`, and `CASCADE` with the account or the entry |
 | Notification preferences (category, channel, switched on, title in the message) | `notification_preference` | `PERSONAL_BASIC` | Honouring what somebody said about being told | The lifetime of the account | `CASCADE` |
@@ -112,7 +118,8 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Consents and withdrawals (purpose, when granted, when taken back, by whom) | `consent_record` | `PERSONAL_TECHNICAL` (a reference and two moments, no content) | Showing which optional processing was lawful when (Art. 7(1)) | With the account; a withdrawal is recorded rather than deleted | `CASCADE` |
 | Audit pseudonyms (an actor identifier and a label with no meaning outside the workspace) | `audit_pseudonym` | `PERSONAL_TECHNICAL` (a reference; it holds no name) | Answering an erased actor's entries without a name, where the trail itself cannot be edited (audit.md §6) | With the audit period | `IMMUTABLE` (append-only for the reason the trail is) |
 | Data subject exports (a Hubtask archive of one person's data) | The backup target the case named | `PERSONAL_CONTENT` | Access and portability (Art. 15, 20) | Whatever the target keeps; handed to the person and not read back by this system | The operator, at the target |
-| Retention rules | `retention_policy` | `NON_PERSONAL` | Storage limitation | Permanent | — |
+| Retention bounds per data kind | `retention_policy` | `NON_PERSONAL` | Storage limitation | Permanent | — |
+| Retention rules (the data kind, the period, the action, the operator's justification, who wrote it) | `retention_rule` | `PERSONAL_TECHNICAL` (the author's reference; the justification is the operator's own words, not a person's data) | Storage limitation as a workspace configures it (ADR-0020) | With the workspace | `CASCADE` |
 | Jobs (type, parameters as references) | `job` | `PERSONAL_TECHNICAL` | Background processing | 7 days after completion | `RETENTION` |
 | Idempotency keys | `idempotency_key` | `PERSONAL_TECHNICAL` | Protection against double processing | 24 hours | `RETENTION` |
 | Usage figures (aggregates) | `usage_record` | `NON_PERSONAL` | Billing (opt-in) | 3 years when enabled | `RETENTION` |

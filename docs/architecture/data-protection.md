@@ -45,7 +45,11 @@ The full record: [data-catalog.md](../privacy/data-catalog.md) (a record of proc
 the sense of Art. 30, versioned in the repository).
 
 Every field in the model carries a classification, held machine-readably in the
-`CustomFieldDefinition` or in the metadata of the domain models:
+`CustomFieldDefinition` or in the metadata of the domain models. Since E-11 the six classes are a
+type - `shared.DataClass` - rather than a list in a document, because three vocabularies had grown
+where there should have been one: this table's six, the data catalogue's five (it had lost
+`SPECIAL_CATEGORY_RISK`), and `audit.md` §4's three, which are not classes at all but a *masking*
+policy. There is one vocabulary and one derivation now, and both are code a gate can read.
 
 | Class | Meaning | Effect in the system |
 |---|---|---|
@@ -55,6 +59,18 @@ Every field in the model carries a classification, held machine-readably in the
 | `PERSONAL_TECHNICAL` | IP address, user agent, session and device characteristics | Stored truncated, short retention |
 | `SPECIAL_CATEGORY_RISK` | The product deliberately collects no such category, but free text can contain health or similar data (Art. 9) | A note to operators in the documentation; heightened care with AI transmission and indexing |
 | `SECRET` | Passwords, tokens, keys | Only hashed/encrypted, never exported, never audited |
+
+**The derivation to the trail's masking** (`audit.MaskingFor`, `audit.md` §4): `NON_PERSONAL` and
+`PERSONAL_TECHNICAL` are recorded as they are, because technical data is already reduced where it
+is written - an address truncated to a prefix, a user agent to a class. `PERSONAL_BASIC`,
+`PERSONAL_CONTENT` and `SPECIAL_CATEGORY_RISK` are recorded as "changed" with a fingerprint.
+`SECRET` is not recorded at all. A class this build does not recognise is treated as the middle
+one, because guessing "record it in clear text" is the one direction that cannot be taken back.
+
+There is one stated exception, and it is stated rather than derived: the **actor's label** is
+`PERSONAL_BASIC` and travels in the trail in clear, because an entry that only pointed at a foreign
+key becomes unreadable once the account is deleted ([audit.md](./audit.md) §2). An erasure answers
+it with a pseudonym at the boundary instead (§6).
 
 The `SPECIAL_CATEGORY_RISK` class is named deliberately: a task manager collects no health data —
 but "reschedule MRI appointment, oncology" sits in a free text field. That is why free text content
@@ -205,8 +221,8 @@ are expensive to retrofit but nearly free as a baseline from the start.
 
 ## 8. Technical and organisational measures (Art. 32)
 
-The TOM description that every operator needs for their record of processing activities ships as a
-document (`docs/privacy/tom.md`, derived from [security.md](./security.md)) and names:
+The TOM description that every operator needs for their record of processing activities ships as
+[`docs/privacy/tom.md`](../privacy/tom.md), derived from [security.md](./security.md), and names:
 pseudonymisation and encryption (at rest and in transit), tenant isolation through RLS, access
 control with RBAC and MFA, logging, availability and recovery measures (RPO/RTO, verified restores),
 procedures for regular review (CI gates, access review, pentest), and resilience (the resilience
@@ -214,8 +230,11 @@ patterns).
 
 **Breach notification (Art. 33/34):** the audit trail and access logs are designed so that affected
 parties can be *evidenced* — which tenants, which data categories, which period. Without that
-analysability, a notification within 72 hours is not possible. A runbook `RB-GDPR-33` describes the
-procedure including the queries.
+analysability, a notification within 72 hours is not possible. The runbook
+[`RB-GDPR-33`](../privacy/RB-GDPR-33-personal-data-breach.md) describes the procedure including the
+queries. It lives beside the data catalogue rather than under
+`deploy/observability/runbooks/`, because nothing fires it: a breach is noticed by a person, and
+every runbook in that directory answers an alert.
 
 ---
 
@@ -256,6 +275,25 @@ procedure including the queries.
 PG-2 and PG-7 are the decisive ones: they prevent the data catalogue from drifting away from the
 code and stop deletion paths being forgotten when new tables are added — the usual route by which a
 clean deletion concept becomes untrue over two years.
+
+**Where each of them runs** (E-11). They live in `test/privacy/`, and the split is by cost:
+
+| Gate | Runs in | Note |
+|---|---|---|
+| PG-1, PG-3, PG-4, PG-5, PG-6, PG-8 | `make gate-privacy`, part of `make verify` and of every pull request | They read the source and the declarations; no database, a second or two |
+| PG-2, PG-7 | `make gate-privacy-full`, in the nightly with containers | Both need a migrated database; PG-2 additionally runs the real erasure |
+
+Each one is proved to go red by `make gate-selftest` against a deliberate violation — which is what
+distinguishes a gate from a table like this one. The probes for PG-2 and PG-7 are skipped where
+there is no container runtime and reported as skipped rather than passed, and the nightly runs the
+whole script on the machine that has one.
+
+Two of them are less than they look, and say so where they run. PG-6 reads the source for addresses
+rather than sandboxing the network: what a build can decide is where a destination could come from,
+and every outbound call this system makes names a target that arrived as configuration or as data
+([ADR-0015](../adr/ADR-0015-security-baseline.md)). PG-8 has nothing to refuse — there is no AI
+provider surface in this build — so it is a tripwire that fires when one arrives, and the measure
+belongs to `0.7.0`.
 
 ---
 

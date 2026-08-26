@@ -21,6 +21,7 @@ LINT=".tools/golangci-lint"
 SCRATCH="gate_selftest"    # a package directory of this name is created and deleted per check
 FAILURES=0
 CHECKS=0
+SKIPPED=0
 
 cleanup() {
 	find . -type d -name "$SCRATCH" -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
@@ -605,6 +606,124 @@ else
 fi
 rm -f "$PIN_PROBE"
 
+header "Data protection (make gate-privacy)"
+
+# PG-1 to PG-8 are the gates data-protection.md §10 and ADR-0018 assert. Four documents claimed
+# them and nothing ran them until E-11, so what has to be shown here is not that they are clever -
+# it is that each one goes red. Three take a probe package the way the layer rules do; the rest
+# need a line of the real source moved, and are restored afterwards.
+
+expect_gate_failure "an audit change without a classification" gate-privacy core/domain \
+'package selftest
+
+import "github.com/Jersyfi/hubtask/core/port/audit"
+
+var probe = audit.Change{Field: "title", To: "the new title"}'
+
+expect_gate_failure "a title in a log line" gate-privacy infrastructure \
+'package selftest
+
+import "log/slog"
+
+func probe(logger *slog.Logger, title string) {
+	logger.Info("saved", slog.String("title", title))
+}'
+
+expect_gate_failure "an address written into the source" gate-privacy infrastructure \
+'package selftest
+
+const collector = "https://collector.example.net/ingest"'
+
+# PG-3, PG-5 and PG-8 read declarations of the real packages rather than a file the probe writes,
+# so each is shown a real declaration changed. The first can be done additively - the map is a
+# package-level variable, and an `init` in the same package is enough to make a decision about a
+# table no archive carries.
+CHECKS=$((CHECKS + 1))
+EXPORT_PROBE="core/application/service/privacy/zz_gate_selftest_probe.go"
+cat > "$EXPORT_PROBE" <<'PROBE'
+package privacy
+
+func init() { subjectColumns["nowhere_at_all"] = []string{"account_id"} }
+PROBE
+if make --no-print-directory gate-privacy >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-privacy stayed green\n' "an export decision about no table"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-privacy\n' "an export decision about no table"
+fi
+rm -f "$EXPORT_PROBE"
+
+# expect_privacy_failure_after <name> <file> <sed programme>
+# The file is put back whatever happens - a probe that left the retention floor at zero would be
+# worse than no probe at all.
+expect_privacy_failure_after() {
+	local name="$1" file="$2" programme="$3"
+	CHECKS=$((CHECKS + 1))
+
+	cp "$file" "$file.selftest-backup"
+	sed -i.tmp "$programme" "$file" && rm -f "$file.tmp"
+	if make --no-print-directory gate-privacy >/dev/null 2>&1; then
+		printf '  FAILED  %-44s make gate-privacy stayed green\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	else
+		printf '  ok      %-44s caught by make gate-privacy\n' "$name"
+	fi
+	mv "$file.selftest-backup" "$file"
+}
+
+expect_privacy_failure_after "a retention kind without a lower bound" \
+	core/domain/model/lifecycle/Catalogue.go '/KindTrash/ s/MinDays: [0-9]*/MinDays: 0/'
+
+# PG-8 is a tripwire rather than a check, and a tripwire is proved by tripping it: the marker it
+# watches for, in the file it watches.
+expect_privacy_failure_after "an AI provider arriving in the configuration" \
+	core/port/environment/Port.go '$a\
+// AIProvider - the selftest probe for PG-8.'
+
+header "Data protection with a database (make gate-privacy-full)"
+
+# PG-2 and PG-7 need PostgreSQL, and this script runs where there may be none - so they are skipped
+# rather than silently passed, and the nightly runs this script on the machine that has one.
+if ! docker info >/dev/null 2>&1 && ! podman info >/dev/null 2>&1; then
+	printf '  skipped %-44s no container runtime\n' "PG-2 and PG-7"
+	SKIPPED=$((SKIPPED + 2))
+else
+	# expect_full_privacy_failure <name> <file>: the file is already broken; run the gate, expect
+	# red, and put the file back.
+	expect_full_privacy_failure() {
+		local name="$1" file="$2"
+		CHECKS=$((CHECKS + 1))
+
+		if make --no-print-directory gate-privacy-full >/dev/null 2>&1; then
+			printf '  FAILED  %-44s make gate-privacy-full stayed green\n' "$name"
+			FAILURES=$((FAILURES + 1))
+		else
+			printf '  ok      %-44s caught by make gate-privacy-full\n' "$name"
+		fi
+		mv "$file.selftest-backup" "$file"
+	}
+
+	# PG-7: a table that holds personal content and no longer has a catalogue entry. The comments
+	# row is taken out - one line, one table, and the table the catalogue would be most obviously
+	# wrong to be missing.
+	CATALOGUE="docs/privacy/data-catalog.md"
+	cp "$CATALOGUE" "$CATALOGUE.selftest-backup"
+	sed -i.tmp '/| `comment` |/d' "$CATALOGUE" && rm -f "$CATALOGUE.tmp"
+	expect_full_privacy_failure "a personal table missing from the catalogue" "$CATALOGUE"
+
+	# PG-2: an erasure that stops serving one storage location. The repository method keeps its
+	# signature and does nothing, which is exactly the shape of the mistake - a step that reports
+	# success and leaves the rows where they were.
+	ERASER="infrastructure/postgres/PrivacyRepository.go"
+	cp "$ERASER" "$ERASER.selftest-backup"
+	awk '
+		/func \(r PrivacyRepository\) DeleteAuthoredComments\(/ { found = 1 }
+		{ print }
+		found && /^\) \(int, error\) \{$/ { print "\treturn 0, nil // gate-selftest probe"; found = 0 }
+	' "$ERASER.selftest-backup" > "$ERASER"
+	expect_full_privacy_failure "an erasure that leaves a location behind" "$ERASER"
+fi
+
 header "Licences (make gate-licenses)"
 
 # The licence gate cannot be shown a GPL dependency without adding one, so it is shown the other
@@ -620,5 +739,5 @@ else
 	printf '  ok      %-44s caught by go-licenses\n' "a dependency of a refused licence type"
 fi
 
-printf '\n%d checks, %d failures\n' "$CHECKS" "$FAILURES"
+printf '\n%d checks, %d failures, %d skipped\n' "$CHECKS" "$FAILURES" "$SKIPPED"
 test "$FAILURES" -eq 0

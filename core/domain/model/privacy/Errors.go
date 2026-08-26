@@ -29,6 +29,10 @@ const (
 	CodeConsentNotFound         = "privacy.consent_not_found"
 	CodeSubjectNotFound         = "privacy.subject_not_found"
 	CodeInstallationScopeDenied = "privacy.installation_scope_denied"
+	// CodeErasureBlockedByRule is the refusal PG-2 asked for: the person still runs automation,
+	// and a rule that acts as somebody must not start acting as nobody. The operator re-points or
+	// removes the rules, and the case is carried out afterwards.
+	CodeErasureBlockedByRule = "privacy.erasure_blocked_by_rule"
 )
 
 func invalid(code, field string) error {

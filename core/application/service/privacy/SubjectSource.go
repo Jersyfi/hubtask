@@ -61,6 +61,38 @@ var subjectEmailColumns = map[string][]string{
 	"jumble_entry": {"sender"},
 }
 
+// notThePersons is every table an archive carries that is deliberately **not** in a subject export,
+// and why.
+//
+// A map rather than a comment, for the reason `archive.NotRestored` is one: the reasons are read by
+// gate PG-3, which reconciles this file against the data catalogue, and by anybody wondering why
+// their workspace's buckets are not in the copy of their data. A table that is in neither map is
+// what PG-3 fails on - the safe direction for the workspace is the unsafe one for the person, so
+// silence must not be the answer.
+var notThePersons = map[string]string{
+	"tenant":                  "the workspace itself: its name is not a person's data, and the archive needs the row to be restorable",
+	"bucket":                  "a column of a board is the workspace's shape",
+	"label":                   "the workspace's vocabulary",
+	"item_label":              "which of the workspace's labels sits on an entry",
+	"custom_field_definition": "the workspace's own fields",
+	"auto_assign_policy":      "how a collection hands work out, which is a rule rather than a person",
+	"account_group":           "a team is the workspace's structure; the person's membership of one is in the map above",
+	"item_attachment":         "which file hangs off which entry - the file itself is in media_objects, filtered by who uploaded it",
+	"set_element":             "the ordering of a set, which names no person",
+	"recurrence_rule":         "how a series repeats",
+	"reminder":                "a reminder names its recipients in an array rather than a column; a person's own reminders arrive with the entry they are on",
+	"template":                "a shape other people stamp out; it carries no author column",
+	"retention_policy":        "the workspace's periods",
+	"webhook_subscription":    "an integration of the workspace's",
+}
+
+// SubjectTables answers which tables a subject export reads and which it deliberately leaves out,
+// so that gate PG-3 can reconcile both against the data catalogue rather than against a reading of
+// this file.
+func SubjectTables() (byPerson map[string][]string, byAddress map[string][]string, excluded map[string]string) {
+	return subjectColumns, subjectEmailColumns, notThePersons
+}
+
 // subjectSource hands the writer only what belongs to the person.
 type subjectSource struct {
 	inner   archive.Source

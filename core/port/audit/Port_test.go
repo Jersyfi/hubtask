@@ -130,3 +130,49 @@ func TestTheVocabularyMatchesTheSchema(t *testing.T) {
 		t.Error("a value the schema would reject is accepted here")
 	}
 }
+
+// The derivation E-11 states: six classes in, three masking levels out. It is written down so that
+// a gate can check a use case's decision rather than each use case deciding alone.
+func TestEveryClassDerivesItsMasking(t *testing.T) {
+	want := map[shared.DataClass]Classification{
+		shared.ClassNonPersonal:         Open,
+		shared.ClassPersonalTechnical:   Open,
+		shared.ClassPersonalBasic:       Sensitive,
+		shared.ClassPersonalContent:     Sensitive,
+		shared.ClassSpecialCategoryRisk: Sensitive,
+		shared.ClassSecret:              Secret,
+	}
+
+	for _, class := range shared.DataClasses() {
+		masking, known := want[class]
+		if !known {
+			t.Fatalf("%s has no derivation - a class without one is a field nobody can classify", class)
+		}
+		if got := MaskingFor(class); got != masking {
+			t.Errorf("%s masks as %s, want %s", class, got, masking)
+		}
+	}
+
+	// A class this build does not know masks as the strictest thing that still records something.
+	// Guessing OPEN for an unfamiliar class is the one direction that cannot be taken back.
+	if MaskingFor("SOMETHING_NEW") != Sensitive {
+		t.Error("an unknown class is treated as open")
+	}
+}
+
+// An unclassified change is masked rather than written in clear text. PG-1 refuses one at build
+// time; this is what happens if something builds a change from a variable anyway.
+func TestAnUnclassifiedChangeIsNotWrittenInClearText(t *testing.T) {
+	masked := Changes(Change{Field: "title", To: "Weekly shop"})
+
+	entry, _ := masked["title"].(map[string]any)
+	if entry == nil {
+		t.Fatalf("the unclassified field was dropped entirely: %v", masked)
+	}
+	if entry["to"] != nil {
+		t.Errorf("an unclassified value reached the trail: %v", entry)
+	}
+	if entry["unclassified"] != true {
+		t.Errorf("the entry does not say the field was unclassified: %v", entry)
+	}
+}

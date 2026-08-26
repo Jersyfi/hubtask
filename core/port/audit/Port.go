@@ -77,6 +77,32 @@ const (
 	Secret Classification = "SECRET"
 )
 
+// MaskingFor derives what the trail may carry from what the data *is* (E-11).
+//
+// Three masking levels from six classes, and the derivation is the whole point of writing it down:
+// `data-protection.md` §3 says what a field is, `audit.md` §4 says how a value of it appears in the
+// trail, and until E-11 those were two vocabularies with no stated relationship - so every use case
+// decided the masking for itself and nothing could check the decision.
+//
+// The one exception is stated rather than derived: the actor's *label* is `PERSONAL_BASIC` and is
+// carried in clear, because an entry that only pointed at a foreign key becomes unreadable once
+// the account is deleted (§2), and an erasure answers it with a pseudonym at the boundary instead
+// (§6).
+func MaskingFor(class shared.DataClass) Classification {
+	switch class {
+	case shared.ClassSecret:
+		return Secret
+	case shared.ClassNonPersonal, shared.ClassPersonalTechnical:
+		// Technical data is already reduced where it is written - an address truncated to a
+		// prefix, a user agent to a class - so what reaches the trail is not the datum itself.
+		return Open
+	default:
+		// Everything that is a person's: their identity, their words, and the free text that may
+		// hold a special category without anybody intending it.
+		return Sensitive
+	}
+}
+
 // Change is one field of the recorded object, before masking.
 type Change struct {
 	Field          string
@@ -94,6 +120,12 @@ func Changes(changes ...Change) map[string]any {
 
 	for _, change := range changes {
 		switch change.Classification {
+		case "":
+			// Fail closed. An unclassified field used to fall through to OPEN, which is the one
+			// direction that cannot be taken back: a title written into the trail in clear text
+			// is a copy no deletion reaches (§4). Gate PG-1 refuses one at build time; this
+			// refuses one at run time, in case something builds a change from a variable.
+			masked[change.Field] = map[string]any{"changed": true, "unclassified": true}
 		case Secret:
 			continue
 		case Sensitive:
