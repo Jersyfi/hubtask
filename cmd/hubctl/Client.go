@@ -110,6 +110,13 @@ func (c *Client) Post(ctx context.Context, path string, body, into any) error {
 	return c.call(ctx, http.MethodPost, path, nil, body, nil, into)
 }
 
+// Patch moves part of a resource, which is what the cases of this API that have a state machine
+// take: a data subject request is advanced by naming the field that changes rather than by sending
+// the whole case back (api-guidelines.md).
+func (c *Client) Patch(ctx context.Context, path string, body, into any) error {
+	return c.call(ctx, http.MethodPatch, path, nil, body, nil, into)
+}
+
 // Put writes one addressed resource - a custom field's value, an attachment's membership. The
 // operations behind it are idempotent by contract, which is what makes PUT the right verb.
 func (c *Client) Put(ctx context.Context, path string, body, into any) error {
