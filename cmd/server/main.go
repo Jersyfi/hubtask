@@ -303,6 +303,11 @@ func run() error {
 	customFields := postgres.NewCustomFieldRepository()
 	// The bookmark shelf (D-07): stored queries, interpreted by nobody on this side of a client.
 	savedViews := postgres.NewSavedViewRepository()
+	// The subscriptions over those bookmarks (D-08). Its own hasher, derived from the
+	// installation secret under the calendar feed's purpose label, so a value from this table can
+	// never be replayed as a personal access token or a page cursor (security.md §5).
+	calendarFeeds := postgres.NewCalendarFeedRepository(
+		security.NewFeedTokenHasher(cfg.SecretKey))
 	reminders := postgres.NewReminderRepository()
 	recurrences := postgres.NewRecurrenceRepository()
 	templates := postgres.NewTemplateRepository(cursors)
@@ -447,6 +452,15 @@ func run() error {
 	savedViewWriter := work.SavedViewWriter{
 		Views: savedViews, Containers: containers, Authorizer: authorizer, Permits: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+
+	// The three feed use cases share one dependency set, and it sits beside the views' because a
+	// feed is a read of a view: the visibility rule the minting asks is the one GetSavedView asks
+	// (D-08).
+	calendarFeedWriter := work.CalendarFeedWriter{
+		Feeds: calendarFeeds, Views: savedViews, Containers: containers, Permits: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{},
 	}
 
 	// An edit and a deletion of a definition share one dependency set (work.CustomFieldWriter):
@@ -792,6 +806,9 @@ func run() error {
 			Views: savedViews, Containers: containers, Permits: authorizer,
 			UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.CreateCalendarFeed{Writer: calendarFeedWriter}.Descriptor(),
+		work.ListCalendarFeeds{Writer: calendarFeedWriter}.Descriptor(),
+		work.RevokeCalendarFeed{Writer: calendarFeedWriter}.Descriptor(),
 		work.UpdateSavedView{Writer: savedViewWriter}.Descriptor(),
 		work.DeleteSavedView{Writer: savedViewWriter}.Descriptor(),
 		work.ShareSavedView{Writer: savedViewWriter}.Descriptor(),
@@ -843,6 +860,9 @@ func run() error {
 		}
 		controller.MediaTokens = mediaTokens
 		controller.Clock = clockadapter.System{}
+		// The address a calendar client is handed. Configured rather than taken from the
+		// request's Host, so that one caller cannot decide what the next person's client stores.
+		controller.BaseURL = cfg.BaseURL
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
 		// call (C-10). The listener is the wake-up; without it the stream still works, at its idle

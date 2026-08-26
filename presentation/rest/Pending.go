@@ -517,8 +517,8 @@ func (pending) StreamChanges(w http.ResponseWriter, r *http.Request, _ openapi.S
 	notAvailable(w, r)
 }
 
-// The calendar operations and the export answer as pending until D-08 registers their use cases;
-// the routes exist because the contract declares them.
+// The three feed operations are overridden by RestController, for the reason given at
+// CreateContainer. The fetch and the export answer as pending until the steps that serve them.
 func (pending) ListCalendarFeeds(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) CreateCalendarFeed(w http.ResponseWriter, r *http.Request, _ openapi.CreateCalendarFeedParams) {

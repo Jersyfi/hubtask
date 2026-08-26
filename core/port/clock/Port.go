@@ -14,6 +14,7 @@
 package clock
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -49,6 +50,38 @@ type IDGenerator interface {
 type RandomSource interface {
 	// IntN returns a uniform value in [0, n). n must be positive.
 	IntN(n int) int
+}
+
+// Entropy draws unguessable bytes. Separate from RandomSource, and deliberately: drawing "which
+// candidate gets this task" and drawing a credential are different needs with different
+// consequences, and one interface with both would put a method on every double that implements
+// the other for no reason.
+//
+// It is the port a minted token's secret half comes through (D-08), so that a test can fix the
+// credential it is asserting on and production draws from crypto/rand.
+type Entropy interface {
+	// Bytes returns n unguessable bytes, or an error if the machine cannot produce them. n must
+	// be positive.
+	Bytes(n int) ([]byte, error)
+}
+
+// FixedEntropy is an entropy source that answers the same bytes every time, counting up from a
+// seed. For tests, which is why it lives here beside Fixed and Scripted rather than in a helper
+// package every layer would need its own copy of.
+type FixedEntropy struct {
+	// Seed is the first byte; each following one is the previous plus one.
+	Seed byte
+}
+
+func (e FixedEntropy) Bytes(n int) ([]byte, error) {
+	if n <= 0 {
+		return nil, errors.New("clock: entropy of a non-positive length")
+	}
+	drawn := make([]byte, n)
+	for i := range drawn {
+		drawn[i] = e.Seed + byte(i)
+	}
+	return drawn, nil
 }
 
 // Scripted is a random source that plays a rehearsed sequence, one value per call, cycling when

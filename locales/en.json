@@ -617,6 +617,11 @@
   "calendar.feed_incomplete": "This installation is misconfigured and could not mint that feed.",
   "calendar.feed_owner_missing": "This installation is misconfigured and could not mint that feed.",
   "calendar.view_required": "A feed needs a view to serve. Send view_id.",
+  "calendar.feed_id_required": "Which feed? Send feed_id.",
+  "calendar.feed_not_found": "There is no such calendar feed.",
+  "calendar.feed_unknown": "There is no such calendar feed.",
+  "calendar.owner_required": "A calendar feed reads as a person. A service account has nobody to read as.",
+  "calendar.token_unmintable": "This installation could not draw the randomness a feed token needs. Try again.",
 
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }
