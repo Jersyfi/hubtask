@@ -112,8 +112,8 @@ var errHelpRequested = errors.New("help requested")
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
 	return []group{
-		authGroup(), containerGroup(), itemGroup(), dueGroup(), commentGroup(), fieldGroup(),
-		mediaGroup(), trashGroup(), searchGroup(), watchGroup(),
+		authGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
+		commentGroup(), fieldGroup(), mediaGroup(), trashGroup(), searchGroup(), watchGroup(),
 	}
 }
 
@@ -364,6 +364,26 @@ func (cli *CLI) parseID(what, raw string) (openapitypes.UUID, error) {
 	var parsed openapitypes.UUID
 	if err := parsed.UnmarshalText([]byte(raw)); err != nil {
 		return openapitypes.UUID{}, fmt.Errorf("%s: %w", what, err)
+	}
+	return parsed, nil
+}
+
+// parseIDs reads a comma-separated list of identifiers, refusing the whole list if any member is
+// not one. Refusing the whole rather than the readable part: a command that reminded three of the
+// four people somebody named would be doing something they did not ask for.
+func (cli *CLI) parseIDs(what, raw string) ([]openapitypes.UUID, error) {
+	parts := strings.Split(raw, ",")
+	parsed := make([]openapitypes.UUID, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		id, err := cli.parseID(what, trimmed)
+		if err != nil {
+			return nil, err
+		}
+		parsed = append(parsed, id)
 	}
 	return parsed, nil
 }
