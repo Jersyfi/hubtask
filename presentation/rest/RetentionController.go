@@ -170,6 +170,11 @@ func retentionPolicyResponse(out usecase.Output) openapi.RetentionPolicy {
 	if notify, present := out["notify"].(map[string]any); present {
 		policy.Notify = retentionNotifyResponse(notify)
 	}
+	// Present only when the listing was asked about a container: with nothing to be in force in,
+	// the question has no answer, and false would be one.
+	if inForce, asked := out["in_force"].(bool); asked {
+		policy.InForce = &inForce
+	}
 	return policy
 }
 

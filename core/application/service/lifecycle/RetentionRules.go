@@ -613,7 +613,11 @@ func (h ListRetentionPolicies) invoke(
 	rows := make([]usecase.Output, 0, len(rules))
 	for _, entry := range rules {
 		out := ruleOutput(entry.Rule)
-		out["in_force"] = entry.InForce
+		if !containerID.IsZero() {
+			// Only when a container was named. With nothing to be in force in, the question has no
+			// answer - and `false` would be one.
+			out["in_force"] = entry.InForce
+		}
 		rows = append(rows, out)
 	}
 	return usecase.Output{"data": rows}, nil

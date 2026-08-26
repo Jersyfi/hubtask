@@ -5544,6 +5544,14 @@ components:
         justification: { type: [string, "null"], description: Mandatory when the upper bound is exceeded }
         enabled: { type: boolean, default: true }
         export_target_id: { type: [string, "null"], format: uuid }
+        in_force:
+          type: boolean
+          readOnly: true
+          description: >
+            Whether this is the rule that would act in the container the listing was asked about
+            (`container_id`). Absent from a listing that named no container: with nothing to be in
+            force *in*, the question has no answer. The narrower rule wins, and a rule switched off
+            in a collection lets the wider one through rather than stopping it.
 
     RetentionState:
       type: object

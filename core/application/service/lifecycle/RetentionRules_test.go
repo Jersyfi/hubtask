@@ -494,6 +494,21 @@ func TestTheHandlersMapWhatTheChannelsSendAndAnswer(t *testing.T) {
 		t.Errorf("the only rule is not in force in the collection")
 	}
 
+	// And with no container named the field is absent rather than false: with nothing to be in
+	// force in, the question has no answer.
+	anywhere, err := (ListRetentionPolicies{Rules: service}).Descriptor().Handler.Invoke(ctx, actor(),
+		usecase.Input{})
+	if err != nil {
+		t.Fatalf("listing without a container: %v", err)
+	}
+	unanchored, _ := anywhere["data"].([]usecase.Output)
+	if len(unanchored) != 1 {
+		t.Fatalf("the listing answered %+v", anywhere)
+	}
+	if _, present := unanchored[0]["in_force"]; present {
+		t.Error("a rule reports in_force with no container named")
+	}
+
 	previewed, err := (PreviewRetentionPolicy{Rules: service}).Descriptor().Handler.Invoke(ctx, actor(),
 		usecase.Input{"policy_id": created.String("id")})
 	if err != nil {
