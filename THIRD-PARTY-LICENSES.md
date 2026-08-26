@@ -67,9 +67,10 @@ it does not touch the conversion the paragraph above is about.
 | [go.opentelemetry.io/otel/trace](https://github.com/open-telemetry/opentelemetry-go/blob/trace/v1.45.0/trace/LICENSE) | Apache-2.0 |
 | [go.opentelemetry.io/proto/otlp](https://github.com/open-telemetry/opentelemetry-proto-go/blob/otlp/v1.11.0/otlp/LICENSE) | Apache-2.0 |
 | [go.uber.org/multierr](https://github.com/uber-go/multierr/blob/v1.11.0/LICENSE.txt) | MIT |
+| [golang.org/x/crypto](https://cs.opensource.google/go/x/crypto/+/v0.54.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/net](https://cs.opensource.google/go/x/net/+/v0.57.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/sync](https://cs.opensource.google/go/x/sync/+/v0.22.0:LICENSE) | BSD-3-Clause |
-| [golang.org/x/sys/unix](https://cs.opensource.google/go/x/sys/+/v0.47.0:LICENSE) | BSD-3-Clause |
+| [golang.org/x/sys](https://cs.opensource.google/go/x/sys/+/v0.47.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/text](https://cs.opensource.google/go/x/text/+/v0.40.0:LICENSE) | BSD-3-Clause |
 | [google.golang.org/genproto/googleapis/api/httpbody](https://github.com/googleapis/go-genproto/blob/6ac0973c030d/googleapis/api/LICENSE) | Apache-2.0 |
 | [google.golang.org/genproto/googleapis/rpc/status](https://github.com/googleapis/go-genproto/blob/6ac0973c030d/googleapis/rpc/LICENSE) | Apache-2.0 |
