@@ -106,6 +106,34 @@ type MediaLocation struct {
 	Bytes      int64
 }
 
+// Import is the tenant's rows as a restore writes them (E-06, backup-restore.md §8).
+//
+// The mirror of Export, in the same vocabulary and with the same seam: table names on this side,
+// the archive's entity names on the other. Row by row rather than in pages, which is the one place
+// this port is deliberately less efficient than its opposite - a restore has to decide each row
+// against the conflict rule and against the deletion journal, and a batch that wrote thirty rows
+// at once could not report which of them it had skipped.
+//
+// The tenant is never a parameter. It comes from `current_tenant_id()` inside every statement, so
+// a restore cannot write into another tenant even deliberately - BK-10 at the layer where it
+// cannot be forgotten.
+type Import interface {
+	// Holds reports whether the tenant already has the row this data identifies.
+	//
+	// Asked before the write rather than derived from it, because the dry run has to answer the
+	// same question without writing anything (§8.3 step 2). One question in both paths is also
+	// what makes the report a caller approved and the report they get back comparable.
+	Holds(ctx context.Context, table string, data map[string]any) (bool, error)
+
+	// Write inserts the row, replaces it when overwrite is true, and answers whether anything was
+	// written. False is a collision the caller asked to leave alone - not an error.
+	Write(ctx context.Context, table string, data map[string]any, overwrite bool) (bool, error)
+
+	// Clear empties one table within the tenant and answers how many rows went. It is what
+	// REPLACE_TENANT is made of, and it exists for no other mode.
+	Clear(ctx context.Context, table string) (int, error)
+}
+
 // Journal is the deletion journal, read (E-06, backup-restore.md §7).
 //
 // The table has been written since B-10 and read, until now, only by tests - the comment on the
