@@ -17,6 +17,43 @@ FROM legal_hold
 WHERE released_at IS NULL
 ORDER BY placed_at;
 
+-- name: InsertLegalHold :exec
+-- A hold, placed. `placed_by` is not optional: §4.1 makes lifting one auditable, and an obligation
+-- with no author is one nobody can be asked about.
+INSERT INTO legal_hold (id, tenant_id, scope_kind, scope_id, reason, placed_by, placed_at)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('scope_kind'), sqlc.narg('scope_id'),
+  sqlc.arg('reason'), sqlc.arg('placed_by'), sqlc.arg('placed_at')
+);
+
+-- name: FindLegalHold :one
+SELECT id, scope_kind, scope_id, reason, placed_by, placed_at,
+       released_by, released_at, released_reason
+FROM legal_hold
+WHERE id = sqlc.arg('id');
+
+-- name: ListLegalHolds :many
+-- Every hold, or only the ones in force. Newest first, because a list of holds is read to answer
+-- "what is frozen now" and the answer starts with the most recent decision.
+SELECT id, scope_kind, scope_id, reason, placed_by, placed_at,
+       released_by, released_at, released_reason
+FROM legal_hold
+WHERE sqlc.arg('include_released')::boolean OR released_at IS NULL
+ORDER BY placed_at DESC, id;
+
+-- name: ReleaseLegalHold :execrows
+-- The lifting, and the guard that makes it happen once.
+--
+-- `released_at IS NULL` in the predicate rather than a check the caller ran a moment earlier: two
+-- requests lifting the same hold would otherwise both succeed, and the second would overwrite who
+-- lifted it and when - the one pair of values the record exists to keep.
+UPDATE legal_hold SET
+  released_by     = sqlc.arg('released_by'),
+  released_at     = sqlc.arg('released_at'),
+  released_reason = sqlc.arg('released_reason')
+WHERE id = sqlc.arg('id')
+  AND released_at IS NULL;
+
 -- name: RecordDeletions :exec
 -- The journal: what was removed, when, and why.
 --

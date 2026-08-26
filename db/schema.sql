@@ -1212,7 +1212,10 @@ CREATE TABLE legal_hold (
   placed_by    uuid NOT NULL,
   placed_at    timestamptz NOT NULL DEFAULT now(),
   released_by  uuid,
-  released_at  timestamptz
+  released_at  timestamptz,
+  -- Why it was lifted (migration 0040). Both ends of a hold are decisions, and only the placing
+  -- was recorded.
+  released_reason text
 );
 CREATE INDEX legal_hold_active_idx ON legal_hold (tenant_id, scope_kind, scope_id)
   WHERE released_at IS NULL;
