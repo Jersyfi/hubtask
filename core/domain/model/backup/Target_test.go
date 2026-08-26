@@ -226,3 +226,76 @@ func TestABlankSettingIsNoSetting(t *testing.T) {
 		t.Fatalf("a bucket of three spaces was accepted: %v", err)
 	}
 }
+
+// The half of the plaintext question the kind cannot answer. A WebDAV target at http:// is as
+// exposed as an FTP one, and an HTTP_PUT target at https:// is not exposed at all - so the scheme
+// in the configuration decides for every kind addressed by a URL.
+func TestAPlaintextEndpointMakesAPlaintextTargetWhateverTheKindIsCalled(t *testing.T) {
+	cases := map[string]struct {
+		kind    domain.TargetKind
+		config  domain.TargetConfig
+		exposed bool
+	}{
+		"webdav over https": {
+			domain.KindWebDAV, domain.TargetConfig{"url": "https://nas.example.org/backups"}, false,
+		},
+		"webdav over http": {
+			domain.KindWebDAV, domain.TargetConfig{"url": "http://nas.local/backups"}, true,
+		},
+		"a bucket at an https endpoint": {
+			domain.KindS3,
+			domain.TargetConfig{"bucket": "hubtask", "endpoint": "https://s3.example.org"}, false,
+		},
+		"a bucket at a plain endpoint": {
+			domain.KindS3,
+			domain.TargetConfig{"bucket": "hubtask", "endpoint": "http://minio.local:9000"}, true,
+		},
+		"a bucket at AWS itself, with no endpoint written down": {
+			domain.KindS3, domain.TargetConfig{"bucket": "hubtask"}, false,
+		},
+		"http_put over https": {
+			domain.KindHTTPPut, domain.TargetConfig{"url": "https://example.org/upload"}, false,
+		},
+		"http_put over http": {
+			domain.KindHTTPPut, domain.TargetConfig{"url": "http://example.org/upload"}, true,
+		},
+		// Somebody who wrote a bare host meant the default their browser would have used. The
+		// safe reading of an ambiguous configuration is the one that asks them to confirm.
+		"a url with no scheme at all": {
+			domain.KindWebDAV, domain.TargetConfig{"url": "nas.local/backups"}, true,
+		},
+		"sftp, which is ssh whatever it is pointed at": {
+			domain.KindSFTP,
+			domain.TargetConfig{"host": "backup.example.org", "path": "/srv"}, false,
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			target, err := domain.NewTarget(input(func(in *domain.NewTargetInput) {
+				in.Kind, in.Config = c.kind, c.config
+				in.InsecureAcknowledged = true
+			}))
+			if err != nil {
+				t.Fatalf("creating: %v", err)
+			}
+			if target.CarriesBytesInTheClear() != c.exposed {
+				t.Fatalf("carries bytes in the clear = %v", target.CarriesBytesInTheClear())
+			}
+			if slices.Contains(target.Warnings(), domain.WarningPlaintextProtocol) != c.exposed {
+				t.Fatalf("warnings %v", target.Warnings())
+			}
+
+			// And it is the acknowledgement that follows from it: an exposed target may not be
+			// created without one.
+			in := input(func(in *domain.NewTargetInput) { in.Kind, in.Config = c.kind, c.config })
+			_, err = domain.NewTarget(in)
+			if c.exposed && err == nil {
+				t.Fatal("an exposed target was created without an acknowledgement")
+			}
+			if !c.exposed && err != nil {
+				t.Fatalf("a secure target was refused: %v", err)
+			}
+		})
+	}
+}

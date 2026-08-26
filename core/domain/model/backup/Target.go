@@ -52,14 +52,22 @@ func (k TargetKind) Valid() bool { return slices.Contains(kinds[:], k) }
 // Kinds is the whole enum, for a caller that has to render it.
 func Kinds() []TargetKind { return slices.Clone(kinds[:]) }
 
-// CarriesBytesInTheClear reports a protocol with no transport security of its own.
+// CarriesBytesInTheClear reports a protocol that has no transport security at all, whatever it is
+// pointed at.
 //
-// Only FTP, and that is not an oversight: FTPS is FTP over TLS, WebDAV is HTTP and is required
-// below to be HTTPS, S3 the same, and SFTP is SSH. `HTTP_PUT` is judged by the scheme in its
-// configuration rather than by its name, which is why it is not a member here - a target named
-// HTTP_PUT pointed at an https:// endpoint is encrypted in transit and one pointed at http:// is
-// not, and the kind alone cannot tell them apart.
+// Only FTP, and that is not an oversight: FTPS is FTP over TLS, SFTP is SSH, and SMB has
+// encryption in every dialect anybody still runs. The three kinds that are addressed by URL are
+// deliberately absent - see Target.CarriesBytesInTheClear, which is the question that actually
+// gets asked.
 func (k TargetKind) CarriesBytesInTheClear() bool { return k == KindFTP }
+
+// urlSettings are the settings that carry a scheme, per kind. A kind addressed by URL is as
+// secure in transit as that URL says and not as its name suggests.
+var urlSettings = map[TargetKind]string{
+	KindS3:      "endpoint",
+	KindWebDAV:  "url",
+	KindHTTPPut: "url",
+}
 
 // EncryptionMode is whether the archive itself is encrypted before it leaves this process
 // (backup-restore.md §4). Not to be confused with the transport: a target can be encrypted at
@@ -258,13 +266,47 @@ func NewTarget(in NewTargetInput) (Target, error) {
 	return target, nil
 }
 
+// CarriesBytesInTheClear reports whether *this* target sends its bytes over a channel anybody on
+// the wire can read.
+//
+// The kind is only half the question, and the half that is easy to get wrong. A WebDAV target at
+// `http://nas.local/backups` is exactly as exposed as an FTP one, and a target named HTTP_PUT
+// pointed at an `https://` endpoint is not exposed at all - so the scheme in the configuration
+// decides for every kind addressed by URL, and the name decides only for the one protocol that
+// has no secure form.
+//
+// An unset scheme reads as insecure rather than as unknown. Somebody who wrote `nas.local/backups`
+// meant the default their browser would have used, and the safe reading of an ambiguous
+// configuration is the one that asks them to confirm.
+func (t Target) CarriesBytesInTheClear() bool {
+	if t.Kind.CarriesBytesInTheClear() {
+		return true
+	}
+	setting, addressedByURL := urlSettings[t.Kind]
+	if !addressedByURL {
+		return false
+	}
+
+	value := t.Config.Get(setting)
+	if value == "" {
+		// Nothing configured yet. The creation refuses it on its own for a missing required
+		// setting, and answering "secure" about an address nobody gave would be a guess.
+		return false
+	}
+	scheme, _, found := strings.Cut(value, "://")
+	if !found {
+		return true
+	}
+	return !strings.EqualFold(scheme, "https")
+}
+
 // NeedsAcknowledgement reports whether somebody has to say out loud that they accept this.
 //
 // Two independent reasons, and either is enough: the archive is not encrypted before it leaves,
 // or the protocol carries it in the clear. They are independent because they fail differently -
 // the first exposes the data to whoever holds the storage, the second to whoever is on the wire.
 func (t Target) NeedsAcknowledgement() bool {
-	return t.EncryptionMode == EncryptionNone || t.Kind.CarriesBytesInTheClear()
+	return t.EncryptionMode == EncryptionNone || t.CarriesBytesInTheClear()
 }
 
 // Warnings is what this target says about itself, whether or not it was acknowledged. An
@@ -275,7 +317,7 @@ func (t Target) Warnings() []string {
 	if t.EncryptionMode == EncryptionNone {
 		warnings = append(warnings, WarningUnencrypted)
 	}
-	if t.Kind.CarriesBytesInTheClear() {
+	if t.CarriesBytesInTheClear() {
 		warnings = append(warnings, WarningPlaintextProtocol)
 	}
 	return warnings
