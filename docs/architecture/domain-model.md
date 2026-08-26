@@ -374,7 +374,8 @@ view nobody can read back is not a view.
 **Jumble** `SubmitJumbleEntry`, `ConvertJumbleEntry`, `DismissJumbleEntry`, `SuggestFromJumbleEntry` (AI, optional).
 
 **Lifecycle** `ListTrash`, `EmptyTrash`, `ListArchive`, `RunRetention` (internal),
-`CreateRetentionPolicy`, `ListRetentionPolicies`, `PreviewRetentionPolicy`, `RetainItem` (E-07).
+`CreateRetentionPolicy`, `ListRetentionPolicies`, `PreviewRetentionPolicy`, `RetainItem` (E-07),
+`PlaceLegalHold`, `ReleaseLegalHold`, `ListLegalHolds` (E-08).
 Writing a rule asks for the owner's right — `DELETE_CONTAINER` — because a retention rule is a
 standing instruction to destroy work, which is the matrix's line for the one thing an administrator
 cannot do; it is the same line a backup target and a destructive restore sit on. Reading the rules
@@ -382,6 +383,13 @@ and previewing one ask for `STRUCTURE`: knowing what this workspace deletes and 
 running it. `:retain` is a write on the entry and is narrowed like any other, because a role that
 reaches only what is assigned to it does not get to keep somebody else's work out of the workspace's
 rule.
+
+Placing a legal hold asks for the owner's right too, and it is the sharpest case for that line in
+the system: a hold overrides the workspace's own configured retention periods *and* a person
+emptying their own trash. Somebody who can freeze a workspace's data against the workspace's own
+decisions is exercising the owner's authority rather than an administrator's. Reading which holds
+exist is `STRUCTURE`, for the reason listing backup targets is: somebody who may not place one still
+has to be able to see that one exists.
 
 **Automation** `CreateRule`, `UpdateRule`, `EnableRule`, `DisableRule`, `DeleteRule`, `TestRule` (dry run),
 `TriggerRuleManually`, `ListRuleRuns`, `ReplayRuleRun`.

@@ -86,7 +86,9 @@ change to the engine.
 
 Evaluated in this order; the first matching rule wins:
 
-1. **Legal hold** on a tenant, container, or item → no deletion, no anonymisation. Lifting it is auditable.
+1. **Legal hold** on a tenant, container, or item → no deletion, no anonymisation. Lifting it is auditable. Placed and lifted through `/legal-holds` since E-08, and both ends carry a reason and an author: a hold is never deleted, it gains an end, because an auditor has to be able to tell "there was never a hold" from "somebody lifted it". An entry a hold is keeping back says so - it carries the rule, the action, and `blocked_by: legal_hold`, with no date, because it is not waiting for a moment, it is being overruled.
+
+   **The `ACCOUNT` scope is refused.** The schema's check constraint accepts it and `Holds.Blocking` deliberately ignores it: a hold on an account is about one person's own data, which is erased where a data subject request is answered rather than kept where a workspace's entries are, and E-10 is the task that answers one. Storing one meanwhile would store a hold nothing honours, which is worse than none - somebody believes it is in force. The value stays in the model and in the constraint, so E-10 needs no migration to start honouring it (E-08).
 2. **An ongoing data subject request** with status `RESTRICTION` (GDPR Art. 18) → processing is restricted, and the object is neither deleted nor changed.
 3. **Lower bounds per data kind** (`min_days`) → prevent accidental immediate deletion; trash, for example, is at least 7 days.
 4. **Upper bounds per data kind** (`max_days`) → prevent effectively unlimited storage where the operator has set a maximum period; exceeding it requires a `justification` and produces an audit entry.
@@ -180,3 +182,4 @@ Five things the rule model needed settled, recorded here so that nobody re-deriv
 |---|---|---|
 | R-1 | The advance warning of §6: a notification category, a template, and the resolution of `COLLECTION_ADMINS` and `TENANT_ADMINS`. Until it exists a rule that asks to warn somebody is refused | `0.5.0` |
 | R-2 | Whether the referential safeguard of §4.6 should keep a parent back for a *shorter*-lived child as well, or only for a longer-lived one. Today anything below an entry that is not going in the same pass keeps it back, which is the conservative reading | `0.5.0` |
+| R-3 | What an `ACCOUNT` legal hold should stop. §4.1 names the tenant, the container and the item; the schema also allows an account, and until E-10 answers one it is refused rather than stored (E-08) | `0.4.5`, with E-10 |
