@@ -25,6 +25,7 @@ import (
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
+	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 )
@@ -141,6 +142,11 @@ func Descriptors() []usecase.Descriptor {
 		auditservice.ListAuditEntries{}.Descriptor(),
 		auditservice.VerifyAuditChain{}.Descriptor(),
 		auditservice.ExportAuditTrail{}.Descriptor(),
+		privacyservice.CreateDataSubjectRequest{}.Descriptor(),
+		privacyservice.ListDataSubjectRequests{}.Descriptor(),
+		privacyservice.UpdateDataSubjectRequest{}.Descriptor(),
+		privacyservice.RestrictProcessing{}.Descriptor(),
+		privacyservice.WithdrawConsent{}.Descriptor(),
 		backupservice.CreateBackupSchedule{}.Descriptor(),
 		jobservice.GetJob{}.Descriptor(),
 		jobservice.CancelJob{}.Descriptor(),

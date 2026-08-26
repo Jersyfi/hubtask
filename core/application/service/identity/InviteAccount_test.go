@@ -54,6 +54,20 @@ func (s *accountStore) Find(_ context.Context, id shared.ID) (domain.Account, er
 	return account, nil
 }
 
+// Restricted answers from the store's own statuses (E-10). Nothing in this package processes
+// automatically, so it is here to satisfy the port rather than to be asked.
+func (s *accountStore) Restricted(
+	_ context.Context, accountIDs []shared.ID,
+) (map[shared.ID]bool, error) {
+	restricted := map[shared.ID]bool{}
+	for _, accountID := range accountIDs {
+		if account, found := s.byID[accountID]; found && !account.Status.ProcessingAllowed() {
+			restricted[accountID] = true
+		}
+	}
+	return restricted, nil
+}
+
 func (s *accountStore) FindByEmail(_ context.Context, email string) (domain.Account, error) {
 	account, found := s.byEmail[email]
 	if !found {

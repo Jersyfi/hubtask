@@ -89,7 +89,15 @@ Evaluated in this order; the first matching rule wins:
 1. **Legal hold** on a tenant, container, or item → no deletion, no anonymisation. Lifting it is auditable. Placed and lifted through `/legal-holds` since E-08, and both ends carry a reason and an author: a hold is never deleted, it gains an end, because an auditor has to be able to tell "there was never a hold" from "somebody lifted it". An entry a hold is keeping back says so - it carries the rule, the action, and `blocked_by: legal_hold`, with no date, because it is not waiting for a moment, it is being overruled.
 
    **The `ACCOUNT` scope is refused.** The schema's check constraint accepts it and `Holds.Blocking` deliberately ignores it: a hold on an account is about one person's own data, which is erased where a data subject request is answered rather than kept where a workspace's entries are, and E-10 is the task that answers one. Storing one meanwhile would store a hold nothing honours, which is worse than none - somebody believes it is in force. The value stays in the model and in the constraint, so E-10 needs no migration to start honouring it (E-08).
-2. **An ongoing data subject request** with status `RESTRICTION` (GDPR Art. 18) → processing is restricted, and the object is neither deleted nor changed.
+2. **A restriction of processing** (GDPR Art. 18) → processing is restricted, and the object is neither deleted nor changed.
+
+   The wording here said "a data subject request with **status** `RESTRICTION`" until E-10, and an
+   implementation following it would have looked for a value that cannot occur: `RESTRICTION` is a
+   *kind* of request in the schema (`data_subject_request.kind`), and the statuses are `RECEIVED`,
+   `IN_PROGRESS`, `COMPLETED` and `REJECTED`. What carries the restriction is the **account**, whose
+   status becomes `RESTRICTED` when `RestrictProcessing` is called - a technical state rather than
+   an open case, because the case is closed once the restriction is in place and the restriction
+   goes on standing (`data-protection.md` §4, `identity.AccountStatus.ProcessingAllowed`).
 3. **Lower bounds per data kind** (`min_days`) → prevent accidental immediate deletion; trash, for example, is at least 7 days.
 4. **Upper bounds per data kind** (`max_days`) → prevent effectively unlimited storage where the operator has set a maximum period; exceeding it requires a `justification` and produces an audit entry.
 5. **The minimum tombstone period** → an object may only disappear for good once every known offline device has had the chance to learn about the deletion ([offline-sync.md](./offline-sync.md) §7). Otherwise it comes back on the next sync.
@@ -133,7 +141,7 @@ installation until the day somebody is waiting for it. Open point R-1.
 | Test | Contents |
 |---|---|
 | RE-1 | A rule with `retain_days` deletes exactly the objects past the period and no others (time boundaries ±1 day, the tenant's time zone, DST) |
-| RE-2 | Legal hold and `RESTRICTION` reliably prevent deletion |
+| RE-2 | A legal hold and a restriction of processing reliably prevent deletion |
 | RE-3 | Lower bounds cannot be undercut, upper bounds enforce a `justification` |
 | RE-4 | Grace period: a marked object can be taken out and is then not deleted |
 | RE-5 | A hard delete leaves no orphans in media, the search index, vectors, or counters |

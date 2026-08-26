@@ -115,6 +115,49 @@ func (r AccountRepository) Insert(ctx context.Context, account identity.Account)
 	return nil
 }
 
+// Restricted answers which of the accounts named may not be processed automatically.
+//
+// One round trip for a whole pool rather than one per candidate: the caller is a draw over a
+// policy's candidates, and a question per candidate would make an assignment policy's cost grow
+// with the size of the team.
+func (r AccountRepository) Restricted(
+	ctx context.Context, accountIDs []shared.ID,
+) (map[shared.ID]bool, error) {
+	restricted := map[shared.ID]bool{}
+	if len(accountIDs) == 0 {
+		return restricted, nil
+	}
+
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	keys := make([]pgtype.UUID, 0, len(accountIDs))
+	for _, accountID := range accountIDs {
+		key, err := uuidOf(accountID)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+
+	rows, err := queries.RestrictedAccounts(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading which accounts are restricted: %w", err))
+	}
+	for _, row := range rows {
+		accountID, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		restricted[accountID] = true
+	}
+	return restricted, nil
+}
+
 func (r AccountRepository) UpdatePreferences(
 	ctx context.Context, account identity.Account, at time.Time,
 ) error {

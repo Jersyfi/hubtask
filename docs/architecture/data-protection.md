@@ -83,6 +83,30 @@ Carried technically by the `data_subject_request` table with a state machine
 assignee, a reason on rejection, and a deadline alert (`A-19`) as it approaches. Without deadline
 monitoring, the right gets violated in practice even though the feature exists.
 
+Built with E-10, and four things about it are decisions rather than mechanics:
+
+* **Moving a case to `IN_PROGRESS` is what starts the work.** The archive or the erasure runs as a
+  job and the job completes the case; there is no second call to "run it", which would be a state
+  machine with a state outside itself. An erasure needs its mode and an export needs its target
+  before either can start - a case that cannot be carried out is refused at the step that would
+  have started it rather than by a job that has already begun.
+* **Starting an erasure asks for the owner's right** (`DELETE_CONTAINER`), because it destroys work
+  that belongs to the workspace as much as to the person. Recording, listing and refusing a case are
+  the administrator's (`MANAGE_MEMBERS`); starting an *export* is too, because it writes to a target
+  somebody has already approved.
+* **`RESTRICTION` is a kind of request; `RESTRICTED` is a state of an account.** The case is closed
+  once the restriction is in place, and the restriction goes on standing. A restricted account
+  still works - Art. 18 restricts what the controller does with the data, not what the person may
+  do - and what stops is automatic processing: `identity.AccountStatus.ProcessingAllowed` is the one
+  predicate every such place asks, and the assignment policy is the first that does.
+* **An installation-wide case is a loop rather than a wider query.** One workspace at a time, under
+  that workspace's own tenant context, through the ordinary repositories; what crosses the boundary
+  is a list of tenant identifiers from one `SECURITY DEFINER` function and nothing else. It needs
+  the `admin:tenants` scope, and every workspace it touches gets its own audit entry - because
+  `audit.md` §5 says an instance administrator has no blanket insight into a tenant's data without a
+  documented occasion, and the occasion belongs where that tenant's own administrator can see it.
+  No repository method takes a tenant as an argument, which a gate now keeps true.
+
 ---
 
 ## 5. Deletion concept and storage limitation
@@ -99,7 +123,7 @@ storage location is recorded in the data catalogue with a deletion path, and a t
 | `webhook_delivery` | 30 days; request bodies stored truncated |
 | `rule_run` | 30 days; input data only as a reference |
 | `activity_entry` | With the item |
-| `audit_log` | **Not** individually deletable; therefore contains no content, only metadata and masked diffs (see [audit.md](./audit.md) §4) |
+| `audit_log` | **Not** individually deletable; therefore contains no content, only metadata and masked diffs (see [audit.md](./audit.md) §4). An erasure records a pseudonym in `audit_pseudonym` instead, and every read and every export answers the erased actor's label with it - the row is untouched, the chain still verifies, and what leaves carries no name (§6, E-10) |
 | Operational logs | 7–30 days, without content and without clear-text identifiers |
 | Backups | The retention period is documented; deletion takes effect once the backup cycle has elapsed — a fact that is made transparent to the data subject rather than concealed |
 | AI providers | A zero-retention agreement as a selection criterion; otherwise the provider is not approved |

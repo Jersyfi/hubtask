@@ -310,3 +310,67 @@ func TestAMalformedIdentifierIsRefused(t *testing.T) {
 		t.Errorf("the trail was read %d times with a malformed filter", len(trail.asked))
 	}
 }
+
+// The boundary substitution E-09's §6 promised and E-10 built: once an erasure has taken an actor,
+// the trail answers a pseudonym instead of the label it stored.
+
+type pseudonymStore struct{ names map[shared.ID]string }
+
+func (p pseudonymStore) For(
+	_ context.Context, actorIDs []shared.ID,
+) (map[shared.ID]string, error) {
+	out := map[shared.ID]string{}
+	for _, actorID := range actorIDs {
+		if name, found := p.names[actorID]; found {
+			out[actorID] = name
+		}
+	}
+	return out, nil
+}
+
+func TestAnErasedActorIsAnsweredAsAPseudonym(t *testing.T) {
+	list, trail, _, _ := newListHarness(true)
+	list.Pseudonyms = pseudonymStore{names: map[shared.ID]string{accountID: "former-user-0a2"}}
+	trail.records = []repository.Record{
+		record("0192f000-0000-7000-8000-0000000000b1", 1, func(*repository.Record) {}),
+		record("0192f000-0000-7000-8000-0000000000b2", 2, func(r *repository.Record) {
+			r.Entry.ActorID = colleagueID
+			r.Entry.ActorLabel = "Bert Beispiel"
+		}),
+	}
+
+	page, err := list.Execute(context.Background(), actor(), EntryQuery{})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+
+	if page.Records[0].Entry.ActorLabel != "former-user-0a2" {
+		t.Errorf("the erased actor is answered as %q", page.Records[0].Entry.ActorLabel)
+	}
+	// The identifier stays: it is what lets an auditor tell one actor's entries from another's,
+	// and it was never a name.
+	if page.Records[0].Entry.ActorID != accountID {
+		t.Errorf("the entry lost its actor: %s", page.Records[0].Entry.ActorID)
+	}
+	// Everybody else is untouched.
+	if page.Records[1].Entry.ActorLabel != "Bert Beispiel" {
+		t.Errorf("an actor nobody erased is answered as %q", page.Records[1].Entry.ActorLabel)
+	}
+}
+
+// An installation with no substitutions pays for nothing: the page comes back as it was read.
+func TestATrailWithNoErasuresIsAnsweredAsItIs(t *testing.T) {
+	list, trail, _, _ := newListHarness(true)
+	list.Pseudonyms = pseudonymStore{}
+	trail.records = []repository.Record{
+		record("0192f000-0000-7000-8000-0000000000b1", 1, func(*repository.Record) {}),
+	}
+
+	page, err := list.Execute(context.Background(), actor(), EntryQuery{})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if page.Records[0].Entry.ActorLabel != "Anna Beispiel" {
+		t.Errorf("the label came back as %q", page.Records[0].Entry.ActorLabel)
+	}
+}

@@ -4,6 +4,7 @@
 package audit
 
 import (
+	"context"
 	"encoding/hex"
 	"sort"
 	"time"
@@ -150,4 +151,47 @@ func parseInstant(raw, field string) (time.Time, error) {
 			WithFields(shared.FieldError{Path: "/" + field, Code: code})
 	}
 	return at, nil
+}
+
+// Pseudonymised replaces the label of every actor an erasure has taken, on the way out.
+//
+// audit.md §6: the trail is exempt from erasure and cannot be edited in place, so the substitution
+// happens at the boundary. One lookup for the whole page rather than one per entry - a page has a
+// few dozen distinct actors at most, and a workspace that has answered a hundred erasures should
+// not cost a hundred reads to show one screen.
+//
+// The identifier stays. It is what lets an auditor tell one actor's entries from another's, it was
+// never a name, and hiding it would make the trail unusable for the thing it is for.
+func Pseudonymised(
+	ctx context.Context, pseudonyms Pseudonyms, records []repository.Record,
+) ([]repository.Record, error) {
+	if pseudonyms == nil || len(records) == 0 {
+		return records, nil
+	}
+
+	seen := map[shared.ID]bool{}
+	actors := make([]shared.ID, 0, len(records))
+	for _, record := range records {
+		if actor := record.Entry.ActorID; !actor.IsZero() && !seen[actor] {
+			seen[actor] = true
+			actors = append(actors, actor)
+		}
+	}
+
+	substitutions, err := pseudonyms.For(ctx, actors)
+	if err != nil {
+		return nil, err
+	}
+	if len(substitutions) == 0 {
+		return records, nil
+	}
+
+	out := make([]repository.Record, 0, len(records))
+	for _, record := range records {
+		if pseudonym, erased := substitutions[record.Entry.ActorID]; erased {
+			record.Entry.ActorLabel = pseudonym
+		}
+		out = append(out, record)
+	}
+	return out, nil
 }

@@ -141,6 +141,27 @@ const (
 	// Deduplicated on the export rather than on the tenant: two jobs for one export are the same
 	// work, and two exports of different periods in one tenant are two legitimate questions.
 	KindAuditExport Kind = "audit.export"
+
+	// KindPrivacyRequest carries out a data subject request that has been started: the archive an
+	// access or portability case produces, or the erasure an erasure case is (E-10,
+	// data-protection.md §4).
+	//
+	// A job because both are as large as the person's presence in the workspace, and because the
+	// erasure serves every storage location in the data catalogue - rows, media, the search index,
+	// the derived counters - which is minutes of work that no request should hold a connection
+	// open for. Deduplicated on the case: two jobs for one case are the same work, and a case is
+	// started once.
+	KindPrivacyRequest Kind = "privacy.request"
+
+	// KindPrivacyDeadlines watches the statutory deadlines of one tenant's open cases (E-10,
+	// data-protection.md §4): "without deadline monitoring, the right gets violated in practice
+	// even though the feature exists".
+	//
+	// The shape of the reminder poller, and for the same reason: nothing in this system may
+	// enumerate tenants, so a scheduler cannot create one of these per tenant. The write that
+	// records a case seeds it, each pass reschedules itself while the tenant has an open case, and
+	// a tenant that owes nothing costs a row that is not there.
+	KindPrivacyDeadlines Kind = "privacy.deadlines"
 )
 
 func (k Kind) String() string { return string(k) }

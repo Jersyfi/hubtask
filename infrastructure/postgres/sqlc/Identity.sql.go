@@ -405,6 +405,38 @@ func (q *Queries) RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberPa
 	return err
 }
 
+const restrictedAccounts = `-- name: RestrictedAccounts :many
+SELECT id
+FROM account
+WHERE id = ANY($1::uuid[])
+  AND status IN ('RESTRICTED', 'ANONYMIZED')
+`
+
+// Which of the accounts named may not be processed automatically (Art. 18, data-protection.md §4).
+//
+// Anonymised as well as restricted: an account whose person has been erased is not a candidate for
+// anything either, and the caller asks one question - "may this system decide something about
+// them" - rather than two.
+func (q *Queries) RestrictedAccounts(ctx context.Context, accountIds []pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, restrictedAccounts, accountIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const revokeMembership = `-- name: RevokeMembership :execrows
 DELETE FROM membership WHERE id = $1
 `

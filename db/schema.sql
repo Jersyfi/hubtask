@@ -101,7 +101,9 @@ CREATE TABLE tenant (
 );
 
 CREATE TYPE account_kind   AS ENUM ('USER', 'SERVICE_ACCOUNT');
-CREATE TYPE account_status AS ENUM ('ACTIVE', 'INVITED', 'DISABLED');
+-- RESTRICTED is Art. 18 as a technical state (readable, not processed) and ANONYMIZED is an
+-- erasure carried out in the mode that keeps the authorship (db/migrations/0044_privacy_requests.sql).
+CREATE TYPE account_status AS ENUM ('ACTIVE', 'INVITED', 'DISABLED', 'RESTRICTED', 'ANONYMIZED');
 
 CREATE TABLE account (
   id                uuid PRIMARY KEY,
@@ -981,11 +983,28 @@ CREATE TABLE data_subject_request (
   completed_at   timestamptz,
   handled_by     uuid,
   rejection_reason text,
-  result_media_id  uuid,                            -- the export archive for ACCESS/PORTABILITY
+  result_media_id  uuid,                            -- unused; the export lands at a backup target
+  scope          text NOT NULL DEFAULT 'TENANT'
+                   CHECK (scope IN ('TENANT','INSTALLATION')),
+  target_id      uuid,                              -- the backup target an export is written to
+  result_archive text,                              -- where the archive landed there
   notes          text
 );
 CREATE INDEX dsr_open_idx ON data_subject_request (tenant_id, status, due_at)
   WHERE status IN ('RECEIVED','IN_PROGRESS');
+
+-- The pseudonyms an erasure leaves behind for the audit trail. The trail cannot be edited in place
+-- - the grants, the trigger and the hash chain all refuse it - so the substitution happens at the
+-- boundary and this is what the boundary reads (audit.md §6, E-10).
+CREATE TABLE audit_pseudonym (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  actor_id    uuid NOT NULL,
+  pseudonym   text NOT NULL,
+  reason      text NOT NULL DEFAULT 'DSR_ERASURE'
+                CHECK (reason IN ('DSR_ERASURE','ADMIN')),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, actor_id)
+);
 
 -- Consents for optional processing (AI, metering, notification channels).
 CREATE TABLE consent_record (
@@ -1338,7 +1357,7 @@ BEGIN
     'automation_rule','rule_run','webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference',
-    'audit_anchor','retention_policy','data_subject_request','consent_record',
+    'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element'
@@ -1448,6 +1467,12 @@ ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM hubtask_app;
 GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
 
+-- The pseudonyms an erasure leaves for the trail are append-only for the same reason the trail is:
+-- one that could be updated is a name that could come back, and one that could be deleted is an
+-- erasure that could be undone (E-10, audit.md §6).
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_pseudonym FROM hubtask_app;
+GRANT  SELECT, INSERT ON audit_pseudonym TO hubtask_app;
+
 -- The same for the partitions: a partition addressed directly is a table of its own.
 DO $audit_partitions$
 DECLARE p record;
@@ -1528,5 +1553,22 @@ GRANT EXECUTE ON FUNCTION ensure_audit_partition(date) TO hubtask_app;
 -- This month and the next, so that a fresh installation never writes into the default partition.
 SELECT ensure_audit_partition(date_trunc('month', now())::date);
 SELECT ensure_audit_partition((date_trunc('month', now()) + interval '1 month')::date);
+
+-- ============ The one cross-tenant question (data-protection.md §4, E-10) ===
+-- Which workspaces a person is a member of. It answers tenant identifiers and nothing else; the
+-- collection that follows opens one ordinary transaction per tenant under that tenant's own
+-- context. See db/migrations/0044_privacy_requests.sql for the whole reasoning.
+CREATE OR REPLACE FUNCTION subject_tenants(subject_email text) RETURNS SETOF uuid
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT DISTINCT tenant_id
+  FROM account
+  WHERE subject_email IS NOT NULL
+    AND lower(email) = lower(subject_email)
+    AND deleted_at IS NULL
+  ORDER BY 1
+$$;
+
+REVOKE ALL ON FUNCTION subject_tenants(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION subject_tenants(text) TO hubtask_app;
 
 COMMIT;

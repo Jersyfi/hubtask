@@ -39,6 +39,20 @@ func (a *accountShelf) UpdatePreferences(context.Context, identity.Account, time
 	return nil
 }
 
+// Restricted answers from the shelf's own statuses, so that a test can put somebody under a
+// restriction of processing by storing them that way (E-10).
+func (a *accountShelf) Restricted(
+	_ context.Context, accountIDs []shared.ID,
+) (map[shared.ID]bool, error) {
+	restricted := map[shared.ID]bool{}
+	for _, accountID := range accountIDs {
+		if account, found := a.stored[accountID]; found && !account.Status.ProcessingAllowed() {
+			restricted[accountID] = true
+		}
+	}
+	return restricted, nil
+}
+
 type feedReadHarness struct {
 	read         ReadCalendarFeed
 	feeds        *calendarFeeds

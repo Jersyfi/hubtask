@@ -37,6 +37,7 @@ import (
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -373,6 +374,10 @@ func run() error {
 	// that writes holds the sink, and a sink that could also read would put the whole trail one
 	// call away from code that has no business reading it (E-09).
 	auditTrail := postgres.NewAuditTrailRepository(cursors)
+	// Data subject rights (E-10). One repository over four ports - the cases, the consents, the
+	// account states an erasure and a restriction write, and the pseudonyms the audit trail reads
+	// at the boundary - because they are one table group and one transaction's worth of work.
+	privacyStore := postgres.NewPrivacyRepository(cursors)
 	lifecycleStore := postgres.NewLifecycleRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
@@ -520,6 +525,9 @@ func run() error {
 	autoAssign := work.AutoAssignWorkItem{
 		Assignment: assignment, Policies: postgres.AutoAssignPolicyRepository{},
 		Groups: groups, Random: clockadapter.CryptoRandom{},
+		// Art. 18 as a technical state: a person under a restriction of processing is left out of
+		// the draw rather than assigned work by machine (E-10, data-protection.md §4).
+		Accounts: accounts,
 	}
 
 	// Both directions of an entry's due date share one dependency set, for the same reason
@@ -654,6 +662,12 @@ func run() error {
 	// descriptor. The holder is what breaks that circle: it is passed in now and given the
 	// catalogue the moment there is one, a few lines below.
 	bulkCatalogue := &deferredCatalogue{}
+
+	// The cases the privacy use cases share.
+	privacyCases := privacyservice.Cases{
+		Requests: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
@@ -849,11 +863,23 @@ func run() error {
 		lifecycle.ReleaseLegalHold{Holds: legalHolds}.Descriptor(),
 		lifecycle.ListLegalHolds{Holds: legalHolds}.Descriptor(),
 		auditservice.ListAuditEntries{
-			Trail: auditTrail, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Trail: auditTrail, Authorizer: authorizer, Pseudonyms: privacyStore,
+			UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		auditservice.VerifyAuditChain{
 			Trail: auditTrail, Chain: auditadapter.Links{}, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		privacyservice.CreateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
+		privacyservice.ListDataSubjectRequests{Cases: privacyCases}.Descriptor(),
+		privacyservice.UpdateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
+		privacyservice.RestrictProcessing{
+			Subjects: privacyStore, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		privacyservice.WithdrawConsent{
+			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		auditservice.ExportAuditTrail{
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -1294,10 +1320,35 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
+	// Data subject requests (E-10): the erasure that serves every storage location, and the export
+	// that is a Hubtask archive rather than a second format.
+	privacyEraser := privacyservice.Eraser{
+		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
+		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		TombstoneWindow: cfg.Retention.TombstoneWindow,
+	}
+	privacyExporter := privacyservice.Exporter{
+		Requests: privacyStore, Subjects: privacyStore,
+		Targets: backupservice.StoreOpener{
+			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
+			UnitOfWork: unitOfWork,
+		},
+		Rows:    postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
+		Objects: mediaStore, Cipher: crypto.NewStream(clockadapter.CryptoRandom{}),
+		Audit: auditSink, Snapshot: unitOfWork, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+		SchemaVersion: schemaVersion(), ProductVersion: version,
+	}
+	privacyPerformer := privacyservice.Performer{
+		Requests: privacyStore, Eraser: privacyEraser, Exporter: privacyExporter,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+
 	// The audit export (E-09). It writes to a backup target through the seam that owns a target's
 	// credentials, because an export needs somewhere to put bytes and has no business with them.
 	auditArchivist := auditservice.Archivist{
-		Trail: auditTrail,
+		Trail: auditTrail, Pseudonyms: privacyStore,
 		Targets: backupservice.StoreOpener{
 			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
 			UnitOfWork: unitOfWork,
@@ -1373,7 +1424,15 @@ func run() error {
 		queueport.KindBackupSchedule: worker.BackupScheduling{
 			Pass: backupPass, Fallback: cfg.Retention.Interval,
 		},
-		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindAuditExport:    worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
+		queueport.KindPrivacyDeadlines: worker.PrivacyDeadlines{
+			Watch: privacyservice.WatchDeadlines{
+				Requests: privacyStore, Signals: metrics, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			},
+			Queue: jobs, Clock: clockadapter.System{},
+		},
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {

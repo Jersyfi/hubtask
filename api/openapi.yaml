@@ -39,6 +39,7 @@ tags:
   - name: templates
   - name: media
   - name: audit
+  - name: privacy
   - name: backup
   - name: retention
   - name: sync
@@ -1259,6 +1260,152 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /privacy/requests:
+    get:
+      tags: [privacy]
+      operationId: listDataSubjectRequests
+      summary: The data subject requests this workspace is handling
+      description: |
+        Newest first, the open ones by default. A right somebody exercised is a case with a
+        statutory deadline, and this is the list whoever answers for it reads - which is why the
+        overdue ones can be asked for on their own (`data-protection.md` §4).
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/DataSubjectRequestStatus" } }
+        - { name: kind, in: query, schema: { $ref: "#/components/schemas/DataSubjectRequestKind" } }
+        - name: due_within_days
+          in: query
+          schema: { type: integer }
+          description: Only the requests whose deadline falls inside that many days, overdue ones included.
+        - { name: include_closed, in: query, schema: { type: boolean, default: false } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: size, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        "200":
+          description: One page of the cases
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/DataSubjectRequest" }
+                  page: { $ref: "#/components/schemas/PageInfo" }
+        "403": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [privacy]
+      operationId: createDataSubjectRequest
+      summary: Record a right somebody has exercised
+      description: |
+        Opens the case with its statutory deadline - thirty days from receipt unless the caller
+        names a different one, because the period is a legal matter and an installation may have
+        to answer sooner. Nothing is collected, exported or erased by this call: what happens next
+        is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+
+        `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
+        the schema has allowed the kind since phase 0, and a deadline somebody is answerable for is
+        worth recording whether or not the work needs a special path.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DataSubjectRequestCreate" }
+      responses:
+        "201":
+          description: The case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataSubjectRequest" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /privacy/requests/{requestId}:
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [privacy]
+      operationId: updateDataSubjectRequest
+      summary: Move a case along
+      description: |
+        The state machine is `RECEIVED → IN_PROGRESS → COMPLETED | REJECTED`, and an illegitimate
+        transition is refused by name rather than ignored. Moving an `ACCESS`, `PORTABILITY` or
+        `ERASURE` case to `IN_PROGRESS` is what starts the work: the archive or the erasure runs as
+        a job, and the case is completed by that job rather than by a second call.
+
+        An erasure needs its mode before it can start - `ANONYMIZE` keeps the authorship as a
+        former user and the workspace's content with it, `FULL_DELETE` takes the person's own
+        contributions too. The choice rests with the controller, because tenant data touches third
+        parties' rights (ADR-0018).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DataSubjectRequestUpdate" }
+      responses:
+        "200":
+          description: The case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataSubjectRequest" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/{accountId}:restrict:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    post:
+      tags: [privacy]
+      operationId: restrictProcessing
+      summary: Restrict the processing of an account's data (Art. 18)
+      description: |
+        A technical state rather than a lock: the account stays readable and its content stays
+        where it is, and what stops is *processing* - automation rules and AI leave the record
+        alone (`data-protection.md` §4, arc42 §8.15). Lifting it is the same call with
+        `restricted: false`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProcessingRestriction" }
+      responses:
+        "200":
+          description: The state that was set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProcessingState" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /privacy/consents:withdraw:
+    post:
+      tags: [privacy]
+      operationId: withdrawConsent
+      summary: Withdraw consent for an optional processing purpose (Art. 21)
+      description: |
+        Objection, as the one thing it can technically be: the optional processing stops and the
+        core features keep working. A withdrawal is recorded rather than deleted - the record that
+        somebody consented, and when they took it back, is what an operator needs in order to show
+        which processing was lawful when.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConsentWithdrawal" }
+      responses:
+        "200":
+          description: The consent record after the withdrawal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsentRecord" }
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -3657,7 +3804,15 @@ components:
         kind: { type: string, enum: [USER, SERVICE_ACCOUNT] }
         email: { type: [string, "null"], format: email }
         display_name: { type: string, minLength: 1, maxLength: 200 }
-        status: { type: string, enum: [ACTIVE, INVITED, DISABLED] }
+        status:
+          type: string
+          description: |
+            `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
+            stays, and what stops is this system deciding anything about the person by machine.
+            `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+            stays so that the workspace's own content is still readable, and everything of the
+            person's in it is gone.
+          enum: [ACTIVE, INVITED, DISABLED, RESTRICTED, ANONYMIZED]
         locale: { type: [string, "null"] }
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
@@ -5187,6 +5342,150 @@ components:
         recipients:
           type: array
           items: { type: string, format: uuid }
+
+    DataSubjectRequestKind:
+      type: string
+      description: |
+        The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
+        ordinary write - and is a tracked case all the same, because the deadline is somebody's
+        responsibility either way.
+      enum: [ACCESS, ERASURE, PORTABILITY, RESTRICTION, OBJECTION, RECTIFICATION]
+
+    DataSubjectRequestStatus:
+      type: string
+      enum: [RECEIVED, IN_PROGRESS, COMPLETED, REJECTED]
+
+    DataSubjectRequestScope:
+      type: string
+      description: |
+        How far the case reaches. `TENANT` is this workspace, which is what a controller answering
+        for their own workspace means. `INSTALLATION` is every workspace of this installation in
+        which the person is a member - the one operation in this system that legitimately crosses
+        the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
+        it touches, and is the provider's path rather than a tenant's.
+      enum: [TENANT, INSTALLATION]
+
+    ErasureMode:
+      type: string
+      description: |
+        `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+        `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+        controller, because tenant data touches third parties' rights (ADR-0018).
+      enum: [ANONYMIZE, FULL_DELETE]
+
+    DataSubjectRequest:
+      type: object
+      required: [id, kind, status, received_at, due_at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/DataSubjectRequestKind" }
+        status: { $ref: "#/components/schemas/DataSubjectRequestStatus" }
+        scope: { $ref: "#/components/schemas/DataSubjectRequestScope" }
+        subject_account_id:
+          type: [string, "null"]
+          format: uuid
+          description: The account the case is about, and null once a full deletion has taken it.
+        subject_email:
+          type: [string, "null"]
+          description: Who asked, for a request that has no account behind it.
+        erasure_mode: { $ref: "#/components/schemas/ErasureMode" }
+        received_at: { type: string, format: date-time }
+        due_at:
+          type: string
+          format: date-time
+          description: The statutory deadline. Thirty days from receipt unless the caller named another.
+        completed_at: { type: [string, "null"], format: date-time }
+        handled_by: { type: [string, "null"], format: uuid }
+        rejection_reason: { type: [string, "null"] }
+        result_archive:
+          type: [string, "null"]
+          description: >
+            Where the export was written at the backup target, once an access or portability case
+            has produced one.
+        result_target_id: { type: [string, "null"], format: uuid }
+        notes: { type: [string, "null"] }
+
+    DataSubjectRequestCreate:
+      type: object
+      required: [kind]
+      properties:
+        kind: { $ref: "#/components/schemas/DataSubjectRequestKind" }
+        scope: { $ref: "#/components/schemas/DataSubjectRequestScope" }
+        subject_account_id: { type: string, format: uuid }
+        subject_email: { type: string, format: email }
+        due_at:
+          type: string
+          format: date-time
+          description: The deadline, when it is not thirty days from receipt.
+        notes: { type: string }
+        target_id:
+          type: string
+          format: uuid
+          description: >
+            The backup target an access or portability export is written to. Required before such
+            a case can start; a copy of somebody's data has to be put somewhere, and this system
+            writes archives to configured targets rather than to a directory it chose itself.
+
+    DataSubjectRequestUpdate:
+      type: object
+      properties:
+        status: { $ref: "#/components/schemas/DataSubjectRequestStatus" }
+        erasure_mode: { $ref: "#/components/schemas/ErasureMode" }
+        handled_by: { type: string, format: uuid }
+        rejection_reason:
+          type: string
+          description: Required when the case is rejected. A refusal without a reason is not an answer.
+        notes: { type: string }
+        target_id: { type: string, format: uuid }
+
+    ProcessingState:
+      type: object
+      required: [account_id, status]
+      description: |
+        What the call set, rather than the person it was set on. A restriction touches nothing else
+        about an account, and answering their name and address here would be answering more than
+        the caller asked about.
+      properties:
+        account_id: { type: string, format: uuid }
+        status: { type: string, enum: [ACTIVE, RESTRICTED] }
+
+    ProcessingRestriction:
+      type: object
+      required: [restricted]
+      properties:
+        restricted: { type: boolean }
+        reason:
+          type: string
+          description: Why, for the audit trail. The restriction is a decision somebody took.
+
+    ConsentPurpose:
+      type: string
+      description: The optional processing a consent covers. Open rather than an enum, because a
+        purpose is configuration - what an installation offers, not what this contract fixes.
+      example: ai_processing
+
+    ConsentRecord:
+      type: object
+      required: [id, purpose, granted]
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: [string, "null"], format: uuid }
+        purpose: { $ref: "#/components/schemas/ConsentPurpose" }
+        granted: { type: boolean }
+        granted_at: { type: string, format: date-time }
+        revoked_at: { type: [string, "null"], format: date-time }
+        source: { type: [string, "null"], enum: [user, tenant_admin, config, null] }
+
+    ConsentWithdrawal:
+      type: object
+      required: [purpose]
+      properties:
+        purpose: { $ref: "#/components/schemas/ConsentPurpose" }
+        account_id:
+          type: string
+          format: uuid
+          description: Whose consent. Omitted means the caller's own.
+        reason: { type: string }
 
     AuditActor:
       type: object

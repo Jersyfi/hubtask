@@ -151,7 +151,7 @@ func TestEveryAlertCarriesWhatAnOperatorNeeds(t *testing.T) {
 // restore that worked. An installation that discovers on that day that its archives do not open has
 // lost the data as surely as one that never made them.
 func TestTheSelfHostingSetIsExactlyWhatWasDecided(t *testing.T) {
-	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12", "A-20"}
+	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12", "A-19", "A-20"}
 
 	var got []string
 	for _, alert := range alerts(t) {
@@ -159,6 +159,9 @@ func TestTheSelfHostingSetIsExactlyWhatWasDecided(t *testing.T) {
 	}
 	sort.Strings(got)
 
+	// A-19 joined with E-10, under the rule this test states: a statutory deadline is not a
+	// symptom somebody can catch up on afterwards. It loses no data - it loses a right, and the
+	// period runs out whether or not anybody was watching, which is the same reason A-08 is here.
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("the shipped set is %v, want %v (§10, the reduced self-hosting variant).\n"+
 			"Adding an alert here is a decision: it has to be one where doing nothing loses data.",

@@ -56,9 +56,11 @@ func (ns NullAccountKind) Value() (driver.Value, error) {
 type AccountStatus string
 
 const (
-	AccountStatusACTIVE   AccountStatus = "ACTIVE"
-	AccountStatusINVITED  AccountStatus = "INVITED"
-	AccountStatusDISABLED AccountStatus = "DISABLED"
+	AccountStatusACTIVE     AccountStatus = "ACTIVE"
+	AccountStatusINVITED    AccountStatus = "INVITED"
+	AccountStatusDISABLED   AccountStatus = "DISABLED"
+	AccountStatusRESTRICTED AccountStatus = "RESTRICTED"
+	AccountStatusANONYMIZED AccountStatus = "ANONYMIZED"
 )
 
 func (e *AccountStatus) Scan(src interface{}) error {
@@ -452,6 +454,14 @@ type AuditLogDefault struct {
 	Hash         []byte
 }
 
+type AuditPseudonym struct {
+	TenantID  pgtype.UUID
+	ActorID   pgtype.UUID
+	Pseudonym string
+	Reason    string
+	CreatedAt pgtype.Timestamptz
+}
+
 type AutoAssignPolicy struct {
 	ID         pgtype.UUID
 	TenantID   pgtype.UUID
@@ -690,6 +700,9 @@ type DataSubjectRequest struct {
 	RejectionReason  *string
 	ResultMediaID    pgtype.UUID
 	Notes            *string
+	Scope            string
+	TargetID         pgtype.UUID
+	ResultArchive    *string
 }
 
 type DeletionJournal struct {

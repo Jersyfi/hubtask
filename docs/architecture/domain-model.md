@@ -391,6 +391,33 @@ decisions is exercising the owner's authority rather than an administrator's. Re
 exist is `STRUCTURE`, for the reason listing backup targets is: somebody who may not place one still
 has to be able to see that one exists.
 
+**Privacy & Compliance** `CreateDataSubjectRequest`, `ListDataSubjectRequests`,
+`UpdateDataSubjectRequest`, `RestrictProcessing`, `WithdrawConsent` (E-10). The context
+[data-protection.md](./data-protection.md) §4 names, and the five use cases that make data subject
+rights a feature rather than a support process. The table has stood complete since `0001_init` —
+the six kinds, the state machine, the statutory deadline, the assignee, the rejection reason — and
+no line of Go had touched it.
+
+Recording a case, listing the cases and moving one along ask for `MANAGE_MEMBERS`: a data subject
+request is about a person rather than about the shape of the workspace, and the administrator who
+grants and revokes access is the one who answers for it. **Starting an erasure asks for the owner's
+right** — `DELETE_CONTAINER`, the matrix's line for the one thing an administrator cannot do —
+because it destroys work, which is the same line a retention rule and a legal hold sit on. Starting
+an *export* does not: it writes an archive to a target somebody has already approved, and using an
+approved channel is running the workspace (`StartBackup`'s reasoning).
+
+`RestrictProcessing` is `MANAGE_MEMBERS` for the reason the case is: it is a state of an account.
+`WithdrawConsent` is self-service for one's own consent, through the account scope
+(`UpdateAccountPreferences`'s precedent), and `MANAGE_MEMBERS` for somebody else's — an
+administrator withdrawing consent on behalf of a person is recording a decision that person took.
+
+A case whose scope is `INSTALLATION` reaches every workspace of the installation in which the
+person is a member. That is the one operation in this system that legitimately crosses the tenant
+boundary, and it does so through an explicit path with its own credential requirement
+(`admin:tenants`), one workspace at a time under that workspace's own tenant context, with an
+audit entry in each — never by relaxing `SET LOCAL app.tenant_id`, and never through a repository
+method that takes a tenant as an argument (rule 3 does not bend for this).
+
 **Automation** `CreateRule`, `UpdateRule`, `EnableRule`, `DisableRule`, `DeleteRule`, `TestRule` (dry run),
 `TriggerRuleManually`, `ListRuleRuns`, `ReplayRuleRun`.
 
