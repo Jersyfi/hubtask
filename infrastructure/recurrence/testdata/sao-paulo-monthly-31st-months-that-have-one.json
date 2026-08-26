@@ -1,0 +1,22 @@
+{
+  "name": "sao-paulo-monthly-31st-months-that-have-one",
+  "description": "A monthly series on the 31st skips the months that have no 31st rather than sliding to the 1st: the same rule as the leap year, one frequency down.",
+  "rrule": "FREQ=MONTHLY;BYMONTHDAY=31",
+  "time_zone": "America/Sao_Paulo",
+  "start": "2026-01-31T09:00:00",
+  "window_days": 120,
+  "occurrences": [
+    {
+      "local": "2026-01-31T09:00:00-03:00",
+      "utc": "2026-01-31T12:00:00Z"
+    },
+    {
+      "local": "2026-03-31T09:00:00-03:00",
+      "utc": "2026-03-31T12:00:00Z"
+    },
+    {
+      "local": "2026-05-31T09:00:00-03:00",
+      "utc": "2026-05-31T12:00:00Z"
+    }
+  ]
+}

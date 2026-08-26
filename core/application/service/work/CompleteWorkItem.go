@@ -23,6 +23,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -57,6 +58,11 @@ type CompletionWriter struct {
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
 	Activity   ActivityJournal
+	// Jobs is where an ON_COMPLETION series asks for its next occurrence. The completion is what
+	// seeds it, which is SY-8's server half: creation is bound to the status transition rather
+	// than to the event, so two devices completing the same entry produce one transition and one
+	// follow-up (D-05, offline-sync.md §8).
+	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -307,7 +313,34 @@ func (w CompletionWriter) write(
 	if err := w.recordActivity(ctx, after, actor, want, cause, now); err != nil {
 		return domain.WorkItem{}, event.Envelope{}, err
 	}
+	if err := w.scheduleMaterialisation(ctx, after, want); err != nil {
+		return domain.WorkItem{}, event.Envelope{}, err
+	}
 	return after, announcement, nil
+}
+
+// scheduleMaterialisation asks for the tenant's series to be looked at, in the transaction that
+// completed an entry belonging to one.
+//
+// Only a completion, and only for an entry of a series: an ON_COMPLETION series owes its next
+// occurrence exactly when nothing of it is open any more, and this is the write that can make that
+// true. A reopening seeds nothing - it puts an entry back among the open ones, which is the state
+// the series waits in.
+//
+// Bound to the transition rather than to the event, which is SY-8: the completion is idempotent,
+// so a second one writes nothing and seeds nothing, and two devices completing the same entry
+// produce exactly one follow-up. The pass decides what is actually owed; this only wakes it.
+func (w CompletionWriter) scheduleMaterialisation(
+	ctx context.Context, item domain.WorkItem, want direction,
+) error {
+	if want == reopening || item.RecurrenceRuleID.IsZero() || w.Jobs == nil {
+		return nil
+	}
+	return w.Jobs.Enqueue(ctx, queue.Request{
+		Kind:      queue.KindRecurrenceMaterialize,
+		TenantID:  item.TenantID,
+		DedupeKey: item.TenantID.String(),
+	})
 }
 
 // recordActivity writes the step of the item's own history.

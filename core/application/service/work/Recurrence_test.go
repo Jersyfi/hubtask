@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"sort"
 	"testing"
 	"time"
 
@@ -22,14 +23,22 @@ var recurringItem = shared.MustParseID("0192f000-0000-7000-8000-000000000201")
 // two move together in the adapter, so a fake that moved only one would let a test pass that the
 // database would refuse.
 type recurrences struct {
-	stored   map[shared.ID]domain.RecurrenceRule
-	inserted []domain.RecurrenceRule
-	updates  []domain.RecurrenceRule
-	deleted  []domain.RecurrenceRule
+	stored    map[shared.ID]domain.RecurrenceRule
+	inserted  []domain.RecurrenceRule
+	updates   []domain.RecurrenceRule
+	deleted   []domain.RecurrenceRule
+	advanced  []domain.RecurrenceRule
+	attached  []shared.ID
+	open      map[shared.ID]int
+	completed map[shared.ID]*time.Time
 }
 
 func newRecurrences() *recurrences {
-	return &recurrences{stored: map[shared.ID]domain.RecurrenceRule{}}
+	return &recurrences{
+		stored:    map[shared.ID]domain.RecurrenceRule{},
+		open:      map[shared.ID]int{},
+		completed: map[shared.ID]*time.Time{},
+	}
 }
 
 func (r *recurrences) FindForItem(
@@ -75,6 +84,65 @@ func (r *recurrences) Delete(
 	return nil
 }
 
+// The materialisation's half of the store (D-05). The watermark is modelled with its
+// compare-and-set, because that is the whole exactly-once argument for an occurrence: a pass that
+// read a stale watermark writes nothing.
+func (r *recurrences) ClaimToMaterialize(
+	_ context.Context, now time.Time, limit int,
+) ([]domain.RecurrenceRule, error) {
+	var due []domain.RecurrenceRule
+	for _, rule := range r.stored {
+		edge := now.AddDate(0, 0, rule.HorizonDays)
+		if rule.LastMaterializedAt == nil || rule.LastMaterializedAt.Before(edge) {
+			due = append(due, rule)
+		}
+	}
+	sort.Slice(due, func(i, j int) bool { return due[i].ID < due[j].ID })
+	if limit > 0 && len(due) > limit {
+		due = due[:limit]
+	}
+	return due, nil
+}
+
+func (r *recurrences) Advance(
+	_ context.Context, rule domain.RecurrenceRule, at time.Time,
+) (bool, error) {
+	stored, found := r.stored[rule.ID]
+	if !found {
+		return false, nil
+	}
+	if !sameMoment(stored.LastMaterializedAt, rule.LastMaterializedAt) {
+		return false, nil
+	}
+	moment := at
+	stored.LastMaterializedAt = &moment
+	r.stored[rule.ID] = stored
+	r.advanced = append(r.advanced, stored)
+	return true, nil
+}
+
+func (r *recurrences) Attach(_ context.Context, itemID, ruleID shared.ID) error {
+	r.attached = append(r.attached, itemID)
+	return nil
+}
+
+func (r *recurrences) OpenOccurrences(_ context.Context, ruleID shared.ID) (int, error) {
+	return r.open[ruleID], nil
+}
+
+func (r *recurrences) LatestCompletion(
+	_ context.Context, ruleID shared.ID,
+) (*time.Time, error) {
+	return r.completed[ruleID], nil
+}
+
+func sameMoment(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Equal(*b)
+}
+
 // expander is the port as the writer sees it: it answers a number of moments, or refuses. The
 // library's own behaviour is pinned where the library is (infrastructure/recurrence); what is
 // under test here is what the writer does with each answer.
@@ -85,7 +153,7 @@ type expander struct {
 }
 
 func (e *expander) Occurrences(
-	rule recurrenceport.Rule, _, _ time.Time, limit int,
+	rule recurrenceport.Rule, after, _ time.Time, limit int,
 ) ([]time.Time, error) {
 	e.asked = append(e.asked, rule)
 	if e.err != nil {
@@ -96,9 +164,11 @@ func (e *expander) Occurrences(
 	if limit > 0 && count > limit {
 		count = limit
 	}
+	// A daily grid starting after whatever the caller has already dealt with, which is the shape
+	// every caller here reads: the first moment answered is the next one owed.
 	moments := make([]time.Time, 0, count)
-	for i := 0; i < count; i++ {
-		moments = append(moments, now.Add(time.Duration(i)*24*time.Hour))
+	for i := 1; i <= count; i++ {
+		moments = append(moments, after.Add(time.Duration(i)*24*time.Hour))
 	}
 	return moments, nil
 }
@@ -119,6 +189,7 @@ type recurrenceHarness struct {
 	set         SetRecurrence
 	remove      RemoveRecurrence
 	get         GetRecurrence
+	skip        SkipOccurrence
 	recurrences *recurrences
 	items       *items
 	containers  *containers
@@ -150,6 +221,7 @@ func newRecurrenceHarness(t *testing.T) *recurrenceHarness {
 	}
 	h.set = SetRecurrence{Writer: writer}
 	h.remove = RemoveRecurrence{Writer: writer}
+	h.skip = SkipOccurrence{Writer: writer}
 	h.get = GetRecurrence{
 		Recurrences: h.recurrences, Items: h.items, Containers: h.containers,
 		Authorizer: h.authorizer, UnitOfWork: &unitOfWork{},
@@ -441,5 +513,78 @@ func TestTheReadAnswersTheSeriesOrThatThereIsNone(t *testing.T) {
 	}
 	if rule.RRULE != "FREQ=WEEKLY;BYDAY=MO" {
 		t.Errorf("the series read as %+v", rule)
+	}
+}
+
+// The skip is the bookkeeping moving past one moment: nothing is created, nothing that exists is
+// touched, and twice means two - which is what "skip the next one" means said twice (D-05).
+func TestSkippingMovesTheSeriesPastOneOccurrence(t *testing.T) {
+	h := newRecurrenceHarness(t)
+	h.withItem(domain.ItemTask, seriesDate(t))
+	if _, err := h.set.Execute(t.Context(), actor(), weeklyCommand()); err != nil {
+		t.Fatalf("setting the series failed: %v", err)
+	}
+	h.expander.moments = 5
+
+	skipped, err := h.skip.Execute(t.Context(), actor(), SkipOccurrenceCommand{
+		ItemID: recurringItem,
+	})
+	if err != nil {
+		t.Fatalf("skipping failed: %v", err)
+	}
+	if skipped.LastMaterializedAt == nil {
+		t.Fatal("the series' bookkeeping did not move")
+	}
+	first := *skipped.LastMaterializedAt
+
+	again, err := h.skip.Execute(t.Context(), actor(), SkipOccurrenceCommand{
+		ItemID: recurringItem,
+	})
+	if err != nil {
+		t.Fatalf("skipping again failed: %v", err)
+	}
+	if again.LastMaterializedAt == nil || !again.LastMaterializedAt.After(first) {
+		t.Errorf("the second skip left the bookkeeping at %v", again.LastMaterializedAt)
+	}
+
+	// The trail says what happened, on the entry a person is looking at.
+	if h.history.entries[len(h.history.entries)-1].Verb != activity.ItemRecurrenceSkipped {
+		t.Errorf("the history steps are %+v", h.history.entries)
+	}
+	if h.audit.entries[len(h.audit.entries)-1].Action != RecurrenceSkippedAction {
+		t.Errorf("the audit entries are %+v", h.audit.entries)
+	}
+}
+
+// An entry with no series has no next occurrence to skip, and says so plainly.
+func TestSkippingWithoutASeriesSaysThereIsNone(t *testing.T) {
+	h := newRecurrenceHarness(t)
+	h.withItem(domain.ItemTask, seriesDate(t))
+
+	_, err := h.skip.Execute(t.Context(), actor(), SkipOccurrenceCommand{ItemID: recurringItem})
+	if refusal := shared.AsError(err); refusal == nil ||
+		refusal.DetailCode != "recurrence.not_found" {
+		t.Fatalf("refused as %v, want recurrence.not_found", err)
+	}
+}
+
+// A series that has run out has nothing to skip, which is the state the caller asked for: nothing
+// is written and nothing is announced.
+func TestSkippingASeriesThatHasRunOutWritesNothing(t *testing.T) {
+	h := newRecurrenceHarness(t)
+	h.withItem(domain.ItemTask, seriesDate(t))
+	if _, err := h.set.Execute(t.Context(), actor(), weeklyCommand()); err != nil {
+		t.Fatalf("setting the series failed: %v", err)
+	}
+	h.expander.moments = 0
+	before := len(h.changes.recorded)
+
+	if _, err := h.skip.Execute(t.Context(), actor(), SkipOccurrenceCommand{
+		ItemID: recurringItem,
+	}); err != nil {
+		t.Fatalf("skipping failed: %v", err)
+	}
+	if len(h.changes.recorded) != before {
+		t.Error("skipping a series with nothing left announced something")
 	}
 }

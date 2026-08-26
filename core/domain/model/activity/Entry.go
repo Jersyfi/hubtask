@@ -98,12 +98,16 @@ const (
 	ItemRecurrenceSet     Verb = "item.recurrence_set"
 	ItemRecurrenceChanged Verb = "item.recurrence_changed"
 	ItemRecurrenceRemoved Verb = "item.recurrence_removed"
+	// ItemRecurrenceSkipped is the fourth series verb, and the only one about an occurrence rather
+	// than about the rule: somebody said "not this time" (D-05). It is on the template's history,
+	// because the occurrence it refers to is the one that never existed.
+	ItemRecurrenceSkipped Verb = "item.recurrence_skipped"
 )
 
 var verbs = [...]Verb{
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved, ItemReordered,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemLabelAdded, ItemLabelRemoved,
-	ItemRecurrenceSet, ItemRecurrenceChanged, ItemRecurrenceRemoved,
+	ItemRecurrenceSet, ItemRecurrenceChanged, ItemRecurrenceRemoved, ItemRecurrenceSkipped,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
 	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
 	ItemCustomFieldSet, ItemDueSet, ItemDueCleared, ItemCommented, ItemDuplicated,

@@ -2450,6 +2450,36 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/recurrence:skip:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [recurrence]
+      operationId: skipOccurrence
+      description: >
+        Skips the next occurrence the series has not produced yet: the one after the last one
+        materialised, or - for a series that has produced none - the first one after the entry's
+        own due date. Nothing that already exists is touched, because a materialised occurrence is
+        an ordinary entry and skipping it would be deleting somebody's work.
+
+        Idempotent under its Idempotency-Key, and repeatable without one: calling it twice skips
+        two occurrences, which is what "skip the next one" means said twice. The answer is the rule
+        with its bookkeeping moved on.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: The rule, its next occurrence skipped
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recurrence"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}/reminders:
     parameters:
       - $ref: "#/components/parameters/ItemId"

@@ -1,0 +1,30 @@
+{
+  "name": "berlin-daily-0900-autumn-transition",
+  "description": "And across the autumn transition (25 October 2026), where the day is 25 hours long and 09:00 is still 09:00.",
+  "rrule": "FREQ=DAILY",
+  "time_zone": "Europe/Berlin",
+  "start": "2026-10-23T09:00:00",
+  "window_days": 4,
+  "occurrences": [
+    {
+      "local": "2026-10-23T09:00:00+02:00",
+      "utc": "2026-10-23T07:00:00Z"
+    },
+    {
+      "local": "2026-10-24T09:00:00+02:00",
+      "utc": "2026-10-24T07:00:00Z"
+    },
+    {
+      "local": "2026-10-25T09:00:00+01:00",
+      "utc": "2026-10-25T08:00:00Z"
+    },
+    {
+      "local": "2026-10-26T09:00:00+01:00",
+      "utc": "2026-10-26T08:00:00Z"
+    },
+    {
+      "local": "2026-10-27T09:00:00+01:00",
+      "utc": "2026-10-27T08:00:00Z"
+    }
+  ]
+}

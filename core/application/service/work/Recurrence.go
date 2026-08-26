@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	recurrenceport "github.com/Jersyfi/hubtask/core/port/recurrence"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -55,10 +56,14 @@ type RecurrenceWriter struct {
 	// Expander is the library behind ADR-0008's decision, as a port: it is what turns "is this a
 	// rule, and is it a sane one" from an opinion into an answer, and it is asked before anything
 	// is stored rather than by the scheduler afterwards (T-17, R-07).
-	Expander   recurrenceport.Expander
-	Changes    changelog.ChangeLog
-	Audit      audit.Sink
-	Activity   ActivityJournal
+	Expander recurrenceport.Expander
+	Changes  changelog.ChangeLog
+	Audit    audit.Sink
+	Activity ActivityJournal
+	// Jobs is where the series asks to be materialised. The write that made something owed seeds
+	// it, because nothing may enumerate tenants (multi-tenancy.md §2.1) - the same shape the
+	// reminder's wake-up has (D-05).
+	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -190,6 +195,9 @@ func (w RecurrenceWriter) create(
 	if err := w.recordActivity(ctx, actor, item, activity.ItemRecurrenceSet, now); err != nil {
 		return domain.RecurrenceRule{}, err
 	}
+	if err := w.scheduleMaterialisation(ctx, rule.TenantID); err != nil {
+		return domain.RecurrenceRule{}, err
+	}
 	return rule, nil
 }
 
@@ -237,7 +245,27 @@ func (w RecurrenceWriter) change(
 	if err := w.recordActivity(ctx, actor, item, activity.ItemRecurrenceChanged, now); err != nil {
 		return domain.RecurrenceRule{}, err
 	}
+	if err := w.scheduleMaterialisation(ctx, wanted.TenantID); err != nil {
+		return domain.RecurrenceRule{}, err
+	}
 	return wanted, nil
+}
+
+// scheduleMaterialisation asks for the tenant's series to be looked at, in the transaction that
+// wrote one. The dedupe key is the tenant, so a person setting five rules leaves one job, and the
+// pass decides what is actually owed (D-05).
+//
+// A nil queue is a build without one, which the composition root does not produce and a test may:
+// nothing to schedule is better than a panic on the write path.
+func (w RecurrenceWriter) scheduleMaterialisation(ctx context.Context, tenantID shared.ID) error {
+	if w.Jobs == nil {
+		return nil
+	}
+	return w.Jobs.Enqueue(ctx, queue.Request{
+		Kind:      queue.KindRecurrenceMaterialize,
+		TenantID:  tenantID,
+		DedupeKey: tenantID.String(),
+	})
 }
 
 // Execute takes the series off the entry.
@@ -794,6 +822,209 @@ func (h GetRecurrence) invoke(
 	}
 
 	rule, err := h.Execute(ctx, actor, itemID)
+	if err != nil {
+		return nil, err
+	}
+	return recurrenceOutput(rule), nil
+}
+
+// SkipOccurrenceName is the catalogue's name for the one part of the materialisation a person asks
+// for.
+const SkipOccurrenceName = "SkipOccurrence"
+
+// RecurrenceSkippedAction is the audit code. Stable: an auditor filters on it and a SIEM rule
+// matches on it (audit.md §2).
+const RecurrenceSkippedAction audit.Action = "recurrence.occurrence_skipped"
+
+// SkipOccurrence moves a series past its next unmade occurrence (D-05).
+//
+// The one user-facing half of the materialisation, and the shape of it is what the bookkeeping
+// already is: the watermark says how far the series has been dealt with, so skipping is moving it
+// past one moment without creating anything. Nothing that already exists is touched - a
+// materialised occurrence is an ordinary entry, and skipping it would be deleting somebody's work.
+type SkipOccurrence struct {
+	Writer RecurrenceWriter
+}
+
+// SkipOccurrenceCommand is the input, typed.
+type SkipOccurrenceCommand struct {
+	ItemID shared.ID
+}
+
+// Execute skips the next occurrence and answers the rule.
+func (h SkipOccurrence) Execute(
+	ctx context.Context, actor appshared.ActorContext, cmd SkipOccurrenceCommand,
+) (domain.RecurrenceRule, error) {
+	w := h.Writer
+	if cmd.ItemID.IsZero() {
+		return domain.RecurrenceRule{}, itemIDRequired()
+	}
+
+	subject, collection, err := readItemScope(
+		ctx, w.UnitOfWork, w.Items, w.Containers, actor, cmd.ItemID)
+	if err != nil {
+		return domain.RecurrenceRule{}, err
+	}
+
+	if err := w.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionWriteItems,
+		Path:       containerPath(collection),
+		Action:     RecurrenceSkippedAction,
+		TokenScope: recurrenceWrite,
+		TargetType: recurrenceTarget,
+		TargetID:   cmd.ItemID,
+		On:         changing(subject),
+	}); err != nil {
+		return domain.RecurrenceRule{}, err
+	}
+
+	var skipped domain.RecurrenceRule
+	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		now := w.Clock.Now()
+
+		item, err := w.readRecurringItem(ctx, cmd.ItemID)
+		if err != nil {
+			return err
+		}
+		rule, found, err := w.findRule(ctx, item.ID)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return shared.ErrNotFound.WithDetail("recurrence.not_found")
+		}
+		if item.Due == nil {
+			// The series counts from the entry's date, and without one there is no next occurrence
+			// to skip. The same refusal the write gives, at the moment it matters.
+			return shared.ErrValidation.
+				WithDetail("recurrence.due_date_required").
+				WithFields(shared.FieldError{Path: "/item_id", Code: "recurrence.due_date_required"})
+		}
+
+		moment, err := w.nextUnmade(rule, item)
+		if err != nil {
+			return err
+		}
+		if moment == nil {
+			// A series with nothing left to produce. Skipping the occurrence that is not coming is
+			// the state the caller asked for, so nothing is written and nothing is announced.
+			skipped = rule
+			return nil
+		}
+
+		moved, err := w.Recurrences.Advance(ctx, rule, *moment)
+		if err != nil {
+			return err
+		}
+		if !moved {
+			// The materialisation moved the bookkeeping between the read and here, which means the
+			// occurrence being skipped may already exist. Answered as a conflict rather than
+			// applied to whatever is there now: "skip the next one" is about a specific next one.
+			return shared.ErrConflict.
+				WithDetail("recurrence.materialization_raced").
+				WithParams(map[string]string{"recurrence_rule_id": rule.ID.String()})
+		}
+		rule.LastMaterializedAt = moment
+
+		if err := w.recordFields(ctx, actor, rule, item, []domain.FieldChange{{
+			Field: "last_materialized_at", To: moment.UTC().Format(time.RFC3339Nano),
+		}}); err != nil {
+			return err
+		}
+		if err := w.recordAudit(ctx, actor, rule, RecurrenceSkippedAction, []audit.Change{
+			{Field: "item_id", Classification: audit.Open, To: rule.ItemID.String()},
+			{
+				Field: "skipped_occurrence_at", Classification: audit.Open,
+				To: moment.UTC().Format(time.RFC3339Nano),
+			},
+		}, now); err != nil {
+			return err
+		}
+		if err := w.recordActivity(ctx, actor, item, activity.ItemRecurrenceSkipped, now); err != nil {
+			return err
+		}
+
+		skipped = rule
+		return nil
+	})
+	if err != nil {
+		return domain.RecurrenceRule{}, err
+	}
+	return skipped, nil
+}
+
+// nextUnmade is the moment a skip moves past: the first the rule produces after everything already
+// dealt with - the watermark where there is one, the entry's own date where there is not, since
+// that date is the series' first occurrence and the entry itself is it.
+func (w RecurrenceWriter) nextUnmade(
+	rule domain.RecurrenceRule, item domain.WorkItem,
+) (*time.Time, error) {
+	anchor, err := item.Due.Anchor()
+	if err != nil {
+		return nil, err
+	}
+	after := anchor
+	if rule.LastMaterializedAt != nil && rule.LastMaterializedAt.After(after) {
+		after = *rule.LastMaterializedAt
+	}
+
+	moments, err := w.Expander.Occurrences(recurrenceport.Rule{
+		RRULE:    rule.RRULE,
+		TimeZone: rule.TimeZone,
+		Start:    anchor,
+		Until:    endsAt(rule),
+		Count:    rule.MaxCount,
+		// The window is the series' own horizon rather than a fixed one: a monthly series skipped
+		// in January is skipping February, and a horizon of days would answer nothing at all.
+	}, after, after.AddDate(0, 0, 2*rule.HorizonDays), 2)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, moment := range moments {
+		if moment.After(after) {
+			next := moment
+			return &next, nil
+		}
+	}
+	return nil, nil
+}
+
+// Descriptor is the catalogue entry.
+func (h SkipOccurrence) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: SkipOccurrenceName,
+		Summary: "Skips the next occurrence a series has not produced yet, leaving everything that " +
+			"already exists alone - a materialised occurrence is an ordinary entry, and skipping " +
+			"it would be deleting somebody's work. Called twice it skips two, which is what " +
+			"'skip the next one' means said twice; the Idempotency-Key is what makes a retry safe.",
+		SideEffects: "Moves the series' bookkeeping past one occurrence, records the change for " +
+			"offline clients, writes an audit entry and a step of the entry's history.",
+		TokenScope: recurrenceWrite,
+		Input: []usecase.Field{
+			{
+				Name: "item_id", Kind: usecase.KindID, Required: true,
+				Description: "The entry whose series should skip its next occurrence.",
+			},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: RecurrenceSkippedAction, TargetType: recurrenceTarget,
+			Severity: audit.SeverityInfo, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemRecurrenceSkipped},
+		Handler:  usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h SkipOccurrence) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	itemID, err := in.ID("item_id")
+	if err != nil {
+		return nil, err
+	}
+
+	rule, err := h.Execute(ctx, actor, SkipOccurrenceCommand{ItemID: itemID})
 	if err != nil {
 		return nil, err
 	}

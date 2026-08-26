@@ -88,6 +88,7 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_job_dead_letter_total` | Counter | `job_type` | Finally failed → always visible |
 | `hubtask_scheduler_tick_lag_seconds` | Gauge | — | The scheduler is stuck |
 | `hubtask_reminder_delivery_delay_seconds` | Histogram | `channel` | SLO-5 |
+| `hubtask_recurrence_occurrence_lag_seconds` | Histogram | `mode` | How late a series' entries appear (ADR-0008, D-05) |
 | `hubtask_notifications_recorded_total` | Counter | `category`, `channel`, `state` | Who is told what, and how much of it is suppressed (C-09) |
 | `hubtask_notification_send_duration_seconds` | Histogram | `category`, `channel` | How long a message takes to leave |
 | `hubtask_notification_failures_total` | Counter | `category`, `channel`, `reason` | A mail server that is down, told apart from an address that is refused |
@@ -314,7 +315,7 @@ alert added without one.
 | RT-7 Automation loop | A rule pair A↔B: the causality bound stops it, the rule is disabled, the alert metric rises | PR |
 | RT-8 Rolling update | A deployment with the N−1/N schema under load: no `5xx`, no data loss | Nightly |
 | RT-9 Restore | Import a backup, run the consistency and isolation checks | Per release |
-| RT-10 Clock jump / DST | The scheduler across a time change and after a 2 h outage: no double firing and no missed firing | PR |
+| RT-10 Clock jump / DST | The scheduler across a time change and after a 2 h outage: no double firing and no missed firing | PR *(in `gate-resilience` since D-05; first run in [docs/evidence/RT-10-2026-08-26.md](../evidence/RT-10-2026-08-26.md))* |
 | RT-11 Memory leak test | 1 h of sustained load: `GOMEMLIMIT` held, the goroutine count stable | Nightly |
 | RT-12 Observability completeness | Every use case produces a metric plus a span; reconciled against the use case registry | PR (gate) |
 

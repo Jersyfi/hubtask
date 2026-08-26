@@ -204,7 +204,7 @@ deleted item, and recreates it on sync.
 
 * **Automation runs exclusively server-side**, never on the client. Changes made offline trigger their rules at sync time — with `occurred_at` from the HLC and `received_at` as server time. Rules with time conditions evaluate `received_at`, so a three-day-old change does not trigger retroactive deadline logic.
 * **Trailing events are bundled.** If a device syncs 400 offline changes, 400 webhook deliveries do not follow: the dispatcher collapses changes to the same object within one sync operation.
-* **Recurring tasks:** if an instance is completed offline, only the server creates the follow-up instance. If a user completes offline the same instance somebody else has already completed, no second follow-up instance appears — creation is bound to the status transition, not to the event.
+* **Recurring tasks:** if an instance is completed offline, only the server creates the follow-up instance. If a user completes offline the same instance somebody else has already completed, no second follow-up instance appears — creation is bound to the status transition, not to the event. Concretely (D-05): the completion seeds a materialisation job, and an `ON_COMPLETION` series owes an occurrence only while *nothing* of it is open — so a second completion of an entry that is already done writes nothing, seeds nothing, and changes no count. Two passes that do run at once are decided by the watermark's compare-and-set: the second matches no row and rolls its entries back with it.
 * **Reminders** are fired server-side. A client may additionally schedule local notifications, but must reconcile them on sync, otherwise the device reminds about a task completed long ago.
 
 ---

@@ -435,6 +435,7 @@
   "activity.item_recurrence_set": "{actor} made this repeat",
   "activity.item_recurrence_changed": "{actor} changed how this repeats",
   "activity.item_recurrence_removed": "{actor} stopped this repeating",
+  "activity.item_recurrence_skipped": "{actor} skipped the next occurrence",
   "activity.item_commented": "{actor} commented",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
@@ -577,6 +578,11 @@
   "recurrence.due_date_required": "A series counts from the entry's due date. Give the entry one first.",
   "recurrence.not_found": "That entry has no series.",
   "recurrence.version_conflict": "The series changed while you were editing it. Read it again and reapply.",
+  "recurrence.materialize_without_tenant": "This installation is misconfigured and could not materialise a series.",
+  "recurrence.materialization_raced": "Another pass materialised this series first. Nothing was lost; try again.",
+  "recurrence.stored_zone_unknown": "That series was stored with a time zone this installation no longer knows.",
+  "recurrence.stored_rule_unreadable": "That series was stored with a rule this installation can no longer read.",
+  "events.occurrence_incomplete": "This installation is misconfigured and could not announce an occurrence.",
 
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
 }

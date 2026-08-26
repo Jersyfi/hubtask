@@ -141,6 +141,20 @@ type duplication struct {
 	// ownEntriesOnly says the role the actor holds at the destination writes only what is assigned
 	// to them, so every entry the copy produces has to land on them (C-04).
 	ownEntriesOnly bool
+	// dueOverride replaces the root copy's due date, and is nil for an ordinary duplicate. The
+	// materialisation sets it: an occurrence is the same entry on another date, and that date is
+	// the one the rule computed (D-05). Only the root - a child's date is a fact about the child,
+	// and a series that rewrote its subtree's dates would be inventing the relative dates a
+	// template owns (D-06).
+	dueOverride *domain.DueDate
+	// series is the rule an occurrence belongs to, and empty for an ordinary duplicate: a copy
+	// belongs to no series (db/queries/Work.sql, CopyWorkItem).
+	series shared.ID
+	// createdBy overrides who the copy was made by, and is empty for an ordinary duplicate, where
+	// it is the actor. The materialisation sets it to whoever created the template: the system has
+	// no account, an entry needs one, and the person who wrote the series is the honest answer -
+	// they are the one who asked for this entry to exist, weeks ago (D-05).
+	createdBy shared.ID
 }
 
 // plan reads what the copy depends on and asks the permission questions.
@@ -297,6 +311,31 @@ func (h DuplicateWorkItem) perform(
 		// when it came into being.
 		now := h.Clock.Now()
 
+		var err error
+		result, err = h.copyInto(ctx, actor, plan, now)
+		return err
+	})
+	if err != nil {
+		return DuplicateResult{}, err
+	}
+	return result, nil
+}
+
+// copyInto is the copy itself, without the permission questions and without a transaction of its
+// own: everything perform does inside the caller's.
+//
+// It exists as its own method because the materialisation reuses it (D-05, "the copy machinery is
+// C-11's duplicate, reused"). A series copying its own template is the system acting on a decision
+// somebody already made - when they wrote the rule - so there is no second person to ask about,
+// and asking the authorisation service about an actor with no memberships would refuse the only
+// caller that has the right to be here. What is *not* skipped is everything that makes a copy
+// correct: the fresh read, the lifecycle guards, the placement, and the records each entry owes.
+func (h DuplicateWorkItem) copyInto(
+	ctx context.Context, actor appshared.ActorContext, plan duplication, now time.Time,
+) (DuplicateResult, error) {
+	var result DuplicateResult
+
+	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		// Read again inside the transaction: everything the plan was decided from can have changed
 		// since, and what decides the write has to be true at the moment the rows are written.
 		fresh, err := h.read(ctx, plan.command)
@@ -304,6 +343,9 @@ func (h DuplicateWorkItem) perform(
 			return err
 		}
 		fresh.ownEntriesOnly = plan.ownEntriesOnly
+		fresh.dueOverride = plan.dueOverride
+		fresh.series = plan.series
+		fresh.createdBy = plan.createdBy
 		if err := fresh.destination.EnsureAcceptsItems(); err != nil {
 			return err
 		}
@@ -539,12 +581,20 @@ func (h DuplicateWorkItem) copyOf(
 	copied.ID = h.IDs.NewID()
 	copied.CollectionID = plan.destination.ID
 	copied.CreatedBy = actor.AccountID
+	if !plan.createdBy.IsZero() {
+		copied.CreatedBy = plan.createdBy
+	}
 	copied.CreatedAt, copied.UpdatedAt = now, now
 	copied.Version = 1
 	copied.DeletedAt, copied.TrashBatchID = nil, noID
 	// The copy is open. `completed_at` and `completed_by` name a person and a moment, and a copy
 	// carrying them would say that person completed an entry they never touched.
 	copied.Completion = domain.Completion{}
+
+	// A copy belongs to no series, whatever the entry it was copied from belongs to: duplicating a
+	// recurring task gives somebody a task like it rather than a second template. The
+	// materialisation is the one caller that says otherwise, for the root it creates (D-05).
+	copied.RecurrenceRuleID = noID
 
 	switch {
 	case isRoot:
@@ -553,6 +603,12 @@ func (h DuplicateWorkItem) copyOf(
 		copied.Depth = spot.Depth
 		if plan.command.Title != "" {
 			copied.Title = plan.command.Title
+		}
+		if plan.dueOverride != nil {
+			copied.Due = plan.dueOverride
+		}
+		if !plan.series.IsZero() {
+			copied.RecurrenceRuleID = plan.series
 		}
 	default:
 		parent, found := made.newIDs[source.ParentID]

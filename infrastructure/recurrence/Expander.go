@@ -30,10 +30,22 @@ var _ port.Expander = Expander{}
 
 // Occurrences reads the rule in its own zone and answers the moments it produces.
 //
-// The start is put into the rule rather than taken from the text: DTSTART belongs to the entry's
-// due date (the application refuses a rule that carries one), and a library reading it in UTC
-// would resolve every transition against the wrong clock. The zone is loaded and the start is
-// moved into it before the expansion, which is what makes 09:00 stay 09:00 across a change.
+// The expansion runs on the **wall clock** and the zone is applied afterwards, one occurrence at a
+// time. That is not a detail: it is what "DST is resolved through the stored time zone, not
+// through UTC offsets" means once it is code (arc42 §6.3, i18n-l10n.md §4). A daily series at
+// 09:00 is a series of 09:00s, and the instants between them are 23, 24 or 25 hours apart
+// depending on what the zone did that night.
+//
+// Expanding with a zoned start instead produces a failure this project cannot have, and it was
+// observed with this library before this shape was chosen: on a night when a zone springs forward
+// at midnight (America/Sao_Paulo, 4 November 2018) the same local day comes back twice and the
+// following one never appears at all. Expanding on the wall clock and mapping afterwards cannot do
+// that - every reading appears exactly once, and the zone decides only which instant it is.
+//
+// Two readings need a rule of their own, and both are the standard library's rather than this
+// adapter's, which is why they are stated here and pinned by the golden files: a local time that
+// does not exist (02:30 on a spring-forward night) moves forward by the gap, and one that exists
+// twice (02:30 on a fall-back night) is the second of the two.
 func (e Expander) Occurrences(
 	rule port.Rule, after, before time.Time, limit int,
 ) ([]time.Time, error) {
@@ -46,9 +58,12 @@ func (e Expander) Occurrences(
 	if err != nil {
 		return nil, errors.Join(port.ErrRuleUnreadable, err)
 	}
-	option.Dtstart = rule.Start.In(location)
+	// Every moment the expansion sees is a wall clock reading carried in UTC, the start and the
+	// window included - a frame with no transitions in it, which is the only frame an RRULE's own
+	// arithmetic is defined in.
+	option.Dtstart = wallClock(rule.Start, location)
 	if !rule.Until.IsZero() {
-		option.Until = rule.Until.In(location)
+		option.Until = wallClock(rule.Until, location)
 	}
 	if rule.Count > 0 {
 		option.Count = rule.Count
@@ -64,17 +79,36 @@ func (e Expander) Occurrences(
 
 	// Inclusive on both ends: a caller asking from the entry's due date expects that date to be
 	// the first occurrence, and one asking to a horizon expects the horizon's own day to count.
-	moments := expanded.Between(after, before, true)
+	moments := expanded.Between(wallClock(after, location), wallClock(before, location), true)
 	if limit > 0 && len(moments) > limit {
 		moments = moments[:limit]
 	}
 
-	// Answered in UTC, which is how every instant in this system travels (i18n-l10n.md §7). The
-	// zone did its work during the expansion; carrying it further would invite a caller to compare
-	// two moments in two zones.
+	// Answered in UTC, which is how every instant in this system travels (i18n-l10n.md §7). This
+	// is where the zone does its work: a reading becomes the instant it names in that place, on
+	// that day.
 	utc := make([]time.Time, 0, len(moments))
 	for _, moment := range moments {
-		utc = append(utc, moment.UTC())
+		utc = append(utc, inZone(moment, location).UTC())
 	}
 	return utc, nil
+}
+
+// wallClock reads an instant in the rule's zone and returns that reading carried in UTC: 09:00 in
+// Berlin becomes 09:00Z, which is not the same moment and is not meant to be. It is the frame the
+// expansion runs in.
+func wallClock(at time.Time, location *time.Location) time.Time {
+	local := at.In(location)
+	return time.Date(
+		local.Year(), local.Month(), local.Day(),
+		local.Hour(), local.Minute(), local.Second(), local.Nanosecond(), time.UTC)
+}
+
+// inZone is the way back: a reading becomes the moment it names in the zone. The standard library
+// decides the two hard cases - a reading that does not exist moves forward by the gap, and one
+// that happens twice is the second - and the golden files pin both.
+func inZone(reading time.Time, location *time.Location) time.Time {
+	return time.Date(
+		reading.Year(), reading.Month(), reading.Day(),
+		reading.Hour(), reading.Minute(), reading.Second(), reading.Nanosecond(), location)
 }

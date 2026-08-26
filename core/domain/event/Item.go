@@ -420,6 +420,38 @@ func newDueMoment(
 		ItemSubject(item.ID), Actor{Kind: shared.ActorSystem}, occurredAt, cause, payload)
 }
 
+// NewOccurrenceCreated announces that a series produced an entry (D-05, domain-model.md §4).
+//
+// The three identifiers the catalogue names, and the moment: which series, which template it was
+// copied from, which entry came out, and which occurrence of the rule it is. The moment is the
+// rule's computed time rather than the clock's - an occurrence materialised late is still that
+// morning's occurrence, and a consumer reconstructing the series needs the grid rather than the
+// bookkeeping.
+//
+// Nobody caused it: the actor is the system, because a rule somebody wrote weeks ago is not
+// somebody acting now.
+func NewOccurrenceCreated(
+	id shared.ID, occurrence work.WorkItem, sourceItemID shared.ID, occurrenceAt time.Time,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if sourceItemID.IsZero() || occurrence.RecurrenceRuleID.IsZero() {
+		// An occurrence that names no series or no template. The materialisation writes both, so
+		// this is the caller and the event disagreeing - a defect rather than input
+		// (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.occurrence_incomplete")
+	}
+
+	return NewEnvelope(id, RecurrenceOccurrenceCreated, occurrence.TenantID,
+		ItemSubject(occurrence.ID), Actor{Kind: shared.ActorSystem}, occurredAt, cause,
+		map[string]any{
+			"source_item_id":     sourceItemID.String(),
+			"new_item_id":        occurrence.ID.String(),
+			"recurrence_rule_id": occurrence.RecurrenceRuleID.String(),
+			"collection_id":      occurrence.CollectionID.String(),
+			"occurrence_at":      occurrenceAt.UTC(),
+		})
+}
+
 func newItemAssignment(id shared.ID, eventType Type, item work.WorkItem, assigneeID shared.ID,
 	actor Actor, occurredAt time.Time, cause Cause,
 ) (Envelope, error) {

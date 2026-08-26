@@ -412,6 +412,11 @@ func (pending) ShareSavedView(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// SkipOccurrence is overridden by RestController, for the reason given at CreateContainer.
+func (pending) SkipOccurrence(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SkipOccurrenceParams) {
+	notAvailable(w, r)
+}
+
 // The recurrence operations are overridden by RestController, for the reason given at
 // CreateContainer.
 func (pending) GetRecurrence(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {

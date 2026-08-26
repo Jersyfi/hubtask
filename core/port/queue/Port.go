@@ -65,6 +65,16 @@ const (
 	// next write re-seeds it.
 	KindReminderFire Kind = "reminder.fire"
 
+	// KindRecurrenceMaterialize turns one tenant's series into the entries their rolling windows
+	// owe (D-05, ADR-0008).
+	//
+	// The same shape as the reminder's wake-up and for the same reason: nothing may enumerate
+	// tenants, so the write that made something owed seeds it - a rule written, an occurrence
+	// completed - and the pass reschedules itself to the moment the horizon reaches the next
+	// occurrence. A series in ON_COMPLETION owes nothing until somebody completes something, so
+	// its pass finishes and the completion seeds the next one.
+	KindRecurrenceMaterialize Kind = "recurrence.materialize"
+
 	// KindRetentionSweep removes what one tenant's retention periods say may go (ADR-0020).
 	//
 	// One job per tenant, which reschedules itself forever: a poller lives as one row rather than

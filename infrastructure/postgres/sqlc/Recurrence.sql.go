@@ -11,6 +11,129 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const advanceRecurrenceWatermark = `-- name: AdvanceRecurrenceWatermark :execrows
+UPDATE recurrence_rule SET last_materialized_at = $1
+WHERE id = $2::uuid
+  AND last_materialized_at IS NOT DISTINCT FROM $3
+`
+
+type AdvanceRecurrenceWatermarkParams struct {
+	MaterializedAt pgtype.Timestamptz
+	ID             pgtype.UUID
+	Expected       pgtype.Timestamptz
+}
+
+// How far the series has been materialised, moved forward under a compare-and-set.
+//
+// The predicate is the whole exactly-once argument for occurrences. Two passes that read the same
+// watermark both create the same morning; the first to commit moves it, and the second matches no
+// row, fails, and rolls back the entries it wrote with it - because the pass and its bookkeeping
+// are one transaction. IS NOT DISTINCT FROM rather than =, because the first pass compares against
+// NULL and NULL = NULL is not true.
+//
+// No version and no stamp: this is the materialisation's own bookkeeping, not an edit somebody
+// made, and a version spent here would answer a client's If-Match with a conflict about a field it
+// does not own.
+func (q *Queries) AdvanceRecurrenceWatermark(ctx context.Context, arg AdvanceRecurrenceWatermarkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, advanceRecurrenceWatermark, arg.MaterializedAt, arg.ID, arg.Expected)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const claimRulesToMaterialize = `-- name: ClaimRulesToMaterialize :many
+SELECT id, tenant_id, source_item_id, rrule, time_zone, mode, horizon_days, ends_at, max_count,
+       last_materialized_at, created_at, updated_at, version
+FROM recurrence_rule
+WHERE last_materialized_at IS NULL
+   OR last_materialized_at < ($1::timestamptz + make_interval(days => horizon_days))
+ORDER BY coalesce(last_materialized_at, created_at), id
+LIMIT $2
+FOR UPDATE SKIP LOCKED
+`
+
+type ClaimRulesToMaterializeParams struct {
+	Now       pgtype.Timestamptz
+	BatchSize int32
+}
+
+type ClaimRulesToMaterializeRow struct {
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	SourceItemID       pgtype.UUID
+	Rrule              string
+	TimeZone           string
+	Mode               string
+	HorizonDays        int32
+	EndsAt             pgtype.Timestamptz
+	MaxCount           *int32
+	LastMaterializedAt pgtype.Timestamptz
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	Version            int32
+}
+
+// What the materialisation pass takes: this tenant's series whose rolling window may owe
+// something, oldest bookkeeping first (D-05).
+//
+// The predicate is the window itself: a rule whose watermark already reaches past the horizon owes
+// nothing until time moves. A rule that has never materialised has no watermark and is always a
+// candidate, which is what makes the first pass after a rule is written do the work.
+//
+// FOR UPDATE SKIP LOCKED for the reason the job queue uses it (ADR-0008): two passes that overlap
+// take disjoint sets instead of waiting for each other. The second lock is the watermark's own
+// compare-and-set below, which is what makes a leader failover harmless even when they do meet.
+func (q *Queries) ClaimRulesToMaterialize(ctx context.Context, arg ClaimRulesToMaterializeParams) ([]ClaimRulesToMaterializeRow, error) {
+	rows, err := q.db.Query(ctx, claimRulesToMaterialize, arg.Now, arg.BatchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimRulesToMaterializeRow{}
+	for rows.Next() {
+		var i ClaimRulesToMaterializeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SourceItemID,
+			&i.Rrule,
+			&i.TimeZone,
+			&i.Mode,
+			&i.HorizonDays,
+			&i.EndsAt,
+			&i.MaxCount,
+			&i.LastMaterializedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const countOpenOccurrences = `-- name: CountOpenOccurrences :one
+SELECT count(*) FROM work_item
+WHERE recurrence_rule_id = $1
+  AND is_completed = false AND deleted_at IS NULL AND archived_at IS NULL
+`
+
+// What an ON_COMPLETION series is waiting for: an entry of the series that is still open. The
+// template counts, which is what makes the first follow-up wait for the template's own completion
+// (arc42 §6.3). Trashed and archived entries do not: they are not going to be completed.
+func (q *Queries) CountOpenOccurrences(ctx context.Context, recurrenceRuleID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countOpenOccurrences, recurrenceRuleID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteRecurrenceRule = `-- name: DeleteRecurrenceRule :execrows
 DELETE FROM recurrence_rule
 WHERE id = $1::uuid AND version = $2
@@ -122,6 +245,21 @@ func (q *Queries) InsertRecurrenceRule(ctx context.Context, arg InsertRecurrence
 		arg.CreatedAt,
 	)
 	return err
+}
+
+const latestOccurrenceCompletion = `-- name: LatestOccurrenceCompletion :one
+SELECT max(completed_at)::timestamptz AS completed_at
+FROM work_item
+WHERE recurrence_rule_id = $1
+`
+
+// When the series was last done, which is where an ON_COMPLETION series counts its next occurrence
+// from: "again, two weeks after I last did it". NULL for a series nobody has completed yet.
+func (q *Queries) LatestOccurrenceCompletion(ctx context.Context, recurrenceRuleID pgtype.UUID) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, latestOccurrenceCompletion, recurrenceRuleID)
+	var completed_at pgtype.Timestamptz
+	err := row.Scan(&completed_at)
+	return completed_at, err
 }
 
 const setWorkItemRecurrence = `-- name: SetWorkItemRecurrence :execrows

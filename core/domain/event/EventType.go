@@ -246,6 +246,15 @@ const (
 	// reference count (data-protection.md §5).
 	AttachmentRemoved Type = "de.hubtask.work.attachment.removed.v1"
 
+	// RecurrenceOccurrenceCreated announces that a series produced an entry (domain-model.md §4).
+	// Consumers: the history, and anything that wants to know an entry arrived because of a rule
+	// rather than because somebody typed it.
+	//
+	// Beside the `item.created` the occurrence also publishes rather than instead of it: what
+	// happened to the world is that an entry came into being, and a consumer that reacts to new
+	// entries has to react to this one - the same reasoning C-11's duplicate follows. What this
+	// one adds is the connection: which series, from which template, for which moment.
+	RecurrenceOccurrenceCreated Type = "de.hubtask.work.recurrence.occurrence_created.v1"
 	// CommentCreated announces a new contribution to an entry's discussion. Consumers:
 	// notification (C-09), automation. The payload is the comment (domain-model.md §4) - its own
 	// entity beside the item, so the item's snapshot events stay free of a thread that appends
@@ -271,7 +280,7 @@ var types = [...]Type{
 	ContainerArchived, ContainerUnarchived, ContainerDeleted, ContainerRestored,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved, ItemDueChanged,
-	ItemDueSoon, ItemOverdue,
+	ItemDueSoon, ItemOverdue, RecurrenceOccurrenceCreated,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemPurged,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted,

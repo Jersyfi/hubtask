@@ -823,6 +823,29 @@ type Recurrences interface {
 	// Delete removes the series and clears the entry's pointer, or reports a version conflict.
 	// The occurrences it produced are ordinary entries and are not touched.
 	Delete(ctx context.Context, rule work.RecurrenceRule, expectedVersion int) error
+
+	// ClaimToMaterialize takes the tenant's series whose rolling window may owe something, locking
+	// the rows for the caller's transaction so that two overlapping passes take disjoint sets
+	// (D-05).
+	ClaimToMaterialize(ctx context.Context, now time.Time, limit int) ([]work.RecurrenceRule, error)
+
+	// Advance moves the watermark under a compare-and-set and reports whether this caller moved
+	// it. False is not an error: another pass materialised the same occurrences first, and the
+	// caller rolls back rather than writing them twice.
+	Advance(ctx context.Context, rule work.RecurrenceRule, at time.Time) (bool, error)
+
+	// OpenOccurrences counts the entries of a series that are still open - what an ON_COMPLETION
+	// series waits for. The template counts, which is what makes the first follow-up wait for it.
+	OpenOccurrences(ctx context.Context, ruleID shared.ID) (int, error)
+
+	// LatestCompletion answers when the series was last completed, or nil for one nobody has
+	// completed yet: where an ON_COMPLETION series counts its next occurrence from.
+	LatestCompletion(ctx context.Context, ruleID shared.ID) (*time.Time, error)
+
+	// Attach points an entry at a series. The copy statement deliberately does not carry the
+	// pointer - a copy belongs to no series - so the one copy that does is pointed at it here,
+	// through the statement that owns the column (D-05).
+	Attach(ctx context.Context, itemID, ruleID shared.ID) error
 }
 
 // AutoAssignPolicies stores the assignment policy per scope (domain-model.md §3.6).
