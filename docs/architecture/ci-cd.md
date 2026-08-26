@@ -21,7 +21,7 @@ Which means:
 | File | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | Pull request, push to `main` | The PR gates: format, lint, generation, build, tests, security, architecture, data, chart, Compose, documentation and licences |
-| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
+| `nightly.yml` | Schedule (overnight) | Long runs: fuzzing, load and resilience tests, the support matrix cells ([support-matrix.md](./support-matrix.md)), the privacy gates that need a database — PG-2 and PG-7 (`make gate-privacy-full`) — and the whole of `make gate-selftest`, whose probes for those two are skipped where there is no PostgreSQL, the vulnerability scan of the published build, the action pins. A failure files an issue labelled `claude:task` |
 | `release.yml` | Tag `v*` | Compute the version, build the multi-arch image, SBOM, signature, provenance, Helm chart, GitHub release |
 | `deploy.yml` | Push to `main`, manual dispatch | `helm upgrade` into the `integration` environment ([deployment.md](./deployment.md) §3) |
 | `codeql.yml` | PR, schedule | Static security analysis |
@@ -45,7 +45,8 @@ Staggered by runtime: whatever fails fastest runs first.
 | `architecture` | Import/layer rules, the `go` ban outside `SafeGo`, mandatory authorisation, use case parity across REST/MCP/automation, observability completeness (RT-12), audit declarations (SG-13) | Structure |
 | `selftest` | One deliberate violation per configured rule, each expected to turn the build red (`make gate-selftest`) | The gates themselves |
 | `security` | `govulncheck`, `gosec`, cross-tenant suite (SG-3), RLS/`BYPASSRLS` test (SG-4), SSRF suite (SG-6), secret scan (SG-7), upload matrix (SG-12), auth negative tests (SG-11) | SG gates |
-| `data` | Migration check against the previous state, deletion tests per storage location, retention tests RE-1…RE-9, backup round trip BK-1 (local + MinIO), sync tests SY-1…SY-12 | Data guarantees |
+| `data` | Migration check against the previous state, retention tests RE-1…RE-9, backup round trip BK-1 (local + MinIO), sync tests SY-1…SY-12 | Data guarantees |
+| `security` (same job) | The privacy gates that need no database: PG-1, PG-3, PG-4, PG-5, PG-6, PG-8 (`make gate-privacy`, also part of `make verify`) | Data protection |
 
 `integration`, `security`, and `data` run in parallel; `quick` is a prerequisite for all of them.
 

@@ -6,7 +6,7 @@ locations, retention, and deletion path. The basis for the record of processing 
 
 * **Version:** 0.4.0 · **As of:** 2026-08-26 · **Maintenance:** by pull request, so changes are traceable
 * **Concept:** [../architecture/data-protection.md](../architecture/data-protection.md)
-* **Consistency check:** gate PG-7 compares this record against the database schema; a table with personal content that is missing here fails the build.
+* **Consistency check:** gate PG-7 (`test/privacy/PG7_catalogue_test.go`, run by `make gate-privacy-full` in the nightly) compares this record against a migrated database schema; a table with personal content that is missing here fails the build. It runs since E-11 — before that the sentence was a promise.
 
 > This document describes the software. It is **not** an operator's record of processing activities
 > and **not** legal advice — legal bases and recipients depend on the specific installation. The
