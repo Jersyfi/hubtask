@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -674,5 +675,122 @@ func TestTheWildcardIsAcceptedOnItsOwn(t *testing.T) {
 	}
 	if !cfg.CORS.AllowsAnyOrigin() {
 		t.Errorf("allowed origins = %v", cfg.CORS.AllowedOrigins)
+	}
+}
+
+// The keyring (E-02). Two variables: one naming the keys in order, one per key holding the
+// material - so that no key material appears in the variable an operator pastes into a support
+// ticket, and so that every key can be its own mounted secret.
+
+var otherKey = strings.Repeat("other-ke", 4) // 32 characters, the minimum
+
+func TestAnInstallationWithNoKeyringStarts(t *testing.T) {
+	withRequiredSecrets(t)
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.Encryption.Keys) != 0 || cfg.Encryption.ActiveKeyID() != "" {
+		t.Fatalf("an unconfigured installation reports %d keys", len(cfg.Encryption.Keys))
+	}
+}
+
+// The order is the configuration's statement of which key is current. A second setting for it
+// would be a second place for the two to disagree.
+func TestTheKeyringKeepsItsOrderAndTheFirstKeyIsCurrent(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_ENCRYPTION_KEYS", "k2026, k2025")
+	t.Setenv("HUBTASK_ENCRYPTION_KEY_K2026", validKey)
+	t.Setenv("HUBTASK_ENCRYPTION_KEY_K2025", otherKey)
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if len(cfg.Encryption.Keys) != 2 {
+		t.Fatalf("%d keys", len(cfg.Encryption.Keys))
+	}
+	if cfg.Encryption.ActiveKeyID() != "k2026" {
+		t.Fatalf("the current key is %q", cfg.Encryption.ActiveKeyID())
+	}
+	if cfg.Encryption.Keys[1].ID != "k2025" {
+		t.Fatalf("the predecessor is %q", cfg.Encryption.Keys[1].ID)
+	}
+	if cfg.Encryption.Keys[0].Material.Reveal() != validKey {
+		t.Error("the material did not reach the key it belongs to")
+	}
+}
+
+func TestEachKeyCanBeItsOwnMountedSecret(t *testing.T) {
+	withRequiredSecrets(t)
+	dir := t.TempDir()
+	file := filepath.Join(dir, "k2026")
+	if err := os.WriteFile(file, []byte(validKey+"\n"), 0o600); err != nil {
+		t.Fatalf("writing the fixture failed: %v", err)
+	}
+	t.Setenv("HUBTASK_ENCRYPTION_KEYS", "k2026")
+	t.Setenv("HUBTASK_ENCRYPTION_KEY_K2026_FILE", file)
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.Encryption.Keys) != 1 || cfg.Encryption.Keys[0].Material.Reveal() != validKey {
+		t.Fatal("the key was not read from its file, or the newline stayed")
+	}
+}
+
+// Every one of these is a process that does not start, which is the right outcome for all of
+// them: a keyring that is wrong is discovered now rather than at the first backup.
+func TestTheKeyringRefusesWhatItCannotStandBehind(t *testing.T) {
+	cases := map[string]struct {
+		env  map[string]string
+		code string
+	}{
+		"an identifier with a hyphen": {
+			map[string]string{"HUBTASK_ENCRYPTION_KEYS": "key-1"},
+			"config.encryption_key_id_invalid",
+		},
+		"the same identifier twice": {
+			map[string]string{
+				"HUBTASK_ENCRYPTION_KEYS":  "a,a",
+				"HUBTASK_ENCRYPTION_KEY_A": validKey,
+			},
+			"config.encryption_key_id_duplicate",
+		},
+		"a key named and not supplied": {
+			map[string]string{"HUBTASK_ENCRYPTION_KEYS": "a"},
+			"config.encryption_key_missing",
+		},
+		"material somebody could have typed from memory": {
+			map[string]string{
+				"HUBTASK_ENCRYPTION_KEYS":  "a",
+				"HUBTASK_ENCRYPTION_KEY_A": "too short",
+			},
+			"config.encryption_key_too_short",
+		},
+	}
+
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			withRequiredSecrets(t)
+			for variable, value := range c.env {
+				t.Setenv(variable, value)
+			}
+
+			_, err := load(t)
+			if err == nil {
+				t.Fatal("the process started anyway")
+			}
+			if !slices.Contains(detailCodes(t, err), c.code) {
+				t.Fatalf("codes %v, want %s", detailCodes(t, err), c.code)
+			}
+			// The refusal names the variable and never the material.
+			if strings.Contains(err.Error(), "too short") && strings.Contains(err.Error(), validKey) {
+				t.Fatal("the refusal quoted the material")
+			}
+		})
 	}
 }

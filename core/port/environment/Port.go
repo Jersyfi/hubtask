@@ -67,20 +67,21 @@ type Config struct {
 
 	Tenancy TenancyMode
 
-	Database  DatabaseConfig
-	Storage   StorageConfig
-	Mail      MailConfig
-	RateLimit RateLimitConfig
-	Request   RequestConfig
-	CORS      CORSConfig
-	Outbound  OutboundConfig
-	Queue     QueueConfig
-	Retention RetentionConfig
-	Media     MediaConfig
-	Locale    LocaleConfig
-	Metrics   MetricsConfig
-	Tracing   TracingConfig
-	UI        UIConfig
+	Database   DatabaseConfig
+	Storage    StorageConfig
+	Mail       MailConfig
+	RateLimit  RateLimitConfig
+	Request    RequestConfig
+	CORS       CORSConfig
+	Outbound   OutboundConfig
+	Queue      QueueConfig
+	Retention  RetentionConfig
+	Encryption EncryptionConfig
+	Media      MediaConfig
+	Locale     LocaleConfig
+	Metrics    MetricsConfig
+	Tracing    TracingConfig
+	UI         UIConfig
 
 	SecretKey secret.Secret
 
@@ -123,6 +124,34 @@ type DatabaseConfig struct {
 	// (engineering-guidelines.md §4) - the protection against a runaway query.
 	StatementTimeout       time.Duration
 	WorkerStatementTimeout time.Duration
+}
+
+// EncryptionKey is one master key as the environment gives it: an identifier that is stored in
+// every value sealed under it, and the material that is stored nowhere.
+type EncryptionKey struct {
+	ID       string
+	Material secret.Secret
+}
+
+// EncryptionConfig is the installation's master keys, current first (E-02, security.md §3).
+//
+// A list rather than one key, because rotation without a readable predecessor is not rotation: a
+// single key that could be changed would make every value sealed under the old one unreadable at
+// the moment it changed. The order is the configuration's statement of which key is current, so
+// there is no second setting for it to disagree with.
+//
+// It may be empty. An installation that encrypts nothing needs no key, and one that is asked to
+// seal something without one refuses rather than writing a plaintext.
+type EncryptionConfig struct {
+	Keys []EncryptionKey
+}
+
+// ActiveKeyID is the key new values are sealed under, empty when none is configured.
+func (c EncryptionConfig) ActiveKeyID() string {
+	if len(c.Keys) == 0 {
+		return ""
+	}
+	return c.Keys[0].ID
 }
 
 // RetentionConfig is the lifecycle context's operational surface: how a deletion run is paced, and

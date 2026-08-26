@@ -172,13 +172,15 @@ Required, no default:
 | Variable | Meaning |
 |---|---|
 | `HUBTASK_DB_DSN` | PostgreSQL connection |
-| `HUBTASK_SECRET_KEY` | Master key for envelope encryption, at least 32 characters |
+| `HUBTASK_SECRET_KEY` | The installation secret, at least 32 characters. It peppers stored credential hashes, signs cursors and mints media and feed tokens — every purpose derived through its own label (security.md §5). It is **not** the key backups and stored credentials are encrypted with; that is the keyring below |
 
 Everything else has a self-hosting default:
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `HUBTASK_ROLES` | `api,worker,scheduler,automation` | Which roles this process starts (ADR-0014) |
+| `HUBTASK_ENCRYPTION_KEYS` | — | The master keyring for envelope encryption, as key identifiers separated by commas, **current first** (E-02). Lower-case letters, digits and underscores. Empty means this installation encrypts nothing: it starts, and refuses to store anything that would have to be sealed rather than storing it in the clear |
+| `HUBTASK_ENCRYPTION_KEY_<ID>` (`_FILE`) | — | The material of one key named above, at least 32 characters, one variable per key so that each can be its own mounted secret. A key named and not supplied fails startup — a ring quietly missing a key is a value nobody notices until an old archive will not open |
 | `HUBTASK_HTTP_ADDR` / `HUBTASK_OPS_ADDR` | `:8080` / `:9090` | Public and operations port |
 | `HUBTASK_BASE_URL` | — | Absolute URL of the installation; without it links in emails and feeds are wrong (warning) |
 | `HUBTASK_TENANCY_MODE` | `single` | `single` for self-hosting, `multi` for provider operation (ADR-0010) |

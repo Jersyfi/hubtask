@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -153,6 +154,12 @@ func (e *EnvConfig) Load() (env.Config, error) {
 	}
 	cfg.Roles = roles
 
+	keys, err := parseEncryptionKeys(get("HUBTASK_ENCRYPTION_KEYS", ""))
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Encryption = env.EncryptionConfig{Keys: keys}
+
 	// Secrets: also available as *_FILE, so that Docker and Kubernetes secrets can be used
 	// without the detour through environment variables.
 	secrets := map[string]*secret.Secret{
@@ -241,6 +248,22 @@ func validate(cfg env.Config) error {
 				"variable": "HUBTASK_SECRET_KEY",
 				"minimum":  strconv.Itoa(minSecretKeyLength),
 			}))
+	}
+
+	// The same floor as the installation secret, for the same reason: material an operator could
+	// have typed from memory is not a key, and stretching it adds no entropy. Checked here as well
+	// as in the keyring, because a process that starts and only discovers at the first backup that
+	// its key is unusable has moved the failure to the worst possible moment.
+	for _, key := range cfg.Encryption.Keys {
+		variable := "HUBTASK_ENCRYPTION_KEY_" + strings.ToUpper(key.ID)
+		if len(key.Material.Reveal()) < minSecretKeyLength {
+			errs = append(errs, configError("config.encryption_key_too_short", variable).
+				WithParams(map[string]string{
+					"variable": variable,
+					"key_id":   key.ID,
+					"minimum":  strconv.Itoa(minSecretKeyLength),
+				}))
+		}
 	}
 
 	switch cfg.Tenancy {
@@ -658,6 +681,60 @@ func getDuration(key string, fallback time.Duration) time.Duration {
 		return -1 // invalid, and validate turns that into a startup error
 	}
 	return fallback
+}
+
+// encryptionKeyIDPattern is what an identifier may be, and it is narrow for three reasons at
+// once: the value is stored in every row sealed under the key, it is printed in log lines an
+// operator reads, and it becomes part of an environment variable name. No case, no punctuation,
+// nothing that would need quoting in a shell.
+var encryptionKeyIDPattern = regexp.MustCompile(`^[a-z0-9_]{1,32}$`)
+
+// parseEncryptionKeys reads the keyring: HUBTASK_ENCRYPTION_KEYS names the identifiers, current
+// first, and each key's material comes from HUBTASK_ENCRYPTION_KEY_<ID> - or its _FILE form, so
+// that every key can be its own Docker or Kubernetes secret.
+//
+// Two variables rather than one list of "id:material" pairs, and deliberately: a single list needs
+// a delimiter, and a delimiter inside a generated secret is a key that silently loads as two
+// halves of nothing. Splitting it also means no key material ever appears in the variable that
+// says which keys exist, which is the one of the two an operator pastes into a support ticket.
+func parseEncryptionKeys(list string) ([]env.EncryptionKey, error) {
+	if strings.TrimSpace(list) == "" {
+		return nil, nil
+	}
+
+	var keys []env.EncryptionKey
+	seen := map[string]bool{}
+
+	for _, raw := range strings.Split(list, ",") {
+		id := strings.ToLower(strings.TrimSpace(raw))
+		if !encryptionKeyIDPattern.MatchString(id) {
+			return nil, configError("config.encryption_key_id_invalid", "HUBTASK_ENCRYPTION_KEYS").
+				WithParams(map[string]string{
+					"variable": "HUBTASK_ENCRYPTION_KEYS", "key_id": id,
+				})
+		}
+		if seen[id] {
+			return nil, configError("config.encryption_key_id_duplicate", "HUBTASK_ENCRYPTION_KEYS").
+				WithParams(map[string]string{
+					"variable": "HUBTASK_ENCRYPTION_KEYS", "key_id": id,
+				})
+		}
+		seen[id] = true
+
+		variable := "HUBTASK_ENCRYPTION_KEY_" + strings.ToUpper(id)
+		material, err := getSecret(variable)
+		if err != nil {
+			return nil, err
+		}
+		if material.IsEmpty() {
+			// Named and not supplied. A startup error rather than a ring quietly missing a key:
+			// the value that would fail is one nobody notices until an old archive will not open.
+			return nil, configError("config.encryption_key_missing", variable).
+				WithParams(map[string]string{"variable": variable, "key_id": id})
+		}
+		keys = append(keys, env.EncryptionKey{ID: id, Material: material})
+	}
+	return keys, nil
 }
 
 // getSecret supports KEY and KEY_FILE (Docker and Kubernetes secrets).
