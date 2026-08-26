@@ -798,7 +798,11 @@ CREATE TABLE outbox_event (
   occurred_at     timestamptz NOT NULL DEFAULT now(),
   dispatched_at   timestamptz,
   attempts        integer NOT NULL DEFAULT 0,
-  locked_until    timestamptz
+  locked_until    timestamptz,
+  -- A change a restore wrote rather than one somebody made (backup-restore.md §8.4, migration
+  -- 0033). Outward-facing subscribers are not given these: a restore would otherwise report last
+  -- month's states to every webhook and every rule.
+  replay          boolean NOT NULL DEFAULT false
 );
 CREATE INDEX outbox_pending_idx ON outbox_event (occurred_at)
   WHERE dispatched_at IS NULL;

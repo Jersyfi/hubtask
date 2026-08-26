@@ -44,6 +44,32 @@ type Subscriber interface {
 	Deliver(ctx context.Context, envelope event.Envelope) error
 }
 
+// TakesReplays is the opt-in for the events a restore wrote (backup-restore.md §8.4).
+//
+// A restore's changes are real changes and an index that ignored them would be an index that had
+// lost a month. They are also, every one of them, a state that is already old, and §8.4 is
+// unambiguous about what must not happen to them: no rule fires, no webhook goes out, no
+// notification is sent. So the default is not to deliver a replay, and a subscriber that wants
+// them says so.
+//
+// The default is the safe one rather than the convenient one on purpose. A subscriber added in a
+// later version by somebody who has never read §8.4 is not delivered a replay by accident; the
+// cost of the mistake in the other direction is a stale search index, and the cost in this one is
+// four hundred emails about last month.
+type TakesReplays interface {
+	Subscriber
+
+	// TakesReplays is a marker. It says the subscriber has been read against §8.4 and is one of
+	// the consumers a replay is meant for.
+	TakesReplays()
+}
+
+// WantsReplay reports whether a subscriber may be given a replayed event.
+func WantsReplay(subscriber Subscriber) bool {
+	_, takes := subscriber.(TakesReplays)
+	return takes
+}
+
 // Consumption is the record of what a subscriber has already seen.
 type Consumption interface {
 	// Claim records that consumer is about to handle eventID, and reports whether it is the first

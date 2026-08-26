@@ -15,12 +15,12 @@ const appendOutboxEvent = `-- name: AppendOutboxEvent :exec
 
 INSERT INTO outbox_event (
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8, $9,
-  $10
+  $10, $11
 )
 `
 
@@ -35,6 +35,7 @@ type AppendOutboxEventParams struct {
 	CausationID    pgtype.UUID
 	CausationDepth int32
 	OccurredAt     pgtype.Timestamptz
+	Replay         bool
 }
 
 // The transactional outbox (ADR-0007): the event is written in the same transaction as the change
@@ -55,6 +56,7 @@ func (q *Queries) AppendOutboxEvent(ctx context.Context, arg AppendOutboxEventPa
 		arg.CausationID,
 		arg.CausationDepth,
 		arg.OccurredAt,
+		arg.Replay,
 	)
 	return err
 }
@@ -85,7 +87,7 @@ func (q *Queries) ClaimEventConsumption(ctx context.Context, arg ClaimEventConsu
 const claimPendingEvents = `-- name: ClaimPendingEvents :many
 SELECT
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
 FROM outbox_event
 WHERE dispatched_at IS NULL
 ORDER BY occurred_at, id
@@ -105,6 +107,7 @@ type ClaimPendingEventsRow struct {
 	CausationID    pgtype.UUID
 	CausationDepth int32
 	OccurredAt     pgtype.Timestamptz
+	Replay         bool
 }
 
 // The dispatcher's claim. The rows are locked for the length of the transaction and rows another
@@ -131,6 +134,7 @@ func (q *Queries) ClaimPendingEvents(ctx context.Context, batchSize int32) ([]Cl
 			&i.CausationID,
 			&i.CausationDepth,
 			&i.OccurredAt,
+			&i.Replay,
 		); err != nil {
 			return nil, err
 		}

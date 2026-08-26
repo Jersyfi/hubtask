@@ -94,6 +94,7 @@ func (o Outbox) Append(ctx context.Context, envelope event.Envelope) error {
 		//nolint:gosec // G115: 0..5 by construction, checked in core/domain/event
 		CausationDepth: int32(envelope.CausationDepth),
 		OccurredAt:     timestampOf(envelope.OccurredAt),
+		Replay:         envelope.Replay,
 	})
 	if err != nil {
 		return shared.ErrUnavailable.
@@ -243,6 +244,7 @@ func envelopeFrom(row sqlc.ClaimPendingEventsRow) (event.Envelope, error) {
 		CorrelationID:  correlationID,
 		CausationID:    causationID,
 		CausationDepth: int(row.CausationDepth),
+		Replay:         row.Replay,
 		Payload:        payload,
 	}, nil
 }

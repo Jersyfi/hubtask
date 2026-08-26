@@ -866,6 +866,7 @@ type OutboxEvent struct {
 	DispatchedAt   pgtype.Timestamptz
 	Attempts       int32
 	LockedUntil    pgtype.Timestamptz
+	Replay         bool
 }
 
 type PrivacyIncident struct {
