@@ -320,10 +320,18 @@ func (h MaterializeOccurrences) createOccurrence(
 		},
 		dueOverride: due,
 		series:      rule.ID,
+		createdBy:   source.CreatedBy,
 	}, now)
 	if err != nil {
 		return err
 	}
+
+	// The pointer is written through the statement that owns the column: the copy deliberately
+	// carries no series, and this is the one copy that belongs to one (db/queries/Work.sql).
+	if err := h.Recurrences.Attach(ctx, result.Item.ID, rule.ID); err != nil {
+		return err
+	}
+	result.Item.RecurrenceRuleID = rule.ID
 
 	announcement, err := event.NewOccurrenceCreated(
 		h.IDs.NewID(), result.Item, source.ID, moment, now, event.Cause{})

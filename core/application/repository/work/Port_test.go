@@ -193,6 +193,7 @@ func (recurrenceDouble) Advance(context.Context, work.RecurrenceRule, time.Time)
 	return false, nil
 }
 func (recurrenceDouble) OpenOccurrences(context.Context, shared.ID) (int, error) { return 0, nil }
+func (recurrenceDouble) Attach(context.Context, shared.ID, shared.ID) error      { return nil }
 func (recurrenceDouble) LatestCompletion(context.Context, shared.ID) (*time.Time, error) {
 	return nil, nil
 }

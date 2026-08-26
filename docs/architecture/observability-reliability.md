@@ -315,7 +315,7 @@ alert added without one.
 | RT-7 Automation loop | A rule pair A↔B: the causality bound stops it, the rule is disabled, the alert metric rises | PR |
 | RT-8 Rolling update | A deployment with the N−1/N schema under load: no `5xx`, no data loss | Nightly |
 | RT-9 Restore | Import a backup, run the consistency and isolation checks | Per release |
-| RT-10 Clock jump / DST | The scheduler across a time change and after a 2 h outage: no double firing and no missed firing | PR |
+| RT-10 Clock jump / DST | The scheduler across a time change and after a 2 h outage: no double firing and no missed firing | PR *(in `gate-resilience` since D-05; first run in [docs/evidence/RT-10-2026-08-26.md](../evidence/RT-10-2026-08-26.md))* |
 | RT-11 Memory leak test | 1 h of sustained load: `GOMEMLIMIT` held, the goroutine count stable | Nightly |
 | RT-12 Observability completeness | Every use case produces a metric plus a span; reconciled against the use case registry | PR (gate) |
 

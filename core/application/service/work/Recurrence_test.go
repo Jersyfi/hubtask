@@ -28,6 +28,7 @@ type recurrences struct {
 	updates   []domain.RecurrenceRule
 	deleted   []domain.RecurrenceRule
 	advanced  []domain.RecurrenceRule
+	attached  []shared.ID
 	open      map[shared.ID]int
 	completed map[shared.ID]*time.Time
 }
@@ -118,6 +119,11 @@ func (r *recurrences) Advance(
 	r.stored[rule.ID] = stored
 	r.advanced = append(r.advanced, stored)
 	return true, nil
+}
+
+func (r *recurrences) Attach(_ context.Context, itemID, ruleID shared.ID) error {
+	r.attached = append(r.attached, itemID)
+	return nil
 }
 
 func (r *recurrences) OpenOccurrences(_ context.Context, ruleID shared.ID) (int, error) {

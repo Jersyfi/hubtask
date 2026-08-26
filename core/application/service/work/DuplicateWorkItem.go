@@ -150,6 +150,11 @@ type duplication struct {
 	// series is the rule an occurrence belongs to, and empty for an ordinary duplicate: a copy
 	// belongs to no series (db/queries/Work.sql, CopyWorkItem).
 	series shared.ID
+	// createdBy overrides who the copy was made by, and is empty for an ordinary duplicate, where
+	// it is the actor. The materialisation sets it to whoever created the template: the system has
+	// no account, an entry needs one, and the person who wrote the series is the honest answer -
+	// they are the one who asked for this entry to exist, weeks ago (D-05).
+	createdBy shared.ID
 }
 
 // plan reads what the copy depends on and asks the permission questions.
@@ -340,6 +345,7 @@ func (h DuplicateWorkItem) copyInto(
 		fresh.ownEntriesOnly = plan.ownEntriesOnly
 		fresh.dueOverride = plan.dueOverride
 		fresh.series = plan.series
+		fresh.createdBy = plan.createdBy
 		if err := fresh.destination.EnsureAcceptsItems(); err != nil {
 			return err
 		}
@@ -575,6 +581,9 @@ func (h DuplicateWorkItem) copyOf(
 	copied.ID = h.IDs.NewID()
 	copied.CollectionID = plan.destination.ID
 	copied.CreatedBy = actor.AccountID
+	if !plan.createdBy.IsZero() {
+		copied.CreatedBy = plan.createdBy
+	}
 	copied.CreatedAt, copied.UpdatedAt = now, now
 	copied.Version = 1
 	copied.DeletedAt, copied.TrashBatchID = nil, noID

@@ -8,6 +8,7 @@ package resilience
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,19 +32,45 @@ import (
 const appPassword = "test-only-not-a-secret"
 
 var (
-	sharedDSN  string
-	sharedOnce sync.Once
-	sharedErr  error
+	sharedDSN string
+	// sharedContainer is kept for one purpose: RT-10 needs a tenant and an account before it can
+	// have a series, and creating a tenant is the control plane's act rather than the
+	// application's (db/migrations/0001_init.sql). It is done with psql *inside* the container, so
+	// that this package still holds no database driver - the tenant boundary is proved by going
+	// through the application role, and a package that could open its own connection could quietly
+	// stop doing that.
+	sharedContainer *tcpostgres.PostgresContainer
+	sharedOnce      sync.Once
+	sharedErr       error
 )
 
 // testDSN starts one container for the whole package and returns the application role's DSN.
 func testDSN(t *testing.T) string {
 	t.Helper()
-	sharedOnce.Do(func() { sharedDSN, sharedErr = startDatabase() })
+	sharedOnce.Do(func() { sharedDSN, sharedContainer, sharedErr = startDatabase() })
 	if sharedErr != nil {
 		t.Fatalf("no test database: %v", sharedErr)
 	}
 	return sharedDSN
+}
+
+// execAsOwner runs one statement as the database owner, inside the container. The one fixture that
+// needs it is the tenant and the account behind it; everything else in this package goes through
+// the application role and its transaction wrapper.
+func execAsOwner(ctx context.Context, t *testing.T, statement string) {
+	t.Helper()
+	testDSN(t)
+
+	code, reader, err := sharedContainer.Exec(ctx, []string{
+		"psql", "-U", "postgres", "-d", "hubtask_test", "-v", "ON_ERROR_STOP=1", "-c", statement,
+	})
+	if err != nil {
+		t.Fatalf("running the fixture statement: %v", err)
+	}
+	if code != 0 {
+		out, _ := io.ReadAll(reader)
+		t.Fatalf("the fixture statement failed (%d): %s", code, out)
+	}
 }
 
 // postgresImage is the database the suite runs against. Configurable so that the support matrix
@@ -56,7 +83,7 @@ func postgresImage() string {
 	return "postgres:16-alpine"
 }
 
-func startDatabase() (string, error) {
+func startDatabase() (appDSN string, running *tcpostgres.PostgresContainer, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -70,15 +97,15 @@ func startDatabase() (string, error) {
 				WithStartupTimeout(2*time.Minute)),
 	)
 	if err != nil {
-		return "", fmt.Errorf("starting the container: %w", err)
+		return "", nil, fmt.Errorf("starting the container: %w", err)
 	}
 
 	adminDSN, err := container.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
-		return "", fmt.Errorf("connection string: %w", err)
+		return "", nil, fmt.Errorf("connection string: %w", err)
 	}
 	if err := migrate(ctx, adminDSN); err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// The migration creates the application role without a login; granting one is the operator's
@@ -88,19 +115,19 @@ func startDatabase() (string, error) {
 		"psql", "-U", "postgres", "-d", "hubtask_test", "-c",
 		"ALTER ROLE hubtask_app WITH LOGIN PASSWORD '" + appPassword + "'",
 	}); err != nil {
-		return "", fmt.Errorf("granting login: %w", err)
+		return "", nil, fmt.Errorf("granting login: %w", err)
 	}
 
 	host, err := container.Host(ctx)
 	if err != nil {
-		return "", fmt.Errorf("host: %w", err)
+		return "", nil, fmt.Errorf("host: %w", err)
 	}
 	port, err := container.MappedPort(ctx, "5432/tcp")
 	if err != nil {
-		return "", fmt.Errorf("port: %w", err)
+		return "", nil, fmt.Errorf("port: %w", err)
 	}
 	return fmt.Sprintf("postgres://hubtask_app:%s@%s:%s/hubtask_test?sslmode=disable",
-		appPassword, host, port.Port()), nil
+		appPassword, host, port.Port()), container, nil
 }
 
 // migrate applies db/migrations through goose, the way production does.

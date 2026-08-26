@@ -161,6 +161,11 @@ func (r RecurrenceRepository) Delete(
 	return r.point(ctx, rule.ItemID, "")
 }
 
+// Attach points an entry at a series - the materialisation's one write outside the rule itself.
+func (r RecurrenceRepository) Attach(ctx context.Context, itemID, ruleID shared.ID) error {
+	return r.point(ctx, itemID, ruleID)
+}
+
 // point writes the entry's pointer at its series, or clears it. The foreign key would not catch a
 // pointer left standing - the column carries none, one column for a reference the schema keeps
 // deliberately loose - so the pair is written here, in one transaction, or not at all.

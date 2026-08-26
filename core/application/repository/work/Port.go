@@ -841,6 +841,11 @@ type Recurrences interface {
 	// LatestCompletion answers when the series was last completed, or nil for one nobody has
 	// completed yet: where an ON_COMPLETION series counts its next occurrence from.
 	LatestCompletion(ctx context.Context, ruleID shared.ID) (*time.Time, error)
+
+	// Attach points an entry at a series. The copy statement deliberately does not carry the
+	// pointer - a copy belongs to no series - so the one copy that does is pointed at it here,
+	// through the statement that owns the column (D-05).
+	Attach(ctx context.Context, itemID, ruleID shared.ID) error
 }
 
 // AutoAssignPolicies stores the assignment policy per scope (domain-model.md §3.6).
