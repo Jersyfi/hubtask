@@ -680,6 +680,8 @@
   "backup.archive_checksums_unreadable": "That archive's checksums.txt could not be read.",
   "backup.archive_checksum_mismatch": "The bytes at {path} are not the bytes that were written ({reason}).",
   "backup.archive_incomplete": "That archive has no checksums.txt, so the run that wrote it did not finish.",
+  "backup.archive_request_invalid": "That backup run cannot be started as described ({reason}).",
+  "backup.archive_media_missing": "The attachment {sha256} is referenced by the data but is no longer in the object store, so the archive would be incomplete.",
 
   "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",
