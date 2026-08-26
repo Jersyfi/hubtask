@@ -21,9 +21,11 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
+	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
@@ -42,9 +44,11 @@ import (
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
 	mailport "github.com/Jersyfi/hubtask/core/port/mail"
+	persistenceport "github.com/Jersyfi/hubtask/core/port/persistence"
 	queueport "github.com/Jersyfi/hubtask/core/port/queue"
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
+	dbfiles "github.com/Jersyfi/hubtask/db"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
@@ -310,6 +314,20 @@ func run() error {
 		Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+	}
+	// The run use cases share theirs for the same reason: three that disagreed about the clock
+	// would record a run at a moment nothing else agrees with (E-05).
+	backupRuns := postgres.NewBackupRunRepository()
+	backupSchedules := postgres.NewBackupScheduleRepository()
+	backupRunner := backupservice.Runner{
+		Runs: backupRuns, Targets: backupTargets, Jobs: jobs,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+	backupScheduling := backupservice.Scheduling{
+		Schedules: backupSchedules, Targets: backupTargets, Jobs: jobs,
+		Expander: recurrenceadapter.New(), Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
 	accounts := postgres.NewAccountRepository()
@@ -883,6 +901,10 @@ func run() error {
 		backupservice.CreateBackupTarget{Writer: backupWriter}.Descriptor(),
 		backupservice.ListBackupTargets{Writer: backupWriter}.Descriptor(),
 		backupservice.TestBackupTarget{Writer: backupWriter}.Descriptor(),
+		backupservice.StartBackup{Runner: backupRunner}.Descriptor(),
+		backupservice.GetBackupRun{Runner: backupRunner}.Descriptor(),
+		backupservice.VerifyBackup{Runner: backupRunner}.Descriptor(),
+		backupservice.CreateBackupSchedule{Scheduling: backupScheduling}.Descriptor(),
 
 		jobservice.GetJob{
 			Jobs: jobRecords, Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -1198,6 +1220,33 @@ func run() error {
 		MinimumWait:  cfg.Queue.OutboxMinInterval,
 	}
 
+	// The backup run and the two jobs around it (E-05). The run is Detached: it holds a
+	// REPEATABLE READ snapshot while it streams to somebody else's machine, and doing that inside
+	// the runner's own transaction would mean two open at once - the runner's for minutes, on the
+	// pool the API shares.
+	backupPerformer := backupservice.Performer{
+		Runs: backupRuns, Targets: backupTargets,
+		Export: postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
+		Opener: backupAdapters, Encryptor: encryptor, Keys: encryptor,
+		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
+		Snapshot: unitOfWork, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+		SchemaVersion: schemaVersion(), ProductVersion: version,
+	}
+	backupPass := backupservice.SchedulePass{
+		Schedules: backupSchedules, Runs: backupRuns, Jobs: jobs,
+		Expander: recurrenceadapter.New(), UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+	backupRun := worker.BackupRun{
+		Performer: backupPerformer,
+		Progress:  jobs,
+		Expiry: worker.BackupExpiry{
+			Performer: backupPerformer,
+			Schedules: backupservice.SchedulePlans{Schedules: backupSchedules, UnitOfWork: unitOfWork},
+		},
+	}
+
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire:          reminderFiring,
 		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
@@ -1206,6 +1255,11 @@ func run() error {
 		queueport.KindMediaReconcile:        mediaReconciliation,
 		queueport.KindInvitationEmail:       invitationMessage,
 		queueport.KindNotificationDeliver:   notificationDelivery,
+		queueport.KindBackupRun:             backupRun,
+		queueport.KindBackupVerify:          worker.BackupVerify{Performer: backupPerformer},
+		queueport.KindBackupSchedule: worker.BackupScheduling{
+			Pass: backupPass, Fallback: cfg.Retention.Interval,
+		},
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {
@@ -1253,6 +1307,9 @@ func run() error {
 			Signals:      metrics,
 			Kinds:        kinds,
 			TickInterval: cfg.Queue.SchedulerTick,
+			// The leader's one duty beyond measurement, and the reading behind alert A-12 (E-05).
+			InstanceBackups: backupPass,
+			BackupFreshness: backupRunsInBackground{Runs: backupRuns, Work: backgroundWork},
 		}
 		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))
 	}
@@ -1523,4 +1580,44 @@ func masterKeys(cfg envport.Config) []crypto.KeyMaterial {
 		keys = append(keys, crypto.KeyMaterial{ID: key.ID, Material: key.Material})
 	}
 	return keys
+}
+
+// schemaVersion is the migration this build was compiled against, and it goes into every archive's
+// manifest: a restore compares it with its own and runs the migrations in between (E-04, §3).
+//
+// Read from the embedded migrations rather than from the database, and deliberately: what an
+// archive has to record is the shape of the data this build writes, and a build knows that about
+// itself. Asking the database would answer what it has been migrated to, which is the same number
+// on every day except the one that matters.
+func schemaVersion() string {
+	entries, err := dbfiles.Migrations.ReadDir("migrations")
+	if err != nil {
+		return ""
+	}
+	latest := ""
+	for _, entry := range entries {
+		if number, _, found := strings.Cut(entry.Name(), "_"); found && number > latest {
+			latest = number
+		}
+	}
+	return latest
+}
+
+// backupRunsInBackground reads the backup freshness on the background pool, which is where every
+// leader duty runs: the API's pool is for requests.
+type backupRunsInBackground struct {
+	Runs backuprepo.Runs
+	Work persistenceport.UnitOfWork
+}
+
+func (b backupRunsInBackground) LastSuccessPerTarget(
+	ctx context.Context,
+) (map[shared.ID]time.Time, error) {
+	var moments map[shared.ID]time.Time
+	err := b.Work.WithinReadOnly(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		var err error
+		moments, err = b.Runs.LastSuccessPerTarget(ctx)
+		return err
+	})
+	return moments, err
 }

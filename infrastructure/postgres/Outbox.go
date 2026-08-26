@@ -104,7 +104,7 @@ func (o Outbox) Append(ctx context.Context, envelope event.Envelope) error {
 	// And the wake-up, in the same transaction. The dedupe key is the tenant, so a request that
 	// writes twenty events leaves one dispatch job; a tenant whose dispatcher is asleep has its
 	// next round pulled forward instead of a second job appearing.
-	if err := o.jobs.Enqueue(ctx, queue.Request{
+	if _, err := o.jobs.Enqueue(ctx, queue.Request{
 		Kind:      queue.KindOutboxDispatch,
 		TenantID:  envelope.TenantID,
 		DedupeKey: envelope.TenantID.String(),

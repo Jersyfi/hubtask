@@ -158,6 +158,9 @@ func (w *Writer) Write(ctx context.Context, request Request, source Source) (Man
 		if entity.Optional && !request.IncludeAudit {
 			continue
 		}
+		if entity.Whole {
+			manifest.Whole = append(manifest.Whole, entity.Name)
+		}
 		file, err := w.writeData(ctx, request, source, entity, func(blob Blob) {
 			if _, seen := referenced[blob.Digest]; !seen {
 				referenced[blob.Digest] = struct{}{}
@@ -189,9 +192,17 @@ func (w *Writer) writeData(
 	path := DataName(entity.Name)
 	var records int64
 
+	// An entity that cannot date a change is asked for whole, whatever the run's mode is. Passing
+	// the period to it would be asking a question its schema cannot answer, and the answer it
+	// would give - nothing changed - is the one that silently loses an edit.
+	since := request.Since
+	if entity.Whole {
+		since = time.Time{}
+	}
+
 	file, err := w.putMember(ctx, request, path, func(to io.Writer) error {
 		written, err := WriteRecords(to, func(yield func(Record) error) error {
-			return source.Records(ctx, entity, request.Since, func(record Record) error {
+			return source.Records(ctx, entity, since, func(record Record) error {
 				for _, blob := range record.Blobs {
 					saw(blob)
 				}

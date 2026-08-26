@@ -720,6 +720,57 @@ paths:
       tags: [backup]
       operationId: startBackup
       summary: Start a backup immediately
+      description: |
+        The run is a job: this answers a `JobRef` whose `result_url` is the backup run, and the
+        run's id is also the archive's id in the manifest at the target. One identifier for both,
+        so that a caller who has a run has an archive and needs no mapping in between.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupStart" }
+      responses:
+        "202":
+          description: The job was accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+
+  /backups/{backupId}:
+    get:
+      tags: [backup]
+      operationId: getBackupRun
+      summary: What one backup run did
+      description: |
+        The resource a started backup's `result_url` points at: what was written, where, how much
+        of it, and whether it has been verified since. It is read from the database rather than
+        from the target, so it is what a caller polls while the run is still going -
+        `/backup-targets/{targetId}/backups` is the reading that survives losing the database.
+      parameters:
+        - { name: backupId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupRun" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /backups/{backupId}:verify:
+    post:
+      tags: [backup]
+      operationId: verifyBackup
+      summary: Verify an archive at the target
+      description: |
+        Check the checksums and decryptability without restoring. The result is recorded on the
+        run as `verified_at` and `verify_ok`.
+      parameters:
+        - { name: backupId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         "202":
           description: The job was accepted
@@ -727,21 +778,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/JobRef" }
         "403": { $ref: "#/components/responses/Problem" }
-
-  /backups/{backupId}:verify:
-    post:
-      tags: [backup]
-      operationId: verifyBackup
-      summary: Verify an archive at the target
-      description: Check the checksums and decryptability without restoring.
-      parameters:
-        - { name: backupId, in: path, required: true, schema: { type: string } }
-      responses:
-        "202":
-          description: The job was accepted
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/JobRef" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
 
   /restores:
     post:
@@ -5125,6 +5163,61 @@ components:
         encryption_key_id: { type: [string, "null"] }
         checksum_status: { type: string, enum: [UNVERIFIED, OK, MISMATCH] }
         expires_at: { type: [string, "null"], format: date-time }
+
+    BackupStart:
+      type: object
+      required: [target_id]
+      description: A backup asked for by hand rather than by a schedule.
+      properties:
+        target_id: { type: string, format: uuid }
+        mode:
+          type: string
+          enum: [FULL, INCREMENTAL]
+          default: FULL
+          description: >
+            FULL by default, and deliberately: a run somebody asked for by hand is usually asked
+            for because something is about to happen, and an incremental that turns out to have no
+            parent at the target is the wrong thing to discover then. An INCREMENTAL with no
+            parent is refused rather than quietly promoted.
+        include_media: { type: boolean, default: true }
+        include_audit: { type: boolean, default: true }
+
+    BackupRun:
+      type: object
+      description: >
+        One run of a backup. Its `id` is also the archive's id in the manifest at the target, which
+        is what lets `:verify` and a restore name the same thing a caller already holds.
+      required: [id, target_id, trigger, mode, status, started_at]
+      properties:
+        id: { type: string, format: uuid }
+        target_id: { type: string, format: uuid }
+        schedule_id: { type: [string, "null"], format: uuid }
+        parent_run_id:
+          type: [string, "null"]
+          format: uuid
+          description: The archive this one continues, on an incremental run.
+        trigger: { type: string, enum: [SCHEDULE, MANUAL, PRE_RESTORE, API] }
+        mode: { type: string, enum: [FULL, INCREMENTAL] }
+        status: { type: string, enum: [RUNNING, SUCCEEDED, FAILED, CANCELLED, EXPIRED] }
+        archive_path: { type: [string, "null"], description: Where the archive lies at the target }
+        size_bytes: { type: [integer, "null"] }
+        item_count: { type: [integer, "null"] }
+        media_count: { type: [integer, "null"] }
+        snapshot_at:
+          type: [string, "null"]
+          format: date-time
+          description: The instant the archive represents, taken from the database's own clock.
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        error_code:
+          type: [string, "null"]
+          description: The message code of the failure, never a message and never free text.
+        expires_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the generation plan expects this archive to go. Null while nothing has decided.
+        verified_at: { type: [string, "null"], format: date-time }
+        verify_ok: { type: [boolean, "null"] }
 
     BackupSchedule:
       type: object

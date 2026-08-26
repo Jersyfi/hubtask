@@ -231,7 +231,28 @@ func (s LocalStore) Delete(_ context.Context, key string) error {
 		}
 		return failed("removing the archive", err)
 	}
+	s.pruneEmpty(filepath.Dir(path))
 	return nil
+}
+
+// pruneEmpty removes the directories a deleted object leaves behind, upwards until one is not
+// empty or the target's own root is reached.
+//
+// A key/value target has no directories, so an archive removed there leaves nothing; a file system
+// does, and an operator watching a retention plan run for a year would otherwise watch a directory
+// per archive accumulate for ever - and, with content-addressed media, two hundred and fifty-six
+// empty prefix directories under each. It is best-effort: a directory that will not go is a
+// directory somebody else put something in, which is exactly the case where leaving it is right
+// (E-05, backup-restore.md §6).
+func (s LocalStore) pruneEmpty(from string) {
+	for path := from; ; path = filepath.Dir(path) {
+		if inside, err := filepath.Rel(s.root, path); err != nil || inside == "." || strings.HasPrefix(inside, "..") {
+			return
+		}
+		if err := os.Remove(path); err != nil {
+			return
+		}
+	}
 }
 
 // pathOf turns a key into a path inside this target's directory.

@@ -51,3 +51,121 @@ type Coverage struct {
 	Configured  int
 	Unencrypted int
 }
+
+// Export is the tenant's rows as the archive writer needs them (E-05, backup-restore.md §3).
+//
+// It is keyed by table name rather than by the archive's entity names, and that is the seam: the
+// database's vocabulary stops here, and the archive's begins on the other side. The deletion
+// markers are written in the same vocabulary, so a tombstone against `work_item` and a page of
+// `work_item` rows are asked for with one word.
+//
+// Everything is a callback rather than a slice, for the reason the archive's own Source is: the
+// answer is as large as the tenant, and a method returning []Row would read a holding into memory
+// before writing a byte of it (T-17). What the implementation does behind that is page on each
+// entity's own key - never OFFSET - so that a page can neither repeat nor skip a row while the
+// snapshot is open, and a resumed run continues where it stopped instead of counting again.
+type Export interface {
+	// Rows hands over one table's rows, oldest change first.
+	//
+	// since is exclusive and is the zero time for a whole read. A table that cannot date a change
+	// is asked for whole and answers everything whatever is passed - the caller decides which
+	// those are, because it is the archive that has to record the decision for a restore.
+	Rows(ctx context.Context, table string, since time.Time, yield func(Row) error) error
+
+	// Tombstones hands over one table's deletion markers after an instant, oldest first. Nothing
+	// at all for a full archive, which has no earlier state to contradict.
+	Tombstones(ctx context.Context, table string, since time.Time, yield func(Tombstone) error) error
+
+	// MediaLocation answers where the bytes of one medium lie, by the checksum the archive
+	// addresses it with, or ErrNotFound.
+	MediaLocation(ctx context.Context, checksum string) (MediaLocation, error)
+}
+
+// Row is one row on its way into an archive.
+type Row struct {
+	// ID is the row's identity: the primary key, or its parts joined by "/" in the order the
+	// schema declares them. It is also the cursor - the parts are split back out to ask for the
+	// next page - which is why nothing that can contain a slash is ever part of one.
+	ID string
+	// ChangedAt is when the row last changed, and the zero time from a table that cannot say.
+	ChangedAt time.Time
+	// Data is the row, with `tenant_id` already removed: a restore into another tenant must not
+	// carry the old one's identifier back in with it.
+	Data map[string]any
+}
+
+// Tombstone is one deletion marker.
+type Tombstone struct {
+	ID        string
+	DeletedAt time.Time
+}
+
+// MediaLocation is where one medium's bytes are, in the object store's terms.
+type MediaLocation struct {
+	StorageKey string
+	Bytes      int64
+}
+
+// Schedules stores what runs when (E-05, backup-restore.md §5).
+type Schedules interface {
+	// Insert writes a schedule, with the moment it is next due already decided: the rule is
+	// expanded by the use case that created it, not by every read afterwards.
+	Insert(ctx context.Context, schedule domain.Schedule, nextRunAt time.Time) error
+
+	// List answers the schedules visible in the caller's scope, oldest first.
+	List(ctx context.Context) ([]domain.Schedule, error)
+
+	// Find answers one schedule, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (domain.Schedule, error)
+
+	// Due answers the schedules whose moment has come, earliest first. Bounded, because a
+	// backlog of a thousand missed moments must not become a thousand jobs enqueued in one
+	// transaction.
+	Due(ctx context.Context, now time.Time, batch int) ([]domain.Schedule, error)
+
+	// NextDue is the earliest moment anything in scope is owed, and the zero time when nothing
+	// is. It is what a poller reschedules itself to, so that a quiet tenant costs one sleeping
+	// row rather than a wake-up a minute.
+	NextDue(ctx context.Context) (time.Time, error)
+
+	// SetNextRun records when the schedule is next owed. The zero time clears it, which is what a
+	// rule that has run out of occurrences leaves behind.
+	SetNextRun(ctx context.Context, id shared.ID, nextRunAt time.Time) error
+}
+
+// Runs stores what happened (E-05).
+type Runs interface {
+	// Start writes the run and answers whether it got the target.
+	//
+	// False is not an error: §5 asks for a lock against two runs on one target, and a caller that
+	// asked for a second one is asking for something that is already happening. The lock is the
+	// statement rather than a check this method ran a moment earlier.
+	Start(ctx context.Context, run domain.Run) (bool, error)
+
+	// Find answers one run, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (domain.Run, error)
+
+	// Finish records how a run ended and what it left behind. It is refused when the run is no
+	// longer RUNNING, which is what makes a cancelled run stay cancelled.
+	Finish(ctx context.Context, outcome domain.Outcome) error
+
+	// LatestSuccessful is the archive an incremental continues: the newest run at this target
+	// that finished and left something behind. ErrNotFound when there is none, which is what
+	// turns a first incremental into a refusal rather than a chain with no root.
+	LatestSuccessful(ctx context.Context, targetID shared.ID) (domain.Run, error)
+
+	// RecordVerification writes down what `:verify` found.
+	RecordVerification(ctx context.Context, id shared.ID, at time.Time, ok bool) error
+
+	// SetExpiry records when the generation plan expects an archive to go, and clears it for one
+	// the plan now intends to keep.
+	SetExpiry(ctx context.Context, id shared.ID, expiresAt time.Time) error
+
+	// MarkExpired moves a run whose archive has been deleted to EXPIRED.
+	MarkExpired(ctx context.Context, id shared.ID) error
+
+	// LastSuccessPerTarget is the number alert A-12 watches: when each target last had a backup
+	// that worked. A target that has never had one is absent rather than zero - a gauge of zero
+	// reads as 1970 on every dashboard.
+	LastSuccessPerTarget(ctx context.Context) (map[shared.ID]time.Time, error)
+}

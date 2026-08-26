@@ -37,12 +37,13 @@ func systemWrite(ctx context.Context, t *testing.T, fn func(context.Context) err
 	return postgres.NewUnitOfWork(appPool(ctx, t)).Within(ctx, persistence.SystemScope(), fn)
 }
 
-// enqueue puts one job in and returns nothing: the identifier is the queue's, and a caller that
-// needed it would be a caller reaching around the claim.
+// enqueue puts one job in and discards the identifier it answers: these tests read a job back
+// through its deduplication key, which is what a worker does.
 func enqueue(ctx context.Context, t *testing.T, request queue.Request) {
 	t.Helper()
 	if err := systemWrite(ctx, t, func(ctx context.Context) error {
-		return jobQueue(t).Enqueue(ctx, request)
+		_, err := jobQueue(t).Enqueue(ctx, request)
+		return err
 	}); err != nil {
 		t.Fatalf("enqueueing a %s job: %v", request.Kind, err)
 	}

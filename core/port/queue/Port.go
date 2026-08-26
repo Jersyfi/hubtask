@@ -93,6 +93,34 @@ const (
 	// cannot create one job per tenant even if it wanted to. A staging is what seeds it - an
 	// upload is the first thing that can ever need reclaiming - and a deletion pulls it forward.
 	KindMediaReconcile Kind = "media.reconcile"
+
+	// KindBackupRun writes one archive to one target (E-05, backup-restore.md §5).
+	//
+	// One job per run rather than per tenant, because a run is a thing somebody asked for and can
+	// cancel, and because the deduplication key is the target: two requests to back up the same
+	// target collapse into the one that is already happening, which is the lock §5 asks for
+	// expressed in the queue as well as in the table.
+	//
+	// It is the first job in this system that is long enough for "how far along is it" to be a
+	// real question, which is why the job row grew a `progress` column with it.
+	KindBackupRun Kind = "backup.run"
+
+	// KindBackupVerify checks one archive at its target without restoring it.
+	//
+	// A job rather than a request, because verifying reads every member of an archive over
+	// somebody else's network - which is minutes, and nothing a caller should hold a connection
+	// open for.
+	KindBackupVerify Kind = "backup.verify"
+
+	// KindBackupSchedule is one tenant's wake-up: what does this tenant owe now, and when does it
+	// owe the next one (E-05).
+	//
+	// The same shape as the reminder's and the recurrence's, and for the same reason: nothing in
+	// this system may enumerate tenants, so a scheduler cannot create one job per tenant even if
+	// it wanted to. The write that creates a schedule seeds it, and each round reschedules itself
+	// to the next moment the tenant owes. Instance-wide schedules belong to no tenant and are the
+	// leader's duty instead - see the scheduler.
+	KindBackupSchedule Kind = "backup.schedule"
 )
 
 func (k Kind) String() string { return string(k) }
@@ -185,6 +213,23 @@ type Detached interface {
 	OwnsItsTransactions()
 }
 
+// Reporter is how a long job says how far along it is (E-05).
+//
+// A second interface rather than a method on Queue, for the reason persistence.Snapshot is one:
+// almost no job needs it. Most finish in milliseconds and the honest answer to "how far along" is
+// the null E-01 documented - a client renders an indeterminate bar for it rather than a number
+// nobody measured. A method on Queue would put it on every double in the repository for the sake of
+// the one handler that runs for minutes.
+type Reporter interface {
+	// Report writes the fraction, between 0 and 1, and is fenced on the job's lease like every
+	// other statement a handler runs: a worker that fell so far behind that somebody else took the
+	// job over writes nothing.
+	//
+	// A failure to report progress is not a failure of the job. The number is for whoever is
+	// watching, and losing it is worth a log line rather than a backup.
+	Report(ctx context.Context, job Job, fraction float64) error
+}
+
 // Lease is the terms on which a batch of jobs is claimed.
 type Lease struct {
 	// Now is the reading of the clock port, so that a test does not have to wait for time.
@@ -225,7 +270,13 @@ type Queue interface {
 	// Enqueue adds a job, or does nothing when one with the same dedupe key is already waiting
 	// or running. It is deliberately not an error: the caller asked for work to happen, and work
 	// that is already scheduled to happen satisfies that.
-	Enqueue(ctx context.Context, request Request) error
+	//
+	// It answers the identifier of the job that is now scheduled, which is not always a new one:
+	// when a dedupe key collapses the request into a job that is already there, the answer is that
+	// job's. A caller answering a 202 has to name something the caller of *that* can poll, and
+	// naming a row that was never written would be a job resource answering 404 for work that is
+	// happening (E-01, E-05). A caller that does not answer a 202 discards it.
+	Enqueue(ctx context.Context, request Request) (shared.ID, error)
 
 	// Claim takes the next batch and marks it running until the lease expires. Implementations
 	// use FOR UPDATE SKIP LOCKED, so several workers claim disjoint batches without waiting for

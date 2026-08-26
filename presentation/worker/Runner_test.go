@@ -48,7 +48,7 @@ func newQueue(jobs ...queue.Job) *queueDouble {
 	return &queueDouble{claimable: jobs, repeated: map[shared.ID]time.Time{}}
 }
 
-func (q *queueDouble) Enqueue(context.Context, queue.Request) error { return nil }
+func (q *queueDouble) Enqueue(context.Context, queue.Request) (shared.ID, error) { return "", nil }
 
 func (q *queueDouble) Claim(_ context.Context, lease queue.Lease) ([]queue.Job, error) {
 	claimed := q.claimable

@@ -77,7 +77,8 @@ func TestRT3AJobSurvivesTheDeathOfItsWorker(t *testing.T) {
 	jobs := postgres.NewQueue(clockadapter.NewUUIDv7(clockadapter.System{}), clockadapter.System{})
 
 	if err := unitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
-		return jobs.Enqueue(ctx, queue.Request{Kind: effectKind, MaxAttempts: 5})
+		_, err := jobs.Enqueue(ctx, queue.Request{Kind: effectKind, MaxAttempts: 5})
+		return err
 	}); err != nil {
 		t.Fatalf("enqueueing the job: %v", err)
 	}
@@ -194,11 +195,12 @@ func (h effectHandler) Run(ctx context.Context, _ queue.Job) (queue.Result, erro
 // applyEffect writes the one row that stands for "the job happened". It runs in the transaction
 // the runner opened, which is what ties it to the job's completion.
 func applyEffect(ctx context.Context, jobs postgres.Queue) error {
-	return jobs.Enqueue(ctx, queue.Request{
+	_, err := jobs.Enqueue(ctx, queue.Request{
 		Kind: markerKind,
 		// Far enough out that no worker claims it. A marker is evidence, not work.
 		RunAt: time.Now().Add(24 * time.Hour),
 	})
+	return err
 }
 
 // effectsApplied counts the markers, by asking the queue how deep it is at a moment far enough in

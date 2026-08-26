@@ -336,11 +336,12 @@ func (w CompletionWriter) scheduleMaterialisation(
 	if want == reopening || item.RecurrenceRuleID.IsZero() || w.Jobs == nil {
 		return nil
 	}
-	return w.Jobs.Enqueue(ctx, queue.Request{
+	_, enqueued := w.Jobs.Enqueue(ctx, queue.Request{
 		Kind:      queue.KindRecurrenceMaterialize,
 		TenantID:  item.TenantID,
 		DedupeKey: item.TenantID.String(),
 	})
+	return enqueued
 }
 
 // recordActivity writes the step of the item's own history.

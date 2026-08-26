@@ -145,8 +145,13 @@ func TestEveryAlertCarriesWhatAnOperatorNeeds(t *testing.T) {
 // A-08 was added by D-03, and the argument is in the rules file: a reminder that does not arrive
 // cannot be caught up on afterwards, because the moment it was for has passed - which puts it with
 // the losses rather than with the symptoms.
+//
+// A-20 was added by E-05, and the argument is the one A-12 already makes: a backup nobody has
+// restored is a promise about a day that has not happened yet, and the only evidence for it is a
+// restore that worked. An installation that discovers on that day that its archives do not open has
+// lost the data as surely as one that never made them.
 func TestTheSelfHostingSetIsExactlyWhatWasDecided(t *testing.T) {
-	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12"}
+	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12", "A-20"}
 
 	var got []string
 	for _, alert := range alerts(t) {

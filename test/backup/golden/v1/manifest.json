@@ -50,6 +50,24 @@
   },
   "media_count": 0,
   "media_bytes": 0,
+  "whole": [
+    "account_groups",
+    "account_group_members",
+    "memberships",
+    "buckets",
+    "labels",
+    "item_labels",
+    "item_members",
+    "media_objects",
+    "item_attachments",
+    "saved_views",
+    "auto_assign_policies",
+    "webhook_subscriptions",
+    "calendar_feeds",
+    "consent_records",
+    "legal_holds",
+    "set_elements"
+  ],
   "files": [
     {
       "path": "data/tenants.jsonl",

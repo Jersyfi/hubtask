@@ -817,7 +817,9 @@ CREATE TABLE job (
   last_error   text,
   priority     smallint NOT NULL DEFAULT 5,
   created_at   timestamptz NOT NULL DEFAULT now(),
-  finished_at  timestamptz
+  finished_at  timestamptz,
+  -- How far along, between 0 and 1, or NULL from a job that cannot say (migration 0032).
+  progress     real
 );
 CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
 CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)

@@ -35,7 +35,7 @@ const (
 // unreachable mail server must not fail the request that invited somebody, and the job is what
 // makes the send survive a restart (ADR-0008).
 type Notifier interface {
-	Enqueue(ctx context.Context, request queue.Request) error
+	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
 }
 
 // Authorizer is the slice of the authorisation service these use cases need.
@@ -123,7 +123,7 @@ func (h InviteAccount) Execute(
 func (h InviteAccount) notify(
 	ctx context.Context, invited domain.Account, actor appshared.ActorContext,
 ) error {
-	return h.Notifier.Enqueue(ctx, queue.Request{
+	_, enqueued := h.Notifier.Enqueue(ctx, queue.Request{
 		Kind:     queue.KindInvitationEmail,
 		TenantID: invited.TenantID,
 		// One pending invitation message per account. A retried request must not queue a second.
@@ -135,6 +135,7 @@ func (h InviteAccount) notify(
 			"invited_by": actor.AccountID.String(),
 		},
 	})
+	return enqueued
 }
 
 func (h InviteAccount) recordAudit(

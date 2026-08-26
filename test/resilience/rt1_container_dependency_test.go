@@ -240,7 +240,8 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 	writeTask := func() error {
 		return unitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
 			// Far enough out that no worker claims it: the row is evidence, not work.
-			return jobs.Enqueue(ctx, queue.Request{Kind: rt1WriteKind, RunAt: time.Now().Add(24 * time.Hour)})
+			_, err := jobs.Enqueue(ctx, queue.Request{Kind: rt1WriteKind, RunAt: time.Now().Add(24 * time.Hour)})
+			return err
 		})
 	}
 	tasksWritten := func() int {

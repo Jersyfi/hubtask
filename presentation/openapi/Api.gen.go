@@ -336,6 +336,75 @@ func (e BackupArchiveScopeKind) Valid() bool {
 	}
 }
 
+// Defines values for BackupRunMode.
+const (
+	BackupRunModeFULL        BackupRunMode = "FULL"
+	BackupRunModeINCREMENTAL BackupRunMode = "INCREMENTAL"
+)
+
+// Valid indicates whether the value is a known member of the BackupRunMode enum.
+func (e BackupRunMode) Valid() bool {
+	switch e {
+	case BackupRunModeFULL:
+		return true
+	case BackupRunModeINCREMENTAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackupRunStatus.
+const (
+	BackupRunStatusCANCELLED BackupRunStatus = "CANCELLED"
+	BackupRunStatusEXPIRED   BackupRunStatus = "EXPIRED"
+	BackupRunStatusFAILED    BackupRunStatus = "FAILED"
+	BackupRunStatusRUNNING   BackupRunStatus = "RUNNING"
+	BackupRunStatusSUCCEEDED BackupRunStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the BackupRunStatus enum.
+func (e BackupRunStatus) Valid() bool {
+	switch e {
+	case BackupRunStatusCANCELLED:
+		return true
+	case BackupRunStatusEXPIRED:
+		return true
+	case BackupRunStatusFAILED:
+		return true
+	case BackupRunStatusRUNNING:
+		return true
+	case BackupRunStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackupRunTrigger.
+const (
+	BackupRunTriggerAPI        BackupRunTrigger = "API"
+	BackupRunTriggerMANUAL     BackupRunTrigger = "MANUAL"
+	BackupRunTriggerPRERESTORE BackupRunTrigger = "PRE_RESTORE"
+	BackupRunTriggerSCHEDULE   BackupRunTrigger = "SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the BackupRunTrigger enum.
+func (e BackupRunTrigger) Valid() bool {
+	switch e {
+	case BackupRunTriggerAPI:
+		return true
+	case BackupRunTriggerMANUAL:
+		return true
+	case BackupRunTriggerPRERESTORE:
+		return true
+	case BackupRunTriggerSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BackupScheduleMode.
 const (
 	BackupScheduleModeFULL        BackupScheduleMode = "FULL"
@@ -393,6 +462,24 @@ func (e BackupScheduleScopeKind) Valid() bool {
 	case BackupScheduleScopeKindINSTANCE:
 		return true
 	case BackupScheduleScopeKindTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackupStartMode.
+const (
+	BackupStartModeFULL        BackupStartMode = "FULL"
+	BackupStartModeINCREMENTAL BackupStartMode = "INCREMENTAL"
+)
+
+// Valid indicates whether the value is a known member of the BackupStartMode enum.
+func (e BackupStartMode) Valid() bool {
+	switch e {
+	case BackupStartModeFULL:
+		return true
+	case BackupStartModeINCREMENTAL:
 		return true
 	default:
 		return false
@@ -575,16 +662,16 @@ func (e CapabilitiesTenancyMode) Valid() bool {
 
 // Defines values for CompletionPolicy.
 const (
-	MANUAL CompletionPolicy = "MANUAL"
-	ROLLUP CompletionPolicy = "ROLLUP"
+	CompletionPolicyMANUAL CompletionPolicy = "MANUAL"
+	CompletionPolicyROLLUP CompletionPolicy = "ROLLUP"
 )
 
 // Valid indicates whether the value is a known member of the CompletionPolicy enum.
 func (e CompletionPolicy) Valid() bool {
 	switch e {
-	case MANUAL:
+	case CompletionPolicyMANUAL:
 		return true
-	case ROLLUP:
+	case CompletionPolicyROLLUP:
 		return true
 	default:
 		return false
@@ -1947,6 +2034,46 @@ type BackupRetention struct {
 	MinKeep     *int `json:"min_keep,omitempty"`
 }
 
+// BackupRun One run of a backup. Its `id` is also the archive's id in the manifest at the target, which is what lets `:verify` and a restore name the same thing a caller already holds.
+type BackupRun struct {
+	// ArchivePath Where the archive lies at the target
+	ArchivePath *string `json:"archive_path,omitempty"`
+
+	// ErrorCode The message code of the failure, never a message and never free text.
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// ExpiresAt When the generation plan expects this archive to go. Null while nothing has decided.
+	ExpiresAt  *time.Time         `json:"expires_at,omitempty"`
+	FinishedAt *time.Time         `json:"finished_at,omitempty"`
+	Id         openapi_types.UUID `json:"id"`
+	ItemCount  *int               `json:"item_count,omitempty"`
+	MediaCount *int               `json:"media_count,omitempty"`
+	Mode       BackupRunMode      `json:"mode"`
+
+	// ParentRunId The archive this one continues, on an incremental run.
+	ParentRunId *openapi_types.UUID `json:"parent_run_id,omitempty"`
+	ScheduleId  *openapi_types.UUID `json:"schedule_id,omitempty"`
+	SizeBytes   *int                `json:"size_bytes,omitempty"`
+
+	// SnapshotAt The instant the archive represents, taken from the database's own clock.
+	SnapshotAt *time.Time         `json:"snapshot_at,omitempty"`
+	StartedAt  time.Time          `json:"started_at"`
+	Status     BackupRunStatus    `json:"status"`
+	TargetId   openapi_types.UUID `json:"target_id"`
+	Trigger    BackupRunTrigger   `json:"trigger"`
+	VerifiedAt *time.Time         `json:"verified_at,omitempty"`
+	VerifyOk   *bool              `json:"verify_ok,omitempty"`
+}
+
+// BackupRunMode defines model for BackupRun.Mode.
+type BackupRunMode string
+
+// BackupRunStatus defines model for BackupRun.Status.
+type BackupRunStatus string
+
+// BackupRunTrigger defines model for BackupRun.Trigger.
+type BackupRunTrigger string
+
 // BackupSchedule defines model for BackupSchedule.
 type BackupSchedule struct {
 	Enabled      *bool                     `json:"enabled,omitempty"`
@@ -1977,6 +2104,19 @@ type BackupScheduleNotifyOn string
 
 // BackupScheduleScopeKind defines model for BackupSchedule.Scope.Kind.
 type BackupScheduleScopeKind string
+
+// BackupStart A backup asked for by hand rather than by a schedule.
+type BackupStart struct {
+	IncludeAudit *bool `json:"include_audit,omitempty"`
+	IncludeMedia *bool `json:"include_media,omitempty"`
+
+	// Mode FULL by default, and deliberately: a run somebody asked for by hand is usually asked for because something is about to happen, and an incremental that turns out to have no parent at the target is the wrong thing to discover then. An INCREMENTAL with no parent is refused rather than quietly promoted.
+	Mode     *BackupStartMode   `json:"mode,omitempty"`
+	TargetId openapi_types.UUID `json:"target_id"`
+}
+
+// BackupStartMode FULL by default, and deliberately: a run somebody asked for by hand is usually asked for because something is about to happen, and an incremental that turns out to have no parent at the target is the wrong thing to discover then. An INCREMENTAL with no parent is refused rather than quietly promoted.
+type BackupStartMode string
 
 // BackupTarget defines model for BackupTarget.
 type BackupTarget struct {
@@ -4210,6 +4350,9 @@ type CreateBackupScheduleJSONRequestBody = BackupSchedule
 // CreateBackupTargetJSONRequestBody defines body for CreateBackupTarget for application/json ContentType.
 type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 
+// StartBackupJSONRequestBody defines body for StartBackup for application/json ContentType.
+type StartBackupJSONRequestBody = BackupStart
+
 // CreateContainerJSONRequestBody defines body for CreateContainer for application/json ContentType.
 type CreateContainerJSONRequestBody = ContainerCreate
 
@@ -4377,9 +4520,12 @@ type ServerInterface interface {
 	// StartBackup Start a backup immediately
 	// (POST /backups)
 	StartBackup(w http.ResponseWriter, r *http.Request)
+	// GetBackupRun What one backup run did
+	// (GET /backups/{backupId})
+	GetBackupRun(w http.ResponseWriter, r *http.Request, backupId openapi_types.UUID)
 	// VerifyBackup Verify an archive at the target
 	// (POST /backups/{backupId}:verify)
-	VerifyBackup(w http.ResponseWriter, r *http.Request, backupId string)
+	VerifyBackup(w http.ResponseWriter, r *http.Request, backupId openapi_types.UUID)
 
 	// (GET /calendar/{token}.ics)
 	GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, token string)
@@ -5053,6 +5199,32 @@ func (siw *ServerInterfaceWrapper) StartBackup(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// GetBackupRun operation middleware
+func (siw *ServerInterfaceWrapper) GetBackupRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "backupId" -------------
+	var backupId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "backupId", r.PathValue("backupId"), &backupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "backupId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBackupRun(w, r, backupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // VerifyBackup operation middleware
 func (siw *ServerInterfaceWrapper) VerifyBackup(w http.ResponseWriter, r *http.Request) {
 
@@ -5060,9 +5232,9 @@ func (siw *ServerInterfaceWrapper) VerifyBackup(w http.ResponseWriter, r *http.R
 	_ = err
 
 	// ------------- Path parameter "backupId" -------------
-	var backupId string
+	var backupId openapi_types.UUID
 
-	err = runtime.BindStyledParameterWithOptions("simple", "backupId", r.PathValue("backupId"), &backupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "backupId", r.PathValue("backupId"), &backupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "backupId", Err: err})
 		return
@@ -9969,6 +10141,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-targets/{targetId}/backups", wrapper.ListBackupsAtTarget)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-schedules", wrapper.CreateBackupSchedule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups", wrapper.StartBackup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backups/{backupId}", wrapper.GetBackupRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups/{backupId}:verify", wrapper.VerifyBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/restores", wrapper.StartRestore)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jobs/{jobId}", wrapper.GetJob)

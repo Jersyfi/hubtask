@@ -99,9 +99,9 @@ func (s *auditSink) Append(_ context.Context, entry audit.Entry) error {
 
 type notifier struct{ requests []queue.Request }
 
-func (n *notifier) Enqueue(_ context.Context, request queue.Request) error {
+func (n *notifier) Enqueue(_ context.Context, request queue.Request) (shared.ID, error) {
 	n.requests = append(n.requests, request)
-	return nil
+	return shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"), nil
 }
 
 type ids struct{ next shared.ID }

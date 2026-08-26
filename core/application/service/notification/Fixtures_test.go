@@ -229,13 +229,17 @@ type jobQueue struct {
 	err      error
 }
 
-func (q *jobQueue) Enqueue(_ context.Context, request queue.Request) error {
+func (q *jobQueue) Enqueue(_ context.Context, request queue.Request) (shared.ID, error) {
 	if q.err != nil {
-		return q.err
+		return "", q.err
 	}
 	q.requests = append(q.requests, request)
-	return nil
+	return jobIdentifier, nil
 }
+
+// jobIdentifier is what the double answers for the job it accepted. Fixed, because a caller that
+// has to name a job in a 202 is asserting on the name.
+var jobIdentifier = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
 
 // idSequence hands out a fresh identifier per call, so a test with three recipients gets three
 // records rather than one written three times.

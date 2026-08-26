@@ -261,11 +261,12 @@ func (w RecurrenceWriter) scheduleMaterialisation(ctx context.Context, tenantID 
 	if w.Jobs == nil {
 		return nil
 	}
-	return w.Jobs.Enqueue(ctx, queue.Request{
+	_, enqueued := w.Jobs.Enqueue(ctx, queue.Request{
 		Kind:      queue.KindRecurrenceMaterialize,
 		TenantID:  tenantID,
 		DedupeKey: tenantID.String(),
 	})
+	return enqueued
 }
 
 // Execute takes the series off the entry.

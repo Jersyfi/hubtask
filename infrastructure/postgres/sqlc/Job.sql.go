@@ -178,7 +178,7 @@ func (q *Queries) DeadLetterJob(ctx context.Context, arg DeadLetterJobParams) (i
 	return result.RowsAffected(), nil
 }
 
-const enqueueJob = `-- name: EnqueueJob :exec
+const enqueueJob = `-- name: EnqueueJob :many
 
 INSERT INTO job (id, tenant_id, kind, payload, dedupe_key, run_at, max_attempts)
 VALUES (
@@ -188,6 +188,7 @@ VALUES (
 ON CONFLICT (kind, dedupe_key) WHERE dedupe_key IS NOT NULL AND state IN ('PENDING','RUNNING')
 DO UPDATE SET run_at = LEAST(job.run_at, EXCLUDED.run_at)
 WHERE job.state = 'PENDING'
+RETURNING id
 `
 
 type EnqueueJobParams struct {
@@ -216,8 +217,16 @@ type EnqueueJobParams struct {
 // this is being worked on" into one row; when the waiting job is due later than the new request,
 // its wake-up is pulled forward rather than a second row being created. A job that is already
 // running is not touched: its own reschedule decides when it runs next.
-func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) error {
-	_, err := q.db.Exec(ctx, enqueueJob,
+//
+// It answers the identifier of the job that is now scheduled, which is not always the one that was
+// offered: when a dedupe key collapses the request into a job that is already there, the answer is
+// that job's. A 202 has to name something a caller can poll, and naming a row that was never
+// written would be a job resource that answers 404 for work that is happening.
+//
+// Zero rows means the conflict met a job that is RUNNING, where the update's WHERE does not fire.
+// The caller then looks the running job up by its key.
+func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, enqueueJob,
 		arg.ID,
 		arg.TenantID,
 		arg.Kind,
@@ -226,11 +235,26 @@ func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) error {
 		arg.RunAt,
 		arg.MaxAttempts,
 	)
-	return err
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const findJob = `-- name: FindJob :one
-SELECT id, tenant_id, state, last_error, created_at, finished_at
+SELECT id, tenant_id, state, last_error, created_at, finished_at, progress
 FROM job
 WHERE id = $1 AND tenant_id = $2
 `
@@ -247,6 +271,7 @@ type FindJobRow struct {
 	LastError  *string
 	CreatedAt  pgtype.Timestamptz
 	FinishedAt pgtype.Timestamptz
+	Progress   *float32
 }
 
 // What a caller polls, and the only two statements here that are asked on somebody's behalf
@@ -267,8 +292,30 @@ func (q *Queries) FindJob(ctx context.Context, arg FindJobParams) (FindJobRow, e
 		&i.LastError,
 		&i.CreatedAt,
 		&i.FinishedAt,
+		&i.Progress,
 	)
 	return i, err
+}
+
+const findJobByDedupeKey = `-- name: FindJobByDedupeKey :one
+SELECT id FROM job
+WHERE kind = $1::text
+  AND dedupe_key = $2::text
+  AND state IN ('PENDING', 'RUNNING')
+LIMIT 1
+`
+
+type FindJobByDedupeKeyParams struct {
+	Kind      string
+	DedupeKey string
+}
+
+// The job a dedupe key already names, for the one case the insert above cannot answer for itself.
+func (q *Queries) FindJobByDedupeKey(ctx context.Context, arg FindJobByDedupeKeyParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findJobByDedupeKey, arg.Kind, arg.DedupeKey)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const holdJob = `-- name: HoldJob :one
@@ -382,4 +429,32 @@ func (q *Queries) RetryJob(ctx context.Context, arg RetryJobParams) (int64, erro
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setJobProgress = `-- name: SetJobProgress :exec
+UPDATE job
+SET progress = LEAST(1.0, GREATEST(0.0, $1::real))
+WHERE id = $2
+  AND state = 'RUNNING'
+  AND locked_until = $3::timestamptz
+`
+
+type SetJobProgressParams struct {
+	Progress float32
+	ID       pgtype.UUID
+	Lease    pgtype.Timestamptz
+}
+
+// How far along a long job is, written by the handler as it goes (E-05, migration 0032).
+//
+// Fenced on the lease like every other statement a handler runs: a worker that fell so far behind
+// that somebody else took the job over must not keep writing a fraction of work it is no longer
+// doing. A job that is not RUNNING under this lease is simply not updated, and the handler finds
+// out at its next write.
+//
+// Clamped in SQL rather than trusted from the caller, because a fraction outside [0,1] on a
+// progress bar is a rendering bug in every client at once.
+func (q *Queries) SetJobProgress(ctx context.Context, arg SetJobProgressParams) error {
+	_, err := q.db.Exec(ctx, setJobProgress, arg.Progress, arg.ID, arg.Lease)
+	return err
 }

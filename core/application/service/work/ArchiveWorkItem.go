@@ -352,11 +352,12 @@ func scheduleRetention(ctx context.Context, jobs queue.Queue, tenantID shared.ID
 	if jobs == nil {
 		return nil
 	}
-	return jobs.Enqueue(ctx, queue.Request{
+	_, enqueued := jobs.Enqueue(ctx, queue.Request{
 		Kind:      queue.KindRetentionSweep,
 		TenantID:  tenantID,
 		DedupeKey: tenantID.String(),
 	})
+	return enqueued
 }
 
 // recordChange writes what an offline client has to be told (offline-sync.md §3.1).

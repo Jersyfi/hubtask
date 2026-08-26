@@ -15,7 +15,15 @@
 -- this is being worked on" into one row; when the waiting job is due later than the new request,
 -- its wake-up is pulled forward rather than a second row being created. A job that is already
 -- running is not touched: its own reschedule decides when it runs next.
--- name: EnqueueJob :exec
+--
+-- It answers the identifier of the job that is now scheduled, which is not always the one that was
+-- offered: when a dedupe key collapses the request into a job that is already there, the answer is
+-- that job's. A 202 has to name something a caller can poll, and naming a row that was never
+-- written would be a job resource that answers 404 for work that is happening.
+--
+-- Zero rows means the conflict met a job that is RUNNING, where the update's WHERE does not fire.
+-- The caller then looks the running job up by its key.
+-- name: EnqueueJob :many
 INSERT INTO job (id, tenant_id, kind, payload, dedupe_key, run_at, max_attempts)
 VALUES (
   sqlc.arg('id'), sqlc.narg('tenant_id'), sqlc.arg('kind'), sqlc.arg('payload'),
@@ -23,7 +31,16 @@ VALUES (
 )
 ON CONFLICT (kind, dedupe_key) WHERE dedupe_key IS NOT NULL AND state IN ('PENDING','RUNNING')
 DO UPDATE SET run_at = LEAST(job.run_at, EXCLUDED.run_at)
-WHERE job.state = 'PENDING';
+WHERE job.state = 'PENDING'
+RETURNING id;
+
+-- The job a dedupe key already names, for the one case the insert above cannot answer for itself.
+-- name: FindJobByDedupeKey :one
+SELECT id FROM job
+WHERE kind = sqlc.arg('kind')::text
+  AND dedupe_key = sqlc.arg('dedupe_key')::text
+  AND state IN ('PENDING', 'RUNNING')
+LIMIT 1;
 
 -- The claim. Two kinds of row are claimable: one that is due, and one whose lease has run out -
 -- the second is a job whose worker died, and picking it up again is the whole reason a lease has
@@ -111,7 +128,7 @@ GROUP BY kind;
 -- dedupe key. Selecting them and dropping them later is how one of them eventually reaches a
 -- response by accident.
 -- name: FindJob :one
-SELECT id, tenant_id, state, last_error, created_at, finished_at
+SELECT id, tenant_id, state, last_error, created_at, finished_at, progress
 FROM job
 WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id');
 
@@ -131,3 +148,20 @@ WHERE id = sqlc.arg('id')
   AND tenant_id = sqlc.arg('tenant_id')
   AND state IN ('PENDING', 'RUNNING')
 RETURNING id, tenant_id, state, last_error, created_at, finished_at;
+
+
+-- How far along a long job is, written by the handler as it goes (E-05, migration 0032).
+--
+-- Fenced on the lease like every other statement a handler runs: a worker that fell so far behind
+-- that somebody else took the job over must not keep writing a fraction of work it is no longer
+-- doing. A job that is not RUNNING under this lease is simply not updated, and the handler finds
+-- out at its next write.
+--
+-- Clamped in SQL rather than trusted from the caller, because a fraction outside [0,1] on a
+-- progress bar is a rendering bug in every client at once.
+-- name: SetJobProgress :exec
+UPDATE job
+SET progress = LEAST(1.0, GREATEST(0.0, sqlc.arg('progress')::real))
+WHERE id = sqlc.arg('id')
+  AND state = 'RUNNING'
+  AND locked_until = sqlc.arg('lease')::timestamptz;

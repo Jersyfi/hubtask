@@ -757,6 +757,7 @@ type Job struct {
 	Priority    int16
 	CreatedAt   pgtype.Timestamptz
 	FinishedAt  pgtype.Timestamptz
+	Progress    *float32
 }
 
 type JumbleEntry struct {

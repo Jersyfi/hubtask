@@ -7,6 +7,8 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hkdf"
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -219,3 +221,63 @@ func gcm(key []byte) (cipher.AEAD, error) {
 func additional(label string, purpose port.Purpose) []byte {
 	return []byte(label + string(purpose))
 }
+
+// hkdfLabel is the additional context every derived key is bound to. Separate from the envelope's
+// labels, so that a key derived for an archive can never be the data key of a sealed value.
+const hkdfLabel = "hubtask/derive/v1:"
+
+// DeriveFromMaster answers a key made from the installation's current master key (E-05,
+// backup-restore.md §4).
+//
+// HKDF-SHA256 rather than a hash of the concatenation, because that is what a key derivation
+// function is for: the extract step means the master key does not have to be uniformly random, and
+// the expand step means two purposes cannot collide into one key however similar their names are.
+//
+// The salt is deliberately empty. HKDF without a salt is defined and safe, and the alternative -
+// a salt stored per target - would be a second thing to keep, back up and lose, protecting a key
+// that is already derived from a secret the installation holds. The binding that matters is the
+// purpose, and that is in the info parameter where it belongs.
+func (e Envelope) DeriveFromMaster(
+	_ context.Context, purpose port.Purpose, length int,
+) (port.MasterDerived, error) {
+	if e.ring.IsEmpty() {
+		return port.MasterDerived{}, shared.ErrUnavailable.WithDetail(portCodeNoEncryptionKey)
+	}
+	keyID := e.ring.ActiveKeyID()
+	key, err := e.derive(keyID, purpose, length)
+	if err != nil {
+		return port.MasterDerived{}, err
+	}
+	return port.MasterDerived{KeyID: keyID, Key: key}, nil
+}
+
+// ReproduceFromMaster answers the same key again, from the master key the identifier names.
+func (e Envelope) ReproduceFromMaster(
+	_ context.Context, keyID string, purpose port.Purpose, length int,
+) (secret.Bytes, error) {
+	return e.derive(keyID, purpose, length)
+}
+
+func (e Envelope) derive(keyID string, purpose port.Purpose, length int) (secret.Bytes, error) {
+	if length <= 0 || length > maxDerivedKeyBytes {
+		return secret.Bytes{}, shared.ErrInternal.WithDetail("crypto.key_unusable").
+			WithCause(fmt.Errorf("a derived key of %d bytes", length))
+	}
+	master, err := e.ring.find(keyID)
+	if err != nil {
+		return secret.Bytes{}, err
+	}
+
+	material, err := hkdf.Key(sha256.New, master.Reveal(), nil, hkdfLabel+string(purpose), length)
+	if err != nil {
+		return secret.Bytes{}, shared.ErrInternal.WithDetail("crypto.key_underivable").
+			WithParams(map[string]string{"key_id": keyID}).WithCause(err)
+	}
+	return secret.NewBytes(material), nil
+}
+
+// maxDerivedKeyBytes bounds what a caller may ask for. Nothing here needs more than a cipher key,
+// and a bound is what keeps the allocation below provably small.
+const maxDerivedKeyBytes = 64
+
+var _ port.KeyMaterialiser = Envelope{}

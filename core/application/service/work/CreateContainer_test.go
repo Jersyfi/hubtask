@@ -337,9 +337,9 @@ func (a *authorizer) WritesOnlyWhatIsAssigned(
 // jobs is the queue as the writers see it: what was asked for, and under which key.
 type jobs struct{ enqueued []queue.Request }
 
-func (j *jobs) Enqueue(_ context.Context, request queue.Request) error {
+func (j *jobs) Enqueue(_ context.Context, request queue.Request) (shared.ID, error) {
 	j.enqueued = append(j.enqueued, request)
-	return nil
+	return shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"), nil
 }
 
 func (j *jobs) Claim(context.Context, queue.Lease) ([]queue.Job, error) { return nil, nil }

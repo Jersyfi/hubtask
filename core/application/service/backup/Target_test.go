@@ -118,12 +118,25 @@ func (s *memoryStore) Get(_ context.Context, key string) (io.ReadCloser, error) 
 	return io.NopCloser(strings.NewReader(string(body))), nil
 }
 
-func (s *memoryStore) List(context.Context, string) ([]backupstorage.Entry, error) {
-	return nil, nil
+// List and Stat are real rather than empty, because a backup run reads a target back: the archive
+// reader lists to find the manifests, and a retention pass lists to find what it may delete.
+func (s *memoryStore) List(_ context.Context, prefix string) ([]backupstorage.Entry, error) {
+	var entries []backupstorage.Entry
+	for key, body := range s.objects {
+		if strings.HasPrefix(key, prefix) {
+			entries = append(entries, backupstorage.Entry{Key: key, Size: int64(len(body))})
+		}
+	}
+	slices.SortFunc(entries, func(a, b backupstorage.Entry) int { return strings.Compare(a.Key, b.Key) })
+	return entries, nil
 }
 
-func (s *memoryStore) Stat(context.Context, string) (backupstorage.Entry, error) {
-	return backupstorage.Entry{}, shared.ErrNotFound
+func (s *memoryStore) Stat(_ context.Context, key string) (backupstorage.Entry, error) {
+	body, found := s.objects[key]
+	if !found {
+		return backupstorage.Entry{}, shared.ErrNotFound.WithDetail(backupstorage.CodeObjectNotFound)
+	}
+	return backupstorage.Entry{Key: key, Size: int64(len(body))}, nil
 }
 
 func (s *memoryStore) Delete(_ context.Context, key string) error {

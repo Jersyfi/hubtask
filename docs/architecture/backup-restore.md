@@ -131,7 +131,7 @@ format version, imported by BK-4, added at a major release ([versioning-release.
 
 Backups sit, by definition, on somebody else's storage. Therefore:
 
-* **Client-side encryption is the standard**, not an option: AES-256-GCM with a backup key per target (derived from a passphrase via Argon2id, or supplied directly).
+* **Client-side encryption is the standard**, not an option: AES-256-GCM with a backup key per target (derived from a passphrase via Argon2id, or supplied directly). Neither of those two is available yet — a passphrase is not stored anywhere by design, and the surface that would take one is refused until a run exists to hand it to. Until then the key is **derived from the installation's master key with HKDF-SHA256, bound to the target** (E-05): two targets never share one, nobody has to remember a second secret, and the key that protects a backup is not itself a thing to back up. The master key's identifier goes into the manifest, which is what makes the rotation property below true for archives exactly as it is for sealed values.
 * The key is **not** stored in the archive. Without it the backup is useless — this is stated as an unmissable notice during setup and is logged on confirmation.
 * Optionally, server-side encryption at the target on top (S3 SSE) — it does not replace our own.
 * The key can be rotated; old archives stay readable with the old key (the key ID is in the manifest).
@@ -166,7 +166,38 @@ separate from the API path.
 
 **Consistency:** the export runs in a transaction with a `REPEATABLE READ` snapshot, so that the
 archive represents a consistent point in time rather than a mixture of before and after. Media are
-fetched after the snapshot, using the referenced checksums.
+fetched after the snapshot, using the referenced checksums — and their locations are resolved inside
+the same snapshot, so the mapping from a content address to a storage key is the one the snapshot
+saw and cannot change under the run.
+
+Four things E-05 had to decide, and each is stated where the code is as well as here:
+
+* **What anchors the rule.** A recurring task counts from its due date; a backup schedule has no due
+  date, so **it counts from when the schedule was created**, read in its own zone. Counting from
+  "now" at each expansion makes a rule without a `BYDAY` drift to whatever weekday the process
+  happened to ask on — a weekly backup that moves because a pod restarted on a Tuesday. Counting
+  from midnight of the creation day is a value nobody chose. For a rule that pins its own time —
+  `FREQ=DAILY;BYHOUR=3` — the anchor does not matter at all.
+* **`full_rrule` selects among `rrule`'s occurrences rather than producing occurrences of its own.**
+  The example above names no hour in `full_every`: expanded on its own it would fire at whatever
+  time of day the anchor carries, giving a full backup at a moment nobody scheduled *and* a second
+  run beside the three o'clock one. Read as a filter it means what "every" means — the daily run on
+  a Sunday is the full one. That also disposes of "what if both fall on the same instant" by making
+  it impossible: only one of the two produces instants. The comparison is by calendar day in the
+  schedule's zone, because a rule that names a day names a day.
+* **The lock is the insert.** `INSERT … WHERE NOT EXISTS (… status = 'RUNNING' AND id <> …)` — a
+  check followed by an insert has a gap between them wide enough for exactly the thing it prevents.
+  The `id <>` is what makes a resumption possible: a worker that died left its own row RUNNING, and
+  the attempt that takes the job over is the same run, so it must not be locked out by itself
+  (BK-7). A second, different run answers "no", which is not an error: the work is happening.
+* **Who fires what.** A tenant's schedules are fired by that tenant's own poller, seeded by the
+  write that created one and rescheduling itself to the next moment the tenant owes — the shape
+  every per-tenant job here has, because nothing may enumerate tenants
+  ([multi-tenancy.md](./multi-tenancy.md) §2.1). An **instance-wide** schedule belongs to no tenant,
+  so nothing seeds one, and firing it is the leader's duty. That is not a licence to enumerate
+  tenants and cannot become one: the pass runs under a system scope, every tenant-scoped table
+  compares against a tenant that scope does not have, and the only rows it can reach are the ones
+  with none.
 
 ---
 
@@ -181,6 +212,21 @@ Two levels, deliberately kept separate from the retention of business data
 Expiry rules apply only to archives Hubtask created itself (recognised by the manifest); other files
 at the target are never touched. Deletion is auditable. At targets with object lock/WORM, Hubtask
 reports non-deletable archives as a notice instead of retrying endlessly.
+
+Three things follow from that and are worth stating (E-05):
+
+* **An archive another kept archive needs is kept.** An incremental restores only through its chain
+  back to a full archive, so deleting a parent does not free one archive — it destroys every archive
+  after it, silently, and the loss is discovered at the restore. This is not a retention rule; it is
+  what makes the retention rules safe to run.
+* **A run with no schedule behind it deletes nothing.** The plan lives on a schedule; a backup
+  somebody asked for by hand has none, and inventing a default for it would mean the thing people do
+  *before* something risky could delete the archives they were making it alongside.
+* **What is at the target is read from the manifests, not from the database.** A row that says an
+  archive exists is a row; the archive is what is at the target, and expiry deletes files. A file
+  that is not a Hubtask archive is therefore never a candidate — the absence of a code path rather
+  than a check. `checksums.txt` is removed first, so an interrupted deletion leaves something that
+  reads as unfinished rather than as sound.
 
 ---
 
@@ -277,14 +323,23 @@ nothing. They arrive with the tenant-facing health report, which is still
 the previous condition read `HUBTASK_BACKUP_LOCAL_PATH` and `HUBTASK_BACKUP_TARGETS`, neither of
 which said whether a target exists, and the second was read by nothing else and documented nowhere.
 It is removed.
-| `backup.last_success_age_hours` (metric) | The age of the last successful backup per target |
-| `backup.verify_failed_total` | A checksum error at the target → a damaged archive |
-| `backup.restore_test_age_days` | The time since the last verified restore |
-| A-12 (tightened) | The last successful backup is older than twice the schedule interval |
-| A-19 (new) | The restore drill is older than 90 days |
+| Signal | Meaning |
+|---|---|
+| `hubtask_backup_last_success_timestamp_seconds` (metric) | When each target last had a backup that worked. Emitted by the leader since E-05, labelled by target, and a timestamp rather than an age so that the alert computes the age at evaluation time rather than at scrape time. A target that has never had one is **absent** rather than zero — a gauge of zero reads as 1970 |
+| `hubtask_restore_drill_last_success_timestamp_seconds` (metric) | When a trial restore last worked. Nothing emits it yet; it arrives with the restore side of this milestone |
+| A-12 | No successful backup in 24 hours, **per target** — a `max()` across targets would let one healthy target hide a broken one, which is exactly the 3-2-1 arrangement §2 recommends |
+| A-20 (new) | The restore drill is older than 90 days |
 
-The last point is deliberate: a backup that has never been restored is a hypothesis. The regular
-`NEW_TENANT` trial restore can be automated and evaluated as a test run.
+**A-20 rather than A-19**, and the renumbering is this way round on purpose. `data-protection.md` §4
+and [ADR-0018](../adr/ADR-0018-privacy-by-design.md) had already given A-19 to the data subject
+request deadline; an ADR records a decision that was taken, and editing one so that a later table
+can keep its number is the wrong direction. The restore drill is the newcomer, so the restore drill
+moves (E-05).
+
+The drill itself is deliberate: a backup that has never been restored is a hypothesis. The regular
+`NEW_TENANT` trial restore can be automated and evaluated as a test run. Its alert is a ticket
+rather than a page, and it does not fire on the metric's absence the way A-12 does — nothing records
+a drill yet, and an absence rule would page every installation for a feature that does not exist.
 
 ---
 
