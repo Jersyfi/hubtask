@@ -675,6 +675,8 @@
   "backup.archive_format_unsupported": "That archive is written in format version {format_version}, and this version of Hubtask reads up to {supported}. Restore it with a newer Hubtask.",
   "backup.archive_manifest_unreadable": "That archive's manifest could not be read. It is not a Hubtask archive, or it has been altered.",
   "backup.archive_manifest_invalid": "That archive's manifest is missing {reason}, so it cannot be restored.",
+  "backup.archive_record_invalid": "That archive holds a record Hubtask will not use ({reason}).",
+  "backup.archive_record_unreadable": "That archive holds a line Hubtask could not read. The file is not a Hubtask data file, or it has been altered.",
 
   "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",
