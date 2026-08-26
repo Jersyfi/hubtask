@@ -137,7 +137,8 @@ INSERT INTO access_token
   VALUES ('$TOKEN_ROW_ID', '$TENANT_ID', '$ACCOUNT_ID', 'the end-to-end session',
           decode('$TOKEN_HASH', 'hex'), 'hbt_pat_',
           ARRAY['containers:read','containers:write','items:read','items:write','trash:read',
-                'comments:write','media:read','media:write'],
+                'comments:write','media:read','media:write',
+                'reminders:write','recurrence:write','templates:read','templates:write'],
           now() + interval '1 hour')
   ON CONFLICT (id) DO NOTHING;
 SQL
@@ -255,6 +256,169 @@ if [ "$watch_code" -ne 0 ]; then
 	fail "hubctl watch exited $watch_code on SIGINT, want a clean 0"
 	cat "$WORK_DIR/watch.err"
 fi
+
+echo "--- a date, a reminder, a series ---"
+# The milestone's own verbs (D-01 … D-05), on an entry of their own so that the trash section
+# below still has one clean task to work with.
+DATED_ID="$(hubctl item create --collection "$COLLECTION_ID" --type TASK --title 'Water the plants' \
+	--due "$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-1d +%Y-%m-%dT%H:%M:%SZ)" | first_id)"
+[ -n "$DATED_ID" ] || { echo "FAILED: creating the dated entry produced no identifier"; exit 1; }
+
+# A day rather than a moment is the other spelling, and it comes back as an all-day date.
+all_day="$(hubctl --json due set "$DATED_ID" --at 2026-12-24 --zone Europe/Berlin)"
+expect_contains "due set --at <day>" "$all_day" '"due_date_only": true'
+expect_contains "due set --at <day>" "$all_day" '"due_time_zone": "Europe/Berlin"'
+
+reminder="$(hubctl remind add "$DATED_ID" --at -PT30M)"
+expect_contains "remind add" "$reminder" "REL:-PT30M"
+expect_contains "remind add" "$reminder" "PENDING"
+expect_contains "remind ls" "$(hubctl remind ls "$DATED_ID")" "REL:-PT30M"
+REMINDER_ID="$(hubctl remind ls "$DATED_ID" | first_id)"
+hubctl remind rm "$DATED_ID" "$REMINDER_ID"
+expect_missing "remind ls after the removal" "$(hubctl remind ls "$DATED_ID")" "$REMINDER_ID"
+
+echo "--- the scheduler, seen from a client ---"
+# What no unit test can show: an entry arriving at a client that nobody typed. hubctl asks for a
+# series and then does nothing at all; the scheduler materialises the occurrences the horizon
+# reaches, the outbox announces them, the stream carries them, and the watch below prints one.
+#
+# The watch is connected before the rule is written, because the stream starts "from now" and an
+# occurrence materialised before the connection stands would be a proof nobody could see.
+OCCURRENCE_LOG="$WORK_DIR/occurrence.log"
+"$WORK_DIR/hubctl" watch > "$OCCURRENCE_LOG" 2> "$WORK_DIR/occurrence.err" &
+OCCURRENCE_PID=$!
+sleep 3
+
+# Back on the day it was due, so that a daily rule owes occurrences the horizon already reaches.
+hubctl due set "$DATED_ID" \
+	--at "$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-1d +%Y-%m-%dT%H:%M:%SZ)" >/dev/null
+series="$(hubctl recur set "$DATED_ID" --rule 'FREQ=DAILY' --zone UTC --horizon 2)"
+expect_contains "recur set" "$series" "FREQ=DAILY"
+expect_contains "recur show" "$(hubctl recur show "$DATED_ID")" "ON_SCHEDULE"
+
+occurrence_seen=""
+for _ in $(seq 1 20); do
+	sleep 2
+	# An entry the session did not create: every identifier it made is known, so a row naming
+	# another one is the scheduler's work rather than an echo of a command.
+	# The row is `date time entity op id container`: the timestamp is two fields, not one.
+	while read -r _ _ entity op entity_id _; do
+		[ "$entity" = "item" ] && [ "$op" = "UPSERT" ] || continue
+		case "$entity_id" in
+			"$TASK_ID" | "$PACKAGE_ID" | "$STEP_ID" | "$DATED_ID" | ID | "") continue ;;
+		esac
+		occurrence_seen="$entity_id"
+		break
+	done < "$OCCURRENCE_LOG"
+	[ -n "$occurrence_seen" ] && break
+done
+kill -INT "$OCCURRENCE_PID" 2>/dev/null || true
+wait "$OCCURRENCE_PID" 2>/dev/null || true
+
+if [ -z "$occurrence_seen" ]; then
+	fail "no materialised occurrence reached hubctl watch"
+	cat "$OCCURRENCE_LOG" "$WORK_DIR/occurrence.err"
+else
+	# And it is a real entry, with the series' own title, that a person can see in the collection.
+	expect_contains "the occurrence is in the collection" \
+		"$(hubctl item ls --collection "$COLLECTION_ID")" "$occurrence_seen"
+fi
+
+# Skipping moves the series on without touching what it already produced.
+skipped="$(hubctl recur skip "$DATED_ID")"
+expect_contains "recur skip" "$skipped" "FREQ=DAILY"
+hubctl recur rm "$DATED_ID"
+set +e
+gone="$(hubctl recur show "$DATED_ID" 2>&1 >/dev/null)"
+gone_code=$?
+set -e
+if [ "$gone_code" -ne 1 ]; then
+	fail "reading a removed series exited $gone_code, want 1"
+fi
+expect_missing "the removed series" "$gone" '{'
+
+echo "--- a template, stamped out ---"
+cat > "$WORK_DIR/tree.json" <<'TREE'
+[{"type":"TASK","title":"Move house","children":[
+  {"type":"WORK_PACKAGE","title":"Book the van"},
+  {"type":"WORK_PACKAGE","title":"Pack the kitchen","due_offset":"P3D","due_date_only":true}]}]
+TREE
+TEMPLATE_ID="$(hubctl template create --name 'Move house' --scope COLLECTION \
+	--container "$COLLECTION_ID" --root-type TASK --nodes "$WORK_DIR/tree.json" | first_id)"
+[ -n "$TEMPLATE_ID" ] || { echo "FAILED: defining the template produced no identifier"; exit 1; }
+expect_contains "template ls" "$(hubctl template ls --container "$COLLECTION_ID")" "Move house"
+
+instance="$(hubctl template instantiate "$TEMPLATE_ID" --collection "$COLLECTION_ID" \
+	--anchor 2026-12-01 --title 'Move to the new flat')"
+ROOT_ID="$(printf '%s\n' "$instance" | first_id)"
+[ -n "$ROOT_ID" ] || { echo "FAILED: the instantiation produced no root"; exit 1; }
+expect_contains "template instantiate" "$instance" "3"
+expect_contains "the instantiated tree" \
+	"$(hubctl item ls --collection "$COLLECTION_ID")" "Move to the new flat"
+# The relative date resolved against the anchor: three days on from the first of December, on the
+# node that carries the offset - which is a child, so the check looks under the root.
+stamped="$(hubctl --json item ls --collection "$COLLECTION_ID" --parent "$ROOT_ID")"
+expect_contains "the instantiated children" "$stamped" "Pack the kitchen"
+expect_contains "the resolved due date" "$stamped" '2026-12-04'
+
+echo "--- a saved view, and the file it becomes ---"
+cat > "$WORK_DIR/query.json" <<QUERY
+{"scope_container_id":"$COLLECTION_ID",
+ "filter":{"op":"NOT","nodes":[{"field":"due_at","op":"IS_NULL"}]}}
+QUERY
+# Captured whole, standard error included: a command that fails inside a substitution under
+# `set -e` would otherwise take the session down with nothing to read.
+set +e
+saved="$(hubctl view create --name 'Everything dated' --scope COLLECTION \
+	--container "$COLLECTION_ID" --layout LIST_EXPANDED --query "$WORK_DIR/query.json" 2>&1)"
+saved_code=$?
+set -e
+if [ "$saved_code" -ne 0 ]; then
+	echo "FAILED: saving the view exited $saved_code: $saved"
+	exit 1
+fi
+VIEW_ID="$(printf '%s\n' "$saved" | first_id)"
+[ -n "$VIEW_ID" ] || { echo "FAILED: saving the view produced no identifier: $saved"; exit 1; }
+expect_contains "view ls" "$(hubctl view ls --container "$COLLECTION_ID")" "Everything dated"
+
+hubctl view export "$VIEW_ID" --format CSV --out "$WORK_DIR/export.csv"
+expect_contains "the CSV export" "$(head -1 "$WORK_DIR/export.csv")" "id,type,title"
+hubctl view export "$VIEW_ID" --format ICS --out "$WORK_DIR/export.ics"
+expect_contains "the ICS export" "$(cat "$WORK_DIR/export.ics")" "BEGIN:VCALENDAR"
+
+echo "--- a calendar somebody can subscribe to ---"
+minted="$(hubctl calendar mint --view "$VIEW_ID")"
+FEED_ID="$(printf '%s\n' "$minted" | first_id)"
+FEED_URL="$(printf '%s\n' "$minted" | tail -1)"
+[ -n "$FEED_ID" ] || { echo "FAILED: minting the feed produced no identifier"; exit 1; }
+expect_contains "the feed URL" "$FEED_URL" ".ics"
+# The list knows the feed exists and cannot show its token, because the server keeps none.
+feeds="$(hubctl calendar ls)"
+expect_contains "calendar ls" "$feeds" "$FEED_ID"
+expect_missing "calendar ls" "$feeds" "hbt_cal_"
+
+# Fetched the way a calendar client fetches it: the URL, and no credential beside it.
+calendar="$(hubctl calendar fetch --url "$FEED_URL")"
+expect_contains "the feed" "$calendar" "BEGIN:VCALENDAR"
+# What a calendar carries is the dated entries and only those, which is why the tree's root - it
+# has no date of its own - is not in it and its dated child is. The child's date is the template's
+# P3D resolved against the anchor and rendered as a day rather than as a moment, which is the
+# whole chain from D-06's offset through D-01's flag to D-08's renderer in one line.
+expect_contains "the feed" "$calendar" "SUMMARY:Pack the kitchen"
+expect_contains "the feed" "$calendar" "DTSTART;VALUE=DATE:20261204"
+expect_missing "the feed" "$calendar" "Move to the new flat"
+# And the occurrences the scheduler made, as moments rather than days.
+expect_contains "the feed" "$calendar" "SUMMARY:Water the plants"
+
+hubctl calendar revoke "$FEED_ID"
+set +e
+revoked="$(hubctl calendar fetch --url "$FEED_URL" 2>&1 >/dev/null)"
+revoked_code=$?
+set -e
+if [ "$revoked_code" -ne 1 ]; then
+	fail "fetching a revoked feed exited $revoked_code, want 1"
+fi
+expect_missing "the revoked feed" "$revoked" "BEGIN:VCALENDAR"
 
 echo "--- the conversation ---"
 COMMENT_ID="$(hubctl comment add "$TASK_ID" --body 'Skimmed or whole?' | first_id)"

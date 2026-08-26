@@ -107,9 +107,13 @@ func (h ExportView) Execute(
 		return ExportedView{}, err
 	}
 
-	if err := h.record(
-		ctx, actor, saved, len(exported.Items), exported.Truncated, exported.GeneratedAt,
-	); err != nil {
+	// In a transaction of its own, because that is what the audit sink needs and there is no
+	// other one to join: the selection reads through the query's own read-only transactions, one
+	// per page, and by the time the export is decided they have all closed.
+	if err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		return h.record(
+			ctx, actor, saved, len(exported.Items), exported.Truncated, exported.GeneratedAt)
+	}); err != nil {
 		return ExportedView{}, err
 	}
 	return exported, nil
