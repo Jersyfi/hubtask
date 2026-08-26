@@ -54,7 +54,17 @@ func (r JobRepository) Find(ctx context.Context, id shared.ID) (domain.Job, erro
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading job %s: %w", id, err))
 	}
-	return jobRowOf(row.ID, row.TenantID, row.State, row.LastError, row.CreatedAt, row.FinishedAt)
+	job, err := jobRowOf(row.ID, row.TenantID, row.State, row.LastError, row.CreatedAt, row.FinishedAt)
+	if err != nil {
+		return domain.Job{}, err
+	}
+	// Nullable on the way through, because null is the answer E-01 documented for a job that
+	// cannot compute one - and most still cannot.
+	if row.Progress != nil {
+		fraction := float64(*row.Progress)
+		job.Progress = &fraction
+	}
+	return job, nil
 }
 
 // Cancel stops a queued or running job, in one statement that carries both conditions.

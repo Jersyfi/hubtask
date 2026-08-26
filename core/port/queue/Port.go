@@ -185,6 +185,23 @@ type Detached interface {
 	OwnsItsTransactions()
 }
 
+// Reporter is how a long job says how far along it is (E-05).
+//
+// A second interface rather than a method on Queue, for the reason persistence.Snapshot is one:
+// almost no job needs it. Most finish in milliseconds and the honest answer to "how far along" is
+// the null E-01 documented - a client renders an indeterminate bar for it rather than a number
+// nobody measured. A method on Queue would put it on every double in the repository for the sake of
+// the one handler that runs for minutes.
+type Reporter interface {
+	// Report writes the fraction, between 0 and 1, and is fenced on the job's lease like every
+	// other statement a handler runs: a worker that fell so far behind that somebody else took the
+	// job over writes nothing.
+	//
+	// A failure to report progress is not a failure of the job. The number is for whoever is
+	// watching, and losing it is worth a log line rather than a backup.
+	Report(ctx context.Context, job Job, fraction float64) error
+}
+
 // Lease is the terms on which a batch of jobs is claimed.
 type Lease struct {
 	// Now is the reading of the clock port, so that a test does not have to wait for time.

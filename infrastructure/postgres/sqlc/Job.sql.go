@@ -230,7 +230,7 @@ func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) error {
 }
 
 const findJob = `-- name: FindJob :one
-SELECT id, tenant_id, state, last_error, created_at, finished_at
+SELECT id, tenant_id, state, last_error, created_at, finished_at, progress
 FROM job
 WHERE id = $1 AND tenant_id = $2
 `
@@ -247,6 +247,7 @@ type FindJobRow struct {
 	LastError  *string
 	CreatedAt  pgtype.Timestamptz
 	FinishedAt pgtype.Timestamptz
+	Progress   *float32
 }
 
 // What a caller polls, and the only two statements here that are asked on somebody's behalf
@@ -267,6 +268,7 @@ func (q *Queries) FindJob(ctx context.Context, arg FindJobParams) (FindJobRow, e
 		&i.LastError,
 		&i.CreatedAt,
 		&i.FinishedAt,
+		&i.Progress,
 	)
 	return i, err
 }
@@ -382,4 +384,32 @@ func (q *Queries) RetryJob(ctx context.Context, arg RetryJobParams) (int64, erro
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setJobProgress = `-- name: SetJobProgress :exec
+UPDATE job
+SET progress = LEAST(1.0, GREATEST(0.0, $1::real))
+WHERE id = $2
+  AND state = 'RUNNING'
+  AND locked_until = $3::timestamptz
+`
+
+type SetJobProgressParams struct {
+	Progress float32
+	ID       pgtype.UUID
+	Lease    pgtype.Timestamptz
+}
+
+// How far along a long job is, written by the handler as it goes (E-05, migration 0032).
+//
+// Fenced on the lease like every other statement a handler runs: a worker that fell so far behind
+// that somebody else took the job over must not keep writing a fraction of work it is no longer
+// doing. A job that is not RUNNING under this lease is simply not updated, and the handler finds
+// out at its next write.
+//
+// Clamped in SQL rather than trusted from the caller, because a fraction outside [0,1] on a
+// progress bar is a rendering bug in every client at once.
+func (q *Queries) SetJobProgress(ctx context.Context, arg SetJobProgressParams) error {
+	_, err := q.db.Exec(ctx, setJobProgress, arg.Progress, arg.ID, arg.Lease)
+	return err
 }

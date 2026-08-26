@@ -31,7 +31,10 @@ type Queue struct {
 
 func NewQueue(ids clock.IDGenerator, now clock.Clock) Queue { return Queue{ids: ids, now: now} }
 
-var _ queue.Queue = Queue{}
+var (
+	_ queue.Queue    = Queue{}
+	_ queue.Reporter = Queue{}
+)
 
 // maxBatch bounds a claim. Not a tuning limit but a safety one: the value reaches the driver as an
 // int32, and a batch of four digits is a typo rather than a plan - it would also hold every row in
@@ -178,6 +181,33 @@ func (q Queue) Complete(ctx context.Context, job queue.Job) error {
 			WithCause(fmt.Errorf("completing job %s: %w", job.ID, err))
 	}
 	return leaseHeld(affected, job)
+}
+
+// Report writes how far along a long job is (E-05).
+//
+// Fenced on the lease like every statement a handler runs, and silent when the fence does not hold:
+// a worker that lost its job writes nothing, and that is not a failure to hand back. The number is
+// for whoever is watching, and the clamp is in the statement rather than here because a fraction
+// outside [0,1] on a progress bar is a rendering bug in every client at once.
+func (q Queue) Report(ctx context.Context, job queue.Job, fraction float64) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, lease, err := fence(job)
+	if err != nil {
+		return err
+	}
+
+	err = queries.SetJobProgress(ctx, sqlc.SetJobProgressParams{
+		Progress: float32(fraction), ID: id, Lease: lease,
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording the progress of job %s: %w", job.ID, err))
+	}
+	return nil
 }
 
 // Repeat sends a poller round back to the queue for its next one.

@@ -111,7 +111,7 @@ GROUP BY kind;
 -- dedupe key. Selecting them and dropping them later is how one of them eventually reaches a
 -- response by accident.
 -- name: FindJob :one
-SELECT id, tenant_id, state, last_error, created_at, finished_at
+SELECT id, tenant_id, state, last_error, created_at, finished_at, progress
 FROM job
 WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id');
 
@@ -131,3 +131,20 @@ WHERE id = sqlc.arg('id')
   AND tenant_id = sqlc.arg('tenant_id')
   AND state IN ('PENDING', 'RUNNING')
 RETURNING id, tenant_id, state, last_error, created_at, finished_at;
+
+
+-- How far along a long job is, written by the handler as it goes (E-05, migration 0032).
+--
+-- Fenced on the lease like every other statement a handler runs: a worker that fell so far behind
+-- that somebody else took the job over must not keep writing a fraction of work it is no longer
+-- doing. A job that is not RUNNING under this lease is simply not updated, and the handler finds
+-- out at its next write.
+--
+-- Clamped in SQL rather than trusted from the caller, because a fraction outside [0,1] on a
+-- progress bar is a rendering bug in every client at once.
+-- name: SetJobProgress :exec
+UPDATE job
+SET progress = LEAST(1.0, GREATEST(0.0, sqlc.arg('progress')::real))
+WHERE id = sqlc.arg('id')
+  AND state = 'RUNNING'
+  AND locked_until = sqlc.arg('lease')::timestamptz;
