@@ -553,7 +553,10 @@ CREATE TABLE reminder (
   offset_spec  text NOT NULL,                    -- 'REL:-PT1H' | 'ABS:2026-09-01T08:00:00Z'
   channels     text[] NOT NULL DEFAULT '{EMAIL}',
   recipients   uuid[] NOT NULL DEFAULT '{}',     -- empty = assignee/members
-  state        text NOT NULL DEFAULT 'PENDING' CHECK (state IN ('PENDING','SENT','CANCELLED')),
+  -- LAPSED is what a restore marks a reminder whose moment passed while the data was in an
+  -- archive (migration 0037, backup-restore.md §8.4). Not CANCELLED: nobody cancelled it.
+  state        text NOT NULL DEFAULT 'PENDING'
+                 CHECK (state IN ('PENDING','SENT','CANCELLED','LAPSED')),
   fire_at      timestamptz,
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz,
@@ -798,7 +801,11 @@ CREATE TABLE outbox_event (
   occurred_at     timestamptz NOT NULL DEFAULT now(),
   dispatched_at   timestamptz,
   attempts        integer NOT NULL DEFAULT 0,
-  locked_until    timestamptz
+  locked_until    timestamptz,
+  -- A change a restore wrote rather than one somebody made (backup-restore.md §8.4, migration
+  -- 0033). Outward-facing subscribers are not given these: a restore would otherwise report last
+  -- month's states to every webhook and every rule.
+  replay          boolean NOT NULL DEFAULT false
 );
 CREATE INDEX outbox_pending_idx ON outbox_event (occurred_at)
   WHERE dispatched_at IS NULL;
@@ -1089,16 +1096,27 @@ CREATE TABLE restore_run (
   id             uuid PRIMARY KEY,
   target_id      uuid NOT NULL REFERENCES backup_target(id) ON DELETE RESTRICT,
   source_archive text NOT NULL,                       -- the path at the target, possible even without a backup_run
-  tenant_id      uuid REFERENCES tenant(id) ON DELETE CASCADE,   -- the target tenant
+  -- The tenant that asked, and the one the row is visible in. The tenant being restored *into* is
+  -- target_tenant_id below: they differ only for NEW_TENANT, whose target did not exist when the
+  -- restore was asked for (migration 0034).
+  tenant_id      uuid REFERENCES tenant(id) ON DELETE CASCADE,
+  target_tenant_id uuid,
   mode           text NOT NULL
                    CHECK (mode IN ('INSPECT','SELECTIVE','MERGE','REPLACE_TENANT','NEW_TENANT','INSTANCE')),
   conflict_rule  text NOT NULL DEFAULT 'SKIP' CHECK (conflict_rule IN ('SKIP','OVERWRITE','DUPLICATE')),
   selection      jsonb,                               -- the container/item selection for SELECTIVE
   dry_run        boolean NOT NULL DEFAULT true,
+  -- Whether §8.3 step 4's copy is wanted. Declinable, because the step's own parenthesis is "if
+  -- there is room at the target" (migration 0035).
+  create_safety_backup boolean NOT NULL DEFAULT true,
   safety_backup_run_id uuid REFERENCES backup_run(id),
   status         text NOT NULL DEFAULT 'PENDING'
                    CHECK (status IN ('PENDING','VALIDATING','RUNNING','SUCCEEDED','FAILED','CANCELLED')),
   report         jsonb,                               -- new/overwritten/skipped/conflicts
+  -- How far the run got, per entity, written with each batch. A resumed attempt skips what has
+  -- already been decided; the archive is immutable, so "the first N records" names the same N
+  -- every time (migration 0036).
+  progress       jsonb,
   requested_by   uuid NOT NULL,
   approved_by    uuid,
   started_at     timestamptz,

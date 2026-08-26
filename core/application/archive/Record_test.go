@@ -350,3 +350,58 @@ func TestATombstonesTableNameFindsItsEntity(t *testing.T) {
 		t.Fatal("an excluded table found an entity")
 	}
 }
+
+// The declarations a restore reads (E-06): every entity says what identifies its rows, and every
+// reference points at an entity the archive actually carries. A reference to something outside the
+// archive would be a remap a DUPLICATE restore could not perform.
+func TestEveryEntityDeclaresItsIdentity(t *testing.T) {
+	for _, entity := range Entities() {
+		if len(entity.Keys) == 0 {
+			t.Errorf("%s does not say what identifies its rows", entity)
+		}
+		for _, key := range entity.Keys {
+			if key == "tenant_id" {
+				t.Errorf("%s has tenant_id in its key; the tenant comes from the scope", entity)
+			}
+		}
+		for _, reference := range entity.References {
+			if _, known := FindEntityByTable(reference.Table); !known {
+				t.Errorf("%s references %s, which no archive carries", entity, reference.Table)
+			}
+		}
+	}
+}
+
+// A duplicable entity has to have something to remap or something to mint, or duplicating it means
+// writing the same row twice under the same key - which is not a duplicate but a no-op.
+func TestADuplicableEntityCanActuallyBeDuplicated(t *testing.T) {
+	for _, entity := range Entities() {
+		if !entity.Duplicable {
+			continue
+		}
+		if entity.HasOwnIdentity() {
+			continue
+		}
+		keysAreReferences := 0
+		for _, key := range entity.Keys {
+			for _, reference := range entity.References {
+				if reference.Field == key {
+					keysAreReferences++
+				}
+			}
+		}
+		if keysAreReferences == 0 {
+			t.Errorf("%s is duplicable and its key is neither its own nor a reference", entity)
+		}
+	}
+}
+
+// The identities a restore mints have to be identities the format can carry.
+func TestAnEntityWithItsOwnIdentitySaysSo(t *testing.T) {
+	for _, entity := range Entities() {
+		own := len(entity.Keys) == 1 && entity.Keys[0] == "id"
+		if entity.HasOwnIdentity() != own {
+			t.Errorf("%s disagrees with itself about having its own identity", entity)
+		}
+	}
+}

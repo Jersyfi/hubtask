@@ -102,11 +102,19 @@ const (
 	ReminderPending   ReminderState = "PENDING"
 	ReminderSent      ReminderState = "SENT"
 	ReminderCancelled ReminderState = "CANCELLED"
+	// ReminderLapsed is a reminder whose moment passed while the data was in an archive
+	// (backup-restore.md §8.4, E-06). It is set by a restore and by nothing else.
+	//
+	// Not CANCELLED, which would be the cheap answer and the wrong one: somebody cancelled that,
+	// and an auditor reading a workspace after a restore would find hundreds of cancellations
+	// nobody made. Not PENDING either - a restore that left them pending would have the
+	// scheduler send every one of them at once, which is exactly what §8.4 forbids.
+	ReminderLapsed ReminderState = "LAPSED"
 )
 
 // ReminderStates is the closed set, in the order the schema's check constraint lists them.
 func ReminderStates() []ReminderState {
-	return []ReminderState{ReminderPending, ReminderSent, ReminderCancelled}
+	return []ReminderState{ReminderPending, ReminderSent, ReminderCancelled, ReminderLapsed}
 }
 
 // Valid reports whether a state is one this system knows.

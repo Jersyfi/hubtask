@@ -79,16 +79,16 @@ func (pending) ListBackupTargets(w http.ResponseWriter, r *http.Request) { notAv
 
 func (pending) CreateBackupTarget(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-func (pending) ListBackupsAtTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListBackupsAtTargetParams) {
-	notAvailable(w, r)
-}
-
 func (pending) TestBackupTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
 
 // The backup run operations. Overridden by RestController; they stay here for the reason the job
 // operations do - the compile-time assertion is on `pending` itself.
+func (pending) ListBackupsAtTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListBackupsAtTargetParams) {
+	notAvailable(w, r)
+}
+
 func (pending) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) StartBackup(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
@@ -515,7 +515,13 @@ func (pending) GetCapabilities(w http.ResponseWriter, r *http.Request) { notAvai
 
 func (pending) GetHealthReport(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The restore operations. Overridden by RestController; they stay here for the reason the others
+// do - the compile-time assertion is on `pending` itself.
 func (pending) StartRestore(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetRestoreRun(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
 
 func (pending) ListRetentionPolicies(w http.ResponseWriter, r *http.Request, _ openapi.ListRetentionPoliciesParams) {
 	notAvailable(w, r)

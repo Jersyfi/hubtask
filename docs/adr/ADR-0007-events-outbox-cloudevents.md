@@ -19,6 +19,14 @@ SSE stream, the search index, and optionally NATS JetStream.
 idempotent (`event_id` deduplication). JSON schemas live under `api/events/` and are versioned like
 the API.
 
+**`replay`** joined that set with E-06. It marks a change a restore wrote rather than one somebody
+made ([backup-restore.md](../architecture/backup-restore.md) §8.4), and it is an extension attribute
+rather than a payload field because it is routing: the dispatcher decides what to hand a subscriber
+before anything parses `data`. It is present only when true, so a consumer written before restores
+existed reads an ordinary event exactly as it always did, and a broker's routing rule can express
+"has this attribute" where it cannot express "equals false or missing". A subscriber is given a
+replay only if it has asked for one, so the promise does not rest on every consumer remembering it.
+
 ## Options
 1. **Outbox + CloudEvents (chosen).**
 2. Calling external systems directly within the request — latency, partial failures, inconsistent states.

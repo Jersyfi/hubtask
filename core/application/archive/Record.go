@@ -229,6 +229,39 @@ type Entity struct {
 	// All of them are small by nature - the join tables and the configuration - so writing them
 	// whole costs little, and it is the reading that has to be right.
 	Whole bool
+	// Keys are the columns that make up a record's identity, in the order Record.ID joins them
+	// with "/" - the primary key without `tenant_id`, because the tenant comes from the scope a
+	// restore runs in rather than from the archive (E-06).
+	//
+	// Declared rather than derived. A restore has to be able to say what a line identifies
+	// without a database to ask, which is the whole premise of §8.1, and a build that read the
+	// key from its own schema would read a schema the archive was not written under.
+	Keys []string
+	// References are the fields that point at another entity's rows. Only the ones inside the
+	// archive: a reference to something a restore does not import is not a reference it can do
+	// anything about.
+	//
+	// They exist for one purpose - DUPLICATE, which has to give the copy new identities and keep
+	// the copies pointing at each other rather than at the originals - and they are kept honest
+	// by a test that compares them against the foreign keys the database actually has.
+	References []Reference
+	// Duplicable says whether a collision in this entity may be settled by making a copy.
+	//
+	// Not everything may. An account is who somebody is, a label is the same label, a media
+	// object is the same bytes under a content address, and a webhook subscription copied is a
+	// subscription that fires twice. For those a DUPLICATE restore falls back to SKIP and says so
+	// in the report - the alternative is a merge that quietly doubles the tenant's identities and
+	// its outbound integrations.
+	Duplicable bool
+}
+
+// Reference is one field pointing at another entity's rows.
+type Reference struct {
+	// Field is the column in this entity's data.
+	Field string
+	// Table is what it points at, in the schema's vocabulary - the same word the entity's own
+	// Table is written in.
+	Table string
 }
 
 // entities is the archive's content, in restore order: a row's parents come before it, so that a
@@ -241,43 +274,186 @@ type Entity struct {
 var entities = []Entity{
 	// The tenant itself, so that a NEW_TENANT restore has something to create rather than
 	// something to fill in (backup-restore.md §8.2).
-	{Name: "tenants", Table: "tenant"},
-	{Name: "accounts", Table: "account"},
-	{Name: "account_groups", Table: "account_group", Whole: true},
-	{Name: "account_group_members", Table: "account_group_member", Whole: true},
-	{Name: "memberships", Table: "membership", Whole: true},
-	{Name: "containers", Table: "container"},
-	{Name: "buckets", Table: "bucket", Whole: true},
-	{Name: "labels", Table: "label", Whole: true},
-	{Name: "custom_field_definitions", Table: "custom_field_definition"},
-	{Name: "work_items", Table: "work_item"},
-	{Name: "item_labels", Table: "item_label", Whole: true},
-	{Name: "item_members", Table: "item_member", Whole: true},
-	{Name: "comments", Table: "comment"},
-	{Name: "activity_entries", Table: "activity_entry"},
-	{Name: "media_objects", Table: "media_object", Whole: true},
-	{Name: "item_attachments", Table: "item_attachment", Whole: true},
-	{Name: "recurrence_rules", Table: "recurrence_rule"},
-	{Name: "reminders", Table: "reminder"},
-	{Name: "saved_views", Table: "saved_view", Whole: true},
-	{Name: "templates", Table: "template"},
-	{Name: "jumble_entries", Table: "jumble_entry"},
-	{Name: "auto_assign_policies", Table: "auto_assign_policy", Whole: true},
-	{Name: "automation_rules", Table: "automation_rule"},
-	{Name: "webhook_subscriptions", Table: "webhook_subscription", Whole: true},
-	{Name: "calendar_feeds", Table: "calendar_feed", Whole: true},
-	{Name: "notification_preferences", Table: "notification_preference"},
-	{Name: "retention_policies", Table: "retention_policy"},
-	{Name: "consent_records", Table: "consent_record", Whole: true},
-	{Name: "legal_holds", Table: "legal_hold", Whole: true},
-	{Name: "set_elements", Table: "set_element", Whole: true},
+	{Name: "tenants", Table: "tenant", Keys: []string{"id"}},
+	{Name: "accounts", Table: "account", Keys: []string{"id"}},
+	{Name: "account_groups", Table: "account_group", Keys: []string{"id"}, Whole: true},
+	{
+		Name: "account_group_members", Table: "account_group_member", Whole: true,
+		Keys: []string{"group_id", "account_id"},
+		References: []Reference{
+			{Field: "group_id", Table: "account_group"},
+			{Field: "account_id", Table: "account"},
+		},
+	},
+	{
+		Name: "memberships", Table: "membership", Whole: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "group_id", Table: "account_group"},
+		},
+	},
+	{
+		Name: "containers", Table: "container", Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "parent_id", Table: "container"}},
+	},
+	{
+		Name: "buckets", Table: "bucket", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "collection_id", Table: "container"}},
+	},
+	{
+		Name: "labels", Table: "label", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "collection_id", Table: "container"}},
+	},
+	{
+		Name: "custom_field_definitions", Table: "custom_field_definition",
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "collection_id", Table: "container"}},
+	},
+	{
+		Name: "work_items", Table: "work_item", Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "collection_id", Table: "container"},
+			{Field: "parent_id", Table: "work_item"},
+			{Field: "bucket_id", Table: "bucket"},
+			{Field: "assignee_id", Table: "account"},
+			{Field: "cover_media_id", Table: "media_object"},
+			// No foreign key in the schema, and a reference all the same: the column holds a
+			// recurrence rule's identity, and a duplicate that kept the original's would make two
+			// items claim one series.
+			{Field: "recurrence_rule_id", Table: "recurrence_rule"},
+			{Field: "origin_jumble_id", Table: "jumble_entry"},
+		},
+	},
+	{
+		Name: "item_labels", Table: "item_label", Whole: true, Duplicable: true,
+		Keys: []string{"item_id", "label_id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "label_id", Table: "label"},
+		},
+	},
+	{
+		Name: "item_members", Table: "item_member", Whole: true, Duplicable: true,
+		Keys: []string{"item_id", "account_id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "account_id", Table: "account"},
+		},
+	},
+	{
+		Name: "comments", Table: "comment", Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "parent_comment_id", Table: "comment"},
+		},
+	},
+	{
+		Name: "activity_entries", Table: "activity_entry", Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
+	// Not duplicable: a medium is its bytes, addressed by their checksum, and a second row for
+	// the same bytes is a second reference count to keep honest for no gain.
+	{Name: "media_objects", Table: "media_object", Whole: true, Keys: []string{"id"}},
+	{
+		Name: "item_attachments", Table: "item_attachment", Whole: true, Duplicable: true,
+		Keys: []string{"item_id", "media_id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "media_id", Table: "media_object"},
+		},
+	},
+	{
+		Name: "recurrence_rules", Table: "recurrence_rule", Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "source_item_id", Table: "work_item"}},
+	},
+	{
+		Name: "reminders", Table: "reminder", Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
+	{Name: "saved_views", Table: "saved_view", Whole: true, Keys: []string{"id"}},
+	{Name: "templates", Table: "template", Keys: []string{"id"}},
+	{Name: "jumble_entries", Table: "jumble_entry", Keys: []string{"id"}},
+	{Name: "auto_assign_policies", Table: "auto_assign_policy", Whole: true, Keys: []string{"id"}},
+	{
+		Name: "automation_rules", Table: "automation_rule", Keys: []string{"id"},
+		References: []Reference{{Field: "run_as", Table: "account"}},
+	},
+	// Not duplicable, and this is the one where a copy would be actively harmful: two
+	// subscriptions on one event send everything twice, to somebody who never asked for it.
+	{Name: "webhook_subscriptions", Table: "webhook_subscription", Whole: true, Keys: []string{"id"}},
+	{
+		Name: "calendar_feeds", Table: "calendar_feed", Whole: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "view_id", Table: "saved_view"},
+		},
+	},
+	{
+		Name: "notification_preferences", Table: "notification_preference",
+		Keys:       []string{"account_id", "category", "channel"},
+		References: []Reference{{Field: "account_id", Table: "account"}},
+	},
+	{Name: "retention_policies", Table: "retention_policy", Keys: []string{"data_kind"}},
+	{
+		Name: "consent_records", Table: "consent_record", Whole: true, Keys: []string{"id"},
+		References: []Reference{{Field: "account_id", Table: "account"}},
+	},
+	{Name: "legal_holds", Table: "legal_hold", Whole: true, Keys: []string{"id"}},
+	{
+		Name: "set_elements", Table: "set_element", Whole: true, Duplicable: true,
+		Keys:       []string{"item_id", "set_name", "element_id"},
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
-	// defect.
-	{Name: "audit", Table: "audit_log", Optional: true},
+	// defect - and the only one a restore reads and deliberately does not write back, because the
+	// live trail is a hash chain and an insert into the middle of one is not a restore but a
+	// rewrite (E-06, audit.md §4).
+	{Name: "audit", Table: "audit_log", Optional: true, Keys: []string{"seq"}},
 }
 
 // Entities is what an archive holds, in restore order.
 func Entities() []Entity { return slices.Clone(entities) }
+
+// notRestored is every entity an archive carries and a restore deliberately does not write back,
+// and why (E-06).
+//
+// A map rather than a comment, for the reason `excluded` is one: the reasons are read by the test
+// beside it and by anybody wondering where their data went. The difference between this list and
+// that one is what happened at the other end - `excluded` is not in the archive at all, and this
+// is in the archive and stays there.
+var notRestored = map[string]string{
+	// audit.md §4 makes the trail a hash chain: each entry carries the digest of the one before
+	// it, and E-09's `:verify` walks that chain. Inserting last month's entries into the middle of
+	// a live chain is not a restore, it is a rewrite - and "the trail cannot be rewritten" is the
+	// property the whole audit surface rests on. The archive still carries it, which is what
+	// `include_audit` was for: the evidence is readable where it was written down.
+	"audit_log": "audit.md §4 - the live trail is a hash chain, and an insert into one is a rewrite",
+}
+
+// NotRestored answers what a restore reads and does not write back, and why.
+func NotRestored() map[string]string { return maps.Clone(notRestored) }
+
+// RestoredEntities are the entities a restore writes, in the order it writes them: a row's parents
+// before the row, so that the files are applied in sequence without deferring a foreign key.
+func RestoredEntities() []Entity {
+	out := make([]Entity, 0, len(entities))
+	for _, entity := range entities {
+		if _, kept := notRestored[entity.Table]; !kept {
+			out = append(out, entity)
+		}
+	}
+	return out
+}
+
+// HasOwnIdentity reports an entity whose identity is a single `id` column of its own rather than a
+// key made of references to other entities.
+//
+// It is the question DUPLICATE asks: an entity with an identity of its own needs a new one minted
+// for the copy, and a join table's identity follows from the rows it joins - remap those and the
+// key has changed by itself.
+func (e Entity) HasOwnIdentity() bool {
+	return len(e.Keys) == 1 && e.Keys[0] == "id"
+}
 
 // FindEntityByTable answers the entity whose rows come from that table.
 //

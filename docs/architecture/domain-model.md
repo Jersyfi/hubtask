@@ -396,7 +396,9 @@ there is nothing for MCP or an automation rule to call, and it is served by the 
 
 **Search** `SearchItems` (full text, optionally semantic).
 
-**Backup** `CreateBackupTarget`, `ListBackupTargets`, `TestBackupTarget` (E-03). Creating one asks
+**Backup** `CreateBackupTarget`, `ListBackupTargets`, `TestBackupTarget` (E-03),
+`CreateBackupSchedule`, `StartBackup`, `GetBackupRun`, `VerifyBackup` (E-05),
+`ListBackupsAtTarget`, `StartRestore`, `GetRestoreRun` (E-06). Creating one asks
 for the owner's right — `DELETE_CONTAINER`, the matrix's line for the one thing an administrator
 cannot do — because a target is a channel the tenant's data leaves by, and in single-tenant
 operation the tenant's owner is the instance administrator `backup-restore.md` §2 names. Listing
@@ -405,6 +407,15 @@ somebody who may not create a target may still need to see that one exists and t
 failed. Credentials are sealed on the way in and are returned by nothing. The connection test is a
 write, a read-back and a delete, and answers a result rather than an error — "the target is
 unreachable" is what the caller asked to find out.
+
+The restore side draws the same line one step further. Listing what is at a target and reading a
+restore ask for `READ`-level knowledge of the workspace and are answered at `STRUCTURE`; *starting*
+one asks for `STRUCTURE` too, because reading an archive back into the workspace is running it — but
+`REPLACE_TENANT` and `INSTANCE` ask for `DELETE_CONTAINER`, the matrix's line for the one thing an
+administrator cannot do. Those two remove what the archive does not name, which is destroying rather
+than restoring. On top of the permission they need the workspace's name typed exactly and a step-up
+that no installation can satisfy yet (`backup-restore.md` §8.3), so today they are refused with a
+code that says so rather than permitted by omission.
 
 **Jobs** `GetJob`, `CancelJob`. The resource three `202 Accepted` responses have been pointing at
 since A-06, registered with E-01. Two permissions rather than one: reading a job is `READ` and

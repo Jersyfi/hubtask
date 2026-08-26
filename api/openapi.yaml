@@ -806,6 +806,28 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
 
+  /restores/{restoreId}:
+    get:
+      tags: [backup]
+      operationId: getRestoreRun
+      summary: What one restore did, or is about to do
+      description: |
+        The resource a started restore's `result_url` points at. It carries the report of the dry
+        run - how many objects are new, overwritten, skipped and in conflict - which is what
+        §8.3 asks a caller to read *before* asking for the same restore without `dry_run`. It also
+        names the safety copy taken before a destructive mode, so that the way back is a run
+        identifier rather than a search at the target.
+      parameters:
+        - { name: restoreId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestoreRun" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+
   /jobs/{jobId}:
     parameters:
       - $ref: "#/components/parameters/JobId"
@@ -5162,6 +5184,12 @@ components:
         encrypted: { type: boolean }
         encryption_key_id: { type: [string, "null"] }
         checksum_status: { type: string, enum: [UNVERIFIED, OK, MISMATCH] }
+        complete:
+          type: boolean
+          description: >
+            Whether the run that wrote it finished - whether `checksums.txt` is there. An archive
+            without one is not damaged; it is a run still going or one that died, and the
+            difference matters to whoever is deciding what to restore from.
         expires_at: { type: [string, "null"], format: date-time }
 
     BackupStart:
@@ -5275,6 +5303,74 @@ components:
         confirmation:
           type: [string, "null"]
           description: For destructive modes, the exact tenant name.
+        step_up_token:
+          type: [string, "null"]
+          description: >
+            The proof of a fresh, stronger authentication for a destructive mode (§8.3). Sessions
+            and MFA arrive in `0.6.0`; until an installation can issue one of these, a destructive
+            restore is refused rather than silently permitted. A confirmation that is structurally
+            impossible to give is a stronger position than one that is skipped.
+
+    RestoreRun:
+      type: object
+      description: >
+        One restore, asked for or done. Its report is what a dry run produces and what the mode
+        without `dry_run` is judged against.
+      required: [id, target_id, source_archive, mode, status, dry_run]
+      properties:
+        id: { type: string, format: uuid }
+        target_id: { type: string, format: uuid }
+        source_archive:
+          type: string
+          description: >
+            Where the archive lies at the target. A path rather than a run identifier, because a
+            restore has to be possible when the database that recorded the run is gone.
+        tenant_id: { type: [string, "null"], format: uuid, description: The tenant being restored into. }
+        mode: { type: string, enum: [INSPECT, SELECTIVE, MERGE, REPLACE_TENANT, NEW_TENANT, INSTANCE] }
+        conflict_rule: { type: string, enum: [SKIP, OVERWRITE, DUPLICATE] }
+        dry_run: { type: boolean }
+        status: { type: string, enum: [PENDING, VALIDATING, RUNNING, SUCCEEDED, FAILED, CANCELLED] }
+        safety_backup_run_id:
+          type: [string, "null"]
+          format: uuid
+          description: The copy taken before a destructive mode, and the way back from it.
+        report: { $ref: "#/components/schemas/RestoreReport" }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        error_code:
+          type: [string, "null"]
+          description: The message code of the failure, never a message and never free text.
+
+    RestoreReport:
+      type: object
+      description: >
+        What a restore did, or - on a dry run - what it would do. The same shape either way, so
+        that the report a caller approved and the report they get back are comparable.
+      properties:
+        new: { type: integer, description: Objects the archive holds and the tenant does not. }
+        overwritten: { type: integer, description: Objects replaced by the archive's version. }
+        skipped: { type: integer, description: Objects left as they are. }
+        duplicated: { type: integer, description: Objects imported beside the live one under a new identity. }
+        conflicts:
+          type: integer
+          description: >
+            Collisions the conflict rule had to decide. It is the sum of the three ways one can be
+            decided, and it is reported separately because "how much of this run is a decision I
+            made in advance" is the question a dry run exists to answer.
+        deleted:
+          type: integer
+          description: Objects the archive holds that the deletion journal kept out (§7).
+        withheld:
+          type: object
+          additionalProperties: { type: integer }
+          description: >
+            What the restore deliberately did not bring back, counted by reason - `deletion_journal`,
+            `excluded_entity`. An object rather than a total, so that a client can say why.
+        media: { type: integer, description: Attachments transferred back into the object store. }
+        entities:
+          type: object
+          additionalProperties: { type: integer }
+          description: How many records each entity contributed.
 
     PurgeSummary:
       type: object

@@ -235,7 +235,7 @@ Three things follow from that and are worth stating (E-05):
 The conflict is well known: an erasure request takes effect immediately in the primary system, but
 last week's archive still contains the data. How it is handled:
 
-* Deletions are recorded in a **deletion journal**. On restore they are reapplied: objects deleted between the archive point and the restore do not come back. This is the most effective measure, because it works without access to old archives.
+* Deletions are recorded in a **deletion journal**. On restore they are reapplied: objects deleted between the archive point and the restore do not come back. This is the most effective measure, because it works without access to old archives. The reader arrived with E-06, and it reads a window rather than the table: the journal outlives every archive, and an object deleted *before* the archive was taken is not in it, so what has to be kept out is what was deleted between the archive and now. A record that *points at* something the journal kept out is kept out with it — otherwise a restore obeying §7 would leave the workspace holding a row that references an object it deliberately did not create.
 * The retention period of the backups is the effective upper bound on deletion; it is documented in the data catalogue and is made transparent to data subjects rather than concealed.
 * `include_audit` is configurable: including the audit trail gives better evidence, but longer persistence of personal metadata.
 * Downloading an archive is itself an auditable data access (`backup.downloaded`).
@@ -251,7 +251,15 @@ last week's archive still contains the data. How it is handled:
 state in the database — the list is read from the manifests at the target. That means a restore
 works even when the database is lost and only the target credentials exist. Shown are the timestamp,
 scope, size, full/incremental, the chain to the parent archive, the checksum status, and the
-encryption key ID.
+encryption key ID — and whether the run that wrote each one finished, which is the difference between
+an archive that is damaged and one that is still being written.
+
+What the route reads is the point of it. The only database access is the target's own row and its
+sealed credential, which is what opening a connection needs and nothing more; the use case has no
+run repository at all, so joining `backup_run` is not something the path could do by accident. At a
+shared target the archive's own name is the filter, so one tenant is never told about another's —
+and asking for another tenant's archives outright is refused rather than answered with an empty
+list, which would be a wrong answer to a question nobody may ask.
 
 ### 8.2 Modes
 
@@ -265,7 +273,33 @@ encryption key ID.
 | `INSTANCE` | Import a system backup (operator, maintenance mode) | Total loss |
 
 `NEW_TENANT` is the recommended way to check before a destructive mode: import alongside first, look
-at it, then decide.
+at it, then decide. The API makes that the cheap path rather than a documented discipline: it is a
+mode rather than a procedure, and the tenant it creates is minted by the use case rather than named
+by the caller — which is what makes the job's elevation into it safe, because nothing of anybody
+else's is under a tenant that did not exist a moment ago.
+
+Four things E-06 had to decide about the table above:
+
+* **Destructive is `REPLACE_TENANT` and `INSTANCE`, and deliberately not `MERGE` with `overwrite`.**
+  An overwrite replaces the objects the archive names and leaves everything else; a replace removes
+  what the archive does *not* name. That is the difference between losing an edit and losing a
+  month, and only the second is worth a typed workspace name and a step-up in front of it.
+* **`duplicate` applies to content, not to context.** An account is who somebody is, a label is the
+  same label, a medium is the same bytes under a content address, and a webhook subscription copied
+  is a subscription that fires twice to somebody who never asked. For those the rule falls back to
+  `skip` and the report says so. What is copied — collections, buckets, labels, items and everything
+  hanging off them — gets a **derived** identity rather than a drawn one, so that a resumed restore
+  produces the same identifiers instead of a second copy of what it already wrote, and the copies
+  point at each other rather than at the originals.
+* **`SELECTIVE`'s closure comes out of the archive's reference graph.** A bucket names its
+  collection, an item names its collection, a comment names its item — so "everything below the
+  collection I named" falls out of the declarations. Only the containers need a pass of their own,
+  because the order within an entity is by change time and a sub-collection can be written before
+  its hub.
+* **`INSTANCE` has nothing to restore yet, and is refused rather than approximated.** No archive
+  this build writes has an instance-wide scope — B-2 leaves system backups to the operator until
+  `0.6.0` — so the mode is accepted, the archive's manifest is read, and the scope check refuses it.
+  The day an instance-wide archive exists the mode works without anything changing shape.
 
 ### 8.3 The procedure
 
@@ -276,12 +310,39 @@ at it, then decide.
 5. Execution as a job with progress; on cancellation, rollback within a transaction per batch size.
 6. Follow-up: apply the deletion journal (§7), rebuild the search index, do **not** re-fire automation for the period (§8.4), and write the report to the audit.
 
+Three of those steps are worth pinning down as E-06 implemented them:
+
+* **Step 3's step-up has no implementation and is refused rather than skipped.** Sessions and
+  multi-factor authentication are `0.6.0` ([security.md](./security.md) §5). The seam is defined —
+  `core/port/stepup` — and the shipped verifier answers "this installation cannot ask anybody", so
+  every destructive restore is refused with a code that says which of the two refusals it is. A
+  confirmation that is structurally impossible to give is a stronger position than one that is
+  skipped, and the code tells an operator to import the archive as a new workspace instead.
+* **Step 4 is a refusal when there is nowhere to write the copy.** The step's own parenthesis is
+  "if there is room at the target"; a destructive restore with no way back is the situation it
+  exists to prevent, so "there was nowhere to write it" stops the restore rather than waiving the
+  step. The copy's identifier is recorded on the run *before* the destructive mode runs, so the way
+  back is findable even if the run then fails.
+* **Step 5's batches carry their own progress marker.** Each batch commits its rows and how far the
+  run has got in one transaction, so a worker that dies is replaced by one that continues rather
+  than one that decides the same records again. That is what makes `duplicate` resumable at all:
+  the question it turns on — "does the workspace already hold this" — changes its answer once the
+  first attempt has written half the archive.
+* **Step 6's index needs no pass of its own.** The search document is maintained by a trigger on
+  the row, so rows written by a restore are indexed as they land.
+
 ### 8.4 What deliberately does *not* happen during a restore
 
-* **No automation rules fire.** A restore would otherwise trigger hundreds of webhooks and emails effectively reporting old states. Restored changes produce events with `replay: true`, which the rule engine ignores.
-* **No reminders are caught up** whose time lies in the past; they are marked as lapsed.
+* **No automation rules fire.** A restore would otherwise trigger hundreds of webhooks and emails effectively reporting old states. Restored changes produce events with `replay: true`, which the rule engine ignores. The flag arrived with E-06 rather than with the engine in `0.5.0`, because a flag introduced alongside the consumer that reads it has a window in which the consumer does not know about it — and that window is a restore. It is not delivered to a subscriber that has not asked for it: the decision is the dispatcher's, so a consumer added later by somebody who has never read this section is not handed a replay by accident.
+* **No reminders are caught up** whose time lies in the past; they are marked as lapsed. `LAPSED` is a state of its own (migration 0037) rather than `CANCELLED`: nobody cancelled them, and an auditor reading a workspace after a restore should not find hundreds of cancellations that never happened.
 * **No webhooks are re-delivered**; the archive's outbox is not imported.
-* **No tokens or sessions are restored** — making credentials from an archive valid again is a security risk. Users must sign in again; PATs must be recreated. This is displayed before the restore.
+* **No tokens or sessions are restored** — making credentials from an archive valid again is a security risk. Users must sign in again; PATs must be recreated. This is displayed before the restore. Neither table is in the archive at all, which is the stronger form of the same promise: a restore cannot write back what it was never given.
+
+One entity is in the archive and is deliberately **not written back**: the audit trail. §4 of
+[audit.md](./audit.md) makes the live trail a hash chain and E-09's `:verify` walks it; inserting
+last month's entries into the middle of a live chain is not a restore but a rewrite, and "the trail
+cannot be rewritten" is the property the whole audit surface rests on. `include_audit` still puts it
+in the archive, which is what it was for — the evidence is readable where it was written down.
 
 ---
 
@@ -368,3 +429,4 @@ a drill yet, and an absence rule would page every installation for a feature tha
 | B-2 | Whether system backups (PITR) are orchestrated by Hubtask or left to the operator | `0.6.0` |
 | B-3 | Retention protection against ransomware (recommend object lock as mandatory?) | `0.6.0` |
 | B-4 | The scope of the trial restore in the default schedule | `0.9.0` |
+| B-5 | What a restore owes connected devices. It writes rows without change log entries, so a device that was offline through one keeps a cursor that is still valid and will never be told what changed (E-06, [offline-sync.md](./offline-sync.md) §8). The candidates are a change log entry per restored row, or a per-tenant "resynchronise from scratch" marker that a pull turns into a full sync — the second is cheaper and is probably right for an act this rare, and neither should be guessed at inside a backup task | `0.5.0` |

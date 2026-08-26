@@ -200,3 +200,31 @@ func TestTheEventTypesAreAClosedSet(t *testing.T) {
 		t.Error("a version that does not exist is accepted")
 	}
 }
+
+// backup-restore.md §8.4: a restore's changes carry `replay: true`, and the flag survives the
+// chain rather than being set once and forgotten.
+func TestAReplayTravelsWithTheCausalChain(t *testing.T) {
+	replayed, err := event.NewEnvelope(eventID, event.ContainerCreated, tenantID, "container/x",
+		actor, occurredAt, event.Cause{Replay: true}, map[string]any{"id": "x"})
+	if err != nil {
+		t.Fatalf("the event was refused: %v", err)
+	}
+	if !replayed.Replay {
+		t.Fatal("the cause said replay and the envelope does not")
+	}
+
+	// An event caused by a replayed event is a replayed event. Otherwise the first rule that
+	// reacted to one would produce a chain nothing recognised as a replay any more.
+	if !replayed.CausedBy().Replay {
+		t.Error("the cause of a following event lost the replay")
+	}
+
+	ordinary, err := event.NewEnvelope(eventID, event.ContainerCreated, tenantID, "container/x",
+		actor, occurredAt, event.Cause{}, map[string]any{"id": "x"})
+	if err != nil {
+		t.Fatalf("the event was refused: %v", err)
+	}
+	if ordinary.Replay || ordinary.CausedBy().Replay {
+		t.Error("an ordinary event says it is a replay")
+	}
+}

@@ -261,3 +261,66 @@ func TestTheNextRoundFollowsFromWhatThisOneFound(t *testing.T) {
 		})
 	}
 }
+
+// replayingDouble is a subscriber that has been read against backup-restore.md §8.4 and wants the
+// events a restore wrote - the search index, in the shape it will have.
+type replayingDouble struct{ subscriberDouble }
+
+func (r *replayingDouble) TakesReplays() {}
+
+func TestAReplayedEventGoesOnlyToSubscribersThatAskedForOne(t *testing.T) {
+	replayed := envelopeAt("018f3a1c-0000-7000-8000-000000000001", now.Add(-time.Second))
+	replayed.Replay = true
+	pending := &pendingDouble{events: []event.Envelope{replayed}}
+
+	outward := &subscriberDouble{name: "webhooks"}
+	inward := &replayingDouble{subscriberDouble{name: "search"}}
+
+	dispatch := dispatcher(pending, newConsumption(), outward)
+	dispatch.Subscribers = append(dispatch.Subscribers, inward)
+
+	if _, err := dispatch.Run(context.Background(), dispatchJob()); err != nil {
+		t.Fatalf("the round failed: %v", err)
+	}
+
+	// §8.4: a restore fires no automation and sends no webhook. The dispatcher is where that is
+	// true, so that it is true for a subscriber written by somebody who has not read §8.4.
+	if len(outward.delivered) != 0 {
+		t.Errorf("a replayed event reached the outward-facing subscriber")
+	}
+	if len(inward.delivered) != 1 {
+		t.Errorf("the search index was not given the replayed event")
+	}
+	// It is still marked: an event nobody wanted is delivered as far as it goes, and leaving it
+	// pending would make the dispatcher read it again for ever.
+	if len(pending.dispatched) != 1 {
+		t.Errorf("the replayed event was left pending")
+	}
+}
+
+func TestAnOrdinaryEventStillReachesEverySubscriber(t *testing.T) {
+	pending := &pendingDouble{events: []event.Envelope{
+		envelopeAt("018f3a1c-0000-7000-8000-000000000001", now.Add(-time.Second)),
+	}}
+	outward := &subscriberDouble{name: "webhooks"}
+
+	if _, err := dispatcher(pending, newConsumption(), outward).Run(context.Background(), dispatchJob()); err != nil {
+		t.Fatalf("the round failed: %v", err)
+	}
+	if len(outward.delivered) != 1 {
+		t.Fatalf("an ordinary event was withheld")
+	}
+}
+
+func TestTheCloudEventNamesAReplayAndSaysNothingOtherwise(t *testing.T) {
+	ordinary := ToCloudEvent(envelopeAt("018f3a1c-0000-7000-8000-000000000001", now), "hubtask")
+	if _, present := ordinary["replay"]; present {
+		t.Errorf("an ordinary event carries a replay attribute")
+	}
+
+	replayed := envelopeAt("018f3a1c-0000-7000-8000-000000000001", now)
+	replayed.Replay = true
+	if ToCloudEvent(replayed, "hubtask")["replay"] != true {
+		t.Errorf("a replayed event does not say so")
+	}
+}

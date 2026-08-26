@@ -50,7 +50,19 @@ type Envelope struct {
 	// CausationDepth counts how far this event is from that original action; it is what the loop
 	// protection reads.
 	CausationDepth int
-	Payload        map[string]any
+	// Replay marks a change a restore wrote rather than one somebody made
+	// (backup-restore.md §8.4).
+	//
+	// It exists so that the rule engine can ignore these, which is the whole of §8.4's first
+	// prohibition: a restore would otherwise trigger hundreds of webhooks and emails reporting
+	// states that are a month old. The engine arrives in 0.5.0 and finds the field already here -
+	// a flag introduced alongside the consumer that reads it would have a window in which the
+	// consumer did not know about it, and that window is a restore.
+	//
+	// It travels on the envelope rather than in the payload because it is routing: the dispatcher
+	// decides what to hand a subscriber before anything parses the payload.
+	Replay  bool
+	Payload map[string]any
 }
 
 // Cause is where an event comes from: nothing (a person acted), or another event.
@@ -58,6 +70,10 @@ type Cause struct {
 	CorrelationID  shared.ID
 	CausationID    shared.ID
 	CausationDepth int
+	// Replay says the whole chain is a replay. It is on the cause rather than a parameter of its
+	// own so that it cannot be lost between two events of one chain: an event caused by a
+	// replayed event is a replayed event, and CausedBy carries it without anybody remembering to.
+	Replay bool
 }
 
 // NewEnvelope builds an event and checks what a consumer relies on.
@@ -98,6 +114,7 @@ func NewEnvelope(id shared.ID, eventType Type, tenantID shared.ID, subject strin
 		CorrelationID:  correlationID,
 		CausationID:    cause.CausationID,
 		CausationDepth: cause.CausationDepth,
+		Replay:         cause.Replay,
 		// Copied, so that the caller cannot change a payload that has already been recorded.
 		Payload: maps.Clone(payload),
 	}, nil
@@ -109,5 +126,6 @@ func (e Envelope) CausedBy() Cause {
 		CorrelationID:  e.CorrelationID,
 		CausationID:    e.ID,
 		CausationDepth: e.CausationDepth + 1,
+		Replay:         e.Replay,
 	}
 }

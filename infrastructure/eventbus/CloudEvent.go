@@ -40,6 +40,14 @@ func ToCloudEvent(envelope event.Envelope, source string) map[string]any {
 		"data": envelope.Payload,
 	}
 
+	// Present only on a replay, and absent otherwise rather than false. A consumer written before
+	// restores existed reads an ordinary event exactly as it always did, and one written after can
+	// filter on the attribute's presence - which is what a broker's routing rule can express and
+	// "equals false or missing" is not.
+	if envelope.Replay {
+		cloudEvent["replay"] = true
+	}
+
 	// Absent rather than empty: a consumer distinguishes "no causing event" from "an event with
 	// an empty identifier", and only one of those is a thing that can happen.
 	for name, id := range map[string]string{

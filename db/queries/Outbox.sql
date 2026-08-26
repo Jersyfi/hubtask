@@ -8,12 +8,12 @@
 -- name: AppendOutboxEvent :exec
 INSERT INTO outbox_event (
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('event_type'), sqlc.narg('subject'),
   sqlc.arg('payload'), sqlc.arg('actor_type'), sqlc.narg('actor_id'),
   sqlc.narg('correlation_id'), sqlc.narg('causation_id'), sqlc.arg('causation_depth'),
-  sqlc.arg('occurred_at')
+  sqlc.arg('occurred_at'), sqlc.arg('replay')
 );
 
 -- The dispatcher's claim. The rows are locked for the length of the transaction and rows another
@@ -22,7 +22,7 @@ INSERT INTO outbox_event (
 -- name: ClaimPendingEvents :many
 SELECT
   id, tenant_id, event_type, subject, payload,
-  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
 FROM outbox_event
 WHERE dispatched_at IS NULL
 ORDER BY occurred_at, id

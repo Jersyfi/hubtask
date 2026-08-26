@@ -106,6 +106,116 @@ type MediaLocation struct {
 	Bytes      int64
 }
 
+// Restores stores what a restore did, and what it is about to do (E-06).
+//
+// The row is written when the restore is accepted rather than when it starts, which is what lets a
+// caller poll the `result_url` they were handed instead of meeting a 404 for the first few seconds.
+type Restores interface {
+	// Insert writes the accepted restore, PENDING.
+	Insert(ctx context.Context, restore domain.Restore) error
+
+	// Find answers one restore, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (domain.Restore, error)
+
+	// Claim moves the run to RUNNING and answers whether it got the tenant.
+	//
+	// False is not an error: a second restore in one tenant is what the lock exists to prevent.
+	// A run that is already RUNNING claims itself again, which is what makes a job that died
+	// resumable - it continues its own run rather than being told the tenant is busy (BK-7).
+	Claim(ctx context.Context, id shared.ID, at time.Time) (bool, error)
+
+	// Finish records how a restore ended and what it did. Refused for a run that is no longer
+	// going, which is what makes a cancelled restore stay cancelled.
+	Finish(ctx context.Context, outcome domain.RestoreOutcome) error
+
+	// RecordProgress writes how far the run has got, and the report so far, in the transaction of
+	// the batch that got it there. A resumed attempt reads both back: the progress so that it
+	// does not decide the same records twice, and the report so that it continues counting rather
+	// than starting again (BK-7).
+	RecordProgress(ctx context.Context, id shared.ID, report domain.Report, progress map[string]int) error
+
+	// RecordSafetyCopy writes down the backup taken before a destructive mode, before the mode
+	// runs. The way back has to be findable from the run even if the run then fails.
+	RecordSafetyCopy(ctx context.Context, id, backupRunID shared.ID) error
+
+	// InProgress reports whether this tenant already has a restore going, so that a second one is
+	// refused where the caller can read the refusal rather than minutes later inside a job.
+	InProgress(ctx context.Context) (bool, error)
+}
+
+// Workspace is the one thing a destructive restore has to ask about the tenant it is about to
+// replace: what it is called (E-06, backup-restore.md §8.3 step 3).
+//
+// A port of one method rather than a field on something larger, because that is genuinely all of
+// it. The name is read to be compared against what somebody typed, and it is never answered to a
+// caller - a use case that returned it would be a use case that told you what to type.
+type Workspace interface {
+	// Name answers the display name of the tenant the transaction is bound to.
+	Name(ctx context.Context) (string, error)
+}
+
+// Import is the tenant's rows as a restore writes them (E-06, backup-restore.md §8).
+//
+// The mirror of Export, in the same vocabulary and with the same seam: table names on this side,
+// the archive's entity names on the other. Row by row rather than in pages, which is the one place
+// this port is deliberately less efficient than its opposite - a restore has to decide each row
+// against the conflict rule and against the deletion journal, and a batch that wrote thirty rows
+// at once could not report which of them it had skipped.
+//
+// The tenant is never a parameter. It comes from `current_tenant_id()` inside every statement, so
+// a restore cannot write into another tenant even deliberately - BK-10 at the layer where it
+// cannot be forgotten.
+type Import interface {
+	// Holds reports whether the tenant already has the row this data identifies.
+	//
+	// Asked before the write rather than derived from it, because the dry run has to answer the
+	// same question without writing anything (§8.3 step 2). One question in both paths is also
+	// what makes the report a caller approved and the report they get back comparable.
+	Holds(ctx context.Context, table string, data map[string]any) (bool, error)
+
+	// Write inserts the row, replaces it when overwrite is true, and answers whether anything was
+	// written. False is a collision the caller asked to leave alone - not an error.
+	Write(ctx context.Context, table string, data map[string]any, overwrite bool) (bool, error)
+
+	// Clear empties one table within the tenant and answers how many rows went. It is what
+	// REPLACE_TENANT is made of, and it exists for no other mode.
+	Clear(ctx context.Context, table string) (int, error)
+}
+
+// Journal is the deletion journal, read (E-06, backup-restore.md §7).
+//
+// The table has been written since B-10 and read, until now, only by tests - the comment on the
+// writing side says so in as many words: "nothing reads this table in production; it exists so
+// that a restore from backup cannot bring back what was deleted." This is that reader.
+//
+// It is a port of its own rather than a method on the lifecycle repository for the reason that
+// port already gives about mixing reads with deletions: one interface carrying both would let a
+// read path reach a statement written to remove rows. Here the asymmetry is sharper still - the
+// writer is the machinery that deletes, and the reader is the machinery that must not undelete.
+type Journal interface {
+	// DeletedSince hands over the deletions recorded after an instant, oldest first.
+	//
+	// The instant is the archive's snapshot, and that is what makes the read bounded rather than
+	// a pass over a journal that outlives every archive: an object deleted *before* the archive
+	// was taken is not in the archive, so nothing has to be kept out on its account. What has to
+	// be kept out is what was deleted between the archive and now, which is exactly this window.
+	//
+	// A callback rather than a slice, for the reason every other read here is one: a tenant that
+	// has been emptying its trash for two years has a journal larger than the thing being
+	// restored.
+	DeletedSince(ctx context.Context, since time.Time, yield func(Deletion) error) error
+}
+
+// Deletion is one entry of the journal.
+type Deletion struct {
+	// Entity is the table the row was removed from - the schema's vocabulary, which is what the
+	// journal is written in and what the archive's entities cross over from.
+	Entity    string
+	EntityID  shared.ID
+	DeletedAt time.Time
+	Reason    string
+}
+
 // Schedules stores what runs when (E-05, backup-restore.md §5).
 type Schedules interface {
 	// Insert writes a schedule, with the moment it is next due already decided: the rule is

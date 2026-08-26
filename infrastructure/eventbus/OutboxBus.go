@@ -105,6 +105,14 @@ func (d Dispatcher) deliver(ctx context.Context, envelope event.Envelope) error 
 		if !subscriber.Wants(envelope.Type) {
 			continue
 		}
+		// A change a restore wrote goes only to the subscribers that asked for one
+		// (backup-restore.md §8.4). It is decided here rather than inside each subscriber because
+		// §8.4 is a promise about the system rather than a habit each consumer keeps: a
+		// subscriber added later by somebody who has not read it is not delivered a replay by
+		// accident.
+		if envelope.Replay && !eventbusport.WantsReplay(subscriber) {
+			continue
+		}
 
 		// The claim comes first, and it is a write rather than a question: two dispatchers asking
 		// "has this been consumed" would both be told no. A repeat is not an error - it is the
