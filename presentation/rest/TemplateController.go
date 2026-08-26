@@ -16,11 +16,12 @@ import (
 // may be defined for the whole workspace and a path would have to invent a container for it.
 
 const (
-	listTemplatesUseCase  = "ListTemplates"
-	createTemplateUseCase = "CreateTemplate"
-	getTemplateUseCase    = "GetTemplate"
-	updateTemplateUseCase = "UpdateTemplate"
-	deleteTemplateUseCase = "DeleteTemplate"
+	listTemplatesUseCase       = "ListTemplates"
+	createTemplateUseCase      = "CreateTemplate"
+	getTemplateUseCase         = "GetTemplate"
+	updateTemplateUseCase      = "UpdateTemplate"
+	deleteTemplateUseCase      = "DeleteTemplate"
+	instantiateTemplateUseCase = "InstantiateTemplate"
 )
 
 // ListTemplates answers GET /templates.
@@ -168,6 +169,62 @@ func (c *RestController) DeleteTemplate(
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// InstantiateTemplate answers POST /templates/{templateId}:instantiate.
+func (c *RestController) InstantiateTemplate(
+	w http.ResponseWriter, r *http.Request, templateID openapi.TemplateId,
+	_ openapi.InstantiateTemplateParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.InstantiateTemplateJSONRequestBody
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	in := usecase.Input{
+		"template_id":   templateID.String(),
+		"collection_id": body.CollectionId.String(),
+	}
+	if body.ParentId != nil {
+		in["parent_id"] = body.ParentId.String()
+	}
+	if body.AnchorDate != nil {
+		in["anchor_date"] = body.AnchorDate.Format("2006-01-02")
+	}
+	if body.Title != nil {
+		in["title"] = *body.Title
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), instantiateTemplateUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	instance := openapi.TemplateInstance{
+		TemplateId:        uuidValue(out.String("template_id")),
+		RootItemId:        uuidValue(out.String("root_item_id")),
+		Created:           out.Int("created"),
+		DroppedReferences: []openapi.DroppedReference{},
+	}
+	for _, row := range outputsOf(out["dropped_references"]) {
+		itemID := uuidValue(row.String("item_id"))
+		instance.DroppedReferences = append(instance.DroppedReferences, openapi.DroppedReference{
+			ItemId: &itemID,
+			Kind:   openapi.DroppedReferenceKind(row.String("kind")),
+			Id:     row.String("reference"),
+			Code:   row.String("code"),
+		})
+	}
+	writeJSON(w, r, http.StatusCreated, instance)
 }
 
 // templateNodesInput maps the contract's tree onto the untyped document the catalogue takes. The

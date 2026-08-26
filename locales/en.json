@@ -583,6 +583,7 @@
   "recurrence.stored_zone_unknown": "That series was stored with a time zone this installation no longer knows.",
   "recurrence.stored_rule_unreadable": "That series was stored with a rule this installation can no longer read.",
   "events.occurrence_incomplete": "This installation is misconfigured and could not announce an occurrence.",
+  "events.instantiation_incomplete": "This installation is misconfigured and could not announce an instantiation.",
 
   "templates.scope_unknown": "{value} is not a template scope. Use TENANT, HUB or COLLECTION.",
   "templates.scope_id_required": "This scope names a container. Send scope_id with it.",

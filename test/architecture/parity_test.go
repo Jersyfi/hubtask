@@ -111,6 +111,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.GetTemplate{}.Descriptor(),
 		work.UpdateTemplate{}.Descriptor(),
 		work.DeleteTemplate{}.Descriptor(),
+		work.InstantiateTemplate{}.Descriptor(),
 		work.GetRecurrence{}.Descriptor(),
 		work.AttachMedia{}.Descriptor(),
 		work.DefineCustomField{}.Descriptor(),

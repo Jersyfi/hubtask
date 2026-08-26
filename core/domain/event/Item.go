@@ -452,6 +452,31 @@ func NewOccurrenceCreated(
 		})
 }
 
+// NewTemplateInstantiated announces that a template produced a tree (D-06, domain-model.md §4).
+//
+// The two identifiers the catalogue names and the size of what came out: which template, which
+// root entry, and how many entries it is - enough for a consumer to decide whether to look, which
+// is what an announcement about a bulk act owes.
+func NewTemplateInstantiated(
+	id, templateID shared.ID, root work.WorkItem, created int, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if templateID.IsZero() || root.ID.IsZero() {
+		// An instantiation that names no template or no root. The use case writes both, so this is
+		// the caller and the event disagreeing - a defect rather than input (security.md §9).
+		return Envelope{}, shared.ErrInternal.WithDetail("events.instantiation_incomplete")
+	}
+
+	return NewEnvelope(id, TemplateInstantiated, root.TenantID,
+		ItemSubject(root.ID), actor, occurredAt, cause,
+		map[string]any{
+			"template_id":   templateID.String(),
+			"root_item_id":  root.ID.String(),
+			"collection_id": root.CollectionID.String(),
+			"created":       created,
+		})
+}
+
 func newItemAssignment(id shared.ID, eventType Type, item work.WorkItem, assigneeID shared.ID,
 	actor Actor, occurredAt time.Time, cause Cause,
 ) (Envelope, error) {

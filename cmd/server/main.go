@@ -759,6 +759,10 @@ func run() error {
 		work.GetTemplate{Writer: templateWriter}.Descriptor(),
 		work.UpdateTemplate{Writer: templateWriter}.Descriptor(),
 		work.DeleteTemplate{Writer: templateWriter}.Descriptor(),
+		work.InstantiateTemplate{
+			Writer: templateWriter, Items: items, ItemMembers: itemMembers,
+			Visibility: authorizer, Events: outbox, Activity: journal,
+		}.Descriptor(),
 		work.GetRecurrence{
 			Recurrences: recurrences, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

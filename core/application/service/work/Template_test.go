@@ -6,9 +6,11 @@ package work
 import (
 	"context"
 	"testing"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -108,20 +110,21 @@ func templateProfiles() []domain.CapabilityProfile {
 }
 
 type templateHarness struct {
-	create     CreateTemplate
-	update     UpdateTemplate
-	remove     DeleteTemplate
-	get        GetTemplate
-	list       ListTemplates
-	templates  *templates
-	items      *items
-	containers *containers
-	changes    *changes
-	audit      *sink
-	events     *events
-	history    *journal
-	visibility *visibility
-	authorizer *authorizer
+	create      CreateTemplate
+	update      UpdateTemplate
+	remove      DeleteTemplate
+	get         GetTemplate
+	list        ListTemplates
+	instantiate InstantiateTemplate
+	templates   *templates
+	items       *items
+	containers  *containers
+	changes     *changes
+	audit       *sink
+	events      *events
+	history     *journal
+	visibility  *visibility
+	authorizer  *authorizer
 }
 
 func newTemplateHarness(t *testing.T) *templateHarness {
@@ -149,6 +152,11 @@ func newTemplateHarness(t *testing.T) *templateHarness {
 	h.list = ListTemplates{
 		Templates: h.templates, Containers: h.containers, Authorizer: h.authorizer,
 		UnitOfWork: &unitOfWork{},
+	}
+	h.instantiate = InstantiateTemplate{
+		Writer: writer, Items: h.items, ItemMembers: newItemMembers(),
+		Visibility: h.visibility, Events: h.events,
+		Activity: ActivityJournal{Entries: h.history, IDs: &ids{}},
 	}
 
 	h.containers.stored[hubID] = domain.Container{
@@ -238,6 +246,165 @@ func TestATreeTheProfilesRefuseIsRefusedAtTheDefinition(t *testing.T) {
 	}
 	if len(h.templates.inserted) != 0 {
 		t.Error("the template was stored despite the refusal")
+	}
+}
+
+// The acceptance's own sentence: relative dates become absolute ones against the anchor, in the
+// right zone, with the all-day flags preserved.
+func TestInstantiatingResolvesTheDatesAndWritesTheTree(t *testing.T) {
+	h := newTemplateHarness(t)
+	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{
+		Spec: moveSpec(t),
+	})
+	if err != nil {
+		t.Fatalf("defining the template failed: %v", err)
+	}
+
+	anchor := time.Date(2026, 9, 7, 0, 0, 0, 0, time.UTC)
+	result, err := h.instantiate.Execute(t.Context(), actor(), InstantiateTemplateCommand{
+		TemplateID: template.ID, CollectionID: collectionID, Anchor: anchor,
+	})
+	if err != nil {
+		t.Fatalf("instantiating failed: %v", err)
+	}
+
+	if result.Created != 3 || result.Root.Title != "Move house" {
+		t.Fatalf("the instantiation produced %+v", result)
+	}
+	if len(h.items.stored) != 3 {
+		t.Fatalf("%d entries were written", len(h.items.stored))
+	}
+
+	var packing domain.WorkItem
+	for _, item := range h.items.stored {
+		if item.Title == "Pack the kitchen" {
+			packing = item
+		}
+	}
+	if packing.Due == nil || !packing.Due.At.Equal(anchor.AddDate(0, 0, 3)) {
+		t.Errorf("the relative date became %v", packing.Due)
+	}
+	if !packing.Due.DateOnly {
+		t.Error("the all-day flag was lost")
+	}
+	if packing.AssigneeID != colleagueAccountID {
+		t.Errorf("the fixed assignee became %q", packing.AssigneeID)
+	}
+	if packing.ParentID != result.Root.ID {
+		t.Errorf("the step hangs from %q rather than from the root", packing.ParentID)
+	}
+
+	// Every entry announces itself, and the act announces itself once.
+	created, instantiated := 0, 0
+	for _, envelope := range h.events.appended {
+		switch envelope.Type {
+		case event.ItemCreated:
+			created++
+		case event.TemplateInstantiated:
+			instantiated++
+			if envelope.Payload["template_id"] != template.ID.String() {
+				t.Errorf("the announcement names %v", envelope.Payload["template_id"])
+			}
+		}
+	}
+	if created != 3 || instantiated != 1 {
+		t.Errorf("%d entries and %d instantiations were announced", created, instantiated)
+	}
+	if len(h.history.entries) != 3 {
+		t.Errorf("%d history steps were written", len(h.history.entries))
+	}
+}
+
+// I-W6 at the moment it matters: a template written last year may name somebody who has left, and
+// the loss is reported rather than written.
+func TestAnAssigneeTheDestinationCannotReachIsReported(t *testing.T) {
+	h := newTemplateHarness(t)
+	spec := moveSpec(t)
+	stranger := shared.MustParseID("0192f000-0000-7000-8000-0000000000fd")
+	spec.Root.Children[1].AssigneeID = stranger
+
+	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{Spec: spec})
+	if err != nil {
+		t.Fatalf("defining the template failed: %v", err)
+	}
+
+	result, err := h.instantiate.Execute(t.Context(), actor(), InstantiateTemplateCommand{
+		TemplateID: template.ID, CollectionID: collectionID,
+	})
+	if err != nil {
+		t.Fatalf("instantiating failed: %v", err)
+	}
+
+	if len(result.DroppedReferences) != 1 {
+		t.Fatalf("the losses are %+v", result.DroppedReferences)
+	}
+	dropped := result.DroppedReferences[0]
+	if dropped.Kind != domain.ReferenceAssignee || dropped.ID != stranger.String() {
+		t.Errorf("the loss is %+v", dropped)
+	}
+	for _, item := range h.items.stored {
+		if item.AssigneeID == stranger {
+			t.Error("the entry was written on somebody who cannot see the collection")
+		}
+	}
+}
+
+// The instantiation asks for the right to create entries where the tree lands, not for the right
+// to define templates: the two are different acts by different people.
+func TestInstantiatingAsksForTheRightToCreateEntries(t *testing.T) {
+	h := newTemplateHarness(t)
+	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{
+		Spec: moveSpec(t),
+	})
+	if err != nil {
+		t.Fatalf("defining the template failed: %v", err)
+	}
+
+	before := len(h.authorizer.requests)
+	if _, err := h.instantiate.Execute(t.Context(), actor(), InstantiateTemplateCommand{
+		TemplateID: template.ID, CollectionID: collectionID,
+	}); err != nil {
+		t.Fatalf("instantiating failed: %v", err)
+	}
+
+	asked := h.authorizer.requests[before]
+	if asked.Permission != service.PermissionWriteItems {
+		t.Errorf("the permission asked for is %s", asked.Permission)
+	}
+}
+
+// A deletion is soft and idempotent, and what it stamped out is not touched.
+func TestDeletingATemplateLeavesItsTreesStanding(t *testing.T) {
+	h := newTemplateHarness(t)
+	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{
+		Spec: moveSpec(t),
+	})
+	if err != nil {
+		t.Fatalf("defining the template failed: %v", err)
+	}
+	if _, err := h.instantiate.Execute(t.Context(), actor(), InstantiateTemplateCommand{
+		TemplateID: template.ID, CollectionID: collectionID,
+	}); err != nil {
+		t.Fatalf("instantiating failed: %v", err)
+	}
+
+	if err := h.remove.Execute(t.Context(), actor(), ChangeTemplateCommand{
+		TemplateID: template.ID,
+	}); err != nil {
+		t.Fatalf("deleting the template failed: %v", err)
+	}
+	if len(h.items.stored) != 3 {
+		t.Errorf("the deletion took %d entries with it", 3-len(h.items.stored))
+	}
+
+	// And it is gone as far as anybody asking for it is concerned.
+	if _, err := h.get.Execute(t.Context(), actor(), template.ID); err == nil {
+		t.Error("a deleted template was read back")
+	}
+	if err := h.remove.Execute(t.Context(), actor(), ChangeTemplateCommand{
+		TemplateID: template.ID,
+	}); err == nil {
+		t.Error("deleting it twice succeeded, and there is nothing left to delete")
 	}
 }
 
@@ -419,6 +586,175 @@ func TestTheListAndTheReadAnswerWhatTheCallerMaySee(t *testing.T) {
 	_, err = h.get.Execute(t.Context(), actor(), template.ID)
 	if got := shared.AsError(err); got == nil || got.DetailCode != "templates.not_found" {
 		t.Fatalf("a template the caller may not see answered %v", err)
+	}
+}
+
+// The anchor defaults to today in the caller's own zone, which is what makes "+3 days" mean the
+// same thing to the person who wrote the template and the person using it.
+func TestTheAnchorDefaultsToTodayInTheCallersZone(t *testing.T) {
+	h := newTemplateHarness(t)
+	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{
+		Spec: moveSpec(t),
+	})
+	if err != nil {
+		t.Fatalf("defining the template failed: %v", err)
+	}
+
+	acting := actor()
+	acting.TimeZone = "Europe/Berlin"
+	if _, err := h.instantiate.Execute(t.Context(), acting, InstantiateTemplateCommand{
+		TemplateID: template.ID, CollectionID: collectionID,
+	}); err != nil {
+		t.Fatalf("instantiating failed: %v", err)
+	}
+
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range h.items.stored {
+		if item.Due == nil {
+			continue
+		}
+		local := item.Due.At.In(berlin)
+		if local.Hour() != 0 || local.Minute() != 0 {
+			t.Errorf("the date is %s local rather than the start of a day",
+				local.Format(time.RFC3339))
+		}
+		if !local.After(now.In(berlin)) {
+			t.Errorf("the date %s is not after today", local.Format(time.RFC3339))
+		}
+	}
+}
+
+// An instantiation into a collection that is not there, or under a parent from another collection,
+// is refused before anything is written.
+func TestAnInstantiationNeedsSomewhereToLand(t *testing.T) {
+	h := newTemplateHarness(t)
+	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{
+		Spec: moveSpec(t),
+	})
+	if err != nil {
+		t.Fatalf("defining the template failed: %v", err)
+	}
+
+	if _, err := h.instantiate.Execute(t.Context(), actor(), InstantiateTemplateCommand{
+		TemplateID: template.ID,
+	}); err == nil {
+		t.Error("an instantiation with no collection was accepted")
+	}
+
+	_, err = h.instantiate.Execute(t.Context(), actor(), InstantiateTemplateCommand{
+		TemplateID:   template.ID,
+		CollectionID: shared.MustParseID("0192f000-0000-7000-8000-0000000000ef"),
+	})
+	if got := shared.AsError(err); got == nil || got.DetailCode != "containers.not_found" {
+		t.Fatalf("refused as %v", err)
+	}
+	if len(h.items.stored) != 0 {
+		t.Error("entries were written despite the refusal")
+	}
+}
+
+// The catalogue's door, which is the one every channel comes through: an untyped document in, a
+// projection out. What it proves beyond the typed path is the tree's own parsing - a client sends
+// nodes as a document, and a node with a malformed offset is refused by the node rather than by
+// the tree.
+func TestTheCatalogueDoorTakesTheWholeTemplate(t *testing.T) {
+	h := newTemplateHarness(t)
+
+	document := map[string]any{
+		"scope_type": string(domain.TemplateScopeCollection),
+		"scope_id":   collectionID.String(),
+		"name":       "Move house",
+		"root_type":  string(domain.ItemTask),
+		"nodes": []any{
+			map[string]any{
+				"type": string(domain.ItemTask), "title": "Move house",
+				"children": []any{
+					map[string]any{
+						"type": string(domain.ItemWorkPackage), "title": "Pack the kitchen",
+						"due_offset": "P3D", "due_date_only": true,
+						"assignee_id": colleagueAccountID.String(),
+					},
+				},
+			},
+		},
+	}
+
+	out, err := h.create.Descriptor().Handler.Invoke(t.Context(), actor(), document)
+	if err != nil {
+		t.Fatalf("defining through the catalogue failed: %v", err)
+	}
+	if out["name"] != "Move house" {
+		t.Fatalf("the projection is %+v", out)
+	}
+	nodes, ok := out["nodes"].([]usecase.Output)
+	if !ok || len(nodes) != 1 {
+		t.Fatalf("the tree came back as %+v", out["nodes"])
+	}
+	children, ok := nodes[0]["children"].([]usecase.Output)
+	if !ok || len(children) != 1 || children[0]["due_offset"] != "P3D" {
+		t.Fatalf("the child came back as %+v", nodes[0]["children"])
+	}
+	templateID := out.String("id")
+
+	// The read, the list and the change, through the same door.
+	if _, err := h.get.Descriptor().Handler.Invoke(t.Context(), actor(),
+		usecase.Input{"template_id": templateID}); err != nil {
+		t.Fatalf("reading through the catalogue failed: %v", err)
+	}
+	listed, err := h.list.Descriptor().Handler.Invoke(t.Context(), actor(),
+		usecase.Input{"container_id": collectionID.String()})
+	if err != nil {
+		t.Fatalf("listing through the catalogue failed: %v", err)
+	}
+	if rows, ok := listed["data"].([]usecase.Output); !ok || len(rows) != 1 {
+		t.Errorf("the list came back as %+v", listed["data"])
+	}
+
+	changed, err := h.update.Descriptor().Handler.Invoke(t.Context(), actor(), usecase.Input{
+		"template_id": templateID, "description": "Everything a move needs",
+	})
+	if err != nil {
+		t.Fatalf("changing through the catalogue failed: %v", err)
+	}
+	if changed["description"] != "Everything a move needs" {
+		t.Errorf("the change came back as %+v", changed)
+	}
+
+	// The instantiation, with the anchor as the date a client sends.
+	acting := actor()
+	acting.TimeZone = "Europe/Berlin"
+	instance, err := h.instantiate.Descriptor().Handler.Invoke(t.Context(), acting, usecase.Input{
+		"template_id": templateID, "collection_id": collectionID.String(),
+		"anchor_date": "2026-09-07", "title": "Move to the new flat",
+	})
+	if err != nil {
+		t.Fatalf("instantiating through the catalogue failed: %v", err)
+	}
+	if instance["created"] != 2 {
+		t.Errorf("the instantiation reports %v entries", instance["created"])
+	}
+	for _, item := range h.items.stored {
+		if item.ParentID.IsZero() && item.Title != "Move to the new flat" {
+			t.Errorf("the root is called %q rather than what the request asked for", item.Title)
+		}
+	}
+
+	// A date that is not one is refused by the field a client sent.
+	if _, err := h.instantiate.Descriptor().Handler.Invoke(t.Context(), acting, usecase.Input{
+		"template_id": templateID, "collection_id": collectionID.String(),
+		"anchor_date": "next monday",
+	}); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "templates.anchor_invalid" {
+		t.Fatalf("an anchor that is not a date answered %v", err)
+	}
+
+	// And the deletion, which answers nothing at all.
+	if _, err := h.remove.Descriptor().Handler.Invoke(t.Context(), actor(),
+		usecase.Input{"template_id": templateID}); err != nil {
+		t.Fatalf("deleting through the catalogue failed: %v", err)
 	}
 }
 

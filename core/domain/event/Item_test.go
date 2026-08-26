@@ -653,3 +653,34 @@ func TestAnAttachmentEventWithoutAFileIsRefused(t *testing.T) {
 		t.Errorf("an event about no file answered %v", err)
 	}
 }
+
+// The announcement a stamped-out template makes (D-06). One event for the act, beside the
+// item.created of every entry it produced: what happened to the world is that entries came into
+// being, and what this adds is which template they came from.
+func TestTheInstantiationEventNamesTheTemplateAndItsRoot(t *testing.T) {
+	root := task()
+	template := shared.MustParseID("0192f000-0000-7000-8000-0000000000c9")
+
+	envelope, err := NewTemplateInstantiated(eventID, template, root, 4, by(), occurred, Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+
+	if envelope.Type != TemplateInstantiated || envelope.Subject != ItemSubject(root.ID) {
+		t.Errorf("unexpected envelope: %+v", envelope)
+	}
+	if envelope.Payload["template_id"] != template.String() ||
+		envelope.Payload["root_item_id"] != root.ID.String() {
+		t.Errorf("the payload is %+v", envelope.Payload)
+	}
+	if envelope.Payload["created"] != 4 {
+		t.Errorf("the payload reports %v entries", envelope.Payload["created"])
+	}
+
+	// An announcement naming no template is the caller and the event disagreeing.
+	if _, err := NewTemplateInstantiated(
+		eventID, "", root, 1, by(), occurred, Cause{},
+	); err == nil {
+		t.Error("an instantiation with no template was announced")
+	}
+}
