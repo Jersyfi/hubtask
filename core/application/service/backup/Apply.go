@@ -8,12 +8,14 @@ import (
 	"errors"
 	"maps"
 	"slices"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/backupstorage"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
@@ -807,6 +809,11 @@ func (s *state) write(ctx context.Context, item staged) error {
 		}
 	}
 
+	// §8.4's second prohibition, applied where the row is written rather than afterwards: a
+	// reminder whose moment passed while the data sat in an archive is marked lapsed, so the
+	// scheduler's next pass does not send every one of them at once.
+	s.lapse(item.entity, data)
+
 	collided, err := s.applier.Import.Holds(ctx, item.entity.Table, data)
 	if err != nil {
 		return err
@@ -852,6 +859,36 @@ func (s *state) write(ctx context.Context, item staged) error {
 	}
 	return nil
 }
+
+// lapse marks a restored reminder whose moment has gone (backup-restore.md §8.4).
+//
+// Only a pending one: a reminder that had already been sent, or that somebody cancelled, says
+// something about what happened and a restore does not rewrite that. And only one whose moment is
+// actually in the past - a restore of last week's archive can carry reminders for next week, and
+// those are the ones that should still fire.
+func (s *state) lapse(entity archive.Entity, data map[string]any) {
+	if entity.Table != reminderTable {
+		return
+	}
+	if state, _ := data["state"].(string); state != string(work.ReminderPending) {
+		return
+	}
+	fireAt, named := data["fire_at"].(string)
+	if !named || fireAt == "" {
+		// A reminder with no moment yet - a relative one on an item with no due date - has nothing
+		// to have missed.
+		return
+	}
+	at, err := time.Parse(time.RFC3339Nano, fireAt)
+	if err != nil {
+		return
+	}
+	if at.Before(s.applier.Clock.Now()) {
+		data["state"] = string(work.ReminderLapsed)
+	}
+}
+
+const reminderTable = "reminder"
 
 // mint gives a duplicated row an identity of its own.
 //

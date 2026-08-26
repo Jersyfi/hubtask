@@ -553,7 +553,10 @@ CREATE TABLE reminder (
   offset_spec  text NOT NULL,                    -- 'REL:-PT1H' | 'ABS:2026-09-01T08:00:00Z'
   channels     text[] NOT NULL DEFAULT '{EMAIL}',
   recipients   uuid[] NOT NULL DEFAULT '{}',     -- empty = assignee/members
-  state        text NOT NULL DEFAULT 'PENDING' CHECK (state IN ('PENDING','SENT','CANCELLED')),
+  -- LAPSED is what a restore marks a reminder whose moment passed while the data was in an
+  -- archive (migration 0037, backup-restore.md §8.4). Not CANCELLED: nobody cancelled it.
+  state        text NOT NULL DEFAULT 'PENDING'
+                 CHECK (state IN ('PENDING','SENT','CANCELLED','LAPSED')),
   fire_at      timestamptz,
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz,

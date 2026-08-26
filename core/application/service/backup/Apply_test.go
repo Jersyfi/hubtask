@@ -677,3 +677,42 @@ func TestARestoreResumesWhereTheWorkerDied(t *testing.T) {
 		t.Errorf("a resumed restore duplicated %d of its own rows", report.Duplicated)
 	}
 }
+
+// §8.4's second prohibition: a reminder whose moment passed while the data was in an archive is
+// marked lapsed rather than left pending, so the scheduler's next pass does not send every one of
+// them at once. A reminder for next week still fires.
+func TestARestoredReminderWhoseMomentHasGoneIsMarkedLapsed(t *testing.T) {
+	h := newApplyHarness(t, func(export *rows) {
+		export.byTable["reminder"] = []repository.Row{
+			{ID: "past", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": "past", "state": "PENDING",
+				"fire_at": now.Add(-24 * time.Hour).Format(time.RFC3339Nano),
+			}},
+			{ID: "future", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": "future", "state": "PENDING",
+				"fire_at": now.Add(24 * time.Hour).Format(time.RFC3339Nano),
+			}},
+			{ID: "sent", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": "sent", "state": "SENT",
+				"fire_at": now.Add(-48 * time.Hour).Format(time.RFC3339Nano),
+			}},
+		}
+	})
+
+	if _, err := h.applier().Apply(context.Background(), h.accept(t, func(*domain.Restore) {})); err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+
+	reminders := h.imports.tables["reminder"]
+	if state := reminders["past"]["state"]; state != "LAPSED" {
+		t.Errorf("a reminder whose moment has gone came back as %v", state)
+	}
+	if state := reminders["future"]["state"]; state != "PENDING" {
+		t.Errorf("a reminder for next week came back as %v", state)
+	}
+	// A reminder that had already been sent says something about what happened, and a restore does
+	// not rewrite that.
+	if state := reminders["sent"]["state"]; state != "SENT" {
+		t.Errorf("a reminder that had fired came back as %v", state)
+	}
+}
