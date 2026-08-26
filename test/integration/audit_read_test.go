@@ -18,7 +18,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	domainservice "github.com/Jersyfi/hubtask/core/domain/service"
 	port "github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/backupstorage"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
@@ -688,3 +690,131 @@ func (keylessInstallation) Open(context.Context, crypto.Sealed, crypto.Purpose) 
 	return secret.Secret{}, shared.ErrUnavailable.WithDetail("crypto.unknown_key")
 }
 func (keylessInstallation) ActiveKeyID() string { return "" }
+
+// The `AUDITOR` role, tried against the database (E-09, audit.md §5): the trail and no content.
+//
+// It is asked of the real authorisation service and a real membership row, because the role has
+// three halves that have to agree - the enum value the column constrains, the resolution that finds
+// the membership, and the matrix that says what it carries. A unit test can only ever prove the
+// third.
+func TestAnAuditorReadsTheTrailAndNoContent(t *testing.T) {
+	ctx := context.Background()
+	tenant := auditTenant(ctx, t)
+	auditor := freshID(t)
+
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Iris Auditor')`,
+		auditor.String(), tenant.String()); err != nil {
+		t.Fatalf("seeding the auditor's account: %v", err)
+	}
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		 VALUES ($1, $2, $3, 'TENANT', 'AUDITOR')`,
+		freshID(t).String(), tenant.String(), auditor.String()); err != nil {
+		t.Fatalf("granting the AUDITOR role: %v", err)
+	}
+
+	authorizer := access.Service{
+		Memberships: postgres.NewMembershipRepository(),
+		UnitOfWork:  postgres.NewUnitOfWork(appPool(ctx, t)),
+		Audit:       postgres.NewAuditSink(generator{t}),
+		Clock:       portclock.Fixed(created),
+	}
+	actor := appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: tenant, AccountID: auditor,
+		AccountName: "Iris Auditor", Scopes: []string{"audit:read", "containers:read", "items:read"},
+	}
+
+	permits := func(permission domainservice.Permission) bool {
+		t.Helper()
+		allowed, err := authorizer.Permits(ctx, actor, access.Request{
+			Permission: permission, Path: []identity.Scope{identity.TenantScope()},
+		})
+		if err != nil {
+			t.Fatalf("asking about %s: %v", permission, err)
+		}
+		return allowed
+	}
+
+	if !permits(domainservice.PermissionAuditRead) {
+		t.Error("an AUDITOR cannot read the trail, which is the whole of what the role is for")
+	}
+	for _, refused := range []domainservice.Permission{
+		domainservice.PermissionRead,
+		domainservice.PermissionWriteItems,
+		domainservice.PermissionStructure,
+		domainservice.PermissionManageMembers,
+		domainservice.PermissionDeleteContainer,
+	} {
+		if permits(refused) {
+			t.Errorf("an AUDITOR may %s", refused)
+		}
+	}
+
+	// And the attempt itself: a use case over content refuses them, and the refusal is recorded.
+	before := countIn(ctx, t,
+		`SELECT count(*) FROM audit_log WHERE tenant_id = $1 AND outcome = 'DENIED'`, tenant.String())
+	err := authorizer.Authorize(ctx, actor, access.Request{
+		Permission: domainservice.PermissionRead,
+		Path:       []identity.Scope{identity.TenantScope()},
+		Action:     "container.read", TargetType: "container", TargetID: tenant,
+	})
+	if err == nil {
+		t.Fatal("an AUDITOR read content")
+	}
+	if after := countIn(ctx, t,
+		`SELECT count(*) FROM audit_log WHERE tenant_id = $1 AND outcome = 'DENIED'`,
+		tenant.String()); after != before+1 {
+		t.Errorf("%d denied entries, want %d", after, before+1)
+	}
+}
+
+// Somebody who is an auditor *and* a member holds both, which is what a union over the memberships
+// buys and what "the highest role wins" could not express: one of the two would have taken the
+// other away.
+func TestAnAuditorWhoIsAlsoAMemberKeepsBoth(t *testing.T) {
+	ctx := context.Background()
+	tenant := auditTenant(ctx, t)
+	both := freshID(t)
+
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Ivo Both')`,
+		both.String(), tenant.String()); err != nil {
+		t.Fatalf("seeding the account: %v", err)
+	}
+	for _, role := range []string{"AUDITOR", "MEMBER"} {
+		if _, err := admin.Exec(ctx,
+			`INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+			 VALUES ($1, $2, $3, 'TENANT', $4)`,
+			freshID(t).String(), tenant.String(), both.String(), role); err != nil {
+			t.Fatalf("granting %s: %v", role, err)
+		}
+	}
+
+	authorizer := access.Service{
+		Memberships: postgres.NewMembershipRepository(),
+		UnitOfWork:  postgres.NewUnitOfWork(appPool(ctx, t)),
+		Audit:       postgres.NewAuditSink(generator{t}),
+		Clock:       portclock.Fixed(created),
+	}
+	actor := appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: tenant, AccountID: both, AccountName: "Ivo Both",
+	}
+
+	for _, permission := range []domainservice.Permission{
+		domainservice.PermissionAuditRead, domainservice.PermissionRead,
+		domainservice.PermissionWriteItems,
+	} {
+		allowed, err := authorizer.Permits(ctx, actor, access.Request{
+			Permission: permission, Path: []identity.Scope{identity.TenantScope()},
+		})
+		if err != nil {
+			t.Fatalf("asking about %s: %v", permission, err)
+		}
+		if !allowed {
+			t.Errorf("holding both memberships does not carry %s", permission)
+		}
+	}
+}

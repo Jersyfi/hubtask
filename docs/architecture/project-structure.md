@@ -153,7 +153,7 @@ hubtask/
 │   ├── backup/                     # BK-1…BK-10 per target adapter (test container)
 │   ├── retention/                  # RE-1…RE-9 including time zone and DST boundaries
 │   ├── sync/                       # SY-1…SY-12 (concurrency, clock skew, full sync)
-│   ├── audit/                      # AU-1…AU-7 (chain, grants, freedom from content)
+│   ├── audit/                      # AT-1…AT-7 (chain, grants, freedom from content)
 │   ├── golden-archives/            # one reference archive per major version, for BK-4
 │   ├── resilience/                 # RT-1…RT-12 (dependency failure, process death, overload, chaos)
 │   └── fixtures/

@@ -125,7 +125,7 @@ production the rule is: fix forwards).
 | Security | The full gates SG-1…SG-12 from [security.md](./security.md) §13: `govulncheck`, `gosec`, cross-tenant suite, RLS/BYPASSRLS test, authorisation architecture test, SSRF suite, secret scan, fuzzing, container scan, SBOM + signature, auth negative tests, upload matrix |
 | Reliability | Resilience tests RT-1…RT-5, RT-7, RT-10, RT-12 on the PR; RT-6, RT-8, RT-11 nightly; RT-9 (restore drill) per release ([observability-reliability.md](./observability-reliability.md) §12) |
 | Observability completeness | Reconciliation of the use case registry against metrics/spans (RT-12); a new feature without signals fails the build |
-| Audit completeness | Every action marked `auditable` produces exactly one entry (AU-1); grants on `audit_log` checked (AU-2); no user content in the audit (AU-4) |
+| Audit completeness | Every action marked `auditable` produces exactly one entry (gate SG-13); grants on `audit_log` checked (AT-1); no user content in the audit (AT-4) |
 | Data protection | Deletion tests per storage location from the data catalogue, leaving no orphans; metric and log output free of personal free text |
 | Backup | A round trip per target adapter (BK-1) and an import of the golden archives of every supported major version (BK-4); a restore triggers no automation (BK-5) |
 | Retention | RE-1…RE-9 green, in particular the safeguards (legal hold, restriction, tombstone window) |

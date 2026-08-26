@@ -59,7 +59,7 @@ injected.
 8. Observability: a metric **and** a trace span per use case (gate RT-12), error classification set, logs free of user content and secrets.
 9. Resilience: every call has a timeout/deadline, concurrency goes only through `SafeGo`, external effects go through the outbox or jobs, idempotency is assured, and the failure behaviour of the touched dependency has been tested.
 10. Security: authorisation in the application layer, a cross-tenant negative test added, outbound calls through `GuardedClient`, the affected SG-x gates green.
-11. Audit and data protection: the auditable action is registered and tested (AU-1), new fields are in the data catalogue with a deletion path, and no user content appears in the audit, logs, or metrics.
+11. Audit and data protection: the auditable action is registered and tested (gate SG-13), new fields are in the data catalogue with a deletion path, and no user content appears in the audit, logs, or metrics.
 12. Retention and sync: the new data kind is added to the retention catalogue, a merge rule is defined for every new field, and the archive format and import path are adjusted for model changes (BK-4).
 13. Documentation updated (the arc42 section, an ADR for an architectural decision, the changelog via the commit).
 14. The Conventional Commit title is correct; a breaking change is marked.
