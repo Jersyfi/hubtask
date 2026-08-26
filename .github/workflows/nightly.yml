@@ -59,6 +59,10 @@ jobs:
       - run: make tools
       - run: make verify
       - run: make gate-integration
+      # PG-2 and PG-7: the deletion test across every storage location, and the schema reconciled
+      # against the data catalogue. ADR-0018 calls the first "the expensive one with the highest
+      # protective value" and puts it here rather than on every pull request (E-11).
+      - run: make gate-privacy-full
       - run: make gate-compose
 
   matrix-postgres:

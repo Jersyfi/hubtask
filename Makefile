@@ -231,7 +231,7 @@ run:
 
 ## verify: Run every PR gate locally (mirrors ci.yml)
 .PHONY: verify
-verify: gate-quick gate-unit gate-architecture gate-security gate-chart gate-licenses gate-docs gate-observability
+verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-chart gate-licenses gate-docs gate-observability
 	@echo "All locally runnable gates are green."
 
 ## gate-quick: Format, lint, generation without a diff
@@ -317,6 +317,19 @@ gate-security:
 	$(call require_tool,govulncheck)
 	$(TOOLS_DIR)/govulncheck ./...
 	$(call go_test,,./test/security/...,)
+
+## gate-privacy: PG-1..PG-8, the cheap half
+# The container-backed half - PG-2 (the deletion test across every storage location) and PG-7 (the
+# schema reconciled against the data catalogue) - carries the `integration` tag and runs in the
+# nightly, which is where ADR-0018 puts "the expensive one with the highest protective value".
+.PHONY: gate-privacy
+gate-privacy:
+	$(call go_test,,./test/privacy/...,)
+
+## gate-privacy-full: PG-2 and PG-7 against a real PostgreSQL (nightly)
+.PHONY: gate-privacy-full
+gate-privacy-full:
+	$(call go_test,integration,./test/privacy/...,)
 
 ## gate-data: Migrations, retention, backup round trip, sync
 .PHONY: gate-data

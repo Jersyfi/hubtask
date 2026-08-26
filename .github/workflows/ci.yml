@@ -369,6 +369,10 @@ jobs:
       # SG-7 is not here any more: secret scanning runs unconditionally in the `secrets` job,
       # because a key can be committed by a change that touches no Go file at all.
       - run: make gate-security
+      # PG-1, PG-3, PG-4, PG-5, PG-6 and PG-8: the half of the privacy gates that needs no
+      # database. `make verify` runs them too; they are here so that a change touching only the
+      # data catalogue or the export's schema still meets them (E-11).
+      - run: make gate-privacy
 
   data:
     name: Data gates (migration, retention, backup, sync)
