@@ -138,6 +138,19 @@ func (h CreateDataSubjectRequest) Execute(
 		if err := h.Cases.Requests.Insert(ctx, request); err != nil {
 			return err
 		}
+
+		// The deadline watch is seeded by the write that creates the case, because nothing in
+		// this system may enumerate tenants: a scheduler cannot create one of these per tenant,
+		// and a workspace with no open case should cost nothing (E-10, alert A-19). The dedupe key
+		// is the tenant, so a second case joins the watch that is already running.
+		if _, err := h.Cases.Jobs.Enqueue(ctx, queue.Request{
+			Kind:      queue.KindPrivacyDeadlines,
+			TenantID:  actor.TenantID,
+			DedupeKey: "dsr-deadlines:" + actor.TenantID.String(),
+		}); err != nil {
+			return err
+		}
+
 		return h.Cases.record(ctx, actor, RequestRecordedAction, request, audit.SeverityNotice,
 			[]audit.Change{
 				{Field: "kind", Classification: audit.Open, To: string(request.Kind)},

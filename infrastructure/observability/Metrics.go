@@ -49,6 +49,7 @@ type Metrics struct {
 	outboxLag         metric.Float64Histogram
 	schedulerTickLag  metric.Int64Gauge
 	backupLastSuccess metric.Int64Gauge
+	dsrDeadline       metric.Int64Counter
 	retentionDeleted  metric.Int64Counter
 	retentionBlocked  metric.Int64Counter
 	retentionRun      metric.Float64Histogram
@@ -242,6 +243,13 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithUnit("s"),
 	); err != nil {
 		return fmt.Errorf("backup freshness gauge: %w", err)
+	}
+	if m.dsrDeadline, err = meter.Int64Counter(
+		namespace+"_dsr_deadline_total",
+		metric.WithDescription(
+			"Data subject requests reported at each pass of the deadline watch, by stage."),
+	); err != nil {
+		return fmt.Errorf("data subject deadline counter: %w", err)
 	}
 	if err := m.retentionInstruments(meter); err != nil {
 		return err
@@ -693,6 +701,18 @@ func (m *Metrics) SchedulerTickLag(ctx context.Context, seconds float64) {
 func (m *Metrics) BackupLastSuccess(ctx context.Context, targetID string, at time.Time) {
 	m.backupLastSuccess.Record(ctx, at.Unix(),
 		metric.WithAttributes(attribute.String("target_id", targetID)))
+}
+
+// DataSubjectDeadline reports cases whose statutory deadline is near or past - alert A-19's number
+// (E-10, data-protection.md §4).
+//
+// A counter by stage rather than a gauge of how many are open, and that is about what is true in
+// provider operation: a gauge would need a tenant label to be true there, and an unlabelled one
+// would carry the last workspace's number rather than the installation's. "A deadline is
+// approaching somewhere" is true either way, and it is what the alert asks.
+func (m *Metrics) DataSubjectDeadline(ctx context.Context, stage string, count int) {
+	m.dsrDeadline.Add(ctx, int64(count),
+		metric.WithAttributes(attribute.String("stage", stage)))
 }
 
 // ConfigInvalid counts a rejected configuration variable - misconfiguration as a signal rather

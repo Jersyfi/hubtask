@@ -1425,6 +1425,13 @@ func run() error {
 		},
 		queueport.KindAuditExport:    worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
+		queueport.KindPrivacyDeadlines: worker.PrivacyDeadlines{
+			Watch: privacyservice.WatchDeadlines{
+				Requests: privacyStore, Signals: metrics, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			},
+			Queue: jobs, Clock: clockadapter.System{},
+		},
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {

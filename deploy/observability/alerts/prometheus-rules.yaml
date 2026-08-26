@@ -119,6 +119,31 @@ groups:
           description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
           runbook: RB-A12-backup-stale.md
 
+      - alert: HubtaskDataSubjectDeadline
+        # A-19. `data-protection.md` §4 says why it exists in one sentence: "without deadline
+        # monitoring, the right gets violated in practice even though the feature exists".
+        #
+        # It joins the reduced self-hosting set for the reason A-08 did, and it is the same reason.
+        # A statutory deadline is not a symptom somebody can catch up on afterwards: the period
+        # runs out whether or not anybody was watching, and to the person who asked, a late answer
+        # and no answer are the same thing. It loses no data - it loses a right.
+        #
+        # A counter rather than a gauge, and the increase over a window rather than a value. The
+        # deadline watch runs per workspace once a day and reports what it found, so a case that is
+        # near or past its deadline shows up every day it stays that way; a gauge would have needed
+        # a tenant label to be true in provider operation (E-10).
+        expr: |
+          increase(hubtask_dsr_deadline_total{stage="overdue"}[26h]) > 0
+          or increase(hubtask_dsr_deadline_total{stage="approaching"}[26h]) > 0
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-19
+        annotations:
+          summary: "A data subject request is approaching or past its statutory deadline"
+          description: "The period is legal rather than internal. GET /privacy/requests?due_within_days=7 lists what is owed."
+          runbook: RB-A19-dsr-deadline.md
+
       - alert: HubtaskRestoreDrillStale
         # A-20. A backup that has never been restored is a hope rather than a backup, and the only
         # way to know is to have done it. Ninety days is the interval backup-restore.md §10 names.

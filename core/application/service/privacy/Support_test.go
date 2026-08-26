@@ -92,6 +92,9 @@ func (s *requestStore) List(_ context.Context, filter repository.Filter) (reposi
 		if !filter.IncludeClosed && request.Status.Closed() {
 			continue
 		}
+		if !filter.DueBefore.IsZero() && !request.DueAt.Before(filter.DueBefore) {
+			continue
+		}
 		out = append(out, request)
 	}
 	return repository.Page{Requests: out}, nil

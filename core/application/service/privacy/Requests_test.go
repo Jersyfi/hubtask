@@ -98,8 +98,9 @@ func TestRecordingACaseTouchesNothingOfTheSubjects(t *testing.T) {
 		})); err != nil {
 		t.Fatalf("recording the case: %v", err)
 	}
-	if len(h.jobs.requests) != 0 {
-		t.Errorf("recording an erasure queued %d jobs", len(h.jobs.requests))
+	// The deadline watch and nothing else: recording a case starts no work on the person's data.
+	if kinds := queuedKinds(h); len(kinds) != 1 || kinds[0] != queue.KindPrivacyDeadlines {
+		t.Errorf("recording an erasure queued %v", kinds)
 	}
 }
 
@@ -158,11 +159,12 @@ func TestStartingAnErasureAsksForTheOwnersLine(t *testing.T) {
 	}
 
 	// The work is queued, once, against the case.
-	if len(h.jobs.requests) != 1 || h.jobs.requests[0].Kind != queue.KindPrivacyRequest {
+	work := queuedOf(h, queue.KindPrivacyRequest)
+	if len(work) != 1 {
 		t.Fatalf("the work was queued as %+v", h.jobs.requests)
 	}
-	if h.jobs.requests[0].Payload["request_id"] != recorded.ID.String() {
-		t.Errorf("the job names %v", h.jobs.requests[0].Payload)
+	if work[0].Payload["request_id"] != recorded.ID.String() {
+		t.Errorf("the job names %v", work[0].Payload)
 	}
 
 	// And the entry is a warning rather than a notice: an erasure that has started is a deletion
@@ -193,7 +195,7 @@ func TestStartingAnExportAsksForTheAdministratorsLine(t *testing.T) {
 	if h.authorizer.requests[0].Permission != domainservice.PermissionManageMembers {
 		t.Errorf("starting an export asked for %s", h.authorizer.requests[0].Permission)
 	}
-	if len(h.jobs.requests) != 1 {
+	if len(queuedOf(h, queue.KindPrivacyRequest)) != 1 {
 		t.Errorf("the export queued %d jobs", len(h.jobs.requests))
 	}
 }
@@ -212,8 +214,8 @@ func TestStartingARectificationQueuesNothing(t *testing.T) {
 		}); err != nil {
 		t.Fatalf("starting the rectification: %v", err)
 	}
-	if len(h.jobs.requests) != 0 {
-		t.Errorf("a rectification queued %d jobs", len(h.jobs.requests))
+	if len(queuedOf(h, queue.KindPrivacyRequest)) != 0 {
+		t.Errorf("a rectification queued work: %v", h.jobs.requests)
 	}
 }
 
@@ -520,5 +522,49 @@ func TestARefusedStepLeavesNothingBehind(t *testing.T) {
 	}
 	if len(h.requests.stored) != 0 || len(h.audit.entries) != 0 || len(h.jobs.requests) != 0 {
 		t.Error("a refused step left something behind")
+	}
+}
+
+// queuedOf answers the jobs of one kind, so that a test about the work is not confused by the
+// deadline watch every recorded case seeds.
+func queuedOf(h *harness, kind queue.Kind) []queue.Request {
+	var found []queue.Request
+	for _, request := range h.jobs.requests {
+		if request.Kind == kind {
+			found = append(found, request)
+		}
+	}
+	return found
+}
+
+func queuedKinds(h *harness) []queue.Kind {
+	var kinds []queue.Kind
+	for _, request := range h.jobs.requests {
+		kinds = append(kinds, request.Kind)
+	}
+	return kinds
+}
+
+// The watch is seeded by the write, because nothing may enumerate tenants - and a second case
+// joins the watch that is already running rather than starting another.
+func TestRecordingACaseSeedsTheDeadlineWatch(t *testing.T) {
+	h := newHarness()
+	create := CreateDataSubjectRequest{Cases: h.cases()}
+
+	for range 2 {
+		if _, err := create.Execute(context.Background(), actor(), createCommand(func(*CreateCommand) {})); err != nil {
+			t.Fatalf("recording: %v", err)
+		}
+	}
+
+	watches := queuedOf(h, queue.KindPrivacyDeadlines)
+	if len(watches) != 2 {
+		t.Fatalf("%d watches were asked for", len(watches))
+	}
+	if watches[0].DedupeKey != watches[1].DedupeKey {
+		t.Errorf("two cases asked for two watches: %q and %q", watches[0].DedupeKey, watches[1].DedupeKey)
+	}
+	if watches[0].TenantID != tenantID {
+		t.Errorf("the watch is for %s", watches[0].TenantID)
 	}
 }

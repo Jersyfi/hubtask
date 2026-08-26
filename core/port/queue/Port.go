@@ -152,6 +152,16 @@ const (
 	// open for. Deduplicated on the case: two jobs for one case are the same work, and a case is
 	// started once.
 	KindPrivacyRequest Kind = "privacy.request"
+
+	// KindPrivacyDeadlines watches the statutory deadlines of one tenant's open cases (E-10,
+	// data-protection.md §4): "without deadline monitoring, the right gets violated in practice
+	// even though the feature exists".
+	//
+	// The shape of the reminder poller, and for the same reason: nothing in this system may
+	// enumerate tenants, so a scheduler cannot create one of these per tenant. The write that
+	// records a case seeds it, each pass reschedules itself while the tenant has an open case, and
+	// a tenant that owes nothing costs a row that is not there.
+	KindPrivacyDeadlines Kind = "privacy.deadlines"
 )
 
 func (k Kind) String() string { return string(k) }

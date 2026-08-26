@@ -275,11 +275,11 @@ Symptom-based, each with a runbook. The thresholds are starting values for provi
 | A-16 | Automation: rule deactivations > 0 in 1 h | ticket | The loop/error protection kicked in |
 | A-17 | A certificate or signing key expires in < 14 days | ticket | Preventive |
 | A-18 | A tenant exceeds 90% of a quota | info | Capacity planning |
-| A-19 | A data subject request is approaching its statutory deadline | ticket | The deadline is legal, not internal ([ADR-0018](../adr/ADR-0018-privacy-by-design.md), `data-protection.md` §4) |
+| A-19 | A data subject request is approaching its statutory deadline | ticket | The deadline is legal, not internal ([ADR-0018](../adr/ADR-0018-privacy-by-design.md), `data-protection.md` §4). Built with E-10: `hubtask_dsr_deadline_total{stage}`, incremented by the per-tenant deadline watch, with `RB-A19-dsr-deadline.md`. A counter rather than a gauge, because a gauge would need a tenant label to be true in provider operation and an unlabelled one would carry the last workspace's number |
 | A-20 | The last restore drill is older than 90 days | ticket | A backup nobody has restored is a hypothesis (`backup-restore.md` §10) |
 
 For **self-hosting** there is a reduced variant: a standard Grafana dashboard and an alert rule file
-with A-03, A-04, A-05, A-07, A-08, A-12, A-20 — plus the warnings from `/meta/health`, which are visible even
+with A-03, A-04, A-05, A-07, A-08, A-12, A-19, A-20 — plus the warnings from `/meta/health`, which are visible even
 without Prometheus.
 
 ---
@@ -294,7 +294,7 @@ Shipped under `deploy/observability/`:
 * `dashboards/tenant.json` — quotas, top tenants (only with the tenant label enabled) *(with
   multi-tenant operation, `0.6.0`)*
 * `alerts/prometheus-rules.yaml` — the alert catalogue as rules *(shipped: the reduced
-  self-hosting set A-03, A-04, A-05, A-07, A-08, A-12, A-20; the full catalogue with provider operation)*
+  self-hosting set A-03, A-04, A-05, A-07, A-08, A-12, A-19, A-20; the full catalogue with provider operation)*
 * `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up *(shipped, one per shipped alert)*
 
 Any alert without a runbook does not ship. That is `make gate-observability`, which checks it in
