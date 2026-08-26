@@ -516,3 +516,23 @@ func (pending) SyncPush(w http.ResponseWriter, r *http.Request) { notAvailable(w
 func (pending) StreamChanges(w http.ResponseWriter, r *http.Request, _ openapi.StreamChangesParams) {
 	notAvailable(w, r)
 }
+
+// The calendar operations and the export answer as pending until D-08 registers their use cases;
+// the routes exist because the contract declares them.
+func (pending) ListCalendarFeeds(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreateCalendarFeed(w http.ResponseWriter, r *http.Request, _ openapi.CreateCalendarFeedParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, _ openapi.FeedId) {
+	notAvailable(w, r)
+}
+
+func (pending) GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+func (pending) ExportView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId, _ openapi.ExportViewParams) {
+	notAvailable(w, r)
+}

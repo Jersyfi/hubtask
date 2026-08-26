@@ -224,3 +224,59 @@ func TestAPendingOperationAnswersAProblem(t *testing.T) {
 		t.Errorf("detail code %q", problem.DetailCode)
 	}
 }
+
+func TestExtensionSegmentGivesTheIcsSuffixItsOwnSegment(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"the contract's form", "/calendar/{token}.ics", "/calendar/{token}/.ics"},
+		{"a real request", "/calendar/hbt_cal_abc.ics", "/calendar/hbt_cal_abc/.ics"},
+		{"already rewritten stays put", "/calendar/{token}/.ics", "/calendar/{token}/.ics"},
+		{"a plain resource is untouched", "/containers/{containerId}", "/containers/{containerId}"},
+		{"another extension is not ours", "/media/{mediaId}.png", "/media/{mediaId}.png"},
+		{"a dot inside a segment is untouched", "/items/a.b.c", "/items/a.b.c"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := extensionSegment(c.in); got != c.want {
+				t.Errorf("extensionSegment(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+// The same statement TestTheSpecificationsActionFormIsStillUnroutable makes, for the extension:
+// if net/http ever learns to route it, this detour can go too.
+func TestTheSpecificationsExtensionFormIsStillUnroutable(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("net/http accepted {token}.ics, and extensionSegment is no longer needed")
+		}
+	}()
+	http.NewServeMux().HandleFunc("GET /calendar/{token}.ics", func(http.ResponseWriter, *http.Request) {})
+}
+
+// The route the contract declares reaches its handler with the token bound, through the Mux the
+// server actually uses.
+func TestAFeedRequestReachesTheRouteWithItsToken(t *testing.T) {
+	mux := NewMux()
+	var seen string
+	mux.HandleFunc("GET /api/v1/calendar/{token}.ics", func(w http.ResponseWriter, r *http.Request) {
+		seen = r.PathValue("token")
+	})
+
+	request := httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet, "/api/v1/calendar/hbt_cal_01_abc.ics", nil)
+	mux.ServeHTTP(httptest.NewRecorder(), request)
+	if seen != "hbt_cal_01_abc" {
+		t.Errorf("the handler saw the token as %q", seen)
+	}
+
+	// And the template a metric is labelled with is the contract's, not the rewritten one.
+	if _, route := mux.Handler(request); route != "GET /api/v1/calendar/{token}.ics" {
+		t.Errorf("the route template is %q", route)
+	}
+}

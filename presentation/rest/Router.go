@@ -116,15 +116,20 @@ func (p *headerProbe) Write(b []byte) (int, error) { return len(b), nil }
 func routablePattern(pattern string) string {
 	method, path, found := strings.Cut(pattern, " ")
 	if !found {
-		return actionSegment(pattern)
+		return routablePath(pattern)
 	}
-	return method + " " + actionSegment(path)
+	return method + " " + routablePath(path)
 }
+
+// routablePath applies both rewrites. They never meet on one path - an action is a colon suffix
+// and an extension is a file one - but applying both in one place means a route only has to be
+// registered once, whichever it carries.
+func routablePath(path string) string { return extensionSegment(actionSegment(path)) }
 
 // routableRequest applies the same rewrite to an incoming request. A request that carries no
 // action is passed through untouched, so the rewrite can only ever affect an action call.
 func routableRequest(r *http.Request) *http.Request {
-	rewritten := actionSegment(r.URL.Path)
+	rewritten := routablePath(r.URL.Path)
 	if rewritten == r.URL.Path {
 		return r
 	}
@@ -157,6 +162,32 @@ func actionSegment(path string) string {
 		return path
 	}
 	return path[:slash+1] + last[:colon] + "/" + last[colon:]
+}
+
+// icsExtension is the one file extension the contract uses. A calendar client stores a URL and
+// decides from its ending what it is looking at, which is why /calendar/{token}.ics is written
+// that way in api-guidelines.md §2 rather than as a plain resource.
+const icsExtension = ".ics"
+
+// extensionSegment gives that extension a path segment of its own: `/calendar/{token}.ics`
+// becomes `/calendar/{token}/.ics`, for the reason actionSegment exists - net/http's router
+// requires a wildcard to span a whole segment, and `{token}.ics` makes it panic at registration.
+//
+// Only this one extension, and only at the end: a segment beginning with a dot cannot be produced
+// by any identifier the API mints, so the rewritten form can never collide with a real path, and
+// a rewrite that fired on any dot would catch tokens and identifiers that legitimately contain
+// one.
+func extensionSegment(path string) string {
+	if !strings.HasSuffix(path, icsExtension) {
+		return path
+	}
+	slash := strings.LastIndexByte(path, '/')
+	last := path[slash+1:]
+	if last == icsExtension {
+		// Already rewritten, or a request for the extension alone - which matches nothing.
+		return path
+	}
+	return path[:slash+1] + strings.TrimSuffix(last, icsExtension) + "/" + icsExtension
 }
 
 // Mounted serves one path that the specification does not describe, and leaves everything else to
