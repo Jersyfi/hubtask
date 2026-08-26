@@ -378,6 +378,7 @@ SELECT
   -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
   -- because §6's point is that the object itself says what is coming.
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
+  wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -413,6 +414,7 @@ type FindWorkItemRow struct {
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
+	RetentionBlockedBy    *string
 	ArchivedAt            pgtype.Timestamptz
 	DeletedAt             pgtype.Timestamptz
 	TrashBatchID          pgtype.UUID
@@ -456,6 +458,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.RetentionPendingUntil,
 		&i.RetentionRuleID,
 		&i.RetentionAction,
+		&i.RetentionBlockedBy,
 		&i.ArchivedAt,
 		&i.DeletedAt,
 		&i.TrashBatchID,
@@ -877,6 +880,7 @@ SELECT
     ))::jsonb AS custom_fields,
   wi.content_language, wi.recurrence_rule_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
+  wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -938,6 +942,7 @@ type ListWorkItemsRow struct {
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
+	RetentionBlockedBy    *string
 	ArchivedAt            pgtype.Timestamptz
 	DeletedAt             pgtype.Timestamptz
 	TrashBatchID          pgtype.UUID
@@ -1004,6 +1009,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.RetentionPendingUntil,
 			&i.RetentionRuleID,
 			&i.RetentionAction,
+			&i.RetentionBlockedBy,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,
@@ -1697,6 +1703,7 @@ SELECT
     ))::jsonb AS custom_fields,
   wi.content_language, wi.recurrence_rule_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
+  wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -1742,6 +1749,7 @@ type SubtreeOfWorkItemRow struct {
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
+	RetentionBlockedBy    *string
 	ArchivedAt            pgtype.Timestamptz
 	DeletedAt             pgtype.Timestamptz
 	TrashBatchID          pgtype.UUID
@@ -1810,6 +1818,7 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.RetentionPendingUntil,
 			&i.RetentionRuleID,
 			&i.RetentionAction,
+			&i.RetentionBlockedBy,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,

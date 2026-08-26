@@ -207,6 +207,7 @@ func readItems(ctx context.Context, tx pgx.Tx, statement query.Statement) ([]wor
 			&row.CoverKind, &row.CoverColorToken, &row.CoverMediaID, &row.CustomFields,
 			&row.ContentLanguage,
 			&row.RetentionPendingUntil, &row.RetentionRuleID, &row.RetentionAction,
+			&row.RetentionBlockedBy,
 			&row.ArchivedAt, &row.DeletedAt,
 			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
 		); err != nil {
@@ -342,6 +343,7 @@ func readHits(
 			&row.CoverKind, &row.CoverColorToken, &row.CoverMediaID, &row.CustomFields,
 			&row.ContentLanguage,
 			&row.RetentionPendingUntil, &row.RetentionRuleID, &row.RetentionAction,
+			&row.RetentionBlockedBy,
 			&row.ArchivedAt, &row.DeletedAt,
 			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
 			&hub, &rank,

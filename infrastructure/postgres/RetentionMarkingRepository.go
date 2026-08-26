@@ -160,6 +160,31 @@ func (r RetentionMarkingRepository) Mark(
 	return int(marked), nil
 }
 
+// Block records what a rule would do and what is stopping it.
+func (r RetentionMarkingRepository) Block(
+	ctx context.Context, ids []shared.ID, ruleID shared.ID,
+	action domain.Action, reason string,
+) (int, error) {
+	queries, keys, err := batchOf(ctx, ids)
+	if err != nil || len(keys) == 0 {
+		return 0, err
+	}
+	rule, err := uuidOf(ruleID)
+	if err != nil {
+		return 0, err
+	}
+
+	blocked, err := queries.BlockItemsForRetention(ctx, sqlc.BlockItemsForRetentionParams{
+		Ids: keys, RuleID: rule, Action: optionalText(string(action)),
+		BlockedBy: optionalText(reason),
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording what holds %d entries back: %w", len(ids), err))
+	}
+	return int(blocked), nil
+}
+
 // MarkedDue answers the entries whose grace period has run out.
 func (r RetentionMarkingRepository) MarkedDue(
 	ctx context.Context, now time.Time, batch int,
@@ -215,7 +240,8 @@ func (r RetentionMarkingRepository) Marking(
 	}
 	return repository.Candidate{
 		ID: id, Pending: timeFrom(row.RetentionPendingUntil), Rule: rule,
-		Action: domain.Action(stringFrom(row.RetentionAction)),
+		Action:    domain.Action(stringFrom(row.RetentionAction)),
+		BlockedBy: stringFrom(row.RetentionBlockedBy),
 	}, nil
 }
 

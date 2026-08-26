@@ -66,6 +66,7 @@ type markingStore struct {
 	countDue   int
 	scopeCount int
 	marked     []shared.ID
+	blocked    []shared.ID
 	cleared    []shared.ID
 	archived   []shared.ID
 	trashed    []shared.ID
@@ -92,6 +93,13 @@ func (s *markingStore) Mark(
 	_ context.Context, ids []shared.ID, _ shared.ID, _ domain.Action, _ time.Time,
 ) (int, error) {
 	s.marked = append(s.marked, ids...)
+	return len(ids), nil
+}
+
+func (s *markingStore) Block(
+	_ context.Context, ids []shared.ID, _ shared.ID, _ domain.Action, _ string,
+) (int, error) {
+	s.blocked = append(s.blocked, ids...)
 	return len(ids), nil
 }
 

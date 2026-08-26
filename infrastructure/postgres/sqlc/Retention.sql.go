@@ -36,6 +36,41 @@ func (q *Queries) ArchiveItemsForRetention(ctx context.Context, arg ArchiveItems
 	return result.RowsAffected(), nil
 }
 
+const blockItemsForRetention = `-- name: BlockItemsForRetention :execrows
+UPDATE work_item SET
+  retention_rule_id    = $1,
+  retention_action     = $2,
+  retention_blocked_by = $3
+WHERE id = ANY($4::uuid[])
+  AND retention_pending_until IS NULL
+`
+
+type BlockItemsForRetentionParams struct {
+	RuleID    pgtype.UUID
+	Action    *string
+	BlockedBy *string
+	Ids       []pgtype.UUID
+}
+
+// What a rule would do, and what is stopping it (§4, §6).
+//
+// No `retention_pending_until`, deliberately: an entry that is held back has no due moment, and the
+// absence of one is what keeps phase two off it rather than a flag somebody has to remember to
+// check. Re-run on every pass, because a block is a fact about now - the hold may have been lifted
+// since, and then the marking above takes over.
+func (q *Queries) BlockItemsForRetention(ctx context.Context, arg BlockItemsForRetentionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, blockItemsForRetention,
+		arg.RuleID,
+		arg.Action,
+		arg.BlockedBy,
+		arg.Ids,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const carryOverRetentionPolicy = `-- name: CarryOverRetentionPolicy :exec
 INSERT INTO retention_rule (
   id, tenant_id, scope_kind, scope_id, data_kind, retain_days, action, grace_days, notify,
@@ -69,6 +104,7 @@ const clearItemRetention = `-- name: ClearItemRetention :execrows
 UPDATE work_item SET
   retention_pending_until = NULL,
   retention_action        = NULL,
+  retention_blocked_by    = NULL,
   retention_rule_id       = CASE WHEN $1::boolean THEN retention_rule_id END,
   updated_at              = $2::timestamptz,
   version                 = version + 1
@@ -251,7 +287,7 @@ func (q *Queries) CountRetentionScope(ctx context.Context, arg CountRetentionSco
 }
 
 const findItemRetention = `-- name: FindItemRetention :one
-SELECT retention_pending_until, retention_rule_id, retention_action
+SELECT retention_pending_until, retention_rule_id, retention_action, retention_blocked_by
 FROM work_item
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -260,13 +296,19 @@ type FindItemRetentionRow struct {
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
+	RetentionBlockedBy    *string
 }
 
 // What one entry's marking says, which is what `:retain` reads and what the object carries.
 func (q *Queries) FindItemRetention(ctx context.Context, id pgtype.UUID) (FindItemRetentionRow, error) {
 	row := q.db.QueryRow(ctx, findItemRetention, id)
 	var i FindItemRetentionRow
-	err := row.Scan(&i.RetentionPendingUntil, &i.RetentionRuleID, &i.RetentionAction)
+	err := row.Scan(
+		&i.RetentionPendingUntil,
+		&i.RetentionRuleID,
+		&i.RetentionAction,
+		&i.RetentionBlockedBy,
+	)
 	return i, err
 }
 
@@ -466,7 +508,8 @@ const markItemsForRetention = `-- name: MarkItemsForRetention :execrows
 UPDATE work_item SET
   retention_pending_until = $1::timestamptz,
   retention_rule_id       = $2,
-  retention_action        = $3
+  retention_action        = $3,
+  retention_blocked_by    = NULL
 WHERE id = ANY($4::uuid[])
   AND retention_pending_until IS NULL
 `
@@ -479,6 +522,10 @@ type MarkItemsForRetentionParams struct {
 }
 
 // Phase one: what is coming, when, and under which rule (§5, §6).
+//
+// The block is cleared with the marking: an entry that was held back and is now announced is an
+// entry whose obstacle has gone, and a stale reason on it would tell somebody a hold is in force
+// that was lifted last week.
 func (q *Queries) MarkItemsForRetention(ctx context.Context, arg MarkItemsForRetentionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, markItemsForRetention,
 		arg.EffectiveAt,

@@ -181,6 +181,8 @@ type Candidate struct {
 	Pending time.Time
 	Rule    shared.ID
 	Action  domain.Action
+	// BlockedBy is why the act is not happening, and empty when nothing is stopping it.
+	BlockedBy string
 }
 
 // Marking is the two phases of data-retention.md §5 against the objects themselves.
@@ -208,6 +210,17 @@ type Marking interface {
 	Mark(
 		ctx context.Context, ids []shared.ID, ruleID shared.ID,
 		action domain.Action, effectiveAt time.Time,
+	) (int, error)
+
+	// Block records what a rule would do and what is stopping it (§4, §6).
+	//
+	// No due moment, deliberately: an entry that is held back has none, and the absence of one is
+	// what keeps the second phase off it rather than a flag somebody has to remember to check. It
+	// is written on every pass, because a block is a fact about now - the hold may have been
+	// lifted since, and the marking then takes over.
+	Block(
+		ctx context.Context, ids []shared.ID, ruleID shared.ID,
+		action domain.Action, reason string,
 	) (int, error)
 
 	// MarkedDue answers the entries whose grace period has run out.

@@ -713,12 +713,20 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 	if item.Retention != nil {
 		// §6: an entry in a running retention period says what is coming, when, and under which
 		// rule - and whether it can be taken out, which is what a client puts a button behind.
-		out["retention"] = map[string]any{
-			"action":       item.Retention.Action,
-			"effective_at": item.Retention.EffectiveAt,
-			"policy_id":    item.Retention.PolicyID.String(),
-			"can_retain":   true,
+		announced := map[string]any{
+			"action":     item.Retention.Action,
+			"policy_id":  item.Retention.PolicyID.String(),
+			"can_retain": !item.Retention.RetentionBlocked(),
 		}
+		if !item.Retention.EffectiveAt.IsZero() {
+			announced["effective_at"] = item.Retention.EffectiveAt
+		}
+		if item.Retention.RetentionBlocked() {
+			// What is stopping it. There is no date on a blocked entry and nothing to take it out
+			// of: the rule is not waiting, it is being overruled.
+			announced["blocked_by"] = item.Retention.BlockedBy
+		}
+		out["retention"] = announced
 	}
 	return out
 }

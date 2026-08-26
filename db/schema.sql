@@ -331,6 +331,10 @@ CREATE TABLE work_item (
   retention_pending_until timestamptz,
   retention_rule_id  uuid,
   retention_action   text,
+  -- Why the act is not happening, when something is stopping it (migration 0041). A blocked entry
+  -- carries the rule and the action and no `retention_pending_until`: the absence of a due moment
+  -- is what keeps phase two off it.
+  retention_blocked_by text,
   archived_at        timestamptz,
   deleted_at         timestamptz,
   trash_batch_id     uuid,

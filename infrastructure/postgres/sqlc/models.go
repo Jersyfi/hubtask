@@ -1163,4 +1163,5 @@ type WorkItem struct {
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
+	RetentionBlockedBy    *string
 }

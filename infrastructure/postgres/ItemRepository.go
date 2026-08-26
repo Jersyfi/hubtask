@@ -1129,20 +1129,32 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 
 // retentionFrom is what a retention rule has announced about an entry, and nil while none has.
 //
-// All three columns or none: a row with a date and no action would be an announcement a client
-// could not render, and the marking writes them together (migration 0038).
+// Two shapes reach a client: a date and an action, which is an announcement, and an action and a
+// reason with no date, which is an announcement something is holding back (migration 0041). An
+// action with neither is a stage that has acted and a chain that has not announced its next one -
+// nothing to say yet.
 func retentionFrom(row sqlc.FindWorkItemRow) *work.RetentionState {
-	at := optionalTime(row.RetentionPendingUntil)
-	if at == nil || row.RetentionAction == nil {
+	if row.RetentionAction == nil {
 		return nil
 	}
 	policyID, err := optionalID(row.RetentionRuleID)
 	if err != nil {
 		return nil
 	}
-	return &work.RetentionState{
-		Action: *row.RetentionAction, EffectiveAt: *at, PolicyID: policyID,
+
+	state := work.RetentionState{
+		Action: *row.RetentionAction, PolicyID: policyID,
+		BlockedBy: stringFrom(row.RetentionBlockedBy),
 	}
+	if at := optionalTime(row.RetentionPendingUntil); at != nil {
+		state.EffectiveAt = *at
+	}
+	// An entry with neither a date nor a reason is one a stage has acted on and whose rule still
+	// owns it - the chain's next stage has not announced anything yet, so there is nothing to say.
+	if state.EffectiveAt.IsZero() && !state.RetentionBlocked() {
+		return nil
+	}
+	return &state
 }
 
 // ClaimDueSoon takes the entries whose deadline has come within the lead and stamps them as
