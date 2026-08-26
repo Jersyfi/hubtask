@@ -35,6 +35,14 @@ const (
 	// PermissionDeleteContainer is deleting a hub or a collection - the one thing an
 	// administrator cannot do, because it takes a subtree with it.
 	PermissionDeleteContainer Permission = "DELETE_CONTAINER"
+	// PermissionAuditRead is reading the whole of the tenant's audit trail (audit.md §5).
+	//
+	// It is not implied by any of the others, which is the point of it. Reading the trail is
+	// reading what every colleague did, and that is a different question from whether somebody
+	// may change the workspace - an auditor holds it without holding READ, and a member holds
+	// READ without holding this. What a member has instead is their own events, which is not this
+	// permission but the absence of it (QueryAuditEntries).
+	PermissionAuditRead Permission = "AUDIT_READ"
 )
 
 // rolePermissions is the matrix of domain-model.md §3.2, written out rather than derived from the
@@ -44,15 +52,20 @@ var rolePermissions = map[identity.Role][]Permission{
 	identity.RoleOwner: {
 		PermissionRead, PermissionWriteItems, PermissionStructure,
 		PermissionManageMembers, PermissionAutomation, PermissionDeleteContainer,
+		PermissionAuditRead,
 	},
 	identity.RoleAdmin: {
 		PermissionRead, PermissionWriteItems, PermissionStructure,
-		PermissionManageMembers, PermissionAutomation,
+		PermissionManageMembers, PermissionAutomation, PermissionAuditRead,
 	},
 	identity.RoleMember:      {PermissionRead, PermissionWriteItems, PermissionAutomation},
 	identity.RoleContributor: {PermissionRead, PermissionWriteItems},
 	identity.RoleViewer:      {PermissionRead},
 	identity.RoleGuest:       {PermissionRead},
+	// The row that is a single cell. An auditor reads the trail and nothing else - no READ, so
+	// every use case over containers, entries and comments refuses them by the ordinary rule
+	// rather than by a special case somebody has to remember (audit.md §5).
+	identity.RoleAuditor: {PermissionAuditRead},
 }
 
 // PermissionsOf returns the permissions the role carries, in the order the matrix's columns are
@@ -111,7 +124,20 @@ func onPath(scope identity.Scope, path []identity.Scope) bool {
 
 // Allows is the whole decision in one call: does what this account holds along this path carry
 // this permission?
+//
+// The union over the memberships rather than the matrix row of the highest one. For the six roles
+// that are a ladder the two are the same answer - each row contains the one below it - and the
+// union is the one that stays right once a role is not on the ladder: somebody who is an AUDITOR
+// on the workspace and a MEMBER of one collection reads the trail *and* their collection, where
+// "the highest role wins" would have to pick one of the two and take the other away.
 func Allows(memberships []identity.Membership, path []identity.Scope, permission Permission) bool {
-	role, found := EffectiveRole(memberships, path)
-	return found && RoleAllows(role, permission)
+	for _, membership := range memberships {
+		if !membership.Role.Valid() || !onPath(membership.Scope, path) {
+			continue
+		}
+		if RoleAllows(membership.Role, permission) {
+			return true
+		}
+	}
+	return false
 }

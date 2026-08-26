@@ -25,8 +25,10 @@ import (
 	"syscall"
 	"time"
 
+	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -49,6 +51,7 @@ import (
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	dbfiles "github.com/Jersyfi/hubtask/db"
+	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
@@ -366,6 +369,10 @@ func run() error {
 	// The item history. One repository for both halves of the port - the append every writer makes
 	// and the page ListActivity reads (B-11).
 	history := postgres.NewActivityRepository(cursors)
+	// The reading half of the audit trail, beside the sink rather than part of it: every use case
+	// that writes holds the sink, and a sink that could also read would put the whole trail one
+	// call away from code that has no business reading it (E-09).
+	auditTrail := postgres.NewAuditTrailRepository(cursors)
 	lifecycleStore := postgres.NewLifecycleRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
@@ -841,6 +848,17 @@ func run() error {
 		lifecycle.PlaceLegalHold{Holds: legalHolds}.Descriptor(),
 		lifecycle.ReleaseLegalHold{Holds: legalHolds}.Descriptor(),
 		lifecycle.ListLegalHolds{Holds: legalHolds}.Descriptor(),
+		auditservice.ListAuditEntries{
+			Trail: auditTrail, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		auditservice.VerifyAuditChain{
+			Trail: auditTrail, Chain: auditadapter.Links{}, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		auditservice.ExportAuditTrail{
+			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		lifecycle.RetainItem{
 			Items: items, Containers: containers,
 			Marking: postgres.NewRetentionMarkingRepository(), Authorizer: authorizer,
@@ -1276,6 +1294,18 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
+	// The audit export (E-09). It writes to a backup target through the seam that owns a target's
+	// credentials, because an export needs somewhere to put bytes and has no business with them.
+	auditArchivist := auditservice.Archivist{
+		Trail: auditTrail,
+		Targets: backupservice.StoreOpener{
+			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
+			UnitOfWork: unitOfWork,
+		},
+		Encryptor: encryptor, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		ProductVersion: version,
+	}
+
 	// The restore, and the backup it takes before a destructive mode (E-06). It shares the
 	// performer so that the safety copy is the same act a scheduled backup is - a second way of
 	// writing an archive would be a second archive format to keep in step.
@@ -1343,6 +1373,7 @@ func run() error {
 		queueport.KindBackupSchedule: worker.BackupScheduling{
 			Pass: backupPass, Fallback: cfg.Retention.Interval,
 		},
+		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {
@@ -1393,6 +1424,12 @@ func run() error {
 			// The leader's one duty beyond measurement, and the reading behind alert A-12 (E-05).
 			InstanceBackups: backupPass,
 			BackupFreshness: backupRunsInBackground{Runs: backupRuns, Work: backgroundWork},
+			// The partition duty `0001_init` wrote down: next month's partition of `audit_log`
+			// exists before the first entry of it does, and carries its own policy and its own
+			// revokes (E-09, audit.md §3).
+			AuditPartitions: auditPartitionsInBackground{
+				Partitions: postgres.NewAuditPartitionRepository(), Work: backgroundWork,
+			},
 		}
 		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))
 	}
@@ -1688,6 +1725,24 @@ func schemaVersion() string {
 
 // backupRunsInBackground reads the backup freshness on the background pool, which is where every
 // leader duty runs: the API's pool is for requests.
+// auditPartitionsInBackground gives the partition duty the transaction it needs. A system scope,
+// because a partition belongs to the installation rather than to a tenant - and a write one,
+// because the duty creates a table when there is one to create.
+type auditPartitionsInBackground struct {
+	Partitions auditrepo.Partitions
+	Work       persistenceport.UnitOfWork
+}
+
+func (a auditPartitionsInBackground) Ensure(ctx context.Context, month time.Time) (string, error) {
+	var name string
+	err := a.Work.Within(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		var err error
+		name, err = a.Partitions.Ensure(ctx, month)
+		return err
+	})
+	return name, err
+}
+
 type backupRunsInBackground struct {
 	Runs backuprepo.Runs
 	Work persistenceport.UnitOfWork

@@ -74,7 +74,7 @@ func (c *RestController) ExportView(
 	}
 
 	switch body.Format {
-	case openapi.JSON:
+	case openapi.ViewExportFormatJSON:
 		writeJSON(w, r, http.StatusOK, openapi.ViewExportDocument{
 			ViewId:      uuidValue(out.String("view_id")),
 			GeneratedAt: timeValue(out["generated_at"]),
@@ -82,9 +82,9 @@ func (c *RestController) ExportView(
 			Truncated:   out["truncated"] == true,
 			Rows:        workItemResponses(rows),
 		})
-	case openapi.CSV:
+	case openapi.ViewExportFormatCSV:
 		writeCSV(w, r, rows, zone)
-	case openapi.ICS:
+	case openapi.ViewExportFormatICS:
 		writeCalendar(w, r, calendar.Calendar{
 			Name:        out.String("view_name"),
 			GeneratedAt: timeValue(out["generated_at"]),

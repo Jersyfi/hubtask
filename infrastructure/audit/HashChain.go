@@ -38,6 +38,20 @@ func Chain(previousHash []byte, id shared.ID, seq int64, entry port.Entry) ([]by
 	return digest.Sum(nil), nil
 }
 
+// Links is Chain as the application asks for it (`POST /audit:verify`).
+//
+// A type with no state, over the same function the sink uses. That is the whole point: the
+// verifier and the writer perform one arithmetic, so a mismatch means the row changed rather than
+// that two implementations drifted.
+type Links struct{}
+
+var _ port.Chain = Links{}
+
+// Link is Chain, as the port spells it.
+func (Links) Link(previousHash []byte, id shared.ID, seq int64, entry port.Entry) ([]byte, error) {
+	return Chain(previousHash, id, seq, entry)
+}
+
 // canonicalEntry is the serialisation the hash is taken over.
 //
 // A struct rather than the entry itself, for two reasons. The field order is fixed by the

@@ -71,8 +71,10 @@ deletion itself produces an audit entry with the count and the period.
 
 ## 4. What gets audited — and what does not belong in it
 
-**Mandatory events** (an extract; the full matrix is in `docs/audit/event-matrix.md`, generated from
-the use case registry):
+**Mandatory events** (an extract; the full matrix is
+[docs/audit/event-matrix.md](../audit/event-matrix.md), generated from the use case catalogue by
+`make generate` — so it describes what this build records rather than what somebody remembered to
+write down):
 
 | Area | Events |
 |---|---|
@@ -110,12 +112,31 @@ text undermines the deletion obligation of the very item it documents.
 | Auditor | A dedicated `AUDITOR` role: read access to the audit trail and the configuration, **no** access to content |
 
 The `AUDITOR` role exists because the alternative, in practice, is giving the auditor administrator
-rights — a permissions problem that arises precisely where evidence is being demanded.
+rights — a permissions problem that arises precisely where evidence is being demanded. It is not a
+rung on the same ladder as the other six: it carries the right to read the trail and none of the
+rights every other role has, so somebody who needs both holds two memberships and the rights add up
+rather than the stronger one winning (`core/domain/service.Allows`). What it grants today is the
+trail; the configuration half of the row above is open point A-4.
 
 Access: `GET /audit` with the shared query DSL (filters on period, `action`, `actor`, `target`,
 `outcome`), `POST /audit:export` as a signed JSON Lines or CSV archive with a checksum manifest and
-a stated period, and `POST /audit:verify` for the chain check.
-Every audit export itself produces an audit entry.
+a stated period, and `POST /audit:verify` for the chain check. Two scopes rather than one:
+`audit:read` for the first and the third, `audit:export` for the second, because reading the trail
+and carrying a copy of it out of the installation are different acts.
+
+Every audit export itself produces an audit entry. A *read* does not: the trail would grow by being
+read, the second page would contain the reading of the first, and §4 does not list reading among the
+mandatory events. What is recorded is the refusal — and a verification that finds the chain broken,
+which is a critical entry of its own, because an auditor reading the trail months later has to be
+able to see that somebody noticed.
+
+The export is written in the clear, and the manifest says so. It is read by somebody outside this
+installation — an auditor with a spreadsheet, a second system, a regulator — and encrypting it
+under a key only this installation holds would make it unreadable exactly where it is meant to be
+read. What "signed" means is stated in the archive itself: the manifest's digest sealed under the
+installation's master key, bound to that export, which proves the archive was produced here and not
+altered since to anybody who can ask this installation. An installation holding no key writes no
+signature and records that rather than writing something that looks like one.
 
 ---
 
@@ -137,6 +158,38 @@ the operator's word for it. The project supplies machine-readable evidence for t
 This replaces no certification (ISO 27001 and SOC 2 are organisational), but it creates the
 technical evidence a reviewer would otherwise have to assemble laboriously. The access review is a
 recurring obligation in both frameworks.
+
+### The audit's own life: pseudonymisation instead of deletion
+
+[data-retention.md](./data-retention.md) and [ADR-0020](../adr/ADR-0020-retention-policies.md) both
+cite "audit.md §6" for this rule, and until E-09 it was in neither §6 nor anywhere else. It belongs
+with the evidence rather than with the erasure, because what it protects is the evidence.
+
+**An erasure request does not reach the trail.** Deleting the entries about a person would delete
+the record that their request was handled — the one entry a supervisory authority would ask for.
+The trail is kept under the evidentiary interest, for the period §9's open point A-1 has to settle
+legally, and the entries about somebody are then a record of what was done, not a profile of them:
+no content, a truncated address, a user agent class, no free text.
+
+**It could not be edited in place even if it should be.** The application role holds no `UPDATE`, a
+trigger refuses one, and every field an erasure would want to change — the actor's identifier, the
+actor's label — is covered by the hash chain (§3). Rewriting a row to pseudonymise it would break
+the chain of the tenant it belongs to, which destroys more evidence than the name it removed.
+
+So pseudonymisation happens at the two points where it can:
+
+* **At the boundary.** Once the account has been erased, what leaves the system carries no name: a
+  read of the trail and an export answer the actor as a pseudonym derived per tenant from the
+  identifier, rather than as the stored label. The row is untouched, the chain still verifies, and
+  the entries about one actor are still one actor's — which is what an auditor needs and what a
+  person's name is not needed for.
+* **At the end of life.** When the retention period is up, the partition holding those entries is
+  dropped whole (§3). That is the deletion, and it is the same one for everybody.
+
+The erasure itself is an auditable action with `legal_basis = dsr.erasure`: an entry *about* the
+erasure, which is exactly the entry that has to survive it. The boundary half is built by E-10,
+which is where the erasure that makes it necessary is built; the rule is written here because two
+documents were already pointing at it.
 
 ---
 
@@ -162,6 +215,19 @@ recurring obligation in both frameworks.
 | AT-6 | Test: the automation and MCP paths produce the same audit entries as the REST path (channel parity) |
 | AT-7 | Test: deleting an account leaves audit entries readable (the denormalised `actor_label`) |
 
+**One prefix, and what the other one meant.** This catalogue was `AT-n` here and `AU-n` in six other
+documents, and the two did not map: `versioning-release.md` made AU-1 "every action marked auditable
+produces exactly one entry", which is the declaration gate, while AT-1 here is the grants test. A
+release criterion nobody can evaluate is not a criterion, so E-09 kept the prefix of the document
+that defines the tests and rewrote the rest. The identifiers that were in circulation:
+
+| Was | Is | Why |
+|---|---|---|
+| AU-1 ("every auditable action produces exactly one entry", "the audit registry") | **SG-13** | It is the declaration gate, reconciled against the registry at build time — a security gate rather than a test of the trail |
+| AU-2 ("grants on `audit_log` checked") | **AT-1** | The same check, under the identifier this table gives it |
+| AU-4 ("no user content in the audit") | **AT-4** | The same check |
+| AU-1…AU-7 (as a set, in `roadmap.md` and `project-structure.md`) | **AT-1…AT-7** | The set this table defines |
+
 ---
 
 ## 9. Open points
@@ -171,3 +237,4 @@ recurring obligation in both frameworks.
 | A-1 | Agree the default audit trail retention period legally (evidentiary interest vs. storage limitation) | `0.6.0` |
 | A-2 | The format and target of the external chain anchoring (WORM bucket, transparency log) | `0.9.0` |
 | A-3 | Establish the need for a SIEM connection (syslog/CEF export or pull through the API) | After `1.0.0` |
+| A-4 | The `AUDITOR`'s second half: reading the configuration. The reads it would need sit behind `STRUCTURE`, which is a *writing* permission, so granting them means splitting a read-only configuration permission out of it — a change to the role matrix in `domain-model.md` §3.2 rather than to the audit surface | `0.5.0` |

@@ -129,54 +129,54 @@ func (e ActivityEntryActorType) Valid() bool {
 	}
 }
 
-// Defines values for AuditEntryActorType.
+// Defines values for AuditActorType.
 const (
-	AuditEntryActorTypeAIAGENT        AuditEntryActorType = "AI_AGENT"
-	AuditEntryActorTypeAUTOMATION     AuditEntryActorType = "AUTOMATION"
-	AuditEntryActorTypeSERVICEACCOUNT AuditEntryActorType = "SERVICE_ACCOUNT"
-	AuditEntryActorTypeSYSTEM         AuditEntryActorType = "SYSTEM"
-	AuditEntryActorTypeUSER           AuditEntryActorType = "USER"
+	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
+	AuditActorTypeAUTOMATION     AuditActorType = "AUTOMATION"
+	AuditActorTypeSERVICEACCOUNT AuditActorType = "SERVICE_ACCOUNT"
+	AuditActorTypeSYSTEM         AuditActorType = "SYSTEM"
+	AuditActorTypeUSER           AuditActorType = "USER"
 )
 
-// Valid indicates whether the value is a known member of the AuditEntryActorType enum.
-func (e AuditEntryActorType) Valid() bool {
+// Valid indicates whether the value is a known member of the AuditActorType enum.
+func (e AuditActorType) Valid() bool {
 	switch e {
-	case AuditEntryActorTypeAIAGENT:
+	case AuditActorTypeAIAGENT:
 		return true
-	case AuditEntryActorTypeAUTOMATION:
+	case AuditActorTypeAUTOMATION:
 		return true
-	case AuditEntryActorTypeSERVICEACCOUNT:
+	case AuditActorTypeSERVICEACCOUNT:
 		return true
-	case AuditEntryActorTypeSYSTEM:
+	case AuditActorTypeSYSTEM:
 		return true
-	case AuditEntryActorTypeUSER:
+	case AuditActorTypeUSER:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for AuditEntryContextChannel.
+// Defines values for AuditContextChannel.
 const (
-	AuditEntryContextChannelAUTOMATION AuditEntryContextChannel = "AUTOMATION"
-	AuditEntryContextChannelMCP        AuditEntryContextChannel = "MCP"
-	AuditEntryContextChannelREST       AuditEntryContextChannel = "REST"
-	AuditEntryContextChannelSYNC       AuditEntryContextChannel = "SYNC"
-	AuditEntryContextChannelSYSTEM     AuditEntryContextChannel = "SYSTEM"
+	AuditContextChannelAUTOMATION AuditContextChannel = "AUTOMATION"
+	AuditContextChannelMCP        AuditContextChannel = "MCP"
+	AuditContextChannelREST       AuditContextChannel = "REST"
+	AuditContextChannelSYNC       AuditContextChannel = "SYNC"
+	AuditContextChannelSYSTEM     AuditContextChannel = "SYSTEM"
 )
 
-// Valid indicates whether the value is a known member of the AuditEntryContextChannel enum.
-func (e AuditEntryContextChannel) Valid() bool {
+// Valid indicates whether the value is a known member of the AuditContextChannel enum.
+func (e AuditContextChannel) Valid() bool {
 	switch e {
-	case AuditEntryContextChannelAUTOMATION:
+	case AuditContextChannelAUTOMATION:
 		return true
-	case AuditEntryContextChannelMCP:
+	case AuditContextChannelMCP:
 		return true
-	case AuditEntryContextChannelREST:
+	case AuditContextChannelREST:
 		return true
-	case AuditEntryContextChannelSYNC:
+	case AuditContextChannelSYNC:
 		return true
-	case AuditEntryContextChannelSYSTEM:
+	case AuditContextChannelSYSTEM:
 		return true
 	default:
 		return false
@@ -222,6 +222,24 @@ func (e AuditEntrySeverity) Valid() bool {
 	case NOTICE:
 		return true
 	case WARNING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditExportFormat.
+const (
+	AuditExportFormatCSV   AuditExportFormat = "CSV"
+	AuditExportFormatJSONL AuditExportFormat = "JSONL"
+)
+
+// Valid indicates whether the value is a known member of the AuditExportFormat enum.
+func (e AuditExportFormat) Valid() bool {
+	switch e {
+	case AuditExportFormatCSV:
+		return true
+	case AuditExportFormatJSONL:
 		return true
 	default:
 		return false
@@ -1230,6 +1248,7 @@ func (e MediaUploadRequestUsage) Valid() bool {
 // Defines values for MembershipRole.
 const (
 	MembershipRoleADMIN       MembershipRole = "ADMIN"
+	MembershipRoleAUDITOR     MembershipRole = "AUDITOR"
 	MembershipRoleCONTRIBUTOR MembershipRole = "CONTRIBUTOR"
 	MembershipRoleGUEST       MembershipRole = "GUEST"
 	MembershipRoleMEMBER      MembershipRole = "MEMBER"
@@ -1241,6 +1260,8 @@ const (
 func (e MembershipRole) Valid() bool {
 	switch e {
 	case MembershipRoleADMIN:
+		return true
+	case MembershipRoleAUDITOR:
 		return true
 	case MembershipRoleCONTRIBUTOR:
 		return true
@@ -1931,19 +1952,19 @@ func (e TrashEntryKind) Valid() bool {
 
 // Defines values for ViewExportFormat.
 const (
-	CSV  ViewExportFormat = "CSV"
-	ICS  ViewExportFormat = "ICS"
-	JSON ViewExportFormat = "JSON"
+	ViewExportFormatCSV  ViewExportFormat = "CSV"
+	ViewExportFormatICS  ViewExportFormat = "ICS"
+	ViewExportFormatJSON ViewExportFormat = "JSON"
 )
 
 // Valid indicates whether the value is a known member of the ViewExportFormat enum.
 func (e ViewExportFormat) Valid() bool {
 	switch e {
-	case CSV:
+	case ViewExportFormatCSV:
 		return true
-	case ICS:
+	case ViewExportFormatICS:
 		return true
-	case JSON:
+	case ViewExportFormatJSON:
 		return true
 	default:
 		return false
@@ -2042,29 +2063,69 @@ type Assignment struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 }
 
+// AuditActor Who acted, as the entry recorded them. The label is the one that was valid at the time and
+// is stored denormalised: an entry that only pointed at a foreign key would become
+// unreadable the moment the account was deleted, and a trail that loses its meaning through
+// a deletion does not do its job (audit.md §2).
+type AuditActor struct {
+	Id    *openapi_types.UUID `json:"id,omitempty"`
+	Label *string             `json:"label,omitempty"`
+
+	// OnBehalfOf The run_as principal for automation and agents
+	OnBehalfOf *openapi_types.UUID `json:"on_behalf_of,omitempty"`
+	Type       *AuditActorType     `json:"type,omitempty"`
+}
+
+// AuditActorType defines model for AuditActor.Type.
+type AuditActorType string
+
+// AuditChange One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
+// `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
+// makes two entries comparable without either being readable; a `SECRET` one is not here at
+// all.
+type AuditChange struct {
+	Changed  *bool       `json:"changed,omitempty"`
+	Field    *string     `json:"field,omitempty"`
+	From     interface{} `json:"from,omitempty"`
+	FromHash *string     `json:"from_hash,omitempty"`
+	To       interface{} `json:"to,omitempty"`
+	ToHash   *string     `json:"to_hash,omitempty"`
+}
+
+// AuditContext The request the entry belongs to (audit.md §2). The address is truncated where the entry is
+// written - IPv4 /24, IPv6 /48 - and the user agent is reduced to a class, because the trail
+// is evidence about actions rather than a second analytics dataset.
+type AuditContext struct {
+	ApiClient *string              `json:"api_client,omitempty"`
+	Channel   *AuditContextChannel `json:"channel,omitempty"`
+	IpPrefix  *string              `json:"ip_prefix,omitempty"`
+	RequestId *string              `json:"request_id,omitempty"`
+
+	// RuleId The automation rule that acted
+	RuleId         *openapi_types.UUID `json:"rule_id,omitempty"`
+	TraceId        *string             `json:"trace_id,omitempty"`
+	UserAgentClass *string             `json:"user_agent_class,omitempty"`
+}
+
+// AuditContextChannel defines model for AuditContext.Channel.
+type AuditContextChannel string
+
 // AuditEntry Deliberately contains no user content (titles, notes, comments), so that the audit
 // stays unaffected by deletion obligations on content.
 type AuditEntry struct {
 	Action string `json:"action"`
-	Actor  struct {
-		Id    *openapi_types.UUID `json:"id,omitempty"`
-		Label *string             `json:"label,omitempty"`
 
-		// OnBehalfOf The run_as principal for automation and agents
-		OnBehalfOf *openapi_types.UUID  `json:"on_behalf_of,omitempty"`
-		Type       *AuditEntryActorType `json:"type,omitempty"`
-	} `json:"actor"`
-	Changes *[]struct {
-		Field *string     `json:"field,omitempty"`
-		From  interface{} `json:"from,omitempty"`
-		To    interface{} `json:"to,omitempty"`
-	} `json:"changes,omitempty"`
-	Context *struct {
-		Channel   *AuditEntryContextChannel `json:"channel,omitempty"`
-		IpPrefix  *string                   `json:"ip_prefix,omitempty"`
-		RequestId *string                   `json:"request_id,omitempty"`
-		TraceId   *string                   `json:"trace_id,omitempty"`
-	} `json:"context,omitempty"`
+	// Actor Who acted, as the entry recorded them. The label is the one that was valid at the time and
+	// is stored denormalised: an entry that only pointed at a foreign key would become
+	// unreadable the moment the account was deleted, and a trail that loses its meaning through
+	// a deletion does not do its job (audit.md §2).
+	Actor   AuditActor     `json:"actor"`
+	Changes *[]AuditChange `json:"changes,omitempty"`
+
+	// Context The request the entry belongs to (audit.md §2). The address is truncated where the entry is
+	// written - IPv4 /24, IPv6 /48 - and the user agent is reduced to a class, because the trail
+	// is evidence about actions rather than a second analytics dataset.
+	Context    *AuditContext       `json:"context,omitempty"`
 	Hash       *string             `json:"hash,omitempty"`
 	Id         openapi_types.UUID  `json:"id"`
 	LegalBasis *string             `json:"legal_basis,omitempty"`
@@ -2072,24 +2133,43 @@ type AuditEntry struct {
 	Outcome    AuditEntryOutcome   `json:"outcome"`
 	Seq        *int                `json:"seq,omitempty"`
 	Severity   *AuditEntrySeverity `json:"severity,omitempty"`
-	Target     *struct {
-		Id    *openapi_types.UUID `json:"id,omitempty"`
-		Label *string             `json:"label,omitempty"`
-		Type  *string             `json:"type,omitempty"`
-	} `json:"target,omitempty"`
+
+	// Target The object the entry is about.
+	Target *AuditTarget `json:"target,omitempty"`
 }
-
-// AuditEntryActorType defines model for AuditEntry.Actor.Type.
-type AuditEntryActorType string
-
-// AuditEntryContextChannel defines model for AuditEntry.Context.Channel.
-type AuditEntryContextChannel string
 
 // AuditEntryOutcome defines model for AuditEntry.Outcome.
 type AuditEntryOutcome string
 
 // AuditEntrySeverity defines model for AuditEntry.Severity.
 type AuditEntrySeverity string
+
+// AuditExport A period, a format, and where the archive goes. There is no filter beyond the period on
+// purpose: an export is evidence about an interval, and one that had been narrowed by
+// action or actor before it was signed would be evidence about somebody's selection.
+type AuditExport struct {
+	// Format JSON Lines keeps the entry as it is - the nested actor, target, context and changes - and
+	// is what a second system reads. CSV flattens it for a spreadsheet, and what does not fit a
+	// column travels as JSON inside one.
+	Format *AuditExportFormat `json:"format,omitempty"`
+	From   time.Time          `json:"from"`
+
+	// TargetId The backup target the archive is written to.
+	TargetId openapi_types.UUID `json:"target_id"`
+	To       time.Time          `json:"to"`
+}
+
+// AuditExportFormat JSON Lines keeps the entry as it is - the nested actor, target, context and changes - and
+// is what a second system reads. CSV flattens it for a spreadsheet, and what does not fit a
+// column travels as JSON inside one.
+type AuditExportFormat string
+
+// AuditTarget The object the entry is about.
+type AuditTarget struct {
+	Id    *openapi_types.UUID `json:"id,omitempty"`
+	Label *string             `json:"label,omitempty"`
+	Type  *string             `json:"type,omitempty"`
+}
 
 // AutoAssignCandidate defines model for AutoAssignCandidate.
 type AutoAssignCandidate struct {
@@ -3102,6 +3182,12 @@ type Membership struct {
 	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
 	GroupId   *openapi_types.UUID `json:"group_id,omitempty"`
 	Id        openapi_types.UUID  `json:"id"`
+
+	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
+	// the configuration and no content at all (audit.md §5). It exists because the
+	// alternative, in practice, is giving an auditor administrator rights - a permissions
+	// problem that arises precisely where evidence is being demanded. Somebody who needs both
+	// holds two memberships; the rights add up rather than the stronger one winning.
 	Role      MembershipRole      `json:"role"`
 	ScopeId   *openapi_types.UUID `json:"scope_id,omitempty"`
 	ScopeType MembershipScope     `json:"scope_type"`
@@ -3112,12 +3198,22 @@ type Membership struct {
 type MembershipGrant struct {
 	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
 	GroupId   *openapi_types.UUID `json:"group_id,omitempty"`
+
+	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
+	// the configuration and no content at all (audit.md §5). It exists because the
+	// alternative, in practice, is giving an auditor administrator rights - a permissions
+	// problem that arises precisely where evidence is being demanded. Somebody who needs both
+	// holds two memberships; the rights add up rather than the stronger one winning.
 	Role      MembershipRole      `json:"role"`
 	ScopeId   *openapi_types.UUID `json:"scope_id,omitempty"`
 	ScopeType MembershipScope     `json:"scope_type"`
 }
 
-// MembershipRole defines model for MembershipRole.
+// MembershipRole `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
+// the configuration and no content at all (audit.md §5). It exists because the
+// alternative, in practice, is giving an auditor administrator rights - a permissions
+// problem that arises precisely where evidence is being demanded. Somebody who needs both
+// holds two memberships; the rights add up rather than the stronger one winning.
 type MembershipRole string
 
 // MembershipScope defines model for MembershipScope.
@@ -3446,7 +3542,13 @@ type RoleDescription struct {
 
 	// Permissions The columns of the matrix this role carries unqualified.
 	Permissions *[]RoleDescriptionPermissions `json:"permissions,omitempty"`
-	Role        *MembershipRole               `json:"role,omitempty"`
+
+	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
+	// the configuration and no content at all (audit.md §5). It exists because the
+	// alternative, in practice, is giving an auditor administrator rights - a permissions
+	// problem that arises precisely where evidence is being demanded. Somebody who needs both
+	// holds two memberships; the rights add up rather than the stronger one winning.
+	Role *MembershipRole `json:"role,omitempty"`
 }
 
 // RoleDescriptionPermissions defines model for RoleDescription.Permissions.
@@ -4007,11 +4109,17 @@ type ListAuditEntriesParams struct {
 	To   *time.Time `form:"to,omitempty" json:"to,omitempty"`
 
 	// Action A prefix filter, e.g. auth. or membership.role_changed
-	Action  *string                        `form:"action,omitempty" json:"action,omitempty"`
-	ActorId *openapi_types.UUID            `form:"actor_id,omitempty" json:"actor_id,omitempty"`
-	Outcome *ListAuditEntriesParamsOutcome `form:"outcome,omitempty" json:"outcome,omitempty"`
-	Cursor  *string                        `form:"cursor,omitempty" json:"cursor,omitempty"`
-	Limit   *int                           `form:"limit,omitempty" json:"limit,omitempty"`
+	Action  *string             `form:"action,omitempty" json:"action,omitempty"`
+	ActorId *openapi_types.UUID `form:"actor_id,omitempty" json:"actor_id,omitempty"`
+
+	// TargetType The kind of object the entry is about, e.g. container or legal_hold
+	TargetType *string `form:"target_type,omitempty" json:"target_type,omitempty"`
+
+	// TargetId One object's whole history, whatever was done to it
+	TargetId *openapi_types.UUID            `form:"target_id,omitempty" json:"target_id,omitempty"`
+	Outcome  *ListAuditEntriesParamsOutcome `form:"outcome,omitempty" json:"outcome,omitempty"`
+	Cursor   *string                        `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit    *int                           `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // ListAuditEntriesParamsOutcome defines parameters for ListAuditEntries.
@@ -4595,6 +4703,9 @@ type UpdateAccountPreferencesJSONRequestBody = AccountPreferences
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// ExportAuditTrailJSONRequestBody defines body for ExportAuditTrail for application/json ContentType.
+type ExportAuditTrailJSONRequestBody = AuditExport
+
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 
@@ -4759,6 +4870,9 @@ type ServerInterface interface {
 	// ListAuditEntries Query audit entries
 	// (GET /audit)
 	ListAuditEntries(w http.ResponseWriter, r *http.Request, params ListAuditEntriesParams)
+	// ExportAuditTrail Export the audit trail over a period
+	// (POST /audit:export)
+	ExportAuditTrail(w http.ResponseWriter, r *http.Request)
 	// VerifyAuditChain Verify the integrity of the audit chain
 	// (POST /audit:verify)
 	VerifyAuditChain(w http.ResponseWriter, r *http.Request)
@@ -5270,6 +5384,32 @@ func (siw *ServerInterfaceWrapper) ListAuditEntries(w http.ResponseWriter, r *ht
 		return
 	}
 
+	// ------------- Optional query parameter "target_type" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "target_type", r.URL.Query(), &params.TargetType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target_type"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target_type", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "target_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "target_id", r.URL.Query(), &params.TargetId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target_id", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "outcome" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "outcome", r.URL.Query(), &params.Outcome, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
@@ -5311,6 +5451,20 @@ func (siw *ServerInterfaceWrapper) ListAuditEntries(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListAuditEntries(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportAuditTrail operation middleware
+func (siw *ServerInterfaceWrapper) ExportAuditTrail(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportAuditTrail(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10506,6 +10660,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/health", wrapper.GetHealthReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/audit", wrapper.ListAuditEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/audit:verify", wrapper.VerifyAuditChain)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/audit:export", wrapper.ExportAuditTrail)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backup-targets", wrapper.ListBackupTargets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-targets", wrapper.CreateBackupTarget)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backup-targets/{targetId}:test", wrapper.TestBackupTarget)

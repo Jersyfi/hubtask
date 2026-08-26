@@ -22,7 +22,7 @@ is released when the server, the clients and the website are finished together.
 | Security baseline | Gates SG-1…SG-12 in the pipeline (initially against the reference use case), `GuardedClient`, security headers, rate limits, Argon2id, token hashing, the secret type, `SECURITY.md`, secret scanning, SBOM + image signature |
 | Resilience baseline | `infrastructure/resilience` (timeouts, breaker, retry, bulkhead, load shedding), panic middleware, the degradation registry, tests RT-1…RT-4 |
 | Observability material | The basic metric catalogue, trace propagation across the outbox and jobs, `deploy/observability/` with a first dashboard, alert rules A-03/A-04/A-05/A-07/A-12 and their runbooks |
-| Audit skeleton | `audit_log` with the hash chain and grants (no `UPDATE`/`DELETE` for the app role), the `AuditableAction` registry, gates AU-1/AU-2 on the reference use case |
+| Audit skeleton | `audit_log` with the hash chain and grants (no `UPDATE`/`DELETE` for the app role), the `AuditableAction` registry, gate SG-13 and test AT-1 on the reference use case |
 | Data protection skeleton | The data catalogue created and checked in the gate, field classification, log and metric redaction, the `retention_policy` table with defaults |
 | Sync foundation | `change_log`, `tombstone`, HLC generation, and position fractional indices in the data model — not introducible later without a break ([ADR-0021](./adr/ADR-0021-offline-sync.md)) |
 | Persistence | The PostgreSQL connection, UnitOfWork, the tenant context (`SET LOCAL`), the RLS skeleton, the first migration |
@@ -190,7 +190,7 @@ Prerequisites for `1.0.0`:
 8. Operating documentation complete: backup, restore (with a logged drill), monitoring, the alert catalogue with a runbook per alert, an SLO report over at least 30 days, resilience tests RT-1…RT-12 green, `hubtask_panics_recovered_total` at 0 over the period.
 9. Reference deployments (Compose and Helm) tested reproducibly.
 10. The data catalogue `docs/privacy/data-catalog.md` and the DPA template in place (open point S-3).
-11. The audit demonstrably complete and immutable: AU-1…AU-7 green, `:verify` over a production period with no findings.
+11. The audit demonstrably complete and immutable: AT-1…AT-7 green, `:verify` over a production period with no findings.
 12. Backup and restore verified: BK-1…BK-10 green, a documented restore drill from every released target type, and the golden archives of every major version importable.
 13. Retention rules exercised: RE-1…RE-9 green, and at least one complete run of a multi-stage chain in a production environment.
 14. Offline synchronisation accepted: SY-1…SY-12 green, and the conformance test passed against at least one real client.

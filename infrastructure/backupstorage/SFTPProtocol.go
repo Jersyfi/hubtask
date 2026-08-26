@@ -304,9 +304,25 @@ func (s *sftpSession) request(kind byte, body []byte) (byte, []byte, error) {
 }
 
 // send writes one framed packet.
+//
+// The length is checked against the same bound the reading side applies, rather than trusted
+// because this client built the body. Everything that reaches here is bounded by construction -
+// a write is one chunkSize, a path is a path - but "bounded by construction" is a property of the
+// callers rather than of this function, and the frame header is a uint32: a body that somehow
+// exceeded it would not fail, it would wrap, and the target would read the next four gigabytes as
+// packets that were never sent.
 func (s *sftpSession) send(kind byte, body []byte) error {
-	frame := make([]byte, 5+len(body))
-	binary.BigEndian.PutUint32(frame, uint32(len(body)+1)) //nolint:gosec // G115: a packet this client builds
+	// The body is bounded before anything is computed from it, rather than after. The frame is
+	// `len(body)` plus five bytes and the header announces `len(body)` plus one, so a bound that
+	// is itself arithmetic on the length - `len(body)+1 > maxPacket` - leaves both of those
+	// derived from a sum nobody has bounded. Guarding the length itself is what makes every
+	// number below provably small, to a reader and to the analyser that reads this after them.
+	if len(body) >= maxPacket {
+		return fmt.Errorf("this client tried to send a packet of %d bytes", len(body)+1)
+	}
+
+	frame := make([]byte, len(body)+5)
+	binary.BigEndian.PutUint32(frame, uint32(len(body)+1)) //nolint:gosec // G115: bounded above
 	frame[4] = kind
 	copy(frame[5:], body)
 

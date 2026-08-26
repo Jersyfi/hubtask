@@ -11,6 +11,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const ensureAuditPartition = `-- name: EnsureAuditPartition :one
+SELECT COALESCE(ensure_audit_partition($1::date), '')::text AS partition_name
+`
+
+// Creates next month's partition if it is not there, and brings any partition that is missing its
+// policy or its revokes back into line (db/migrations/0043_audit_partition_duty.sql).
+//
+// The answer is the partition's name, or the empty string when entries for that month are already
+// in the default partition - which PostgreSQL will not split out, and which is an operator's
+// decision rather than a scheduled duty's. Coalesced here rather than answered as NULL, because
+// "no partition was made" is a state the caller acts on rather than an absence it has to unwrap.
+func (q *Queries) EnsureAuditPartition(ctx context.Context, month pgtype.Date) (string, error) {
+	row := q.db.QueryRow(ctx, ensureAuditPartition, month)
+	var partition_name string
+	err := row.Scan(&partition_name)
+	return partition_name, err
+}
+
 const insertAuditEntry = `-- name: InsertAuditEntry :exec
 INSERT INTO audit_log (
   id, tenant_id, seq, occurred_at, action, outcome, severity,
@@ -73,6 +91,34 @@ func (q *Queries) InsertAuditEntry(ctx context.Context, arg InsertAuditEntryPara
 	return err
 }
 
+const lastAuditAnchor = `-- name: LastAuditAnchor :one
+SELECT anchored_at, last_seq, chain_hash
+FROM audit_anchor
+WHERE tenant_id = current_tenant_id()
+ORDER BY last_seq DESC
+LIMIT 1
+`
+
+type LastAuditAnchorRow struct {
+	AnchoredAt pgtype.Timestamptz
+	LastSeq    int64
+	ChainHash  []byte
+}
+
+// The last chain end this tenant exported to an append-only target outside the database.
+//
+// Nothing writes this table yet, and that is the point of reading it: `:verify` proves the chain is
+// intact *inside* the database, and only an anchor proves anything against somebody who can rewrite
+// the whole of it. `sealed_until` is therefore null on every installation until external anchoring
+// exists (audit.md §3, open point A-2) - null being the honest answer rather than a date that would
+// claim more than the system does.
+func (q *Queries) LastAuditAnchor(ctx context.Context) (LastAuditAnchorRow, error) {
+	row := q.db.QueryRow(ctx, lastAuditAnchor)
+	var i LastAuditAnchorRow
+	err := row.Scan(&i.AnchoredAt, &i.LastSeq, &i.ChainHash)
+	return i, err
+}
+
 const lastAuditEntry = `-- name: LastAuditEntry :one
 SELECT seq, hash
 FROM audit_log
@@ -95,6 +141,111 @@ func (q *Queries) LastAuditEntry(ctx context.Context) (LastAuditEntryRow, error)
 	return i, err
 }
 
+const listAuditEntries = `-- name: ListAuditEntries :many
+SELECT id, tenant_id, seq, occurred_at, action, outcome, severity,
+       actor_type, actor_id, actor_label, on_behalf_of_id,
+       target_type, target_id, target_label,
+       context, changes, legal_basis, prev_hash, hash
+FROM audit_log
+WHERE tenant_id = current_tenant_id()
+  AND ($1::timestamptz IS NULL OR occurred_at >= $1::timestamptz)
+  AND ($2::timestamptz IS NULL OR occurred_at < $2::timestamptz)
+  AND ($3::text IS NULL OR starts_with(action, $3::text))
+  AND ($4::uuid IS NULL OR actor_id = $4::uuid)
+  AND ($5::text IS NULL OR target_type = $5::text)
+  AND ($6::uuid IS NULL OR target_id = $6::uuid)
+  AND ($7::text IS NULL OR outcome = $7::text)
+  AND (
+    $8::timestamptz IS NULL
+    OR (occurred_at, id) < ($8::timestamptz, $9::uuid)
+  )
+ORDER BY occurred_at DESC, id DESC
+LIMIT $10
+`
+
+type ListAuditEntriesParams struct {
+	FromTime         pgtype.Timestamptz
+	ToTime           pgtype.Timestamptz
+	ActionPrefix     *string
+	ActorID          pgtype.UUID
+	TargetType       *string
+	TargetID         pgtype.UUID
+	Outcome          *string
+	CursorOccurredAt pgtype.Timestamptz
+	CursorID         pgtype.UUID
+	PageSize         int32
+}
+
+// One page of the trail, newest first, with every filter audit.md §5 names.
+//
+// The filters are parameters rather than a query assembled from strings, which is CLAUDE.md rule 9
+// with no exception for "it is only a filter": every one of them is a `narg` that is either NULL -
+// meaning the condition is not there - or a value the driver binds. A `WHERE` built by hand for the
+// three or four filters a caller happened to send is exactly the shape T-06 is about.
+//
+// `starts_with` rather than LIKE for the action, because a caller's `%` would otherwise be a
+// wildcard: `action` is a dotted code and a prefix filter on `auth.` is the whole point, so the
+// prefix is compared as text rather than as a pattern.
+//
+// The boundary is the pair (occurred_at, id): entries written in the same transaction share a
+// timestamp, so a cursor on the time alone would either skip one or return one forever. The pair
+// is audit_id_uq's columns, which is the index this reads through.
+//
+// `tenant_id` is selected rather than taken from the transaction, unlike every other read in this
+// schema. The hash covers the value stored in the row, so a verifier that took the tenant from its
+// own context would be recomputing the digest over what it expected rather than over what is
+// written down (audit.md §3).
+func (q *Queries) ListAuditEntries(ctx context.Context, arg ListAuditEntriesParams) ([]AuditLog, error) {
+	rows, err := q.db.Query(ctx, listAuditEntries,
+		arg.FromTime,
+		arg.ToTime,
+		arg.ActionPrefix,
+		arg.ActorID,
+		arg.TargetType,
+		arg.TargetID,
+		arg.Outcome,
+		arg.CursorOccurredAt,
+		arg.CursorID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AuditLog{}
+	for rows.Next() {
+		var i AuditLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Seq,
+			&i.OccurredAt,
+			&i.Action,
+			&i.Outcome,
+			&i.Severity,
+			&i.ActorType,
+			&i.ActorID,
+			&i.ActorLabel,
+			&i.OnBehalfOfID,
+			&i.TargetType,
+			&i.TargetID,
+			&i.TargetLabel,
+			&i.Context,
+			&i.Changes,
+			&i.LegalBasis,
+			&i.PrevHash,
+			&i.Hash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockAuditChain = `-- name: LockAuditChain :exec
 
 SELECT pg_advisory_xact_lock(hashtext('audit_log:' || current_tenant_id()::text))
@@ -113,4 +264,84 @@ SELECT pg_advisory_xact_lock(hashtext('audit_log:' || current_tenant_id()::text)
 func (q *Queries) LockAuditChain(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockAuditChain)
 	return err
+}
+
+const walkAuditEntries = `-- name: WalkAuditEntries :many
+SELECT id, tenant_id, seq, occurred_at, action, outcome, severity,
+       actor_type, actor_id, actor_label, on_behalf_of_id,
+       target_type, target_id, target_label,
+       context, changes, legal_basis, prev_hash, hash
+FROM audit_log
+WHERE tenant_id = current_tenant_id()
+  AND ($1::timestamptz IS NULL OR occurred_at >= $1::timestamptz)
+  AND ($2::timestamptz IS NULL OR occurred_at < $2::timestamptz)
+  AND (
+    $3::timestamptz IS NULL
+    OR (occurred_at, id) > ($3::timestamptz, $4::uuid)
+  )
+ORDER BY occurred_at ASC, id ASC
+LIMIT $5
+`
+
+type WalkAuditEntriesParams struct {
+	FromTime         pgtype.Timestamptz
+	ToTime           pgtype.Timestamptz
+	CursorOccurredAt pgtype.Timestamptz
+	CursorID         pgtype.UUID
+	BatchSize        int32
+}
+
+// One batch of the trail over a period, oldest first, for a verification or an export.
+//
+// Ascending and by the same pair the page above descends by, because both callers walk the chain
+// rather than read a screen: the chain is built forwards, and a verifier that met the entries
+// newest first would have to hold the whole period in memory before it could check the first link.
+//
+// Its own statement rather than a direction parameter on the list. A direction that decides an
+// ORDER BY is either two statements behind one name or a string somebody assembles, and the second
+// of those is what rule 9 forbids.
+func (q *Queries) WalkAuditEntries(ctx context.Context, arg WalkAuditEntriesParams) ([]AuditLog, error) {
+	rows, err := q.db.Query(ctx, walkAuditEntries,
+		arg.FromTime,
+		arg.ToTime,
+		arg.CursorOccurredAt,
+		arg.CursorID,
+		arg.BatchSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AuditLog{}
+	for rows.Next() {
+		var i AuditLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Seq,
+			&i.OccurredAt,
+			&i.Action,
+			&i.Outcome,
+			&i.Severity,
+			&i.ActorType,
+			&i.ActorID,
+			&i.ActorLabel,
+			&i.OnBehalfOfID,
+			&i.TargetType,
+			&i.TargetID,
+			&i.TargetLabel,
+			&i.Context,
+			&i.Changes,
+			&i.LegalBasis,
+			&i.PrevHash,
+			&i.Hash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -40,6 +40,11 @@ func TestThePerEntryMatrix(t *testing.T) {
 		{identity.RoleGuest, service.ItemCreate, service.AccessNone},
 		{identity.RoleGuest, service.ItemChange, service.AccessNone},
 		{identity.RoleGuest, service.ItemComment, service.AccessAll},
+
+		{identity.RoleAuditor, service.ItemRead, service.AccessNone},
+		{identity.RoleAuditor, service.ItemCreate, service.AccessNone},
+		{identity.RoleAuditor, service.ItemChange, service.AccessNone},
+		{identity.RoleAuditor, service.ItemComment, service.AccessNone},
 	}
 
 	for _, c := range cases {
@@ -55,6 +60,11 @@ func TestThePerEntryMatrix(t *testing.T) {
 			if service.ItemAccessOf(role, action) == "" {
 				t.Errorf("%s has no answer for %s", role, action)
 			}
+		}
+		if role == identity.RoleAuditor {
+			// Deliberately none: an auditor holding a membership still reads no entry, which the
+			// table states cell by cell above.
+			continue
 		}
 		if service.ItemAccessOf(role, service.ItemRead) != service.AccessAll {
 			t.Errorf("%s cannot read an entry it holds a role on", role)

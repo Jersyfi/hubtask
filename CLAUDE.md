@@ -208,7 +208,7 @@ A piece of work is finished when, in addition to working code:
 
 - The use case is registered in the registry → available via REST, MCP, and automation (parity test)
 - A metric and a trace span exist (gate RT-12)
-- Any auditable action is in the `AuditableAction` registry (gate AU-1)
+- Any auditable action is in the `AuditableAction` registry (gate SG-13)
 - New personal data fields are in the data catalogue with a deletion path
 - A merge rule is defined for every new field for offline synchronisation (LWW, OR-set,
   fractional index, or server-side) — see `offline-sync.md` §4

@@ -565,13 +565,23 @@ paths:
       operationId: listAuditEntries
       summary: Query audit entries
       description: |
-        Requires the `audit:read` scope and the ADMIN/OWNER role. The access is itself audited.
-        Filtering by period, action, actor, target, and outcome; cursor pagination.
+        Requires the `audit:read` scope. Who sees what is audit.md §5 rather than the ordinary
+        role matrix: an `OWNER`, an `ADMIN` or an `AUDITOR` reads the whole trail of their own
+        tenant, and everybody else reads their own events - transparency towards the employee
+        rather than a lesser administrator's view. A request that names somebody else's
+        `actor_id` without the right to the whole trail is refused, and the refusal is itself an
+        entry. Filtering by period, action, actor, target, and outcome; cursor pagination.
+
+        A read that succeeds is not itself recorded. A trail that grew by being read would bury
+        what it is for - the second page would contain the reading of the first - and §4 does not
+        list reading among the mandatory events. What is recorded is the refusal, and the export.
       parameters:
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
         - { name: action, in: query, schema: { type: string }, description: "A prefix filter, e.g. auth. or membership.role_changed" }
         - { name: actor_id, in: query, schema: { type: string, format: uuid } }
+        - { name: target_type, in: query, schema: { type: string }, description: "The kind of object the entry is about, e.g. container or legal_hold" }
+        - { name: target_id, in: query, schema: { type: string, format: uuid }, description: "One object's whole history, whatever was done to it" }
         - { name: outcome, in: query, schema: { type: string, enum: [SUCCESS, DENIED, FAILED] } }
         - { name: cursor, in: query, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 500 } }
@@ -595,7 +605,15 @@ paths:
       tags: [audit]
       operationId: verifyAuditChain
       summary: Verify the integrity of the audit chain
-      description: Checks the hash chain and the absence of gaps over a period.
+      description: |
+        Checks the hash chain and the absence of gaps over a period. Requires the `audit:read`
+        scope and the right to the whole trail: a chain checked over one actor's entries would be
+        a chain with every other entry missing, and would answer "broken" for a trail that is
+        intact.
+
+        A clean check records nothing. A break is recorded as a critical entry of its own,
+        because an auditor reading the trail months later has to be able to see that somebody
+        noticed, and when.
       requestBody:
         required: true
         content:
@@ -616,10 +634,59 @@ paths:
                 properties:
                   valid: { type: boolean }
                   checked: { type: integer }
-                  first_broken_seq: { type: [integer, "null"] }
-                  gaps: { type: array, items: { type: integer } }
-                  sealed_until: { type: [string, "null"], format: date-time }
+                  first_broken_seq:
+                    type: [integer, "null"]
+                    description: >
+                      Where the first entry that does not hold sits. The first rather than all of
+                      them, because that is where an investigation starts.
+                  gaps:
+                    type: array
+                    items: { type: integer }
+                    description: >
+                      The missing sequence numbers, cut at a hundred. A chain with a hole of a
+                      million entries would otherwise answer with a million integers.
+                  gap_count:
+                    type: integer
+                    description: How many are missing in total, which may be more than `gaps` lists.
+                  sealed_until:
+                    type: [string, "null"]
+                    format: date-time
+                    description: >
+                      When this tenant's chain was last anchored outside the database, and null
+                      when it never was - which is every installation until external anchoring
+                      exists (audit.md §3). The check proves the chain intact *inside* the
+                      database; only an anchor says anything against somebody who can rewrite all
+                      of it.
         "403": { $ref: "#/components/responses/Problem" }
+
+  /audit:export:
+    post:
+      tags: [audit]
+      operationId: exportAuditTrail
+      summary: Export the audit trail over a period
+      description: |
+        Requires the `audit:export` scope and the right to the whole trail. The archive is
+        written to a backup target - JSON Lines or CSV, with a checksum manifest and the period
+        it covers - because an export over four hundred days is not something a request can
+        hold; this answers a `JobRef` and the work happens in the background.
+
+        The export produces an audit entry of its own (audit.md §5). A copy of the evidence
+        leaving the installation is itself an event an auditor asks about, and it is the first
+        `audit.*` action the system records about itself.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuditExport" }
+      responses:
+        "202":
+          description: The export was accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
 
   /backup-targets:
     get:
@@ -3648,7 +3715,13 @@ components:
 
     MembershipRole:
       type: string
-      enum: [OWNER, ADMIN, MEMBER, CONTRIBUTOR, VIEWER, GUEST]
+      description: |
+        `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
+        the configuration and no content at all (audit.md §5). It exists because the
+        alternative, in practice, is giving an auditor administrator rights - a permissions
+        problem that arises precisely where evidence is being demanded. Somebody who needs both
+        holds two memberships; the rights add up rather than the stronger one winning.
+      enum: [OWNER, ADMIN, MEMBER, CONTRIBUTOR, VIEWER, GUEST, AUDITOR]
 
     Membership:
       type: object
@@ -5115,6 +5188,57 @@ components:
           type: array
           items: { type: string, format: uuid }
 
+    AuditActor:
+      type: object
+      description: |
+        Who acted, as the entry recorded them. The label is the one that was valid at the time and
+        is stored denormalised: an entry that only pointed at a foreign key would become
+        unreadable the moment the account was deleted, and a trail that loses its meaning through
+        a deletion does not do its job (audit.md §2).
+      properties:
+        type: { type: string, enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM] }
+        id: { type: [string, "null"], format: uuid }
+        label: { type: [string, "null"] }
+        on_behalf_of: { type: [string, "null"], format: uuid, description: The run_as principal for automation and agents }
+
+    AuditTarget:
+      type: object
+      description: The object the entry is about.
+      properties:
+        type: { type: [string, "null"] }
+        id: { type: [string, "null"], format: uuid }
+        label: { type: [string, "null"] }
+
+    AuditContext:
+      type: object
+      description: |
+        The request the entry belongs to (audit.md §2). The address is truncated where the entry is
+        written - IPv4 /24, IPv6 /48 - and the user agent is reduced to a class, because the trail
+        is evidence about actions rather than a second analytics dataset.
+      properties:
+        request_id: { type: string }
+        trace_id: { type: string }
+        ip_prefix: { type: [string, "null"] }
+        user_agent_class: { type: string }
+        api_client: { type: string }
+        rule_id: { type: string, format: uuid, description: The automation rule that acted }
+        channel: { type: string, enum: [REST, MCP, AUTOMATION, SYSTEM, SYNC] }
+
+    AuditChange:
+      type: object
+      description: |
+        One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
+        `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
+        makes two entries comparable without either being readable; a `SECRET` one is not here at
+        all.
+      properties:
+        field: { type: string }
+        from: {}
+        to: {}
+        changed: { type: boolean }
+        from_hash: { type: [string, "null"] }
+        to_hash: { type: [string, "null"] }
+
     AuditEntry:
       type: object
       required: [id, occurred_at, action, outcome, actor]
@@ -5128,36 +5252,38 @@ components:
         action: { type: string, example: membership.role_changed }
         outcome: { type: string, enum: [SUCCESS, DENIED, FAILED] }
         severity: { type: string, enum: [INFO, NOTICE, WARNING, CRITICAL] }
-        actor:
-          type: object
-          properties:
-            type: { type: string, enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM] }
-            id: { type: [string, "null"], format: uuid }
-            label: { type: [string, "null"] }
-            on_behalf_of: { type: [string, "null"], format: uuid, description: The run_as principal for automation and agents }
-        target:
-          type: object
-          properties:
-            type: { type: [string, "null"] }
-            id: { type: [string, "null"], format: uuid }
-            label: { type: [string, "null"] }
+        actor: { $ref: "#/components/schemas/AuditActor" }
+        target: { $ref: "#/components/schemas/AuditTarget" }
         changes:
           type: array
-          items:
-            type: object
-            properties:
-              field: { type: string }
-              from: {}
-              to: {}
-        context:
-          type: object
-          properties:
-            request_id: { type: string }
-            trace_id: { type: string }
-            ip_prefix: { type: [string, "null"] }
-            channel: { type: string, enum: [REST, MCP, AUTOMATION, SYSTEM, SYNC] }
+          items: { $ref: "#/components/schemas/AuditChange" }
+        context: { $ref: "#/components/schemas/AuditContext" }
         legal_basis: { type: [string, "null"] }
         hash: { type: string }
+
+    AuditExportFormat:
+      type: string
+      description: |
+        JSON Lines keeps the entry as it is - the nested actor, target, context and changes - and
+        is what a second system reads. CSV flattens it for a spreadsheet, and what does not fit a
+        column travels as JSON inside one.
+      enum: [JSONL, CSV]
+
+    AuditExport:
+      type: object
+      required: [from, to, target_id]
+      description: |
+        A period, a format, and where the archive goes. There is no filter beyond the period on
+        purpose: an export is evidence about an interval, and one that had been narrowed by
+        action or actor before it was signed would be evidence about somebody's selection.
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        format: { $ref: "#/components/schemas/AuditExportFormat" }
+        target_id:
+          type: string
+          format: uuid
+          description: The backup target the archive is written to.
 
     BackupTargetKind:
       type: string
