@@ -12,6 +12,8 @@
 package lifecycle
 
 import (
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -47,9 +49,124 @@ type LegalHold struct {
 	// Reason is why, in the words of whoever placed it. It is operator content rather than user
 	// content, and it never travels into a metric or an event - only an auditor and an operator
 	// reading a blocked run ever see it.
-	Reason   string
+	Reason string
+	// PlacedBy and PlacedAt are who and when. The audit obligation of §4.1 is about who as much as
+	// about what - "lifting it is auditable" is a statement about a person - and the columns have
+	// carried both since `0001_init` against a model that had neither (E-08).
+	PlacedBy shared.ID
 	PlacedAt time.Time
+	// ReleasedBy, ReleasedAt and ReleasedReason are the lifting. A hold is never deleted: the row
+	// stays and gains an end, because a hold that vanished would leave an auditor unable to tell
+	// "there was never one" from "somebody lifted it".
+	ReleasedBy     shared.ID
+	ReleasedAt     time.Time
+	ReleasedReason string
 }
+
+// Released reports a hold that is no longer in force.
+func (h LegalHold) Released() bool { return !h.ReleasedAt.IsZero() }
+
+// maxHoldReason bounds what a reason may say. Two thousand characters is a paragraph and a
+// citation; beyond that somebody is storing a document in a column, and the column is read by an
+// auditor rather than searched.
+const maxHoldReason = 2000
+
+// NewHoldInput is one hold as somebody asked for it.
+type NewHoldInput struct {
+	ID       shared.ID
+	Scope    HoldScope
+	ScopeID  shared.ID
+	Reason   string
+	PlacedBy shared.ID
+	Now      time.Time
+}
+
+// NewLegalHold builds a hold and refuses what cannot be honoured.
+//
+// The last of those is the point of the function. A hold that is stored and not honoured is worse
+// than a hold that was refused, because somebody believes it is in force - so a scope this build
+// does not act on is a refusal here rather than a row nothing reads.
+func NewLegalHold(in NewHoldInput) (LegalHold, error) {
+	reason := strings.TrimSpace(in.Reason)
+	switch {
+	case in.ID.IsZero() || in.PlacedBy.IsZero():
+		return LegalHold{}, invalidHold(CodeHoldIncomplete, "/reason")
+	case !in.Scope.Valid():
+		return LegalHold{}, invalidHold(CodeHoldScopeInvalid, "/scope")
+	case reason == "":
+		return LegalHold{}, invalidHold(CodeHoldReasonRequired, "/reason")
+	case len(reason) > maxHoldReason:
+		return LegalHold{}, invalidHold(CodeHoldReasonTooLong, "/reason")
+	// A tenant-wide hold names nothing because it covers everything; every other scope names what
+	// it covers, and one that did not would be a hold nothing could be judged against.
+	case (in.Scope == HoldTenant) != in.ScopeID.IsZero():
+		return LegalHold{}, invalidHold(CodeHoldScopeIDMismatch, "/scope")
+	// The scope the check constraint accepts and this build does not act on. `Holds.Blocking`
+	// ignores it deliberately - an account hold is about one person's own data, which is erased
+	// where a data subject request is answered rather than kept where a workspace's entries are -
+	// and E-10 is the task that answers one. Until then it is refused: a hold nothing honours is
+	// the one outcome that is worse than no hold at all, because it is believed.
+	case in.Scope == HoldAccount:
+		return LegalHold{}, shared.ErrConflict.WithDetail(CodeHoldAccountScopeUnavailable).
+			WithFields(shared.FieldError{Path: "/scope", Code: CodeHoldAccountScopeUnavailable})
+	}
+
+	return LegalHold{
+		ID: in.ID, Scope: in.Scope, ScopeID: in.ScopeID, Reason: reason,
+		PlacedBy: in.PlacedBy, PlacedAt: in.Now,
+	}, nil
+}
+
+// Release lifts a hold, and refuses to lift one twice.
+//
+// A second lifting would overwrite who lifted it and when, which is the one pair of values the
+// record exists to keep - and the caller asking for it is working from a stale reading rather than
+// asking for something new.
+func (h LegalHold) Release(by shared.ID, reason string, at time.Time) (LegalHold, error) {
+	trimmed := strings.TrimSpace(reason)
+	switch {
+	case h.Released():
+		return LegalHold{}, shared.ErrConflict.WithDetail(CodeHoldAlreadyReleased).
+			WithParams(map[string]string{"hold_id": h.ID.String()})
+	case by.IsZero():
+		return LegalHold{}, invalidHold(CodeHoldIncomplete, "/reason")
+	case trimmed == "":
+		return LegalHold{}, invalidHold(CodeHoldReasonRequired, "/reason")
+	case len(trimmed) > maxHoldReason:
+		return LegalHold{}, invalidHold(CodeHoldReasonTooLong, "/reason")
+	}
+
+	h.ReleasedBy, h.ReleasedAt, h.ReleasedReason = by, at, trimmed
+	return h, nil
+}
+
+// Valid reports whether a scope is one the schema allows.
+func (s HoldScope) Valid() bool {
+	switch s {
+	case HoldTenant, HoldContainer, HoldItem, HoldAccount:
+		return true
+	}
+	return false
+}
+
+func invalidHold(code, field string) error {
+	return shared.ErrValidation.WithDetail(code).
+		WithFields(shared.FieldError{Path: field, Code: code}).
+		WithCause(errors.New(code))
+}
+
+// The refusals of a legal hold, as codes rather than as prose.
+const (
+	CodeHoldIncomplete      = "lifecycle.hold_incomplete"
+	CodeHoldScopeInvalid    = "lifecycle.hold_scope_invalid"
+	CodeHoldScopeIDMismatch = "lifecycle.hold_scope_id_mismatch"
+	CodeHoldReasonRequired  = "lifecycle.hold_reason_required"
+	CodeHoldReasonTooLong   = "lifecycle.hold_reason_too_long"
+	CodeHoldNotFound        = "lifecycle.hold_not_found"
+	CodeHoldAlreadyReleased = "lifecycle.hold_already_released"
+	// CodeHoldAccountScopeUnavailable is the ACCOUNT scope, refused until E-10 answers one.
+	CodeHoldAccountScopeUnavailable = "lifecycle.hold_account_scope_unavailable"
+)
 
 // Target is what a hard delete is about to remove, expressed as the levels a hold could name.
 //
