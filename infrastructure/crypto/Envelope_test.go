@@ -297,3 +297,95 @@ func TestAValueTooLargeToBeACredentialIsRefused(t *testing.T) {
 		t.Fatalf("a value at the limit was refused: %v", err)
 	}
 }
+
+// The derived key: same purpose, same key, every time - and a different one for every purpose.
+func TestADerivedKeyIsStableAndBoundToItsPurpose(t *testing.T) {
+	sealer := crypto.NewEnvelope(ring(t, key("a", materialA)), clockadapter.CryptoRandom{})
+
+	first, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32)
+	if err != nil {
+		t.Fatalf("deriving: %v", err)
+	}
+	again, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32)
+	if err != nil {
+		t.Fatalf("deriving: %v", err)
+	}
+	other, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:two", 32)
+	if err != nil {
+		t.Fatalf("deriving: %v", err)
+	}
+
+	switch {
+	case first.Key.Len() != 32:
+		t.Fatalf("a key of %d bytes", first.Key.Len())
+	case !first.Key.Equal(again.Key):
+		t.Fatal("the same purpose gave two different keys")
+	case first.Key.Equal(other.Key):
+		t.Fatal("two targets share a key")
+	case first.KeyID != "a":
+		t.Fatalf("the key names %q", first.KeyID)
+	}
+}
+
+// An archive written before a rotation opens with the key its manifest names, which is what
+// reproducing from a named master key is for.
+func TestAKeyIsReproducedFromTheMasterKeyItsIdentifierNames(t *testing.T) {
+	before := crypto.NewEnvelope(ring(t, key("a", materialA)), clockadapter.CryptoRandom{})
+	written, err := before.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32)
+	if err != nil {
+		t.Fatalf("deriving: %v", err)
+	}
+
+	// The rotation: a new key is added and the old one is kept.
+	after := crypto.NewEnvelope(ring(t, key("b", materialB), key("a", materialA)), clockadapter.CryptoRandom{})
+
+	reproduced, err := after.ReproduceFromMaster(t.Context(), written.KeyID, "backup_target.archive:one", 32)
+	if err != nil {
+		t.Fatalf("reproducing: %v", err)
+	}
+	if !reproduced.Equal(written.Key) {
+		t.Fatal("the key its manifest names did not come back")
+	}
+
+	// And what the installation writes now is a different key, under the new identifier.
+	fresh, err := after.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32)
+	if err != nil {
+		t.Fatalf("deriving: %v", err)
+	}
+	if fresh.KeyID != "b" || fresh.Key.Equal(written.Key) {
+		t.Fatalf("after the rotation the key is %q and unchanged: %v", fresh.KeyID, fresh.Key.Equal(written.Key))
+	}
+}
+
+func TestAKeyFromAMasterKeyTheInstallationNoLongerHoldsIsUnavailable(t *testing.T) {
+	sealer := crypto.NewEnvelope(ring(t, key("b", materialB)), clockadapter.CryptoRandom{})
+
+	_, err := sealer.ReproduceFromMaster(t.Context(), "a", "backup_target.archive:one", 32)
+	if !errors.Is(err, shared.ErrUnavailable) {
+		t.Fatalf("a key nobody holds: %v", err)
+	}
+}
+
+// An installation with no master key refuses rather than deriving a key of zeroes, for the reason
+// sealing refuses rather than writing plaintext.
+func TestDerivingWithoutAMasterKeyIsRefused(t *testing.T) {
+	empty, err := crypto.NewKeyring(nil)
+	if err != nil {
+		t.Fatalf("an empty ring: %v", err)
+	}
+	sealer := crypto.NewEnvelope(empty, clockadapter.CryptoRandom{})
+
+	if _, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32); !errors.Is(err, shared.ErrUnavailable) {
+		t.Fatalf("deriving with no key: %v", err)
+	}
+}
+
+func TestALengthNothingNeedsIsRefused(t *testing.T) {
+	sealer := crypto.NewEnvelope(ring(t, key("a", materialA)), clockadapter.CryptoRandom{})
+
+	for _, length := range []int{0, -1, 65, 1 << 20} {
+		if _, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", length); err == nil {
+			t.Fatalf("a key of %d bytes was derived", length)
+		}
+	}
+}

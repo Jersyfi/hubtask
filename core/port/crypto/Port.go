@@ -110,6 +110,45 @@ type StreamCipher interface {
 	KeyBytes() int
 }
 
+// MasterDerived is a key made from the installation's master key, and the identifier of the master
+// key it came from.
+//
+// The identifier is what travels: it goes into the archive's manifest, and it is what makes a
+// rotation cheap for archives exactly as it is for sealed values. A new archive is written under
+// the key the installation is currently using, an old one keeps naming the key it was written
+// under, and neither is rewritten.
+type MasterDerived struct {
+	KeyID string
+	Key   secret.Bytes
+}
+
+// KeyMaterialiser makes a key for something the installation itself protects, out of the master
+// key it already holds.
+//
+// It exists because backup-restore.md §4 asks for "a backup key per target", and the two ways it
+// names of getting one are not both available yet: a passphrase is not stored anywhere by design,
+// and the surface that would take one is refused until there is a run to hand it to. What is
+// available is the master key the installation was configured with, and deriving from it - bound
+// to the target, so two targets never share a key - gives every archive a key of its own without
+// asking anybody to remember a second secret.
+//
+// Deriving rather than storing is the point. A key that was stored would be a key to protect, and
+// the thing it protects is already the backup.
+type KeyMaterialiser interface {
+	// DeriveFromMaster answers a key of the given length, bound to the purpose, from the master
+	// key the installation is currently using.
+	//
+	// ErrUnavailable with `crypto.no_encryption_key` when the installation has none - a refusal
+	// rather than a key of zeroes, for the reason Seal refuses rather than writing plaintext.
+	DeriveFromMaster(ctx context.Context, purpose Purpose, length int) (MasterDerived, error)
+
+	// ReproduceFromMaster answers the same key again, from the master key the identifier names.
+	// It is what opens an archive written before a rotation, and it answers
+	// `crypto.unknown_key` when the installation no longer holds that key - which is the honest
+	// answer to "this archive cannot be opened here any more".
+	ReproduceFromMaster(ctx context.Context, keyID string, purpose Purpose, length int) (secret.Bytes, error)
+}
+
 // Derivation is everything a later run needs in order to arrive at the same key from the same
 // passphrase - and, deliberately, nothing that would let anybody arrive at it without one.
 //
