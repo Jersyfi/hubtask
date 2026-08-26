@@ -277,14 +277,23 @@ nothing. They arrive with the tenant-facing health report, which is still
 the previous condition read `HUBTASK_BACKUP_LOCAL_PATH` and `HUBTASK_BACKUP_TARGETS`, neither of
 which said whether a target exists, and the second was read by nothing else and documented nowhere.
 It is removed.
-| `backup.last_success_age_hours` (metric) | The age of the last successful backup per target |
-| `backup.verify_failed_total` | A checksum error at the target → a damaged archive |
-| `backup.restore_test_age_days` | The time since the last verified restore |
-| A-12 (tightened) | The last successful backup is older than twice the schedule interval |
-| A-19 (new) | The restore drill is older than 90 days |
+| Signal | Meaning |
+|---|---|
+| `hubtask_backup_last_success_timestamp_seconds` (metric) | When each target last had a backup that worked. Emitted by the leader since E-05, labelled by target, and a timestamp rather than an age so that the alert computes the age at evaluation time rather than at scrape time. A target that has never had one is **absent** rather than zero — a gauge of zero reads as 1970 |
+| `hubtask_restore_drill_last_success_timestamp_seconds` (metric) | When a trial restore last worked. Nothing emits it yet; it arrives with the restore side of this milestone |
+| A-12 | No successful backup in 24 hours, **per target** — a `max()` across targets would let one healthy target hide a broken one, which is exactly the 3-2-1 arrangement §2 recommends |
+| A-20 (new) | The restore drill is older than 90 days |
 
-The last point is deliberate: a backup that has never been restored is a hypothesis. The regular
-`NEW_TENANT` trial restore can be automated and evaluated as a test run.
+**A-20 rather than A-19**, and the renumbering is this way round on purpose. `data-protection.md` §4
+and [ADR-0018](../adr/ADR-0018-privacy-by-design.md) had already given A-19 to the data subject
+request deadline; an ADR records a decision that was taken, and editing one so that a later table
+can keep its number is the wrong direction. The restore drill is the newcomer, so the restore drill
+moves (E-05).
+
+The drill itself is deliberate: a backup that has never been restored is a hypothesis. The regular
+`NEW_TENANT` trial restore can be automated and evaluated as a test run. Its alert is a ticket
+rather than a page, and it does not fire on the metric's absence the way A-12 does — nothing records
+a drill yet, and an absence rule would page every installation for a feature that does not exist.
 
 ---
 

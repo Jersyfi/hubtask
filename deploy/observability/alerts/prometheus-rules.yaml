@@ -101,9 +101,15 @@ groups:
         # is written as an absence: no successful backup in 24 hours. Without a backup metric the
         # series is missing entirely, and `absent()` is what turns "nobody configured a backup"
         # into an alert rather than into silence.
+        #
+        # Per target rather than over the maximum (E-05). The gauge is labelled by target, and a
+        # `max()` across them means one healthy target hides a broken one - which is exactly the
+        # 3-2-1 arrangement backup-restore.md §2 recommends, so it is the normal case rather than
+        # an edge one. Without the aggregation each series alerts for itself and the label says
+        # which target it is.
         expr: |
           absent(hubtask_backup_last_success_timestamp_seconds)
-          or (time() - max(hubtask_backup_last_success_timestamp_seconds)) > 86400
+          or (time() - hubtask_backup_last_success_timestamp_seconds) > 86400
         for: 30m
         labels:
           severity: page
@@ -112,3 +118,24 @@ groups:
           summary: "No successful backup in the last 24 hours"
           description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
           runbook: RB-A12-backup-stale.md
+
+      - alert: HubtaskRestoreDrillStale
+        # A-20. A backup that has never been restored is a hope rather than a backup, and the only
+        # way to know is to have done it. Ninety days is the interval backup-restore.md §10 names.
+        #
+        # Deliberately *without* `absent()`, which is the difference between this and A-12. Nothing
+        # emits this metric yet - the trial restore arrives with the restore side of the milestone -
+        # and an absence rule would page every installation on earth for a feature that does not
+        # exist. So it stays dormant until something records a drill, and is right on the day one
+        # does. A ticket rather than a page: a drill that is overdue is a thing to schedule, not a
+        # thing to wake somebody for.
+        expr: |
+          (time() - hubtask_restore_drill_last_success_timestamp_seconds) > 7776000
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-20
+        annotations:
+          summary: "The last restore drill is more than 90 days old"
+          description: "Nobody has proved that these backups restore. Run a trial restore into a new tenant."
+          runbook: RB-A20-restore-drill-stale.md

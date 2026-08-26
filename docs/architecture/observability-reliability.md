@@ -268,16 +268,18 @@ Symptom-based, each with a runbook. The thresholds are starting values for provi
 | A-09 | Webhook error rate > 20% (30 min, excluding 4xx recipient errors) | ticket | Delivery problems |
 | A-10 | Circuit breaker open > 10 min | ticket | A third-party system persistently disrupted |
 | A-11 | Database pool utilisation > 80% (10 min) | ticket | Saturation approaching |
-| A-12 | A replication/PITR gap, or a backup older than 24 h | page | Risk of data loss |
+| A-12 | A replication/PITR gap, or a backup older than 24 h, per target | page | Risk of data loss |
 | A-13 | Migration versions inconsistent across the cluster > 15 min | ticket | The rollout is stuck |
 | A-14 | `hubtask_config_invalid_total` > 0 after startup | ticket | Misconfiguration |
 | A-15 | Auth error rate > 5%, or refresh reuse detected | ticket/page | Misconfiguration or an attack |
 | A-16 | Automation: rule deactivations > 0 in 1 h | ticket | The loop/error protection kicked in |
 | A-17 | A certificate or signing key expires in < 14 days | ticket | Preventive |
 | A-18 | A tenant exceeds 90% of a quota | info | Capacity planning |
+| A-19 | A data subject request is approaching its statutory deadline | ticket | The deadline is legal, not internal ([ADR-0018](../adr/ADR-0018-privacy-by-design.md), `data-protection.md` §4) |
+| A-20 | The last restore drill is older than 90 days | ticket | A backup nobody has restored is a hypothesis (`backup-restore.md` §10) |
 
 For **self-hosting** there is a reduced variant: a standard Grafana dashboard and an alert rule file
-with A-03, A-04, A-05, A-07, A-08, A-12 — plus the warnings from `/meta/health`, which are visible even
+with A-03, A-04, A-05, A-07, A-08, A-12, A-20 — plus the warnings from `/meta/health`, which are visible even
 without Prometheus.
 
 ---
@@ -292,7 +294,7 @@ Shipped under `deploy/observability/`:
 * `dashboards/tenant.json` — quotas, top tenants (only with the tenant label enabled) *(with
   multi-tenant operation, `0.6.0`)*
 * `alerts/prometheus-rules.yaml` — the alert catalogue as rules *(shipped: the reduced
-  self-hosting set A-03, A-04, A-05, A-07, A-08, A-12; the full catalogue with provider operation)*
+  self-hosting set A-03, A-04, A-05, A-07, A-08, A-12, A-20; the full catalogue with provider operation)*
 * `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up *(shipped, one per shipped alert)*
 
 Any alert without a runbook does not ship. That is `make gate-observability`, which checks it in

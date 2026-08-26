@@ -38,9 +38,14 @@ nice-to-have (observability-reliability.md §8).
 ## Diagnostic queries
 
 ```promql
-time() - max(hubtask_backup_last_success_timestamp_seconds)   # age of the newest success
-absent(hubtask_backup_last_success_timestamp_seconds)          # 1 = nothing is reporting at all
+time() - hubtask_backup_last_success_timestamp_seconds   # age per target, which is what alerts
+absent(hubtask_backup_last_success_timestamp_seconds)     # 1 = nothing is reporting at all
 ```
+
+The gauge is labelled by target, and the rule deliberately does not aggregate: with the 3-2-1
+arrangement [backup-restore.md](../../../docs/architecture/backup-restore.md) §2 recommends, a
+`max()` across targets would let the local copy hide a remote one that has been failing for a week.
+The `target_id` label on the firing series is the one to look at.
 
 ## Escalation
 
@@ -49,6 +54,9 @@ installation accepts total data loss. Both are legitimate; forgetting is not.
 
 ## Follow-up
 
-If the metric was absent because backups are not implemented yet in the running version, that is
-the honest state before `0.4.5` — record it, and let the alert stay silent only by pointing it at
-a version that has them.
+The metric exists since `0.4.5` (E-05) and is published by the `scheduler` role. If it is absent on
+a version that has backups, the leader is not running — see [RB-A03](./RB-A03-not-ready.md) — rather
+than "backups are not implemented", which was the honest state before that release.
+
+And then [RB-A20](./RB-A20-restore-drill-stale.md): a backup that works is not the same as a backup
+that restores, and the second is the one that matters.
