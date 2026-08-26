@@ -345,7 +345,7 @@ graph LR
 |---|---|---|
 | **Identity & Access** | `Tenant`, `Account`, `Membership`, `Group`, `Role`, `ServiceAccount`, `AccessToken` | The tenant is the topmost isolation boundary, above the hub |
 | **Work Management** | `Hub`, `Collection`, `WorkItem` (TASK/WORK_PACKAGE/ACTIVITY), `Bucket`, `Label`, `Assignment`, `Comment`, `Cover`, `CustomFieldDefinition` | The business core, see [domain-model.md](./domain-model.md) |
-| **Scheduling** | `DueDate`, `Reminder`, `RecurrenceRule`, `ScheduledOccurrence` | RFC 5545 RRULE, time zones per user |
+| **Scheduling** | `DueDate`, `Reminder`, `RecurrenceRule`, `ScheduledOccurrence` | RFC 5545 RRULE, time zones per user. `ScheduledOccurrence` is a **concept rather than a table** (D-05): an occurrence *is* a `WorkItem` pointing at its rule, and what the materialisation needs to remember is one moment - how far the series has been dealt with - which lives on the rule as `last_materialized_at`. A skip is that moment moving past an occurrence without one being created, and the exactly-once guarantee is its compare-and-set. A table would have added a row per occurrence saying what the entry already says, and a second thing to keep in step with it |
 | **Templates** | `Template`, `TemplateNode` | Produces item trees |
 | **Views & Query** | `SavedView`, `QuerySpec`, `GroupingSpec` | The basis for list/kanban/timeline |
 | **Jumble** | `JumbleEntry`, `IntakeChannel` | Conversion into a `WorkItem` |
