@@ -79,6 +79,26 @@ func (pending) VerifyAuditChain(w http.ResponseWriter, r *http.Request) { notAva
 // ExportAuditTrail is overridden by RestController, for the reason ListAuditEntries is.
 func (pending) ExportAuditTrail(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The privacy operations (E-10). They land with the use cases that serve them; until then the
+// route exists because the contract declares it.
+func (pending) ListDataSubjectRequests(w http.ResponseWriter, r *http.Request, _ openapi.ListDataSubjectRequestsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateDataSubjectRequest(w http.ResponseWriter, r *http.Request, _ openapi.CreateDataSubjectRequestParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateDataSubjectRequest(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RestrictProcessing(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
+func (pending) WithdrawConsent(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The three target operations. Overridden by RestController; they stay here because the
 // compile-time assertion is on `pending` itself.
 func (pending) ListBackupTargets(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

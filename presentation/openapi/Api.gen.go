@@ -699,6 +699,30 @@ func (e CompletionPolicy) Valid() bool {
 	}
 }
 
+// Defines values for ConsentRecordSource.
+const (
+	ConsentRecordSourceConfig      ConsentRecordSource = "config"
+	ConsentRecordSourceLessThannil ConsentRecordSource = "<nil>"
+	ConsentRecordSourceTenantAdmin ConsentRecordSource = "tenant_admin"
+	ConsentRecordSourceUser        ConsentRecordSource = "user"
+)
+
+// Valid indicates whether the value is a known member of the ConsentRecordSource enum.
+func (e ConsentRecordSource) Valid() bool {
+	switch e {
+	case ConsentRecordSourceConfig:
+		return true
+	case ConsentRecordSourceLessThannil:
+		return true
+	case ConsentRecordSourceTenantAdmin:
+		return true
+	case ConsentRecordSourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerType.
 const (
 	ContainerTypeCOLLECTION ContainerType = "COLLECTION"
@@ -789,6 +813,78 @@ func (e CustomFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for DataSubjectRequestKind.
+const (
+	ACCESS        DataSubjectRequestKind = "ACCESS"
+	ERASURE       DataSubjectRequestKind = "ERASURE"
+	OBJECTION     DataSubjectRequestKind = "OBJECTION"
+	PORTABILITY   DataSubjectRequestKind = "PORTABILITY"
+	RECTIFICATION DataSubjectRequestKind = "RECTIFICATION"
+	RESTRICTION   DataSubjectRequestKind = "RESTRICTION"
+)
+
+// Valid indicates whether the value is a known member of the DataSubjectRequestKind enum.
+func (e DataSubjectRequestKind) Valid() bool {
+	switch e {
+	case ACCESS:
+		return true
+	case ERASURE:
+		return true
+	case OBJECTION:
+		return true
+	case PORTABILITY:
+		return true
+	case RECTIFICATION:
+		return true
+	case RESTRICTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DataSubjectRequestScope.
+const (
+	DataSubjectRequestScopeINSTALLATION DataSubjectRequestScope = "INSTALLATION"
+	DataSubjectRequestScopeTENANT       DataSubjectRequestScope = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the DataSubjectRequestScope enum.
+func (e DataSubjectRequestScope) Valid() bool {
+	switch e {
+	case DataSubjectRequestScopeINSTALLATION:
+		return true
+	case DataSubjectRequestScopeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DataSubjectRequestStatus.
+const (
+	DataSubjectRequestStatusCOMPLETED  DataSubjectRequestStatus = "COMPLETED"
+	DataSubjectRequestStatusINPROGRESS DataSubjectRequestStatus = "IN_PROGRESS"
+	DataSubjectRequestStatusRECEIVED   DataSubjectRequestStatus = "RECEIVED"
+	DataSubjectRequestStatusREJECTED   DataSubjectRequestStatus = "REJECTED"
+)
+
+// Valid indicates whether the value is a known member of the DataSubjectRequestStatus enum.
+func (e DataSubjectRequestStatus) Valid() bool {
+	switch e {
+	case DataSubjectRequestStatusCOMPLETED:
+		return true
+	case DataSubjectRequestStatusINPROGRESS:
+		return true
+	case DataSubjectRequestStatusRECEIVED:
+		return true
+	case DataSubjectRequestStatusREJECTED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DependencyHealthCircuitState.
 const (
 	DependencyHealthCircuitStateClosed      DependencyHealthCircuitState = "closed"
@@ -837,6 +933,24 @@ func (e DroppedReferenceKind) Valid() bool {
 	case DroppedReferenceKindLABEL:
 		return true
 	case DroppedReferenceKindMEMBER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ErasureMode.
+const (
+	ErasureModeANONYMIZE  ErasureMode = "ANONYMIZE"
+	ErasureModeFULLDELETE ErasureMode = "FULL_DELETE"
+)
+
+// Valid indicates whether the value is a known member of the ErasureMode enum.
+func (e ErasureMode) Valid() bool {
+	switch e {
+	case ErasureModeANONYMIZE:
+		return true
+	case ErasureModeFULLDELETE:
 		return true
 	default:
 		return false
@@ -1868,22 +1982,22 @@ func (e SyncMutationSet) Valid() bool {
 
 // Defines values for SyncMutationResultResult.
 const (
-	APPLIED  SyncMutationResultResult = "APPLIED"
-	CONFLICT SyncMutationResultResult = "CONFLICT"
-	MERGED   SyncMutationResultResult = "MERGED"
-	REJECTED SyncMutationResultResult = "REJECTED"
+	SyncMutationResultResultAPPLIED  SyncMutationResultResult = "APPLIED"
+	SyncMutationResultResultCONFLICT SyncMutationResultResult = "CONFLICT"
+	SyncMutationResultResultMERGED   SyncMutationResultResult = "MERGED"
+	SyncMutationResultResultREJECTED SyncMutationResultResult = "REJECTED"
 )
 
 // Valid indicates whether the value is a known member of the SyncMutationResultResult enum.
 func (e SyncMutationResultResult) Valid() bool {
 	switch e {
-	case APPLIED:
+	case SyncMutationResultResultAPPLIED:
 		return true
-	case CONFLICT:
+	case SyncMutationResultResultCONFLICT:
 		return true
-	case MERGED:
+	case SyncMutationResultResultMERGED:
 		return true
-	case REJECTED:
+	case SyncMutationResultResultREJECTED:
 		return true
 	default:
 		return false
@@ -2588,6 +2702,35 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConsentPurpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
+type ConsentPurpose = string
+
+// ConsentRecord defines model for ConsentRecord.
+type ConsentRecord struct {
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+	Granted   bool                `json:"granted"`
+	GrantedAt *time.Time          `json:"granted_at,omitempty"`
+	Id        openapi_types.UUID  `json:"id"`
+
+	// Purpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
+	Purpose   ConsentPurpose       `json:"purpose"`
+	RevokedAt *time.Time           `json:"revoked_at,omitempty"`
+	Source    *ConsentRecordSource `json:"source,omitempty"`
+}
+
+// ConsentRecordSource defines model for ConsentRecord.Source.
+type ConsentRecordSource string
+
+// ConsentWithdrawal defines model for ConsentWithdrawal.
+type ConsentWithdrawal struct {
+	// AccountId Whose consent. Omitted means the caller's own.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// Purpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
+	Purpose ConsentPurpose `json:"purpose"`
+	Reason  *string        `json:"reason,omitempty"`
+}
+
 // Container defines model for Container.
 type Container struct {
 	ArchivedAt  *time.Time `json:"archived_at,omitempty"`
@@ -2725,6 +2868,101 @@ type CustomFieldValue struct {
 	Value interface{} `json:"value"`
 }
 
+// DataSubjectRequest defines model for DataSubjectRequest.
+type DataSubjectRequest struct {
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+
+	// DueAt The statutory deadline. Thirty days from receipt unless the caller named another.
+	DueAt time.Time `json:"due_at"`
+
+	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+	// controller, because tenant data touches third parties' rights (ADR-0018).
+	ErasureMode *ErasureMode        `json:"erasure_mode,omitempty"`
+	HandledBy   *openapi_types.UUID `json:"handled_by,omitempty"`
+	Id          openapi_types.UUID  `json:"id"`
+
+	// Kind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
+	// ordinary write - and is a tracked case all the same, because the deadline is somebody's
+	// responsibility either way.
+	Kind            DataSubjectRequestKind `json:"kind"`
+	Notes           *string                `json:"notes,omitempty"`
+	ReceivedAt      time.Time              `json:"received_at"`
+	RejectionReason *string                `json:"rejection_reason,omitempty"`
+
+	// ResultArchive Where the export was written at the backup target, once an access or portability case has produced one.
+	ResultArchive  *string             `json:"result_archive,omitempty"`
+	ResultTargetId *openapi_types.UUID `json:"result_target_id,omitempty"`
+
+	// Scope How far the case reaches. `TENANT` is this workspace, which is what a controller answering
+	// for their own workspace means. `INSTALLATION` is every workspace of this installation in
+	// which the person is a member - the one operation in this system that legitimately crosses
+	// the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
+	// it touches, and is the provider's path rather than a tenant's.
+	Scope  *DataSubjectRequestScope `json:"scope,omitempty"`
+	Status DataSubjectRequestStatus `json:"status"`
+
+	// SubjectAccountId The account the case is about, and null once a full deletion has taken it.
+	SubjectAccountId *openapi_types.UUID `json:"subject_account_id,omitempty"`
+
+	// SubjectEmail Who asked, for a request that has no account behind it.
+	SubjectEmail *string `json:"subject_email,omitempty"`
+}
+
+// DataSubjectRequestCreate defines model for DataSubjectRequestCreate.
+type DataSubjectRequestCreate struct {
+	// DueAt The deadline, when it is not thirty days from receipt.
+	DueAt *time.Time `json:"due_at,omitempty"`
+
+	// Kind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
+	// ordinary write - and is a tracked case all the same, because the deadline is somebody's
+	// responsibility either way.
+	Kind  DataSubjectRequestKind `json:"kind"`
+	Notes *string                `json:"notes,omitempty"`
+
+	// Scope How far the case reaches. `TENANT` is this workspace, which is what a controller answering
+	// for their own workspace means. `INSTALLATION` is every workspace of this installation in
+	// which the person is a member - the one operation in this system that legitimately crosses
+	// the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
+	// it touches, and is the provider's path rather than a tenant's.
+	Scope            *DataSubjectRequestScope `json:"scope,omitempty"`
+	SubjectAccountId *openapi_types.UUID      `json:"subject_account_id,omitempty"`
+	SubjectEmail     *openapi_types.Email     `json:"subject_email,omitempty"`
+
+	// TargetId The backup target an access or portability export is written to. Required before such a case can start; a copy of somebody's data has to be put somewhere, and this system writes archives to configured targets rather than to a directory it chose itself.
+	TargetId *openapi_types.UUID `json:"target_id,omitempty"`
+}
+
+// DataSubjectRequestKind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
+// ordinary write - and is a tracked case all the same, because the deadline is somebody's
+// responsibility either way.
+type DataSubjectRequestKind string
+
+// DataSubjectRequestScope How far the case reaches. `TENANT` is this workspace, which is what a controller answering
+// for their own workspace means. `INSTALLATION` is every workspace of this installation in
+// which the person is a member - the one operation in this system that legitimately crosses
+// the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
+// it touches, and is the provider's path rather than a tenant's.
+type DataSubjectRequestScope string
+
+// DataSubjectRequestStatus defines model for DataSubjectRequestStatus.
+type DataSubjectRequestStatus string
+
+// DataSubjectRequestUpdate defines model for DataSubjectRequestUpdate.
+type DataSubjectRequestUpdate struct {
+	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+	// controller, because tenant data touches third parties' rights (ADR-0018).
+	ErasureMode *ErasureMode        `json:"erasure_mode,omitempty"`
+	HandledBy   *openapi_types.UUID `json:"handled_by,omitempty"`
+	Notes       *string             `json:"notes,omitempty"`
+
+	// RejectionReason Required when the case is rejected. A refusal without a reason is not an answer.
+	RejectionReason *string                   `json:"rejection_reason,omitempty"`
+	Status          *DataSubjectRequestStatus `json:"status,omitempty"`
+	TargetId        *openapi_types.UUID       `json:"target_id,omitempty"`
+}
+
 // DegradedFeature defines model for DegradedFeature.
 type DegradedFeature struct {
 	Feature    string    `json:"feature"`
@@ -2789,6 +3027,11 @@ type DuplicateResult struct {
 	DroppedReferences []DroppedReference `json:"dropped_references"`
 	Item              WorkItem           `json:"item"`
 }
+
+// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+// controller, because tenant data touches third parties' rights (ADR-0018).
+type ErasureMode string
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -3254,6 +3497,13 @@ type Problem struct {
 	Status    int                     `json:"status"`
 	Title     *string                 `json:"title,omitempty"`
 	Type      *string                 `json:"type,omitempty"`
+}
+
+// ProcessingRestriction defines model for ProcessingRestriction.
+type ProcessingRestriction struct {
+	// Reason Why, for the audit trail. The restriction is a decision somebody took.
+	Reason     *string `json:"reason,omitempty"`
+	Restricted bool    `json:"restricted"`
 }
 
 // PurgeSummary What one pass of a removal did.
@@ -4600,6 +4850,24 @@ type GrantMembershipParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListDataSubjectRequestsParams defines parameters for ListDataSubjectRequests.
+type ListDataSubjectRequestsParams struct {
+	Status *DataSubjectRequestStatus `form:"status,omitempty" json:"status,omitempty"`
+	Kind   *DataSubjectRequestKind   `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// DueWithinDays Only the requests whose deadline falls inside that many days, overdue ones included.
+	DueWithinDays *int    `form:"due_within_days,omitempty" json:"due_within_days,omitempty"`
+	IncludeClosed *bool   `form:"include_closed,omitempty" json:"include_closed,omitempty"`
+	Cursor        *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size          *int    `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// CreateDataSubjectRequestParams defines parameters for CreateDataSubjectRequest.
+type CreateDataSubjectRequestParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -4699,6 +4967,9 @@ type ShareSavedViewParams struct {
 
 // UpdateAccountPreferencesJSONRequestBody defines body for UpdateAccountPreferences for application/json ContentType.
 type UpdateAccountPreferencesJSONRequestBody = AccountPreferences
+
+// RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
+type RestrictProcessingJSONRequestBody = ProcessingRestriction
 
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
@@ -4823,6 +5094,15 @@ type RequestMediaUploadJSONRequestBody = MediaUploadRequest
 // GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
 type GrantMembershipJSONRequestBody = MembershipGrant
 
+// WithdrawConsentJSONRequestBody defines body for WithdrawConsent for application/json ContentType.
+type WithdrawConsentJSONRequestBody = ConsentWithdrawal
+
+// CreateDataSubjectRequestJSONRequestBody defines body for CreateDataSubjectRequest for application/json ContentType.
+type CreateDataSubjectRequestJSONRequestBody = DataSubjectRequestCreate
+
+// UpdateDataSubjectRequestJSONRequestBody defines body for UpdateDataSubjectRequest for application/json ContentType.
+type UpdateDataSubjectRequestJSONRequestBody = DataSubjectRequestUpdate
+
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
 
@@ -4864,6 +5144,9 @@ type ServerInterface interface {
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// RestrictProcessing Restrict the processing of an account's data (Art. 18)
+	// (POST /accounts/{accountId}:restrict)
+	RestrictProcessing(w http.ResponseWriter, r *http.Request, accountId AccountId)
 	// InviteAccount Invite a person into this workspace
 	// (POST /accounts:invite)
 	InviteAccount(w http.ResponseWriter, r *http.Request, params InviteAccountParams)
@@ -5170,6 +5453,18 @@ type ServerInterface interface {
 	// GetHealthReport Deep self-diagnosis of the installation
 	// (GET /meta/health)
 	GetHealthReport(w http.ResponseWriter, r *http.Request)
+	// WithdrawConsent Withdraw consent for an optional processing purpose (Art. 21)
+	// (POST /privacy/consents:withdraw)
+	WithdrawConsent(w http.ResponseWriter, r *http.Request)
+	// ListDataSubjectRequests The data subject requests this workspace is handling
+	// (GET /privacy/requests)
+	ListDataSubjectRequests(w http.ResponseWriter, r *http.Request, params ListDataSubjectRequestsParams)
+	// CreateDataSubjectRequest Record a right somebody has exercised
+	// (POST /privacy/requests)
+	CreateDataSubjectRequest(w http.ResponseWriter, r *http.Request, params CreateDataSubjectRequestParams)
+	// UpdateDataSubjectRequest Move a case along
+	// (PATCH /privacy/requests/{requestId})
+	UpdateDataSubjectRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID)
 	// StartRestore Start a restore
 	// (POST /restores)
 	StartRestore(w http.ResponseWriter, r *http.Request)
@@ -5273,6 +5568,32 @@ func (siw *ServerInterfaceWrapper) UpdateAccountPreferences(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateAccountPreferences(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestrictProcessing operation middleware
+func (siw *ServerInterfaceWrapper) RestrictProcessing(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestrictProcessing(w, r, accountId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9614,6 +9935,185 @@ func (siw *ServerInterfaceWrapper) GetHealthReport(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// WithdrawConsent operation middleware
+func (siw *ServerInterfaceWrapper) WithdrawConsent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WithdrawConsent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDataSubjectRequests operation middleware
+func (siw *ServerInterfaceWrapper) ListDataSubjectRequests(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDataSubjectRequestsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "due_within_days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "due_within_days", r.URL.Query(), &params.DueWithinDays, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "due_within_days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "due_within_days", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "include_closed" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_closed", r.URL.Query(), &params.IncludeClosed, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_closed"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_closed", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDataSubjectRequests(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDataSubjectRequest operation middleware
+func (siw *ServerInterfaceWrapper) CreateDataSubjectRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateDataSubjectRequestParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDataSubjectRequest(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDataSubjectRequest operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDataSubjectRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", r.PathValue("requestId"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDataSubjectRequest(w, r, requestId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StartRestore operation middleware
 func (siw *ServerInterfaceWrapper) StartRestore(w http.ResponseWriter, r *http.Request) {
 
@@ -10687,6 +11187,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invite", wrapper.InviteAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests", wrapper.ListDataSubjectRequests)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests", wrapper.CreateDataSubjectRequest)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/privacy/requests/{requestId}", wrapper.UpdateDataSubjectRequest)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:restrict", wrapper.RestrictProcessing)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:withdraw", wrapper.WithdrawConsent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/memberships", wrapper.GrantMembership)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/memberships/{membershipId}", wrapper.RevokeMembership)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/groups", wrapper.CreateGroup)
