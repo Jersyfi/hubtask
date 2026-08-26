@@ -27,6 +27,7 @@ import (
 
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -366,6 +367,10 @@ func run() error {
 	// The item history. One repository for both halves of the port - the append every writer makes
 	// and the page ListActivity reads (B-11).
 	history := postgres.NewActivityRepository(cursors)
+	// The reading half of the audit trail, beside the sink rather than part of it: every use case
+	// that writes holds the sink, and a sink that could also read would put the whole trail one
+	// call away from code that has no business reading it (E-09).
+	auditTrail := postgres.NewAuditTrailRepository(cursors)
 	lifecycleStore := postgres.NewLifecycleRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
@@ -841,6 +846,9 @@ func run() error {
 		lifecycle.PlaceLegalHold{Holds: legalHolds}.Descriptor(),
 		lifecycle.ReleaseLegalHold{Holds: legalHolds}.Descriptor(),
 		lifecycle.ListLegalHolds{Holds: legalHolds}.Descriptor(),
+		auditservice.ListAuditEntries{
+			Trail: auditTrail, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		lifecycle.RetainItem{
 			Items: items, Containers: containers,
 			Marking: postgres.NewRetentionMarkingRepository(), Authorizer: authorizer,

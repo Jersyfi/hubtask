@@ -67,6 +67,8 @@ func (pending) DeleteGroup(w http.ResponseWriter, r *http.Request, _ openapi.Gro
 	notAvailable(w, r)
 }
 
+// ListAuditEntries is overridden by RestController; it stays here because the compile-time
+// assertion is on `pending` itself.
 func (pending) ListAuditEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListAuditEntriesParams) {
 	notAvailable(w, r)
 }

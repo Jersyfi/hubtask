@@ -129,54 +129,54 @@ func (e ActivityEntryActorType) Valid() bool {
 	}
 }
 
-// Defines values for AuditEntryActorType.
+// Defines values for AuditActorType.
 const (
-	AuditEntryActorTypeAIAGENT        AuditEntryActorType = "AI_AGENT"
-	AuditEntryActorTypeAUTOMATION     AuditEntryActorType = "AUTOMATION"
-	AuditEntryActorTypeSERVICEACCOUNT AuditEntryActorType = "SERVICE_ACCOUNT"
-	AuditEntryActorTypeSYSTEM         AuditEntryActorType = "SYSTEM"
-	AuditEntryActorTypeUSER           AuditEntryActorType = "USER"
+	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
+	AuditActorTypeAUTOMATION     AuditActorType = "AUTOMATION"
+	AuditActorTypeSERVICEACCOUNT AuditActorType = "SERVICE_ACCOUNT"
+	AuditActorTypeSYSTEM         AuditActorType = "SYSTEM"
+	AuditActorTypeUSER           AuditActorType = "USER"
 )
 
-// Valid indicates whether the value is a known member of the AuditEntryActorType enum.
-func (e AuditEntryActorType) Valid() bool {
+// Valid indicates whether the value is a known member of the AuditActorType enum.
+func (e AuditActorType) Valid() bool {
 	switch e {
-	case AuditEntryActorTypeAIAGENT:
+	case AuditActorTypeAIAGENT:
 		return true
-	case AuditEntryActorTypeAUTOMATION:
+	case AuditActorTypeAUTOMATION:
 		return true
-	case AuditEntryActorTypeSERVICEACCOUNT:
+	case AuditActorTypeSERVICEACCOUNT:
 		return true
-	case AuditEntryActorTypeSYSTEM:
+	case AuditActorTypeSYSTEM:
 		return true
-	case AuditEntryActorTypeUSER:
+	case AuditActorTypeUSER:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for AuditEntryContextChannel.
+// Defines values for AuditContextChannel.
 const (
-	AuditEntryContextChannelAUTOMATION AuditEntryContextChannel = "AUTOMATION"
-	AuditEntryContextChannelMCP        AuditEntryContextChannel = "MCP"
-	AuditEntryContextChannelREST       AuditEntryContextChannel = "REST"
-	AuditEntryContextChannelSYNC       AuditEntryContextChannel = "SYNC"
-	AuditEntryContextChannelSYSTEM     AuditEntryContextChannel = "SYSTEM"
+	AuditContextChannelAUTOMATION AuditContextChannel = "AUTOMATION"
+	AuditContextChannelMCP        AuditContextChannel = "MCP"
+	AuditContextChannelREST       AuditContextChannel = "REST"
+	AuditContextChannelSYNC       AuditContextChannel = "SYNC"
+	AuditContextChannelSYSTEM     AuditContextChannel = "SYSTEM"
 )
 
-// Valid indicates whether the value is a known member of the AuditEntryContextChannel enum.
-func (e AuditEntryContextChannel) Valid() bool {
+// Valid indicates whether the value is a known member of the AuditContextChannel enum.
+func (e AuditContextChannel) Valid() bool {
 	switch e {
-	case AuditEntryContextChannelAUTOMATION:
+	case AuditContextChannelAUTOMATION:
 		return true
-	case AuditEntryContextChannelMCP:
+	case AuditContextChannelMCP:
 		return true
-	case AuditEntryContextChannelREST:
+	case AuditContextChannelREST:
 		return true
-	case AuditEntryContextChannelSYNC:
+	case AuditContextChannelSYNC:
 		return true
-	case AuditEntryContextChannelSYSTEM:
+	case AuditContextChannelSYSTEM:
 		return true
 	default:
 		return false
@@ -2063,37 +2063,69 @@ type Assignment struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 }
 
+// AuditActor Who acted, as the entry recorded them. The label is the one that was valid at the time and
+// is stored denormalised: an entry that only pointed at a foreign key would become
+// unreadable the moment the account was deleted, and a trail that loses its meaning through
+// a deletion does not do its job (audit.md §2).
+type AuditActor struct {
+	Id    *openapi_types.UUID `json:"id,omitempty"`
+	Label *string             `json:"label,omitempty"`
+
+	// OnBehalfOf The run_as principal for automation and agents
+	OnBehalfOf *openapi_types.UUID `json:"on_behalf_of,omitempty"`
+	Type       *AuditActorType     `json:"type,omitempty"`
+}
+
+// AuditActorType defines model for AuditActor.Type.
+type AuditActorType string
+
+// AuditChange One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
+// `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
+// makes two entries comparable without either being readable; a `SECRET` one is not here at
+// all.
+type AuditChange struct {
+	Changed  *bool       `json:"changed,omitempty"`
+	Field    *string     `json:"field,omitempty"`
+	From     interface{} `json:"from,omitempty"`
+	FromHash *string     `json:"from_hash,omitempty"`
+	To       interface{} `json:"to,omitempty"`
+	ToHash   *string     `json:"to_hash,omitempty"`
+}
+
+// AuditContext The request the entry belongs to (audit.md §2). The address is truncated where the entry is
+// written - IPv4 /24, IPv6 /48 - and the user agent is reduced to a class, because the trail
+// is evidence about actions rather than a second analytics dataset.
+type AuditContext struct {
+	ApiClient *string              `json:"api_client,omitempty"`
+	Channel   *AuditContextChannel `json:"channel,omitempty"`
+	IpPrefix  *string              `json:"ip_prefix,omitempty"`
+	RequestId *string              `json:"request_id,omitempty"`
+
+	// RuleId The automation rule that acted
+	RuleId         *openapi_types.UUID `json:"rule_id,omitempty"`
+	TraceId        *string             `json:"trace_id,omitempty"`
+	UserAgentClass *string             `json:"user_agent_class,omitempty"`
+}
+
+// AuditContextChannel defines model for AuditContext.Channel.
+type AuditContextChannel string
+
 // AuditEntry Deliberately contains no user content (titles, notes, comments), so that the audit
 // stays unaffected by deletion obligations on content.
 type AuditEntry struct {
 	Action string `json:"action"`
-	Actor  struct {
-		Id    *openapi_types.UUID `json:"id,omitempty"`
-		Label *string             `json:"label,omitempty"`
 
-		// OnBehalfOf The run_as principal for automation and agents
-		OnBehalfOf *openapi_types.UUID  `json:"on_behalf_of,omitempty"`
-		Type       *AuditEntryActorType `json:"type,omitempty"`
-	} `json:"actor"`
+	// Actor Who acted, as the entry recorded them. The label is the one that was valid at the time and
+	// is stored denormalised: an entry that only pointed at a foreign key would become
+	// unreadable the moment the account was deleted, and a trail that loses its meaning through
+	// a deletion does not do its job (audit.md §2).
+	Actor   AuditActor     `json:"actor"`
+	Changes *[]AuditChange `json:"changes,omitempty"`
 
-	// Changes The changed fields, masked per their classification (audit.md §4). An `OPEN` field
-	// carries `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes
-	// instead, which makes two entries comparable without either being readable; a `SECRET`
-	// one is not here at all.
-	Changes *[]struct {
-		Changed  *bool       `json:"changed,omitempty"`
-		Field    *string     `json:"field,omitempty"`
-		From     interface{} `json:"from,omitempty"`
-		FromHash *string     `json:"from_hash,omitempty"`
-		To       interface{} `json:"to,omitempty"`
-		ToHash   *string     `json:"to_hash,omitempty"`
-	} `json:"changes,omitempty"`
-	Context *struct {
-		Channel   *AuditEntryContextChannel `json:"channel,omitempty"`
-		IpPrefix  *string                   `json:"ip_prefix,omitempty"`
-		RequestId *string                   `json:"request_id,omitempty"`
-		TraceId   *string                   `json:"trace_id,omitempty"`
-	} `json:"context,omitempty"`
+	// Context The request the entry belongs to (audit.md §2). The address is truncated where the entry is
+	// written - IPv4 /24, IPv6 /48 - and the user agent is reduced to a class, because the trail
+	// is evidence about actions rather than a second analytics dataset.
+	Context    *AuditContext       `json:"context,omitempty"`
 	Hash       *string             `json:"hash,omitempty"`
 	Id         openapi_types.UUID  `json:"id"`
 	LegalBasis *string             `json:"legal_basis,omitempty"`
@@ -2101,18 +2133,10 @@ type AuditEntry struct {
 	Outcome    AuditEntryOutcome   `json:"outcome"`
 	Seq        *int                `json:"seq,omitempty"`
 	Severity   *AuditEntrySeverity `json:"severity,omitempty"`
-	Target     *struct {
-		Id    *openapi_types.UUID `json:"id,omitempty"`
-		Label *string             `json:"label,omitempty"`
-		Type  *string             `json:"type,omitempty"`
-	} `json:"target,omitempty"`
+
+	// Target The object the entry is about.
+	Target *AuditTarget `json:"target,omitempty"`
 }
-
-// AuditEntryActorType defines model for AuditEntry.Actor.Type.
-type AuditEntryActorType string
-
-// AuditEntryContextChannel defines model for AuditEntry.Context.Channel.
-type AuditEntryContextChannel string
 
 // AuditEntryOutcome defines model for AuditEntry.Outcome.
 type AuditEntryOutcome string
@@ -2139,6 +2163,13 @@ type AuditExport struct {
 // is what a second system reads. CSV flattens it for a spreadsheet, and what does not fit a
 // column travels as JSON inside one.
 type AuditExportFormat string
+
+// AuditTarget The object the entry is about.
+type AuditTarget struct {
+	Id    *openapi_types.UUID `json:"id,omitempty"`
+	Label *string             `json:"label,omitempty"`
+	Type  *string             `json:"type,omitempty"`
+}
 
 // AutoAssignCandidate defines model for AutoAssignCandidate.
 type AutoAssignCandidate struct {

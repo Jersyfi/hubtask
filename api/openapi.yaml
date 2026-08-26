@@ -571,6 +571,10 @@ paths:
         rather than a lesser administrator's view. A request that names somebody else's
         `actor_id` without the right to the whole trail is refused, and the refusal is itself an
         entry. Filtering by period, action, actor, target, and outcome; cursor pagination.
+
+        A read that succeeds is not itself recorded. A trail that grew by being read would bury
+        what it is for - the second page would contain the reading of the first - and §4 does not
+        list reading among the mandatory events. What is recorded is the refusal, and the export.
       parameters:
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
@@ -5156,6 +5160,57 @@ components:
           type: array
           items: { type: string, format: uuid }
 
+    AuditActor:
+      type: object
+      description: |
+        Who acted, as the entry recorded them. The label is the one that was valid at the time and
+        is stored denormalised: an entry that only pointed at a foreign key would become
+        unreadable the moment the account was deleted, and a trail that loses its meaning through
+        a deletion does not do its job (audit.md §2).
+      properties:
+        type: { type: string, enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM] }
+        id: { type: [string, "null"], format: uuid }
+        label: { type: [string, "null"] }
+        on_behalf_of: { type: [string, "null"], format: uuid, description: The run_as principal for automation and agents }
+
+    AuditTarget:
+      type: object
+      description: The object the entry is about.
+      properties:
+        type: { type: [string, "null"] }
+        id: { type: [string, "null"], format: uuid }
+        label: { type: [string, "null"] }
+
+    AuditContext:
+      type: object
+      description: |
+        The request the entry belongs to (audit.md §2). The address is truncated where the entry is
+        written - IPv4 /24, IPv6 /48 - and the user agent is reduced to a class, because the trail
+        is evidence about actions rather than a second analytics dataset.
+      properties:
+        request_id: { type: string }
+        trace_id: { type: string }
+        ip_prefix: { type: [string, "null"] }
+        user_agent_class: { type: string }
+        api_client: { type: string }
+        rule_id: { type: string, format: uuid, description: The automation rule that acted }
+        channel: { type: string, enum: [REST, MCP, AUTOMATION, SYSTEM, SYNC] }
+
+    AuditChange:
+      type: object
+      description: |
+        One changed field, masked per its classification (audit.md §4). An `OPEN` field carries
+        `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
+        makes two entries comparable without either being readable; a `SECRET` one is not here at
+        all.
+      properties:
+        field: { type: string }
+        from: {}
+        to: {}
+        changed: { type: boolean }
+        from_hash: { type: [string, "null"] }
+        to_hash: { type: [string, "null"] }
+
     AuditEntry:
       type: object
       required: [id, occurred_at, action, outcome, actor]
@@ -5169,42 +5224,12 @@ components:
         action: { type: string, example: membership.role_changed }
         outcome: { type: string, enum: [SUCCESS, DENIED, FAILED] }
         severity: { type: string, enum: [INFO, NOTICE, WARNING, CRITICAL] }
-        actor:
-          type: object
-          properties:
-            type: { type: string, enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM] }
-            id: { type: [string, "null"], format: uuid }
-            label: { type: [string, "null"] }
-            on_behalf_of: { type: [string, "null"], format: uuid, description: The run_as principal for automation and agents }
-        target:
-          type: object
-          properties:
-            type: { type: [string, "null"] }
-            id: { type: [string, "null"], format: uuid }
-            label: { type: [string, "null"] }
+        actor: { $ref: "#/components/schemas/AuditActor" }
+        target: { $ref: "#/components/schemas/AuditTarget" }
         changes:
-          description: |
-            The changed fields, masked per their classification (audit.md §4). An `OPEN` field
-            carries `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes
-            instead, which makes two entries comparable without either being readable; a `SECRET`
-            one is not here at all.
           type: array
-          items:
-            type: object
-            properties:
-              field: { type: string }
-              from: {}
-              to: {}
-              changed: { type: boolean }
-              from_hash: { type: [string, "null"] }
-              to_hash: { type: [string, "null"] }
-        context:
-          type: object
-          properties:
-            request_id: { type: string }
-            trace_id: { type: string }
-            ip_prefix: { type: [string, "null"] }
-            channel: { type: string, enum: [REST, MCP, AUTOMATION, SYSTEM, SYNC] }
+          items: { $ref: "#/components/schemas/AuditChange" }
+        context: { $ref: "#/components/schemas/AuditContext" }
         legal_basis: { type: [string, "null"] }
         hash: { type: string }
 

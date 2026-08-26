@@ -1,0 +1,167 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package rest
+
+import (
+	"net/http"
+	"time"
+
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/presentation/openapi"
+)
+
+// The audit surface (E-09, audit.md §5). No rules here: who may read what is decided in the
+// application layer, and a refusal is recorded there - an adapter that narrowed the filter itself
+// would be an adapter deciding a permission (ADR-0005).
+
+const listAuditEntriesUseCase = "ListAuditEntries"
+
+// ListAuditEntries answers GET /audit.
+//
+// The page is spelled `items` and `next_cursor` here rather than the `data`/`page` shape every
+// other list uses, because that is what the contract has declared for this path since phase 0.
+// The catalogue answers the ordinary shape and this is the one place it is renamed; renaming it in
+// the contract instead would break whatever already reads it.
+func (c *RestController) ListAuditEntries(
+	w http.ResponseWriter, r *http.Request, params openapi.ListAuditEntriesParams,
+) {
+	in := usecase.Input{
+		"action":      optionalStringField(params.Action),
+		"actor_id":    optionalUUIDField(params.ActorId),
+		"target_type": optionalStringField(params.TargetType),
+		"target_id":   optionalUUIDField(params.TargetId),
+		"cursor":      optionalStringField(params.Cursor),
+		"size":        optionalIntField(params.Limit),
+	}
+	if params.From != nil {
+		in["from"] = params.From.UTC().Format(time.RFC3339Nano)
+	}
+	if params.To != nil {
+		in["to"] = params.To.UTC().Format(time.RFC3339Nano)
+	}
+	if params.Outcome != nil {
+		in["outcome"] = string(*params.Outcome)
+	}
+
+	out, ok := c.read(w, r, listAuditEntriesUseCase, in)
+	if !ok {
+		return
+	}
+
+	page := auditPage{Items: []openapi.AuditEntry{}}
+	for _, row := range rowsOf(out) {
+		page.Items = append(page.Items, auditEntryResponse(row))
+	}
+	page.NextCursor = pageResponse(out).NextCursor
+	writeJSON(w, r, http.StatusOK, page)
+}
+
+// auditPage is the response of GET /audit, which the contract declares inline rather than as a
+// named schema - so there is no generated type for it and this is the one place it is written out.
+type auditPage struct {
+	Items      []openapi.AuditEntry `json:"items"`
+	NextCursor *string              `json:"next_cursor"`
+}
+
+// auditEntryResponse maps one entry of the catalogue's answer onto the contract's schema.
+func auditEntryResponse(row usecase.Output) openapi.AuditEntry {
+	entry := openapi.AuditEntry{
+		Id:         uuidValue(row.String("id")),
+		OccurredAt: timeValue(row["occurred_at"]),
+		Action:     row.String("action"),
+		Outcome:    openapi.AuditEntryOutcome(row.String("outcome")),
+	}
+	if seq := row.Int("seq"); seq != 0 {
+		entry.Seq = &seq
+	}
+	if severity := row.String("severity"); severity != "" {
+		value := openapi.AuditEntrySeverity(severity)
+		entry.Severity = &value
+	}
+	entry.Hash = textOrNil(row.String("hash"))
+	entry.LegalBasis = textOrNil(row.String("legal_basis"))
+
+	actor, _ := row["actor"].(map[string]any)
+	entry.Actor.Id = uuidOrNil(stringAt(actor, "id"))
+	entry.Actor.Label = textOrNil(stringAt(actor, "label"))
+	entry.Actor.OnBehalfOf = uuidOrNil(stringAt(actor, "on_behalf_of"))
+	if kind := stringAt(actor, "type"); kind != "" {
+		value := openapi.AuditActorType(kind)
+		entry.Actor.Type = &value
+	}
+
+	if target, ok := row["target"].(map[string]any); ok && len(target) > 0 {
+		entry.Target = &openapi.AuditTarget{
+			Id:    uuidOrNil(stringAt(target, "id")),
+			Label: textOrNil(stringAt(target, "label")),
+			Type:  textOrNil(stringAt(target, "type")),
+		}
+	}
+
+	if context, ok := row["context"].(map[string]any); ok && len(context) > 0 {
+		entry.Context = &openapi.AuditContext{
+			ApiClient:      textOrNil(stringAt(context, "api_client")),
+			IpPrefix:       textOrNil(stringAt(context, "ip_prefix")),
+			RequestId:      textOrNil(stringAt(context, "request_id")),
+			RuleId:         uuidOrNil(stringAt(context, "rule_id")),
+			TraceId:        textOrNil(stringAt(context, "trace_id")),
+			UserAgentClass: textOrNil(stringAt(context, "user_agent_class")),
+		}
+	}
+
+	entry.Changes = auditChangesResponse(row["changes"])
+	return entry
+}
+
+// auditChangesResponse renders the masked fields. A `SENSITIVE` one carries `changed` and its two
+// hashes and no value, because there is no value to recover - the masking happened where the entry
+// was written, and this is a projection of what is stored rather than of what happened.
+func auditChangesResponse(value any) *[]openapi.AuditChange {
+	rows, ok := value.([]map[string]any)
+	if !ok || len(rows) == 0 {
+		return nil
+	}
+
+	changes := make([]openapi.AuditChange, 0, len(rows))
+	for _, row := range rows {
+		change := openapi.AuditChange{
+			Field:    textOrNil(stringAt(row, "field")),
+			From:     row["from"],
+			To:       row["to"],
+			FromHash: textOrNil(stringAt(row, "from_hash")),
+			ToHash:   textOrNil(stringAt(row, "to_hash")),
+		}
+		if changed, ok := row["changed"].(bool); ok {
+			change.Changed = &changed
+		}
+		changes = append(changes, change)
+	}
+	return &changes
+}
+
+// stringAt reads one string out of a projection, and answers the empty string for anything that
+// is not one - a missing key and a value of another type are the same to a mapper.
+func stringAt(values map[string]any, key string) string {
+	value, _ := values[key].(string)
+	return value
+}
+
+// textOrNil keeps an absent value absent. The generated fields are pointers with `omitempty`, so
+// an empty string would appear as an empty field rather than as no field.
+func textOrNil(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func uuidOrNil(value string) *openapi_types.UUID {
+	if value == "" {
+		return nil
+	}
+	id := uuidValue(value)
+	return &id
+}

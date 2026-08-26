@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
@@ -151,6 +152,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		lifecycle.PlaceLegalHold{}.Descriptor(),
 		lifecycle.ReleaseLegalHold{}.Descriptor(),
 		lifecycle.ListLegalHolds{}.Descriptor(),
+		auditservice.ListAuditEntries{}.Descriptor(),
 		backupservice.CreateBackupSchedule{}.Descriptor(),
 		jobservice.GetJob{}.Descriptor(),
 		jobservice.CancelJob{}.Descriptor(),

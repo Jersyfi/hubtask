@@ -84,7 +84,11 @@ func TestEveryUsedMessageCodeIsInTheCatalogue(t *testing.T) {
 				// resource's name is the same in the singular and the plural - `media.staged` and
 				// `media.reconcile` beside `media.not_found` - which every other entity avoids by
 				// accident rather than by design.
-				if strings.Contains(line, "audit.Action") || strings.Contains(line, "Kind = \"") {
+				// `port.Action` is the same declaration seen from inside the application's own
+				// audit package, which imports the port under an alias because the two share a
+				// name (core/application/service/audit, E-09).
+				if strings.Contains(line, "audit.Action") || strings.Contains(line, "port.Action") ||
+					strings.Contains(line, "Kind = \"") {
 					continue
 				}
 				for _, match := range messageCode.FindAllStringSubmatch(line, -1) {
