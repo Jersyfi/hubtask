@@ -682,6 +682,9 @@
   "backup.archive_incomplete": "That archive has no checksums.txt, so the run that wrote it did not finish.",
   "backup.archive_request_invalid": "That backup run cannot be started as described ({reason}).",
   "backup.archive_media_missing": "The attachment {sha256} is referenced by the data but is no longer in the object store, so the archive would be incomplete.",
+  "backup.archive_chain_broken": "The chain of archives before {prefix} is not complete ({reason}), so it cannot be restored on its own.",
+  "backup.archive_key_required": "That archive is encrypted with the key {key_id}. Supply it to read the archive.",
+  "backup.archive_key_unexpected": "That archive is not encrypted, so it needs no key.",
 
   "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",

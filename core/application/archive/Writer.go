@@ -395,10 +395,8 @@ func pipe(ctx context.Context, component string, produce func(io.Writer) error) 
 	return reader, produced
 }
 
-// purposeOf binds a member to its archive and its path, so that a member lifted out of one archive
-// and dropped into another stops opening (core/port/crypto, Purpose).
 func (r Request) purposeOf(path string) crypto.Purpose {
-	return crypto.Purpose("backup/archive:" + r.ArchiveID.String() + "/" + path)
+	return MemberPurpose(r.ArchiveID.String(), path)
 }
 
 func (r Request) validate() error {
