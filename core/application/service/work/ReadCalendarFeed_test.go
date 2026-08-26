@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
@@ -46,6 +47,7 @@ type feedReadHarness struct {
 	containers   *containers
 	accountShelf *accountShelf
 	permits      *permitting
+	authorizer   *authorizer
 }
 
 func newFeedReadHarness(t *testing.T) *feedReadHarness {
@@ -58,6 +60,7 @@ func newFeedReadHarness(t *testing.T) *feedReadHarness {
 		containers:   &containers{stored: map[shared.ID]domain.Container{}},
 		accountShelf: &accountShelf{stored: map[shared.ID]identity.Account{}},
 		permits:      &permitting{},
+		authorizer:   &authorizer{},
 	}
 
 	h.read = ReadCalendarFeed{
@@ -66,7 +69,7 @@ func newFeedReadHarness(t *testing.T) *feedReadHarness {
 			Views: h.views, Containers: h.containers, Permits: h.permits,
 			Query: QueryItems{
 				Items: h.items, ItemLabels: &itemLabels{}, Containers: h.containers,
-				Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
+				Authorizer: h.authorizer, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 			},
 			ItemLabels: &itemLabels{}, Audit: &sink{}, UnitOfWork: &unitOfWork{},
 			Clock: clock.Fixed(now),
@@ -244,6 +247,17 @@ func TestTheFeedReadsAsItsOwnerAtFetchTime(t *testing.T) {
 	// The scope the owner's view names, resolved as the owner rather than as nobody.
 	if h.items.searched[0].Spec.Scope.ContainerID != collectionID {
 		t.Errorf("the query was anchored at %s", h.items.searched[0].Spec.Scope.ContainerID)
+	}
+
+	// And what it asked for is a read. A feed is a subscription rather than a token somebody
+	// chose scopes for, so the synthetic actor carries exactly the two reads a fetch performs -
+	// which is what makes "read-only on one view" true rather than merely intended (T-21).
+	if len(h.authorizer.requests) != 1 {
+		t.Fatalf("the authorisation was asked %d times", len(h.authorizer.requests))
+	}
+	asked := h.authorizer.requests[0]
+	if asked.Permission != service.PermissionRead || asked.TokenScope != itemsRead {
+		t.Errorf("the feed asked for %s / %s", asked.Permission, asked.TokenScope)
 	}
 }
 
