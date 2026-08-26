@@ -385,15 +385,22 @@ func (w Writer) seal(
 	return w.Encryptor.Seal(ctx, secret.New(string(encoded)), credentialPurpose(id))
 }
 
-// unseal is the only place a stored credential becomes readable, and the only caller is the probe.
+// unseal is where a stored credential becomes readable. Two callers: the connection probe, and the
+// backup run - a credential is opened to make a connection, and for nothing else.
 func (w Writer) unseal(
 	ctx context.Context, id shared.ID, sealed crypto.Sealed,
+) (map[string]secret.Secret, error) {
+	return unsealCredentials(ctx, w.Encryptor, id, sealed)
+}
+
+func unsealCredentials(
+	ctx context.Context, encryptor crypto.Encryptor, id shared.ID, sealed crypto.Sealed,
 ) (map[string]secret.Secret, error) {
 	if sealed.IsZero() {
 		return nil, nil
 	}
 
-	opened, err := w.Encryptor.Open(ctx, sealed, credentialPurpose(id))
+	opened, err := encryptor.Open(ctx, sealed, credentialPurpose(id))
 	if err != nil {
 		return nil, err
 	}

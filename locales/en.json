@@ -709,6 +709,10 @@
   "backup.schedule_rule_unreadable": "That is not a recurrence rule Hubtask can read.",
   "backup.schedule_zone_unknown": "This installation does not know that time zone.",
   "backup.schedule_changed": "A backup schedule was created or changed.",
+  "backup.target_busy": "A backup to that target is already running.",
+  "backup.chain_incomplete": "The chain of archives this backup would continue is no longer complete, so the next one has to be a full backup.",
+  "backup.run_failed": "That backup run did not finish.",
+  "backup.schedule_pass_without_tenant": "A backup schedule pass reached a worker without a tenant.",
 
   "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",

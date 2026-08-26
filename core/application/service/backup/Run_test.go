@@ -58,6 +58,8 @@ func (s *runStore) Finish(_ context.Context, outcome domain.Outcome) error {
 	s.outcomes = append(s.outcomes, outcome)
 	run := s.stored[outcome.ID]
 	run.Status, run.ArchivePath, run.FinishedAt = outcome.Status, outcome.ArchivePath, outcome.FinishedAt
+	run.SizeBytes, run.ItemCount, run.MediaCount = outcome.SizeBytes, outcome.ItemCount, outcome.MediaCount
+	run.SnapshotAt, run.ErrorCode, run.Checksum = outcome.SnapshotAt, outcome.ErrorCode, outcome.Checksum
 	s.stored[outcome.ID] = run
 	return nil
 }

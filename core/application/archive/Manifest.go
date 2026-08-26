@@ -350,6 +350,14 @@ func Name(scopeID shared.ID, at time.Time, mode Mode) string {
 		scopeID.String(), at.UTC().Format("20060102T150405Z"), mode.suffix())
 }
 
+// Prefix is where one scope's archives live at a target: everything Name produces for that scope
+// starts with it, and nothing else at the target does.
+//
+// It exists so that a listing and a retention pass ask for the same thing. A pass that listed the
+// whole target would see other people's files; one that listed a directory of its own would not
+// find archives written before somebody decided on a directory.
+func Prefix(scopeID shared.ID) string { return "hubtask-backup-" + scopeID.String() + "-" }
+
 // DataName is the member one entity's records are written to.
 func DataName(entity string) string { return DataPrefix + entity + ".jsonl" }
 

@@ -63,12 +63,17 @@ func (l *leadership) Release(context.Context) error {
 }
 
 type schedulerSignals struct {
-	depths map[string]int64
-	lags   []float64
+	depths    map[string]int64
+	lags      []float64
+	freshness map[string]time.Time
 }
 
 func newSchedulerSignals() *schedulerSignals {
-	return &schedulerSignals{depths: map[string]int64{}}
+	return &schedulerSignals{depths: map[string]int64{}, freshness: map[string]time.Time{}}
+}
+
+func (s *schedulerSignals) BackupLastSuccess(_ context.Context, targetID string, at time.Time) {
+	s.freshness[targetID] = at
 }
 
 func (s *schedulerSignals) QueueDepth(_ context.Context, kind string, pending int64) {

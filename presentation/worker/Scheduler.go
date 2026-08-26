@@ -12,6 +12,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
+
+	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 )
 
 // SchedulerSignals is the slice of the metrics adapter the scheduler uses.
@@ -22,6 +24,20 @@ import (
 type SchedulerSignals interface {
 	QueueDepth(ctx context.Context, kind string, pending int64)
 	SchedulerTickLag(ctx context.Context, seconds float64)
+	// BackupLastSuccess is when a target last had a backup that worked - alert A-12's number
+	// (E-05, observability-reliability.md §10).
+	BackupLastSuccess(ctx context.Context, targetID string, at time.Time)
+}
+
+// InstanceBackups is the slice of the schedule pass the leader runs: the instance-wide schedules,
+// which belong to no tenant and which nothing else can fire.
+type InstanceBackups interface {
+	Run(ctx context.Context, scope persistence.Scope) (backupservice.PassResult, error)
+}
+
+// BackupFreshness answers when each target last had a backup that worked.
+type BackupFreshness interface {
+	LastSuccessPerTarget(ctx context.Context) (map[shared.ID]time.Time, error)
 }
 
 // Scheduler is the role that may run in several replicas but act in only one (ADR-0008).
@@ -46,6 +62,12 @@ type Scheduler struct {
 	// alert on a backlog that never appears is an alert that reads "no data" and is believed
 	// (observability-reliability.md §4, alert A-06). The same reasoning seeds the panic counter.
 	Kinds []queue.Kind
+
+	// InstanceBackups fires the schedules that belong to no tenant. Optional: an installation
+	// without it simply never has one, which is the state every installation is in today.
+	InstanceBackups InstanceBackups
+	// BackupFreshness is the reading behind alert A-12.
+	BackupFreshness BackupFreshness
 
 	// TickInterval is how often the leader looks at the clock. It is also how quickly a standby
 	// notices that the leader is gone, because a standby tries the lock on every tick of its own.
@@ -121,7 +143,75 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	}
 
 	s.sampleQueueDepth(ctx)
+	s.fireInstanceBackups(ctx)
+	s.sampleBackupFreshness(ctx)
 	return true
+}
+
+// fireInstanceBackups is the leader's one duty beyond measurement (E-05).
+//
+// An instance-wide backup schedule - `scope_kind = 'INSTANCE'`, `tenant_id IS NULL`, which
+// `0001_init`'s check constraint ties together - is not a tenant's work at all, so nothing seeds a
+// job for it and the index `backup_schedule_due_idx ON (next_run_at) WHERE enabled` exists for a
+// leader to read. That is a legitimate leader duty and the first one this scheduler has beyond
+// sampling. It is emphatically **not** a licence to enumerate tenants: every tenant-scoped schedule
+// is fired by that tenant's own poller, seeded by the write that created it, and this pass cannot
+// see one even if it wanted to.
+//
+// It cannot, and the reason is worth writing down where the code is. The pass runs under a system
+// scope, which sets an empty tenant context; every tenant-scoped table compares `tenant_id =
+// current_tenant_id()` and NULL matches nothing, so the only rows this could reach are the ones
+// with no tenant. Today there are none: E-03 found the same for instance-wide *targets*, and until
+// instance administration has a surface, nothing can create either. So this duty is correct, cheap,
+// and finds nothing - which is the honest state rather than a stub.
+func (s Scheduler) fireInstanceBackups(ctx context.Context) {
+	if s.InstanceBackups == nil {
+		return
+	}
+	passCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	result, err := s.InstanceBackups.Run(passCtx, persistence.SystemScope())
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "the instance-wide backup schedules could not be read",
+				slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	if result.Started > 0 {
+		slog.InfoContext(ctx, "instance-wide backups started", slog.Int("count", result.Started))
+	}
+}
+
+// sampleBackupFreshness publishes when each target last had a backup that worked - the number alert
+// A-12 has been watching since 0.2.0 with nothing behind it (observability-reliability.md §10).
+//
+// The leader takes it for the reason it takes the queue depth: it is a measurement of the
+// installation rather than of a process, and every replica reporting the same value would leave a
+// dashboard summing one number over N instances.
+//
+// A target that has never had a successful backup is absent rather than zero. A gauge of zero reads
+// as 1970 on every dashboard, which is an alert that fires for a target nobody has ever backed up -
+// true, but not what A-12 means, and the `/meta/health` warning already says that one.
+func (s Scheduler) sampleBackupFreshness(ctx context.Context) {
+	if s.Signals == nil || s.BackupFreshness == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	moments, err := s.BackupFreshness.LastSuccessPerTarget(sampleCtx)
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the backup freshness failed",
+				slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	for targetID, at := range moments {
+		s.Signals.BackupLastSuccess(ctx, targetID.String(), at)
+	}
 }
 
 // sampleQueueDepth publishes the backlog per job kind.

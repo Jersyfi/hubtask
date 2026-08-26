@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -47,6 +48,7 @@ type Metrics struct {
 	jobQueueDepth     metric.Int64Gauge
 	outboxLag         metric.Float64Histogram
 	schedulerTickLag  metric.Int64Gauge
+	backupLastSuccess metric.Int64Gauge
 	retentionDeleted  metric.Int64Counter
 	retentionBlocked  metric.Int64Counter
 	retentionRun      metric.Float64Histogram
@@ -232,6 +234,14 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithUnit("s"),
 	); err != nil {
 		return fmt.Errorf("tick lag gauge: %w", err)
+	}
+	if m.backupLastSuccess, err = meter.Int64Gauge(
+		namespace+"_backup_last_success_timestamp_seconds",
+		metric.WithDescription(
+			"When each backup target last had a backup that succeeded, as a Unix timestamp."),
+		metric.WithUnit("s"),
+	); err != nil {
+		return fmt.Errorf("backup freshness gauge: %w", err)
 	}
 	if err := m.retentionInstruments(meter); err != nil {
 		return err
@@ -668,6 +678,21 @@ func (m *Metrics) OutboxLag(ctx context.Context, seconds float64) {
 // exists to show drift, and a schedule that is off by less than a second is not drifting.
 func (m *Metrics) SchedulerTickLag(ctx context.Context, seconds float64) {
 	m.schedulerTickLag.Record(ctx, int64(seconds))
+}
+
+// BackupLastSuccess publishes when a target last had a backup that worked - the number alert A-12
+// has been watching since 0.2.0 with nothing behind it (E-05, backup-restore.md §10).
+//
+// A Unix timestamp rather than an age, which is the convention every backup exporter follows and
+// the reason it works: an age computed here is stale the moment it is scraped, while a timestamp
+// lets the alert compute the age at evaluation time and stay right between scrapes.
+//
+// Labelled by target and not by tenant. Which targets exist is bounded by configuration; how many
+// tenants there are is not, and an unbounded label is how a metrics backend falls over
+// (observability-reliability.md §3.2).
+func (m *Metrics) BackupLastSuccess(ctx context.Context, targetID string, at time.Time) {
+	m.backupLastSuccess.Record(ctx, at.Unix(),
+		metric.WithAttributes(attribute.String("target_id", targetID)))
 }
 
 // ConfigInvalid counts a rejected configuration variable - misconfiguration as a signal rather
