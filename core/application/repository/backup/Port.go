@@ -106,6 +106,40 @@ type MediaLocation struct {
 	Bytes      int64
 }
 
+// Journal is the deletion journal, read (E-06, backup-restore.md §7).
+//
+// The table has been written since B-10 and read, until now, only by tests - the comment on the
+// writing side says so in as many words: "nothing reads this table in production; it exists so
+// that a restore from backup cannot bring back what was deleted." This is that reader.
+//
+// It is a port of its own rather than a method on the lifecycle repository for the reason that
+// port already gives about mixing reads with deletions: one interface carrying both would let a
+// read path reach a statement written to remove rows. Here the asymmetry is sharper still - the
+// writer is the machinery that deletes, and the reader is the machinery that must not undelete.
+type Journal interface {
+	// DeletedSince hands over the deletions recorded after an instant, oldest first.
+	//
+	// The instant is the archive's snapshot, and that is what makes the read bounded rather than
+	// a pass over a journal that outlives every archive: an object deleted *before* the archive
+	// was taken is not in the archive, so nothing has to be kept out on its account. What has to
+	// be kept out is what was deleted between the archive and now, which is exactly this window.
+	//
+	// A callback rather than a slice, for the reason every other read here is one: a tenant that
+	// has been emptying its trash for two years has a journal larger than the thing being
+	// restored.
+	DeletedSince(ctx context.Context, since time.Time, yield func(Deletion) error) error
+}
+
+// Deletion is one entry of the journal.
+type Deletion struct {
+	// Entity is the table the row was removed from - the schema's vocabulary, which is what the
+	// journal is written in and what the archive's entities cross over from.
+	Entity    string
+	EntityID  shared.ID
+	DeletedAt time.Time
+	Reason    string
+}
+
 // Schedules stores what runs when (E-05, backup-restore.md §5).
 type Schedules interface {
 	// Insert writes a schedule, with the moment it is next due already decided: the rule is
