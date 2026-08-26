@@ -63,6 +63,10 @@ jobs:
       # against the data catalogue. ADR-0018 calls the first "the expensive one with the highest
       # protective value" and puts it here rather than on every pull request (E-11).
       - run: make gate-privacy-full
+      # And the proof that those two bite. `gate-selftest` skips its container-backed probes where
+      # there is no PostgreSQL - which is every pull request - so the machine that has one is the
+      # machine that has to run the whole script (E-11).
+      - run: make gate-selftest
       - run: make gate-compose
 
   matrix-postgres:
