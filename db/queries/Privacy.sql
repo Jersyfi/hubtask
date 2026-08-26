@@ -170,6 +170,34 @@ UPDATE account SET
   version          = version + 1
 WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id();
 
+-- name: DiscardIntakeOf :execrows
+-- What the person sent in by mail, and the address it came from.
+--
+-- `jumble_entry` is matched by address rather than by account, because that is all an inbound mail
+-- carries. The catalogue's path for it is `RETENTION` - 90 days - and an erasure that left the
+-- person's own address and text sitting there for those 90 days would be an erasure in name (E-11,
+-- PG-2).
+DELETE FROM jumble_entry
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+
+-- name: ReleaseIntakeOf :execrows
+-- The same in the mode that keeps the workspace's content: the text stays and stops being anybody's.
+UPDATE jumble_entry SET sender = NULL
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+
+-- name: AutomationsRunningAs :one
+-- What stands in the way of a full deletion, counted before it is attempted.
+--
+-- `automation_rule.run_as` is the one reference to an account this schema declares `ON DELETE
+-- RESTRICT`, and deliberately so (ADR-0024): a rule that acts as somebody must not quietly start
+-- acting as nobody. So an erasure that would leave such a rule behind is refused with a reason
+-- rather than attempted and failed on a foreign key - PG-2 found the second, which reached the
+-- caller as a dependency error and told them nothing (E-11).
+SELECT count(*) FROM automation_rule
+WHERE tenant_id = current_tenant_id() AND run_as = sqlc.arg('account_id');
+
 -- name: DeleteAccount :execrows
 -- The mode that takes the person with them. The cascades of `0001_init` do the rest: memberships,
 -- group memberships, item memberships, tokens, calendar feeds, sync devices, consents and

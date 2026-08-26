@@ -612,6 +612,50 @@ func (r PrivacyRepository) AuthoredComments(
 }
 
 // DeleteAuthoredComments removes them.
+// DiscardIntake removes what the person sent in by mail (E-11).
+func (r PrivacyRepository) DiscardIntake(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+
+	rows, err := queries.DiscardIntakeOf(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the intake of an account", err)
+	}
+	return int(rows), nil
+}
+
+// ReleaseIntake keeps the text and takes the address off it.
+func (r PrivacyRepository) ReleaseIntake(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+
+	rows, err := queries.ReleaseIntakeOf(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("releasing the intake of an account", err)
+	}
+	return int(rows), nil
+}
+
+// AutomationsRunningAs counts the rules that act as the person (E-11).
+func (r PrivacyRepository) AutomationsRunningAs(
+	ctx context.Context, accountID shared.ID,
+) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := queries.AutomationsRunningAs(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("counting the rules that act as an account", err)
+	}
+	return int(count), nil
+}
+
 func (r PrivacyRepository) DeleteAuthoredComments(
 	ctx context.Context, accountID shared.ID,
 ) (int, error) {

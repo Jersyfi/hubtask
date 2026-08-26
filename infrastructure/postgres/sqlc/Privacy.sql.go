@@ -86,6 +86,25 @@ func (q *Queries) AuditPseudonyms(ctx context.Context, actorIds []pgtype.UUID) (
 	return items, nil
 }
 
+const automationsRunningAs = `-- name: AutomationsRunningAs :one
+SELECT count(*) FROM automation_rule
+WHERE tenant_id = current_tenant_id() AND run_as = $1
+`
+
+// What stands in the way of a full deletion, counted before it is attempted.
+//
+// `automation_rule.run_as` is the one reference to an account this schema declares `ON DELETE
+// RESTRICT`, and deliberately so (ADR-0024): a rule that acts as somebody must not quietly start
+// acting as nobody. So an erasure that would leave such a rule behind is refused with a reason
+// rather than attempted and failed on a foreign key - PG-2 found the second, which reached the
+// caller as a dependency error and told them nothing (E-11).
+func (q *Queries) AutomationsRunningAs(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, automationsRunningAs, accountID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const clearAssignmentsOfAccount = `-- name: ClearAssignmentsOfAccount :execrows
 UPDATE work_item SET assignee_id = NULL, updated_at = $1, version = version + 1
 WHERE tenant_id = current_tenant_id() AND assignee_id = $2 AND deleted_at IS NULL
@@ -227,6 +246,26 @@ DELETE FROM notification WHERE tenant_id = current_tenant_id() AND recipient_id 
 // rendering rather than in the row, but the row says who was told what and when.
 func (q *Queries) DeleteNotificationsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteNotificationsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const discardIntakeOf = `-- name: DiscardIntakeOf :execrows
+DELETE FROM jumble_entry
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1)
+`
+
+// What the person sent in by mail, and the address it came from.
+//
+// `jumble_entry` is matched by address rather than by account, because that is all an inbound mail
+// carries. The catalogue's path for it is `RETENTION` - 90 days - and an erasure that left the
+// person's own address and text sitting there for those 90 days would be an erasure in name (E-11,
+// PG-2).
+func (q *Queries) DiscardIntakeOf(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, discardIntakeOf, accountID)
 	if err != nil {
 		return 0, err
 	}
@@ -599,6 +638,21 @@ func (q *Queries) OverdueRequestCount(ctx context.Context, now pgtype.Timestampt
 	var i OverdueRequestCountRow
 	err := row.Scan(&i.Overdue, &i.OpenCases, &i.NextDueAt)
 	return i, err
+}
+
+const releaseIntakeOf = `-- name: ReleaseIntakeOf :execrows
+UPDATE jumble_entry SET sender = NULL
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1)
+`
+
+// The same in the mode that keeps the workspace's content: the text stays and stops being anybody's.
+func (q *Queries) ReleaseIntakeOf(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, releaseIntakeOf, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const revokeConsent = `-- name: RevokeConsent :execrows

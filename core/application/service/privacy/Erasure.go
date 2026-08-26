@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
@@ -75,7 +76,10 @@ type Erased struct {
 	Notifications int
 	Assignments   int
 	Comments      int
-	Media         int
+	// Intake is what the person sent in by mail: removed in a full deletion, and stripped of the
+	// address in the mode that keeps the workspace's content.
+	Intake int
+	Media  int
 	// AccountRemoved and AccountAnonymised are the two ends, and exactly one of them is true.
 	AccountRemoved    bool
 	AccountAnonymised bool
@@ -125,6 +129,12 @@ func (e Eraser) Erase(
 		}
 		erased.Assignments = assignments
 
+		intake, err := e.intake(ctx, subject, request.ErasureMode)
+		if err != nil {
+			return err
+		}
+		erased.Intake = intake
+
 		if request.ErasureMode == domain.ModeFullDelete {
 			removed, err := e.removeContributions(ctx, subject, now)
 			if err != nil {
@@ -163,6 +173,20 @@ func (e Eraser) Erase(
 		return Erased{}, err
 	}
 	return erased, nil
+}
+
+// intake serves the one location that knows the person by address rather than by account.
+//
+// The catalogue's path for `jumble_entry` is `RETENTION`, 90 days. That is right for a message
+// nobody ever converted; it is not an answer to an erasure, and PG-2 is what made the difference
+// visible - the address and the text were still there after everything else had gone (E-11).
+func (e Eraser) intake(
+	ctx context.Context, subject shared.ID, mode domain.ErasureMode,
+) (int, error) {
+	if mode == domain.ModeFullDelete {
+		return e.Erasure.DiscardIntake(ctx, subject)
+	}
+	return e.Erasure.ReleaseIntake(ctx, subject)
 }
 
 // removeContributions takes the person's own comments, each with the journal entry and the
@@ -206,6 +230,24 @@ func (e Eraser) finishAccount(
 		}
 		erased.AccountAnonymised = anonymised
 		return nil
+	}
+
+	// What the workspace would be left with. `automation_rule.run_as` is `ON DELETE RESTRICT`, so
+	// without this the deletion reaches the database and comes back as a foreign key violation -
+	// a dependency error, in a case with a statutory deadline, saying nothing about what to do
+	// (PG-2 found exactly that). Refusing with the count is the answer somebody can act on: the
+	// rules are re-pointed at another account or removed, and the case is carried out afterwards.
+	//
+	// Deleting them here instead would be this system destroying the workspace's automation
+	// because one person left, which is not a decision an erasure gets to take on its own.
+	running, err := e.Erasure.AutomationsRunningAs(ctx, subject)
+	if err != nil {
+		return err
+	}
+	if running > 0 {
+		return shared.ErrConflict.
+			WithDetail(domain.CodeErasureBlockedByRule).
+			WithParams(map[string]string{"rules": strconv.Itoa(running)})
 	}
 
 	// A full deletion owes the same two records every removal owes: without them a restore brings
@@ -284,6 +326,7 @@ func (e Eraser) record(
 				audit.Change{Field: "notifications", Classification: audit.Open, To: erased.Notifications},
 				audit.Change{Field: "assignments", Classification: audit.Open, To: erased.Assignments},
 				audit.Change{Field: "comments", Classification: audit.Open, To: erased.Comments},
+				audit.Change{Field: "intake", Classification: audit.Open, To: erased.Intake},
 				audit.Change{Field: "media", Classification: audit.Open, To: erased.Media},
 				audit.Change{
 					Field: "account", Classification: audit.Open,

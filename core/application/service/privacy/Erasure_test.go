@@ -35,6 +35,33 @@ type erasureStore struct {
 	discarded    []shared.ID
 	failOn       string
 	order        []string
+	// runningRules is what the workspace would be left with: rules that act as the person.
+	runningRules int
+	intakeGone   int
+	intakeFreed  int
+}
+
+func (e *erasureStore) DiscardIntake(context.Context, shared.ID) (int, error) {
+	if err := e.step("discard intake"); err != nil {
+		return 0, err
+	}
+	e.intakeGone = 2
+	return e.intakeGone, nil
+}
+
+func (e *erasureStore) ReleaseIntake(context.Context, shared.ID) (int, error) {
+	if err := e.step("release intake"); err != nil {
+		return 0, err
+	}
+	e.intakeFreed = 2
+	return e.intakeFreed, nil
+}
+
+func (e *erasureStore) AutomationsRunningAs(context.Context, shared.ID) (int, error) {
+	if err := e.step("automations"); err != nil {
+		return 0, err
+	}
+	return e.runningRules, nil
 }
 
 func (e *erasureStore) step(name string) error {
@@ -405,5 +432,68 @@ func TestAStorageLocationThatRefusesFailsTheErasure(t *testing.T) {
 		if len(h.audit.entries) != 0 {
 			t.Errorf("a failed erasure was recorded as done (%s)", step)
 		}
+	}
+}
+
+// A full deletion is refused while a rule still acts as the person. The reference is `ON DELETE
+// RESTRICT`, so the alternative to this refusal is a foreign key violation reaching the caller as
+// a dependency error - which is what PG-2 found (E-11).
+func TestAFullDeletionIsRefusedWhileARuleActsAsThePerson(t *testing.T) {
+	harness := newErasureHarness()
+	harness.storage.runningRules = 3
+
+	_, err := harness.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+
+	problem := shared.AsError(err)
+	if problem == nil || problem.Code != shared.ErrConflict.Code {
+		t.Fatalf("a deletion that would leave a rule running was not refused: %v", err)
+	}
+	if problem.DetailCode != domain.CodeErasureBlockedByRule {
+		t.Errorf("the refusal is %q, not the code the operator can act on", problem.DetailCode)
+	}
+	if problem.Params["rules"] != "3" {
+		t.Errorf("the refusal does not say how many rules stand in the way: %v", problem.Params)
+	}
+	if harness.storage.deleted {
+		t.Error("the account was deleted anyway")
+	}
+}
+
+// And an anonymisation is not: the row stays, so the rule keeps a reference that resolves - to an
+// account which may no longer act, so the rule cannot run either way.
+func TestAnAnonymisationIsNotRefusedWhileARuleActsAsThePerson(t *testing.T) {
+	harness := newErasureHarness()
+	harness.storage.runningRules = 3
+
+	if _, err := harness.eraser().Erase(
+		context.Background(), actor(), erasureCase(domain.ModeAnonymize),
+	); err != nil {
+		t.Fatalf("anonymising: %v", err)
+	}
+	if !harness.storage.anonymised {
+		t.Error("the account was not anonymised")
+	}
+}
+
+// The intake is the one location that knows the person by address rather than by account, and the
+// two modes answer it differently: the message goes, or it stays and stops being anybody's.
+func TestTheIntakeIsServedInBothModes(t *testing.T) {
+	full := newErasureHarness()
+	erased, err := full.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+	if err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	if erased.Intake != 2 || full.storage.intakeGone != 2 {
+		t.Errorf("a full deletion left the person's intake: %+v", erased)
+	}
+
+	kept := newErasureHarness()
+	if _, err := kept.eraser().Erase(
+		context.Background(), actor(), erasureCase(domain.ModeAnonymize),
+	); err != nil {
+		t.Fatalf("anonymising: %v", err)
+	}
+	if kept.storage.intakeGone != 0 || kept.storage.intakeFreed != 2 {
+		t.Error("an anonymisation deleted the intake instead of taking the address off it")
 	}
 }
