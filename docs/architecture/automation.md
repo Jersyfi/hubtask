@@ -107,6 +107,7 @@ change series (`SET_RECURRENCE`).
 | Delivery guarantee | At least once; actions use an `Idempotency-Key` derived from `(rule_id, event_id, action_index)` |
 | Permissions | The rule runs as the `run_as` account; it can never do more than that account may |
 | Loop protection | `causation_depth` in the event; abort at depth 5 by default, run status `ABORTED_LOOP` |
+| Replays | An event marked `replay: true` is one a restore produced ([backup-restore.md](./backup-restore.md) §8.4) and no rule reacts to it. The flag arrived with E-06 so that the engine finds it already there; it is on the envelope rather than in the payload because the decision is routing, and the dispatcher makes it — a subscriber is handed a replay only if it has asked for one, so the promise does not depend on every consumer remembering it |
 | Throttling | Per rule and per tenant; the dedupe key prevents a storm during mass changes |
 | Error handling | `on_error ∈ {STOP, CONTINUE, RETRY}`; retry with exponential backoff; after n failures the rule is disabled automatically and a notification is sent |
 | Dry run | `POST /automation/rules:test` with a sample event → which conditions match, which actions *would* run; no side effects |
