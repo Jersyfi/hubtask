@@ -186,12 +186,12 @@ func (c *RestController) RestrictProcessing(
 		return
 	}
 
-	// The account as the contract's `Account` schema, narrowed to what this call changed: the
-	// identifier and the state. A restriction touches nothing else about a person, and answering
-	// their name and address here would be answering more than the caller asked about.
-	writeJSON(w, r, http.StatusOK, openapi.Account{
-		Id:     uuidValue(out.String("id")),
-		Status: openapi.AccountStatus(out.String("status")),
+	// What the call set, rather than the person it was set on. A restriction touches nothing else
+	// about an account, and answering their name and address here would be answering more than the
+	// caller asked about.
+	writeJSON(w, r, http.StatusOK, openapi.ProcessingState{
+		AccountId: uuidValue(out.String("id")),
+		Status:    openapi.ProcessingStateStatus(out.String("status")),
 	})
 }
 

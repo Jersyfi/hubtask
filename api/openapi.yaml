@@ -1378,10 +1378,10 @@ paths:
             schema: { $ref: "#/components/schemas/ProcessingRestriction" }
       responses:
         "200":
-          description: The account
+          description: The state that was set
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Account" }
+              schema: { $ref: "#/components/schemas/ProcessingState" }
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -3804,7 +3804,15 @@ components:
         kind: { type: string, enum: [USER, SERVICE_ACCOUNT] }
         email: { type: [string, "null"], format: email }
         display_name: { type: string, minLength: 1, maxLength: 200 }
-        status: { type: string, enum: [ACTIVE, INVITED, DISABLED] }
+        status:
+          type: string
+          description: |
+            `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
+            stays, and what stops is this system deciding anything about the person by machine.
+            `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+            stays so that the workspace's own content is still readable, and everything of the
+            person's in it is gone.
+          enum: [ACTIVE, INVITED, DISABLED, RESTRICTED, ANONYMIZED]
         locale: { type: [string, "null"] }
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
@@ -5429,6 +5437,17 @@ components:
           description: Required when the case is rejected. A refusal without a reason is not an answer.
         notes: { type: string }
         target_id: { type: string, format: uuid }
+
+    ProcessingState:
+      type: object
+      required: [account_id, status]
+      description: |
+        What the call set, rather than the person it was set on. A restriction touches nothing else
+        about an account, and answering their name and address here would be answering more than
+        the caller asked about.
+      properties:
+        account_id: { type: string, format: uuid }
+        status: { type: string, enum: [ACTIVE, RESTRICTED] }
 
     ProcessingRestriction:
       type: object

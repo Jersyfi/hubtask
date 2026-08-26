@@ -35,19 +35,25 @@ func (e AccountKind) Valid() bool {
 
 // Defines values for AccountStatus.
 const (
-	ACTIVE   AccountStatus = "ACTIVE"
-	DISABLED AccountStatus = "DISABLED"
-	INVITED  AccountStatus = "INVITED"
+	AccountStatusACTIVE     AccountStatus = "ACTIVE"
+	AccountStatusANONYMIZED AccountStatus = "ANONYMIZED"
+	AccountStatusDISABLED   AccountStatus = "DISABLED"
+	AccountStatusINVITED    AccountStatus = "INVITED"
+	AccountStatusRESTRICTED AccountStatus = "RESTRICTED"
 )
 
 // Valid indicates whether the value is a known member of the AccountStatus enum.
 func (e AccountStatus) Valid() bool {
 	switch e {
-	case ACTIVE:
+	case AccountStatusACTIVE:
 		return true
-	case DISABLED:
+	case AccountStatusANONYMIZED:
 		return true
-	case INVITED:
+	case AccountStatusDISABLED:
+		return true
+	case AccountStatusINVITED:
+		return true
+	case AccountStatusRESTRICTED:
 		return true
 	default:
 		return false
@@ -1416,6 +1422,24 @@ func (e MembershipScope) Valid() bool {
 	}
 }
 
+// Defines values for ProcessingStateStatus.
+const (
+	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
+	ProcessingStateStatusRESTRICTED ProcessingStateStatus = "RESTRICTED"
+)
+
+// Valid indicates whether the value is a known member of the ProcessingStateStatus enum.
+func (e ProcessingStateStatus) Valid() bool {
+	switch e {
+	case ProcessingStateStatusACTIVE:
+		return true
+	case ProcessingStateStatusRESTRICTED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QueryFieldKind.
 const (
 	Boolean   QueryFieldKind = "boolean"
@@ -2113,15 +2137,25 @@ type Account struct {
 	Id          openapi_types.UUID   `json:"id"`
 	Kind        AccountKind          `json:"kind"`
 	Locale      *string              `json:"locale,omitempty"`
-	Status      AccountStatus        `json:"status"`
-	TimeZone    *string              `json:"time_zone,omitempty"`
-	WeekStart   *AccountWeekStart    `json:"week_start,omitempty"`
+
+	// Status `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
+	// stays, and what stops is this system deciding anything about the person by machine.
+	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+	// stays so that the workspace's own content is still readable, and everything of the
+	// person's in it is gone.
+	Status    AccountStatus     `json:"status"`
+	TimeZone  *string           `json:"time_zone,omitempty"`
+	WeekStart *AccountWeekStart `json:"week_start,omitempty"`
 }
 
 // AccountKind defines model for Account.Kind.
 type AccountKind string
 
-// AccountStatus defines model for Account.Status.
+// AccountStatus `RESTRICTED` is Art. 18 as a technical state (E-10): the account works and its content
+// stays, and what stops is this system deciding anything about the person by machine.
+// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+// stays so that the workspace's own content is still readable, and everything of the
+// person's in it is gone.
 type AccountStatus string
 
 // AccountWeekStart defines model for Account.WeekStart.
@@ -3505,6 +3539,17 @@ type ProcessingRestriction struct {
 	Reason     *string `json:"reason,omitempty"`
 	Restricted bool    `json:"restricted"`
 }
+
+// ProcessingState What the call set, rather than the person it was set on. A restriction touches nothing else
+// about an account, and answering their name and address here would be answering more than
+// the caller asked about.
+type ProcessingState struct {
+	AccountId openapi_types.UUID    `json:"account_id"`
+	Status    ProcessingStateStatus `json:"status"`
+}
+
+// ProcessingStateStatus defines model for ProcessingState.Status.
+type ProcessingStateStatus string
 
 // PurgeSummary What one pass of a removal did.
 type PurgeSummary struct {
