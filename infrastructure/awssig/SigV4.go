@@ -14,6 +14,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -119,9 +120,17 @@ func CanonicalURI(path string) string {
 	return strings.Join(segments, "/")
 }
 
-// canonicalQuery sorts and encodes the query. The three requests this adapter makes carry none,
-// but a signer that silently mis-signed the first future query parameter would be a debugging
-// afternoon somebody else pays for.
+// CanonicalQuery sorts and encodes the query.
+//
+// It decodes each name and value before encoding them again, and that step is the whole of the
+// correctness here: a RawQuery has already been percent-encoded by whoever built it, and encoding
+// it a second time signs `%2F` as `%252F` - a signature over a string the server will never
+// compute. The round trip also fixes the one place Go and AWS disagree: url.Values.Encode writes a
+// space as `+`, and AWS canonicalises it as `%20`.
+//
+// The failure this prevents is not hypothetical. It is a 403 with no detail from every S3
+// implementation, on exactly the requests that carry a parameter with a slash in it - a listing
+// under a prefix, which is every listing a backup target makes.
 func CanonicalQuery(rawQuery string) string {
 	if rawQuery == "" {
 		return ""
@@ -129,8 +138,17 @@ func CanonicalQuery(rawQuery string) string {
 
 	var pairs []string
 	for _, pair := range strings.Split(rawQuery, "&") {
-		key, value, _ := strings.Cut(pair, "=")
-		pairs = append(pairs, URIEncode(key)+"="+URIEncode(value))
+		name, value, _ := strings.Cut(pair, "=")
+		// An unescape that fails leaves the value as it stands: a malformed query is not this
+		// function's to reject, and signing it verbatim produces a refusal rather than a wrong
+		// signature over something else.
+		if decoded, err := url.QueryUnescape(name); err == nil {
+			name = decoded
+		}
+		if decoded, err := url.QueryUnescape(value); err == nil {
+			value = decoded
+		}
+		pairs = append(pairs, URIEncode(name)+"="+URIEncode(value))
 	}
 	sort.Strings(pairs)
 	return strings.Join(pairs, "&")

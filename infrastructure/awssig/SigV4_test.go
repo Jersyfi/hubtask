@@ -62,3 +62,23 @@ func TestSigningWritesTheThreeHeaders(t *testing.T) {
 		}
 	}
 }
+
+// The step that is easy to leave out and impossible to debug from the answer: a RawQuery has
+// already been percent-encoded, and encoding it again signs %2F as %252F - a signature over a
+// string the server will never compute. It shows up as a 403 with no detail, on exactly the
+// requests that carry a slash in a parameter, which is every listing under a prefix.
+func TestTheCanonicalQueryDoesNotEncodeWhatIsAlreadyEncoded(t *testing.T) {
+	cases := map[string]string{
+		"prefix=instance%2F":              "prefix=instance%2F",
+		"prefix=a%20b":                    "prefix=a%20b",
+		"prefix=a+b":                      "prefix=a%20b",
+		"list-type=2&prefix=x%2Fy":        "list-type=2&prefix=x%2Fy",
+		"uploadId=abc%3Ddef&partNumber=1": "partNumber=1&uploadId=abc%3Ddef",
+	}
+
+	for raw, want := range cases {
+		if got := awssig.CanonicalQuery(raw); got != want {
+			t.Errorf("CanonicalQuery(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
