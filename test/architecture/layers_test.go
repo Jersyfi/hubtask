@@ -14,6 +14,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -186,6 +187,44 @@ func TestDriverStaysInThePostgresAdapter(t *testing.T) {
 				if strings.HasPrefix(importPath, "github.com/jackc/pgx") {
 					t.Errorf("%s: the driver belongs to infrastructure/postgres - go through the transaction wrapper (ADR-0010)",
 						rel(path))
+				}
+			}
+		})
+}
+
+// TestCryptographyStaysInItsAdapter checks the seam E-02 exists to create: a cipher is named in
+// exactly one package, and everything inwards of it sees core/port/crypto.
+//
+// The point is not purity. It is that "where does the master key live" is open point S-2, due at
+// 0.6.0, and the answer changes an adapter rather than the system - which stops being true the
+// moment an application service constructs a cipher of its own. A second implementation of AES-GCM
+// in this repository is also a second place to get a nonce wrong.
+//
+// crypto/subtle is deliberately not on the list: a constant-time comparison is how a secret is
+// compared safely, not cryptography implemented in the wrong layer, and core/shared/secret
+// provides it so that no caller reaches for bytes.Equal instead.
+func TestCryptographyStaysInItsAdapter(t *testing.T) {
+	forbidden := []string{"crypto/aes", "crypto/cipher", "crypto/hkdf", "golang.org/x/crypto"}
+
+	// The two adapters that may: the envelope, and the hashing shelf that peppers tokens.
+	allowed := []string{
+		filepath.Clean("../../infrastructure/crypto"),
+		filepath.Clean("../../infrastructure/security"),
+	}
+
+	forEachGoFile(t, []string{"../../core", "../../presentation", "../../cmd", "../../infrastructure"},
+		func(path string, f *ast.File, _ *token.FileSet) {
+			directory := filepath.Clean(filepath.Dir(path))
+			if slices.Contains(allowed, directory) {
+				return
+			}
+			for _, imp := range f.Imports {
+				importPath := strings.Trim(imp.Path.Value, `"`)
+				for _, banned := range forbidden {
+					if importPath == banned || strings.HasPrefix(importPath, banned+"/") {
+						t.Errorf("%s: %s outside infrastructure/crypto - the port is the seam (E-02)",
+							rel(path), importPath)
+					}
 				}
 			}
 		})

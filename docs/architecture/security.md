@@ -156,11 +156,12 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security-relevant core po
 |---|---|
 | Password hash | Argon2id |
 | Token storage | SHA-256 with a server-side pepper (not in the database) |
-| Integration credentials, webhook secrets | AES-256-GCM, envelope encryption: a data key per tenant, encrypted with a master key from the environment or a KMS; the key ID is persisted → rotation without data migration |
+| Integration credentials, webhook secrets, backup target credentials | AES-256-GCM, envelope encryption: a data key **per value**, encrypted with a master key from the environment keyring (E-02, `HUBTASK_ENCRYPTION_KEYS`); the key ID is persisted → rotation without data migration. A data key per value rather than per tenant, because GCM's safety is a bound on how much one key encrypts, and a per-value key means the master key only ever encrypts random 32-byte keys. The ciphertext is bound to a purpose the caller supplies, so it cannot be moved between rows |
+| Backup archives | AES-256-GCM under a key derived from a passphrase with Argon2id (RFC 9106's second recommended cost: t=3, m=64 MiB, p=4). The passphrase is stored nowhere; the salt and the cost are stored beside the archive, so raising the cost later leaves older archives readable (backup-restore.md §4) |
 | Signatures on outbound webhooks | HMAC-SHA-256, a secret per subscription, the header `X-Hubtask-Signature` with a timestamp |
 | Transport | TLS 1.2+ (target 1.3); inside the cluster ideally mTLS through a service mesh (optional, not required); HSTS where TLS is terminated |
 | Randomness | Exclusively `crypto/rand` for tokens, IDs, and nonces; the `RandomSource` port uses `crypto/rand` in production |
-| Home-grown crypto | Forbidden. Only the standard library and established packages. |
+| Home-grown crypto | Forbidden. Only the standard library and established packages. One package names a cipher — `infrastructure/crypto` — and `gate-architecture` fails a build that imports `crypto/aes`, `crypto/cipher`, `crypto/hkdf` or `golang.org/x/crypto` anywhere else |
 
 Secrets come exclusively from environment variables or mounted secret files (the `HUBTASK_*_FILE`
 convention for Docker and Kubernetes secrets). There is no default value for a secret — if one is
