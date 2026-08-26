@@ -396,6 +396,16 @@ there is nothing for MCP or an automation rule to call, and it is served by the 
 
 **Search** `SearchItems` (full text, optionally semantic).
 
+**Backup** `CreateBackupTarget`, `ListBackupTargets`, `TestBackupTarget` (E-03). Creating one asks
+for the owner's right — `DELETE_CONTAINER`, the matrix's line for the one thing an administrator
+cannot do — because a target is a channel the tenant's data leaves by, and in single-tenant
+operation the tenant's owner is the instance administrator `backup-restore.md` §2 names. Listing
+asks for `STRUCTURE` instead: knowing where the data goes is part of running the workspace, and
+somebody who may not create a target may still need to see that one exists and that its last probe
+failed. Credentials are sealed on the way in and are returned by nothing. The connection test is a
+write, a read-back and a delete, and answers a result rather than an error — "the target is
+unreachable" is what the caller asked to find out.
+
 **Jobs** `GetJob`, `CancelJob`. The resource three `202 Accepted` responses have been pointing at
 since A-06, registered with E-01. Two permissions rather than one: reading a job is `READ` and
 stopping one is `STRUCTURE`, because "show me" and "stop it" are different questions and a viewer

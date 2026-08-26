@@ -35,18 +35,23 @@ one variant runs only one.
 The target is a port (`core/port/backupstorage/Port.go`) with interchangeable adapters. No target is
 preferred, and none is a prerequisite.
 
-| Adapter | Protocol / notes |
-|---|---|
-| `local` | A directory in the container/volume (the self-hosting default) |
-| `s3` | S3-compatible: AWS, MinIO, Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 — the endpoint is free; server-side encryption and object lock usable |
-| `sftp` | SSH-based, password or key |
-| `ftps` | FTP over TLS (explicit) |
-| `ftp` | Only with explicit confirmation — unencrypted transport, a warning in the UI/API, and an audit entry |
-| `webdav` | Nextcloud, ownCloud, generic WebDAV servers |
-| `smb` | Windows/NAS shares |
-| `azure_blob`, `gcs` | Through the respective S3-compatible or native API |
-| `rclone` (optional) | An umbrella adapter for Dropbox, Google Drive, OneDrive, pCloud and others, when `rclone` is available in the image |
-| `http_put` | A generic target for home-grown solutions |
+The four the roadmap opens with exist (E-03); the rest ship when they pass the same conformance
+suite, which is what ADR-0019 decision 2 means by a gate rather than an aspiration. A target of a
+kind this build has no adapter for is refused with `backup.kind_unsupported` — "Hubtask cannot talk
+to SMB yet" rather than "SMB is not a thing".
+
+| Adapter | Built | Protocol / notes |
+|---|---|---|
+| `local` | yes | A directory inside the installation's backup volume (`HUBTASK_BACKUP_LOCAL_PATH`, the self-hosting default). A target's own path is **relative** to that volume and cannot leave it: whoever configures a target administers the instance, not the machine |
+| `s3` | yes | S3-compatible: AWS, MinIO, Ceph, Wasabi, Backblaze B2, Hetzner, IDrive e2 — the endpoint is free; server-side encryption and object lock usable. An archive of unknown length is uploaded in parts, so the process holds one part rather than an archive |
+| `sftp` | yes | SSH-based, password or key. The host key is **configuration**: a target names the server's public key or its SHA-256 fingerprint, and one that names neither is refused. There is no trust on first use and no way to switch the check off — a target is created through an API, and a first connection that accepted whatever answered is one an attacker only has to be present for once |
+| `ftps` | — | FTP over TLS (explicit) |
+| `ftp` | — | Only with explicit confirmation — unencrypted transport, a warning in the UI/API, and an audit entry |
+| `webdav` | yes | Nextcloud, ownCloud, generic WebDAV servers. Listed by recursing `PROPFIND` at depth one rather than asking for infinite depth, which Apache refuses by default |
+| `smb` | — | Windows/NAS shares |
+| `azure_blob`, `gcs` | — | Through the respective S3-compatible or native API |
+| `rclone` (optional) | — | An umbrella adapter for Dropbox, Google Drive, OneDrive, pCloud and others, when `rclone` is available in the image. Gated additionally on open point B-1 |
+| `http_put` | — | A generic target for home-grown solutions |
 
 Several targets in parallel are explicitly provided for (the 3-2-1 rule: local + remote + a
 different provider). Each target has its own schedule and its own retention.
@@ -54,9 +59,11 @@ different provider). Each target has its own schedule and its own retention.
 **The target configuration is an exception to the SSRF rule** from [security.md](./security.md) —
 and a deliberately narrow one:
 
-* Backup targets may **only** be created by instance administrators, not by arbitrary tenant users. In provider operation the operator can allow tenants their own targets (`HUBTASK_BACKUP_TENANT_TARGETS=true`, off by default) — an egress allowlist then applies on top.
-* The connection test (`POST /backup-targets/{id}:test`) runs through the same `GuardedClient`, with a block list for metadata endpoints and private networks unless these are explicitly released.
-* Creating or changing a target is auditable (`backup.target_changed`), because a backup target is by definition a data egress channel.
+* Backup targets may **only** be created by instance administrators, not by arbitrary tenant users. In practice that is the owner's right in the role matrix: in single-tenant operation the tenant's owner *is* the instance administrator, and in provider operation the operator can allow tenants their own targets (`HUBTASK_BACKUP_TENANT_TARGETS=true`, off by default) — an egress allowlist then applies on top.
+* **Every** call to a target runs through the same `GuardedClient`, not only the connection test: metadata endpoints, RFC 1918 ranges and loopback are refused unless `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` releases them, and no redirect is followed. SSH is not HTTP, so the SFTP adapter uses the guard's resolver and dial-time control directly rather than the client. Gate BK-9 is that sentence as a test.
+  The consequence is worth stating plainly, because self-hosters hit it: a MinIO or a NAS on the same LAN needs that release. It is a decision an operator makes once for the installation rather than one every target gets for free.
+* Creating or changing a target is auditable (`backup.target_changed`), because a backup target is by definition a data egress channel. The entry records where the data may now go — the kind, the configuration, the encryption mode — and never the credential.
+* Credentials are sealed with the envelope of E-02, bound to the row they belong to, and are read back by exactly one repository method. The statements that feed a response do not select the column, so a credential cannot reach a client because somebody added a field to a mapper.
 
 ---
 
@@ -216,11 +223,28 @@ restorable backup, without a second format coming into existence.
 
 Complements the catalogue in [observability-reliability.md](./observability-reliability.md):
 
+Two vocabularies, and E-03 settled which is which rather than leaving them to drift: a warning is
+named after what it describes. `backup.target_*` is a warning **a target carries about itself** and
+travels in the `warnings` array of the resource; `config.backup_*` is a warning about **the
+installation** and belongs in the health report. They are not synonyms and neither is a rename of
+the other.
+
 | Signal | Meaning |
 |---|---|
+| `backup.target_unencrypted` (on the resource) | This target stores archives unencrypted |
+| `backup.target_plaintext_protocol` (on the resource) | This target is reached over a connection anybody on the wire can read. Judged by the scheme in the configuration for every kind addressed by a URL, and by the name only for `ftp`, which has no secure form |
 | `config.backup_not_configured` (a warning in `/meta/health`) | No target configured |
 | `config.backup_unencrypted` | A target without encryption |
 | `config.backup_single_target` | Only one target — a pointer to 3-2-1 |
+
+The three `config.backup_*` warnings have their message codes and the repository count behind them
+(E-03) and no surface yet. `/meta/health` on the operations port is process-wide, and a backup
+target is a row in a tenant's database behind row level security — a count taken there sees
+nothing. They arrive with the tenant-facing health report, which is still
+`route.operation_not_available`. Until then they were **not** derived from environment variables:
+the previous condition read `HUBTASK_BACKUP_LOCAL_PATH` and `HUBTASK_BACKUP_TARGETS`, neither of
+which said whether a target exists, and the second was read by nothing else and documented nowhere.
+It is removed.
 | `backup.last_success_age_hours` (metric) | The age of the last successful backup per target |
 | `backup.verify_failed_total` | A checksum error at the target → a damaged archive |
 | `backup.restore_test_age_days` | The time since the last verified restore |

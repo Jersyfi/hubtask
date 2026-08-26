@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 var tenant = shared.ID("018f2a1b-0000-7000-8000-0000000000ab")
@@ -297,5 +298,51 @@ func TestAnUnreadableLanguageListFailsTheManifest(t *testing.T) {
 
 	if _, err := handler.Execute(t.Context(), appshared.Anonymous("en", "UTC")); err == nil {
 		t.Fatal("the manifest was answered without the languages it promises")
+	}
+}
+
+// The two backup flags (E-03). What is configured rather than what is implemented: a client that
+// offers "add an S3 target" on an installation with no encryption keyring is offering a form that
+// will be refused at the end.
+func TestTheManifestSaysWhetherABackupTargetCanBeConfigured(t *testing.T) {
+	answer := func(cfg env.Config) Capabilities {
+		t.Helper()
+		handler := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+		handler.Config = cfg
+		capabilities, err := handler.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+		if err != nil {
+			t.Fatalf("execute failed: %v", err)
+		}
+		return capabilities
+	}
+
+	bare := answer(env.Config{Tenancy: env.TenancySingle})
+	if bare.Features["backup_encryption"] {
+		t.Error("an installation with no keyring says it can seal a credential")
+	}
+	// One tenant means its owner is the operator, so there is nobody the switch could protect.
+	if !bare.Features["backup_targets"] {
+		t.Error("a single-tenant installation says its tenant may not configure a target")
+	}
+
+	provider := answer(env.Config{
+		Tenancy: env.TenancyMulti,
+		Encryption: env.EncryptionConfig{
+			Keys: []env.EncryptionKey{{ID: "k2026", Material: secret.New("material")}},
+		},
+	})
+	if !provider.Features["backup_encryption"] {
+		t.Error("an installation with a keyring says it cannot seal a credential")
+	}
+	if provider.Features["backup_targets"] {
+		t.Error("provider operation says a tenant may configure a target with the switch off")
+	}
+
+	provider.Features = answer(env.Config{
+		Tenancy: env.TenancyMulti,
+		Backup:  env.BackupConfig{TenantTargets: true},
+	}).Features
+	if !provider.Features["backup_targets"] {
+		t.Error("the switch is on and the manifest says otherwise")
 	}
 }
