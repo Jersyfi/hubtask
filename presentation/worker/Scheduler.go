@@ -40,6 +40,11 @@ type BackupFreshness interface {
 	LastSuccessPerTarget(ctx context.Context) (map[shared.ID]time.Time, error)
 }
 
+// AuditPartitions keeps the audit trail's partitions conforming (E-09, audit.md §3).
+type AuditPartitions interface {
+	Ensure(ctx context.Context, month time.Time) (string, error)
+}
+
 // Scheduler is the role that may run in several replicas but act in only one (ADR-0008).
 //
 // It does no work itself beyond deciding what has to happen: everything it decides becomes a job,
@@ -68,6 +73,10 @@ type Scheduler struct {
 	InstanceBackups InstanceBackups
 	// BackupFreshness is the reading behind alert A-12.
 	BackupFreshness BackupFreshness
+	// AuditPartitions makes sure next month's partition of `audit_log` exists before the first
+	// entry of it does, and carries its own policy and its own revokes. Optional, like the two
+	// above: an installation without it keeps writing into the default partition, which has both.
+	AuditPartitions AuditPartitions
 
 	// TickInterval is how often the leader looks at the clock. It is also how quickly a standby
 	// notices that the leader is gone, because a standby tries the lock on every tick of its own.
@@ -145,6 +154,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.sampleQueueDepth(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
+	s.ensureAuditPartitions(ctx)
 	return true
 }
 
@@ -181,6 +191,47 @@ func (s Scheduler) fireInstanceBackups(ctx context.Context) {
 	}
 	if result.Started > 0 {
 		slog.InfoContext(ctx, "instance-wide backups started", slog.Int("count", result.Started))
+	}
+}
+
+// ensureAuditPartitions is the leader's second real duty, and it is a correctness matter rather
+// than housekeeping (E-09, audit.md §3).
+//
+// A partition of `audit_log` does not inherit the parent's row level security policy when it is
+// addressed directly, and `REVOKE UPDATE, DELETE, TRUNCATE` on the parent does not reach it either
+// - both measured and written down in `0001_init`. A partition created without them is a
+// cross-tenant leak with a date on it, and an audit trail the application role can rewrite.
+//
+// The leader's rather than a tenant's, because a partition belongs to the installation: it covers
+// every tenant's entries, and nothing in this system may enumerate tenants anyway. Next month as
+// well as this one, so that the partition exists before the first entry of it does - a month whose
+// entries have already gone into the default partition cannot be split out afterwards, and the duty
+// says so by answering an empty name rather than by failing every minute.
+//
+// In the steady state it reads the catalogue and writes nothing, which is what makes it safe to run
+// on every tick.
+func (s Scheduler) ensureAuditPartitions(ctx context.Context) {
+	if s.AuditPartitions == nil {
+		return
+	}
+	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	now := s.Clock.Now().UTC()
+	for _, month := range []time.Time{now, now.AddDate(0, 1, 0)} {
+		name, err := s.AuditPartitions.Ensure(dutyCtx, month)
+		if err != nil {
+			if ctx.Err() == nil {
+				slog.WarnContext(ctx, "the audit partition could not be ensured",
+					slog.String("month", month.Format("2006-01")),
+					slog.String("error", shared.AsError(err).Code))
+			}
+			return
+		}
+		if name == "" {
+			slog.InfoContext(ctx, "the audit entries of that month are in the default partition",
+				slog.String("month", month.Format("2006-01")))
+		}
 	}
 }
 

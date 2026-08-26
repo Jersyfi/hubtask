@@ -11,6 +11,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const ensureAuditPartition = `-- name: EnsureAuditPartition :one
+SELECT COALESCE(ensure_audit_partition($1::date), '')::text AS partition_name
+`
+
+// Creates next month's partition if it is not there, and brings any partition that is missing its
+// policy or its revokes back into line (db/migrations/0043_audit_partition_duty.sql).
+//
+// The answer is the partition's name, or the empty string when entries for that month are already
+// in the default partition - which PostgreSQL will not split out, and which is an operator's
+// decision rather than a scheduled duty's. Coalesced here rather than answered as NULL, because
+// "no partition was made" is a state the caller acts on rather than an absence it has to unwrap.
+func (q *Queries) EnsureAuditPartition(ctx context.Context, month pgtype.Date) (string, error) {
+	row := q.db.QueryRow(ctx, ensureAuditPartition, month)
+	var partition_name string
+	err := row.Scan(&partition_name)
+	return partition_name, err
+}
+
 const insertAuditEntry = `-- name: InsertAuditEntry :exec
 INSERT INTO audit_log (
   id, tenant_id, seq, occurred_at, action, outcome, severity,

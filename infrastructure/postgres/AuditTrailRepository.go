@@ -324,3 +324,37 @@ func auditChangesFrom(raw []byte) (map[string]any, error) {
 	}
 	return changes, nil
 }
+
+// AuditPartitionRepository keeps the trail's partitions conforming (E-09, audit.md §3).
+//
+// Its own type beside the trail rather than a method on it: this is maintenance of the table, not
+// a read of the evidence, and a repository that could do both would put a DDL statement one call
+// away from the request path.
+type AuditPartitionRepository struct{}
+
+func NewAuditPartitionRepository() AuditPartitionRepository { return AuditPartitionRepository{} }
+
+var _ repository.Partitions = AuditPartitionRepository{}
+
+// Ensure runs the duty for one month.
+//
+// The work is in the database rather than here, and deliberately: creating a partition of
+// `audit_log`, revoking on it and giving it its policy are the owner's rights, and the application
+// role holds none of them. What this calls is a SECURITY DEFINER function whose only parameter is
+// a date (0043_audit_partition_duty.sql) - which is also why there is no statement built here.
+func (r AuditPartitionRepository) Ensure(ctx context.Context, month time.Time) (string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	name, err := queries.EnsureAuditPartition(ctx, pgtype.Date{
+		Time: time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, time.UTC), Valid: true,
+	})
+	if err != nil {
+		return "", shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("ensuring the audit partition of %s: %w", month.Format("2006-01"), err))
+	}
+	return name, nil
+}

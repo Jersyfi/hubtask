@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
@@ -1423,6 +1424,12 @@ func run() error {
 			// The leader's one duty beyond measurement, and the reading behind alert A-12 (E-05).
 			InstanceBackups: backupPass,
 			BackupFreshness: backupRunsInBackground{Runs: backupRuns, Work: backgroundWork},
+			// The partition duty `0001_init` wrote down: next month's partition of `audit_log`
+			// exists before the first entry of it does, and carries its own policy and its own
+			// revokes (E-09, audit.md §3).
+			AuditPartitions: auditPartitionsInBackground{
+				Partitions: postgres.NewAuditPartitionRepository(), Work: backgroundWork,
+			},
 		}
 		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))
 	}
@@ -1718,6 +1725,24 @@ func schemaVersion() string {
 
 // backupRunsInBackground reads the backup freshness on the background pool, which is where every
 // leader duty runs: the API's pool is for requests.
+// auditPartitionsInBackground gives the partition duty the transaction it needs. A system scope,
+// because a partition belongs to the installation rather than to a tenant - and a write one,
+// because the duty creates a table when there is one to create.
+type auditPartitionsInBackground struct {
+	Partitions auditrepo.Partitions
+	Work       persistenceport.UnitOfWork
+}
+
+func (a auditPartitionsInBackground) Ensure(ctx context.Context, month time.Time) (string, error) {
+	var name string
+	err := a.Work.Within(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		var err error
+		name, err = a.Partitions.Ensure(ctx, month)
+		return err
+	})
+	return name, err
+}
+
 type backupRunsInBackground struct {
 	Runs backuprepo.Runs
 	Work persistenceport.UnitOfWork

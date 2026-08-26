@@ -260,3 +260,90 @@ func TestAContradictorySchedulerDoesNotStart(t *testing.T) {
 		})
 	}
 }
+
+// The partition duty (E-09, audit.md §3). A partition of `audit_log` inherits neither the parent's
+// policy nor its revokes when it is addressed directly, so one created without them is a
+// cross-tenant leak with a date on it - and the leader is what makes sure next month's exists
+// before the first entry of it does.
+
+type auditPartitions struct {
+	asked   []time.Time
+	missing bool
+	err     error
+}
+
+func (p *auditPartitions) Ensure(_ context.Context, month time.Time) (string, error) {
+	p.asked = append(p.asked, month)
+	if p.err != nil {
+		return "", p.err
+	}
+	if p.missing {
+		return "", nil
+	}
+	return "audit_log_" + month.Format("2006_01"), nil
+}
+
+func TestTheLeaderEnsuresThisMonthAndTheNext(t *testing.T) {
+	partitions := &auditPartitions{}
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.AuditPartitions = partitions
+
+	leader.tick(t.Context(), false, now)
+
+	if len(partitions.asked) != 2 {
+		t.Fatalf("the duty asked for %d months", len(partitions.asked))
+	}
+	if partitions.asked[0].Format("2006-01") != now.UTC().Format("2006-01") {
+		t.Errorf("the first month asked for was %s", partitions.asked[0])
+	}
+	// Next month as well, because a month whose entries have already gone into the default
+	// partition cannot be split out afterwards.
+	if partitions.asked[1].Format("2006-01") != now.UTC().AddDate(0, 1, 0).Format("2006-01") {
+		t.Errorf("the second month asked for was %s", partitions.asked[1])
+	}
+}
+
+// A standby does nothing, including this: a partition duty run by every replica would be a DDL
+// statement per replica per tick.
+func TestAStandbyEnsuresNoPartitions(t *testing.T) {
+	contested := &lock{}
+	partitions := &auditPartitions{}
+
+	leader := scheduler(&leadership{lock: contested, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.AuditPartitions = &auditPartitions{}
+	leader.tick(t.Context(), false, now)
+
+	standby := scheduler(&leadership{lock: contested, name: "b"}, &depthQueue{}, newSchedulerSignals())
+	standby.AuditPartitions = partitions
+	standby.tick(t.Context(), false, now)
+
+	if len(partitions.asked) != 0 {
+		t.Errorf("a standby ensured %d partitions", len(partitions.asked))
+	}
+}
+
+// A month already in the default partition is not a failure of the duty. Saying so every minute
+// would be a duty somebody switches off, and moving rows out of a default partition is an
+// operator's decision about a table that must not be rewritten casually.
+func TestAMonthAlreadyInTheDefaultPartitionIsNotAFailure(t *testing.T) {
+	partitions := &auditPartitions{missing: true}
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.AuditPartitions = partitions
+
+	if leading := leader.tick(t.Context(), false, now); !leading {
+		t.Error("the leader gave up its tick over a partition it could not create")
+	}
+	if len(partitions.asked) != 2 {
+		t.Errorf("the duty stopped after %d months", len(partitions.asked))
+	}
+}
+
+// An installation without the duty keeps writing into the default partition, which carries the
+// same policy and the same revokes - so the scheduler runs without one rather than refusing to.
+func TestASchedulerWithoutThePartitionDutyStillTicks(t *testing.T) {
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+
+	if leading := leader.tick(t.Context(), false, now); !leading {
+		t.Error("a scheduler with no partition duty did not tick")
+	}
+}

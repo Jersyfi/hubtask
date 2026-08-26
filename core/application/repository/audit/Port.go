@@ -103,6 +103,23 @@ type Anchor struct {
 // IsZero reports whether this tenant has never anchored anything.
 func (a Anchor) IsZero() bool { return a.AnchoredAt.IsZero() }
 
+// Partitions is the duty `0001_init` wrote down and left to whoever came next: a partition of
+// `audit_log` created later has to carry its own row level security policy and its own revoked
+// grants, because neither is inherited when a partition is addressed directly (audit.md §3).
+//
+// Its own port beside the trail, because it is not a read of the evidence but maintenance of the
+// table it lives in - and because the one thing it must never be is something a use case can
+// reach. Nothing in the request path calls it; the leader does, on a schedule.
+type Partitions interface {
+	// Ensure makes sure the partition covering a month exists and conforms, and answers its name.
+	//
+	// The empty name is not an error: entries for that month may already be in the default
+	// partition, which PostgreSQL will not split out. Moving them is an operator's decision about
+	// a table that must not be rewritten casually, and a duty that failed on it every minute
+	// would be a duty somebody switches off.
+	Ensure(ctx context.Context, month time.Time) (string, error)
+}
+
 // Trail reads the entries back.
 //
 // Read-only, and there is no writing counterpart anywhere in this package. The application role

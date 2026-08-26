@@ -1448,6 +1448,10 @@ ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM hubtask_app;
 GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
 
+-- Partitions created after this file are the duty of ensure_audit_partition(date)
+-- (db/migrations/0043_audit_partition_duty.sql), which applies the policy and these revokes to
+-- every partition it creates and repairs any it finds without them.
+
 -- The same for the partitions: a partition addressed directly is a table of its own.
 DO $audit_partitions$
 DECLARE p record;
