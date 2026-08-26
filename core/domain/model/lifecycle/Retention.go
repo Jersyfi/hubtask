@@ -8,27 +8,23 @@ import "time"
 // DataKind is a class of data the lifecycle context keeps a period for (data-retention.md §3).
 //
 // The catalogue is data rather than code by design: a new kind is added to the document and is then
-// configurable through the API without an engine change. What is written here is the subset this
-// installation actually sweeps, which in 0.2.0 is the trash - a constant for a kind nothing removes
-// would be a promise nothing keeps.
+// configurable through the API without an engine change. Catalogue.go is that catalogue - every
+// kind the document names, with the ones this build can actually remove marked as such, because a
+// period configured for a kind nothing sweeps would be a promise nothing keeps.
 type DataKind string
 
 // KindTrash is the period a deletion waits out before it becomes permanent (F-09).
 const KindTrash DataKind = "TRASH"
 
 // KindNotification is how long the record of somebody having been told is kept (C-09).
-//
-// The class data-retention.md §3 has been naming against nothing since the document was written.
-// It is here now because there is finally a table under it - a period configured for a kind
-// nothing sweeps would be a promise nothing keeps, which is the reason KindTrash was alone.
 const KindNotification DataKind = "NOTIFICATION"
 
-// Policy is one tenant's period for one kind of data.
+// Policy is one tenant's period for one kind of data, as `retention_policy` holds it.
 //
-// The narrow version of the rule model in data-retention.md §2: a period, its bounds, and the kind it
-// applies to. The scope, the CEL condition and the multi-stage chain that model also names belong to
-// the rules a tenant writes, which is its own piece of work - what is here is what the trash sweep
-// needs in order to know when a deletion is due.
+// Superseded by Rule (E-07) and kept for the length of one release: the old table's key allows one
+// period per kind per tenant, and the rule model is scoped. Its rows are carried into
+// `retention_rule` by the first sweep after the upgrade, and a later release contracts it away -
+// which is what expand-before-contract means for a table an old pod is still writing to.
 type Policy struct {
 	DataKind DataKind
 	// RetainDays is the period from the kind's time anchor, which for the trash is when the row went

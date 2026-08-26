@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -323,13 +324,44 @@ func TestARealRowSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
 		t.Fatalf("importing the row back: %v", err)
 	}
 
-	var title, notes string
-	if err := adminPool(ctx, t).QueryRow(ctx,
-		`SELECT title, coalesce(notes, '') FROM work_item WHERE tenant_id = $1 AND id = $2`,
-		tenantA.String(), id.String()).Scan(&title, &notes); err != nil {
-		t.Fatalf("reading the restored row: %v", err)
+	// Every column, not the two the test happens to think of. An import statement that forgot a
+	// column would drop it silently on every restore, and a check that named the columns it
+	// expected would forget the same one.
+	restored := exportedShape(ctx, t, tenantA, id)
+	for column, before := range exportedRow {
+		if column == "search_vector" {
+			// Generated: the database rewrites it from the columns it is derived from, so a
+			// difference here is the derivation working rather than a column being lost.
+			continue
+		}
+		if after := restored[column]; !sameJSON(before, after) {
+			t.Errorf("%s came back as %#v, want %#v", column, after, before)
+		}
 	}
-	if title != original.Title || notes != original.Notes {
-		t.Fatalf("the row came back as %q / %q", title, notes)
+}
+
+// exportedShape reads one row back through the export, which is the same shape the archive carries.
+func exportedShape(ctx context.Context, t *testing.T, tenant, id shared.ID) map[string]any {
+	t.Helper()
+	for _, row := range exported(ctx, t, tenant, 100, "work_item", time.Time{}) {
+		if row.ID == id.String() {
+			return row.Data
+		}
 	}
+	t.Fatalf("%s is not in the export", id)
+	return nil
+}
+
+// sameJSON compares two values as the archive carries them: everything has been through JSON, so
+// comparing the encodings is comparing what a restore would actually write.
+func sameJSON(a, b any) bool {
+	first, err := json.Marshal(a)
+	if err != nil {
+		return false
+	}
+	second, err := json.Marshal(b)
+	if err != nil {
+		return false
+	}
+	return string(first) == string(second)
 }
