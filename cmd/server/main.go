@@ -305,6 +305,7 @@ func run() error {
 	savedViews := postgres.NewSavedViewRepository()
 	reminders := postgres.NewReminderRepository()
 	recurrences := postgres.NewRecurrenceRepository()
+	templates := postgres.NewTemplateRepository(cursors)
 	itemLabels := postgres.NewItemLabelRepository()
 	itemMembers := postgres.NewItemMemberRepository()
 	// The media records, beside the bytes: this stores the rows, the object store the content, and
@@ -527,6 +528,14 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// The templates' three definition verbs share one dependency set (work.TemplateWriter): the
+	// same scope resolution, the same permission question, the same records (D-06).
+	templateWriter := work.TemplateWriter{
+		Templates: templates, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Changes: changes, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
 	// The bulk performs the other use cases, so it needs the catalogue that is built from its own
 	// descriptor. The holder is what breaks that circle: it is passed in now and given the
 	// catalogue the moment there is one, a few lines below.
@@ -742,6 +751,14 @@ func run() error {
 		work.SetRecurrence{Writer: recurrenceWriter}.Descriptor(),
 		work.RemoveRecurrence{Writer: recurrenceWriter}.Descriptor(),
 		work.SkipOccurrence{Writer: recurrenceWriter}.Descriptor(),
+		work.CreateTemplate{Writer: templateWriter}.Descriptor(),
+		work.ListTemplates{
+			Templates: templates, Containers: containers, Authorizer: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.GetTemplate{Writer: templateWriter}.Descriptor(),
+		work.UpdateTemplate{Writer: templateWriter}.Descriptor(),
+		work.DeleteTemplate{Writer: templateWriter}.Descriptor(),
 		work.GetRecurrence{
 			Recurrences: recurrences, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

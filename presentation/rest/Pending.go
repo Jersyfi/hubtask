@@ -417,8 +417,8 @@ func (pending) SkipOccurrence(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
-// The template operations answer as pending until D-06 registers their use cases; the routes exist
-// because the contract declares them.
+// The template operations are overridden by RestController, for the reason given at
+// CreateContainer.
 func (pending) ListTemplates(w http.ResponseWriter, r *http.Request, _ openapi.ListTemplatesParams) {
 	notAvailable(w, r)
 }
