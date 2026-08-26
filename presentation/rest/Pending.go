@@ -73,8 +73,6 @@ func (pending) ListAuditEntries(w http.ResponseWriter, r *http.Request, _ openap
 
 func (pending) VerifyAuditChain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-func (pending) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
-
 // The three target operations. Overridden by RestController; they stay here because the
 // compile-time assertion is on `pending` itself.
 func (pending) ListBackupTargets(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
@@ -88,6 +86,10 @@ func (pending) ListBackupsAtTarget(w http.ResponseWriter, r *http.Request, _ ope
 func (pending) TestBackupTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+
+// The backup run operations. Overridden by RestController; they stay here for the reason the job
+// operations do - the compile-time assertion is on `pending` itself.
+func (pending) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) StartBackup(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

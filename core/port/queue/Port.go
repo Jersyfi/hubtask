@@ -93,6 +93,34 @@ const (
 	// cannot create one job per tenant even if it wanted to. A staging is what seeds it - an
 	// upload is the first thing that can ever need reclaiming - and a deletion pulls it forward.
 	KindMediaReconcile Kind = "media.reconcile"
+
+	// KindBackupRun writes one archive to one target (E-05, backup-restore.md §5).
+	//
+	// One job per run rather than per tenant, because a run is a thing somebody asked for and can
+	// cancel, and because the deduplication key is the target: two requests to back up the same
+	// target collapse into the one that is already happening, which is the lock §5 asks for
+	// expressed in the queue as well as in the table.
+	//
+	// It is the first job in this system that is long enough for "how far along is it" to be a
+	// real question, which is why the job row grew a `progress` column with it.
+	KindBackupRun Kind = "backup.run"
+
+	// KindBackupVerify checks one archive at its target without restoring it.
+	//
+	// A job rather than a request, because verifying reads every member of an archive over
+	// somebody else's network - which is minutes, and nothing a caller should hold a connection
+	// open for.
+	KindBackupVerify Kind = "backup.verify"
+
+	// KindBackupSchedule is one tenant's wake-up: what does this tenant owe now, and when does it
+	// owe the next one (E-05).
+	//
+	// The same shape as the reminder's and the recurrence's, and for the same reason: nothing in
+	// this system may enumerate tenants, so a scheduler cannot create one job per tenant even if
+	// it wanted to. The write that creates a schedule seeds it, and each round reschedules itself
+	// to the next moment the tenant owes. Instance-wide schedules belong to no tenant and are the
+	// leader's duty instead - see the scheduler.
+	KindBackupSchedule Kind = "backup.schedule"
 )
 
 func (k Kind) String() string { return string(k) }

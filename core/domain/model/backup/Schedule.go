@@ -307,6 +307,10 @@ const (
 	CodeRunNotFound                 = "backup.run_not_found"
 	CodeRunNotRunning               = "backup.run_not_running"
 	CodeNoParentArchive             = "backup.no_parent_archive"
+	CodeTargetDisabled              = "backup.target_disabled"
+	CodeRunHasNoArchive             = "backup.run_has_no_archive"
+	CodeScheduleRuleUnreadable      = "backup.schedule_rule_unreadable"
+	CodeScheduleZoneUnknown         = "backup.schedule_zone_unknown"
 )
 
 // Trigger is why a run happened.

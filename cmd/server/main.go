@@ -311,6 +311,20 @@ func run() error {
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Config: cfg,
 	}
+	// The run use cases share theirs for the same reason: three that disagreed about the clock
+	// would record a run at a moment nothing else agrees with (E-05).
+	backupRuns := postgres.NewBackupRunRepository()
+	backupSchedules := postgres.NewBackupScheduleRepository()
+	backupRunner := backupservice.Runner{
+		Runs: backupRuns, Targets: backupTargets, Jobs: jobs,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+	backupScheduling := backupservice.Scheduling{
+		Schedules: backupSchedules, Targets: backupTargets, Jobs: jobs,
+		Expander: recurrenceadapter.New(), Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 
 	accounts := postgres.NewAccountRepository()
 	groups := postgres.NewGroupRepository()
@@ -883,6 +897,10 @@ func run() error {
 		backupservice.CreateBackupTarget{Writer: backupWriter}.Descriptor(),
 		backupservice.ListBackupTargets{Writer: backupWriter}.Descriptor(),
 		backupservice.TestBackupTarget{Writer: backupWriter}.Descriptor(),
+		backupservice.StartBackup{Runner: backupRunner}.Descriptor(),
+		backupservice.GetBackupRun{Runner: backupRunner}.Descriptor(),
+		backupservice.VerifyBackup{Runner: backupRunner}.Descriptor(),
+		backupservice.CreateBackupSchedule{Scheduling: backupScheduling}.Descriptor(),
 
 		jobservice.GetJob{
 			Jobs: jobRecords, Authorizer: authorizer, UnitOfWork: unitOfWork,

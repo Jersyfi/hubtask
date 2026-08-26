@@ -704,6 +704,11 @@
   "backup.no_parent_archive": "There is no earlier backup at that target, so an incremental one has nothing to continue. Run a full backup first.",
   "backup.schedule_unserialisable": "This installation could not store that retention plan.",
   "backup.schedule_unreadable": "This installation could not read that schedule's retention plan.",
+  "backup.target_disabled": "That backup target is switched off, so nothing can be written to it.",
+  "backup.run_has_no_archive": "That backup run left no archive at the target ({status}), so there is nothing to verify.",
+  "backup.schedule_rule_unreadable": "That is not a recurrence rule Hubtask can read.",
+  "backup.schedule_zone_unknown": "This installation does not know that time zone.",
+  "backup.schedule_changed": "A backup schedule was created or changed.",
 
   "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",
