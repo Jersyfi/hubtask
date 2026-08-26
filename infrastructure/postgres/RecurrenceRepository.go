@@ -6,6 +6,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -186,6 +187,114 @@ func (r RecurrenceRepository) point(ctx context.Context, itemID, ruleID shared.I
 			WithCause(fmt.Errorf("pointing entry %s at its series: %w", itemID, err))
 	}
 	return nil
+}
+
+// ClaimToMaterialize takes the series whose window may owe something, locking the rows.
+func (r RecurrenceRepository) ClaimToMaterialize(
+	ctx context.Context, now time.Time, limit int,
+) ([]work.RecurrenceRule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ClaimRulesToMaterialize(ctx, sqlc.ClaimRulesToMaterializeParams{
+		Now: timestampOf(now),
+		//nolint:gosec // G115: the batch is this process's own constant, not a value from a request
+		BatchSize: int32(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("claiming the series to materialise: %w", err))
+	}
+
+	rules := make([]work.RecurrenceRule, 0, len(rows))
+	for _, row := range rows {
+		rule, err := recurrenceFrom(
+			row.ID, row.TenantID, row.SourceItemID, row.Rrule, row.TimeZone, row.Mode,
+			row.HorizonDays, row.EndsAt, row.MaxCount, row.LastMaterializedAt,
+			row.CreatedAt, row.UpdatedAt, row.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
+// Advance moves the watermark under the compare-and-set, and reports whether this caller moved it.
+//
+// The rule carries the watermark it was read with, which is what the statement compares against:
+// the caller passes the rule it decided from rather than a value it might have derived twice.
+func (r RecurrenceRepository) Advance(
+	ctx context.Context, rule work.RecurrenceRule, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(rule.ID)
+	if err != nil {
+		return false, err
+	}
+
+	affected, err := queries.AdvanceRecurrenceWatermark(ctx, sqlc.AdvanceRecurrenceWatermarkParams{
+		MaterializedAt: timestampOf(at),
+		ID:             id,
+		Expected:       optionalTimestamp(rule.LastMaterializedAt),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("advancing the series %s: %w", rule.ID, err))
+	}
+	return affected != 0, nil
+}
+
+// OpenOccurrences counts what a series still has open.
+func (r RecurrenceRepository) OpenOccurrences(
+	ctx context.Context, ruleID shared.ID,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	id, err := uuidOf(ruleID)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := queries.CountOpenOccurrences(ctx, id)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the open occurrences of %s: %w", ruleID, err))
+	}
+	return int(count), nil
+}
+
+// LatestCompletion answers when the series was last completed.
+func (r RecurrenceRepository) LatestCompletion(
+	ctx context.Context, ruleID shared.ID,
+) (*time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(ruleID)
+	if err != nil {
+		return nil, err
+	}
+
+	completed, err := queries.LatestOccurrenceCompletion(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the last completion of %s: %w", ruleID, err))
+	}
+	return optionalTime(completed), nil
 }
 
 // recurrenceConflictIfUntouched is the shared answer for a write that matched nothing: the row

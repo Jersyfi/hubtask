@@ -56,6 +56,7 @@ type Metrics struct {
 	notificationsSent metric.Float64Histogram
 	notificationsFail metric.Int64Counter
 	reminderDelay     metric.Float64Histogram
+	occurrenceLag     metric.Float64Histogram
 	streamsOpen       metric.Int64UpDownCounter
 	streamDuration    metric.Float64Histogram
 	streamRefused     metric.Int64Counter
@@ -337,6 +338,19 @@ func (m *Metrics) notificationInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("notification failure counter: %w", err)
 	}
+	if m.occurrenceLag, err = meter.Float64Histogram(
+		namespace+"_recurrence_occurrence_lag_seconds",
+		metric.WithDescription(
+			"How late an occurrence was created against the moment it is for, by recurrence mode."),
+		metric.WithUnit("s"),
+		// A rolling window means most occurrences are created *before* their moment, which is
+		// reported as zero. What these boundaries measure is the other direction: a scheduler that
+		// stopped and came back. Past a day the question is no longer how late but whether
+		// anything is running, which A-06 answers.
+		metric.WithExplicitBucketBoundaries(0, 60, 300, 900, 3600, 21600, 86400),
+	); err != nil {
+		return fmt.Errorf("occurrence lag histogram: %w", err)
+	}
 	if m.reminderDelay, err = meter.Float64Histogram(
 		namespace+"_reminder_delivery_delay_seconds",
 		metric.WithDescription(
@@ -393,6 +407,18 @@ func (m *Metrics) NotificationFailed(ctx context.Context, category, channel, rea
 func (m *Metrics) ReminderFired(ctx context.Context, channel string, delaySeconds float64) {
 	m.reminderDelay.Record(ctx, delaySeconds, metric.WithAttributes(
 		attribute.String("channel", channel),
+	))
+}
+
+// OccurrenceMaterialized records how late an occurrence was created against the moment it is for
+// (D-05, the lag ADR-0008 promised).
+//
+// The mode is the label because the two answer different questions: an ON_SCHEDULE series that is
+// behind is a scheduler problem, while an ON_COMPLETION one is behind only for as long as nobody
+// completed anything - which is a person's business rather than an operator's.
+func (m *Metrics) OccurrenceMaterialized(ctx context.Context, mode string, lagSeconds float64) {
+	m.occurrenceLag.Record(ctx, lagSeconds, metric.WithAttributes(
+		attribute.String("mode", mode),
 	))
 }
 

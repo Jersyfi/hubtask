@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"sort"
 	"testing"
 	"time"
 
@@ -22,14 +23,21 @@ var recurringItem = shared.MustParseID("0192f000-0000-7000-8000-000000000201")
 // two move together in the adapter, so a fake that moved only one would let a test pass that the
 // database would refuse.
 type recurrences struct {
-	stored   map[shared.ID]domain.RecurrenceRule
-	inserted []domain.RecurrenceRule
-	updates  []domain.RecurrenceRule
-	deleted  []domain.RecurrenceRule
+	stored    map[shared.ID]domain.RecurrenceRule
+	inserted  []domain.RecurrenceRule
+	updates   []domain.RecurrenceRule
+	deleted   []domain.RecurrenceRule
+	advanced  []domain.RecurrenceRule
+	open      map[shared.ID]int
+	completed map[shared.ID]*time.Time
 }
 
 func newRecurrences() *recurrences {
-	return &recurrences{stored: map[shared.ID]domain.RecurrenceRule{}}
+	return &recurrences{
+		stored:    map[shared.ID]domain.RecurrenceRule{},
+		open:      map[shared.ID]int{},
+		completed: map[shared.ID]*time.Time{},
+	}
 }
 
 func (r *recurrences) FindForItem(
@@ -73,6 +81,60 @@ func (r *recurrences) Delete(
 	r.deleted = append(r.deleted, stored)
 	delete(r.stored, rule.ID)
 	return nil
+}
+
+// The materialisation's half of the store (D-05). The watermark is modelled with its
+// compare-and-set, because that is the whole exactly-once argument for an occurrence: a pass that
+// read a stale watermark writes nothing.
+func (r *recurrences) ClaimToMaterialize(
+	_ context.Context, now time.Time, limit int,
+) ([]domain.RecurrenceRule, error) {
+	var due []domain.RecurrenceRule
+	for _, rule := range r.stored {
+		edge := now.AddDate(0, 0, rule.HorizonDays)
+		if rule.LastMaterializedAt == nil || rule.LastMaterializedAt.Before(edge) {
+			due = append(due, rule)
+		}
+	}
+	sort.Slice(due, func(i, j int) bool { return due[i].ID < due[j].ID })
+	if limit > 0 && len(due) > limit {
+		due = due[:limit]
+	}
+	return due, nil
+}
+
+func (r *recurrences) Advance(
+	_ context.Context, rule domain.RecurrenceRule, at time.Time,
+) (bool, error) {
+	stored, found := r.stored[rule.ID]
+	if !found {
+		return false, nil
+	}
+	if !sameMoment(stored.LastMaterializedAt, rule.LastMaterializedAt) {
+		return false, nil
+	}
+	moment := at
+	stored.LastMaterializedAt = &moment
+	r.stored[rule.ID] = stored
+	r.advanced = append(r.advanced, stored)
+	return true, nil
+}
+
+func (r *recurrences) OpenOccurrences(_ context.Context, ruleID shared.ID) (int, error) {
+	return r.open[ruleID], nil
+}
+
+func (r *recurrences) LatestCompletion(
+	_ context.Context, ruleID shared.ID,
+) (*time.Time, error) {
+	return r.completed[ruleID], nil
+}
+
+func sameMoment(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Equal(*b)
 }
 
 // expander is the port as the writer sees it: it answers a number of moments, or refuses. The

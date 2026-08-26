@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	recurrenceport "github.com/Jersyfi/hubtask/core/port/recurrence"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -55,10 +56,14 @@ type RecurrenceWriter struct {
 	// Expander is the library behind ADR-0008's decision, as a port: it is what turns "is this a
 	// rule, and is it a sane one" from an opinion into an answer, and it is asked before anything
 	// is stored rather than by the scheduler afterwards (T-17, R-07).
-	Expander   recurrenceport.Expander
-	Changes    changelog.ChangeLog
-	Audit      audit.Sink
-	Activity   ActivityJournal
+	Expander recurrenceport.Expander
+	Changes  changelog.ChangeLog
+	Audit    audit.Sink
+	Activity ActivityJournal
+	// Jobs is where the series asks to be materialised. The write that made something owed seeds
+	// it, because nothing may enumerate tenants (multi-tenancy.md §2.1) - the same shape the
+	// reminder's wake-up has (D-05).
+	Jobs       queue.Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -190,6 +195,9 @@ func (w RecurrenceWriter) create(
 	if err := w.recordActivity(ctx, actor, item, activity.ItemRecurrenceSet, now); err != nil {
 		return domain.RecurrenceRule{}, err
 	}
+	if err := w.scheduleMaterialisation(ctx, rule.TenantID); err != nil {
+		return domain.RecurrenceRule{}, err
+	}
 	return rule, nil
 }
 
@@ -237,7 +245,27 @@ func (w RecurrenceWriter) change(
 	if err := w.recordActivity(ctx, actor, item, activity.ItemRecurrenceChanged, now); err != nil {
 		return domain.RecurrenceRule{}, err
 	}
+	if err := w.scheduleMaterialisation(ctx, wanted.TenantID); err != nil {
+		return domain.RecurrenceRule{}, err
+	}
 	return wanted, nil
+}
+
+// scheduleMaterialisation asks for the tenant's series to be looked at, in the transaction that
+// wrote one. The dedupe key is the tenant, so a person setting five rules leaves one job, and the
+// pass decides what is actually owed (D-05).
+//
+// A nil queue is a build without one, which the composition root does not produce and a test may:
+// nothing to schedule is better than a panic on the write path.
+func (w RecurrenceWriter) scheduleMaterialisation(ctx context.Context, tenantID shared.ID) error {
+	if w.Jobs == nil {
+		return nil
+	}
+	return w.Jobs.Enqueue(ctx, queue.Request{
+		Kind:      queue.KindRecurrenceMaterialize,
+		TenantID:  tenantID,
+		DedupeKey: tenantID.String(),
+	})
 }
 
 // Execute takes the series off the entry.

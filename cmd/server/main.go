@@ -327,7 +327,7 @@ func run() error {
 	// wrong (work.CompletionWriter).
 	completion := work.CompletionWriter{
 		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
-		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal,
+		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
@@ -507,8 +507,24 @@ func run() error {
 	recurrenceWriter := work.RecurrenceWriter{
 		Recurrences: recurrences, Items: items, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Expander: recurrenceadapter.New(),
-		Changes: changes, Audit: auditSink, Activity: journal,
+		Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+	}
+
+	// The copy reaches almost everything an entry has, because that is what it carries: the row,
+	// its three sets, the vocabulary of the collection it lands in, and the counter of every file
+	// it points at (C-11). It is a value rather than a literal in the registry because the
+	// materialisation reuses it: an occurrence is a copy of its template (D-05).
+	duplicate := work.DuplicateWorkItem{
+		Items: items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
+		Buckets: buckets, Fields: customFields, Containers: containers,
+		Attachments: mediaObjects, Media: mediaObjects, Profiles: profiles,
+		// The authorisation service under three names: the permission, the question about the
+		// role the actor holds, and whether a second person can see the destination.
+		Authorizer: authorizer, Ownership: authorizer, Visibility: authorizer,
+		Events: outbox, Changes: changes,
+		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
 	// The bulk performs the other use cases, so it needs the catalogue that is built from its own
@@ -689,20 +705,7 @@ func run() error {
 			Catalogue: bulkCatalogue, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{},
 		}.Descriptor(),
-		// The copy reaches almost everything an entry has, because that is what it carries: the
-		// row, its three sets, the vocabulary of the collection it lands in, and the counter of
-		// every file it points at (C-11).
-		work.DuplicateWorkItem{
-			Items: items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
-			Buckets: buckets, Fields: customFields, Containers: containers,
-			Attachments: mediaObjects, Media: mediaObjects, Profiles: profiles,
-			// The authorisation service under three names: the permission, the question about the
-			// role the actor holds, and whether a second person can see the destination.
-			Authorizer: authorizer, Ownership: authorizer, Visibility: authorizer,
-			Events: outbox, Changes: changes,
-			Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		}.Descriptor(),
+		duplicate.Descriptor(),
 		work.ReorderWorkItem{Placement: placement}.Descriptor(),
 		work.ArchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
 		work.UnarchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
@@ -1051,13 +1054,32 @@ func run() error {
 		MinimumWait:  cfg.Queue.OutboxMinInterval,
 	}
 
+	// What a series owes. The copy is C-11's duplicate, wired with the same repositories the use
+	// case uses: an occurrence is a copy of the template with its subtree, and rebuilding that
+	// would be a second answer to what a copy carries (D-05).
+	recurrenceMaterialisation := worker.RecurrenceMaterialisation{
+		Materialisation: work.MaterializeOccurrences{
+			Recurrences: recurrences, Items: items, Containers: containers,
+			Copy:     duplicate,
+			Expander: recurrenceadapter.New(),
+			Events:   outbox,
+			Clock:    clockadapter.System{}, IDs: ids, Signals: metrics,
+			RuleBatch: work.DefaultRuleBatch, OccurrenceBatch: work.DefaultOccurrenceBatch,
+		},
+		Queue:        jobs,
+		Clock:        clockadapter.System{},
+		Continuation: cfg.Queue.OutboxMinInterval,
+		MinimumWait:  cfg.Queue.OutboxMinInterval,
+	}
+
 	handlers := map[queueport.Kind]queueport.Handler{
-		queueport.KindReminderFire:        reminderFiring,
-		queueport.KindOutboxDispatch:      dispatcher,
-		queueport.KindRetentionSweep:      retention,
-		queueport.KindMediaReconcile:      mediaReconciliation,
-		queueport.KindInvitationEmail:     invitationMessage,
-		queueport.KindNotificationDeliver: notificationDelivery,
+		queueport.KindReminderFire:          reminderFiring,
+		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
+		queueport.KindOutboxDispatch:        dispatcher,
+		queueport.KindRetentionSweep:        retention,
+		queueport.KindMediaReconcile:        mediaReconciliation,
+		queueport.KindInvitationEmail:       invitationMessage,
+		queueport.KindNotificationDeliver:   notificationDelivery,
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {

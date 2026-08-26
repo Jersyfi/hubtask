@@ -184,6 +184,18 @@ func (recurrenceDouble) FindForItem(context.Context, shared.ID) (work.Recurrence
 func (recurrenceDouble) Insert(context.Context, work.RecurrenceRule) error      { return nil }
 func (recurrenceDouble) Update(context.Context, work.RecurrenceRule, int) error { return nil }
 func (recurrenceDouble) Delete(context.Context, work.RecurrenceRule, int) error { return nil }
+func (recurrenceDouble) ClaimToMaterialize(
+	context.Context, time.Time, int,
+) ([]work.RecurrenceRule, error) {
+	return nil, nil
+}
+func (recurrenceDouble) Advance(context.Context, work.RecurrenceRule, time.Time) (bool, error) {
+	return false, nil
+}
+func (recurrenceDouble) OpenOccurrences(context.Context, shared.ID) (int, error) { return 0, nil }
+func (recurrenceDouble) LatestCompletion(context.Context, shared.ID) (*time.Time, error) {
+	return nil, nil
+}
 
 var _ Recurrences = recurrenceDouble{}
 

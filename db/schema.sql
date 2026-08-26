@@ -357,6 +357,10 @@ CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, 
   WHERE deleted_at IS NULL AND archived_at IS NULL;
 CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
   WHERE deleted_at IS NULL AND archived_at IS NULL AND is_completed = false;
+-- The occurrences of one series: what an ON_COMPLETION series is waiting for, and when it was
+-- last done (D-05).
+CREATE INDEX wi_recurrence_idx ON work_item (recurrence_rule_id)
+  WHERE recurrence_rule_id IS NOT NULL;
 CREATE INDEX wi_due_announce_idx ON work_item (tenant_id, due_at)
   WHERE due_at IS NOT NULL
     AND deleted_at IS NULL AND archived_at IS NULL AND is_completed = false

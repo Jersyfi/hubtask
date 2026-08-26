@@ -88,6 +88,7 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_job_dead_letter_total` | Counter | `job_type` | Finally failed → always visible |
 | `hubtask_scheduler_tick_lag_seconds` | Gauge | — | The scheduler is stuck |
 | `hubtask_reminder_delivery_delay_seconds` | Histogram | `channel` | SLO-5 |
+| `hubtask_recurrence_occurrence_lag_seconds` | Histogram | `mode` | How late a series' entries appear (ADR-0008, D-05) |
 | `hubtask_notifications_recorded_total` | Counter | `category`, `channel`, `state` | Who is told what, and how much of it is suppressed (C-09) |
 | `hubtask_notification_send_duration_seconds` | Histogram | `category`, `channel` | How long a message takes to leave |
 | `hubtask_notification_failures_total` | Counter | `category`, `channel`, `reason` | A mail server that is down, told apart from an address that is refused |
