@@ -159,6 +159,10 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// constant rather than configuration: it is a shape of the product, and a client
 			// reads it here rather than discovering it by being refused.
 			"max_reminders_per_item": int64(work.MaxRemindersPerItem),
+			// The bound on one template's tree, and therefore on what a single instantiation
+			// writes (D-06). A client that lets somebody build a template reads it here rather
+			// than letting them build a tree of six hundred nodes and refusing it at the end.
+			"max_template_nodes": int64(work.MaxTemplateNodes),
 		},
 		Features: map[string]bool{
 			// What is configured, not what is implemented. A client uses this to decide whether

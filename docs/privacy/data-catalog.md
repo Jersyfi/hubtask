@@ -4,7 +4,7 @@ A record of every data category the system processes, with its purpose, classifi
 locations, retention, and deletion path. The basis for the record of processing activities
 (GDPR Art. 30) that every operator keeps for themselves.
 
-* **Version:** 0.4.0 · **As of:** 2026-08-25 · **Maintenance:** by pull request, so changes are traceable
+* **Version:** 0.4.0 · **As of:** 2026-08-26 · **Maintenance:** by pull request, so changes are traceable
 * **Concept:** [../architecture/data-protection.md](../architecture/data-protection.md)
 * **Consistency check:** gate PG-7 compares this record against the database schema; a table with personal content that is missing here fails the build.
 
@@ -65,7 +65,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Containers, buckets, labels | `container`, `bucket`, `label` | `NON_PERSONAL` | Structure | As above | `CASCADE` |
 | Full-text index | `work_item.search_document` (and `work_item.search_vector` until a later migration drops it), optionally a vector index | `PERSONAL_CONTENT` (derived) | Search | With the source row | `CASCADE` |
 | Content language | `work_item.content_language` | `NON_PERSONAL` | Which text search configuration the entry is indexed under (C-08, ADR-0034) | With the source row | `CASCADE` |
-| Templates | `template` | `PERSONAL_CONTENT` (free text possible) | Productivity | Until deleted | `CASCADE` |
+| Templates (name, description, and the node tree with its titles and notes) | `template` | `PERSONAL_CONTENT`; the `assignee_id` of a node is `PERSONAL_BASIC` | Productivity: a shape of work that gets stamped out (D-06) | Until deleted | `CASCADE` with the tenant. The delete endpoint is a **soft delete**: the row keeps its text and its `deleted_at`, which is what lets the trees it stamped out stand on their own and what frees the name for a new template at once - the uniqueness index is partial on `deleted_at IS NULL`, so a recreated name is a new row and never resurrects the old content. No retention period sweeps those rows today; they go with the tenant. Deleting an account anonymises `created_by` and leaves a node's `assignee_id` to be dropped at the next instantiation, which reports it rather than assigning to somebody who has gone |
 | Saved views | `saved_view` (name is free text; the query may quote content in filter values) | `PERSONAL_CONTENT` | Productivity: bookmarked queries (D-07) | Until deleted | `CASCADE` with the tenant; the delete endpoint removes the row hard, and a calendar feed that served it keeps its token and loses the reference (`calendar_feed.view_id` is `ON DELETE SET NULL`) |
 | Jumble entries (raw text from mail/webhook) | `jumble_entry` | `PERSONAL_CONTENT` | Quick capture | Until converted, otherwise 90 days | `RETENTION` |
 | Trash marker | `work_item.deleted_at` | `NON_PERSONAL` | Restore | 30 days | `RETENTION` (hard delete) |
