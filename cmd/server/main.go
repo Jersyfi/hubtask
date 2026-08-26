@@ -37,6 +37,7 @@ import (
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -373,6 +374,10 @@ func run() error {
 	// that writes holds the sink, and a sink that could also read would put the whole trail one
 	// call away from code that has no business reading it (E-09).
 	auditTrail := postgres.NewAuditTrailRepository(cursors)
+	// Data subject rights (E-10). One repository over four ports - the cases, the consents, the
+	// account states an erasure and a restriction write, and the pseudonyms the audit trail reads
+	// at the boundary - because they are one table group and one transaction's worth of work.
+	privacyStore := postgres.NewPrivacyRepository(cursors)
 	lifecycleStore := postgres.NewLifecycleRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
 	buckets := postgres.NewBucketRepository()
@@ -655,6 +660,12 @@ func run() error {
 	// catalogue the moment there is one, a few lines below.
 	bulkCatalogue := &deferredCatalogue{}
 
+	// The cases the privacy use cases share.
+	privacyCases := privacyservice.Cases{
+		Requests: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -855,6 +866,9 @@ func run() error {
 			Trail: auditTrail, Chain: auditadapter.Links{}, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		privacyservice.CreateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
+		privacyservice.ListDataSubjectRequests{Cases: privacyCases}.Descriptor(),
+		privacyservice.UpdateDataSubjectRequest{Cases: privacyCases}.Descriptor(),
 		auditservice.ExportAuditTrail{
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,

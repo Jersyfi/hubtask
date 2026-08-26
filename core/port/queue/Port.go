@@ -141,6 +141,17 @@ const (
 	// Deduplicated on the export rather than on the tenant: two jobs for one export are the same
 	// work, and two exports of different periods in one tenant are two legitimate questions.
 	KindAuditExport Kind = "audit.export"
+
+	// KindPrivacyRequest carries out a data subject request that has been started: the archive an
+	// access or portability case produces, or the erasure an erasure case is (E-10,
+	// data-protection.md §4).
+	//
+	// A job because both are as large as the person's presence in the workspace, and because the
+	// erasure serves every storage location in the data catalogue - rows, media, the search index,
+	// the derived counters - which is minutes of work that no request should hold a connection
+	// open for. Deduplicated on the case: two jobs for one case are the same work, and a case is
+	// started once.
+	KindPrivacyRequest Kind = "privacy.request"
 )
 
 func (k Kind) String() string { return string(k) }

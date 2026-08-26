@@ -466,6 +466,7 @@
   "privacy.purpose_required": "Name the processing the consent is about.",
   "privacy.consent_not_found": "There is no consent recorded for that purpose.",
   "privacy.subject_not_found": "There is no account here for the person that request is about.",
+  "privacy.due_at_malformed": "That deadline is not a date and time this installation understands.",
   "privacy.installation_scope_denied": "Reaching across every workspace of this installation needs the admin:tenants scope.",
 
   "activity.entry_incomplete": "This installation could not record that step in the history and therefore did not carry the change out.",
