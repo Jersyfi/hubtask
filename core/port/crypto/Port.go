@@ -17,6 +17,7 @@ package crypto
 
 import (
 	"context"
+	"io"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -69,6 +70,44 @@ type Encryptor interface {
 
 	// ActiveKeyID is the key new values are sealed under. Empty when the installation holds none.
 	ActiveKeyID() string
+}
+
+// StreamCipher protects something too large to hold: an archive member on its way to a backup
+// target, encrypted as it is written and decrypted as it is read.
+//
+// It is a second seam beside Encryptor rather than a widening of it, because the shapes are
+// genuinely different. An envelope takes a value and gives back a value; both fit in memory by
+// construction, and infrastructure/crypto bounds them at a mebibyte to keep the arithmetic
+// provable. A member of an archive has no such bound - it is as large as the holding it describes,
+// and an interface that took a []byte would be an interface no archive could use (T-17,
+// observability-reliability.md §6).
+//
+// The other difference is the key. An envelope uses the installation's master key, which the
+// process holds; a stream uses the backup key of a target, which arrives with the run and is
+// derived from a passphrase this system never stores. So the key is a parameter here and a field
+// there.
+type StreamCipher interface {
+	// Seal wraps a writer. Everything written to the result is encrypted on its way to w, and
+	// Close finishes the stream - a stream that was not closed is one whose last chunk was never
+	// written, and Open refuses it rather than returning the part that happened to arrive.
+	//
+	// The purpose is authenticated with every chunk, which is what stops a member being swapped
+	// for another: a caller that binds the archive and the member's path into it makes
+	// data/comments.jsonl presented as data/labels.jsonl fail exactly as a flipped bit does.
+	Seal(w io.Writer, key secret.Bytes, purpose Purpose) (io.WriteCloser, error)
+
+	// Open unwraps a reader. Nothing is returned before it has been authenticated: the stream is
+	// authenticated chunk by chunk, so a reader sees only bytes that carried a valid tag, and a
+	// stream that stops early fails rather than ending quietly.
+	//
+	// That last property is the one a backup depends on. A truncated transfer is the most common
+	// way an archive goes wrong, and a cipher that could not tell a finished stream from a cut
+	// one would restore three quarters of a tenant without saying so.
+	Open(r io.Reader, key secret.Bytes, purpose Purpose) (io.Reader, error)
+
+	// KeyBytes is how long a key this cipher wants, so that a caller deriving one asks for the
+	// right length rather than assuming 32.
+	KeyBytes() int
 }
 
 // Derivation is everything a later run needs in order to arrive at the same key from the same
