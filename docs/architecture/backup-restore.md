@@ -429,3 +429,4 @@ a drill yet, and an absence rule would page every installation for a feature tha
 | B-2 | Whether system backups (PITR) are orchestrated by Hubtask or left to the operator | `0.6.0` |
 | B-3 | Retention protection against ransomware (recommend object lock as mandatory?) | `0.6.0` |
 | B-4 | The scope of the trial restore in the default schedule | `0.9.0` |
+| B-5 | What a restore owes connected devices. It writes rows without change log entries, so a device that was offline through one keeps a cursor that is still valid and will never be told what changed (E-06, [offline-sync.md](./offline-sync.md) §8). The candidates are a change log entry per restored row, or a per-tenant "resynchronise from scratch" marker that a pull turns into a full sync — the second is cheaper and is probably right for an act this rare, and neither should be guessed at inside a backup task | `0.5.0` |

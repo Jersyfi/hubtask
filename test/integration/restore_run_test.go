@@ -284,3 +284,31 @@ func TestARestoreIsInvisibleFromAnotherTenant(t *testing.T) {
 		t.Error("tenant B's restore made tenant A look busy")
 	}
 }
+
+// The one method a destructive restore asks the tenant about, and gate SG-3 for it: what a
+// workspace is called is read from the tenant of the running transaction and from no other, so this
+// cannot be used to learn another workspace's name in order to type it.
+func TestTheWorkspaceNameIsTheTransactionsOwn(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	var fromA, fromB string
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		fromA, err = postgres.NewWorkspaceRepository().Name(ctx)
+		return err
+	}); err != nil {
+		t.Fatalf("reading A's name: %v", err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		fromB, err = postgres.NewWorkspaceRepository().Name(ctx)
+		return err
+	}); err != nil {
+		t.Fatalf("reading B's name: %v", err)
+	}
+
+	if fromA != "A" || fromB != "B" {
+		t.Fatalf("A reads %q and B reads %q", fromA, fromB)
+	}
+}
