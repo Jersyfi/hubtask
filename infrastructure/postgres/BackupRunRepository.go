@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -65,7 +66,22 @@ func (r BackupRunRepository) Start(ctx context.Context, run domain.Run) (bool, e
 		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("starting backup run %s: %w", run.ID, err))
 	}
-	return affected == 1, nil
+	if affected == 1 {
+		return true, nil
+	}
+
+	// Nothing was written, and there are two reasons for that. Either another run holds the
+	// target, or this run's own row is already there - the attempt that takes over after a worker
+	// died is the same run, and it has to be able to carry on rather than be locked out by
+	// itself (BK-7). Reading the row is what tells the two apart.
+	existing, err := r.Find(ctx, run.ID)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return existing.Status == domain.RunRunning, nil
 }
 
 // Find answers one run.

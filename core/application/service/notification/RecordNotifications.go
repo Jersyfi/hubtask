@@ -37,7 +37,7 @@ const ConsumerName = "notification"
 // that what a consumer can do to the queue is visible in one line: it can ask for work, and it
 // cannot claim, complete or fail anything.
 type Queue interface {
-	Enqueue(ctx context.Context, request queue.Request) error
+	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
 }
 
 // Entries and Members are the slices of the work repositories this package reads, and they are
@@ -248,7 +248,7 @@ func (r RecordNotifications) record(
 	if !decision.Send {
 		return nil
 	}
-	return r.Jobs.Enqueue(ctx, queue.Request{
+	_, enqueued := r.Jobs.Enqueue(ctx, queue.Request{
 		Kind:     queue.KindNotificationDeliver,
 		TenantID: envelope.TenantID,
 		// One pending delivery per record. The record's own identifier, so a retried consumption
@@ -261,6 +261,7 @@ func (r RecordNotifications) record(
 			"notification_id": written.ID.String(),
 		},
 	})
+	return enqueued
 }
 
 // decide asks the domain whether this person is told, having read what they said. The reading

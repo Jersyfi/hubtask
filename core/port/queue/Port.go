@@ -242,7 +242,13 @@ type Queue interface {
 	// Enqueue adds a job, or does nothing when one with the same dedupe key is already waiting
 	// or running. It is deliberately not an error: the caller asked for work to happen, and work
 	// that is already scheduled to happen satisfies that.
-	Enqueue(ctx context.Context, request Request) error
+	//
+	// It answers the identifier of the job that is now scheduled, which is not always a new one:
+	// when a dedupe key collapses the request into a job that is already there, the answer is that
+	// job's. A caller answering a 202 has to name something the caller of *that* can poll, and
+	// naming a row that was never written would be a job resource answering 404 for work that is
+	// happening (E-01, E-05). A caller that does not answer a 202 discards it.
+	Enqueue(ctx context.Context, request Request) (shared.ID, error)
 
 	// Claim takes the next batch and marks it running until the lease expires. Implementations
 	// use FOR UPDATE SKIP LOCKED, so several workers claim disjoint batches without waiting for

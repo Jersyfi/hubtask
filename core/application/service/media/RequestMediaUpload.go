@@ -305,9 +305,10 @@ func scheduleReconciliation(ctx context.Context, jobs queue.Queue, tenantID shar
 	if jobs == nil {
 		return nil
 	}
-	return jobs.Enqueue(ctx, queue.Request{
+	_, enqueued := jobs.Enqueue(ctx, queue.Request{
 		Kind:      queue.KindMediaReconcile,
 		TenantID:  tenantID,
 		DedupeKey: tenantID.String(),
 	})
+	return enqueued
 }

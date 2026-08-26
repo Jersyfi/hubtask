@@ -86,12 +86,13 @@ func (r RecordInvitation) Execute(
 	if written.State != domain.StatePending {
 		return nil
 	}
-	return r.Jobs.Enqueue(ctx, queue.Request{
+	_, enqueued := r.Jobs.Enqueue(ctx, queue.Request{
 		Kind:      queue.KindNotificationDeliver,
 		TenantID:  tenantID,
 		DedupeKey: written.ID.String(),
 		Payload:   map[string]any{"notification_id": written.ID.String()},
 	})
+	return enqueued
 }
 
 func (r RecordInvitation) report(ctx context.Context, written domain.Notification) {

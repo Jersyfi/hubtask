@@ -15,7 +15,15 @@
 -- this is being worked on" into one row; when the waiting job is due later than the new request,
 -- its wake-up is pulled forward rather than a second row being created. A job that is already
 -- running is not touched: its own reschedule decides when it runs next.
--- name: EnqueueJob :exec
+--
+-- It answers the identifier of the job that is now scheduled, which is not always the one that was
+-- offered: when a dedupe key collapses the request into a job that is already there, the answer is
+-- that job's. A 202 has to name something a caller can poll, and naming a row that was never
+-- written would be a job resource that answers 404 for work that is happening.
+--
+-- Zero rows means the conflict met a job that is RUNNING, where the update's WHERE does not fire.
+-- The caller then looks the running job up by its key.
+-- name: EnqueueJob :many
 INSERT INTO job (id, tenant_id, kind, payload, dedupe_key, run_at, max_attempts)
 VALUES (
   sqlc.arg('id'), sqlc.narg('tenant_id'), sqlc.arg('kind'), sqlc.arg('payload'),
@@ -23,7 +31,16 @@ VALUES (
 )
 ON CONFLICT (kind, dedupe_key) WHERE dedupe_key IS NOT NULL AND state IN ('PENDING','RUNNING')
 DO UPDATE SET run_at = LEAST(job.run_at, EXCLUDED.run_at)
-WHERE job.state = 'PENDING';
+WHERE job.state = 'PENDING'
+RETURNING id;
+
+-- The job a dedupe key already names, for the one case the insert above cannot answer for itself.
+-- name: FindJobByDedupeKey :one
+SELECT id FROM job
+WHERE kind = sqlc.arg('kind')::text
+  AND dedupe_key = sqlc.arg('dedupe_key')::text
+  AND state IN ('PENDING', 'RUNNING')
+LIMIT 1;
 
 -- The claim. Two kinds of row are claimable: one that is due, and one whose lease has run out -
 -- the second is a job whose worker died, and picking it up again is the whole reason a lease has

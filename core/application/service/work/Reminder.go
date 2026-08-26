@@ -361,12 +361,13 @@ func scheduleReminderFire(
 	if jobs == nil || at.IsZero() {
 		return nil
 	}
-	return jobs.Enqueue(ctx, queue.Request{
+	_, enqueued := jobs.Enqueue(ctx, queue.Request{
 		Kind:      queue.KindReminderFire,
 		TenantID:  tenantID,
 		DedupeKey: tenantID.String(),
 		RunAt:     at.UTC(),
 	})
+	return enqueued
 }
 
 // earliestMoment answers the first of the moments given, ignoring the ones that are not there. It

@@ -46,22 +46,22 @@ const maxBatch = 1000
 const maxJobAttempts = 100
 
 // Enqueue adds a job, or leaves the one that is already scheduled alone.
-func (q Queue) Enqueue(ctx context.Context, request queue.Request) error {
+func (q Queue) Enqueue(ctx context.Context, request queue.Request) (shared.ID, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if request.Kind == "" {
-		return shared.ErrInternal.WithDetail("queue.kind_missing")
+		return "", shared.ErrInternal.WithDetail("queue.kind_missing")
 	}
 
 	id, err := uuidOf(q.ids.NewID())
 	if err != nil {
-		return err
+		return "", err
 	}
 	tenantID, err := optionalUUID(request.TenantID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// The payload is serialised here rather than by the caller: JSON is a wire format, and a
@@ -73,7 +73,7 @@ func (q Queue) Enqueue(ctx context.Context, request queue.Request) error {
 	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
-		return shared.ErrInternal.
+		return "", shared.ErrInternal.
 			WithDetail("queue.payload_unserialisable").
 			WithCause(fmt.Errorf("serialising the payload of %s: %w", request.Kind, err))
 	}
@@ -83,7 +83,7 @@ func (q Queue) Enqueue(ctx context.Context, request queue.Request) error {
 		runAt = q.now.Now()
 	}
 
-	if err := queries.EnqueueJob(ctx, sqlc.EnqueueJobParams{
+	scheduled, err := queries.EnqueueJob(ctx, sqlc.EnqueueJobParams{
 		ID:          id,
 		TenantID:    tenantID,
 		Kind:        request.Kind.String(),
@@ -91,12 +91,45 @@ func (q Queue) Enqueue(ctx context.Context, request queue.Request) error {
 		DedupeKey:   optionalText(request.DedupeKey),
 		RunAt:       timestampOf(runAt),
 		MaxAttempts: boundedAttempts(request.MaxAttempts),
-	}); err != nil {
-		return shared.ErrUnavailable.
+	})
+	if err != nil {
+		return "", shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("enqueueing a %s job: %w", request.Kind, err))
 	}
-	return nil
+	if len(scheduled) == 1 {
+		return idFrom(scheduled[0])
+	}
+
+	// Nothing came back: the dedupe key met a job that is RUNNING, where the update's condition
+	// does not fire. The work the caller asked for is happening, and the job it is happening under
+	// is the one to answer with.
+	return q.jobNamedBy(ctx, queries, request)
+}
+
+// jobNamedBy answers the job a dedupe key already names.
+func (q Queue) jobNamedBy(
+	ctx context.Context, queries *sqlc.Queries, request queue.Request,
+) (shared.ID, error) {
+	if request.DedupeKey == "" {
+		// Without a key there is nothing to have collided with, so an insert that wrote nothing is
+		// a defect here rather than a state to recover from.
+		return "", shared.Internalf("queue: a %s job was neither written nor named", request.Kind)
+	}
+	existing, err := queries.FindJobByDedupeKey(ctx, sqlc.FindJobByDedupeKeyParams{
+		Kind: request.Kind.String(), DedupeKey: request.DedupeKey,
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			// It finished between the two statements. The caller asked for work to happen and it
+			// has; there is no job left to point at, and inventing one would be worse.
+			return "", nil
+		}
+		return "", shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the %s job already scheduled: %w", request.Kind, err))
+	}
+	return idFrom(existing)
 }
 
 // Claim takes the next batch and holds it until the lease expires.

@@ -330,9 +330,12 @@ SELECT
   $5, $6, $7, 'RUNNING',
   $8, $9
 WHERE NOT EXISTS (
-  SELECT 1 FROM backup_run running
-  WHERE running.target_id = $3 AND running.status = 'RUNNING'
+  SELECT 1 FROM backup_run other
+  WHERE other.target_id = $3
+    AND other.status = 'RUNNING'
+    AND other.id <> $1
 )
+ON CONFLICT (id) DO NOTHING
 `
 
 type InsertBackupRunParams struct {
@@ -350,8 +353,13 @@ type InsertBackupRunParams struct {
 // The runs.
 //
 // The insert is the lock §5 asks for: one run at a time per target, enforced by the statement
-// rather than by a check the caller ran a moment earlier. A second run finds the WHERE NOT EXISTS
-// false and writes nothing, and `:execrows` is what tells the caller which of the two happened.
+// rather than by a check the caller ran a moment earlier - a check followed by an insert has a gap
+// between them wide enough for exactly the thing it prevents.
+//
+// `other.id <> id` is what makes a resumption possible. A worker that died left its own row
+// RUNNING; the attempt that takes the job over is the same run, and it has to be able to carry on
+// rather than be locked out by itself (BK-7). ON CONFLICT DO NOTHING is the other half of that: the
+// second attempt writes nothing and reads the row it already has.
 func (q *Queries) InsertBackupRun(ctx context.Context, arg InsertBackupRunParams) (int64, error) {
 	result, err := q.db.Exec(ctx, insertBackupRun,
 		arg.ID,
