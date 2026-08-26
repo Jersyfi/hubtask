@@ -101,6 +101,19 @@ func (q *Queries) FindRestoreRun(ctx context.Context, id pgtype.UUID) (FindResto
 	return i, err
 }
 
+const findWorkspaceName = `-- name: FindWorkspaceName :one
+SELECT display_name FROM tenant WHERE id = current_tenant_id()
+`
+
+// What §8.3 step 3 asks to have typed. Bounded by row level security to the tenant of the running
+// transaction, so this cannot be used to learn another workspace's name.
+func (q *Queries) FindWorkspaceName(ctx context.Context) (string, error) {
+	row := q.db.QueryRow(ctx, findWorkspaceName)
+	var display_name string
+	err := row.Scan(&display_name)
+	return display_name, err
+}
+
 const finishRestoreRun = `-- name: FinishRestoreRun :execrows
 UPDATE restore_run SET
   status               = $1,

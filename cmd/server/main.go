@@ -63,6 +63,7 @@ import (
 	recurrenceadapter "github.com/Jersyfi/hubtask/infrastructure/recurrence"
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
+	"github.com/Jersyfi/hubtask/infrastructure/stepup"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
@@ -332,8 +333,16 @@ func run() error {
 	// And the restore side (E-06). It gets the same cipher the run job uses, because listing an
 	// archive and restoring one have to agree about how a member was closed - two ciphers here
 	// would look exactly like a wrong key.
+	backupRestores := postgres.NewRestoreRunRepository()
 	backupRestorer := backupservice.Restorer{
-		Targets: backupTargets, Encryptor: encryptor, Opener: backupAdapters,
+		Targets: backupTargets, Restores: backupRestores,
+		Workspace: postgres.NewWorkspaceRepository(), Jobs: jobs,
+		// The step-up nothing can satisfy yet, as a type rather than a nil: a missing verifier
+		// would make "this installation has no step-up" indistinguishable from "somebody forgot to
+		// wire one up", and the second is how a destructive restore ends up permitted by omission
+		// (E-06, backup-restore.md §8.3).
+		StepUp:    stepup.Unavailable{},
+		Encryptor: encryptor, Opener: backupAdapters,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -914,6 +923,8 @@ func run() error {
 		backupservice.VerifyBackup{Runner: backupRunner}.Descriptor(),
 		backupservice.CreateBackupSchedule{Scheduling: backupScheduling}.Descriptor(),
 		backupservice.ListBackupsAtTarget{Restorer: backupRestorer}.Descriptor(),
+		backupservice.StartRestore{Restorer: backupRestorer}.Descriptor(),
+		backupservice.GetRestoreRun{Restorer: backupRestorer}.Descriptor(),
 
 		jobservice.GetJob{
 			Jobs: jobRecords, Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -1242,6 +1253,19 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
+	// The restore, and the backup it takes before a destructive mode (E-06). It shares the
+	// performer so that the safety copy is the same act a scheduled backup is - a second way of
+	// writing an archive would be a second archive format to keep in step.
+	backupApplier := backupservice.Applier{
+		Restores: backupRestores, Targets: backupTargets,
+		Import:  postgres.NewBackupImportRepository(),
+		Journal: postgres.NewDeletionJournalRepository(postgres.DefaultJournalBatch),
+		Opener:  backupAdapters, Encryptor: encryptor, Keys: encryptor,
+		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
+		Safety: backupPerformer, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
+	}
 	backupPass := backupservice.SchedulePass{
 		Schedules: backupSchedules, Runs: backupRuns, Jobs: jobs,
 		Expander: recurrenceadapter.New(), UnitOfWork: unitOfWork,
@@ -1266,6 +1290,9 @@ func run() error {
 		queueport.KindNotificationDeliver:   notificationDelivery,
 		queueport.KindBackupRun:             backupRun,
 		queueport.KindBackupVerify:          worker.BackupVerify{Performer: backupPerformer},
+		queueport.KindBackupRestore: worker.BackupRestore{
+			Applier: backupApplier, Progress: jobs,
+		},
 		queueport.KindBackupSchedule: worker.BackupScheduling{
 			Pass: backupPass, Fallback: cfg.Retention.Interval,
 		},

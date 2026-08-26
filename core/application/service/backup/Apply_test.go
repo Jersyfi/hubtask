@@ -32,6 +32,7 @@ type restoreStore struct {
 	refuse   bool
 	outcomes []domain.RestoreOutcome
 	safety   map[shared.ID]shared.ID
+	running  bool
 }
 
 func newRestores() *restoreStore {
@@ -95,7 +96,7 @@ func (r *restoreStore) RecordSafetyCopy(_ context.Context, id, backupRunID share
 	return nil
 }
 
-func (r *restoreStore) InProgress(context.Context) (bool, error) { return false, nil }
+func (r *restoreStore) InProgress(context.Context) (bool, error) { return r.running, nil }
 
 var _ repository.Restores = (*restoreStore)(nil)
 

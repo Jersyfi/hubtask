@@ -112,6 +112,16 @@ const (
 	// open for.
 	KindBackupVerify Kind = "backup.verify"
 
+	// KindBackupRestore reads one archive back into a tenant (E-06, backup-restore.md §8.3).
+	//
+	// Detached and long, for the reasons a run is: it streams an archive from somebody else's
+	// machine and writes it in batches, each of which is its own transaction - which is what §8.3
+	// step 5 means by "rollback within a transaction per batch size". Deduplicated on the restore
+	// rather than on the tenant, because the tenant's lock lives in the table: two jobs for one
+	// restore are the same work, and two restores in one tenant are refused where the caller can
+	// read the refusal.
+	KindBackupRestore Kind = "backup.restore"
+
 	// KindBackupSchedule is one tenant's wake-up: what does this tenant owe now, and when does it
 	// owe the next one (E-05).
 	//

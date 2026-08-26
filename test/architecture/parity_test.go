@@ -142,6 +142,8 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		backupservice.GetBackupRun{}.Descriptor(),
 		backupservice.VerifyBackup{}.Descriptor(),
 		backupservice.ListBackupsAtTarget{}.Descriptor(),
+		backupservice.StartRestore{}.Descriptor(),
+		backupservice.GetRestoreRun{}.Descriptor(),
 		backupservice.CreateBackupSchedule{}.Descriptor(),
 		jobservice.GetJob{}.Descriptor(),
 		jobservice.CancelJob{}.Descriptor(),

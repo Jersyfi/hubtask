@@ -97,3 +97,8 @@ UPDATE restore_run SET
   progress = sqlc.arg('progress')
 WHERE id = sqlc.arg('id')
   AND status IN ('PENDING', 'VALIDATING', 'RUNNING');
+
+-- name: FindWorkspaceName :one
+-- What §8.3 step 3 asks to have typed. Bounded by row level security to the tenant of the running
+-- transaction, so this cannot be used to learn another workspace's name.
+SELECT display_name FROM tenant WHERE id = current_tenant_id();

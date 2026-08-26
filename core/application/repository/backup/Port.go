@@ -143,6 +143,17 @@ type Restores interface {
 	InProgress(ctx context.Context) (bool, error)
 }
 
+// Workspace is the one thing a destructive restore has to ask about the tenant it is about to
+// replace: what it is called (E-06, backup-restore.md §8.3 step 3).
+//
+// A port of one method rather than a field on something larger, because that is genuinely all of
+// it. The name is read to be compared against what somebody typed, and it is never answered to a
+// caller - a use case that returned it would be a use case that told you what to type.
+type Workspace interface {
+	// Name answers the display name of the tenant the transaction is bound to.
+	Name(ctx context.Context) (string, error)
+}
+
 // Import is the tenant's rows as a restore writes them (E-06, backup-restore.md §8).
 //
 // The mirror of Export, in the same vocabulary and with the same seam: table names on this side,

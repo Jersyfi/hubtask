@@ -378,3 +378,34 @@ func restoreFrom(row sqlc.FindRestoreRunRow) (domain.Restore, error) {
 		ErrorCode: stringFrom(row.ErrorCode),
 	}, nil
 }
+
+// WorkspaceRepository answers what the tenant is called (E-06, backup-restore.md §8.3 step 3).
+//
+// Its own type rather than a method on the restore log, because it reads a different table for a
+// different reason - and because a repository that could read the tenant row while also writing
+// restore runs is a repository somebody will eventually use to read the tenant row for something
+// else.
+type WorkspaceRepository struct{}
+
+func NewWorkspaceRepository() WorkspaceRepository { return WorkspaceRepository{} }
+
+var _ repository.Workspace = WorkspaceRepository{}
+
+// Name answers the display name of the tenant the transaction is bound to.
+func (r WorkspaceRepository) Name(ctx context.Context) (string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	name, err := queries.FindWorkspaceName(ctx)
+	if err != nil {
+		if IsNoRows(err) {
+			// The tenant of the running transaction always has a row - row level security compares
+			// against its identifier - so this is a defect rather than a state a caller reached.
+			return "", shared.Internalf("postgres: the tenant of the transaction has no row")
+		}
+		return "", shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the workspace name: %w", err))
+	}
+	return name, nil
+}

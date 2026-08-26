@@ -515,6 +515,8 @@ func (pending) GetCapabilities(w http.ResponseWriter, r *http.Request) { notAvai
 
 func (pending) GetHealthReport(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The restore operations. Overridden by RestController; they stay here for the reason the others
+// do - the compile-time assertion is on `pending` itself.
 func (pending) StartRestore(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) GetRestoreRun(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
