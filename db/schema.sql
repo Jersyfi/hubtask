@@ -1093,7 +1093,11 @@ CREATE TABLE restore_run (
   id             uuid PRIMARY KEY,
   target_id      uuid NOT NULL REFERENCES backup_target(id) ON DELETE RESTRICT,
   source_archive text NOT NULL,                       -- the path at the target, possible even without a backup_run
-  tenant_id      uuid REFERENCES tenant(id) ON DELETE CASCADE,   -- the target tenant
+  -- The tenant that asked, and the one the row is visible in. The tenant being restored *into* is
+  -- target_tenant_id below: they differ only for NEW_TENANT, whose target did not exist when the
+  -- restore was asked for (migration 0034).
+  tenant_id      uuid REFERENCES tenant(id) ON DELETE CASCADE,
+  target_tenant_id uuid,
   mode           text NOT NULL
                    CHECK (mode IN ('INSPECT','SELECTIVE','MERGE','REPLACE_TENANT','NEW_TENANT','INSTANCE')),
   conflict_rule  text NOT NULL DEFAULT 'SKIP' CHECK (conflict_rule IN ('SKIP','OVERWRITE','DUPLICATE')),

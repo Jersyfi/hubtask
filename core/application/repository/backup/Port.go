@@ -106,6 +106,37 @@ type MediaLocation struct {
 	Bytes      int64
 }
 
+// Restores stores what a restore did, and what it is about to do (E-06).
+//
+// The row is written when the restore is accepted rather than when it starts, which is what lets a
+// caller poll the `result_url` they were handed instead of meeting a 404 for the first few seconds.
+type Restores interface {
+	// Insert writes the accepted restore, PENDING.
+	Insert(ctx context.Context, restore domain.Restore) error
+
+	// Find answers one restore, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (domain.Restore, error)
+
+	// Claim moves the run to RUNNING and answers whether it got the tenant.
+	//
+	// False is not an error: a second restore in one tenant is what the lock exists to prevent.
+	// A run that is already RUNNING claims itself again, which is what makes a job that died
+	// resumable - it continues its own run rather than being told the tenant is busy (BK-7).
+	Claim(ctx context.Context, id shared.ID, at time.Time) (bool, error)
+
+	// Finish records how a restore ended and what it did. Refused for a run that is no longer
+	// going, which is what makes a cancelled restore stay cancelled.
+	Finish(ctx context.Context, outcome domain.RestoreOutcome) error
+
+	// RecordSafetyCopy writes down the backup taken before a destructive mode, before the mode
+	// runs. The way back has to be findable from the run even if the run then fails.
+	RecordSafetyCopy(ctx context.Context, id, backupRunID shared.ID) error
+
+	// InProgress reports whether this tenant already has a restore going, so that a second one is
+	// refused where the caller can read the refusal rather than minutes later inside a job.
+	InProgress(ctx context.Context) (bool, error)
+}
+
 // Import is the tenant's rows as a restore writes them (E-06, backup-restore.md §8).
 //
 // The mirror of Export, in the same vocabulary and with the same seam: table names on this side,

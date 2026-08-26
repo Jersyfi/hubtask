@@ -915,9 +915,10 @@ type Reminder struct {
 }
 
 type RestoreRun struct {
-	ID                pgtype.UUID
-	TargetID          pgtype.UUID
-	SourceArchive     string
+	ID            pgtype.UUID
+	TargetID      pgtype.UUID
+	SourceArchive string
+	// The tenant that asked for the restore, and the one the row is visible in (RLS).
 	TenantID          pgtype.UUID
 	Mode              string
 	ConflictRule      string
@@ -931,6 +932,8 @@ type RestoreRun struct {
 	StartedAt         pgtype.Timestamptz
 	FinishedAt        pgtype.Timestamptz
 	ErrorCode         *string
+	// The tenant being restored into. Differs from tenant_id only for NEW_TENANT, and is NULL for an instance restore.
+	TargetTenantID pgtype.UUID
 }
 
 type RetentionPolicy struct {

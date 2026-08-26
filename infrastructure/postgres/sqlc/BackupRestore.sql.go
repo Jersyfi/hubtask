@@ -11,6 +11,169 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const claimRestoreRun = `-- name: ClaimRestoreRun :execrows
+UPDATE restore_run run SET
+  status     = 'RUNNING',
+  started_at = COALESCE(run.started_at, $1::timestamptz)
+WHERE run.id = $2
+  AND run.status IN ('PENDING', 'VALIDATING', 'RUNNING')
+  AND NOT EXISTS (
+    SELECT 1 FROM restore_run other
+    WHERE other.status IN ('VALIDATING', 'RUNNING')
+      AND other.id <> run.id
+  )
+`
+
+type ClaimRestoreRunParams struct {
+	StartedAt pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// The claim, and the lock against two restores in one tenant at once.
+//
+// An UPDATE rather than an insert, because the row is written when the restore is accepted and
+// claimed when the job picks it up - and a job that died and is picked up again has to be able to
+// claim the same row a second time. That is BK-7's restore half: `status IN (...)` includes RUNNING
+// so a resumed attempt continues its own run rather than being told the tenant is busy, and
+// `started_at` is kept rather than moved, so the run still says when it actually began.
+func (q *Queries) ClaimRestoreRun(ctx context.Context, arg ClaimRestoreRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, claimRestoreRun, arg.StartedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const findRestoreRun = `-- name: FindRestoreRun :one
+SELECT id, target_id, source_archive, tenant_id, target_tenant_id, mode, conflict_rule, selection,
+       dry_run, safety_backup_run_id, status, report, requested_by, approved_by,
+       started_at, finished_at, error_code
+FROM restore_run
+WHERE id = $1
+`
+
+type FindRestoreRunRow struct {
+	ID                pgtype.UUID
+	TargetID          pgtype.UUID
+	SourceArchive     string
+	TenantID          pgtype.UUID
+	TargetTenantID    pgtype.UUID
+	Mode              string
+	ConflictRule      string
+	Selection         []byte
+	DryRun            bool
+	SafetyBackupRunID pgtype.UUID
+	Status            string
+	Report            []byte
+	RequestedBy       pgtype.UUID
+	ApprovedBy        pgtype.UUID
+	StartedAt         pgtype.Timestamptz
+	FinishedAt        pgtype.Timestamptz
+	ErrorCode         *string
+}
+
+func (q *Queries) FindRestoreRun(ctx context.Context, id pgtype.UUID) (FindRestoreRunRow, error) {
+	row := q.db.QueryRow(ctx, findRestoreRun, id)
+	var i FindRestoreRunRow
+	err := row.Scan(
+		&i.ID,
+		&i.TargetID,
+		&i.SourceArchive,
+		&i.TenantID,
+		&i.TargetTenantID,
+		&i.Mode,
+		&i.ConflictRule,
+		&i.Selection,
+		&i.DryRun,
+		&i.SafetyBackupRunID,
+		&i.Status,
+		&i.Report,
+		&i.RequestedBy,
+		&i.ApprovedBy,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.ErrorCode,
+	)
+	return i, err
+}
+
+const finishRestoreRun = `-- name: FinishRestoreRun :execrows
+UPDATE restore_run SET
+  status               = $1,
+  report               = $2,
+  safety_backup_run_id = COALESCE($3, safety_backup_run_id),
+  finished_at          = $4,
+  error_code           = $5
+WHERE id = $6
+  AND status IN ('PENDING', 'VALIDATING', 'RUNNING')
+`
+
+type FinishRestoreRunParams struct {
+	Status            string
+	Report            []byte
+	SafetyBackupRunID pgtype.UUID
+	FinishedAt        pgtype.Timestamptz
+	ErrorCode         *string
+	ID                pgtype.UUID
+}
+
+// Refused for a run that is no longer going, which is what makes a cancelled restore stay
+// cancelled.
+func (q *Queries) FinishRestoreRun(ctx context.Context, arg FinishRestoreRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, finishRestoreRun,
+		arg.Status,
+		arg.Report,
+		arg.SafetyBackupRunID,
+		arg.FinishedAt,
+		arg.ErrorCode,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const insertRestoreRun = `-- name: InsertRestoreRun :exec
+INSERT INTO restore_run (
+  id, target_id, source_archive, tenant_id, target_tenant_id, mode, conflict_rule,
+  selection, dry_run, status, requested_by
+) VALUES (
+  $1, $2, $3, current_tenant_id(),
+  $4, $5, $6,
+  $7, $8, 'PENDING', $9
+)
+`
+
+type InsertRestoreRunParams struct {
+	ID             pgtype.UUID
+	TargetID       pgtype.UUID
+	SourceArchive  string
+	TargetTenantID pgtype.UUID
+	Mode           string
+	ConflictRule   string
+	Selection      []byte
+	DryRun         bool
+	RequestedBy    pgtype.UUID
+}
+
+// The run row, written in the transaction that accepts the restore (§8.3 step 1). PENDING: the
+// job has not started, and a caller polling `result_url` sees that rather than a 404.
+func (q *Queries) InsertRestoreRun(ctx context.Context, arg InsertRestoreRunParams) error {
+	_, err := q.db.Exec(ctx, insertRestoreRun,
+		arg.ID,
+		arg.TargetID,
+		arg.SourceArchive,
+		arg.TargetTenantID,
+		arg.Mode,
+		arg.ConflictRule,
+		arg.Selection,
+		arg.DryRun,
+		arg.RequestedBy,
+	)
+	return err
+}
+
 const journalledDeletions = `-- name: JournalledDeletions :many
 
 SELECT entity, entity_id, deleted_at, reason
@@ -77,4 +240,39 @@ func (q *Queries) JournalledDeletions(ctx context.Context, arg JournalledDeletio
 		return nil, err
 	}
 	return items, nil
+}
+
+const recordRestoreSafetyCopy = `-- name: RecordRestoreSafetyCopy :execrows
+UPDATE restore_run SET safety_backup_run_id = $1
+WHERE id = $2
+`
+
+type RecordRestoreSafetyCopyParams struct {
+	SafetyBackupRunID pgtype.UUID
+	ID                pgtype.UUID
+}
+
+// The copy §8.3 step 4 takes before a destructive mode, recorded before the mode runs: the way back
+// has to be findable from the run even if the run itself then fails.
+func (q *Queries) RecordRestoreSafetyCopy(ctx context.Context, arg RecordRestoreSafetyCopyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordRestoreSafetyCopy, arg.SafetyBackupRunID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const restoreInProgress = `-- name: RestoreInProgress :one
+SELECT EXISTS (
+  SELECT 1 FROM restore_run WHERE status IN ('PENDING', 'VALIDATING', 'RUNNING')
+) AS running
+`
+
+// Whether this tenant already has a restore going. Asked when one is requested, so that the refusal
+// is a 409 the caller can read rather than a claim that fails minutes later inside a job.
+func (q *Queries) RestoreInProgress(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, restoreInProgress)
+	var running bool
+	err := row.Scan(&running)
+	return running, err
 }
