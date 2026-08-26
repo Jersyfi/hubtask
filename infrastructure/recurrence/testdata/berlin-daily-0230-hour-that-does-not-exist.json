@@ -1,0 +1,30 @@
+{
+  "name": "berlin-daily-0230-hour-that-does-not-exist",
+  "description": "The reading that does not exist: 02:30 on the night Berlin springs forward. The occurrence moves forward by the gap - it is answered as 03:30 local, the same instant 02:30 would have named had the hour existed - and the series returns to 02:30 the next day. This is the standard library's rule rather than this adapter's, pinned here so that a change to it is visible in a diff.",
+  "rrule": "FREQ=DAILY",
+  "time_zone": "Europe/Berlin",
+  "start": "2026-03-27T02:30:00",
+  "window_days": 4,
+  "occurrences": [
+    {
+      "local": "2026-03-27T02:30:00+01:00",
+      "utc": "2026-03-27T01:30:00Z"
+    },
+    {
+      "local": "2026-03-28T02:30:00+01:00",
+      "utc": "2026-03-28T01:30:00Z"
+    },
+    {
+      "local": "2026-03-29T03:30:00+02:00",
+      "utc": "2026-03-29T01:30:00Z"
+    },
+    {
+      "local": "2026-03-30T02:30:00+02:00",
+      "utc": "2026-03-30T00:30:00Z"
+    },
+    {
+      "local": "2026-03-31T02:30:00+02:00",
+      "utc": "2026-03-31T00:30:00Z"
+    }
+  ]
+}

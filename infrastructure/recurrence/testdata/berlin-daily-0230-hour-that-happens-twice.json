@@ -1,0 +1,30 @@
+{
+  "name": "berlin-daily-0230-hour-that-happens-twice",
+  "description": "The reading that happens twice: 02:30 on the night Berlin falls back. The occurrence is the second of the two - 02:30+01:00 rather than 02:30+02:00 - which is the standard library's choice and is pinned here because the other one is equally defensible and would change when somebody is reminded.",
+  "rrule": "FREQ=DAILY",
+  "time_zone": "Europe/Berlin",
+  "start": "2026-10-23T02:30:00",
+  "window_days": 4,
+  "occurrences": [
+    {
+      "local": "2026-10-23T02:30:00+02:00",
+      "utc": "2026-10-23T00:30:00Z"
+    },
+    {
+      "local": "2026-10-24T02:30:00+02:00",
+      "utc": "2026-10-24T00:30:00Z"
+    },
+    {
+      "local": "2026-10-25T02:30:00+01:00",
+      "utc": "2026-10-25T01:30:00Z"
+    },
+    {
+      "local": "2026-10-26T02:30:00+01:00",
+      "utc": "2026-10-26T01:30:00Z"
+    },
+    {
+      "local": "2026-10-27T02:30:00+01:00",
+      "utc": "2026-10-27T01:30:00Z"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "berlin-yearly-29-february-leap-years-only",
+  "description": "A yearly series on 29 February happens in leap years and in no others: the next occurrence after 2024 is 2028, not 1 March 2025. RFC 5545 says so and this is where it is proved.",
+  "rrule": "FREQ=YEARLY",
+  "time_zone": "Europe/Berlin",
+  "start": "2024-02-29T09:00:00",
+  "window_days": 1830,
+  "occurrences": [
+    {
+      "local": "2024-02-29T09:00:00+01:00",
+      "utc": "2024-02-29T08:00:00Z"
+    },
+    {
+      "local": "2028-02-29T09:00:00+01:00",
+      "utc": "2028-02-29T08:00:00Z"
+    }
+  ]
+}

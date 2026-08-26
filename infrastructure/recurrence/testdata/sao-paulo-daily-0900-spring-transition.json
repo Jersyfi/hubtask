@@ -1,0 +1,34 @@
+{
+  "name": "sao-paulo-daily-0900-spring-transition",
+  "description": "The other half of QS-07, and the case that decided how this adapter expands: São Paulo springs forward at midnight on 4 November 2018. Expanding with a zoned start made the library repeat 3 November and skip 4 November entirely; expanding on the wall clock gives every day exactly once, with the instant moving an hour earlier in UTC.",
+  "rrule": "FREQ=DAILY",
+  "time_zone": "America/Sao_Paulo",
+  "start": "2018-11-02T09:00:00",
+  "window_days": 5,
+  "occurrences": [
+    {
+      "local": "2018-11-02T09:00:00-03:00",
+      "utc": "2018-11-02T12:00:00Z"
+    },
+    {
+      "local": "2018-11-03T09:00:00-03:00",
+      "utc": "2018-11-03T12:00:00Z"
+    },
+    {
+      "local": "2018-11-04T09:00:00-02:00",
+      "utc": "2018-11-04T11:00:00Z"
+    },
+    {
+      "local": "2018-11-05T09:00:00-02:00",
+      "utc": "2018-11-05T11:00:00Z"
+    },
+    {
+      "local": "2018-11-06T09:00:00-02:00",
+      "utc": "2018-11-06T11:00:00Z"
+    },
+    {
+      "local": "2018-11-07T09:00:00-02:00",
+      "utc": "2018-11-07T11:00:00Z"
+    }
+  ]
+}
