@@ -677,6 +677,9 @@
   "backup.archive_manifest_invalid": "That archive's manifest is missing {reason}, so it cannot be restored.",
   "backup.archive_record_invalid": "That archive holds a record Hubtask will not use ({reason}).",
   "backup.archive_record_unreadable": "That archive holds a line Hubtask could not read. The file is not a Hubtask data file, or it has been altered.",
+  "backup.archive_checksums_unreadable": "That archive's checksums.txt could not be read.",
+  "backup.archive_checksum_mismatch": "The bytes at {path} are not the bytes that were written ({reason}).",
+  "backup.archive_incomplete": "That archive has no checksums.txt, so the run that wrote it did not finish.",
 
   "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",
