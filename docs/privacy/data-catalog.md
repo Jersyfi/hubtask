@@ -124,6 +124,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Deletion evidence (entity, identifier, reason, time) | `deletion_journal` | `PERSONAL_TECHNICAL` (references only) | Proof that an erasure was carried out (Art. 17) | 3 years | `RETENTION` |
 | Legal holds (scope, reason, who placed and released it) | `legal_hold` | `PERSONAL_TECHNICAL` | Suspending deletion for a legal reason | Until released, plus the evidentiary period | `RETENTION` |
 | Audit anchors (chain hash, destination, receipt) | `audit_anchor` | `NON_PERSONAL` | Proof that the audit chain was not rewritten (ADR-0017) | With the audit period | `IMMUTABLE` |
+| Audit exports (the trail of a period, as JSON Lines or CSV, with a manifest and checksums) | The backup target the export named | `PERSONAL_TECHNICAL` (the same masked entries as `audit_log`, no content) | Handing evidence about a period to an auditor or a second system (audit.md §5) | Whatever the target keeps; the archive is not read back by this system | The operator, at the target |
 | Privacy incidents (categories, count, description, measures) | `privacy_incident` | `PERSONAL_CONTENT` (the description is free text) | Art. 33/34 documentation | 3 years | `RETENTION` |
 
 ---
