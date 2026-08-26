@@ -17,6 +17,7 @@ import (
 
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	port "github.com/Jersyfi/hubtask/core/port/storage"
+	"github.com/Jersyfi/hubtask/infrastructure/awssig"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -108,7 +109,7 @@ func (s *S3Storage) Put(ctx context.Context, upload port.Upload) error {
 	}
 	req.ContentLength = upload.Size
 	req.Header.Set("Content-Type", upload.ContentType)
-	signV4(req, s.accessKey, s.secretKey, s.region, "s3", unsignedPayload, s.now())
+	awssig.Sign(req, s.accessKey, s.secretKey, s.region, "s3", awssig.UnsignedPayload, s.now())
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -138,7 +139,7 @@ func (s *S3Storage) Get(ctx context.Context, key string) (port.Object, error) {
 	if err != nil {
 		return port.Object{}, ioFailed("building the request", err)
 	}
-	signV4(req, s.accessKey, s.secretKey, s.region, "s3", emptyPayloadHash, s.now())
+	awssig.Sign(req, s.accessKey, s.secretKey, s.region, "s3", awssig.EmptyPayloadHash, s.now())
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -179,7 +180,7 @@ func (s *S3Storage) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return ioFailed("building the request", err)
 	}
-	signV4(req, s.accessKey, s.secretKey, s.region, "s3", emptyPayloadHash, s.now())
+	awssig.Sign(req, s.accessKey, s.secretKey, s.region, "s3", awssig.EmptyPayloadHash, s.now())
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -207,7 +208,7 @@ func (s *S3Storage) IssueUpload(object media.Object, expiresAt time.Time) (port.
 
 	now := s.now()
 	return port.Transfer{
-		URL: presignV4(http.MethodPut, target, s.accessKey, s.secretKey, s.region, "s3",
+		URL: awssig.Presign(http.MethodPut, target, s.accessKey, s.secretKey, s.region, "s3",
 			expiresAt.Sub(now), now, nil),
 		Method:    http.MethodPut,
 		ExpiresAt: expiresAt,
@@ -232,7 +233,7 @@ func (s *S3Storage) IssueDownload(
 	}
 	now := s.now()
 	return port.Transfer{
-		URL: presignV4(http.MethodGet, target, s.accessKey, s.secretKey, s.region, "s3",
+		URL: awssig.Presign(http.MethodGet, target, s.accessKey, s.secretKey, s.region, "s3",
 			expiresAt.Sub(now), now, map[string]string{
 				"response-content-disposition": disposition,
 			}),
@@ -269,7 +270,7 @@ func (s *S3Storage) CreateBucket(ctx context.Context) error {
 	if err != nil {
 		return ioFailed("building the request", err)
 	}
-	signV4(req, s.accessKey, s.secretKey, s.region, "s3", emptyPayloadHash, s.now())
+	awssig.Sign(req, s.accessKey, s.secretKey, s.region, "s3", awssig.EmptyPayloadHash, s.now())
 
 	resp, err := s.client.Do(req)
 	if err != nil {

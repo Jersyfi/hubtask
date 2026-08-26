@@ -4,7 +4,6 @@
 package storage
 
 import (
-	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
@@ -18,55 +17,6 @@ import (
 	port "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
-
-// The signing-key derivation against the vector Amazon publishes with the specification. The
-// full signature is proved by MinIO in the conformance suite - MinIO validates strictly - and
-// this pins the one step a typo would silently break everywhere.
-func TestTheSigningKeyMatchesThePublishedVector(t *testing.T) {
-	key := deriveKey("wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "20120215", "us-east-1", "iam")
-
-	want := "f4780e2d9f65fa895f9c67b32ce1baf0b0d8a43505a000a1a9e090d414db404d"
-	if got := hex.EncodeToString(key); got != want {
-		t.Fatalf("derived %s\nwant    %s", got, want)
-	}
-}
-
-func TestTheCanonicalFormsFollowTheSpecification(t *testing.T) {
-	if got := uriEncode("a b/c~d._-*"); got != "a%20b%2Fc~d._-%2A" {
-		t.Errorf("uriEncode = %q", got)
-	}
-	if got := canonicalURI("/bucket/key with space"); got != "/bucket/key%20with%20space" {
-		t.Errorf("canonicalURI = %q", got)
-	}
-	if got := canonicalQuery("b=2&a=1"); got != "a=1&b=2" {
-		t.Errorf("canonicalQuery did not sort: %q", got)
-	}
-}
-
-func TestSigningWritesTheThreeHeaders(t *testing.T) {
-	req := httptest.NewRequestWithContext(t.Context(),
-		http.MethodGet, "https://minio.internal:9000/media/key", nil)
-	at := time.Date(2026, 8, 23, 12, 0, 0, 0, time.UTC)
-
-	signV4(req, "access", "secret", "eu-central-1", "s3", emptyPayloadHash, at)
-
-	if got := req.Header.Get("x-amz-date"); got != "20260823T120000Z" {
-		t.Errorf("x-amz-date = %q", got)
-	}
-	if got := req.Header.Get("x-amz-content-sha256"); got != emptyPayloadHash {
-		t.Errorf("x-amz-content-sha256 = %q", got)
-	}
-	authorization := req.Header.Get("Authorization")
-	for _, part := range []string{
-		"AWS4-HMAC-SHA256 Credential=access/20260823/eu-central-1/s3/aws4_request",
-		"SignedHeaders=host;x-amz-content-sha256;x-amz-date",
-		"Signature=",
-	} {
-		if !strings.Contains(authorization, part) {
-			t.Errorf("the Authorization header misses %q: %s", part, authorization)
-		}
-	}
-}
 
 // s3Against builds the adapter pointed at a test server.
 func s3Against(t *testing.T, target string, pathStyle bool) *S3Storage {
