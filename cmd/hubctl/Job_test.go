@@ -1,0 +1,116 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package main
+
+import (
+	"net/http"
+	"strings"
+	"sync/atomic"
+	"testing"
+)
+
+const jobID = "01936f2a-7c1e-7000-8000-0000000000a1"
+
+func TestShowingAJobAsksForItAndPrintsWhereTheResultWillBe(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{
+	  "job_id":"`+jobID+`","status":"RUNNING","progress":0.25,
+	  "result_url":"/v1/backups/`+jobID+`","error_code":null,
+	  "created_at":"2026-08-27T09:00:00Z","finished_at":null}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "job", "show", jobID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if want := APIPath + jobsPath + "/" + jobID; stub.request.URL.Path != want {
+		t.Errorf("path %q, want %q", stub.request.URL.Path, want)
+	}
+	if !strings.Contains(out, "25%") {
+		t.Errorf("the progress is not in the table: %q", out)
+	}
+	if !strings.Contains(out, "/v1/backups/") {
+		t.Errorf("the result is not in the table: %q", out)
+	}
+}
+
+// A job that cannot say how far along it is says so with a dash. A nought would read as "nothing
+// has happened", which is a different statement.
+func TestAJobWithoutProgressPrintsADashRatherThanZero(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{
+	  "job_id":"`+jobID+`","status":"QUEUED","progress":null,"result_url":null,
+	  "error_code":null,"created_at":"2026-08-27T09:00:00Z","finished_at":null}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "job", "show", jobID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if strings.Contains(out, "0%") {
+		t.Errorf("a job that cannot say reported a number: %q", out)
+	}
+}
+
+// --follow keeps asking, and what it reports while waiting goes to standard error - so that a
+// script reading the answer out of a pipe reads one document and no percentages.
+func TestFollowingAJobWaitsForTheEndAndKeepsProgressOffStandardOutput(t *testing.T) {
+	var calls atomic.Int32
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		body := `{"job_id":"` + jobID + `","status":"RUNNING","progress":0.5,"result_url":null,
+		  "error_code":null,"created_at":"2026-08-27T09:00:00Z","finished_at":null}`
+		if calls.Add(1) > 1 {
+			body = `{"job_id":"` + jobID + `","status":"SUCCEEDED","progress":1,
+			  "result_url":"/v1/backups/` + jobID + `","error_code":null,
+			  "created_at":"2026-08-27T09:00:00Z","finished_at":"2026-08-27T09:01:00Z"}`
+		}
+		_, _ = w.Write([]byte(body))
+	})
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"--json", "job", "show", jobID, "--follow")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if calls.Load() < 2 {
+		t.Errorf("it stopped after %d call(s) rather than following", calls.Load())
+	}
+	if !strings.Contains(errOut, "RUNNING 50%") {
+		t.Errorf("the progress was not reported while waiting: %q", errOut)
+	}
+	if strings.Contains(out, "RUNNING") {
+		t.Errorf("standard output carries more than the answer: %q", out)
+	}
+	if !strings.Contains(out, "SUCCEEDED") {
+		t.Errorf("the answer is not the finished job: %q", out)
+	}
+}
+
+func TestCancellingAJobPostsToTheCancelPath(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{
+	  "job_id":"`+jobID+`","status":"CANCELLED","progress":null,"result_url":null,
+	  "error_code":null,"created_at":"2026-08-27T09:00:00Z","finished_at":"2026-08-27T09:02:00Z"}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "job", "cancel", jobID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if want := APIPath + jobsPath + "/" + jobID + ":cancel"; stub.request.URL.Path != want {
+		t.Errorf("path %q, want %q", stub.request.URL.Path, want)
+	}
+	if !strings.Contains(out, "CANCELLED") {
+		t.Errorf("output %q", out)
+	}
+}
+
+// An identifier that is not one is a mistake in the invocation: exit 2, and the catalogue's
+// sentence rather than a second wording of it.
+func TestAJobIdentifierThatIsNotOneIsAUsageError(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{}`)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "job", "show", "not-a-uuid")
+	if code != exitUsage {
+		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
+	}
+	if !strings.Contains(errOut, "not-a-uuid") {
+		t.Errorf("the complaint does not name the value: %q", errOut)
+	}
+}
