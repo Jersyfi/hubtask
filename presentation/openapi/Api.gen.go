@@ -1710,6 +1710,27 @@ func (e TrashEntryKind) Valid() bool {
 	}
 }
 
+// Defines values for ViewExportFormat.
+const (
+	CSV  ViewExportFormat = "CSV"
+	ICS  ViewExportFormat = "ICS"
+	JSON ViewExportFormat = "JSON"
+)
+
+// Valid indicates whether the value is a known member of the ViewExportFormat enum.
+func (e ViewExportFormat) Valid() bool {
+	switch e {
+	case CSV:
+		return true
+	case ICS:
+		return true
+	case JSON:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -2082,6 +2103,46 @@ type BulkResult struct {
 
 	// Status The status this operation would have answered on its own: 200 or 201 for one that was applied, the refusal's status for one that failed, and 409 for an operation of an atomic bulk that was rolled back because another one failed.
 	Status int `json:"status"`
+}
+
+// CalendarFeed One subscription: a token its owner holds, over one saved view, revocable. The token itself is not a member - it exists in the answer to the call that minted it and nowhere else afterwards.
+type CalendarFeed struct {
+	// AccountId The owner, whose authorisation the feed reads with at every fetch.
+	AccountId openapi_types.UUID `json:"account_id"`
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// RevokedAt When the token stopped working. Kept rather than deleted, so that "this token was revoked on Tuesday" is answerable.
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+
+	// ViewId The view the feed serves, or null once that view has been deleted. Null rather than the row going with it: a feed is the subscriber's and a view is the workspace's, so a deleted view leaves a feed that serves nothing and says so.
+	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
+}
+
+// CalendarFeedCreate defines model for CalendarFeedCreate.
+type CalendarFeedCreate struct {
+	// ViewId The saved view to serve. It has to be one the caller may read.
+	ViewId openapi_types.UUID `json:"view_id"`
+}
+
+// CalendarFeedSecret defines model for CalendarFeedSecret.
+type CalendarFeedSecret struct {
+	// AccountId The owner, whose authorisation the feed reads with at every fetch.
+	AccountId openapi_types.UUID `json:"account_id"`
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// RevokedAt When the token stopped working. Kept rather than deleted, so that "this token was revoked on Tuesday" is answerable.
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+
+	// Token The credential, in clear, for the only time. Store it or lose it: what is kept is a hash, and nothing can turn that back into this.
+	Token string `json:"token"`
+
+	// Url The address to hand a calendar client, which is the token in its place. It carries the credential, so it is treated as one - not pasted into a chat, not put in a ticket.
+	Url string `json:"url"`
+
+	// ViewId The view the feed serves, or null once that view has been deleted. Null rather than the row going with it: a feed is the subscriber's and a view is the workspace's, so a deleted view leaves a feed that serves nothing and says so.
+	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
 }
 
 // Capabilities Self-description; clients configure themselves from this.
@@ -3304,6 +3365,30 @@ type TrashPage struct {
 	Page PageInfo     `json:"page"`
 }
 
+// ViewExport What to render and how. The view decides which rows; the format decides what they become.
+type ViewExport struct {
+	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
+	Format ViewExportFormat `json:"format"`
+
+	// TimeZone The zone the dates are written in. Defaults to the caller's own. It decides how a timestamp reads, never which rows are selected.
+	TimeZone *string `json:"time_zone,omitempty"`
+}
+
+// ViewExportFormat CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
+type ViewExportFormat string
+
+// ViewExportDocument The JSON rendering - the view's rows, and what the export knows about itself.
+type ViewExportDocument struct {
+	// Count How many rows are in this document.
+	Count       int        `json:"count"`
+	GeneratedAt time.Time  `json:"generated_at"`
+	Rows        []WorkItem `json:"rows"`
+
+	// Truncated True when the result reached max_export_rows. The same statement the Export-Truncated header makes, in the one format that can carry it in the body.
+	Truncated bool               `json:"truncated"`
+	ViewId    openapi_types.UUID `json:"view_id"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	ArchivedAt *time.Time          `json:"archived_at,omitempty"`
@@ -3438,6 +3523,9 @@ type CustomFieldKey = string
 
 // Expand defines model for Expand.
 type Expand = []string
+
+// FeedId defines model for FeedId.
+type FeedId = openapi_types.UUID
 
 // GroupId defines model for GroupId.
 type GroupId = openapi_types.UUID
@@ -3650,6 +3738,12 @@ type CreateGroupParams struct {
 type UpdateGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// CreateCalendarFeedParams defines parameters for CreateCalendarFeed.
+type CreateCalendarFeedParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ListWorkItemsParams defines parameters for ListWorkItems.
@@ -4040,6 +4134,12 @@ type UpdateSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ExportViewParams defines parameters for ExportView.
+type ExportViewParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ShareSavedViewParams defines parameters for ShareSavedView.
 type ShareSavedViewParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -4102,6 +4202,9 @@ type CreateGroupJSONRequestBody = GroupCreate
 
 // UpdateGroupJSONRequestBody defines body for UpdateGroup for application/json ContentType.
 type UpdateGroupJSONRequestBody = GroupUpdate
+
+// CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
+type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
 
 // CreateWorkItemJSONRequestBody defines body for CreateWorkItem for application/json ContentType.
 type CreateWorkItemJSONRequestBody = WorkItemCreate
@@ -4190,6 +4293,9 @@ type CreateSavedViewJSONRequestBody = SavedViewCreate
 // UpdateSavedViewApplicationMergePatchPlusJSONRequestBody defines body for UpdateSavedView for application/merge-patch+json ContentType.
 type UpdateSavedViewApplicationMergePatchPlusJSONRequestBody = SavedViewUpdate
 
+// ExportViewJSONRequestBody defines body for ExportView for application/json ContentType.
+type ExportViewJSONRequestBody = ViewExport
+
 // ShareSavedViewJSONRequestBody defines body for ShareSavedView for application/json ContentType.
 type ShareSavedViewJSONRequestBody = SavedViewShare
 
@@ -4228,6 +4334,9 @@ type ServerInterface interface {
 	// VerifyBackup Verify an archive at the target
 	// (POST /backups/{backupId}:verify)
 	VerifyBackup(w http.ResponseWriter, r *http.Request, backupId string)
+
+	// (GET /calendar/{token}.ics)
+	GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, token string)
 
 	// (GET /containers)
 	ListContainers(w http.ResponseWriter, r *http.Request, params ListContainersParams)
@@ -4306,6 +4415,15 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
+
+	// (GET /integrations/calendar-feeds)
+	ListCalendarFeeds(w http.ResponseWriter, r *http.Request)
+
+	// (POST /integrations/calendar-feeds)
+	CreateCalendarFeed(w http.ResponseWriter, r *http.Request, params CreateCalendarFeedParams)
+
+	// (DELETE /integrations/calendar-feeds/{feedId})
+	RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
 
 	// (GET /items)
 	ListWorkItems(w http.ResponseWriter, r *http.Request, params ListWorkItemsParams)
@@ -4537,6 +4655,9 @@ type ServerInterface interface {
 
 	// (PATCH /views/{viewId})
 	UpdateSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId, params UpdateSavedViewParams)
+
+	// (POST /views/{viewId}:export)
+	ExportView(w http.ResponseWriter, r *http.Request, viewId ViewId, params ExportViewParams)
 
 	// (POST /views/{viewId}:share)
 	ShareSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId, params ShareSavedViewParams)
@@ -4897,6 +5018,32 @@ func (siw *ServerInterfaceWrapper) VerifyBackup(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyBackup(w, r, backupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCalendarFeedDocument operation middleware
+func (siw *ServerInterfaceWrapper) GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCalendarFeedDocument(w, r, token)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6089,6 +6236,87 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateGroup(w, r, groupId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCalendarFeeds operation middleware
+func (siw *ServerInterfaceWrapper) ListCalendarFeeds(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCalendarFeeds(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateCalendarFeed operation middleware
+func (siw *ServerInterfaceWrapper) CreateCalendarFeed(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateCalendarFeedParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateCalendarFeed(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeCalendarFeed operation middleware
+func (siw *ServerInterfaceWrapper) RevokeCalendarFeed(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "feedId" -------------
+	var feedId FeedId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "feedId", r.PathValue("feedId"), &feedId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "feedId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeCalendarFeed(w, r, feedId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9347,6 +9575,56 @@ func (siw *ServerInterfaceWrapper) UpdateSavedView(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ExportView operation middleware
+func (siw *ServerInterfaceWrapper) ExportView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId ViewId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", r.PathValue("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportViewParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportView(w, r, viewId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ShareSavedView operation middleware
 func (siw *ServerInterfaceWrapper) ShareSavedView(w http.ResponseWriter, r *http.Request) {
 
@@ -9548,6 +9826,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/views/{viewId}", wrapper.GetSavedView)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/views/{viewId}", wrapper.UpdateSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:share", wrapper.ShareSavedView)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.ListCalendarFeeds)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.CreateCalendarFeed)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/calendar-feeds/{feedId}", wrapper.RevokeCalendarFeed)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/calendar/{token}.ics", wrapper.GetCalendarFeedDocument)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/capabilities", wrapper.GetCapabilities)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/health", wrapper.GetHealthReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/audit", wrapper.ListAuditEntries)

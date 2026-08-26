@@ -303,6 +303,11 @@ func run() error {
 	customFields := postgres.NewCustomFieldRepository()
 	// The bookmark shelf (D-07): stored queries, interpreted by nobody on this side of a client.
 	savedViews := postgres.NewSavedViewRepository()
+	// The subscriptions over those bookmarks (D-08). Its own hasher, derived from the
+	// installation secret under the calendar feed's purpose label, so a value from this table can
+	// never be replayed as a personal access token or a page cursor (security.md §5).
+	calendarFeeds := postgres.NewCalendarFeedRepository(
+		security.NewFeedTokenHasher(cfg.SecretKey))
 	reminders := postgres.NewReminderRepository()
 	recurrences := postgres.NewRecurrenceRepository()
 	templates := postgres.NewTemplateRepository(cursors)
@@ -447,6 +452,15 @@ func run() error {
 	savedViewWriter := work.SavedViewWriter{
 		Views: savedViews, Containers: containers, Authorizer: authorizer, Permits: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+
+	// The three feed use cases share one dependency set, and it sits beside the views' because a
+	// feed is a read of a view: the visibility rule the minting asks is the one GetSavedView asks
+	// (D-08).
+	calendarFeedWriter := work.CalendarFeedWriter{
+		Feeds: calendarFeeds, Views: savedViews, Containers: containers, Permits: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{},
 	}
 
 	// An edit and a deletion of a definition share one dependency set (work.CustomFieldWriter):
@@ -792,6 +806,18 @@ func run() error {
 			Views: savedViews, Containers: containers, Permits: authorizer,
 			UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.ExportView{
+			Views: savedViews, Containers: containers, Permits: authorizer,
+			Query: work.QueryItems{
+				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+			ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
+		work.CreateCalendarFeed{Writer: calendarFeedWriter}.Descriptor(),
+		work.ListCalendarFeeds{Writer: calendarFeedWriter}.Descriptor(),
+		work.RevokeCalendarFeed{Writer: calendarFeedWriter}.Descriptor(),
 		work.UpdateSavedView{Writer: savedViewWriter}.Descriptor(),
 		work.DeleteSavedView{Writer: savedViewWriter}.Descriptor(),
 		work.ShareSavedView{Writer: savedViewWriter}.Descriptor(),
@@ -843,6 +869,24 @@ func run() error {
 		}
 		controller.MediaTokens = mediaTokens
 		controller.Clock = clockadapter.System{}
+		// The address a calendar client is handed. Configured rather than taken from the
+		// request's Host, so that one caller cannot decide what the next person's client stores.
+		controller.BaseURL = cfg.BaseURL
+		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
+		// system holds, and every question it asks is asked inwards of the controller (D-08).
+		controller.CalendarFeeds = work.ReadCalendarFeed{
+			Feeds: calendarFeeds, Accounts: postgres.NewAccountRepository(),
+			Export: work.ExportView{
+				Views: savedViews, Containers: containers, Permits: authorizer,
+				Query: work.QueryItems{
+					Items: items, ItemLabels: itemLabels, Containers: containers,
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			},
+			UnitOfWork: unitOfWork,
+		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
 		// call (C-10). The listener is the wake-up; without it the stream still works, at its idle
@@ -941,21 +985,31 @@ func run() error {
 								cfg.RateLimit.AnonymousPerMinute,
 								cfg.RateLimit.TokenPerMinute,
 								cfg.RateLimit.Burst),
-							Next: rest.Localised{
-								Locale: cfg.Locale,
-								Next: rest.Authenticated{
-									Routes:        apiRoutes,
-									Authenticator: authenticate,
-									Locale:        cfg.Locale,
-									Next: rest.Limited{
-										Limiter: limiter,
-										Level:   "tenant",
-										Bucket: rest.TenantBucket(
-											cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-										Next: rest.Idempotent{
-											Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-											Routes: apiRoutes,
-											Next:   apiRoutes,
+							// The feed's own bucket, in front of the lookup rather than behind it:
+							// a subscription polls, and one client polling hard must not shed the
+							// calendar of somebody else behind the same address (D-08, T-21). It
+							// applies to that one route and passes everything else through.
+							Next: rest.Limited{
+								Limiter: limiter,
+								Level:   "feed",
+								Bucket: rest.FeedBucket(
+									cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
+								Next: rest.Localised{
+									Locale: cfg.Locale,
+									Next: rest.Authenticated{
+										Routes:        apiRoutes,
+										Authenticator: authenticate,
+										Locale:        cfg.Locale,
+										Next: rest.Limited{
+											Limiter: limiter,
+											Level:   "tenant",
+											Bucket: rest.TenantBucket(
+												cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+											Next: rest.Idempotent{
+												Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+												Routes: apiRoutes,
+												Next:   apiRoutes,
+											},
 										},
 									},
 								},

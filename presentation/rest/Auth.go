@@ -30,6 +30,11 @@ var PublicRoutes = map[string]bool{
 	// installation (C-06, T-11).
 	http.MethodPut + " " + APIBasePath + "/media/{mediaId}:content": true,
 	http.MethodGet + " " + APIBasePath + "/media/{mediaId}:content": true,
+	// The calendar feed carries its credential in the URL for the same reason and with the same
+	// trust model, and for one more: a calendar client is not a browser and has nowhere to put a
+	// bearer header. The token is the whole of the authorisation, and the route validates it
+	// itself (D-08, security.md §4 T-21).
+	http.MethodGet + " " + APIBasePath + "/calendar/{token}.ics": true,
 }
 
 // bearerScheme is compared case-insensitively, as RFC 9110 §11.1 requires of an auth scheme.

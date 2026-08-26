@@ -42,6 +42,8 @@ tags:
   - name: backup
   - name: retention
   - name: sync
+  - name: views
+  - name: calendar
 
 paths:
   /templates:
@@ -354,6 +356,165 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SavedView"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /views/{viewId}:export:
+    parameters:
+      - $ref: "#/components/parameters/ViewId"
+    post:
+      tags: [views]
+      operationId: exportView
+      description: >
+        The view's result, rendered whole, in one of three formats. A read with no side effect, and
+        a POST for the reason POST /search is one: what a view selects is the caller's content, and
+        a query string travels through access logs, proxies and browser history.
+
+        The view executes under the **caller's** authorisation, exactly as reading it does - two
+        people exporting one shared view export two different files, and neither gets a row their
+        role hides (T-04, T-05).
+
+        Synchronous and bounded rather than a job: the row cap is in /meta/capabilities as
+        max_export_rows, and a result that reached it is answered whole up to the cap with the
+        Export-Truncated header set. The guidelines' "202 plus /jobs/{id}" is what the cap stands
+        in for while there is no /jobs resource - a truncation a caller is told about is honest,
+        and a silent one is not.
+
+        ICS renders the same document the calendar feed serves, from the same renderer: an entry
+        with no due date is not a calendar entry and does not appear.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ViewExport"
+      responses:
+        "200":
+          description: The rendered view
+          headers:
+            Export-Truncated:
+              description: >
+                Present and true when the result reached max_export_rows and the file is the first
+                page of a larger answer. Absent otherwise.
+              schema: { type: boolean }
+          content:
+            text/csv:
+              schema: { type: string }
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ViewExportDocument"
+            text/calendar:
+              schema: { type: string }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/calendar-feeds:
+    get:
+      tags: [calendar]
+      operationId: listCalendarFeeds
+      description: >
+        The caller's own calendar feeds, newest first - never anybody else's, whatever the role: a
+        feed is a credential its owner holds, and an administrator who could list them could
+        subscribe to them.
+
+        The token is not among the fields. It is shown once, when the feed is created, and stored
+        only as its hash; a feed whose token was lost is revoked and made again.
+      responses:
+        "200":
+          description: The feeds
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarFeed"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [calendar]
+      operationId: createCalendarFeed
+      description: >
+        Mints a feed over one saved view, and answers its token and its URL - once. The token is
+        stored as a hash keyed on the installation secret under its own purpose label, so it can
+        never be replayed as a page cursor, a media token or a personal access token, and the
+        stored value cannot be turned back into the token.
+
+        The feed reads as its owner reads, evaluated at every fetch: an owner who loses access to
+        half the view sees the feed narrow with them, and a revoked membership is not survived by
+        a token that remembers better days.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalendarFeedCreate"
+      responses:
+        "201":
+          description: Created, with the token shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarFeedSecret"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/calendar-feeds/{feedId}:
+    parameters:
+      - $ref: "#/components/parameters/FeedId"
+    delete:
+      tags: [calendar]
+      operationId: revokeCalendarFeed
+      description: >
+        Revokes the feed. The row stays with the moment it was revoked - which is what makes
+        "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a
+        404 in exactly the words an unknown token produces.
+
+        Somebody else's feed is not found rather than forbidden, for the reason every other read
+        of somebody else's thing is (T-04).
+      responses:
+        "204":
+          description: Revoked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /calendar/{token}.ics:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: >
+          The feed's token, which is the whole credential: this route carries no bearer
+          authentication, and the URL is what a calendar client stores. It names the tenant in
+          clear inside itself because the lookup needs one before it can happen - the table is
+          behind row level security like every other, and a tenant taken from a header or a query
+          would be a way around it (multi-tenancy.md §2.2).
+        schema: { type: string }
+    get:
+      tags: [calendar]
+      operationId: getCalendarFeedDocument
+      security: []
+      description: >
+        The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an
+        all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it
+        stays put across a daylight saving transition.
+
+        Minimal by default: the title, the dates and a link back, never the notes - the restraint
+        data-protection.md §9 puts on email applies here for the same reason, since a calendar
+        entry is read on devices and screens nobody in this workspace controls.
+
+        An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner
+        has lost the view all answer the same 404 with the same body. Distinguishing them would
+        answer questions to whoever is trying tokens.
+      responses:
+        "200":
+          description: The calendar
+          content:
+            text/calendar:
+              schema: { type: string }
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -3029,6 +3190,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    FeedId:
+      name: feedId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     TemplateId:
       name: templateId
       in: path
@@ -3601,6 +3767,102 @@ components:
         sharing:
           type: string
           enum: [PRIVATE, SCOPE, PUBLIC_LINK]
+
+    ViewExport:
+      type: object
+      required: [format]
+      description: >
+        What to render and how. The view decides which rows; the format decides what they become.
+      properties:
+        format:
+          type: string
+          enum: [CSV, JSON, ICS]
+          description: >
+            CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the
+            entries that have a due date, because an entry with no date is not a calendar entry.
+        time_zone:
+          type: string
+          description: >
+            The zone the dates are written in. Defaults to the caller's own. It decides how a
+            timestamp reads, never which rows are selected.
+          example: "Europe/Berlin"
+
+    ViewExportDocument:
+      type: object
+      description: >
+        The JSON rendering - the view's rows, and what the export knows about itself.
+      required: [view_id, generated_at, count, truncated, rows]
+      properties:
+        view_id: { type: string, format: uuid }
+        generated_at: { type: string, format: date-time }
+        count:
+          type: integer
+          description: How many rows are in this document.
+        truncated:
+          type: boolean
+          description: >
+            True when the result reached max_export_rows. The same statement the Export-Truncated
+            header makes, in the one format that can carry it in the body.
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkItem"
+
+    CalendarFeed:
+      type: object
+      description: >
+        One subscription: a token its owner holds, over one saved view, revocable. The token
+        itself is not a member - it exists in the answer to the call that minted it and nowhere
+        else afterwards.
+      required: [id, account_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        account_id:
+          type: string
+          format: uuid
+          description: The owner, whose authorisation the feed reads with at every fetch.
+        view_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The view the feed serves, or null once that view has been deleted. Null rather than
+            the row going with it: a feed is the subscriber's and a view is the workspace's, so a
+            deleted view leaves a feed that serves nothing and says so.
+        created_at: { type: string, format: date-time }
+        revoked_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When the token stopped working. Kept rather than deleted, so that "this token was
+            revoked on Tuesday" is answerable.
+
+    CalendarFeedCreate:
+      type: object
+      required: [view_id]
+      properties:
+        view_id:
+          type: string
+          format: uuid
+          description: The saved view to serve. It has to be one the caller may read.
+
+    CalendarFeedSecret:
+      allOf:
+        - $ref: "#/components/schemas/CalendarFeed"
+        - type: object
+          required: [token, url]
+          properties:
+            token:
+              type: string
+              description: >
+                The credential, in clear, for the only time. Store it or lose it: what is kept is
+                a hash, and nothing can turn that back into this.
+            url:
+              type: string
+              format: uri
+              description: >
+                The address to hand a calendar client, which is the token in its place. It carries
+                the credential, so it is treated as one - not pasted into a chat, not put in a
+                ticket.
 
     CustomFieldDefinition:
       type: object

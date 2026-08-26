@@ -148,6 +148,13 @@ shape and with its own merge question. The history is read through `ListActivity
 (`GET /items/{id}/activity`), which is an ordinary page request and is available offline only as far
 as a client cached it.
 
+**A calendar feed does not travel at all.** It is a credential over a view rather than a piece of
+work: it is not in the change log, it is not merged, and a device holds nothing about it beyond
+whatever URL its calendar client stored. §1 already puts "applying templates" and the rest of the
+credential-shaped operations in the right-hand column, and minting or revoking a subscription joins
+them for the same reason - the outcome cannot be predicted without the server, and a device that
+faked one would be handing out a URL that opens nothing (D-08).
+
 ### 4.3 What the server always decides itself
 
 Permissions, the tenant boundary, the invariants of the capability matrix (which type may sit under

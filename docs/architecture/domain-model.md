@@ -225,6 +225,7 @@ stateDiagram-v2
 | `AutoAssignPolicy` | `scope`, `strategy`, `candidates[]` (accounts/groups), `state` (for round robin) | See below |
 | `AutomationRule` | See [automation.md](./automation.md) | |
 | `WebhookSubscription` | `tenantId`, `targetUrl`, `eventTypes[]`, `secret`, `state`, `failureCount` | HMAC-SHA256 signature, auto-disable after sustained failure |
+| `CalendarFeed` | `tenantId`, `accountId` (the owner), `viewId`, `tokenHash`, `revokedAt` | The token is answered once and stored only as a purpose-labelled HMAC. The feed reads as its owner, evaluated at every fetch; revocation is a stamp, and a deleted view leaves the feed serving nothing (D-08, T-21) |
 
 **The `ActivityEntry` verbs.** The verb is a message code and the catalogue key is that verb in the
 `activity` namespace: `item.completed` is stored, `activity.item_completed` is what a client renders
@@ -378,8 +379,16 @@ view nobody can read back is not a view.
 `TriggerRuleManually`, `ListRuleRuns`, `ReplayRuleRun`.
 
 **Integration** `CreateWebhookSubscription`, `UpdateWebhookSubscription`, `DeleteWebhookSubscription`,
-`ListDeliveries`, `ReplayDelivery`, `CreateCalendarFeed`, `RevokeCalendarFeed`,
-`CreateAccessToken`, `RevokeAccessToken`, `CreateServiceAccount`.
+`ListDeliveries`, `ReplayDelivery`, `CreateCalendarFeed`, `ListCalendarFeeds`,
+`RevokeCalendarFeed`, `CreateAccessToken`, `RevokeAccessToken`, `CreateServiceAccount`.
+
+The list of feeds joined with D-08 for the reason the two lists above it joined: a credential
+somebody can mint and never see again is one they cannot revoke. All three ask for the view's own
+read permission and nothing more - a feed grants exactly what its owner may already read, and
+revocation must never be harder to reach than minting was. The fetch itself is deliberately **not**
+in the catalogue: `GET /calendar/{token}.ics` answers a credential nobody in this system holds, so
+there is nothing for MCP or an automation rule to call, and it is served by the internal
+`ReadCalendarFeed` the way `MediaContent` serves the content routes.
 
 **Identity & tenancy** `ProvisionTenant`, `UpdateTenantSettings`, `SuspendTenant`, `DeleteTenant`,
 `ExportTenantData`, `InviteAccount`, `UpdateAccountPreferences`, `GrantMembership`, `RevokeMembership`,

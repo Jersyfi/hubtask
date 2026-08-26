@@ -730,6 +730,7 @@ CREATE TABLE calendar_feed (
     FOREIGN KEY (tenant_id, view_id) REFERENCES saved_view (tenant_id, id) ON DELETE SET NULL (view_id)
 );
 CREATE UNIQUE INDEX calendar_feed_token_uq ON calendar_feed (token_hash);
+CREATE INDEX calendar_feed_account_idx ON calendar_feed (tenant_id, account_id, created_at DESC, id DESC);
 
 -- ============================== Notification ===============================
 

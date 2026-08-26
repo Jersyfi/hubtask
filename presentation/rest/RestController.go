@@ -53,6 +53,17 @@ type RestController struct {
 	// rather than time.Now so that a test can stand at the moment a token expires.
 	Clock clock.Clock
 
+	// BaseURL is this installation's public address, and the only thing this controller composes
+	// rather than maps: a calendar feed is handed to a client as a URL to subscribe to, and a URL
+	// is a fact about the installation rather than about the domain (D-08). Empty answers a
+	// relative address, which is what a client that just called this server can still use.
+	BaseURL string
+
+	// CalendarFeeds serves the public .ics route, which is not a catalogue entry either: it
+	// answers a credential nobody in this system holds, and there is nothing for MCP or an
+	// automation rule to call (D-08). Nil leaves the route answering the pending 404.
+	CalendarFeeds CalendarFeedReader
+
 	// Stream serves `GET /stream`, which is not a catalogue entry either: it is a connection being
 	// held rather than an operation being invoked, so there is nothing for MCP or an automation
 	// rule to call (C-10). Nil leaves the route answering the pending 404, which is what an

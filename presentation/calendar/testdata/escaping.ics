@@ -1,0 +1,28 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Hubtask//Hubtask//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Everything\; all of it
+BEGIN:VEVENT
+UID:018f2a1b-0000-7000-8000-000000000005@hubtask
+DTSTAMP:20261020T060000Z
+DTSTART:20261022T143000Z
+SUMMARY:Buy milk\, bread\; and \\ then\nring Ada
+END:VEVENT
+BEGIN:VEVENT
+UID:018f2a1b-0000-7000-8000-000000000006@hubtask
+DTSTAMP:20261020T060000Z
+DTSTART:20261022T153000Z
+SUMMARY:a very long title a very long title a very long title a very long t
+ itle a very long title a very long title a very long title a very long tit
+ le 
+END:VEVENT
+BEGIN:VEVENT
+UID:018f2a1b-0000-7000-8000-000000000007@hubtask
+DTSTAMP:20261020T060000Z
+DTSTART:20261022T163000Z
+SUMMARY:Grüße an die Nachbarn Grüße an die Nachbarn Grüße an die Nach
+ barn Grüße an die Nachbarn Grüße an die Nachbarn 
+END:VEVENT
+END:VCALENDAR

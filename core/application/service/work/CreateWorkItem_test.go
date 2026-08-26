@@ -40,6 +40,10 @@ type items struct {
 	result   repository.ItemQueryResult
 	searched []repository.ItemSearch
 	queryErr error
+	// queryPages is the answer sequence a caller that pages gets, one per call, and it wins over
+	// result while it lasts. The export is the only caller that walks (D-08); everything else
+	// asks once and reads result.
+	queryPages []repository.ItemQueryResult
 	// hits is what Search answers with, and searchedText is every request it was handed (C-08's
 	// full text search).
 	hits         repository.ItemHitPage
@@ -344,6 +348,11 @@ func (i *items) Query(_ context.Context, search repository.ItemSearch) (reposito
 	i.searched = append(i.searched, search)
 	if i.queryErr != nil {
 		return repository.ItemQueryResult{}, i.queryErr
+	}
+	if len(i.queryPages) > 0 {
+		page := i.queryPages[0]
+		i.queryPages = i.queryPages[1:]
+		return page, nil
 	}
 	return i.result, nil
 }

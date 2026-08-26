@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -209,6 +210,38 @@ func CredentialBucket(anonymousPerMinute, tokenPerMinute, burst int) func(*http.
 		}
 		return Bucket{Key: "a" + ClientAddress(r), Limit: anonymousPerMinute, Burst: burst}
 	}
+}
+
+// FeedBucket counts per calendar feed token, and applies to nothing else.
+//
+// The public .ics route is the one place where a credential arrives in the URL, so the bucket in
+// front of it has to be keyed on that credential rather than on the caller's address: a household
+// behind one address may hold several subscriptions, and one client polling hard must not shed
+// another person's calendar. It sits beside the credential bucket rather than instead of it - a
+// caller trying tokens is still an anonymous stranger to that one, which is what bounds the
+// guessing, while this bounds the polling (D-08, security.md §4 T-21).
+//
+// The token is fingerprinted for the reason a bearer credential is: the map ends up in a heap
+// dump, and a heap dump with live feed URLs in it is a second incident on top of the first.
+func FeedBucket(perMinute, burst int) func(*http.Request) Bucket {
+	return func(r *http.Request) Bucket {
+		token := feedTokenInPath(r.URL.Path)
+		if token == "" {
+			return Bucket{}
+		}
+		return Bucket{Key: fingerprint(token), Limit: perMinute, Burst: burst}
+	}
+}
+
+// feedTokenInPath reads the credential out of the path, and answers empty for every other route.
+// A string operation on a path this layer owns: whether the token means anything is decided in
+// the application layer, and this only has to know which requests to count.
+func feedTokenInPath(path string) string {
+	const prefix = APIBasePath + "/calendar/"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, icsExtension) {
+		return ""
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(path, prefix), icsExtension)
 }
 
 // TenantBucket counts per tenant, so that one busy token cannot spend a whole tenant's budget and
