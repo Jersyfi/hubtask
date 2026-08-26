@@ -36,6 +36,7 @@ tags:
   - name: comments
   - name: reminders
   - name: recurrence
+  - name: templates
   - name: media
   - name: audit
   - name: backup
@@ -43,6 +44,158 @@ tags:
   - name: sync
 
 paths:
+  /templates:
+    get:
+      tags: [templates]
+      operationId: listTemplates
+      description: >
+        The templates the caller may use, newest first. Naming a container answers the ones defined
+        along that container's path - the collection's, its hub's and the workspace-wide ones -
+        because that is the set a person picking a template in a collection can choose from.
+        Naming none answers the workspace-wide ones alone.
+      parameters:
+        - name: container_id
+          in: query
+          required: false
+          description: The container whose templates are wanted, together with the ones above it.
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The templates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplatePage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [templates]
+      operationId: createTemplate
+      description: >
+        Defines a template: a name, a scope, and the tree it stamps out. The tree is validated here
+        rather than at instantiation - a template that cannot produce anything is one nobody can
+        fix from a failed instantiation - so the types have to be permitted under one another by
+        this installation's capability profiles, and the tree has to stay inside the node cap in
+        /meta/capabilities.
+
+        A node's due date is relative: an ISO-8601 duration from the anchor of the instantiation,
+        such as P3D for "three days in". Absolute dates are deliberately not stored: a template
+        outlives the week it was written in.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateInput"
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /templates/{templateId}:
+    parameters:
+      - $ref: "#/components/parameters/TemplateId"
+    get:
+      tags: [templates]
+      operationId: getTemplate
+      responses:
+        "200":
+          description: The template
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [templates]
+      operationId: updateTemplate
+      description: >
+        Changes a template. A merge patch: a member that is not sent is not touched. The node tree
+        is one member and travels whole - a tree is a shape rather than a list of settings, and
+        half of one is a different shape.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateUpdate"
+      responses:
+        "200":
+          description: Changed
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [templates]
+      operationId: deleteTemplate
+      description: >
+        Removes a template. A soft delete: the trees it has already stamped out are ordinary
+        entries and outlive it, and a template defined later under the same name is a new template
+        rather than the old one coming back.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /templates/{templateId}:instantiate:
+    parameters:
+      - $ref: "#/components/parameters/TemplateId"
+    post:
+      tags: [templates]
+      operationId: instantiateTemplate
+      description: >
+        Stamps the template out into a collection: an entry tree whose relative dates have become
+        absolute ones, anchored either at a date the request names or at the moment of the call.
+        The anchor is a date rather than an instant - "+3 days for a project starting Monday" is
+        about days - and it is read in the caller's own time zone.
+
+        What the target collection cannot carry is reported rather than dropped silently: an
+        assignee who cannot see it, a label it does not have. Idempotent under its Idempotency-Key.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateInstantiation"
+      responses:
+        "201":
+          description: The tree the template produced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateInstance"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /views:
     get:
       tags: [views]
@@ -2876,6 +3029,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    TemplateId:
+      name: templateId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     CustomFieldKey:
       name: key
       in: path
@@ -4278,6 +4436,151 @@ components:
         horizon_days: { type: integer, minimum: 1, maximum: 365, default: 90 }
         ends_at: { type: [string, "null"], format: date-time }
         max_count: { type: [integer, "null"], minimum: 1 }
+
+    Template:
+      type: object
+      required: [id, scope_type, name, root_type, nodes, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        scope_type:
+          $ref: "#/components/schemas/TemplateScope"
+        scope_id:
+          type: [string, "null"]
+          format: uuid
+          description: The container the template is defined in. Null for a workspace-wide one.
+        name: { type: string, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        root_type:
+          $ref: "#/components/schemas/ItemType"
+        nodes:
+          type: array
+          description: >
+            The tree, roots first. Each node carries its own children, so the document is the shape
+            the template stamps out rather than a flat list with parent pointers.
+          items:
+            $ref: "#/components/schemas/TemplateNode"
+        created_at: { type: string, format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        version: { type: integer }
+
+    TemplateScope:
+      type: string
+      enum: [TENANT, HUB, COLLECTION]
+      description: >
+        Where the template is defined and therefore who can use it: the whole workspace, one hub
+        and everything under it, or one collection. Defining one workspace-wide is an
+        administrator's act; defining one in a container follows the role matrix there.
+
+    TemplateNode:
+      type: object
+      required: [type, title]
+      properties:
+        type:
+          $ref: "#/components/schemas/ItemType"
+        title: { type: string, maxLength: 500 }
+        notes: { type: [string, "null"] }
+        due_offset:
+          type: [string, "null"]
+          example: "P3D"
+          description: >
+            An ISO-8601 duration from the instantiation's anchor - P3D is "three days in", -P1D is
+            "the day before". Absent for a node with no due date. Years and months are refused for
+            the reason a reminder refuses them: they are calendar arithmetic rather than a length
+            of time.
+        due_date_only:
+          type: boolean
+          default: false
+          description: True for a node whose due date is a day rather than a moment.
+        assignee_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Who this step always belongs to. The assignment rule a template can carry: a fixed
+            person, because the collection's own policy already applies when an entry is created
+            and naming it here would name what happens anyway. Reported and dropped when the
+            person cannot see the target collection (I-W6).
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateNode"
+
+    TemplateInput:
+      type: object
+      required: [scope_type, name, root_type, nodes]
+      properties:
+        scope_type:
+          $ref: "#/components/schemas/TemplateScope"
+        scope_id: { type: [string, "null"], format: uuid }
+        name: { type: string, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        root_type:
+          $ref: "#/components/schemas/ItemType"
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateNode"
+
+    TemplateUpdate:
+      type: object
+      description: A merge patch. An absent member is not touched; the node tree travels whole.
+      properties:
+        name: { type: string, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateNode"
+
+    TemplateInstantiation:
+      type: object
+      required: [collection_id]
+      properties:
+        collection_id:
+          type: string
+          format: uuid
+          description: The collection the tree lands in.
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The entry the tree hangs from, when the template's root type is one that sits under
+            another. Absent puts it at the top level of the collection.
+        anchor_date:
+          type: [string, "null"]
+          format: date
+          description: >
+            The day the relative dates count from, read in the caller's time zone. Absent anchors
+            at the moment of the call.
+        title:
+          type: [string, "null"]
+          maxLength: 500
+          description: The root entry's title, overriding the template's own.
+
+    TemplateInstance:
+      type: object
+      required: [template_id, root_item_id, created, dropped_references]
+      properties:
+        template_id: { type: string, format: uuid }
+        root_item_id: { type: string, format: uuid }
+        created:
+          type: integer
+          description: How many entries the template produced, the root included.
+        dropped_references:
+          type: array
+          description: What the target collection could not carry (I-W6).
+          items:
+            $ref: "#/components/schemas/DroppedReference"
+
+    TemplatePage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Template"
+        page:
+          $ref: "#/components/schemas/PageInfo"
 
     Reminder:
       type: object
