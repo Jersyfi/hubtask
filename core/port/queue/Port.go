@@ -131,6 +131,16 @@ const (
 	// to the next moment the tenant owes. Instance-wide schedules belong to no tenant and are the
 	// leader's duty instead - see the scheduler.
 	KindBackupSchedule Kind = "backup.schedule"
+
+	// KindAuditExport writes a period of the audit trail to a backup target as a signed archive
+	// (E-09, audit.md §5).
+	//
+	// A job rather than a request, and the reason is in the numbers: an export over four hundred
+	// days is as large as the tenant was busy, and it is the second operation this system has that
+	// cannot be bounded - which is why `/jobs/{id}` had to exist before this task could start.
+	// Deduplicated on the export rather than on the tenant: two jobs for one export are the same
+	// work, and two exports of different periods in one tenant are two legitimate questions.
+	KindAuditExport Kind = "audit.export"
 )
 
 func (k Kind) String() string { return string(k) }

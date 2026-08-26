@@ -250,3 +250,47 @@ func TestABreakIsAnsweredWithItsSequenceNumber(t *testing.T) {
 		}
 	}
 }
+
+// The export over REST: a 202 with the job to poll, and no result URL - the archive lands at the
+// backup target the caller named rather than at a URL this server can hand back.
+func TestAnExportIsAcceptedAsAJob(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"job_id":    "0192f000-0000-7000-8000-0000000000c1",
+		"export_id": "0192f000-0000-7000-8000-0000000000c2",
+	}}
+
+	controller := NewRestController()
+	controller.UseCases = registry
+	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+	request := httptest.NewRequestWithContext(ctx, http.MethodPost, APIBasePath+"/audit:export",
+		strings.NewReader(`{"from":"2026-08-01T00:00:00Z","to":"2026-09-01T00:00:00Z",`+
+			`"target_id":"0192f000-0000-7000-8000-0000000000f1","format":"CSV"}`))
+	request.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("the export answered %d: %s", recorder.Code, recorder.Body)
+	}
+	if !strings.Contains(recorder.Body.String(), `"job_id":"0192f000-0000-7000-8000-0000000000c1"`) {
+		t.Errorf("the job reference came back as %s", recorder.Body)
+	}
+	if registry.name != exportAuditTrailUseCase {
+		t.Errorf("the request ran %q", registry.name)
+	}
+	for field, want := range map[string]any{
+		"from":      "2026-08-01T00:00:00Z",
+		"to":        "2026-09-01T00:00:00Z",
+		"target_id": "0192f000-0000-7000-8000-0000000000f1",
+		"format":    "CSV",
+	} {
+		if registry.in[field] != want {
+			t.Errorf("%s reached the catalogue as %v, want %v", field, registry.in[field], want)
+		}
+	}
+}

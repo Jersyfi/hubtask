@@ -447,11 +447,9 @@
   "audit.to_malformed": "The end of the period is not a date and time this installation understands.",
   "audit.period_invalid": "The end of the period must come after its start.",
   "audit.period_required": "An export needs a period: name the start and the end of what is to be exported.",
-  "audit.period_too_long": "That period is longer than an export may cover. Ask for it in shorter stretches.",
   "audit.outcome_invalid": "That is not an outcome an entry can have. Use SUCCESS, DENIED or FAILED.",
   "audit.format_invalid": "That is not a format an audit export can be written in.",
   "audit.export_target_required": "An export needs a backup target to write to.",
-  "audit.export_unavailable": "This installation cannot write an audit export at the moment.",
 
   "activity.entry_incomplete": "This installation could not record that step in the history and therefore did not carry the change out.",
   "activity.verb_unknown": "This installation could not record that step in the history and therefore did not carry the change out.",

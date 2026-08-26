@@ -21,6 +21,7 @@ import (
 const (
 	listAuditEntriesUseCase = "ListAuditEntries"
 	verifyAuditChainUseCase = "VerifyAuditChain"
+	exportAuditTrailUseCase = "ExportAuditTrail"
 )
 
 // ListAuditEntries answers GET /audit.
@@ -95,6 +96,37 @@ func (c *RestController) VerifyAuditChain(w http.ResponseWriter, r *http.Request
 		answer.SealedUntil = &sealed
 	}
 	writeJSON(w, r, http.StatusOK, answer)
+}
+
+// ExportAuditTrail answers POST /audit:export.
+//
+// A `202` with the job to poll. The archive lands at the backup target the caller named rather than
+// at a URL this server can hand back, so the reference carries no `result_url`: an export is at
+// somebody else's machine, which is where the caller asked for it.
+func (c *RestController) ExportAuditTrail(w http.ResponseWriter, r *http.Request) {
+	var body openapi.AuditExport
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+
+	in := usecase.Input{
+		"from":      body.From.UTC().Format(time.RFC3339Nano),
+		"to":        body.To.UTC().Format(time.RFC3339Nano),
+		"target_id": body.TargetId.String(),
+	}
+	if body.Format != nil {
+		in["format"] = string(*body.Format)
+	}
+
+	out, ok := c.read(w, r, exportAuditTrailUseCase, in)
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusAccepted, openapi.JobRef{
+		JobId:  uuidValue(out.String("job_id")),
+		Status: openapi.JobStatusQUEUED,
+	})
 }
 
 // auditVerification is the answer of POST /audit:verify, which the contract declares inline. The

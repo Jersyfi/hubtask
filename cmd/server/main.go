@@ -854,6 +854,10 @@ func run() error {
 			Trail: auditTrail, Chain: auditadapter.Links{}, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		auditservice.ExportAuditTrail{
+			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		lifecycle.RetainItem{
 			Items: items, Containers: containers,
 			Marking: postgres.NewRetentionMarkingRepository(), Authorizer: authorizer,
@@ -1289,6 +1293,18 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
+	// The audit export (E-09). It writes to a backup target through the seam that owns a target's
+	// credentials, because an export needs somewhere to put bytes and has no business with them.
+	auditArchivist := auditservice.Archivist{
+		Trail: auditTrail,
+		Targets: backupservice.StoreOpener{
+			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
+			UnitOfWork: unitOfWork,
+		},
+		Encryptor: encryptor, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		ProductVersion: version,
+	}
+
 	// The restore, and the backup it takes before a destructive mode (E-06). It shares the
 	// performer so that the safety copy is the same act a scheduled backup is - a second way of
 	// writing an archive would be a second archive format to keep in step.
@@ -1356,6 +1372,7 @@ func run() error {
 		queueport.KindBackupSchedule: worker.BackupScheduling{
 			Pass: backupPass, Fallback: cfg.Retention.Interval,
 		},
+		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {

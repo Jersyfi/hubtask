@@ -154,3 +154,12 @@ func (s *auditSink) Append(_ context.Context, entry port.Entry) error {
 	s.entries = append(s.entries, entry)
 	return nil
 }
+
+// idSource is the identifier generator, counting rather than random: a test asserting which export
+// was queued needs the identifier to be the same on every run.
+type idSource struct{ issued int }
+
+func (i *idSource) NewID() shared.ID {
+	i.issued++
+	return shared.MustParseID("0192f000-0000-7000-8000-00000000010" + string(rune('0'+i.issued)))
+}

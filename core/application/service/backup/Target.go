@@ -749,3 +749,57 @@ func scalarText(value any) (string, bool) {
 		return "", false
 	}
 }
+
+// StoreOpener opens a configured target for somebody who needs to write to one and has no business
+// with its credentials (E-09: the audit export writes its archive to a backup target).
+//
+// The seam is here rather than in the caller because everything it does is this package's: reading
+// the target, unsealing the credential under the purpose it was sealed with, and choosing the
+// adapter. What the caller gets is a place to put bytes.
+type StoreOpener struct {
+	Targets    repository.Targets
+	Opener     backupstorage.Opener
+	Encryptor  crypto.Encryptor
+	UnitOfWork persistence.UnitOfWork
+}
+
+// OpenTarget answers the store for one target of one tenant.
+//
+// The read happens in a short transaction of its own and the store outlives it. A target is
+// somebody else's machine, and a transaction held open while bytes travel to one is what
+// observability-reliability.md §8 forbids.
+func (o StoreOpener) OpenTarget(
+	ctx context.Context, tenantID, targetID shared.ID,
+) (backupstorage.Store, error) {
+	var (
+		target      domain.Target
+		credentials map[string]secret.Secret
+	)
+
+	err := o.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
+		func(ctx context.Context) error {
+			found, err := o.Targets.Find(ctx, targetID)
+			if err != nil {
+				return err
+			}
+			if !found.Enabled {
+				return shared.ErrConflict.WithDetail(domain.CodeTargetDisabled).
+					WithParams(map[string]string{"target_id": targetID.String()})
+			}
+			target = found
+
+			sealed, err := o.Targets.Credential(ctx, targetID)
+			if err != nil {
+				return err
+			}
+			credentials, err = unsealCredentials(ctx, o.Encryptor, targetID, sealed)
+			return err
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	return o.Opener.Open(ctx, backupstorage.Spec{
+		Kind: target.Kind, Config: target.Config, Credentials: credentials,
+	})
+}
