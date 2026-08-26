@@ -113,7 +113,20 @@ func (c *Client) Post(ctx context.Context, path string, body, into any) error {
 // Put writes one addressed resource - a custom field's value, an attachment's membership. The
 // operations behind it are idempotent by contract, which is what makes PUT the right verb.
 func (c *Client) Put(ctx context.Context, path string, body, into any) error {
-	return c.call(ctx, http.MethodPut, path, nil, body, nil, into)
+	return c.PutVersioned(ctx, path, body, "", into)
+}
+
+// PutVersioned is Put with the version the caller read as a precondition (ADR-0025). An empty
+// version sends no If-Match, exactly as Delete's does: whether one is required is the server's
+// answer rather than a guess made here.
+func (c *Client) PutVersioned(
+	ctx context.Context, path string, body any, ifMatch string, into any,
+) error {
+	header := map[string][]string{}
+	if ifMatch != "" {
+		header["If-Match"] = []string{ifMatch}
+	}
+	return c.call(ctx, http.MethodPut, path, nil, body, header, into)
 }
 
 // OpenStream connects to the change stream (C-10) and hands the open response back. The caller

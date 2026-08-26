@@ -27,8 +27,9 @@ func itemGroup() group {
 				run:     itemList,
 			},
 			{
-				name:    "create",
-				usage:   "--collection <id> --type TASK|WORK_PACKAGE|ACTIVITY --title <title>",
+				name: "create",
+				usage: "--collection <id> --type TASK|WORK_PACKAGE|ACTIVITY --title <title>" +
+					" [--due <date|timestamp>] [--due-zone <iana>]",
 				summary: "create an entry",
 				run:     itemCreate,
 			},
@@ -121,13 +122,19 @@ func itemList(ctx context.Context, cli *CLI, args []string) error {
 }
 
 func itemCreate(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "item", "create", "--collection <id> --type TASK|WORK_PACKAGE|ACTIVITY --title <title>")
+	flags := commandFlags(cli, "item", "create",
+		"--collection <id> --type TASK|WORK_PACKAGE|ACTIVITY --title <title> [--due <date|timestamp>]")
 	collection := flags.String("collection", "", "the collection it goes into")
 	kind := flags.String("type", "", "TASK, WORK_PACKAGE or ACTIVITY")
 	title := flags.String("title", "", "what it is called")
 	parent := flags.String("parent", "", "the entry it sits inside")
 	notes := flags.String("notes", "", "the notes body")
 	before := flags.String("before", "", "the sibling to place it before; appended when absent")
+	// The schedule travels with the create rather than needing a second call (D-01): the three
+	// fields dispatch into the same writer either way, and a person creating something they
+	// already know the date of should not have to say it twice.
+	due := flags.String("due", "", "the day (2026-09-10) or the moment it is due")
+	dueZone := flags.String("due-zone", "", "the IANA zone the date is read in")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -143,6 +150,20 @@ func itemCreate(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	body := openapi.WorkItemCreate{Type: itemType, Title: *title, Notes: optional(*notes)}
+	if *due != "" {
+		dated, err := parseDue(cli, "--due", *due)
+		if err != nil {
+			return err
+		}
+		body.DueAt = &dated.at
+		if dated.dateOnly {
+			body.DueDateOnly = &dated.dateOnly
+		}
+		body.DueTimeZone = optional(*dueZone)
+	} else if *dueZone != "" {
+		// The API refuses a zone without a date, and saying so here saves the round trip.
+		return usagef("--due-zone qualifies --due; send both, or neither")
+	}
 	for _, reference := range []struct {
 		flag, value string
 		target      **openapitypes.UUID

@@ -118,6 +118,7 @@
   "items.title_too_long": "The title may be at most {maximum} characters long.",
   "items.title_malformed": "The title has to fit on one line. Longer text belongs in the notes.",
   "items.content_language_invalid": "{value} is not a language tag. Use a code like de, de-AT or zh-Hans.",
+  "items.due_unreadable": "{value} is neither a day (2026-09-10) nor a moment (2026-09-10T09:00:00Z).",
   "items.due_at_malformed": "{value} is not a moment in time. Use RFC 3339, such as 2026-09-01T17:00:00Z.",
   "items.start_at_malformed": "{value} is not a moment in time. Use RFC 3339, such as 2026-09-01T09:00:00Z.",
   "items.due_time_zone_invalid": "{value} is not a time zone. Use an IANA name such as Europe/Berlin.",
