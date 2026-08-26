@@ -86,7 +86,10 @@ schedules, generational retention, listing at the target, restore in every mode 
 deletion journal; retention rules with a preview, a grace period, and safeguards; audit query,
 export, and `:verify`; legal hold; data subject requests (`data_subject_request`) with deadline
 tracking and export. Further target adapters (`ftps`, `ftp`, `smb`, `azure`, `gcs`, `rclone`) follow
-once they pass conformance test BK-1.
+once they pass conformance test BK-1. Two things this list does not name are prerequisites rather
+than additions: `/jobs/{id}`, which `0.4.0` deferred to "the first operation that genuinely cannot
+be bounded" and which three backup responses have been promising since A-06, and the data
+protection gates PG-1…PG-8, which four documents assert and which exist in no form.
 
 ---
 
