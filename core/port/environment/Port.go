@@ -77,6 +77,7 @@ type Config struct {
 	Queue      QueueConfig
 	Retention  RetentionConfig
 	Encryption EncryptionConfig
+	Backup     BackupConfig
 	Media      MediaConfig
 	Locale     LocaleConfig
 	Metrics    MetricsConfig
@@ -124,6 +125,22 @@ type DatabaseConfig struct {
 	// (engineering-guidelines.md §4) - the protection against a runaway query.
 	StatementTimeout       time.Duration
 	WorkerStatementTimeout time.Duration
+}
+
+// BackupConfig is the operator's say over where backups may go (backup-restore.md §2, E-03).
+type BackupConfig struct {
+	// LocalRoot is the volume a `local` target writes inside. A target's own path is relative to
+	// it and cannot leave it, which is what keeps "write my backups to /etc" out of reach of
+	// somebody who administers the instance but not the machine. Empty means this installation
+	// serves no local targets.
+	LocalRoot string
+	// TenantTargets lets a tenant configure its own target in provider operation. Off by default
+	// and named in backup-restore.md §2 as the switch it is: a backup target is an egress
+	// channel, and one a tenant chose is an egress channel the operator did not.
+	//
+	// It has no meaning in single-tenant operation, where the tenant's owner *is* the instance
+	// administrator and there is nobody else it could be protecting.
+	TenantTargets bool
 }
 
 // EncryptionKey is one master key as the environment gives it: an identifier that is stored in

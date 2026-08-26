@@ -75,6 +75,8 @@ func (pending) VerifyAuditChain(w http.ResponseWriter, r *http.Request) { notAva
 
 func (pending) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The three target operations. Overridden by RestController; they stay here because the
+// compile-time assertion is on `pending` itself.
 func (pending) ListBackupTargets(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) CreateBackupTarget(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

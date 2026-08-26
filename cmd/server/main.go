@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
@@ -44,10 +45,13 @@ import (
 	queueport "github.com/Jersyfi/hubtask/core/port/queue"
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
+	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
+	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
@@ -266,6 +270,27 @@ func run() error {
 	// shares no statement with the queue - see infrastructure/postgres/JobRepository.go.
 	jobRecords := postgres.NewJobRepository()
 
+	// The backup targets (E-03). The guard is built here rather than inside the registry because
+	// it is the installation's egress policy and not the backup context's: the day a webhook
+	// leaves this process, it leaves through the same one.
+	//
+	// A backup target's address arrives through the API, which is what makes it a T-07 subject
+	// where the media endpoint is not - so a target on a private network needs
+	// HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS, deliberately and once per installation.
+	outboundGuard := httpclient.NewGuard(cfg.Outbound)
+	outboundClient := httpclient.NewGuardedClient(cfg.Outbound, outboundGuard).
+		WithTracer(tracing.Tracer("backup"))
+	backupTargets := postgres.NewBackupTargetRepository()
+	backupAdapters := backupstorage.NewRegistry(
+		outboundClient, outboundGuard, cfg.Backup.LocalRoot, cfg.Outbound.Timeout, time.Now)
+	// The envelope, whose keyring is empty on an installation that configured none - and which
+	// then refuses to seal rather than writing a credential in the clear (E-02).
+	keyring, err := crypto.NewKeyring(masterKeys(cfg))
+	if err != nil {
+		return fmt.Errorf("encryption keyring: %w", err)
+	}
+	encryptor := crypto.NewEnvelope(keyring, clockadapter.CryptoRandom{})
+
 	// One observer for both channels: a use case gets its span through the registry middleware, a
 	// job through the runner's hook. Two constructions would be two tracers with the same name.
 	observer := observability.NewObserver(metrics, tracing)
@@ -278,6 +303,15 @@ func run() error {
 		Audit:       auditSink,
 		Clock:       clockadapter.System{},
 	}
+	// The three backup use cases share one writer, so that they cannot disagree about which
+	// encryptor sealed a credential - three that did would be three chances to seal one under a
+	// key the others cannot open.
+	backupWriter := backupservice.Writer{
+		Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+	}
+
 	accounts := postgres.NewAccountRepository()
 	groups := postgres.NewGroupRepository()
 	grants := postgres.NewMembershipGrantRepository()
@@ -845,6 +879,10 @@ func run() error {
 			Objects: mediaObjects, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+
+		backupservice.CreateBackupTarget{Writer: backupWriter}.Descriptor(),
+		backupservice.ListBackupTargets{Writer: backupWriter}.Descriptor(),
+		backupservice.TestBackupTarget{Writer: backupWriter}.Descriptor(),
 
 		jobservice.GetJob{
 			Jobs: jobRecords, Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -1474,4 +1512,15 @@ func (d *deferredCatalogue) Invoke(
 		return nil, shared.ErrInternal.WithDetail("usecase.catalogue_unavailable")
 	}
 	return d.catalogue.Invoke(ctx, name, actor, in)
+}
+
+// masterKeys is the configured keyring as the envelope adapter takes it. A translation of two
+// field names rather than a shared type, because the environment port and the cipher adapter have
+// no business knowing each other (E-02).
+func masterKeys(cfg envport.Config) []crypto.KeyMaterial {
+	keys := make([]crypto.KeyMaterial, 0, len(cfg.Encryption.Keys))
+	for _, key := range cfg.Encryption.Keys {
+		keys = append(keys, crypto.KeyMaterial{ID: key.ID, Material: key.Material})
+	}
+	return keys
 }

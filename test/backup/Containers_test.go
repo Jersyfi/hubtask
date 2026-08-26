@@ -85,7 +85,7 @@ func startMinIO(t *testing.T) string {
 	}
 	t.Cleanup(func() { _ = container.Terminate(context.Background()) })
 
-	endpoint := "http://" + hostPort(t, ctx, container, "9000/tcp")
+	endpoint := "http://" + hostPort(ctx, t, container, "9000/tcp")
 
 	// The bucket, made through MinIO's own client rather than by this adapter: creating a bucket
 	// is not something a backup target does, and an adapter that could would be an adapter that
@@ -131,7 +131,7 @@ func startWebDAV(t *testing.T) string {
 	}
 	t.Cleanup(func() { _ = container.Terminate(context.Background()) })
 
-	return "http://" + hostPort(t, ctx, container, "80/tcp") + "/"
+	return "http://" + hostPort(ctx, t, container, "80/tcp") + "/"
 }
 
 // startSFTP runs an OpenSSH with the SFTP subsystem, and reads its host key out of the container
@@ -166,11 +166,11 @@ func startSFTP(t *testing.T) (address, hostKey string) {
 	if err != nil {
 		t.Fatalf("reading the host key: %v", err)
 	}
-	return hostPort(t, ctx, container, "22/tcp"), strings.TrimSpace(stripDockerFrames(key))
+	return hostPort(ctx, t, container, "22/tcp"), strings.TrimSpace(stripDockerFrames(key))
 }
 
 func hostPort(
-	t *testing.T, ctx context.Context, container testcontainers.Container, exposed string,
+	ctx context.Context, t *testing.T, container testcontainers.Container, exposed string,
 ) string {
 	t.Helper()
 

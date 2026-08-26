@@ -671,15 +671,8 @@ paths:
           description: The result
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  ok: { type: boolean }
-                  latency_ms: { type: number }
-                  writable: { type: boolean }
-                  free_bytes: { type: [integer, "null"] }
-                  error_code: { type: [string, "null"] }
-        "403": { $ref: "#/components/responses/Problem" }
+              schema: { $ref: "#/components/schemas/BackupTargetProbe" }
+        "4XX": { $ref: "#/components/responses/Problem" }
 
   /backup-targets/{targetId}/backups:
     get:
@@ -5084,6 +5077,29 @@ components:
           type: boolean
           default: false
           description: "Mandatory for `FTP` or unencrypted storage (encryption_mode NONE)."
+
+    BackupTargetProbe:
+      type: object
+      description: >
+        What a write-read-delete against the target found. A target that could not be reached is a
+        result rather than an error: it is what the caller asked to find out.
+      required: [ok, latency_ms, writable, free_bytes, error_code]
+      properties:
+        ok: { type: boolean }
+        latency_ms: { type: number }
+        writable:
+          type: boolean
+          description: >
+            Whether the write half worked. A target that can be read and not written is a
+            permissions mistake somebody can act on, and it is the common one.
+        free_bytes:
+          type: [integer, "null"]
+          description: >
+            How much room is left, or `null` where the protocol cannot say. A bucket cannot say at
+            all.
+        error_code:
+          type: [string, "null"]
+          description: A message code, never the driver's message (ADR-0011).
 
     BackupArchive:
       type: object

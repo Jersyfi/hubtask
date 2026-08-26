@@ -139,6 +139,10 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			Endpoint:    get("HUBTASK_TRACING_ENDPOINT", ""),
 			SampleRatio: getFloat("HUBTASK_TRACING_SAMPLE_RATIO", 0.05),
 		},
+		Backup: env.BackupConfig{
+			LocalRoot:     get("HUBTASK_BACKUP_LOCAL_PATH", "/var/lib/hubtask/backups"),
+			TenantTargets: getBool("HUBTASK_BACKUP_TENANT_TARGETS", false),
+		},
 		Locale: env.LocaleConfig{
 			DefaultLocale:   get("HUBTASK_DEFAULT_LOCALE", "en"),
 			DefaultTimeZone: get("HUBTASK_DEFAULT_TIMEZONE", "UTC"),
@@ -184,9 +188,6 @@ func (e *EnvConfig) Load() (env.Config, error) {
 // These codes appear in /meta/health (ADR-0016) and are translatable on the client side.
 func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 	var w []env.Warning
-	if os.Getenv("HUBTASK_BACKUP_LOCAL_PATH") == "" && os.Getenv("HUBTASK_BACKUP_TARGETS") == "" {
-		w = append(w, env.Warning{Code: "config.backup_not_configured", Severity: "warn"})
-	}
 	if cfg.Mail.Host == "" {
 		// Two different statements, and the roles decide which one it is. An installation that
 		// serves the API and sends nothing has no mail server, which is worth knowing; one that
