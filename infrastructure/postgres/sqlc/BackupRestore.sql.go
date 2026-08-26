@@ -46,30 +46,32 @@ func (q *Queries) ClaimRestoreRun(ctx context.Context, arg ClaimRestoreRunParams
 
 const findRestoreRun = `-- name: FindRestoreRun :one
 SELECT id, target_id, source_archive, tenant_id, target_tenant_id, mode, conflict_rule, selection,
-       dry_run, safety_backup_run_id, status, report, requested_by, approved_by,
-       started_at, finished_at, error_code
+       dry_run, create_safety_backup, safety_backup_run_id, status, report, progress, requested_by,
+       approved_by, started_at, finished_at, error_code
 FROM restore_run
 WHERE id = $1
 `
 
 type FindRestoreRunRow struct {
-	ID                pgtype.UUID
-	TargetID          pgtype.UUID
-	SourceArchive     string
-	TenantID          pgtype.UUID
-	TargetTenantID    pgtype.UUID
-	Mode              string
-	ConflictRule      string
-	Selection         []byte
-	DryRun            bool
-	SafetyBackupRunID pgtype.UUID
-	Status            string
-	Report            []byte
-	RequestedBy       pgtype.UUID
-	ApprovedBy        pgtype.UUID
-	StartedAt         pgtype.Timestamptz
-	FinishedAt        pgtype.Timestamptz
-	ErrorCode         *string
+	ID                 pgtype.UUID
+	TargetID           pgtype.UUID
+	SourceArchive      string
+	TenantID           pgtype.UUID
+	TargetTenantID     pgtype.UUID
+	Mode               string
+	ConflictRule       string
+	Selection          []byte
+	DryRun             bool
+	CreateSafetyBackup bool
+	SafetyBackupRunID  pgtype.UUID
+	Status             string
+	Report             []byte
+	Progress           []byte
+	RequestedBy        pgtype.UUID
+	ApprovedBy         pgtype.UUID
+	StartedAt          pgtype.Timestamptz
+	FinishedAt         pgtype.Timestamptz
+	ErrorCode          *string
 }
 
 func (q *Queries) FindRestoreRun(ctx context.Context, id pgtype.UUID) (FindRestoreRunRow, error) {
@@ -85,9 +87,11 @@ func (q *Queries) FindRestoreRun(ctx context.Context, id pgtype.UUID) (FindResto
 		&i.ConflictRule,
 		&i.Selection,
 		&i.DryRun,
+		&i.CreateSafetyBackup,
 		&i.SafetyBackupRunID,
 		&i.Status,
 		&i.Report,
+		&i.Progress,
 		&i.RequestedBy,
 		&i.ApprovedBy,
 		&i.StartedAt,
@@ -100,7 +104,10 @@ func (q *Queries) FindRestoreRun(ctx context.Context, id pgtype.UUID) (FindResto
 const finishRestoreRun = `-- name: FinishRestoreRun :execrows
 UPDATE restore_run SET
   status               = $1,
-  report               = $2,
+  -- COALESCE, so that a failure with nothing to report does not erase what the attempt before it
+  -- got through. A restore that died in its pre-check knows nothing; the progress the earlier
+  -- attempt recorded is the only account of what has been done (BK-7).
+  report               = COALESCE($2, report),
   safety_backup_run_id = COALESCE($3, safety_backup_run_id),
   finished_at          = $4,
   error_code           = $5
@@ -137,24 +144,26 @@ func (q *Queries) FinishRestoreRun(ctx context.Context, arg FinishRestoreRunPara
 const insertRestoreRun = `-- name: InsertRestoreRun :exec
 INSERT INTO restore_run (
   id, target_id, source_archive, tenant_id, target_tenant_id, mode, conflict_rule,
-  selection, dry_run, status, requested_by
+  selection, dry_run, create_safety_backup, status, requested_by
 ) VALUES (
   $1, $2, $3, current_tenant_id(),
   $4, $5, $6,
-  $7, $8, 'PENDING', $9
+  $7, $8, $9,
+  'PENDING', $10
 )
 `
 
 type InsertRestoreRunParams struct {
-	ID             pgtype.UUID
-	TargetID       pgtype.UUID
-	SourceArchive  string
-	TargetTenantID pgtype.UUID
-	Mode           string
-	ConflictRule   string
-	Selection      []byte
-	DryRun         bool
-	RequestedBy    pgtype.UUID
+	ID                 pgtype.UUID
+	TargetID           pgtype.UUID
+	SourceArchive      string
+	TargetTenantID     pgtype.UUID
+	Mode               string
+	ConflictRule       string
+	Selection          []byte
+	DryRun             bool
+	CreateSafetyBackup bool
+	RequestedBy        pgtype.UUID
 }
 
 // The run row, written in the transaction that accepts the restore (§8.3 step 1). PENDING: the
@@ -169,6 +178,7 @@ func (q *Queries) InsertRestoreRun(ctx context.Context, arg InsertRestoreRunPara
 		arg.ConflictRule,
 		arg.Selection,
 		arg.DryRun,
+		arg.CreateSafetyBackup,
 		arg.RequestedBy,
 	)
 	return err
@@ -240,6 +250,33 @@ func (q *Queries) JournalledDeletions(ctx context.Context, arg JournalledDeletio
 		return nil, err
 	}
 	return items, nil
+}
+
+const recordRestoreProgress = `-- name: RecordRestoreProgress :execrows
+UPDATE restore_run SET
+  report   = $1,
+  progress = $2
+WHERE id = $3
+  AND status IN ('PENDING', 'VALIDATING', 'RUNNING')
+`
+
+type RecordRestoreProgressParams struct {
+	Report   []byte
+	Progress []byte
+	ID       pgtype.UUID
+}
+
+// How far the run has got, written in the transaction of the batch it got there with (BK-7).
+//
+// The report travels with it because a resumed attempt continues counting rather than starting
+// again: a report that only covered the last attempt would say a restore did a fraction of what it
+// did.
+func (q *Queries) RecordRestoreProgress(ctx context.Context, arg RecordRestoreProgressParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordRestoreProgress, arg.Report, arg.Progress, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const recordRestoreSafetyCopy = `-- name: RecordRestoreSafetyCopy :execrows

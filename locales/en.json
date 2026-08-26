@@ -730,6 +730,7 @@
   "backup.restore_archive_scope_mismatch": "That archive belongs to another workspace, so it cannot be restored here.",
   "backup.restore_schema_ahead": "That archive comes from a newer version of Hubtask ({archive}) than this one ({installed}). Update first, then restore.",
   "backup.restore_in_progress": "A restore is already running here. Wait for it to finish.",
+  "backup.restore_safety_copy_unavailable": "This restore would replace data and no safety copy could be taken first, so it was refused. Configure a backup target with room on it, or ask for the restore without a safety copy once you are sure.",
   "backup.restore_failed": "That restore did not finish.",
   "backup.restore_started": "A restore was started.",
   "backup.restore_finished": "A restore finished.",

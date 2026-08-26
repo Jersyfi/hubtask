@@ -1103,10 +1103,17 @@ CREATE TABLE restore_run (
   conflict_rule  text NOT NULL DEFAULT 'SKIP' CHECK (conflict_rule IN ('SKIP','OVERWRITE','DUPLICATE')),
   selection      jsonb,                               -- the container/item selection for SELECTIVE
   dry_run        boolean NOT NULL DEFAULT true,
+  -- Whether §8.3 step 4's copy is wanted. Declinable, because the step's own parenthesis is "if
+  -- there is room at the target" (migration 0035).
+  create_safety_backup boolean NOT NULL DEFAULT true,
   safety_backup_run_id uuid REFERENCES backup_run(id),
   status         text NOT NULL DEFAULT 'PENDING'
                    CHECK (status IN ('PENDING','VALIDATING','RUNNING','SUCCEEDED','FAILED','CANCELLED')),
   report         jsonb,                               -- new/overwritten/skipped/conflicts
+  -- How far the run got, per entity, written with each batch. A resumed attempt skips what has
+  -- already been decided; the archive is immutable, so "the first N records" names the same N
+  -- every time (migration 0036).
+  progress       jsonb,
   requested_by   uuid NOT NULL,
   approved_by    uuid,
   started_at     timestamptz,

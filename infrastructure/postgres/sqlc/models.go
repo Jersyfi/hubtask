@@ -933,7 +933,9 @@ type RestoreRun struct {
 	FinishedAt        pgtype.Timestamptz
 	ErrorCode         *string
 	// The tenant being restored into. Differs from tenant_id only for NEW_TENANT, and is NULL for an instance restore.
-	TargetTenantID pgtype.UUID
+	TargetTenantID     pgtype.UUID
+	CreateSafetyBackup bool
+	Progress           []byte
 }
 
 type RetentionPolicy struct {

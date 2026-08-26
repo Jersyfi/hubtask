@@ -24,17 +24,18 @@ LIMIT sqlc.arg('batch')::int;
 -- job has not started, and a caller polling `result_url` sees that rather than a 404.
 INSERT INTO restore_run (
   id, target_id, source_archive, tenant_id, target_tenant_id, mode, conflict_rule,
-  selection, dry_run, status, requested_by
+  selection, dry_run, create_safety_backup, status, requested_by
 ) VALUES (
   sqlc.arg('id'), sqlc.arg('target_id'), sqlc.arg('source_archive'), current_tenant_id(),
   sqlc.narg('target_tenant_id'), sqlc.arg('mode'), sqlc.arg('conflict_rule'),
-  sqlc.narg('selection'), sqlc.arg('dry_run'), 'PENDING', sqlc.arg('requested_by')
+  sqlc.narg('selection'), sqlc.arg('dry_run'), sqlc.arg('create_safety_backup'),
+  'PENDING', sqlc.arg('requested_by')
 );
 
 -- name: FindRestoreRun :one
 SELECT id, target_id, source_archive, tenant_id, target_tenant_id, mode, conflict_rule, selection,
-       dry_run, safety_backup_run_id, status, report, requested_by, approved_by,
-       started_at, finished_at, error_code
+       dry_run, create_safety_backup, safety_backup_run_id, status, report, progress, requested_by,
+       approved_by, started_at, finished_at, error_code
 FROM restore_run
 WHERE id = sqlc.arg('id');
 
@@ -62,7 +63,10 @@ WHERE run.id = sqlc.arg('id')
 -- cancelled.
 UPDATE restore_run SET
   status               = sqlc.arg('status'),
-  report               = sqlc.narg('report'),
+  -- COALESCE, so that a failure with nothing to report does not erase what the attempt before it
+  -- got through. A restore that died in its pre-check knows nothing; the progress the earlier
+  -- attempt recorded is the only account of what has been done (BK-7).
+  report               = COALESCE(sqlc.narg('report'), report),
   safety_backup_run_id = COALESCE(sqlc.narg('safety_backup_run_id'), safety_backup_run_id),
   finished_at          = sqlc.arg('finished_at'),
   error_code           = sqlc.narg('error_code')
@@ -81,3 +85,15 @@ WHERE id = sqlc.arg('id');
 SELECT EXISTS (
   SELECT 1 FROM restore_run WHERE status IN ('PENDING', 'VALIDATING', 'RUNNING')
 ) AS running;
+
+-- name: RecordRestoreProgress :execrows
+-- How far the run has got, written in the transaction of the batch it got there with (BK-7).
+--
+-- The report travels with it because a resumed attempt continues counting rather than starting
+-- again: a report that only covered the last attempt would say a restore did a fraction of what it
+-- did.
+UPDATE restore_run SET
+  report   = sqlc.arg('report'),
+  progress = sqlc.arg('progress')
+WHERE id = sqlc.arg('id')
+  AND status IN ('PENDING', 'VALIDATING', 'RUNNING');

@@ -58,7 +58,8 @@ func (r RestoreRunRepository) Insert(ctx context.Context, restore domain.Restore
 		ID: id, TargetID: targetID, SourceArchive: restore.SourceArchive,
 		TargetTenantID: into, Mode: string(restore.Mode),
 		ConflictRule: string(restore.ConflictRule), Selection: selection,
-		DryRun: restore.DryRun, RequestedBy: requestedBy,
+		DryRun: restore.DryRun, CreateSafetyBackup: restore.CreateSafetyBackup,
+		RequestedBy: requestedBy,
 	})
 	if err != nil {
 		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
@@ -125,9 +126,14 @@ func (r RestoreRunRepository) Finish(ctx context.Context, outcome domain.Restore
 	if err != nil {
 		return err
 	}
-	report, err := json.Marshal(reportRow(outcome.Report))
-	if err != nil {
-		return shared.Internalf("postgres: a restore report could not be encoded: %w", err)
+	// Nothing to report is written as nothing rather than as zeroes: the statement keeps what is
+	// already there, which on a resumed run is the account of what earlier attempts got through.
+	var report []byte
+	if !isEmptyReport(outcome.Report) {
+		report, err = json.Marshal(reportRow(outcome.Report))
+		if err != nil {
+			return shared.Internalf("postgres: a restore report could not be encoded: %w", err)
+		}
 	}
 
 	affected, err := queries.FinishRestoreRun(ctx, sqlc.FinishRestoreRunParams{
@@ -144,6 +150,43 @@ func (r RestoreRunRepository) Finish(ctx context.Context, outcome domain.Restore
 		// over one would be a report of work nobody let finish.
 		return shared.ErrConflict.WithDetail(domain.CodeRestoreNotRunning).
 			WithParams(map[string]string{"restore_id": outcome.ID.String()})
+	}
+	return nil
+}
+
+// RecordProgress writes how far the run has got, and the report so far.
+func (r RestoreRunRepository) RecordProgress(
+	ctx context.Context, id shared.ID, report domain.Report, progress map[string]int,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	encodedReport, err := json.Marshal(reportRow(report))
+	if err != nil {
+		return shared.Internalf("postgres: a restore report could not be encoded: %w", err)
+	}
+	encodedProgress, err := json.Marshal(progress)
+	if err != nil {
+		return shared.Internalf("postgres: a restore's progress could not be encoded: %w", err)
+	}
+
+	affected, err := queries.RecordRestoreProgress(ctx, sqlc.RecordRestoreProgressParams{
+		ID: key, Report: encodedReport, Progress: encodedProgress,
+	})
+	if err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording a restore's progress: %w", err))
+	}
+	if affected == 0 {
+		// The run is no longer going. A batch that committed under a cancelled restore is work
+		// the caller stopped, and the marker for it is not written.
+		return shared.ErrConflict.WithDetail(domain.CodeRestoreNotRunning).
+			WithParams(map[string]string{"restore_id": id.String()})
 	}
 	return nil
 }
@@ -267,6 +310,25 @@ func decodeReport(raw []byte) (domain.Report, error) {
 	return domain.Report(row), nil
 }
 
+// isEmptyReport answers a report that says nothing happened - which is what a restore that failed
+// in its pre-check has, and is not the same as a restore that did nothing.
+func isEmptyReport(report domain.Report) bool {
+	return report.New == 0 && report.Overwritten == 0 && report.Skipped == 0 &&
+		report.Duplicated == 0 && report.Conflicts == 0 && report.Media == 0 &&
+		len(report.Withheld) == 0 && len(report.Entities) == 0
+}
+
+func decodeProgress(raw []byte) (map[string]int, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var progress map[string]int
+	if err := json.Unmarshal(raw, &progress); err != nil {
+		return nil, shared.Internalf("postgres: a restore's progress could not be read: %w", err)
+	}
+	return progress, nil
+}
+
 func restoreFrom(row sqlc.FindRestoreRunRow) (domain.Restore, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
@@ -300,12 +362,17 @@ func restoreFrom(row sqlc.FindRestoreRunRow) (domain.Restore, error) {
 	if err != nil {
 		return domain.Restore{}, err
 	}
+	progress, err := decodeProgress(row.Progress)
+	if err != nil {
+		return domain.Restore{}, err
+	}
 
 	return domain.Restore{
 		ID: id, TargetID: targetID, TenantID: into, SourceArchive: row.SourceArchive,
 		Mode: domain.RestoreMode(row.Mode), ConflictRule: domain.ConflictRule(row.ConflictRule),
-		Selection: selection, DryRun: row.DryRun, SafetyRunID: safety,
-		Status: domain.RestoreStatus(row.Status), Report: report,
+		Selection: selection, DryRun: row.DryRun,
+		CreateSafetyBackup: row.CreateSafetyBackup, SafetyRunID: safety,
+		Status: domain.RestoreStatus(row.Status), Report: report, Progress: progress,
 		RequestedBy: requestedBy, ApprovedBy: approvedBy,
 		StartedAt: timeFrom(row.StartedAt), FinishedAt: timeFrom(row.FinishedAt),
 		ErrorCode: stringFrom(row.ErrorCode),

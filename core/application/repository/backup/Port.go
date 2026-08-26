@@ -128,6 +128,12 @@ type Restores interface {
 	// going, which is what makes a cancelled restore stay cancelled.
 	Finish(ctx context.Context, outcome domain.RestoreOutcome) error
 
+	// RecordProgress writes how far the run has got, and the report so far, in the transaction of
+	// the batch that got it there. A resumed attempt reads both back: the progress so that it
+	// does not decide the same records twice, and the report so that it continues counting rather
+	// than starting again (BK-7).
+	RecordProgress(ctx context.Context, id shared.ID, report domain.Report, progress map[string]int) error
+
 	// RecordSafetyCopy writes down the backup taken before a destructive mode, before the mode
 	// runs. The way back has to be findable from the run even if the run then fails.
 	RecordSafetyCopy(ctx context.Context, id, backupRunID shared.ID) error

@@ -251,6 +251,10 @@ const (
 	WithheldExcluded = "excluded_entity"
 	// WithheldNotSelected is an object outside a SELECTIVE restore's selection.
 	WithheldNotSelected = "not_selected"
+	// WithheldMediaMissing is a row whose attachment is not in the archive. The row is restored
+	// and the bytes are not: an object whose content is gone is the honest outcome, and refusing
+	// a whole restore over one missing file would be the wrong trade on the day it is being used.
+	WithheldMediaMissing = "media_missing"
 )
 
 // Count records one decision about one object: the rule that decided it, and whether there was
@@ -306,14 +310,21 @@ type Restore struct {
 	ConflictRule  ConflictRule
 	Selection     Selection
 	DryRun        bool
-	SafetyRunID   shared.ID
-	Status        RestoreStatus
-	Report        Report
-	RequestedBy   shared.ID
-	ApprovedBy    shared.ID
-	StartedAt     time.Time
-	FinishedAt    time.Time
-	ErrorCode     string
+	// CreateSafetyBackup is whether §8.3 step 4's copy is wanted. It travels with the run rather
+	// than with the request because the copy is taken minutes later, by the job.
+	CreateSafetyBackup bool
+	SafetyRunID        shared.ID
+	Status             RestoreStatus
+	Report             Report
+	// Progress is how many of each entity's records have already been decided, by the archive's
+	// entity name. It is what a resumed attempt skips: the archive is immutable and the read order
+	// is fixed, so "the first N records of this entity" names the same N on every attempt (BK-7).
+	Progress    map[string]int
+	RequestedBy shared.ID
+	ApprovedBy  shared.ID
+	StartedAt   time.Time
+	FinishedAt  time.Time
+	ErrorCode   string
 }
 
 // Finished reports a run nothing more will happen to.
@@ -394,6 +405,11 @@ const (
 	CodeRestoreSchemaAhead = "backup.restore_schema_ahead"
 	// CodeRestoreTargetBusy is a second restore into a tenant that is already having one.
 	CodeRestoreTargetBusy = "backup.restore_in_progress"
+	// CodeRestoreSafetyCopyUnavailable is a destructive mode asking for the copy of §8.3 step 4
+	// on an installation that cannot take one. Refused rather than proceeding without it: a
+	// destructive restore with no way back is the situation the step exists to prevent, and "there
+	// was nowhere to write it" is a reason to stop rather than a reason to carry on.
+	CodeRestoreSafetyCopyUnavailable = "backup.restore_safety_copy_unavailable"
 	// CodeRestoreFailed is anything unclassified, so that a dashboard never shows a driver's
 	// message.
 	CodeRestoreFailed = "backup.restore_failed"

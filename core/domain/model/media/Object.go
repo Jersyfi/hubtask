@@ -97,6 +97,19 @@ type NewObjectInput struct {
 }
 
 // NewPendingObject validates and stages an object.
+// StorageKeyFor is where a medium's bytes live.
+//
+// Tenant-prefixed, so one bucket holds every tenant without a key collision ever being possible -
+// and a listing of one prefix is one tenant's objects, nobody else's.
+//
+// A function rather than a line inside NewPendingObject because a restore has to mint the same key
+// again for a row it writes back (E-06): an archive carries the key the medium had where it was
+// taken, and a restore into another tenant that kept it would put two tenants' rows on one object -
+// where deleting either one takes the other's bytes with it.
+func StorageKeyFor(tenantID, id shared.ID) string {
+	return "media/" + tenantID.String() + "/" + id.String()
+}
+
 func NewPendingObject(input NewObjectInput) (Object, error) {
 	if input.DeclaredSize < 1 {
 		return Object{}, shared.ErrValidation.
