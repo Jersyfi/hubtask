@@ -1319,6 +1319,31 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
+	// Data subject requests (E-10): the erasure that serves every storage location, and the export
+	// that is a Hubtask archive rather than a second format.
+	privacyEraser := privacyservice.Eraser{
+		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
+		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		TombstoneWindow: cfg.Retention.TombstoneWindow,
+	}
+	privacyExporter := privacyservice.Exporter{
+		Requests: privacyStore, Subjects: privacyStore,
+		Targets: backupservice.StoreOpener{
+			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
+			UnitOfWork: unitOfWork,
+		},
+		Rows:    postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
+		Objects: mediaStore, Cipher: crypto.NewStream(clockadapter.CryptoRandom{}),
+		Audit: auditSink, Snapshot: unitOfWork, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+		SchemaVersion: schemaVersion(), ProductVersion: version,
+	}
+	privacyPerformer := privacyservice.Performer{
+		Requests: privacyStore, Eraser: privacyEraser, Exporter: privacyExporter,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+
 	// The audit export (E-09). It writes to a backup target through the seam that owns a target's
 	// credentials, because an export needs somewhere to put bytes and has no business with them.
 	auditArchivist := auditservice.Archivist{
@@ -1398,7 +1423,8 @@ func run() error {
 		queueport.KindBackupSchedule: worker.BackupScheduling{
 			Pass: backupPass, Fallback: cfg.Retention.Interval,
 		},
-		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindAuditExport:    worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {
