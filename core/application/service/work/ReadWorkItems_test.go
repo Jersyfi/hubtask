@@ -237,7 +237,7 @@ func TestTheProjectionCarriesTheStateACreateNeverProduces(t *testing.T) {
 	}
 	item.ArchivedAt = &archivedAt
 
-	out := itemOutput(item)
+	out := ItemOutput(item)
 	completion, ok := out["completion"].(map[string]any)
 	if !ok {
 		t.Fatalf("the projection carries no completion: %+v", out)

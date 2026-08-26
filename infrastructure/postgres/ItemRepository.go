@@ -1116,6 +1116,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		CustomFields:     customFields,
 		ContentLanguage:  stringFrom(row.ContentLanguage),
 		RecurrenceRuleID: recurrenceRuleID,
+		Retention:        retentionFrom(row),
 		ArchivedAt:       optionalTime(row.ArchivedAt),
 		DeletedAt:        optionalTime(row.DeletedAt),
 		TrashBatchID:     trashBatchID,
@@ -1124,6 +1125,24 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		UpdatedAt:        timeFrom(row.UpdatedAt),
 		Version:          int(row.Version),
 	}, nil
+}
+
+// retentionFrom is what a retention rule has announced about an entry, and nil while none has.
+//
+// All three columns or none: a row with a date and no action would be an announcement a client
+// could not render, and the marking writes them together (migration 0038).
+func retentionFrom(row sqlc.FindWorkItemRow) *work.RetentionState {
+	at := optionalTime(row.RetentionPendingUntil)
+	if at == nil || row.RetentionAction == nil {
+		return nil
+	}
+	policyID, err := optionalID(row.RetentionRuleID)
+	if err != nil {
+		return nil
+	}
+	return &work.RetentionState{
+		Action: *row.RetentionAction, EffectiveAt: *at, PolicyID: policyID,
+	}
 }
 
 // ClaimDueSoon takes the entries whose deadline has come within the lead and stamps them as

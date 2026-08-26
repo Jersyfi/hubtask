@@ -108,6 +108,117 @@ type Policies interface {
 	Find(ctx context.Context, kind domain.DataKind) (domain.Policy, error)
 }
 
+// Rules stores the rule model of data-retention.md §2 (E-07).
+//
+// Beside Policies rather than replacing it for one release: the old table's key allows one period
+// per kind per tenant and the model is scoped, so the two live alongside each other while a rolling
+// update is possible, and CarryOver is what moves a tenant from one to the other.
+type Rules interface {
+	// Insert writes a rule. The unique index over (kind, scope) is what refuses a second rule for
+	// one kind at one level, and the refusal reaches the caller as a conflict.
+	Insert(ctx context.Context, rule domain.Rule) error
+
+	// List answers every rule the tenant has, narrowest scope first - so a reader walking the list
+	// meets the winner before the ones it beats.
+	List(ctx context.Context) ([]domain.Rule, error)
+
+	// Find answers one rule, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (domain.Rule, error)
+
+	// CarryOver writes the old table's period for one kind as a tenant-wide rule, and does nothing
+	// for a tenant that already has one. Called by the sweep rather than by a migration, for the
+	// reason Ensure is: a migration covers the tenants that existed when it ran.
+	CarryOver(ctx context.Context, id shared.ID, kind domain.DataKind, now time.Time) error
+}
+
+// Candidate is one entry a retention pass is judging.
+//
+// A projection rather than the aggregate, for the reason ExpiredItem is one: a pass judges a
+// thousand at a time and loading the whole of each would be work done to throw away.
+type Candidate struct {
+	ID   shared.ID
+	Type work.ItemType
+	// Path is the chain above it, which is what a legal hold placed higher up is judged against and
+	// what the referential safeguard reads.
+	Path         string
+	CollectionID shared.ID
+	// HubID is the hub of the collection, which a hub-scoped rule is matched against - an entry
+	// three levels down does not know which hub it is under.
+	HubID shared.ID
+	// AnchoredAt is the value of the column this pass counted from.
+	AnchoredAt time.Time
+	// Title is user content and travels for exactly one reason: §5's preview shows sample objects,
+	// and a sample without a title is a list of identifiers. It never reaches a log, a metric or an
+	// audit entry (rule 10).
+	Title string
+	// Pending, Rule and Action are what a marked entry carries between the phases, and are empty on
+	// a candidate that has not been marked yet.
+	Pending time.Time
+	Rule    shared.ID
+	Action  domain.Action
+}
+
+// Marking is the two phases of data-retention.md §5 against the objects themselves.
+//
+// Everything here takes a batch. A pass works in batches of a thousand by design, and a method per
+// row would make the transaction as long as the batch - which is the shape §5 asks for in as many
+// words.
+type Marking interface {
+	// Due answers entries whose anchor lies before the cutoff and which are not marked yet.
+	//
+	// The anchor is a value of the domain's closed set rather than a column name from a caller:
+	// no byte of a request becomes SQL text (rule 9), so the adapter holds one statement per
+	// anchor and refuses one it has none for.
+	Due(ctx context.Context, anchor domain.Anchor, cutoff time.Time, batch int) ([]Candidate, error)
+
+	// DueInChain is the same question for a chain's second stage, restricted to the entries the
+	// rule's own first stage acted on. An entry somebody archived by hand is not part of anybody's
+	// chain, and a rule that swept it up would be acting outside what it matched.
+	DueInChain(
+		ctx context.Context, anchor domain.Anchor, ruleID shared.ID, cutoff time.Time, batch int,
+	) ([]Candidate, error)
+
+	// Mark writes what is coming, when, and under which rule. Answers how many it marked, which is
+	// fewer than it was given when another pass got there first.
+	Mark(
+		ctx context.Context, ids []shared.ID, ruleID shared.ID,
+		action domain.Action, effectiveAt time.Time,
+	) (int, error)
+
+	// MarkedDue answers the entries whose grace period has run out.
+	MarkedDue(ctx context.Context, now time.Time, batch int) ([]Candidate, error)
+
+	// Marking answers one entry's marking, or ErrNotFound for an entry that has none.
+	Marking(ctx context.Context, id shared.ID) (Candidate, error)
+
+	// Clear takes entries out of the running period. keepRule is the difference between a person
+	// calling `:retain` - which ends the rule's claim on the entry - and a stage that has acted,
+	// after which the chain's next stage still owns it.
+	Clear(ctx context.Context, ids []shared.ID, keepRule bool, now time.Time) (int, error)
+
+	// Archive and Trash are the two acts that leave the entry in place, and the two a chain can
+	// have a second stage after.
+	Archive(ctx context.Context, ids []shared.ID, at time.Time) (int, error)
+	Trash(ctx context.Context, ids []shared.ID, batchID shared.ID, at time.Time) (int, error)
+
+	// RetainedDescendants is §4.6: how many entries below each of these are not going in this
+	// pass. A parent with any is kept back, and goes on the pass after the last of them.
+	RetainedDescendants(ctx context.Context, ids, going []shared.ID) (map[shared.ID]int, error)
+
+	// CountDue is the numerator of §5's five-per-cent switch and of a preview: how many entries in
+	// the rule's scope are past its cutoff.
+	//
+	// Exact rather than bounded, because the switch is about a proportion and a count that stopped
+	// at a batch would under-report exactly the runs it exists to catch. It ignores narrower rules
+	// inside the scope, which over-counts where one exists - and over-counting errs towards
+	// NOTIFY_ONLY, which is the side to err on.
+	CountDue(ctx context.Context, anchor domain.Anchor, scope domain.Scope, cutoff time.Time) (int, error)
+
+	// CountScope is the denominator of §5's five-per-cent switch: how much the tenant holds in the
+	// scope a rule covers.
+	CountScope(ctx context.Context, scope domain.Scope) (int, error)
+}
+
 // RunStatus is how a retention run ended.
 type RunStatus string
 

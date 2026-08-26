@@ -385,6 +385,7 @@ func (e BackupRunStatus) Valid() bool {
 const (
 	BackupRunTriggerAPI        BackupRunTrigger = "API"
 	BackupRunTriggerMANUAL     BackupRunTrigger = "MANUAL"
+	BackupRunTriggerPREDELETE  BackupRunTrigger = "PRE_DELETE"
 	BackupRunTriggerPRERESTORE BackupRunTrigger = "PRE_RESTORE"
 	BackupRunTriggerSCHEDULE   BackupRunTrigger = "SCHEDULE"
 )
@@ -395,6 +396,8 @@ func (e BackupRunTrigger) Valid() bool {
 	case BackupRunTriggerAPI:
 		return true
 	case BackupRunTriggerMANUAL:
+		return true
+	case BackupRunTriggerPREDELETE:
 		return true
 	case BackupRunTriggerPRERESTORE:
 		return true
@@ -3302,6 +3305,9 @@ type RetentionPolicy struct {
 	ExportTargetId *openapi_types.UUID `json:"export_target_id,omitempty"`
 	GraceDays      *int                `json:"grace_days,omitempty"`
 	Id             *openapi_types.UUID `json:"id,omitempty"`
+
+	// InForce Whether this is the rule that would act in the container the listing was asked about (`container_id`). Absent from a listing that named no container: with nothing to be in force *in*, the question has no answer. The narrower rule wins, and a rule switched off in a collection lets the wider one through rather than stopping it.
+	InForce *bool `json:"in_force,omitempty"`
 
 	// Justification Mandatory when the upper bound is exceeded
 	Justification *string `json:"justification,omitempty"`

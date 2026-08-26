@@ -396,5 +396,5 @@ func (h AutoAssignWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return outcome.output(itemOutput(item)), nil
+	return outcome.output(ItemOutput(item)), nil
 }

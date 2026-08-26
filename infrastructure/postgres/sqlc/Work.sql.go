@@ -374,6 +374,10 @@ SELECT
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
   wi.content_language, wi.recurrence_rule_id,
+  -- What a retention rule has announced about this entry, for as long as one applies to it
+  -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
+  -- because §6's point is that the object itself says what is coming.
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -381,38 +385,41 @@ WHERE wi.id = $1
 `
 
 type FindWorkItemRow struct {
-	ID               pgtype.UUID
-	TenantID         pgtype.UUID
-	CollectionID     pgtype.UUID
-	Type             ItemType
-	ParentID         pgtype.UUID
-	Path             string
-	Depth            int32
-	Title            string
-	Notes            *string
-	IsCompleted      bool
-	CompletedAt      pgtype.Timestamptz
-	CompletedBy      pgtype.UUID
-	BucketID         pgtype.UUID
-	OrderKey         string
-	AssigneeID       pgtype.UUID
-	StartAt          pgtype.Timestamptz
-	DueAt            pgtype.Timestamptz
-	DueDateOnly      bool
-	DueTimeZone      *string
-	CoverKind        *string
-	CoverColorToken  *string
-	CoverMediaID     pgtype.UUID
-	CustomFields     []byte
-	ContentLanguage  *string
-	RecurrenceRuleID pgtype.UUID
-	ArchivedAt       pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
-	TrashBatchID     pgtype.UUID
-	CreatedBy        pgtype.UUID
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	Version          int32
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	CollectionID          pgtype.UUID
+	Type                  ItemType
+	ParentID              pgtype.UUID
+	Path                  string
+	Depth                 int32
+	Title                 string
+	Notes                 *string
+	IsCompleted           bool
+	CompletedAt           pgtype.Timestamptz
+	CompletedBy           pgtype.UUID
+	BucketID              pgtype.UUID
+	OrderKey              string
+	AssigneeID            pgtype.UUID
+	StartAt               pgtype.Timestamptz
+	DueAt                 pgtype.Timestamptz
+	DueDateOnly           bool
+	DueTimeZone           *string
+	CoverKind             *string
+	CoverColorToken       *string
+	CoverMediaID          pgtype.UUID
+	CustomFields          []byte
+	ContentLanguage       *string
+	RecurrenceRuleID      pgtype.UUID
+	RetentionPendingUntil pgtype.Timestamptz
+	RetentionRuleID       pgtype.UUID
+	RetentionAction       *string
+	ArchivedAt            pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	TrashBatchID          pgtype.UUID
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
 }
 
 // Trashed and archived items are returned rather than filtered out, for the reason FindContainer
@@ -446,6 +453,9 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.CustomFields,
 		&i.ContentLanguage,
 		&i.RecurrenceRuleID,
+		&i.RetentionPendingUntil,
+		&i.RetentionRuleID,
+		&i.RetentionAction,
 		&i.ArchivedAt,
 		&i.DeletedAt,
 		&i.TrashBatchID,
@@ -866,6 +876,7 @@ SELECT
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
   wi.content_language, wi.recurrence_rule_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -899,38 +910,41 @@ type ListWorkItemsParams struct {
 }
 
 type ListWorkItemsRow struct {
-	ID               pgtype.UUID
-	TenantID         pgtype.UUID
-	CollectionID     pgtype.UUID
-	Type             ItemType
-	ParentID         pgtype.UUID
-	Path             string
-	Depth            int32
-	Title            string
-	Notes            *string
-	IsCompleted      bool
-	CompletedAt      pgtype.Timestamptz
-	CompletedBy      pgtype.UUID
-	BucketID         pgtype.UUID
-	OrderKey         string
-	AssigneeID       pgtype.UUID
-	StartAt          pgtype.Timestamptz
-	DueAt            pgtype.Timestamptz
-	DueDateOnly      bool
-	DueTimeZone      *string
-	CoverKind        *string
-	CoverColorToken  *string
-	CoverMediaID     pgtype.UUID
-	CustomFields     []byte
-	ContentLanguage  *string
-	RecurrenceRuleID pgtype.UUID
-	ArchivedAt       pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
-	TrashBatchID     pgtype.UUID
-	CreatedBy        pgtype.UUID
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	Version          int32
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	CollectionID          pgtype.UUID
+	Type                  ItemType
+	ParentID              pgtype.UUID
+	Path                  string
+	Depth                 int32
+	Title                 string
+	Notes                 *string
+	IsCompleted           bool
+	CompletedAt           pgtype.Timestamptz
+	CompletedBy           pgtype.UUID
+	BucketID              pgtype.UUID
+	OrderKey              string
+	AssigneeID            pgtype.UUID
+	StartAt               pgtype.Timestamptz
+	DueAt                 pgtype.Timestamptz
+	DueDateOnly           bool
+	DueTimeZone           *string
+	CoverKind             *string
+	CoverColorToken       *string
+	CoverMediaID          pgtype.UUID
+	CustomFields          []byte
+	ContentLanguage       *string
+	RecurrenceRuleID      pgtype.UUID
+	RetentionPendingUntil pgtype.Timestamptz
+	RetentionRuleID       pgtype.UUID
+	RetentionAction       *string
+	ArchivedAt            pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	TrashBatchID          pgtype.UUID
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
 }
 
 // One level of one collection, in its manual order: the items directly in the collection when no
@@ -987,6 +1001,9 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.CustomFields,
 			&i.ContentLanguage,
 			&i.RecurrenceRuleID,
+			&i.RetentionPendingUntil,
+			&i.RetentionRuleID,
+			&i.RetentionAction,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,
@@ -1679,6 +1696,7 @@ SELECT
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
   wi.content_language, wi.recurrence_rule_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -1696,38 +1714,41 @@ type SubtreeOfWorkItemParams struct {
 }
 
 type SubtreeOfWorkItemRow struct {
-	ID               pgtype.UUID
-	TenantID         pgtype.UUID
-	CollectionID     pgtype.UUID
-	Type             ItemType
-	ParentID         pgtype.UUID
-	Path             string
-	Depth            int32
-	Title            string
-	Notes            *string
-	IsCompleted      bool
-	CompletedAt      pgtype.Timestamptz
-	CompletedBy      pgtype.UUID
-	BucketID         pgtype.UUID
-	OrderKey         string
-	AssigneeID       pgtype.UUID
-	StartAt          pgtype.Timestamptz
-	DueAt            pgtype.Timestamptz
-	DueDateOnly      bool
-	DueTimeZone      *string
-	CoverKind        *string
-	CoverColorToken  *string
-	CoverMediaID     pgtype.UUID
-	CustomFields     []byte
-	ContentLanguage  *string
-	RecurrenceRuleID pgtype.UUID
-	ArchivedAt       pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
-	TrashBatchID     pgtype.UUID
-	CreatedBy        pgtype.UUID
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	Version          int32
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	CollectionID          pgtype.UUID
+	Type                  ItemType
+	ParentID              pgtype.UUID
+	Path                  string
+	Depth                 int32
+	Title                 string
+	Notes                 *string
+	IsCompleted           bool
+	CompletedAt           pgtype.Timestamptz
+	CompletedBy           pgtype.UUID
+	BucketID              pgtype.UUID
+	OrderKey              string
+	AssigneeID            pgtype.UUID
+	StartAt               pgtype.Timestamptz
+	DueAt                 pgtype.Timestamptz
+	DueDateOnly           bool
+	DueTimeZone           *string
+	CoverKind             *string
+	CoverColorToken       *string
+	CoverMediaID          pgtype.UUID
+	CustomFields          []byte
+	ContentLanguage       *string
+	RecurrenceRuleID      pgtype.UUID
+	RetentionPendingUntil pgtype.Timestamptz
+	RetentionRuleID       pgtype.UUID
+	RetentionAction       *string
+	ArchivedAt            pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	TrashBatchID          pgtype.UUID
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
 }
 
 // Everything below one entry, the entry itself excluded: what a copy of a subtree reads before it
@@ -1786,6 +1807,9 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.CustomFields,
 			&i.ContentLanguage,
 			&i.RecurrenceRuleID,
+			&i.RetentionPendingUntil,
+			&i.RetentionRuleID,
+			&i.RetentionAction,
 			&i.ArchivedAt,
 			&i.DeletedAt,
 			&i.TrashBatchID,

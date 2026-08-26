@@ -193,7 +193,7 @@ func (h GetWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return withLabels(itemOutput(item), item, carried), nil
+	return withLabels(ItemOutput(item), item, carried), nil
 }
 
 // ListWorkItems reads one level of one collection.
@@ -369,7 +369,7 @@ func (h ListWorkItems) invoke(
 
 	data := make([]usecase.Output, 0, len(page.Items))
 	for _, item := range page.Items {
-		data = append(data, withLabels(itemOutput(item), item, carried))
+		data = append(data, withLabels(ItemOutput(item), item, carried))
 	}
 	return pageOutput(data, page.Info), nil
 }

@@ -323,10 +323,17 @@ const (
 	TriggerSchedule   Trigger = "SCHEDULE"
 	TriggerManual     Trigger = "MANUAL"
 	TriggerPreRestore Trigger = "PRE_RESTORE"
-	TriggerAPI        Trigger = "API"
+	// TriggerPreDelete is the export a retention rule takes before it removes anything
+	// (data-retention.md §6). Its own value rather than API or MANUAL: "who wrote this archive,
+	// and why" is the question a trigger exists to answer, and an export the machinery took is not
+	// a run anybody asked for.
+	TriggerPreDelete Trigger = "PRE_DELETE"
+	TriggerAPI       Trigger = "API"
 )
 
-var triggers = [...]Trigger{TriggerSchedule, TriggerManual, TriggerPreRestore, TriggerAPI}
+var triggers = [...]Trigger{
+	TriggerSchedule, TriggerManual, TriggerPreRestore, TriggerPreDelete, TriggerAPI,
+}
 
 func (t Trigger) Valid() bool { return slices.Contains(triggers[:], t) }
 

@@ -36,16 +36,12 @@ const (
 	trashTarget     = "trash"
 )
 
-// The reasons a removal can be refused, as `retention_run.blocked_reasons` records them and as the
-// metric labels them. A small closed set, written by hand: an unbounded label is an unbounded metric
-// (observability-reliability.md §3.2).
+// The reasons a removal can be refused, kept here as the names this package has always used and
+// defined where the precedence of data-retention.md §4 is - in the domain, because "which reason
+// wins" is a rule about the data rather than a detail of the engine (E-07).
 const (
-	BlockedByLegalHold = "legal_hold"
-	// BlockedByTombstoneWindow is the lower bound offline clients impose: an object may only
-	// disappear for good once every known device has had the chance to learn of the deletion
-	// (offline-sync.md §7, data-retention.md §4.5). It bounds the automatic runs; an explicit purge
-	// is a decision somebody took and proceeds, leaving the tombstone to stop the resurrection.
-	BlockedByTombstoneWindow = "tombstone_window"
+	BlockedByLegalHold       = domain.BlockedByLegalHold
+	BlockedByTombstoneWindow = domain.BlockedByTombstoneWindow
 )
 
 // Purger removes trashed rows for good.

@@ -522,11 +522,17 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"privacy_incident":     "the same reasoning: an incident is handled once",
 	// The backup system's own bookkeeping. An archive describing the runs that produced it would
 	// be a mirror facing a mirror.
-	"backup_target":    "an egress channel and a sealed credential; a restore must not silently recreate one",
-	"backup_schedule":  "the backup system's own bookkeeping",
-	"backup_run":       "the backup system's own bookkeeping",
-	"restore_run":      "the backup system's own bookkeeping",
-	"retention_run":    "the retention engine's own bookkeeping (E-07)",
+	"backup_target":   "an egress channel and a sealed credential; a restore must not silently recreate one",
+	"backup_schedule": "the backup system's own bookkeeping",
+	"backup_run":      "the backup system's own bookkeeping",
+	"restore_run":     "the backup system's own bookkeeping",
+	"retention_run":   "the retention engine's own bookkeeping (E-07)",
+	// A rule that says EXPORT_THEN_DELETE names a backup target, and a backup target is
+	// deliberately not restored - "an egress channel and a sealed credential; a restore must not
+	// silently recreate one". A rule carried back without it would either refuse the insert or,
+	// worse, become a plain deletion whose export half is gone. `retention_policy` is archived
+	// because it is only a period: it removes nothing on its own (E-07).
+	"retention_rule":   "a rule that can delete, pointing at an egress channel a restore does not recreate",
 	"deletion_journal": "§7 - the journal is applied to a restore rather than restored by one",
 	// And the one row-level-secured table that is nobody's data: the system-defined capability
 	// profiles every tenant may read and none may write. They come with the installation, and a

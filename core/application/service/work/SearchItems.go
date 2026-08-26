@@ -329,7 +329,7 @@ func (h SearchItems) invoke(
 
 	rows := make([]usecase.Output, 0, len(page.Hits))
 	for _, hit := range page.Hits {
-		rows = append(rows, itemOutput(hit.Item))
+		rows = append(rows, ItemOutput(hit.Item))
 	}
 	return pageOutput(rows, page.Info), nil
 }

@@ -548,5 +548,5 @@ func invokeLifecycle(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }

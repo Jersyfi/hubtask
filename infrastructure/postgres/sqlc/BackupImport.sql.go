@@ -2266,7 +2266,10 @@ INSERT INTO work_item (
   custom_field_refs,
   search_document,
   due_soon_announced_at,
-  overdue_announced_at
+  overdue_announced_at,
+  retention_pending_until,
+  retention_rule_id,
+  retention_action
 )
 SELECT
   r.id,
@@ -2305,7 +2308,10 @@ SELECT
   r.custom_field_refs,
   r.search_document,
   r.due_soon_announced_at,
-  r.overdue_announced_at
+  r.overdue_announced_at,
+  r.retention_pending_until,
+  r.retention_rule_id,
+  r.retention_action
 FROM jsonb_populate_record(
   NULL::work_item,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2346,7 +2352,10 @@ ON CONFLICT (id) DO UPDATE SET
   custom_field_refs = EXCLUDED.custom_field_refs,
   search_document = EXCLUDED.search_document,
   due_soon_announced_at = EXCLUDED.due_soon_announced_at,
-  overdue_announced_at = EXCLUDED.overdue_announced_at
+  overdue_announced_at = EXCLUDED.overdue_announced_at,
+  retention_pending_until = EXCLUDED.retention_pending_until,
+  retention_rule_id = EXCLUDED.retention_rule_id,
+  retention_action = EXCLUDED.retention_action
 WHERE $2::boolean
 `
 

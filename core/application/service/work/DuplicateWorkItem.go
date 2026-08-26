@@ -1129,7 +1129,7 @@ func duplicateOutput(result DuplicateResult) usecase.Output {
 		})
 	}
 	return usecase.Output{
-		"item":               itemOutput(result.Item),
+		"item":               ItemOutput(result.Item),
 		"dropped_references": dropped,
 		"copied":             result.Copied,
 	}

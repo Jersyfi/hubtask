@@ -645,10 +645,15 @@ func (h CreateWorkItem) recordAudit(
 	})
 }
 
-// itemOutput is the shape every channel returns: the field names of the contract
+// ItemOutput is the shape every channel returns: the field names of the contract
+//
+// Exported because the lifecycle context answers an entry too: `:retain` hands back the entry it
+// took out of a retention period, and a second mapper for the same shape would be a second place
+// for a field to be forgotten. It is a pure function over the aggregate - no ports, no decisions -
+// which is what makes one service package reading another's a definition rather than a dependency.
 // (api/openapi.yaml, schema WorkItem), so that a REST response, an MCP tool result and an
 // automation action result describe the item in the same words.
-func itemOutput(item domain.WorkItem) usecase.Output {
+func ItemOutput(item domain.WorkItem) usecase.Output {
 	out := usecase.Output{
 		"id":            item.ID.String(),
 		"type":          string(item.Type),
@@ -704,6 +709,16 @@ func itemOutput(item domain.WorkItem) usecase.Output {
 	}
 	if item.Notes != "" {
 		out["notes"] = item.Notes
+	}
+	if item.Retention != nil {
+		// §6: an entry in a running retention period says what is coming, when, and under which
+		// rule - and whether it can be taken out, which is what a client puts a button behind.
+		out["retention"] = map[string]any{
+			"action":       item.Retention.Action,
+			"effective_at": item.Retention.EffectiveAt,
+			"policy_id":    item.Retention.PolicyID.String(),
+			"can_retain":   true,
+		}
 	}
 	return out
 }
@@ -880,7 +895,7 @@ func (h CreateWorkItem) invoke(
 		return nil, err
 	}
 
-	out := itemOutput(item)
+	out := ItemOutput(item)
 	if outcome != nil {
 		out = outcome.output(out)
 	}

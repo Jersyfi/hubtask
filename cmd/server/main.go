@@ -428,6 +428,18 @@ func run() error {
 		TombstoneWindow: cfg.Retention.TombstoneWindow, BatchSize: cfg.Retention.BatchSize,
 	}
 
+	// The rule model of data-retention.md §2 (E-07). One set for the three use cases, so that the
+	// share a newly created rule reports and the share its preview reports come from the same
+	// reading - RE-7 is exactly that they agree.
+	retentionRules := lifecycle.Rules{
+		Rules:      postgres.NewRetentionRuleRepository(),
+		Policies:   lifecycleStore,
+		Marking:    postgres.NewRetentionMarkingRepository(),
+		Holds:      lifecycleStore,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	// Every verb that moves an entry between the archive and the trash shares one dependency set.
 	// They are the same walk with a different transition in the middle, and wiring them separately
 	// would be one more place for "restoring records what trashing records" to stop being true
@@ -815,6 +827,15 @@ func run() error {
 		lifecycle.EmptyTrash{
 			Purger: purger, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		lifecycle.CreateRetentionPolicy{Rules: retentionRules}.Descriptor(),
+		lifecycle.ListRetentionPolicies{Rules: retentionRules}.Descriptor(),
+		lifecycle.PreviewRetentionPolicy{Rules: retentionRules}.Descriptor(),
+		lifecycle.RetainItem{
+			Items: items, Containers: containers,
+			Marking: postgres.NewRetentionMarkingRepository(), Authorizer: authorizer,
+			Audit: auditSink, Changes: changes, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, HLC: hybrid,
+		}.Descriptor(),
 
 		mediaservice.RequestMediaUpload{
 			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink, Jobs: jobs,
@@ -1156,15 +1177,6 @@ func run() error {
 	// The retention run, and the queue's way into it. One pass per job execution, because the
 	// handler runs inside the transaction the runner opened - the job comes back for the next pass
 	// rather than looping inside one transaction (data-retention.md §5).
-	retention := worker.RetentionSweep{
-		Retention: lifecycle.RunRetention{
-			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
-			History: notifications,
-			Clock:   clockadapter.System{}, IDs: ids, Signals: metrics,
-		},
-		Interval:     cfg.Retention.Interval,
-		Continuation: cfg.Queue.OutboxMinInterval,
-	}
 
 	// The reclamation of unreferenced files. The one handler that runs outside the runner's
 	// transaction (queue.Detached): the pass deletes bytes from a bucket between two writes, and a
@@ -1266,6 +1278,30 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
 	}
+	retention := worker.RetentionSweep{
+		Retention: lifecycle.RunRetention{
+			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
+			History: notifications,
+			Clock:   clockadapter.System{}, IDs: ids, Signals: metrics,
+			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
+			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
+			// row that goes.
+			Rules: postgres.NewRetentionRuleRepository(),
+			Sweeper: lifecycle.Sweeper{
+				Rules:   postgres.NewRetentionRuleRepository(),
+				Marking: postgres.NewRetentionMarkingRepository(),
+				Holds:   lifecycleStore, Items: items, Purger: purger, Changes: changes,
+				Export: backupservice.RetentionExport{
+					Performer: backupPerformer, IDs: ids,
+				},
+				Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+				Batch: cfg.Retention.BatchSize,
+			},
+		},
+		Interval:     cfg.Retention.Interval,
+		Continuation: cfg.Queue.OutboxMinInterval,
+	}
+
 	backupPass := backupservice.SchedulePass{
 		Schedules: backupSchedules, Runs: backupRuns, Jobs: jobs,
 		Expander: recurrenceadapter.New(), UnitOfWork: unitOfWork,

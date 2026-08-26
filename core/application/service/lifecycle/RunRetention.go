@@ -41,6 +41,11 @@ type RunRetention struct {
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals
+	// Rules and Sweeper are the rule-driven half of the engine (E-07). Optional together: an
+	// installation wired without them sweeps the trash and the notification history exactly as
+	// before, which is what makes the two halves independently deployable.
+	Rules   repository.Rules
+	Sweeper Sweeper
 }
 
 // RetentionSignals is the slice of the metrics adapter a run reports through
@@ -133,11 +138,18 @@ func (h RunRetention) Execute(
 	if err != nil {
 		return outcome, err
 	}
+
+	rules, err := h.sweepRules(ctx, actor, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	// Reported as one outcome, so that the job's decision about coming back straight away covers
-	// both kinds: a pass that emptied the trash and left a full batch of notifications has not
+	// every kind: a pass that emptied the trash and left a full batch of notifications has not
 	// finished, and a job that stopped there would leave them until the next long interval.
 	outcome.Matched += history.Matched
 	outcome.Removed += history.Removed
+	outcome.add(rules)
 	return outcome, nil
 }
 
@@ -201,6 +213,51 @@ func (h RunRetention) sweepHistory(ctx context.Context, started time.Time) (Outc
 	return outcome, nil
 }
 
+// sweepRules is the rule-driven half: the kinds a tenant configures rather than the two the
+// installation always sweeps (E-07, data-retention.md §2, §5).
+//
+// The carry-over comes first and runs on every pass, which is what makes an upgrade need no
+// migration over tenant data: a tenant whose period lives in the old table gets a tenant-wide rule
+// written for it the first time the engine reaches it, and one that has since written a rule of its
+// own is left alone.
+func (h RunRetention) sweepRules(
+	ctx context.Context, actor appshared.ActorContext, started time.Time,
+) (Outcome, error) {
+	if h.Rules == nil {
+		return Outcome{}, nil
+	}
+	for _, policy := range domain.DefaultPolicies() {
+		if err := h.Rules.CarryOver(ctx, h.IDs.NewID(), policy.DataKind, started); err != nil {
+			return Outcome{}, err
+		}
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindCompletedItem, started); err != nil {
+		return Outcome{}, err
+	}
+
+	outcome, sweepErr := h.Sweeper.Pass(ctx, actor)
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed, Blocked: outcome.Blocked,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindCompletedItem, outcome, finished.Sub(started))
+	return outcome, nil
+}
+
 // report publishes what the pass did.
 //
 // Zero is published too, and on purpose: a counter that has never been written has no series, and an
@@ -216,13 +273,16 @@ func (h RunRetention) report(
 
 	h.Signals.RetentionRun(ctx, kind, took.Seconds())
 	h.Signals.RetentionDeleted(ctx, kind, int64(outcome.Removed))
-	if dataKind != domain.KindTrash {
-		// The block reasons are the trash's: a legal hold and the offline window are both about
-		// objects a person owns and a device holds, and reporting a zero for a kind neither can
-		// apply to would put a series in the metrics that can never be anything but zero.
+
+	// The reasons this kind can be blocked by, from the catalogue rather than from a list here
+	// (E-07). A kind nothing can block reports no series at all - a zero that can never be anything
+	// else is a line on a dashboard that means nothing - and a kind that gains a reason gains its
+	// series without anybody remembering to add it.
+	entry, known := domain.FindKind(dataKind)
+	if !known {
 		return
 	}
-	for _, reason := range []string{BlockedByLegalHold, BlockedByTombstoneWindow} {
+	for _, reason := range entry.Blockable {
 		h.Signals.RetentionBlocked(ctx, reason, int64(outcome.Blocked[reason]))
 	}
 }

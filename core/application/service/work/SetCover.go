@@ -577,7 +577,7 @@ func (h SetCover) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }
 
 func (h ClearCover) invoke(
@@ -592,7 +592,7 @@ func (h ClearCover) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }
 
 // coverCommand is the adapter between the catalogue's untyped input and the typed command, for both

@@ -112,8 +112,17 @@ Retention nobody can see will eventually surprise somebody. So:
 
 * An object in its grace period carries a machine-readable field `retention: { action, effective_at, policy_id, can_retain }` and appears in the API, and therefore in every client.
 * Those affected get an advance warning (7 days by default) through the chosen channel.
-* `GET /retention-policies:effective?container_id=…` answers the question "which rules actually apply here?", including where each came from (inherited from the hub or the tenant).
-* An automatic export before deletion is possible (`EXPORT_THEN_DELETE`) — the archive lands at the configured backup target.
+* `GET /retention-policies?container_id=…&effective=true` answers the question "which rules actually apply here?", including where each came from (inherited from the hub or the tenant). This document named a `:effective` sub-resource and `openapi.yaml` implemented the same question as query parameters; the two said the same thing, and E-07 made the specification's wording the wording. Each rule in the answer carries `in_force`, so a caller can see both what exists and which of it applies - and a rule switched off in a collection lets the wider one through rather than stopping it, because "off here" means "the wider rule applies" rather than "nothing does".
+* An automatic export before deletion is possible (`EXPORT_THEN_DELETE`) — the archive lands at the configured backup target, written as an ordinary backup run under the trigger `PRE_DELETE`. One archive per target per pass: the archive format's scope is a tenant or a container ([backup-restore.md](./backup-restore.md) §3), so forty entries going in one pass are one export of the tenant they were in. A rule that cannot write its archive **stops** rather than proceeding - "export then delete" with the export missing is just a deletion.
+
+**The advance warning is not sent yet.** The first bullet of this section is built and the second is
+not: an object in its grace period carries `retention` and every client can see it, and nobody is
+messaged about it. Sending one needs a notification category the schema does not have, a template the
+message catalogue does not have, and a way to resolve "the collection's administrators" that nothing
+asks for yet - the notification context's work rather than the retention engine's. So a rule that
+asks to warn somebody is **refused** rather than stored, which is the standard
+`lifecycle.history_not_wired` already sets: a configuration nothing enforces looks like a working
+installation until the day somebody is waiting for it. Open point R-1.
 
 ---
 
@@ -130,3 +139,44 @@ Retention nobody can see will eventually surprise somebody. So:
 | RE-7 | The first activation of a broadly matching rule warns rather than deletes |
 | RE-8 | Cross-tenant: one tenant's rule never affects another tenant's objects |
 | RE-9 | A chained rule (completed → archive → deletion) passes correctly through every stage |
+
+---
+
+## 8. What E-07 decided
+
+Five things the rule model needed settled, recorded here so that nobody re-derives them:
+
+* **The rule is a table beside `retention_policy`, not on top of it.** That table's key allows one
+  period per kind per tenant, and the model is scoped — two rows for one kind is the whole point.
+  Dropping its primary key in one release would break a statement an old pod is still running, so
+  the old table keeps working for the length of a rolling update, its rows are carried into the new
+  one by the first sweep after the upgrade, and a later release contracts it away.
+* **Anchors are the kind's, not the rule's.** "A year after what" is not something a tenant chooses:
+  a rule that could point the period at another column could keep completed work for a year after it
+  was *created* and delete it while it was still open. A chain's second stage counts from the column
+  the first stage wrote — `ARCHIVE` leaves `archived_at`, `TRASH` leaves `deleted_at` — and an action
+  that leaves no column cannot have a stage after it.
+* **The lower bound is a refusal and the upper bound is a justification.** The old path *raised* a
+  period below the floor, which was right for a row nobody had reviewed; a period a tenant
+  configures is a decision they are making, and answering it with a number they never asked for is
+  worse than telling them the one they may not go below. The upper bound is the operator's
+  (`retention_policy.max_days`), because §4.4 says "where the operator has set a maximum period" —
+  no kind carries one by default.
+* **The five-per-cent switch decides when the rule is written, not at its first run.** The rule that
+  gets stored is the safe one, so an installation whose engine never runs still cannot have a broad
+  rule waiting to fire — and the share it reports comes from the same calculation a preview uses, so
+  the notice is checkable.
+* **A kind nothing sweeps is refused rather than configured.** Every kind §3 names is in the
+  catalogue, and the ones this build can actually remove are marked; a period configured against
+  nothing would look like a working installation until somebody checked. The same standard refuses a
+  CEL condition (the language arrives with the rule engine in `0.5.0`) and the advance warning
+  (§6).
+
+---
+
+## 9. Open points
+
+| # | Point | Needed by |
+|---|---|---|
+| R-1 | The advance warning of §6: a notification category, a template, and the resolution of `COLLECTION_ADMINS` and `TENANT_ADMINS`. Until it exists a rule that asks to warn somebody is refused | `0.5.0` |
+| R-2 | Whether the referential safeguard of §4.6 should keep a parent back for a *shorter*-lived child as well, or only for a longer-lived one. Today anything below an entry that is not going in the same pass keeps it back, which is the conservative reading | `0.5.0` |
