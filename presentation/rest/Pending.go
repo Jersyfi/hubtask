@@ -517,6 +517,10 @@ func (pending) GetHealthReport(w http.ResponseWriter, r *http.Request) { notAvai
 
 func (pending) StartRestore(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) GetRestoreRun(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) ListRetentionPolicies(w http.ResponseWriter, r *http.Request, _ openapi.ListRetentionPoliciesParams) {
 	notAvailable(w, r)
 }

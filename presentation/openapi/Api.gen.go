@@ -1322,19 +1322,19 @@ func (e ReminderState) Valid() bool {
 
 // Defines values for RestoreRequestConflictRule.
 const (
-	DUPLICATE RestoreRequestConflictRule = "DUPLICATE"
-	OVERWRITE RestoreRequestConflictRule = "OVERWRITE"
-	SKIP      RestoreRequestConflictRule = "SKIP"
+	RestoreRequestConflictRuleDUPLICATE RestoreRequestConflictRule = "DUPLICATE"
+	RestoreRequestConflictRuleOVERWRITE RestoreRequestConflictRule = "OVERWRITE"
+	RestoreRequestConflictRuleSKIP      RestoreRequestConflictRule = "SKIP"
 )
 
 // Valid indicates whether the value is a known member of the RestoreRequestConflictRule enum.
 func (e RestoreRequestConflictRule) Valid() bool {
 	switch e {
-	case DUPLICATE:
+	case RestoreRequestConflictRuleDUPLICATE:
 		return true
-	case OVERWRITE:
+	case RestoreRequestConflictRuleOVERWRITE:
 		return true
-	case SKIP:
+	case RestoreRequestConflictRuleSKIP:
 		return true
 	default:
 		return false
@@ -1365,6 +1365,87 @@ func (e RestoreRequestMode) Valid() bool {
 	case RestoreRequestModeREPLACETENANT:
 		return true
 	case RestoreRequestModeSELECTIVE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RestoreRunConflictRule.
+const (
+	RestoreRunConflictRuleDUPLICATE RestoreRunConflictRule = "DUPLICATE"
+	RestoreRunConflictRuleOVERWRITE RestoreRunConflictRule = "OVERWRITE"
+	RestoreRunConflictRuleSKIP      RestoreRunConflictRule = "SKIP"
+)
+
+// Valid indicates whether the value is a known member of the RestoreRunConflictRule enum.
+func (e RestoreRunConflictRule) Valid() bool {
+	switch e {
+	case RestoreRunConflictRuleDUPLICATE:
+		return true
+	case RestoreRunConflictRuleOVERWRITE:
+		return true
+	case RestoreRunConflictRuleSKIP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RestoreRunMode.
+const (
+	RestoreRunModeINSPECT       RestoreRunMode = "INSPECT"
+	RestoreRunModeINSTANCE      RestoreRunMode = "INSTANCE"
+	RestoreRunModeMERGE         RestoreRunMode = "MERGE"
+	RestoreRunModeNEWTENANT     RestoreRunMode = "NEW_TENANT"
+	RestoreRunModeREPLACETENANT RestoreRunMode = "REPLACE_TENANT"
+	RestoreRunModeSELECTIVE     RestoreRunMode = "SELECTIVE"
+)
+
+// Valid indicates whether the value is a known member of the RestoreRunMode enum.
+func (e RestoreRunMode) Valid() bool {
+	switch e {
+	case RestoreRunModeINSPECT:
+		return true
+	case RestoreRunModeINSTANCE:
+		return true
+	case RestoreRunModeMERGE:
+		return true
+	case RestoreRunModeNEWTENANT:
+		return true
+	case RestoreRunModeREPLACETENANT:
+		return true
+	case RestoreRunModeSELECTIVE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RestoreRunStatus.
+const (
+	RestoreRunStatusCANCELLED  RestoreRunStatus = "CANCELLED"
+	RestoreRunStatusFAILED     RestoreRunStatus = "FAILED"
+	RestoreRunStatusPENDING    RestoreRunStatus = "PENDING"
+	RestoreRunStatusRUNNING    RestoreRunStatus = "RUNNING"
+	RestoreRunStatusSUCCEEDED  RestoreRunStatus = "SUCCEEDED"
+	RestoreRunStatusVALIDATING RestoreRunStatus = "VALIDATING"
+)
+
+// Valid indicates whether the value is a known member of the RestoreRunStatus enum.
+func (e RestoreRunStatus) Valid() bool {
+	switch e {
+	case RestoreRunStatusCANCELLED:
+		return true
+	case RestoreRunStatusFAILED:
+		return true
+	case RestoreRunStatusPENDING:
+		return true
+	case RestoreRunStatusRUNNING:
+		return true
+	case RestoreRunStatusSUCCEEDED:
+		return true
+	case RestoreRunStatusVALIDATING:
 		return true
 	default:
 		return false
@@ -1994,19 +2075,22 @@ type AutoAssignStrategy string
 
 // BackupArchive Read from the manifest at the target, not from the database.
 type BackupArchive struct {
-	ArchiveId       *string                      `json:"archive_id,omitempty"`
-	ChecksumStatus  *BackupArchiveChecksumStatus `json:"checksum_status,omitempty"`
-	CreatedAt       *time.Time                   `json:"created_at,omitempty"`
-	Encrypted       *bool                        `json:"encrypted,omitempty"`
-	EncryptionKeyId *string                      `json:"encryption_key_id,omitempty"`
-	ExpiresAt       *time.Time                   `json:"expires_at,omitempty"`
-	ItemCount       *int                         `json:"item_count,omitempty"`
-	MediaCount      *int                         `json:"media_count,omitempty"`
-	Mode            *BackupArchiveMode           `json:"mode,omitempty"`
-	ParentArchiveId *string                      `json:"parent_archive_id,omitempty"`
-	Path            *string                      `json:"path,omitempty"`
-	ProductVersion  *string                      `json:"product_version,omitempty"`
-	SchemaVersion   *string                      `json:"schema_version,omitempty"`
+	ArchiveId      *string                      `json:"archive_id,omitempty"`
+	ChecksumStatus *BackupArchiveChecksumStatus `json:"checksum_status,omitempty"`
+
+	// Complete Whether the run that wrote it finished - whether `checksums.txt` is there. An archive without one is not damaged; it is a run still going or one that died, and the difference matters to whoever is deciding what to restore from.
+	Complete        *bool              `json:"complete,omitempty"`
+	CreatedAt       *time.Time         `json:"created_at,omitempty"`
+	Encrypted       *bool              `json:"encrypted,omitempty"`
+	EncryptionKeyId *string            `json:"encryption_key_id,omitempty"`
+	ExpiresAt       *time.Time         `json:"expires_at,omitempty"`
+	ItemCount       *int               `json:"item_count,omitempty"`
+	MediaCount      *int               `json:"media_count,omitempty"`
+	Mode            *BackupArchiveMode `json:"mode,omitempty"`
+	ParentArchiveId *string            `json:"parent_archive_id,omitempty"`
+	Path            *string            `json:"path,omitempty"`
+	ProductVersion  *string            `json:"product_version,omitempty"`
+	SchemaVersion   *string            `json:"schema_version,omitempty"`
 	Scope           *struct {
 		Id    *openapi_types.UUID     `json:"id,omitempty"`
 		Kind  *BackupArchiveScopeKind `json:"kind,omitempty"`
@@ -3109,6 +3193,36 @@ type ReminderUpdate struct {
 	Recipients *[]openapi_types.UUID `json:"recipients,omitempty"`
 }
 
+// RestoreReport What a restore did, or - on a dry run - what it would do. The same shape either way, so that the report a caller approved and the report they get back are comparable.
+type RestoreReport struct {
+	// Conflicts Collisions the conflict rule had to decide. It is the sum of the three ways one can be decided, and it is reported separately because "how much of this run is a decision I made in advance" is the question a dry run exists to answer.
+	Conflicts *int `json:"conflicts,omitempty"`
+
+	// Deleted Objects the archive holds that the deletion journal kept out (§7).
+	Deleted *int `json:"deleted,omitempty"`
+
+	// Duplicated Objects imported beside the live one under a new identity.
+	Duplicated *int `json:"duplicated,omitempty"`
+
+	// Entities How many records each entity contributed.
+	Entities *map[string]int `json:"entities,omitempty"`
+
+	// Media Attachments transferred back into the object store.
+	Media *int `json:"media,omitempty"`
+
+	// New Objects the archive holds and the tenant does not.
+	New *int `json:"new,omitempty"`
+
+	// Overwritten Objects replaced by the archive's version.
+	Overwritten *int `json:"overwritten,omitempty"`
+
+	// Skipped Objects left as they are.
+	Skipped *int `json:"skipped,omitempty"`
+
+	// Withheld What the restore deliberately did not bring back, counted by reason - `deletion_journal`, `excluded_entity`. An object rather than a total, so that a client can say why.
+	Withheld *map[string]int `json:"withheld,omitempty"`
+}
+
 // RestoreRequest defines model for RestoreRequest.
 type RestoreRequest struct {
 	ArchiveId string `json:"archive_id"`
@@ -3126,6 +3240,9 @@ type RestoreRequest struct {
 		ContainerIds *[]openapi_types.UUID `json:"container_ids,omitempty"`
 		ItemIds      *[]openapi_types.UUID `json:"item_ids,omitempty"`
 	} `json:"selection,omitempty"`
+
+	// StepUpToken The proof of a fresh, stronger authentication for a destructive mode (§8.3). Sessions and MFA arrive in `0.6.0`; until an installation can issue one of these, a destructive restore is refused rather than silently permitted. A confirmation that is structurally impossible to give is a stronger position than one that is skipped.
+	StepUpToken    *string             `json:"step_up_token,omitempty"`
 	TargetId       openapi_types.UUID  `json:"target_id"`
 	TargetTenantId *openapi_types.UUID `json:"target_tenant_id,omitempty"`
 }
@@ -3135,6 +3252,42 @@ type RestoreRequestConflictRule string
 
 // RestoreRequestMode defines model for RestoreRequest.Mode.
 type RestoreRequestMode string
+
+// RestoreRun One restore, asked for or done. Its report is what a dry run produces and what the mode without `dry_run` is judged against.
+type RestoreRun struct {
+	ConflictRule *RestoreRunConflictRule `json:"conflict_rule,omitempty"`
+	DryRun       bool                    `json:"dry_run"`
+
+	// ErrorCode The message code of the failure, never a message and never free text.
+	ErrorCode  *string            `json:"error_code,omitempty"`
+	FinishedAt *time.Time         `json:"finished_at,omitempty"`
+	Id         openapi_types.UUID `json:"id"`
+	Mode       RestoreRunMode     `json:"mode"`
+
+	// Report What a restore did, or - on a dry run - what it would do. The same shape either way, so that the report a caller approved and the report they get back are comparable.
+	Report *RestoreReport `json:"report,omitempty"`
+
+	// SafetyBackupRunId The copy taken before a destructive mode, and the way back from it.
+	SafetyBackupRunId *openapi_types.UUID `json:"safety_backup_run_id,omitempty"`
+
+	// SourceArchive Where the archive lies at the target. A path rather than a run identifier, because a restore has to be possible when the database that recorded the run is gone.
+	SourceArchive string             `json:"source_archive"`
+	StartedAt     *time.Time         `json:"started_at,omitempty"`
+	Status        RestoreRunStatus   `json:"status"`
+	TargetId      openapi_types.UUID `json:"target_id"`
+
+	// TenantId The tenant being restored into.
+	TenantId *openapi_types.UUID `json:"tenant_id,omitempty"`
+}
+
+// RestoreRunConflictRule defines model for RestoreRun.ConflictRule.
+type RestoreRunConflictRule string
+
+// RestoreRunMode defines model for RestoreRun.Mode.
+type RestoreRunMode string
+
+// RestoreRunStatus defines model for RestoreRun.Status.
+type RestoreRunStatus string
 
 // RetentionPolicy defines model for RetentionPolicy.
 type RetentionPolicy struct {
@@ -4790,6 +4943,9 @@ type ServerInterface interface {
 	// StartRestore Start a restore
 	// (POST /restores)
 	StartRestore(w http.ResponseWriter, r *http.Request)
+	// GetRestoreRun What one restore did, or is about to do
+	// (GET /restores/{restoreId})
+	GetRestoreRun(w http.ResponseWriter, r *http.Request, restoreId openapi_types.UUID)
 	// ListRetentionPolicies List the retention rules
 	// (GET /retention-policies)
 	ListRetentionPolicies(w http.ResponseWriter, r *http.Request, params ListRetentionPoliciesParams)
@@ -9129,6 +9285,32 @@ func (siw *ServerInterfaceWrapper) StartRestore(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// GetRestoreRun operation middleware
+func (siw *ServerInterfaceWrapper) GetRestoreRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "restoreId" -------------
+	var restoreId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "restoreId", r.PathValue("restoreId"), &restoreId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "restoreId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRestoreRun(w, r, restoreId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRetentionPolicies operation middleware
 func (siw *ServerInterfaceWrapper) ListRetentionPolicies(w http.ResponseWriter, r *http.Request) {
 
@@ -10144,6 +10326,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/backups/{backupId}", wrapper.GetBackupRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/backups/{backupId}:verify", wrapper.VerifyBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/restores", wrapper.StartRestore)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/restores/{restoreId}", wrapper.GetRestoreRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jobs/{jobId}", wrapper.GetJob)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jobs/{jobId}:cancel", wrapper.CancelJob)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/trash", wrapper.ListTrash)
