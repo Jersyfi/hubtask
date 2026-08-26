@@ -537,7 +537,7 @@ func (h CompleteWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }
 
 func (h ReopenWorkItem) invoke(
@@ -551,7 +551,7 @@ func (h ReopenWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }
 
 // completionCommand reads the untyped input, and refuses the one field the contract declares that this

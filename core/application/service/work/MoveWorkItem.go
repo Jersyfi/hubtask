@@ -793,7 +793,7 @@ func (h ReorderWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }
 
 // moveOutput is the shape a move answers with: the contract's MoveResult, whose `dropped_references`
@@ -809,7 +809,7 @@ func moveOutput(result MoveResult) usecase.Output {
 		})
 	}
 	return usecase.Output{
-		"item":               itemOutput(result.Item),
+		"item":               ItemOutput(result.Item),
 		"dropped_references": dropped,
 		"subtree_size":       result.SubtreeSize,
 	}

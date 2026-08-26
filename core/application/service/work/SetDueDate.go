@@ -476,7 +476,7 @@ func (h SetDueDate) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }
 
 func (h ClearDueDate) invoke(
@@ -491,7 +491,7 @@ func (h ClearDueDate) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }
 
 // dueDateCommand is the adapter between the catalogue's untyped input and the typed command, for

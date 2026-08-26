@@ -158,6 +158,12 @@ type WorkItem struct {
 	// that removes it, and a client that sent one would be claiming a series exists.
 	RecurrenceRuleID shared.ID
 
+	// Retention is what a retention rule has announced about this entry, and nil while none has
+	// (data-retention.md §6). It is on the entry rather than fetched beside it because §6's whole
+	// point is that the object itself says what is coming: "retention nobody can see will
+	// eventually surprise somebody".
+	Retention *RetentionState
+
 	ArchivedAt   *time.Time
 	DeletedAt    *time.Time
 	TrashBatchID shared.ID
@@ -166,6 +172,24 @@ type WorkItem struct {
 	UpdatedAt    time.Time
 	Version      int
 }
+
+// RetentionState is what an entry in a running retention period carries (data-retention.md §6).
+//
+// A value on the entry rather than a reference to the rule: a client showing "this goes on the
+// fourteenth" should not have to fetch a rule to say so, and the rule may be changed or removed
+// while the announcement it made still stands.
+type RetentionState struct {
+	// Action is what will happen.
+	Action string
+	// EffectiveAt is when. It is the entry's own date rather than the rule's, because the period
+	// runs from the entry's anchor.
+	EffectiveAt time.Time
+	// PolicyID is the rule that announced it.
+	PolicyID shared.ID
+}
+
+// InRetention reports an entry a rule has announced something about.
+func (i WorkItem) InRetention() bool { return i.Retention != nil }
 
 // NewWorkItemInput is what an item is made of. Placement - the path and the depth - is computed by
 // the hierarchy service rather than passed by a client, and arrives here already decided.

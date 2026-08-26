@@ -17,6 +17,7 @@ const (
 	createRetentionPolicyUseCase  = "CreateRetentionPolicy"
 	listRetentionPoliciesUseCase  = "ListRetentionPolicies"
 	previewRetentionPolicyUseCase = "PreviewRetentionPolicy"
+	retainItemUseCase             = "RetainItem"
 )
 
 // ListRetentionPolicies answers GET /retention-policies.
@@ -202,4 +203,15 @@ func retentionPreviewResponse(out usecase.Output) map[string]any {
 		preview = map[string]any(out)
 	}
 	return preview
+}
+
+// RetainItem answers POST /items/{itemId}:retain.
+func (c *RestController) RetainItem(
+	w http.ResponseWriter, r *http.Request, itemID openapi_types.UUID,
+) {
+	out, ok := c.read(w, r, retainItemUseCase, usecase.Input{"item_id": itemID.String()})
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusOK, workItemResponse(out))
 }

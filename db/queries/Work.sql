@@ -245,6 +245,10 @@ SELECT
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
   wi.content_language, wi.recurrence_rule_id,
+  -- What a retention rule has announced about this entry, for as long as one applies to it
+  -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
+  -- because §6's point is that the object itself says what is coming.
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -323,6 +327,7 @@ SELECT
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
   wi.content_language, wi.recurrence_rule_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi
@@ -409,6 +414,7 @@ SELECT
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
   wi.content_language, wi.recurrence_rule_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
   wi.version
 FROM work_item wi

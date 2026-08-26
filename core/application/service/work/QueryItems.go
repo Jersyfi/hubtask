@@ -426,7 +426,7 @@ func groupsOf(
 func rowsOf(items []domain.WorkItem, carried map[shared.ID][]shared.ID) []usecase.Output {
 	rows := make([]usecase.Output, 0, len(items))
 	for _, item := range items {
-		rows = append(rows, withLabels(itemOutput(item), item, carried))
+		rows = append(rows, withLabels(ItemOutput(item), item, carried))
 	}
 	return rows
 }

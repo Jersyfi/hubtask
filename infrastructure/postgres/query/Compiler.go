@@ -63,6 +63,7 @@ const (
 		`wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone, ` +
 		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, ` + visibleCustomFields + `, ` +
 		`wi.content_language, ` +
+		`wi.retention_pending_until, wi.retention_rule_id, wi.retention_action, ` +
 		`wi.archived_at, wi.deleted_at, ` +
 		`wi.trash_batch_id, ` +
 		`wi.created_by, wi.created_at, wi.updated_at, wi.version`
@@ -71,6 +72,7 @@ const (
 		`is_completed, completed_at, completed_by, bucket_id, order_key, assignee_id, ` +
 		`start_at, due_at, due_date_only, due_time_zone, ` +
 		`cover_kind, cover_color_token, cover_media_id, custom_fields, content_language, ` +
+		`retention_pending_until, retention_rule_id, retention_action, ` +
 		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version`
 )
 

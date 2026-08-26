@@ -39,7 +39,8 @@ var exemptUseCases = []string{
 	"ArchiveContainer", "AutoAssignWorkItem", "BulkUpdateWorkItems", "CreateBucket",
 	"CreateContainer", "CreateLabel",
 	"DeleteBucket", "DeleteComment", "DeleteLabel", "EditComment", "EmptyTrash", "MoveContainer",
-	"PurgeWorkItem", "RenameContainer", "ReorderBucket", "RestoreContainer", "TrashContainer",
+	"PurgeWorkItem", "RenameContainer", "ReorderBucket", "RestoreContainer", "RetainItem",
+	"TrashContainer",
 	"UnarchiveContainer", "UpdateBucket", "UpdateContainerPolicies", "UpdateLabel",
 }
 

@@ -147,6 +147,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		lifecycle.CreateRetentionPolicy{}.Descriptor(),
 		lifecycle.ListRetentionPolicies{}.Descriptor(),
 		lifecycle.PreviewRetentionPolicy{}.Descriptor(),
+		lifecycle.RetainItem{}.Descriptor(),
 		backupservice.CreateBackupSchedule{}.Descriptor(),
 		jobservice.GetJob{}.Descriptor(),
 		jobservice.CancelJob{}.Descriptor(),

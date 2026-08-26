@@ -358,6 +358,10 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		}
 	}
 	item.ArchivedAt, item.DeletedAt = optionalTimeField(out["archived_at"]), optionalTimeField(out["deleted_at"])
+	// What a retention rule has announced about this entry, present only while one has
+	// (data-retention.md §6). Absent means nothing is coming, which is a different answer from an
+	// object full of nulls.
+	item.Retention = retentionStateResponse(out["retention"])
 	return item
 }
 
@@ -416,4 +420,33 @@ func completionResponse(value any) openapi.Completion {
 		completion.CompletedBy = &completedBy
 	}
 	return completion
+}
+
+// retentionStateResponse maps what a retention rule has announced about an entry.
+//
+// `can_retain` is what a client puts a button behind, and it is the server's answer rather than the
+// client's inference: taking an entry out is a permission question, and a client that decided it
+// from the presence of a date would show a button that then refuses.
+func retentionStateResponse(value any) *openapi.RetentionState {
+	announced, present := value.(map[string]any)
+	if !present {
+		return nil
+	}
+
+	state := &openapi.RetentionState{}
+	if action, named := announced["action"].(string); named {
+		state.Action = &action
+	}
+	if at := timeValue(announced["effective_at"]); !at.IsZero() {
+		moment := at
+		state.EffectiveAt = &moment
+	}
+	if policy, named := announced["policy_id"].(string); named && policy != "" {
+		id := uuidValue(policy)
+		state.PolicyId = &id
+	}
+	if canRetain, told := announced["can_retain"].(bool); told {
+		state.CanRetain = &canRetain
+	}
+	return state
 }

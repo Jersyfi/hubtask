@@ -402,6 +402,8 @@ func (pending) UnarchiveWorkItem(w http.ResponseWriter, r *http.Request, _ opena
 	notAvailable(w, r)
 }
 
+// Overridden by RestController; it stays here for the reason the others do - the compile-time
+// assertion is on `pending` itself.
 func (pending) RetainItem(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }

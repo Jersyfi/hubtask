@@ -493,7 +493,7 @@ func (h AssignWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }
 
 func (h UnassignWorkItem) invoke(
@@ -508,7 +508,7 @@ func (h UnassignWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return itemOutput(item), nil
+	return ItemOutput(item), nil
 }
 
 // assignmentCommand is the adapter between the catalogue's untyped input and the typed command, for

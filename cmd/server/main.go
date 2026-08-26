@@ -829,6 +829,12 @@ func run() error {
 		lifecycle.CreateRetentionPolicy{Rules: retentionRules}.Descriptor(),
 		lifecycle.ListRetentionPolicies{Rules: retentionRules}.Descriptor(),
 		lifecycle.PreviewRetentionPolicy{Rules: retentionRules}.Descriptor(),
+		lifecycle.RetainItem{
+			Items: items, Containers: containers,
+			Marking: postgres.NewRetentionMarkingRepository(), Authorizer: authorizer,
+			Audit: auditSink, Changes: changes, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, HLC: hybrid,
+		}.Descriptor(),
 
 		mediaservice.RequestMediaUpload{
 			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink, Jobs: jobs,
