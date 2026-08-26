@@ -475,6 +475,7 @@
 
   "search.words_required": "Say what to look for.",
   "search.words_too_long": "A search may be at most {maximum} characters long.",
+  "query.document_unreadable": "That is not a JSON query document.",
   "query.scope_required": "Say where to search: a hub, a collection, or an entry.",
   "query.scope_ambiguous": "Search in one place at a time - a container or an entry, not both.",
   "query.scope_not_found": "There is nothing to search there.",
@@ -609,6 +610,7 @@
   "templates.root_not_permitted": "A {item_type} cannot be created there.",
   "templates.collection_required": "An instantiation needs a collection to land in.",
   "templates.anchor_invalid": "{value} is not a date. Use YYYY-MM-DD.",
+  "templates.nodes_unreadable": "That is not a JSON array of template nodes.",
   "templates.nodes_undecodable": "This installation is misconfigured and could not read that template.",
   "templates.nodes_unencodable": "This installation is misconfigured and could not store that template.",
 

@@ -241,6 +241,67 @@ func (c *Client) call(
 	return nil
 }
 
+// Download posts a request whose answer is a file rather than a payload, and hands the bytes back
+// with whatever the server said about the truncation.
+//
+// A file is not decoded: an export is CSV, JSON or a calendar document, and this is the one call
+// whose answer is written where the caller says rather than reshaped by --json (D-08's row cap
+// travels in the Export-Truncated header, which is why it comes back beside the bytes).
+func (c *Client) Download(ctx context.Context, path string, body any) ([]byte, bool, error) {
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		return nil, false, fmt.Errorf("building the request: %w", err)
+	}
+
+	response, err := c.send(ctx, port.Request{
+		Method:      http.MethodPost,
+		URL:         c.base + path,
+		TargetClass: "hubtask-api",
+		Header: map[string][]string{
+			"Accept":        {"text/csv, application/json, text/calendar, application/problem+json"},
+			"Content-Type":  {"application/json"},
+			"Authorization": {"Bearer " + c.token.Reveal()},
+			"User-Agent":    {"hubctl/" + version},
+		},
+		Body: encoded,
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	if response.Status >= http.StatusBadRequest {
+		return nil, false, c.problem(response)
+	}
+	truncated := false
+	for _, value := range response.Header["Export-Truncated"] {
+		truncated = truncated || value == "true"
+	}
+	return response.Body, truncated, nil
+}
+
+// FetchPublic reads a URL that carries its own credential, with no Authorization header on it.
+//
+// The same trust model Upload uses for a content route, and for the same reason: a calendar feed
+// URL *is* the credential, and a request that carried a second one would be claiming an identity
+// the route does not accept (D-08).
+func (c *Client) FetchPublic(ctx context.Context, target string) ([]byte, error) {
+	response, err := c.send(ctx, port.Request{
+		Method:      http.MethodGet,
+		URL:         target,
+		TargetClass: "hubtask-api",
+		Header: map[string][]string{
+			"Accept":     {"text/calendar, application/problem+json"},
+			"User-Agent": {"hubctl/" + version},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if response.Status >= http.StatusBadRequest {
+		return nil, c.problem(response)
+	}
+	return response.Body, nil
+}
+
 // send makes the call and waits out a rate limit rather than handing it to the user.
 //
 // The server reports the budget on every answer and a Retry-After on a refusal, "so that a

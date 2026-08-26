@@ -113,7 +113,8 @@ var errHelpRequested = errors.New("help requested")
 func groups() []group {
 	return []group{
 		authGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
-		commentGroup(), fieldGroup(), mediaGroup(), trashGroup(), searchGroup(), watchGroup(),
+		templateGroup(), viewGroup(), calendarGroup(), commentGroup(), fieldGroup(), mediaGroup(),
+		trashGroup(), searchGroup(), watchGroup(),
 	}
 }
 
