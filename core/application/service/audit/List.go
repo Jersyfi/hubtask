@@ -64,10 +64,23 @@ type Authorizer interface {
 	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
 }
 
+// Pseudonyms answers the substitutions an erasure left behind (audit.md §6, E-10).
+//
+// The trail is exempt from erasure and cannot be edited in place - the grants, the trigger and the
+// hash chain all refuse it - so what an erased actor's entries lose is their *label*, here, on the
+// way out. The row is untouched, the chain still verifies, and the entries of one actor are still
+// one actor's, which is what an auditor needs and what a name was never needed for.
+type Pseudonyms interface {
+	For(ctx context.Context, actorIDs []shared.ID) (map[shared.ID]string, error)
+}
+
 // ListAuditEntries reads a page of the trail.
 type ListAuditEntries struct {
 	Trail      repository.Trail
 	Authorizer Authorizer
+	// Pseudonyms is optional only in the sense that an installation without the privacy surface
+	// has nothing to substitute: where it is wired, an erased actor's name never leaves.
+	Pseudonyms Pseudonyms
 	UnitOfWork persistence.UnitOfWork
 }
 
@@ -134,6 +147,10 @@ func (h ListAuditEntries) Execute(
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		page, err = h.Trail.Query(ctx, filter)
+		if err != nil {
+			return err
+		}
+		page.Records, err = Pseudonymised(ctx, h.Pseudonyms, page.Records)
 		return err
 	})
 	if err != nil {

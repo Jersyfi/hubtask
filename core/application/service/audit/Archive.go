@@ -83,8 +83,12 @@ type TargetStore interface {
 // The application layer's half of the `audit.export` job: the worker owns the queue, the retries
 // and the lease, and everything about what an export *is* lives here.
 type Archivist struct {
-	Trail      repository.Trail
-	Targets    TargetStore
+	Trail   repository.Trail
+	Targets TargetStore
+	// Pseudonyms applies the same substitution the read applies (audit.md §6): an archive that
+	// carried an erased actor's name would be the one copy of the trail where the erasure had not
+	// happened, and it is the copy that leaves the installation.
+	Pseudonyms Pseudonyms
 	Encryptor  crypto.Encryptor
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -316,7 +320,14 @@ func (a Archivist) stream(
 				}
 				out.lastSeq, out.lastHash = record.Seq, hex.EncodeToString(record.Hash)
 				out.entries++
-				return rows(record)
+
+				// One entry at a time rather than a page, because a walk has no page: the lookup
+				// is a map read behind the port for every actor it has already seen.
+				substituted, err := Pseudonymised(ctx, a.Pseudonyms, []repository.Record{record})
+				if err != nil {
+					return err
+				}
+				return rows(substituted[0])
 			})
 		})
 	if err != nil {

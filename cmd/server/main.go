@@ -863,7 +863,8 @@ func run() error {
 		lifecycle.ReleaseLegalHold{Holds: legalHolds}.Descriptor(),
 		lifecycle.ListLegalHolds{Holds: legalHolds}.Descriptor(),
 		auditservice.ListAuditEntries{
-			Trail: auditTrail, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Trail: auditTrail, Authorizer: authorizer, Pseudonyms: privacyStore,
+			UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		auditservice.VerifyAuditChain{
 			Trail: auditTrail, Chain: auditadapter.Links{}, Authorizer: authorizer, Audit: auditSink,
@@ -1347,7 +1348,7 @@ func run() error {
 	// The audit export (E-09). It writes to a backup target through the seam that owns a target's
 	// credentials, because an export needs somewhere to put bytes and has no business with them.
 	auditArchivist := auditservice.Archivist{
-		Trail: auditTrail,
+		Trail: auditTrail, Pseudonyms: privacyStore,
 		Targets: backupservice.StoreOpener{
 			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
 			UnitOfWork: unitOfWork,
