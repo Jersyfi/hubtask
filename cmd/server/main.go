@@ -329,6 +329,14 @@ func run() error {
 		Expander: recurrenceadapter.New(), Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
+	// And the restore side (E-06). It gets the same cipher the run job uses, because listing an
+	// archive and restoring one have to agree about how a member was closed - two ciphers here
+	// would look exactly like a wrong key.
+	backupRestorer := backupservice.Restorer{
+		Targets: backupTargets, Encryptor: encryptor, Opener: backupAdapters,
+		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 
 	accounts := postgres.NewAccountRepository()
 	groups := postgres.NewGroupRepository()
@@ -905,6 +913,7 @@ func run() error {
 		backupservice.GetBackupRun{Runner: backupRunner}.Descriptor(),
 		backupservice.VerifyBackup{Runner: backupRunner}.Descriptor(),
 		backupservice.CreateBackupSchedule{Scheduling: backupScheduling}.Descriptor(),
+		backupservice.ListBackupsAtTarget{Restorer: backupRestorer}.Descriptor(),
 
 		jobservice.GetJob{
 			Jobs: jobRecords, Authorizer: authorizer, UnitOfWork: unitOfWork,
