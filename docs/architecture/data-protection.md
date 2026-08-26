@@ -125,10 +125,20 @@ its row and is tried again next pass — the other order would leave a file in t
 in this system knows about any more. Metrics: `hubtask_media_reclaimed_total`,
 `hubtask_media_reclaim_failed_total`.
 
-**The retention engine:** periods are data (`retention_policy` per tenant and data kind), not code.
-A scheduler job evaluates them tenant by tenant, records the scope in the audit, and reports
-backlogs as a metric. Configurable within documented lower and upper bounds; an extension beyond the
-default produces an audit entry with a justification field.
+**The retention engine:** the rules are data (`retention_rule`, scoped to the workspace, a hub or a
+collection), not code; `retention_policy` carries the bounds an operator sets per data kind. A
+scheduler job evaluates them tenant by tenant, records the scope in the audit, and reports backlogs
+as a metric. Configurable within documented lower and upper bounds; an extension beyond the upper
+bound produces an audit entry with a justification field.
+
+`retention_rule` holds no content of anybody's: a class of data, a number of days, an action, and
+`justification` - which is the operator's own words about their own policy rather than a person's
+data. It is a primary table, so its deletion path is the cascading `DELETE` of the table above, and
+it is deliberately left out of a backup archive: a rule that says `EXPORT_THEN_DELETE` names an
+egress channel a restore does not recreate ([backup-restore.md](./backup-restore.md) §8.4). The
+announcement a rule leaves on an entry - `retention_pending_until`, `retention_rule_id`,
+`retention_action` - goes with the entry, and says nothing a reader of the entry could not already
+see.
 
 Defaults (privacy-friendly, Art. 25(2)): trash 30 days, `PERSONAL_TECHNICAL` 90 days, sessions 30
 days, audit 400 days, rule runs and webhook deliveries 30 days, notification history 90 days.
