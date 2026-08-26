@@ -79,6 +79,88 @@ func (r AuditTrailRepository) Query(
 	}, nil
 }
 
+// walkBatch is how many entries one round trip of a walk reads.
+//
+// Large enough that a year of a busy tenant is a few hundred round trips rather than tens of
+// thousands, small enough that one batch is a few hundred kilobytes rather than a holding. It is
+// not the page size of a list: nobody is looking at these rows, they are being hashed.
+const walkBatch = 500
+
+// Walk hands over every entry of a period, oldest first.
+//
+// It pages on the same keyset the list descends by, so a walk that runs for minutes while entries
+// are being appended can neither repeat an entry nor skip one. Entries appended *during* the walk
+// are outside its period or after its cursor, which is the same answer a snapshot would give and
+// costs no open transaction.
+func (r AuditTrailRepository) Walk(
+	ctx context.Context, period repository.Period, yield func(repository.Record) error,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	params := sqlc.WalkAuditEntriesParams{
+		FromTime:  timestampOf(period.From),
+		ToTime:    timestampOf(period.To),
+		BatchSize: walkBatch,
+	}
+
+	for {
+		rows, err := queries.WalkAuditEntries(ctx, params)
+		if err != nil {
+			return shared.ErrUnavailable.
+				WithDetail("postgres.query_failed").
+				WithCause(fmt.Errorf("walking the audit trail: %w", err))
+		}
+		if len(rows) == 0 {
+			return nil
+		}
+
+		for _, row := range rows {
+			record, err := auditRecordFrom(row)
+			if err != nil {
+				return err
+			}
+			if err := yield(record); err != nil {
+				return err
+			}
+		}
+
+		last := rows[len(rows)-1]
+		params.CursorOccurredAt, params.CursorID = last.OccurredAt, last.ID
+		if len(rows) < walkBatch {
+			// A short batch is the end of the period. Asking once more would be one round trip per
+			// walk to be told what this already says.
+			return nil
+		}
+	}
+}
+
+// LatestAnchor answers the last chain end this tenant exported outside the database.
+func (r AuditTrailRepository) LatestAnchor(ctx context.Context) (repository.Anchor, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.Anchor{}, err
+	}
+
+	row, err := queries.LastAuditAnchor(ctx)
+	switch {
+	case IsNoRows(err):
+		// Nothing anchored, which is every installation today: external anchoring is optional and
+		// is not pretended to be in place (audit.md §3, open point A-2).
+		return repository.Anchor{}, nil
+	case err != nil:
+		return repository.Anchor{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the audit anchor: %w", err))
+	}
+
+	return repository.Anchor{
+		AnchoredAt: timeFrom(row.AnchoredAt), LastSeq: row.LastSeq, ChainHash: row.ChainHash,
+	}, nil
+}
+
 // auditQueryParams turns the filter into bound parameters, one per condition.
 //
 // Every absent filter reaches the statement as NULL, which is what makes the condition disappear

@@ -178,3 +178,75 @@ func TestAnEmptyTrailIsAnEmptyArray(t *testing.T) {
 		t.Errorf("the last page carried no explicit null: %s", body)
 	}
 }
+
+// The chain check over REST. What this layer owes is the two explicit nulls: a client reading "no
+// break" out of a missing key would read the same thing out of a key it forgot.
+func postVerify(t *testing.T, registry UseCaseRegistry, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	controller := NewRestController()
+	controller.UseCases = registry
+
+	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind:      appshared.ActorUser,
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+	})
+	request := httptest.NewRequestWithContext(
+		ctx, http.MethodPost, APIBasePath+"/audit:verify", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+	return recorder
+}
+
+func TestAnIntactChainAnswersWithExplicitNulls(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"valid": true, "checked": 1200, "first_broken_seq": nil,
+		"gaps": []int64{}, "gap_count": 0, "sealed_until": nil,
+	}}
+
+	recorder := postVerify(t, registry,
+		`{"from":"2026-08-01T00:00:00Z","to":"2026-09-01T00:00:00Z"}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("the check answered %d: %s", recorder.Code, recorder.Body)
+	}
+
+	body := recorder.Body.String()
+	for _, wanted := range []string{
+		`"valid":true`, `"checked":1200`, `"first_broken_seq":null`, `"gaps":[]`,
+		`"sealed_until":null`,
+	} {
+		if !strings.Contains(body, wanted) {
+			t.Errorf("the answer %s is missing %s", body, wanted)
+		}
+	}
+	if registry.in["from"] != "2026-08-01T00:00:00Z" || registry.name != verifyAuditChainUseCase {
+		t.Errorf("the check ran %q with %v", registry.name, registry.in)
+	}
+}
+
+func TestABreakIsAnsweredWithItsSequenceNumber(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"valid": false, "checked": 40, "first_broken_seq": int64(17),
+		"gaps": []int64{18, 19}, "gap_count": 2,
+		"sealed_until": time.Date(2026, 8, 20, 0, 0, 0, 0, time.UTC),
+	}}
+
+	recorder := postVerify(t, registry,
+		`{"from":"2026-08-01T00:00:00Z","to":"2026-09-01T00:00:00Z"}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("the check answered %d: %s", recorder.Code, recorder.Body)
+	}
+
+	body := recorder.Body.String()
+	for _, wanted := range []string{
+		`"valid":false`, `"first_broken_seq":17`, `"gaps":[18,19]`, `"gap_count":2`,
+		`"sealed_until":"2026-08-20T00:00:00Z"`,
+	} {
+		if !strings.Contains(body, wanted) {
+			t.Errorf("the answer %s is missing %s", body, wanted)
+		}
+	}
+}

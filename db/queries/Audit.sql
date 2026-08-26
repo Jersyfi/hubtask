@@ -76,3 +76,42 @@ WHERE tenant_id = current_tenant_id()
   )
 ORDER BY occurred_at DESC, id DESC
 LIMIT sqlc.arg('page_size');
+
+-- name: WalkAuditEntries :many
+-- One batch of the trail over a period, oldest first, for a verification or an export.
+--
+-- Ascending and by the same pair the page above descends by, because both callers walk the chain
+-- rather than read a screen: the chain is built forwards, and a verifier that met the entries
+-- newest first would have to hold the whole period in memory before it could check the first link.
+--
+-- Its own statement rather than a direction parameter on the list. A direction that decides an
+-- ORDER BY is either two statements behind one name or a string somebody assembles, and the second
+-- of those is what rule 9 forbids.
+SELECT id, tenant_id, seq, occurred_at, action, outcome, severity,
+       actor_type, actor_id, actor_label, on_behalf_of_id,
+       target_type, target_id, target_label,
+       context, changes, legal_basis, prev_hash, hash
+FROM audit_log
+WHERE tenant_id = current_tenant_id()
+  AND (sqlc.narg('from_time')::timestamptz IS NULL OR occurred_at >= sqlc.narg('from_time')::timestamptz)
+  AND (sqlc.narg('to_time')::timestamptz IS NULL OR occurred_at < sqlc.narg('to_time')::timestamptz)
+  AND (
+    sqlc.narg('cursor_occurred_at')::timestamptz IS NULL
+    OR (occurred_at, id) > (sqlc.narg('cursor_occurred_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
+  )
+ORDER BY occurred_at ASC, id ASC
+LIMIT sqlc.arg('batch_size');
+
+-- name: LastAuditAnchor :one
+-- The last chain end this tenant exported to an append-only target outside the database.
+--
+-- Nothing writes this table yet, and that is the point of reading it: `:verify` proves the chain is
+-- intact *inside* the database, and only an anchor proves anything against somebody who can rewrite
+-- the whole of it. `sealed_until` is therefore null on every installation until external anchoring
+-- exists (audit.md §3, open point A-2) - null being the honest answer rather than a date that would
+-- claim more than the system does.
+SELECT anchored_at, last_seq, chain_hash
+FROM audit_anchor
+WHERE tenant_id = current_tenant_id()
+ORDER BY last_seq DESC
+LIMIT 1;

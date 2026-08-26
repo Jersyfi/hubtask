@@ -73,6 +73,34 @@ func (q *Queries) InsertAuditEntry(ctx context.Context, arg InsertAuditEntryPara
 	return err
 }
 
+const lastAuditAnchor = `-- name: LastAuditAnchor :one
+SELECT anchored_at, last_seq, chain_hash
+FROM audit_anchor
+WHERE tenant_id = current_tenant_id()
+ORDER BY last_seq DESC
+LIMIT 1
+`
+
+type LastAuditAnchorRow struct {
+	AnchoredAt pgtype.Timestamptz
+	LastSeq    int64
+	ChainHash  []byte
+}
+
+// The last chain end this tenant exported to an append-only target outside the database.
+//
+// Nothing writes this table yet, and that is the point of reading it: `:verify` proves the chain is
+// intact *inside* the database, and only an anchor proves anything against somebody who can rewrite
+// the whole of it. `sealed_until` is therefore null on every installation until external anchoring
+// exists (audit.md §3, open point A-2) - null being the honest answer rather than a date that would
+// claim more than the system does.
+func (q *Queries) LastAuditAnchor(ctx context.Context) (LastAuditAnchorRow, error) {
+	row := q.db.QueryRow(ctx, lastAuditAnchor)
+	var i LastAuditAnchorRow
+	err := row.Scan(&i.AnchoredAt, &i.LastSeq, &i.ChainHash)
+	return i, err
+}
+
 const lastAuditEntry = `-- name: LastAuditEntry :one
 SELECT seq, hash
 FROM audit_log
@@ -218,4 +246,84 @@ SELECT pg_advisory_xact_lock(hashtext('audit_log:' || current_tenant_id()::text)
 func (q *Queries) LockAuditChain(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockAuditChain)
 	return err
+}
+
+const walkAuditEntries = `-- name: WalkAuditEntries :many
+SELECT id, tenant_id, seq, occurred_at, action, outcome, severity,
+       actor_type, actor_id, actor_label, on_behalf_of_id,
+       target_type, target_id, target_label,
+       context, changes, legal_basis, prev_hash, hash
+FROM audit_log
+WHERE tenant_id = current_tenant_id()
+  AND ($1::timestamptz IS NULL OR occurred_at >= $1::timestamptz)
+  AND ($2::timestamptz IS NULL OR occurred_at < $2::timestamptz)
+  AND (
+    $3::timestamptz IS NULL
+    OR (occurred_at, id) > ($3::timestamptz, $4::uuid)
+  )
+ORDER BY occurred_at ASC, id ASC
+LIMIT $5
+`
+
+type WalkAuditEntriesParams struct {
+	FromTime         pgtype.Timestamptz
+	ToTime           pgtype.Timestamptz
+	CursorOccurredAt pgtype.Timestamptz
+	CursorID         pgtype.UUID
+	BatchSize        int32
+}
+
+// One batch of the trail over a period, oldest first, for a verification or an export.
+//
+// Ascending and by the same pair the page above descends by, because both callers walk the chain
+// rather than read a screen: the chain is built forwards, and a verifier that met the entries
+// newest first would have to hold the whole period in memory before it could check the first link.
+//
+// Its own statement rather than a direction parameter on the list. A direction that decides an
+// ORDER BY is either two statements behind one name or a string somebody assembles, and the second
+// of those is what rule 9 forbids.
+func (q *Queries) WalkAuditEntries(ctx context.Context, arg WalkAuditEntriesParams) ([]AuditLog, error) {
+	rows, err := q.db.Query(ctx, walkAuditEntries,
+		arg.FromTime,
+		arg.ToTime,
+		arg.CursorOccurredAt,
+		arg.CursorID,
+		arg.BatchSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AuditLog{}
+	for rows.Next() {
+		var i AuditLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Seq,
+			&i.OccurredAt,
+			&i.Action,
+			&i.Outcome,
+			&i.Severity,
+			&i.ActorType,
+			&i.ActorID,
+			&i.ActorLabel,
+			&i.OnBehalfOfID,
+			&i.TargetType,
+			&i.TargetID,
+			&i.TargetLabel,
+			&i.Context,
+			&i.Changes,
+			&i.LegalBasis,
+			&i.PrevHash,
+			&i.Hash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -50,6 +50,7 @@ import (
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	dbfiles "github.com/Jersyfi/hubtask/db"
+	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
@@ -848,6 +849,10 @@ func run() error {
 		lifecycle.ListLegalHolds{Holds: legalHolds}.Descriptor(),
 		auditservice.ListAuditEntries{
 			Trail: auditTrail, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		auditservice.VerifyAuditChain{
+			Trail: auditTrail, Chain: auditadapter.Links{}, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		lifecycle.RetainItem{
 			Items: items, Containers: containers,

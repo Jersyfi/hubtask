@@ -5,6 +5,7 @@ package audit
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -29,6 +30,17 @@ func (d *double) Query(_ context.Context, filter Filter) (RecordPage, error) {
 	return RecordPage{Records: out}, nil
 }
 
+func (d *double) Walk(_ context.Context, _ Period, yield func(Record) error) error {
+	for _, record := range d.stored {
+		if err := yield(record); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *double) LatestAnchor(context.Context) (Anchor, error) { return Anchor{}, nil }
+
 var _ Trail = (*double)(nil)
 
 func TestTheTrailIsReadableAndNarrowable(t *testing.T) {
@@ -49,6 +61,41 @@ func TestTheTrailIsReadableAndNarrowable(t *testing.T) {
 	}
 	if page.Info.HasMore || page.Info.NextCursor != "" {
 		t.Errorf("an exhausted walk reports %+v", page.Info)
+	}
+}
+
+// The walk is the shape a verification and an export both need: one entry at a time, and an error
+// from the caller ends it. A slice would read a year of evidence into memory before the first link
+// was checked.
+func TestAWalkStopsWhenTheCallerHasSeenEnough(t *testing.T) {
+	trail := &double{stored: []Record{{Seq: 1}, {Seq: 2}, {Seq: 3}}}
+
+	seen := 0
+	stop := errors.New("enough")
+	err := trail.Walk(t.Context(), Period{}, func(Record) error {
+		seen++
+		if seen == 2 {
+			return stop
+		}
+		return nil
+	})
+	if !errors.Is(err, stop) {
+		t.Errorf("the walk answered %v, want the caller's own error", err)
+	}
+	if seen != 2 {
+		t.Errorf("the walk handed over %d entries after being stopped at the second", seen)
+	}
+}
+
+// Nothing anchors yet, and the zero anchor is what says so. A verification has to be able to
+// answer "nothing is sealed" rather than leave the question unasked (audit.md §3).
+func TestAnUnanchoredTrailSaysSoRatherThanClaimingASeal(t *testing.T) {
+	anchor, err := (&double{}).LatestAnchor(t.Context())
+	if err != nil {
+		t.Fatalf("reading the anchor: %v", err)
+	}
+	if !anchor.IsZero() {
+		t.Errorf("an installation that has never anchored reports %+v", anchor)
 	}
 }
 

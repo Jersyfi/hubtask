@@ -83,6 +83,26 @@ type RecordPage struct {
 	Info    PageInfo
 }
 
+// Period is an interval of the trail, To exclusive. Both ends may be zero, which is unbounded
+// there - a verification of "everything there has ever been" is a legitimate question.
+type Period struct{ From, To time.Time }
+
+// Anchor is the last chain end this tenant exported to an append-only target outside the database
+// (audit.md §3).
+//
+// Nothing writes one yet, and the zero value is what every installation therefore reads. It is
+// asked for all the same, because `:verify` proves the chain intact *inside* the database and only
+// an anchor says anything against somebody who can rewrite the whole of it - so the answer has to
+// be able to say "nothing is sealed" rather than leave the question unasked.
+type Anchor struct {
+	AnchoredAt time.Time
+	LastSeq    int64
+	ChainHash  []byte
+}
+
+// IsZero reports whether this tenant has never anchored anything.
+func (a Anchor) IsZero() bool { return a.AnchoredAt.IsZero() }
+
 // Trail reads the entries back.
 //
 // Read-only, and there is no writing counterpart anywhere in this package. The application role
@@ -91,4 +111,19 @@ type RecordPage struct {
 type Trail interface {
 	// Query answers one page, newest first.
 	Query(ctx context.Context, filter Filter) (RecordPage, error)
+
+	// Walk hands over every entry of a period, oldest first, one at a time.
+	//
+	// A callback rather than a slice, for the reason the archive's source is one: a verification
+	// over four hundred days is as large as the tenant was busy, and a method returning []Record
+	// would read a year of evidence into memory before checking the first link (T-17). What the
+	// implementation does behind it is page on the same keyset the list uses - never OFFSET - so
+	// that a walk can neither repeat nor skip an entry.
+	//
+	// An error from yield stops the walk and is returned as it is: a verification that has found
+	// its break has no reason to read the rest, and neither has an export whose target has gone.
+	Walk(ctx context.Context, period Period, yield func(Record) error) error
+
+	// LatestAnchor answers the last anchored chain end, or the zero anchor.
+	LatestAnchor(ctx context.Context) (Anchor, error)
 }

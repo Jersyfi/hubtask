@@ -40,6 +40,8 @@ func actor() appshared.ActorContext {
 type trailStore struct {
 	records []repository.Record
 	asked   []repository.Filter
+	walked  []repository.Period
+	anchor  repository.Anchor
 	info    repository.PageInfo
 	err     error
 }
@@ -50,6 +52,22 @@ func (t *trailStore) Query(_ context.Context, filter repository.Filter) (reposit
 		return repository.RecordPage{}, t.err
 	}
 	return repository.RecordPage{Records: t.records, Info: t.info}, nil
+}
+
+func (t *trailStore) Walk(
+	_ context.Context, period repository.Period, yield func(repository.Record) error,
+) error {
+	t.walked = append(t.walked, period)
+	for _, record := range t.records {
+		if err := yield(record); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *trailStore) LatestAnchor(context.Context) (repository.Anchor, error) {
+	return t.anchor, nil
 }
 
 // authorizerDouble answers both halves of the port and records what it was asked, so that a test
@@ -123,3 +141,16 @@ func wholeTrailRequest() access.Request { return wholeTrail(actor()) }
 
 // permissionOf is a shorthand for the assertions below.
 func permissionOf(request access.Request) service.Permission { return request.Permission }
+
+// auditSink is the trail's writing half, in memory. The audit use cases write exactly one kind of
+// entry between them - a break somebody found, and an export somebody took - so what a test asks
+// it is mostly "how many", and the answer is usually none.
+type auditSink struct{ entries []port.Entry }
+
+func (s *auditSink) Append(_ context.Context, entry port.Entry) error {
+	if err := entry.Validate(); err != nil {
+		return err
+	}
+	s.entries = append(s.entries, entry)
+	return nil
+}

@@ -10,6 +10,7 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -17,7 +18,10 @@ import (
 // application layer, and a refusal is recorded there - an adapter that narrowed the filter itself
 // would be an adapter deciding a permission (ADR-0005).
 
-const listAuditEntriesUseCase = "ListAuditEntries"
+const (
+	listAuditEntriesUseCase = "ListAuditEntries"
+	verifyAuditChainUseCase = "VerifyAuditChain"
+)
 
 // ListAuditEntries answers GET /audit.
 //
@@ -57,6 +61,52 @@ func (c *RestController) ListAuditEntries(
 	}
 	page.NextCursor = pageResponse(out).NextCursor
 	writeJSON(w, r, http.StatusOK, page)
+}
+
+// VerifyAuditChain answers POST /audit:verify.
+func (c *RestController) VerifyAuditChain(w http.ResponseWriter, r *http.Request) {
+	var body openapi.VerifyAuditChainJSONBody
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+
+	out, ok := c.read(w, r, verifyAuditChainUseCase, usecase.Input{
+		"from": body.From.UTC().Format(time.RFC3339Nano),
+		"to":   body.To.UTC().Format(time.RFC3339Nano),
+	})
+	if !ok {
+		return
+	}
+
+	answer := auditVerification{
+		Valid:    boolAt(out, "valid"),
+		Checked:  out.Int("checked"),
+		Gaps:     []int64{},
+		GapCount: out.Int("gap_count"),
+	}
+	if gaps, ok := out["gaps"].([]int64); ok {
+		answer.Gaps = gaps
+	}
+	if broken, ok := out["first_broken_seq"].(int64); ok {
+		answer.FirstBrokenSeq = &broken
+	}
+	if sealed, ok := out["sealed_until"].(time.Time); ok {
+		answer.SealedUntil = &sealed
+	}
+	writeJSON(w, r, http.StatusOK, answer)
+}
+
+// auditVerification is the answer of POST /audit:verify, which the contract declares inline. The
+// two nulls are explicit: a client reading "no break" out of a missing key would read the same
+// thing out of a key it forgot.
+type auditVerification struct {
+	Valid          bool       `json:"valid"`
+	Checked        int        `json:"checked"`
+	FirstBrokenSeq *int64     `json:"first_broken_seq"`
+	Gaps           []int64    `json:"gaps"`
+	GapCount       int        `json:"gap_count"`
+	SealedUntil    *time.Time `json:"sealed_until"`
 }
 
 // auditPage is the response of GET /audit, which the contract declares inline rather than as a
@@ -140,6 +190,13 @@ func auditChangesResponse(value any) *[]openapi.AuditChange {
 		changes = append(changes, change)
 	}
 	return &changes
+}
+
+// boolAt reads one flag out of a result. An absent field is false, which is what an absent flag
+// means everywhere else in this layer.
+func boolAt(out usecase.Output, key string) bool {
+	value, _ := out[key].(bool)
+	return value
 }
 
 // stringAt reads one string out of a projection, and answers the empty string for anything that

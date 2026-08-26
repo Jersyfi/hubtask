@@ -153,6 +153,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		lifecycle.ReleaseLegalHold{}.Descriptor(),
 		lifecycle.ListLegalHolds{}.Descriptor(),
 		auditservice.ListAuditEntries{}.Descriptor(),
+		auditservice.VerifyAuditChain{}.Descriptor(),
 		backupservice.CreateBackupSchedule{}.Descriptor(),
 		jobservice.GetJob{}.Descriptor(),
 		jobservice.CancelJob{}.Descriptor(),

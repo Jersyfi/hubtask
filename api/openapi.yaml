@@ -605,7 +605,15 @@ paths:
       tags: [audit]
       operationId: verifyAuditChain
       summary: Verify the integrity of the audit chain
-      description: Checks the hash chain and the absence of gaps over a period.
+      description: |
+        Checks the hash chain and the absence of gaps over a period. Requires the `audit:read`
+        scope and the right to the whole trail: a chain checked over one actor's entries would be
+        a chain with every other entry missing, and would answer "broken" for a trail that is
+        intact.
+
+        A clean check records nothing. A break is recorded as a critical entry of its own,
+        because an auditor reading the trail months later has to be able to see that somebody
+        noticed, and when.
       requestBody:
         required: true
         content:
@@ -626,9 +634,29 @@ paths:
                 properties:
                   valid: { type: boolean }
                   checked: { type: integer }
-                  first_broken_seq: { type: [integer, "null"] }
-                  gaps: { type: array, items: { type: integer } }
-                  sealed_until: { type: [string, "null"], format: date-time }
+                  first_broken_seq:
+                    type: [integer, "null"]
+                    description: >
+                      Where the first entry that does not hold sits. The first rather than all of
+                      them, because that is where an investigation starts.
+                  gaps:
+                    type: array
+                    items: { type: integer }
+                    description: >
+                      The missing sequence numbers, cut at a hundred. A chain with a hole of a
+                      million entries would otherwise answer with a million integers.
+                  gap_count:
+                    type: integer
+                    description: How many are missing in total, which may be more than `gaps` lists.
+                  sealed_until:
+                    type: [string, "null"]
+                    format: date-time
+                    description: >
+                      When this tenant's chain was last anchored outside the database, and null
+                      when it never was - which is every installation until external anchoring
+                      exists (audit.md §3). The check proves the chain intact *inside* the
+                      database; only an anchor says anything against somebody who can rewrite all
+                      of it.
         "403": { $ref: "#/components/responses/Problem" }
 
   /audit:export:

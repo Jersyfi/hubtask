@@ -186,6 +186,20 @@ func (e Entry) Validate() error {
 	return nil
 }
 
+// Chain recomputes what the sink computed, so that a verification can check a stored entry against
+// its own hash (audit.md §3, `POST /audit:verify`).
+//
+// A port rather than a package the application calls, because the chain belongs to the adapter that
+// appends to it - the sequence number, the previous hash and the hash are what an adapter adds, and
+// this interface is the one seam through which the application may ask for the same arithmetic
+// again. There is deliberately no second implementation: a verifier with its own would prove that
+// two implementations agree rather than that the chain is intact.
+type Chain interface {
+	// Link is the hash an entry has, given the hash of the one before it. The same inputs the sink
+	// used, in the same order, or the recomputation means nothing.
+	Link(previousHash []byte, id shared.ID, seq int64, entry Entry) ([]byte, error)
+}
+
 // Sink appends to the trail.
 //
 // It runs inside the caller's transaction: the entry and the business change commit together or
