@@ -101,3 +101,33 @@ SELECT kind, count(*) AS pending
 FROM job
 WHERE state = 'PENDING' AND run_at <= sqlc.arg('now')
 GROUP BY kind;
+
+-- What a caller polls, and the only two statements here that are asked on somebody's behalf
+-- rather than by a worker. They therefore carry the tenant condition themselves - the job table
+-- has no row level security, so there is no policy underneath that would catch a forgotten one,
+-- and a NULL tenant_id (the queue's own housekeeping) matches no caller's tenant by construction.
+--
+-- The columns are the resource's, not the row's: no payload, no attempt count, no lease, no
+-- dedupe key. Selecting them and dropping them later is how one of them eventually reaches a
+-- response by accident.
+-- name: FindJob :one
+SELECT id, tenant_id, state, last_error, created_at, finished_at
+FROM job
+WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id');
+
+-- Cancellation, and it is the state change alone: no lease is named, because the caller holds
+-- none. A pass that is under way is not interrupted - it finds at its next write that the row is
+-- no longer RUNNING under its lease, and rolls back rather than applying its work (test RT-3 is
+-- the same fence). The lease is cleared so that nothing waits for it to expire.
+--
+-- The state condition is what makes a terminal job a conflict rather than a silent overwrite: a
+-- job that succeeded a second ago must not read back as cancelled.
+-- name: CancelJob :one
+UPDATE job SET
+  state        = 'CANCELLED',
+  finished_at  = sqlc.arg('now'),
+  locked_until = NULL
+WHERE id = sqlc.arg('id')
+  AND tenant_id = sqlc.arg('tenant_id')
+  AND state IN ('PENDING', 'RUNNING')
+RETURNING id, tenant_id, state, last_error, created_at, finished_at;
