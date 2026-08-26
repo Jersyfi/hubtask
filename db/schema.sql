@@ -1448,10 +1448,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator IN SCHEMA public
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM hubtask_app;
 GRANT  SELECT, INSERT ON audit_log TO hubtask_app;
 
--- Partitions created after this file are the duty of ensure_audit_partition(date)
--- (db/migrations/0043_audit_partition_duty.sql), which applies the policy and these revokes to
--- every partition it creates and repairs any it finds without them.
-
 -- The same for the partitions: a partition addressed directly is a table of its own.
 DO $audit_partitions$
 DECLARE p record;
@@ -1466,5 +1462,71 @@ BEGIN
     EXECUTE format('REVOKE UPDATE, DELETE, TRUNCATE ON %I FROM hubtask_app', p.relname);
   END LOOP;
 END $audit_partitions$;
+
+-- ============== The partition duty (audit.md §3, E-09) ======================
+-- Every partition created later has to carry the policy and the revokes above, because neither is
+-- inherited when a partition is addressed directly - a measured finding, recorded where the
+-- partitions are created. This function is what a scheduled duty calls; it creates the month's
+-- partition when it is missing and repairs one that is missing either.
+--
+-- SECURITY DEFINER because creating a partition and revoking on it are the owner's rights. Narrow
+-- for two reasons: `search_path` is pinned, and the only parameter is a date from which every
+-- identifier is derived. See db/migrations/0043_audit_partition_duty.sql.
+CREATE OR REPLACE FUNCTION ensure_audit_partition(month date) RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  starts date := date_trunc('month', month)::date;
+  ends   date := (date_trunc('month', month) + interval '1 month')::date;
+  name   text := 'audit_log_' || to_char(date_trunc('month', month), 'YYYY_MM');
+  target regclass;
+BEGIN
+  target := to_regclass(format('public.%I', name));
+
+  IF target IS NULL THEN
+    BEGIN
+      EXECUTE format(
+        'CREATE TABLE %I PARTITION OF audit_log FOR VALUES FROM (%L) TO (%L)', name, starts, ends);
+    EXCEPTION WHEN check_violation OR invalid_table_definition THEN
+      -- The month's entries are already in the default partition, which PostgreSQL will not split.
+      RETURN NULL;
+    END;
+    target := to_regclass(format('public.%I', name));
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE oid = target AND relrowsecurity) THEN
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', name);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE oid = target AND relforcerowsecurity) THEN
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', name);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy WHERE polrelid = target AND polname = 'tenant_isolation'
+  ) THEN
+    EXECUTE format($policy$
+      CREATE POLICY tenant_isolation ON %I
+        USING (tenant_id = current_tenant_id())
+        WITH CHECK (tenant_id = current_tenant_id())
+    $policy$, name);
+  END IF;
+
+  IF has_table_privilege('hubtask_app', target, 'UPDATE')
+     OR has_table_privilege('hubtask_app', target, 'DELETE')
+     OR has_table_privilege('hubtask_app', target, 'TRUNCATE') THEN
+    EXECUTE format('REVOKE UPDATE, DELETE, TRUNCATE ON %I FROM hubtask_app', name);
+  END IF;
+  IF NOT has_table_privilege('hubtask_app', target, 'INSERT')
+     OR NOT has_table_privilege('hubtask_app', target, 'SELECT') THEN
+    EXECUTE format('GRANT SELECT, INSERT ON %I TO hubtask_app', name);
+  END IF;
+
+  RETURN name;
+END $$;
+
+REVOKE ALL ON FUNCTION ensure_audit_partition(date) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION ensure_audit_partition(date) TO hubtask_app;
+
+-- This month and the next, so that a fresh installation never writes into the default partition.
+SELECT ensure_audit_partition(date_trunc('month', now())::date);
+SELECT ensure_audit_partition((date_trunc('month', now()) + interval '1 month')::date);
 
 COMMIT;
