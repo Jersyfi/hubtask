@@ -741,6 +741,7 @@ func run() error {
 		work.DeleteReminder{Writer: reminderWriter}.Descriptor(),
 		work.SetRecurrence{Writer: recurrenceWriter}.Descriptor(),
 		work.RemoveRecurrence{Writer: recurrenceWriter}.Descriptor(),
+		work.SkipOccurrence{Writer: recurrenceWriter}.Descriptor(),
 		work.GetRecurrence{
 			Recurrences: recurrences, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

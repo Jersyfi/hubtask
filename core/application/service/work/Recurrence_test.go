@@ -147,7 +147,7 @@ type expander struct {
 }
 
 func (e *expander) Occurrences(
-	rule recurrenceport.Rule, _, _ time.Time, limit int,
+	rule recurrenceport.Rule, after, _ time.Time, limit int,
 ) ([]time.Time, error) {
 	e.asked = append(e.asked, rule)
 	if e.err != nil {
@@ -158,9 +158,11 @@ func (e *expander) Occurrences(
 	if limit > 0 && count > limit {
 		count = limit
 	}
+	// A daily grid starting after whatever the caller has already dealt with, which is the shape
+	// every caller here reads: the first moment answered is the next one owed.
 	moments := make([]time.Time, 0, count)
-	for i := 0; i < count; i++ {
-		moments = append(moments, now.Add(time.Duration(i)*24*time.Hour))
+	for i := 1; i <= count; i++ {
+		moments = append(moments, after.Add(time.Duration(i)*24*time.Hour))
 	}
 	return moments, nil
 }
@@ -181,6 +183,7 @@ type recurrenceHarness struct {
 	set         SetRecurrence
 	remove      RemoveRecurrence
 	get         GetRecurrence
+	skip        SkipOccurrence
 	recurrences *recurrences
 	items       *items
 	containers  *containers
@@ -212,6 +215,7 @@ func newRecurrenceHarness(t *testing.T) *recurrenceHarness {
 	}
 	h.set = SetRecurrence{Writer: writer}
 	h.remove = RemoveRecurrence{Writer: writer}
+	h.skip = SkipOccurrence{Writer: writer}
 	h.get = GetRecurrence{
 		Recurrences: h.recurrences, Items: h.items, Containers: h.containers,
 		Authorizer: h.authorizer, UnitOfWork: &unitOfWork{},
@@ -503,5 +507,78 @@ func TestTheReadAnswersTheSeriesOrThatThereIsNone(t *testing.T) {
 	}
 	if rule.RRULE != "FREQ=WEEKLY;BYDAY=MO" {
 		t.Errorf("the series read as %+v", rule)
+	}
+}
+
+// The skip is the bookkeeping moving past one moment: nothing is created, nothing that exists is
+// touched, and twice means two - which is what "skip the next one" means said twice (D-05).
+func TestSkippingMovesTheSeriesPastOneOccurrence(t *testing.T) {
+	h := newRecurrenceHarness(t)
+	h.withItem(domain.ItemTask, seriesDate(t))
+	if _, err := h.set.Execute(t.Context(), actor(), weeklyCommand()); err != nil {
+		t.Fatalf("setting the series failed: %v", err)
+	}
+	h.expander.moments = 5
+
+	skipped, err := h.skip.Execute(t.Context(), actor(), SkipOccurrenceCommand{
+		ItemID: recurringItem,
+	})
+	if err != nil {
+		t.Fatalf("skipping failed: %v", err)
+	}
+	if skipped.LastMaterializedAt == nil {
+		t.Fatal("the series' bookkeeping did not move")
+	}
+	first := *skipped.LastMaterializedAt
+
+	again, err := h.skip.Execute(t.Context(), actor(), SkipOccurrenceCommand{
+		ItemID: recurringItem,
+	})
+	if err != nil {
+		t.Fatalf("skipping again failed: %v", err)
+	}
+	if again.LastMaterializedAt == nil || !again.LastMaterializedAt.After(first) {
+		t.Errorf("the second skip left the bookkeeping at %v", again.LastMaterializedAt)
+	}
+
+	// The trail says what happened, on the entry a person is looking at.
+	if h.history.entries[len(h.history.entries)-1].Verb != activity.ItemRecurrenceSkipped {
+		t.Errorf("the history steps are %+v", h.history.entries)
+	}
+	if h.audit.entries[len(h.audit.entries)-1].Action != RecurrenceSkippedAction {
+		t.Errorf("the audit entries are %+v", h.audit.entries)
+	}
+}
+
+// An entry with no series has no next occurrence to skip, and says so plainly.
+func TestSkippingWithoutASeriesSaysThereIsNone(t *testing.T) {
+	h := newRecurrenceHarness(t)
+	h.withItem(domain.ItemTask, seriesDate(t))
+
+	_, err := h.skip.Execute(t.Context(), actor(), SkipOccurrenceCommand{ItemID: recurringItem})
+	if refusal := shared.AsError(err); refusal == nil ||
+		refusal.DetailCode != "recurrence.not_found" {
+		t.Fatalf("refused as %v, want recurrence.not_found", err)
+	}
+}
+
+// A series that has run out has nothing to skip, which is the state the caller asked for: nothing
+// is written and nothing is announced.
+func TestSkippingASeriesThatHasRunOutWritesNothing(t *testing.T) {
+	h := newRecurrenceHarness(t)
+	h.withItem(domain.ItemTask, seriesDate(t))
+	if _, err := h.set.Execute(t.Context(), actor(), weeklyCommand()); err != nil {
+		t.Fatalf("setting the series failed: %v", err)
+	}
+	h.expander.moments = 0
+	before := len(h.changes.recorded)
+
+	if _, err := h.skip.Execute(t.Context(), actor(), SkipOccurrenceCommand{
+		ItemID: recurringItem,
+	}); err != nil {
+		t.Fatalf("skipping failed: %v", err)
+	}
+	if len(h.changes.recorded) != before {
+		t.Error("skipping a series with nothing left announced something")
 	}
 }

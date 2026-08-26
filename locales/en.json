@@ -435,6 +435,7 @@
   "activity.item_recurrence_set": "{actor} made this repeat",
   "activity.item_recurrence_changed": "{actor} changed how this repeats",
   "activity.item_recurrence_removed": "{actor} stopped this repeating",
+  "activity.item_recurrence_skipped": "{actor} skipped the next occurrence",
   "activity.item_commented": "{actor} commented",
 
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",

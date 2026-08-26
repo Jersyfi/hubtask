@@ -19,6 +19,7 @@ const (
 	getRecurrenceUseCase    = "GetRecurrence"
 	setRecurrenceUseCase    = "SetRecurrence"
 	removeRecurrenceUseCase = "RemoveRecurrence"
+	skipOccurrenceUseCase   = "SkipOccurrence"
 )
 
 // GetRecurrence answers GET /items/{itemId}/recurrence.
@@ -104,6 +105,29 @@ func (c *RestController) RemoveRecurrence(
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// SkipOccurrence answers POST /items/{itemId}/recurrence:skip.
+func (c *RestController) SkipOccurrence(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
+	_ openapi.SkipOccurrenceParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), skipOccurrenceUseCase, actorOf(r),
+		usecase.Input{"item_id": itemID.String()})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	w.Header().Set("ETag", etag(out.Int("version")))
+	writeJSON(w, r, http.StatusOK, recurrenceResponse(out))
 }
 
 // recurrenceResponse maps the catalogue's output onto the generated schema. The mapping lives here

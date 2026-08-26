@@ -105,6 +105,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.DeleteReminder{}.Descriptor(),
 		work.SetRecurrence{}.Descriptor(),
 		work.RemoveRecurrence{}.Descriptor(),
+		work.SkipOccurrence{}.Descriptor(),
 		work.GetRecurrence{}.Descriptor(),
 		work.AttachMedia{}.Descriptor(),
 		work.DefineCustomField{}.Descriptor(),
