@@ -91,7 +91,13 @@ func (pending) TestBackupTarget(w http.ResponseWriter, r *http.Request, _ openap
 
 func (pending) StartBackup(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-func (pending) VerifyBackup(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+func (pending) GetBackupRun(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) VerifyBackup(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
 
 // The two job operations. Overridden by RestController; they stay here because the compile-time
 // assertion is on `pending` itself.
