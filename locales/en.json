@@ -611,6 +611,9 @@
   "templates.nodes_undecodable": "This installation is misconfigured and could not read that template.",
   "templates.nodes_unencodable": "This installation is misconfigured and could not store that template.",
 
+  "views.export_format_unknown": "{value} is not an export format. Use CSV, JSON or ICS.",
+  "views.export_zone_unknown": "This installation does not know the time zone {time_zone}.",
+
   "calendar.token_malformed": "That is not a calendar feed address this server minted.",
   "calendar.token_tenant_missing": "This installation is misconfigured and could not mint a feed token.",
   "calendar.token_secret_short": "This installation is misconfigured and could not mint a feed token.",

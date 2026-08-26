@@ -806,6 +806,15 @@ func run() error {
 			Views: savedViews, Containers: containers, Permits: authorizer,
 			UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.ExportView{
+			Views: savedViews, Containers: containers, Permits: authorizer,
+			Query: work.QueryItems{
+				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+			ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
 		work.CreateCalendarFeed{Writer: calendarFeedWriter}.Descriptor(),
 		work.ListCalendarFeeds{Writer: calendarFeedWriter}.Descriptor(),
 		work.RevokeCalendarFeed{Writer: calendarFeedWriter}.Descriptor(),

@@ -33,6 +33,17 @@ type Spec struct {
 	Count           CountMode
 }
 
+// MaxExportRows bounds one export of a view (D-08). Ten times the bulk bound of 500, and the
+// largest answer this API composes in one piece: a spreadsheet of five thousand rows is a real
+// export, and a person who needs more than that wants a job with a file at the end of it rather
+// than a request that holds a connection open (api-guidelines.md §5, T-17).
+//
+// A bound rather than a silence: a result that reached it is answered whole up to here and says
+// so, in the projection and in the response header alike. It lives here beside the query's own
+// shape because it is a bound on what a query may answer, and because the capability manifest
+// publishes it from the model rather than from a use case.
+const MaxExportRows = 5000
+
 // Scope is what a query is anchored to.
 //
 // Required, and exactly one of the two. An unanchored query is a scan of every item a tenant has,

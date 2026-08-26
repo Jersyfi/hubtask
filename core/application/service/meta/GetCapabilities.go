@@ -163,6 +163,9 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// writes (D-06). A client that lets somebody build a template reads it here rather
 			// than letting them build a tree of six hundred nodes and refusing it at the end.
 			"max_template_nodes": int64(work.MaxTemplateNodes),
+			// What one :export answers at most (D-08). A client that offers "download this view"
+			// reads it here rather than discovering the bound from a truncated file.
+			"max_export_rows": int64(view.MaxExportRows),
 		},
 		Features: map[string]bool{
 			// What is configured, not what is implemented. A client uses this to decide whether

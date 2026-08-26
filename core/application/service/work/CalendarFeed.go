@@ -277,7 +277,7 @@ func feedOutput(feed domain.CalendarFeed) usecase.Output {
 	out := usecase.Output{
 		"id":         feed.ID.String(),
 		"account_id": feed.AccountID.String(),
-		"created_at": feed.CreatedAt.UTC().Format(time.RFC3339),
+		"created_at": feed.CreatedAt.UTC(),
 		"view_id":    nil,
 		"revoked_at": nil,
 	}
@@ -285,7 +285,7 @@ func feedOutput(feed domain.CalendarFeed) usecase.Output {
 		out["view_id"] = feed.ViewID.String()
 	}
 	if feed.IsRevoked() {
-		out["revoked_at"] = feed.RevokedAt.UTC().Format(time.RFC3339)
+		out["revoked_at"] = feed.RevokedAt.UTC()
 	}
 	return out
 }

@@ -118,6 +118,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 		work.ListCustomFields{}.Descriptor(),
 		work.UpdateCustomField{}.Descriptor(),
 		work.DeleteCustomField{}.Descriptor(),
+		work.ExportView{}.Descriptor(),
 		work.CreateCalendarFeed{}.Descriptor(),
 		work.ListCalendarFeeds{}.Descriptor(),
 		work.RevokeCalendarFeed{}.Descriptor(),
