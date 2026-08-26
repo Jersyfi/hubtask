@@ -593,9 +593,19 @@ CREATE TABLE template (
   root_type   item_type NOT NULL DEFAULT 'TASK',
   nodes       jsonb NOT NULL,                    -- the tree including relative due dates (+P3D)
   created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz,
   deleted_at  timestamptz,
   version     integer NOT NULL DEFAULT 1
 );
+CREATE UNIQUE INDEX template_tenant_id_uq ON template (tenant_id, id);
+-- Two live templates in one scope may not share a name; a deleted one frees it (D-06).
+CREATE UNIQUE INDEX template_name_uq ON template (
+    tenant_id, scope_type,
+    coalesce(scope_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    name
+  ) WHERE deleted_at IS NULL;
+CREATE INDEX template_scope_idx ON template (tenant_id, scope_type, scope_id, created_at DESC)
+  WHERE deleted_at IS NULL;
 
 CREATE TABLE jumble_entry (
   id           uuid PRIMARY KEY,

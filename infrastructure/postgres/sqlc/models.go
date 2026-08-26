@@ -1032,6 +1032,7 @@ type Template struct {
 	CreatedAt   pgtype.Timestamptz
 	DeletedAt   pgtype.Timestamptz
 	Version     int32
+	UpdatedAt   pgtype.Timestamptz
 }
 
 type Tenant struct {

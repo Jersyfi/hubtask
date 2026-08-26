@@ -366,6 +366,46 @@ func validTemplateNode(node TemplateNode, path string) (TemplateNode, error) {
 	return node, nil
 }
 
+// SpellTemplateOffset writes a duration back as the ISO-8601 form a template stores.
+//
+// Canonical rather than as-given: unlike a reminder's offset, which is a string somebody typed and
+// is kept as typed, a node's offset lives inside a document this code writes - so there is no
+// original spelling to preserve, and one spelling means one string in the change log.
+func SpellTemplateOffset(offset time.Duration) string {
+	sign := ""
+	if offset < 0 {
+		sign, offset = "-", -offset
+	}
+
+	days := int64(offset / (24 * time.Hour))
+	rest := offset % (24 * time.Hour)
+	spelled := sign + "P"
+	if days > 0 {
+		spelled += strconv.FormatInt(days, 10) + "D"
+	}
+	if rest == 0 {
+		if days == 0 {
+			return sign + "PT0S"
+		}
+		return spelled
+	}
+
+	spelled += "T"
+	hours := int64(rest / time.Hour)
+	minutes := int64((rest % time.Hour) / time.Minute)
+	seconds := int64((rest % time.Minute) / time.Second)
+	if hours > 0 {
+		spelled += strconv.FormatInt(hours, 10) + "H"
+	}
+	if minutes > 0 {
+		spelled += strconv.FormatInt(minutes, 10) + "M"
+	}
+	if seconds > 0 {
+		spelled += strconv.FormatInt(seconds, 10) + "S"
+	}
+	return spelled
+}
+
 // ParseTemplateOffset reads a node's relative date: an ISO-8601 duration, signed, of weeks down to
 // seconds.
 //

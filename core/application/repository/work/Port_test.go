@@ -200,6 +200,23 @@ func (recurrenceDouble) LatestCompletion(context.Context, shared.ID) (*time.Time
 
 var _ Recurrences = recurrenceDouble{}
 
+// The template store's double, for the same reason the others exist.
+type templateDouble struct{}
+
+func (templateDouble) Find(context.Context, shared.ID) (work.Template, error) {
+	return work.Template{}, shared.ErrNotFound
+}
+func (templateDouble) ListInScopes(
+	context.Context, []shared.ID, Page,
+) (TemplatePage, error) {
+	return TemplatePage{}, nil
+}
+func (templateDouble) Insert(context.Context, work.Template) error          { return nil }
+func (templateDouble) Update(context.Context, work.Template, int) error     { return nil }
+func (templateDouble) SetDeleted(context.Context, work.Template, int) error { return nil }
+
+var _ Templates = templateDouble{}
+
 // The sibling level is decided by two identifiers, not one: the same parent in another collection
 // is not a sibling, and a port that took only the parent could not express the level directly
 // under a collection at all.
