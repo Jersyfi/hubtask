@@ -278,3 +278,58 @@ func TestEveryForeignKeyBetweenArchivedEntitiesIsDeclared(t *testing.T) {
 		t.Fatalf("reading the foreign keys: %v", err)
 	}
 }
+
+// The round trip that matters most, on the table that makes it interesting: `work_item` carries a
+// generated column, so the archive holds a value the insert may not be given. Exporting a real row
+// and importing it back is the check that the two statements agree about which columns those are -
+// and about how the row survives being turned into JSON and back.
+func TestARealRowSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	id := freshID(t)
+
+	original := taskIn(tenantA, authorA, collection, id, "Weekly shop", "a0")
+	original.Notes = "milk, bread, and something for Sunday"
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().Insert(ctx, original)
+	}); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+
+	// Out through the export, which is what an archive carries.
+	var exportedRow map[string]any
+	for _, row := range exported(ctx, t, tenantA, 100, "work_item", time.Time{}) {
+		if row.ID == id.String() {
+			exportedRow = row.Data
+		}
+	}
+	if exportedRow == nil {
+		t.Fatal("the item was not exported")
+	}
+	if _, generated := exportedRow["search_vector"]; !generated {
+		t.Fatal("the export no longer carries the generated column, so this test proves nothing")
+	}
+
+	// The row is removed and put back from what the archive holds.
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`DELETE FROM work_item WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), id.String()); err != nil {
+		t.Fatalf("removing the original: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "work_item", exportedRow, false)
+		return err
+	}); err != nil {
+		t.Fatalf("importing the row back: %v", err)
+	}
+
+	var title, notes string
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT title, coalesce(notes, '') FROM work_item WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), id.String()).Scan(&title, &notes); err != nil {
+		t.Fatalf("reading the restored row: %v", err)
+	}
+	if title != original.Title || notes != original.Notes {
+		t.Fatalf("the row came back as %q / %q", title, notes)
+	}
+}
