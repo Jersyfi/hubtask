@@ -5,7 +5,9 @@ only.** No task management, no API client, no account.
 
 It is not embedded into the binary and never will be — it has no contract with the server, so it
 has no reason to be inside it ([ADR-0028](../../docs/adr/ADR-0028-embedded-web-ui.md)). `make
-website` builds it into a directory; where that directory is deployed is not decided yet.
+website` builds it into `dist/`, and `.github/workflows/website.yml` publishes that directory to
+the hubtask.eu webspace (IONOS) over SFTP on every push to `main` that touches it. The workflow
+skips politely on a fork or an installation where the deploy variables are not configured.
 
 ## What must not happen here
 
