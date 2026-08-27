@@ -387,7 +387,7 @@ It is removed.
 | Signal | Meaning |
 |---|---|
 | `hubtask_backup_last_success_timestamp_seconds` (metric) | When each target last had a backup that worked. Emitted by the leader since E-05, labelled by target, and a timestamp rather than an age so that the alert computes the age at evaluation time rather than at scrape time. A target that has never had one is **absent** rather than zero — a gauge of zero reads as 1970 |
-| `hubtask_restore_drill_last_success_timestamp_seconds` (metric) | When a trial restore last worked. Nothing emits it yet; it arrives with the restore side of this milestone |
+| `hubtask_restore_drill_last_success_timestamp_seconds` (metric) | When a trial restore last worked. **Still emitted by nothing**, and A-20 stays dormant because of it: E-06 built the restore and E-12 built the drill somebody runs, and neither writes the gauge. What would write it is a successful non-destructive restore recording its own timestamp; until that exists, an installation proves its drills through `hubctl` and the run rows, not through the alert |
 | A-12 | No successful backup in 24 hours, **per target** — a `max()` across targets would let one healthy target hide a broken one, which is exactly the 3-2-1 arrangement §2 recommends |
 | A-20 (new) | The restore drill is older than 90 days |
 
@@ -401,6 +401,22 @@ The drill itself is deliberate: a backup that has never been restored is a hypot
 `NEW_TENANT` trial restore can be automated and evaluated as a test run. Its alert is a ticket
 rather than a page, and it does not fire on the metric's absence the way A-12 does — nothing records
 a drill yet, and an absence rule would page every installation for a feature that does not exist.
+
+**What runs one** (E-12). The client is the drill:
+
+```bash
+export HUBTASK_BACKUP_PASSPHRASE="…"
+hubctl backup run --target "$TARGET" --follow --timeout 30m
+hubctl backup verify "$RUN" --follow
+hubctl restore inspect --target "$TARGET" --archive "$ARCHIVE"
+hubctl restore run --target "$TARGET" --archive "$ARCHIVE" --mode NEW_TENANT --apply --follow
+```
+
+`scripts/hubctl-e2e.sh` runs exactly that against the reference Compose stack on every pull
+request, and it compares the number of entries in the restored workspace with the number in the
+source — from the database on both sides, so that nothing in the check can agree with itself. That
+is the first proof outside a test that the whole chain survives a round trip: schedule, job,
+encryption, target, manifest, listing, restore.
 
 ---
 

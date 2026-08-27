@@ -138,7 +138,10 @@ INSERT INTO access_token
           decode('$TOKEN_HASH', 'hex'), 'hbt_pat_',
           ARRAY['containers:read','containers:write','items:read','items:write','trash:read',
                 'comments:write','media:read','media:write',
-                'reminders:write','recurrence:write','templates:read','templates:write'],
+                'reminders:write','recurrence:write','templates:read','templates:write',
+                'jobs:read','jobs:cancel','backup:read','backup:manage',
+                'retention:read','retention:manage','audit:read','audit:export',
+                'privacy:read','privacy:manage'],
           now() + interval '1 hour')
   ON CONFLICT (id) DO NOTHING;
 SQL
@@ -468,6 +471,116 @@ expect_contains "item ls after the restore" "$restored" "$TASK_ID"
 # The whole deletion comes back, not only its root.
 expect_contains "the subtree came back too" \
 	"$(hubctl item ls --collection "$COLLECTION_ID" --parent "$PACKAGE_ID")" "Find the aisle"
+
+echo "--- a place to write copies to ---"
+# The passphrase is drawn rather than written down, for the reason every other secret in this
+# script is: a literal would be a credential in the repository even though it protects nothing.
+# It goes through the environment, which is the documented path - never an argument.
+export HUBTASK_BACKUP_PASSPHRASE="$(head -c 24 /dev/urandom | base64 | tr -d '/+=')"
+target="$(hubctl backup target add --name 'the local target' --kind LOCAL --config path=e2e)"
+TARGET_ID="$(printf '%s\n' "$target" | first_id)"
+[ -n "$TARGET_ID" ] || { echo "FAILED: creating the target produced no identifier: $target"; exit 1; }
+expect_contains "backup target add" "$target" "AES256_GCM"
+# A target nobody has tested says so, and one that has been says when and whether it worked.
+expect_contains "backup target ls" "$(hubctl backup target ls)" "never"
+expect_contains "backup target test" "$(hubctl backup target test "$TARGET_ID")" "ok"
+
+echo "--- the restore drill: a backup, and the same data back in a new workspace ---"
+# What the source holds, straight from the database. The comparison at the end is against this
+# number rather than against a screenful of output: `backup-restore.md` §10 asks for a drill whose
+# result is checkable, and "it looked right" is not.
+count_items() {
+	compose_in_place exec -T db psql -U hubtask -d hubtask -tAq \
+		-c "SELECT count(*) FROM work_item WHERE tenant_id = '$1' AND deleted_at IS NULL"
+}
+SOURCE_ITEMS="$(count_items "$TENANT_ID" | tr -d '[:space:]')"
+[ "$SOURCE_ITEMS" -gt 0 ] || { echo "FAILED: the source workspace holds no entries to back up"; exit 1; }
+
+run="$(hubctl backup run --target "$TARGET_ID" --follow --timeout 5m)"
+BACKUP_ID="$(printf '%s\n' "$run" | first_id)"
+[ -n "$BACKUP_ID" ] || { echo "FAILED: the backup produced no identifier: $run"; exit 1; }
+expect_contains "backup run --follow" "$run" "SUCCEEDED"
+# The archive is the third column onwards; the path is what a restore names.
+ARCHIVE="$(printf '%s\n' "$run" | awk 'NR==2 {print $4}')"
+[ -n "$ARCHIVE" ] || { echo "FAILED: the run names no archive: $run"; exit 1; }
+
+# The listing at the target reads the target rather than the database - the reading that survives
+# losing the installation - so the archive has to be in it.
+expect_contains "backup ls" "$(hubctl backup ls --target "$TARGET_ID")" "$BACKUP_ID"
+
+verified="$(hubctl backup verify "$BACKUP_ID" --follow --timeout 5m)"
+expect_contains "backup verify" "$verified" "ok"
+
+# Read before it is used, which is what §8.3 asks of a caller: the report of a dry run first.
+inspected="$(hubctl --json restore inspect --target "$TARGET_ID" --archive "$ARCHIVE" --timeout 5m)"
+expect_contains "restore inspect" "$inspected" '"status": "SUCCEEDED"'
+expect_contains "restore inspect" "$inspected" '"work_item"'
+
+restored="$(hubctl --json restore run --target "$TARGET_ID" --archive "$ARCHIVE" \
+	--mode NEW_TENANT --apply --follow --timeout 5m)"
+expect_contains "restore run" "$restored" '"status": "SUCCEEDED"'
+expect_contains "restore run" "$restored" '"dry_run": false'
+
+# The assertion the drill exists for: the workspace the restore made holds what the source holds.
+# Both numbers come from the database, so nothing here can agree with itself by accident.
+NEW_TENANT_ID="$(printf '%s\n' "$restored" | grep -o '"tenant_id": "[^"]*"' | head -1 | cut -d'"' -f4)"
+[ -n "$NEW_TENANT_ID" ] || { echo "FAILED: the restore names no workspace: $restored"; exit 1; }
+if [ "$NEW_TENANT_ID" = "$TENANT_ID" ]; then
+	fail "NEW_TENANT restored into the source workspace ($NEW_TENANT_ID)"
+fi
+RESTORED_ITEMS="$(count_items "$NEW_TENANT_ID" | tr -d '[:space:]')"
+if [ "$RESTORED_ITEMS" != "$SOURCE_ITEMS" ]; then
+	fail "the restore brought back $RESTORED_ITEMS entries, the source has $SOURCE_ITEMS"
+else
+	echo "the drill holds: $RESTORED_ITEMS entries restored into $NEW_TENANT_ID"
+fi
+
+echo "--- how long things are kept ---"
+policy="$(hubctl retention add --kind COMPLETED_ITEM --days 90 --action TRASH)"
+POLICY_ID="$(printf '%s\n' "$policy" | first_id)"
+[ -n "$POLICY_ID" ] || { echo "FAILED: creating the rule produced no identifier: $policy"; exit 1; }
+expect_contains "retention ls" "$(hubctl retention ls)" "COMPLETED_ITEM"
+# The preview is what makes a rule safe to switch on: how much it would take, and what stops it.
+expect_contains "retention preview" "$(hubctl retention preview "$POLICY_ID")" "MATCHED"
+# And one entry taken out of the running period, which is the other half of a retention rule.
+hubctl retention retain "$TASK_ID" >/dev/null
+
+echo "--- an instruction not to delete something ---"
+hold="$(hubctl hold place --scope CONTAINER --id "$COLLECTION_ID" --reason 'the end-to-end drill')"
+HOLD_ID="$(printf '%s\n' "$hold" | first_id)"
+[ -n "$HOLD_ID" ] || { echo "FAILED: placing the hold produced no identifier: $hold"; exit 1; }
+expect_contains "hold ls" "$(hubctl hold ls)" "in force"
+hubctl hold release "$HOLD_ID" --reason 'the drill ended' >/dev/null
+# A released hold is only visible when asked for, and it carries why it was lifted.
+expect_missing "hold ls" "$(hubctl hold ls)" "$HOLD_ID"
+expect_contains "hold ls --include-released" \
+	"$(hubctl hold ls --include-released)" "the drill ended"
+
+echo "--- the evidence trail, and whether it holds ---"
+TODAY="$(date -u +%Y-%m-%d)"
+TOMORROW="$(date -u -d '+1 day' +%Y-%m-%d 2>/dev/null || date -u -v+1d +%Y-%m-%d)"
+trail="$(hubctl audit query --from "$TODAY" --to "$TOMORROW" --action legal_hold.)"
+# Everything above was auditable, so the trail has to know about the hold that was just released.
+expect_contains "audit query" "$trail" "legal_hold."
+# A read that succeeds is not itself recorded (audit.md §5), so nothing here is about reading.
+expect_missing "audit query" "$trail" "audit.read"
+chain="$(hubctl audit verify --from "$TODAY" --to "$TOMORROW")"
+expect_contains "audit verify" "$chain" "yes"
+expect_contains "audit verify" "$chain" "none"
+# Nothing anchors a chain outside the database yet, and the column says so rather than staying
+# blank - the check proves the chain intact *inside* the database and no more.
+expect_contains "audit verify" "$chain" "never"
+
+echo "--- a right somebody exercised ---"
+dsr="$(hubctl dsr create --kind RECTIFICATION --subject "$ACCOUNT_ID" --notes 'asked by email')"
+CASE_ID="$(printf '%s\n' "$dsr" | first_id)"
+[ -n "$CASE_ID" ] || { echo "FAILED: raising the case produced no identifier: $dsr"; exit 1; }
+# The deadline is the point of the resource: thirty days from receipt unless somebody said another.
+expect_contains "dsr ls" "$(hubctl dsr ls --due-within 31)" "$CASE_ID"
+completed="$(hubctl dsr complete "$CASE_ID" --notes 'the correction was made')"
+expect_contains "dsr complete" "$completed" "COMPLETED"
+# And the case is out of the open list once it is answered.
+expect_missing "dsr ls" "$(hubctl dsr ls)" "$CASE_ID"
 
 echo "--- what a pipe gets ---"
 page="$(hubctl --json item ls --collection "$COLLECTION_ID")"

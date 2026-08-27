@@ -115,6 +115,29 @@ bin/hubctl view export "$VIEW" --format ICS --out week.ics
 bin/hubctl calendar mint --view "$VIEW"      # prints the feed URL once; it is the credential
 ```
 
+What an operator does with an installation is the same client:
+
+```bash
+export HUBTASK_BACKUP_PASSPHRASE="…"          # never a flag: without it an archive is unreadable
+TARGET=$(bin/hubctl backup target add --name nightly --kind LOCAL --config path=daily | awk 'NR==2 {print $1}')
+bin/hubctl backup target test "$TARGET"
+bin/hubctl backup run --target "$TARGET" --follow --timeout 30m
+bin/hubctl backup ls --target "$TARGET"       # what is actually lying at the target
+bin/hubctl backup verify "$RUN" --follow      # fails the command if it does not verify
+
+bin/hubctl restore inspect --target "$TARGET" --archive "$ARCHIVE"
+bin/hubctl restore run --target "$TARGET" --archive "$ARCHIVE" --mode NEW_TENANT --apply
+                                              # a dry run with a report until --apply is typed
+bin/hubctl retention add --kind COMPLETED_ITEM --days 90 --action TRASH
+bin/hubctl retention preview "$POLICY"        # what it would take, and what stands in the way
+bin/hubctl hold place --scope CONTAINER --id "$COLLECTION" --reason "the Meier proceedings"
+bin/hubctl audit query --from 2026-08-01 --action auth.
+bin/hubctl audit verify --from 2026-08-01 --to 2026-09-01   # red when the chain does not hold
+bin/hubctl dsr create --kind ERASURE --subject "$ACCOUNT"
+bin/hubctl dsr start "$CASE" --mode ANONYMIZE # the transition that runs the work
+bin/hubctl job show "$JOB" --follow
+```
+
 Errors are the message catalogue's sentences rather than the problem document behind them — the
 server emits codes, never display text ([ADR-0011](docs/adr/ADR-0011-i18n-message-codes.md)).
 Which platforms the binary is supported on is in
