@@ -99,7 +99,10 @@ protection gates PG-1…PG-8, which four documents assert and which exist in no 
 The outbox dispatcher production-ready, CloudEvents schemas published, the rule engine (triggers,
 CEL conditions, every action), dry run, RuleRuns, loop and throttle protection, webhook
 subscriptions with HMAC/retry/dead letter, the trigger polling endpoints, PATs and service accounts
-with scopes, and the jumble (email intake, webhook intake, quick capture, conversion).
+with scopes, and the jumble (email intake, webhook intake, quick capture, conversion). The backlog
+(`docs/backlog/milestone-0.5.0.md`) scopes the email intake webhook-first — the IMAP adapter waits
+on a dependency decision recorded as open point AM-1 — and lands `SCHEDULE` triggers as RRULE
+through the one schedule engine, with cron notation deferred as sugar.
 
 ### `0.6.0` Multi-tenancy and operations
 Multi mode, tenant provisioning/suspension/deletion, export (GDPR), quotas and fairness, the OIDC
