@@ -138,19 +138,26 @@ func (h ReconcileMedia) plan(
 	)
 
 	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		if err := h.Objects.Recount(ctx); err != nil {
+		if err := h.Objects.Recount(ctx, now); err != nil {
 			return err
 		}
 
-		marked, err := h.Objects.MarkOrphans(ctx, now, now.Add(-h.stagingGrace()))
+		// The recount above is what stamped the rows this marks, which is the reason the two are
+		// one transaction rather than two passes: the count and the moment it reached zero are one
+		// fact, and a mark decided on a stamp another transaction could still move would be
+		// deciding on a number this step was written to distrust.
+		marked, err := h.Objects.MarkOrphans(ctx, now, repository.Thresholds{
+			Unreferenced: now.Add(-h.unreferencedGrace()),
+			Pending:      now.Add(-h.stagingGrace()),
+		})
 		if err != nil {
 			return err
 		}
 		outcome.Marked = marked
 
-		// Marked before the grace ended, which is the window in which a mistake is still a
-		// mistake: an object that lost its last reference and gained a new one inside it is
-		// recounted and unmarked by the pass above rather than removed by this one.
+		// Marked before the grace ended. The second of the two windows: the first one kept an
+		// object nobody has attached *yet* out of the marking, and this one gives an operator who
+		// notices a mistaken removal the interval in which the bytes are still there.
 		orphans, err = h.Objects.TakeOrphans(ctx, now.Add(-h.orphanGrace()), h.batchSize())
 		return err
 	})
@@ -239,6 +246,17 @@ func (h ReconcileMedia) stagingGrace() time.Duration {
 		return 24 * time.Hour
 	}
 	return h.Config.StagingGrace
+}
+
+// The window between a confirmation and the first thing that uses the object. Never zero, and that
+// is the whole of the defect this bound exists for: a pass that ran inside that window marked an
+// upload somebody had just made, and nothing can bring a marked object back - every read path
+// refuses it, so nothing can attach it, so no recount ever sees a reference again.
+func (h ReconcileMedia) unreferencedGrace() time.Duration {
+	if h.Config.UnreferencedGrace <= 0 {
+		return time.Hour
+	}
+	return h.Config.UnreferencedGrace
 }
 
 func (h ReconcileMedia) orphanGrace() time.Duration {

@@ -93,7 +93,7 @@ func TestSealingRecordsTheJudgementOnce(t *testing.T) {
 
 	marked := object
 	marked.DeletedAt = &stagedAt
-	if _, err := marked.Sealed("application/pdf", 4090); shared.AsError(err).Category != shared.CategoryNotFound {
+	if _, err := marked.Sealed("application/pdf", 4090); shared.AsError(err).DetailCode != "media.not_found" {
 		t.Errorf("sealing a marked object was answered with %v", err)
 	}
 }
@@ -117,5 +117,14 @@ func TestOnlyAReadyObjectOfTheRightUsageJoins(t *testing.T) {
 	}
 	if err := sealed.Attachable(media.UsageCover); shared.AsError(err).DetailCode != "media.usage_mismatch" {
 		t.Errorf("an attachment covered: %v", err)
+	}
+
+	// The one a person actually meets when the reconciliation got there first. It says which kind
+	// of thing is missing rather than falling back to the category's "This entry does not exist.",
+	// which is what the end-to-end session was told when a pass marked an upload mid-flight.
+	marked := sealed
+	marked.DeletedAt = &stagedAt
+	if err := marked.Attachable(media.UsageAttachment); shared.AsError(err).DetailCode != "media.not_found" {
+		t.Errorf("attaching a marked object was answered with %v", err)
 	}
 }

@@ -47,22 +47,58 @@ UPDATE media_object SET deleted_at = sqlc.arg('deleted_at')
 WHERE id = sqlc.arg('id')::uuid AND ref_count = 0 AND deleted_at IS NULL;
 
 -- name: RecountMediaReferences :exec
--- The reconciliation's first pass: the counter becomes what the references say. Whole-tenant,
--- which is a scan by design - the job runs in the background on a bounded table, and a recount
--- that tried to be incremental would be a second bookkeeping to get wrong.
-UPDATE media_object m SET ref_count =
-  (SELECT count(*) FROM item_attachment a WHERE a.media_id = m.id)
-  + (SELECT count(*) FROM work_item w WHERE w.cover_media_id = m.id)
-WHERE m.deleted_at IS NULL;
+-- The reconciliation's first pass: the counter becomes what the references say, and a row that
+-- nothing points at learns since when. Whole-tenant, which is a scan by design - the job runs in
+-- the background on a bounded table, and a recount that tried to be incremental would be a second
+-- bookkeeping to get wrong.
+--
+-- The stamp is maintained here rather than beside every AdjustRefCount, because this is already
+-- the statement that rewrites the counter for every live row: six call sites moving a counter are
+-- six places to forget, and this one cannot drift from the count it sets in the same breath.
+-- COALESCE keeps the first zero rather than the latest one - a row unreferenced for a week must
+-- not have its grace restarted by every pass that walks past it - and a row that gained a
+-- reference has its stamp cleared, which is what makes the grace start again when it next loses
+-- one.
+--
+-- READY only, and that is not tidiness. A staging points at nothing by definition, and a stamp it
+-- collected while it was PENDING would be an hour old by the time somebody confirmed it late -
+-- which would hand the confirmation an object already past its grace. A PENDING row is bounded by
+-- its own clock, which runs from the staging; this one starts at the confirmation, where the
+-- object first becomes something anything can point at.
+UPDATE media_object m SET
+  ref_count = c.total,
+  unreferenced_since = CASE
+    WHEN c.total = 0 AND m.status = 'READY' THEN COALESCE(m.unreferenced_since, sqlc.arg('now'))
+    ELSE NULL
+  END
+FROM (
+  SELECT o.id,
+    (SELECT count(*) FROM item_attachment a WHERE a.media_id = o.id)
+    + (SELECT count(*) FROM work_item w WHERE w.cover_media_id = o.id) AS total
+  FROM media_object o
+  WHERE o.deleted_at IS NULL
+) c
+WHERE m.id = c.id AND m.deleted_at IS NULL;
 
 -- name: MarkMediaOrphans :execrows
--- The second pass: what nothing references is marked, not yet removed. READY orphans wait out
--- the caller's grace from now; PENDING rows are stagings nobody confirmed and are marked once
--- their upload window is long over.
+-- The second pass: what nothing references is marked, not yet removed. Both kinds wait, and they
+-- wait on different clocks. A READY object is garbage once nothing has pointed at it for the
+-- unreferenced grace - never merely because a pass caught it between its confirmation and the
+-- first thing that uses it, which is a window every upload passes through and every detach opens
+-- again. A PENDING row is a staging nobody confirmed, and its clock runs from the staging.
+--
+-- Marking is not a reversible step, which is why the grace sits here rather than after it: a
+-- marked object is refused by every read path, so nothing can attach it, so nothing can ever
+-- recount it back to life.
 UPDATE media_object SET deleted_at = sqlc.arg('now')
 WHERE deleted_at IS NULL
   AND ref_count = 0
-  AND (status = 'READY' OR (status = 'PENDING' AND created_at < sqlc.arg('pending_before')));
+  AND (
+    (status = 'READY'
+      AND unreferenced_since IS NOT NULL
+      AND unreferenced_since < sqlc.arg('unreferenced_before'))
+    OR (status = 'PENDING' AND created_at < sqlc.arg('pending_before'))
+  );
 
 -- name: TakeMediaOrphans :many
 -- The third pass: marked rows past their grace, handed to the purge job. The keys travel in the

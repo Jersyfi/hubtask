@@ -303,6 +303,13 @@ func TestAFileTheMediaContextWillNotStandBehindIsRefused(t *testing.T) {
 	}{
 		{name: "still pending", object: pendingAttachment(), detail: "media.not_ready"},
 		{name: "staged as a cover", object: readyCover(receiptID), detail: "media.usage_mismatch"},
+		// The sequence every upload runs: stage, put, confirm, attach. A reconciliation pass
+		// between the third and the fourth used to mark the object - it points at nothing until
+		// this call - and the person was told "This entry does not exist." about the file they had
+		// just uploaded. The grace in the sweep is what keeps this case theoretical; the code here
+		// is what makes it legible when it is not.
+		{name: "swept between the confirmation and this call", object: sweptAttachment(),
+			detail: "media.not_found"},
 	}
 
 	for _, c := range cases {
@@ -340,5 +347,15 @@ func TestDetachingDoesNotAskTheMediaContext(t *testing.T) {
 func pendingAttachment() media.Object {
 	object := readyAttachment(receiptID)
 	object.Status = media.StatusPending
+	return object
+}
+
+// A confirmed object the reconciliation marked. Marked rather than gone: the row is still there
+// and still READY, which is why the refusal has to come from the domain rather than from the
+// repository's ErrNotFound.
+func sweptAttachment() media.Object {
+	object := readyAttachment(receiptID)
+	sweptAt := now
+	object.DeletedAt = &sweptAt
 	return object
 }

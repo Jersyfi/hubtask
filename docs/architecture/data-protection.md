@@ -156,11 +156,18 @@ writes the deletion journal entry and the tombstone and drops the row, all three
 transaction, so that a restore from backup can never bring back a file this installation decided
 was gone ([ADR-0020](../adr/ADR-0020-retention-policies.md) §6).
 
-Two graces bound it. A staged upload nobody confirmed is abandoned only after
-`HUBTASK_MEDIA_STAGING_GRACE` (a day by default), so a large file still travelling up a slow line is
-not mistaken for one; a marked object waits out `HUBTASK_MEDIA_ORPHAN_GRACE` (an hour) before its
-bytes go, which is the window in which an object that lost its last reference and gained a new one
-is recounted and unmarked rather than removed. An object whose bytes storage will not release keeps
+Three graces bound it, and the first of them is the one that matters most, because marking is not a
+reversible step: every read path refuses a marked object, so nothing can attach it, so no recount
+will ever see a reference on it again. A confirmed object that points at nothing is therefore an
+orphan only once it has pointed at nothing for `HUBTASK_MEDIA_UNREFERENCED_GRACE` (an hour by
+default) — never merely because a pass caught it between its confirmation and the first thing that
+uses it, which is a window every upload passes through and every detachment opens again. The
+recount is what records when a row reached zero, keeping the first such moment and clearing it when
+a reference appears. A staged upload nobody confirmed is abandoned after
+`HUBTASK_MEDIA_STAGING_GRACE` (a day), so a large file still travelling up a slow line is not
+mistaken for one. A marked object then waits out `HUBTASK_MEDIA_ORPHAN_GRACE` (an hour) before its
+bytes go, which is the window in which an operator who notices a mistaken removal still finds them
+where they were. An object whose bytes storage will not release keeps
 its row and is tried again next pass — the other order would leave a file in the bucket that nothing
 in this system knows about any more. Metrics: `hubtask_media_reclaimed_total`,
 `hubtask_media_reclaim_failed_total`.
