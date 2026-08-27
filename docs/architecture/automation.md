@@ -105,7 +105,7 @@ change series (`SET_RECURRENCE`).
 |---|---|
 | Triggering | Outbox dispatcher → automation engine (in-process or its own deployment) |
 | Delivery guarantee | At least once; actions use an `Idempotency-Key` derived from `(rule_id, event_id, action_index)` |
-| Permissions | The rule runs as the `run_as` account; it can never do more than that account may |
+| Permissions | The rule runs as the `run_as` account; it can never do more than that account may. Writing one needs more than the automation permission — see §2.1 |
 | Loop protection | `causation_depth` in the event; abort at depth 5 by default, run status `ABORTED_LOOP` |
 | Replays | An event marked `replay: true` is one a restore produced ([backup-restore.md](./backup-restore.md) §8.4) and no rule reacts to it. The flag arrived with E-06 so that the engine finds it already there; it is on the envelope rather than in the payload because the decision is routing, and the dispatcher makes it — a subscriber is handed a replay only if it has asked for one, so the promise does not depend on every consumer remembering it |
 | Throttling | Per rule and per tenant; the dedupe key prevents a storm during mass changes |
@@ -114,6 +114,61 @@ change series (`SET_RECURRENCE`).
 | Log | A `RuleRun` with timestamps, condition results, action results, and errors; retrievable, filterable, replayable |
 | SSRF protection | Outbound calls go through `GuardedClient`: DNS resolution checked, private and link-local networks blocked (with a configurable allowlist for self-hosting), a redirect limit, a timeout, and a response size limit |
 | Secrets | Header values and tokens for HTTP actions are stored encrypted and masked in logs and API responses |
+
+### 2.1 Who may write a rule
+
+Writing a rule is not doing what the rule does. It is arranging for it to be done later, by another
+account, without anybody looking — so the automation permission at the rule's scope is necessary and
+not sufficient. A member holds that permission, holds nothing else, and would otherwise write a rule
+that runs as a generously-scoped service account and restructures a hub they may not touch. The
+rights would have been **laundered through the `run_as`**.
+
+Three conditions, and all three have to hold (G-05):
+
+1. **The automation permission at the rule's own scope.** The matrix's column, resolved down the
+   path the scope names — tenant, hub, or collection. A member's cell reads "own rules".
+2. **You cannot delegate more than you hold.** The `run_as` account's effective role at the rule's
+   scope may not exceed the writer's own there. This is the general form of the leak and it needs no
+   list of actions: whatever that account can do, the writer could already have done. A **person's**
+   account is refused outright unless it is the writer's own — acting as a colleague is
+   impersonation, and no amount of automation permission is a grant of it, not even an owner's.
+3. **You must hold what the actions ask for.** Every action is a use case and every use case
+   declares the scope a credential needs; the writer's own credential has to carry each of them.
+   Read off the catalogue rather than restated, so the rule stays in step with what the actions
+   actually require.
+
+All three are asked again when a rule is **switched on**, because that is the moment its actions
+begin to happen and the writer's rights may have narrowed since it was written. None of them is
+asked when a rule is switched **off** or deleted: stopping a rule takes a power away, and somebody
+who may manage rules here must never be unable to stop one.
+
+An edit is checked twice — against the rule as it stands, so that somebody who may not touch it at
+all is refused before the new shape is even considered, and against the rule as it would be, because
+the same laundering performed in two steps is the same laundering.
+
+**This is the courtesy; the run is the boundary.** The engine asks the authoriser again on every
+action as the `run_as` account (rule 2, ADR-0005 — the engine gets no bypass, which is the whole
+point of `run_as`). A role change between the write and the run therefore *narrows* the rule rather
+than widening a stale check: the answer that decides an action is the answer of the day it runs.
+What the write-time check buys is that the writer is told now rather than at three in the morning.
+
+### 2.2 What a rule may say, and when
+
+The accepted vocabulary is the executable vocabulary, at every commit — a rule that cannot be run is
+not stored (E-08's lesson: stored and ignored is worse than refused, because its owner believes it
+is working).
+
+| Written | Until |
+|---|---|
+| A non-empty **condition**, and `throttle.dedupe_key_expr` with it | Refused. The expression language arrives with the engine that evaluates one (§1.2, ADR-0009) |
+| An action naming `SEND_WEBHOOK`, `HTTP_REQUEST`, `WAIT`, `BRANCH`, `STOP`, or an AI kind | Refused by name, with a code that says "not built yet" rather than "no such action" — the difference is whether its author goes looking for a typo or for the milestone |
+| A parameter the action's use case does not declare | Refused, exactly as the call itself would refuse it (C-07). A rule saved with a misspelled `parent_id` fails at a moment nobody is watching |
+| A **required** parameter the rule does not carry | Accepted. A rule supplies some parameters and the run supplies the rest — the entry an event is about is not a value a rule can carry — so demanding them at write time would refuse every correct rule. The run is where the whole input exists, and the registry validates it in full there |
+| A **trigger** of any of the six kinds | Accepted, with the fields its own kind needs and no others. Only `EVENT` has an engine in this release; the rest are stored and, like every newly written rule, switched off |
+
+A rule is created **switched off**, and enabling it is its own call with its own audit entry.
+Writing what a rule would do and letting it loose on the workspace are two decisions, and one that
+acted the moment it was saved would give nobody the chance to read it back first.
 
 ---
 

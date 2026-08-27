@@ -149,6 +149,17 @@ shape and with its own merge question. The history is read through `ListActivity
 (`GET /items/{id}/activity`), which is an ordinary page request and is available offline only as far
 as a client cached it.
 
+**An automation rule does not travel either, and for the same class of reason.** It is workspace
+configuration that is executed by the server, not work that two people edit from two devices: it is
+not in the change log, it is not merged, and a device holds nothing about one beyond what it last
+read over the API. §1 puts the credential-shaped and server-decided operations in the right-hand
+column, and writing a rule joins them - what a rule may say depends on the writer's rights, on the
+`run_as` account's rights, and on the use case catalogue this build serves (§2.1 of
+[automation.md](./automation.md)), none of which a device can evaluate. A client that guessed would
+be predicting a permission decision, and the one prediction that matters is the one it gets wrong.
+The same goes for its two switches: enabling a rule is a decision recorded in the audit trail, and a
+device cannot record one.
+
 **A calendar feed does not travel at all.** It is a credential over a view rather than a piece of
 work: it is not in the change log, it is not merged, and a device holds nothing about it beyond
 whatever URL its calendar client stored. §1 already puts "applying templates" and the rest of the

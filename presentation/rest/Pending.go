@@ -119,6 +119,37 @@ func (pending) RotateWebhookSecret(w http.ResponseWriter, r *http.Request, _ ope
 	notAvailable(w, r)
 }
 
+// The automation rules. RestController overrides every one of them; they are here because pending
+// implements the whole interface, which is what lets the contract test compare the router against
+// the specification as a whole.
+func (pending) ListRules(w http.ResponseWriter, r *http.Request, _ openapi.ListRulesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateRule(w http.ResponseWriter, r *http.Request, _ openapi.CreateRuleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId) {
+	notAvailable(w, r)
+}
+
+func (pending) EnableRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.EnableRuleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DisableRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.DisableRuleParams) {
+	notAvailable(w, r)
+}
+
 func (pending) PollTriggerEvents(w http.ResponseWriter, r *http.Request, _ openapi.EventType, _ openapi.PollTriggerEventsParams) {
 	notAvailable(w, r)
 }

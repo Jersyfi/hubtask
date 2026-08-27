@@ -297,6 +297,69 @@ func (e AutoAssignStrategy) Valid() bool {
 	}
 }
 
+// Defines values for AutomationRuleOnError.
+const (
+	AutomationRuleOnErrorCONTINUE AutomationRuleOnError = "CONTINUE"
+	AutomationRuleOnErrorRETRY    AutomationRuleOnError = "RETRY"
+	AutomationRuleOnErrorSTOP     AutomationRuleOnError = "STOP"
+)
+
+// Valid indicates whether the value is a known member of the AutomationRuleOnError enum.
+func (e AutomationRuleOnError) Valid() bool {
+	switch e {
+	case AutomationRuleOnErrorCONTINUE:
+		return true
+	case AutomationRuleOnErrorRETRY:
+		return true
+	case AutomationRuleOnErrorSTOP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AutomationRuleCreateOnError.
+const (
+	AutomationRuleCreateOnErrorCONTINUE AutomationRuleCreateOnError = "CONTINUE"
+	AutomationRuleCreateOnErrorRETRY    AutomationRuleCreateOnError = "RETRY"
+	AutomationRuleCreateOnErrorSTOP     AutomationRuleCreateOnError = "STOP"
+)
+
+// Valid indicates whether the value is a known member of the AutomationRuleCreateOnError enum.
+func (e AutomationRuleCreateOnError) Valid() bool {
+	switch e {
+	case AutomationRuleCreateOnErrorCONTINUE:
+		return true
+	case AutomationRuleCreateOnErrorRETRY:
+		return true
+	case AutomationRuleCreateOnErrorSTOP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AutomationRuleUpdateOnError.
+const (
+	AutomationRuleUpdateOnErrorCONTINUE AutomationRuleUpdateOnError = "CONTINUE"
+	AutomationRuleUpdateOnErrorRETRY    AutomationRuleUpdateOnError = "RETRY"
+	AutomationRuleUpdateOnErrorSTOP     AutomationRuleUpdateOnError = "STOP"
+)
+
+// Valid indicates whether the value is a known member of the AutomationRuleUpdateOnError enum.
+func (e AutomationRuleUpdateOnError) Valid() bool {
+	switch e {
+	case AutomationRuleUpdateOnErrorCONTINUE:
+		return true
+	case AutomationRuleUpdateOnErrorRETRY:
+		return true
+	case AutomationRuleUpdateOnErrorSTOP:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BackupArchiveChecksumStatus.
 const (
 	MISMATCH   BackupArchiveChecksumStatus = "MISMATCH"
@@ -1815,6 +1878,75 @@ func (e RoleDescriptionPermissions) Valid() bool {
 	}
 }
 
+// Defines values for RuleScopeType.
+const (
+	RuleScopeTypeCOLLECTION RuleScopeType = "COLLECTION"
+	RuleScopeTypeHUB        RuleScopeType = "HUB"
+	RuleScopeTypeTENANT     RuleScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the RuleScopeType enum.
+func (e RuleScopeType) Valid() bool {
+	switch e {
+	case RuleScopeTypeCOLLECTION:
+		return true
+	case RuleScopeTypeHUB:
+		return true
+	case RuleScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleTriggerAnchor.
+const (
+	CREATEDAT RuleTriggerAnchor = "CREATED_AT"
+	DUEDATE   RuleTriggerAnchor = "DUE_DATE"
+)
+
+// Valid indicates whether the value is a known member of the RuleTriggerAnchor enum.
+func (e RuleTriggerAnchor) Valid() bool {
+	switch e {
+	case CREATEDAT:
+		return true
+	case DUEDATE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleTriggerKind.
+const (
+	RuleTriggerKindEVENT          RuleTriggerKind = "EVENT"
+	RuleTriggerKindINBOUNDWEBHOOK RuleTriggerKind = "INBOUND_WEBHOOK"
+	RuleTriggerKindJUMBLEENTRY    RuleTriggerKind = "JUMBLE_ENTRY"
+	RuleTriggerKindMANUAL         RuleTriggerKind = "MANUAL"
+	RuleTriggerKindRELATIVEDATE   RuleTriggerKind = "RELATIVE_DATE"
+	RuleTriggerKindSCHEDULE       RuleTriggerKind = "SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the RuleTriggerKind enum.
+func (e RuleTriggerKind) Valid() bool {
+	switch e {
+	case RuleTriggerKindEVENT:
+		return true
+	case RuleTriggerKindINBOUNDWEBHOOK:
+		return true
+	case RuleTriggerKindJUMBLEENTRY:
+		return true
+	case RuleTriggerKindMANUAL:
+		return true
+	case RuleTriggerKindRELATIVEDATE:
+		return true
+	case RuleTriggerKindSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SavedViewScopeType.
 const (
 	SavedViewScopeTypeACCOUNT    SavedViewScopeType = "ACCOUNT"
@@ -2518,6 +2650,93 @@ type AutoAssignPolicy struct {
 
 // AutoAssignStrategy How a candidate is picked. FIXED always assigns the one configured account. RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a group first and one of its members second, so each group carries an equal share of the work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED picks the candidate with the fewest open entries. /meta/capabilities returns the valid values.
 type AutoAssignStrategy string
+
+// AutomationRule defines model for AutomationRule.
+type AutomationRule struct {
+	Actions []RuleAction `json:"actions"`
+
+	// Conditions Empty in this release. A non-empty condition is refused until the expression language that evaluates it arrives - stored and ignored is the one thing it must not be.
+	Conditions []RuleCondition    `json:"conditions"`
+	CreatedAt  time.Time          `json:"created_at"`
+	CreatedBy  openapi_types.UUID `json:"created_by"`
+
+	// Enabled Switched off when the rule is written. `:enable` and `:disable` are what move it, so that the trail says which of the two somebody did.
+	Enabled bool `json:"enabled"`
+
+	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
+	FailureCount int                   `json:"failure_count"`
+	Id           openapi_types.UUID    `json:"id"`
+	Name         string                `json:"name"`
+	OnError      AutomationRuleOnError `json:"on_error"`
+
+	// RunAs The account the rule acts as. It can never do more than that account may (automation.md §2), which is why the writer has to hold those rights too.
+	RunAs openapi_types.UUID `json:"run_as"`
+
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+	Scope RuleScope `json:"scope"`
+
+	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+	Throttle *RuleThrottle `json:"throttle,omitempty"`
+
+	// Trigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	Trigger   RuleTrigger `json:"trigger"`
+	UpdatedAt time.Time   `json:"updated_at"`
+	Version   int         `json:"version"`
+}
+
+// AutomationRuleOnError defines model for AutomationRule.OnError.
+type AutomationRuleOnError string
+
+// AutomationRuleCreate defines model for AutomationRuleCreate.
+type AutomationRuleCreate struct {
+	Actions    []RuleAction                 `json:"actions"`
+	Conditions *[]RuleCondition             `json:"conditions,omitempty"`
+	Name       string                       `json:"name"`
+	OnError    *AutomationRuleCreateOnError `json:"on_error,omitempty"`
+	RunAs      openapi_types.UUID           `json:"run_as"`
+
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+	Scope RuleScope `json:"scope"`
+
+	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+	Throttle *RuleThrottle `json:"throttle,omitempty"`
+
+	// Trigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	Trigger RuleTrigger `json:"trigger"`
+}
+
+// AutomationRuleCreateOnError defines model for AutomationRuleCreate.OnError.
+type AutomationRuleCreateOnError string
+
+// AutomationRulePage defines model for AutomationRulePage.
+type AutomationRulePage struct {
+	Data []AutomationRule `json:"data"`
+	Page PageInfo         `json:"page"`
+}
+
+// AutomationRuleUpdate An omitted field is left alone. `enabled` is deliberately absent: it moves through `:enable` and `:disable`, which are audited as the decisions they are.
+type AutomationRuleUpdate struct {
+	Actions    *[]RuleAction    `json:"actions,omitempty"`
+	Conditions *[]RuleCondition `json:"conditions,omitempty"`
+
+	// ExpectedVersion The version last read. A mismatch is a conflict rather than an overwrite.
+	ExpectedVersion *int                         `json:"expected_version,omitempty"`
+	Name            *string                      `json:"name,omitempty"`
+	OnError         *AutomationRuleUpdateOnError `json:"on_error,omitempty"`
+	RunAs           *openapi_types.UUID          `json:"run_as,omitempty"`
+
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+	Scope *RuleScope `json:"scope,omitempty"`
+
+	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+	Throttle *RuleThrottle `json:"throttle,omitempty"`
+
+	// Trigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	Trigger *RuleTrigger `json:"trigger,omitempty"`
+}
+
+// AutomationRuleUpdateOnError defines model for AutomationRuleUpdate.OnError.
+type AutomationRuleUpdateOnError string
 
 // BackupArchive Read from the manifest at the target, not from the database.
 type BackupArchive struct {
@@ -4035,6 +4254,66 @@ type RoleItemAccess struct {
 	Read *ItemAccess `json:"read,omitempty"`
 }
 
+// RuleAction One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a new use case becomes an action without anybody editing anything.
+type RuleAction struct {
+	// Kind `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind automation.md §1.3 documents and no release serves yet is refused by name rather than stored to be ignored.
+	Kind string `json:"kind"`
+
+	// Params The action's parameters. A key the use case behind the kind does not declare is refused, exactly as it would be on the call itself.
+	Params *map[string]interface{} `json:"params,omitempty"`
+}
+
+// RuleCondition defines model for RuleCondition.
+type RuleCondition struct {
+	// Expr A CEL expression (ADR-0009). Refused while it is non-empty in this release.
+	Expr string `json:"expr"`
+}
+
+// RuleScope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+type RuleScope struct {
+	// Id The hub or the collection. Absent for `TENANT`, and required for the others.
+	Id   *openapi_types.UUID `json:"id,omitempty"`
+	Type RuleScopeType       `json:"type"`
+}
+
+// RuleScopeType defines model for RuleScope.Type.
+type RuleScopeType string
+
+// RuleThrottle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+type RuleThrottle struct {
+	// DedupeKeyExpr An expression whose value collapses runs that mean the same thing. Refused while it is non-empty, with the conditions and for their reason: the language arrives with the engine that evaluates it.
+	DedupeKeyExpr  *string `json:"dedupe_key_expr,omitempty"`
+	MaxRunsPerHour *int    `json:"max_runs_per_hour,omitempty"`
+}
+
+// RuleTrigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+type RuleTrigger struct {
+	// Anchor `RELATIVE_DATE` only, and required there: which instant the offset is from.
+	Anchor *RuleTriggerAnchor `json:"anchor,omitempty"`
+
+	// ChangedFields `EVENT` only, optional. Narrows an `item.updated` trigger to the fields that moved, so that a rule about deadlines does not fire on a rename.
+	ChangedFields *[]string `json:"changed_fields,omitempty"`
+
+	// EventType `EVENT` only, and required there: the full type, `de.hubtask.work.item.overdue.v1`. One this build does not publish is refused by name.
+	EventType *string         `json:"event_type,omitempty"`
+	Kind      RuleTriggerKind `json:"kind"`
+
+	// Offset `RELATIVE_DATE` only, and required there: a signed ISO 8601 duration, `-PT24H` for "24 hours before".
+	Offset *string `json:"offset,omitempty"`
+
+	// Rrule `SCHEDULE` only, and required there: an RFC 5545 RRULE.
+	Rrule *string `json:"rrule,omitempty"`
+
+	// Timezone `SCHEDULE` only, and required there: an IANA zone. A schedule without one is a schedule that means something different in summer.
+	Timezone *string `json:"timezone,omitempty"`
+}
+
+// RuleTriggerAnchor `RELATIVE_DATE` only, and required there: which instant the offset is from.
+type RuleTriggerAnchor string
+
+// RuleTriggerKind defines model for RuleTrigger.Kind.
+type RuleTriggerKind string
+
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
 type SavedView struct {
 	CreatedAt *time.Time             `json:"created_at,omitempty"`
@@ -4694,6 +4973,9 @@ type ParentId = openapi_types.UUID
 // ReminderId defines model for ReminderId.
 type ReminderId = openapi_types.UUID
 
+// RuleId defines model for RuleId.
+type RuleId = openapi_types.UUID
+
 // TemplateId defines model for TemplateId.
 type TemplateId = openapi_types.UUID
 
@@ -4754,6 +5036,33 @@ type ListAccessTokensParams struct {
 
 // CreateAccessTokenParams defines parameters for CreateAccessToken.
 type CreateAccessTokenParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ListRulesParams defines parameters for ListRules.
+type ListRulesParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Enabled Narrow to the rules that are switched on, or to the ones that are not.
+	Enabled *bool `form:"enabled,omitempty" json:"enabled,omitempty"`
+}
+
+// CreateRuleParams defines parameters for CreateRule.
+type CreateRuleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DisableRuleParams defines parameters for DisableRule.
+type DisableRuleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// EnableRuleParams defines parameters for EnableRule.
+type EnableRuleParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -5400,6 +5709,12 @@ type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = AccessTokenCreate
 
+// CreateRuleJSONRequestBody defines body for CreateRule for application/json ContentType.
+type CreateRuleJSONRequestBody = AutomationRuleCreate
+
+// UpdateRuleJSONRequestBody defines body for UpdateRule for application/json ContentType.
+type UpdateRuleJSONRequestBody = AutomationRuleUpdate
+
 // CreateBackupScheduleJSONRequestBody defines body for CreateBackupSchedule for application/json ContentType.
 type CreateBackupScheduleJSONRequestBody = BackupSchedule
 
@@ -5603,6 +5918,27 @@ type ServerInterface interface {
 	// RevokeAccessToken Revoke a personal access token
 	// (DELETE /auth/tokens/{tokenId})
 	RevokeAccessToken(w http.ResponseWriter, r *http.Request, tokenId TokenId)
+	// ListRules The workspace's automation rules
+	// (GET /automation/rules)
+	ListRules(w http.ResponseWriter, r *http.Request, params ListRulesParams)
+	// CreateRule Write a rule
+	// (POST /automation/rules)
+	CreateRule(w http.ResponseWriter, r *http.Request, params CreateRuleParams)
+	// DeleteRule Remove a rule
+	// (DELETE /automation/rules/{ruleId})
+	DeleteRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
+	// GetRule One rule, as it stands
+	// (GET /automation/rules/{ruleId})
+	GetRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
+	// UpdateRule Change what a rule does
+	// (PATCH /automation/rules/{ruleId})
+	UpdateRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
+	// DisableRule Switch a rule off
+	// (POST /automation/rules/{ruleId}:disable)
+	DisableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params DisableRuleParams)
+	// EnableRule Switch a rule on
+	// (POST /automation/rules/{ruleId}:enable)
+	EnableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params EnableRuleParams)
 	// CreateBackupSchedule Create a backup schedule
 	// (POST /backup-schedules)
 	CreateBackupSchedule(w http.ResponseWriter, r *http.Request)
@@ -6426,6 +6762,284 @@ func (siw *ServerInterfaceWrapper) RevokeAccessToken(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeAccessToken(w, r, tokenId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRules operation middleware
+func (siw *ServerInterfaceWrapper) ListRules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRulesParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "enabled" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "enabled", r.URL.Query(), &params.Enabled, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "enabled"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "enabled", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRules(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateRule operation middleware
+func (siw *ServerInterfaceWrapper) CreateRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateRule(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteRule operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRule(w, r, ruleId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRule operation middleware
+func (siw *ServerInterfaceWrapper) GetRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRule(w, r, ruleId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateRule operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateRule(w, r, ruleId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisableRule operation middleware
+func (siw *ServerInterfaceWrapper) DisableRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DisableRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisableRule(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnableRule operation middleware
+func (siw *ServerInterfaceWrapper) EnableRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params EnableRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnableRule(w, r, ruleId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12143,6 +12757,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/views/{viewId}", wrapper.UpdateSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:share", wrapper.ShareSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules", wrapper.ListRules)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules", wrapper.CreateRule)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.DeleteRule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.GetRule)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks", wrapper.ListWebhookSubscriptions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks", wrapper.CreateWebhookSubscription)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.DeleteWebhookSubscription)

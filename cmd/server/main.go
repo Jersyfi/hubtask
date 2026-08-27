@@ -30,6 +30,7 @@ import (
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
+	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -402,6 +403,23 @@ func run() error {
 	// on the installation secret, and one derivation means one place where that key comes from
 	// (api-guidelines.md §4).
 	cursors := security.NewCursorCodec(cfg.SecretKey)
+	// The automation rules (G-05). One dependency set for the webhook writer's reason: the six use
+	// cases are one aggregate's writers, and the rule that decides who may write one is a single
+	// rule - including the composition half of it, which reads accounts and memberships to answer
+	// whether a writer may delegate to the account a rule would run as.
+	//
+	// The catalogue is deferred for BulkUpdateWorkItems' reason and it is the same circle: a rule's
+	// actions are use cases, so writing one has to consult the registry - and these seven are
+	// entries of the registry, so it cannot exist yet.
+	ruleCatalogue := &deferredCatalogue{}
+	ruleWriter := automationservice.Writer{
+		Rules:       postgres.NewAutomationRuleRepository(cursors),
+		Accounts:    accounts,
+		Memberships: postgres.NewMembershipRepository(),
+		Catalogue:   ruleCatalogue,
+		Authorizer:  authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
 	trash := postgres.NewTrashRepository(cursors)
@@ -750,6 +768,13 @@ func run() error {
 		integrationservice.ListWebhookDeliveries{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ReplayWebhookDelivery{Writer: webhookWriter, Jobs: jobs}.Descriptor(),
 		integrationservice.RotateWebhookSecret{Writer: webhookWriter}.Descriptor(),
+		automationservice.CreateRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.GetRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.ListRules{Writer: ruleWriter}.Descriptor(),
+		automationservice.UpdateRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.EnableRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.DisableRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.DeleteRule{Writer: ruleWriter}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
@@ -1079,6 +1104,7 @@ func run() error {
 	// goes through the same registry a REST call or an MCP tool call goes through, with the same
 	// input check, the same permission check and the same metric (C-11).
 	bulkCatalogue.catalogue = useCases
+	ruleCatalogue.catalogue = useCases
 
 	var api *http.Server
 	if cfg.HasRole(envport.RoleAPI) {
@@ -1885,6 +1911,19 @@ func (d *deferredCatalogue) Invoke(
 		return nil, shared.ErrInternal.WithDetail("usecase.catalogue_unavailable")
 	}
 	return d.catalogue.Invoke(ctx, name, actor, in)
+}
+
+// ByAutomationAction is the same circle from the other side: the rule writer validates an action
+// against the catalogue, and is itself an entry of it (G-05).
+//
+// A rule with no catalogue answers "no such action" for every kind, which is the fail-closed
+// direction: unreachable, because the holder is filled before the server accepts a request, and if
+// it ever were reached it would refuse rules rather than accept unvalidated ones.
+func (d *deferredCatalogue) ByAutomationAction(kind string) (usecase.Descriptor, bool) {
+	if d.catalogue == nil {
+		return usecase.Descriptor{}, false
+	}
+	return d.catalogue.ByAutomationAction(kind)
 }
 
 // masterKeys is the configured keyring as the envelope adapter takes it. A translation of two
