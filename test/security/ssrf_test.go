@@ -12,6 +12,7 @@ package security
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -280,4 +281,45 @@ func portOf(t *testing.T, rawURL string) string {
 		t.Fatalf("%s has no port", rawURL)
 	}
 	return strings.TrimSuffix(p, "/")
+}
+
+// A webhook target is an egress channel exactly as a backup target is, and G-03's acceptance asks
+// for the test to say so by name: a subscription pointed at the metadata service or at a private
+// range is refused by the guard, and the private range is released only by explicit configuration.
+//
+// The two halves are deliberately different. The metadata address is unreachable in every
+// configuration this product offers, because no self-hoster's LAN contains it and one GET against
+// it hands over the instance's credentials. A private range is somebody's own network, and an
+// installation that legitimately calls a service on it says so once, for the whole installation -
+// which is BK-9's shape for a backup target, and this is its sibling.
+func TestAWebhookTargetIsGuardedLikeABackupTarget(t *testing.T) {
+	const metadata = "http://169.254.169.254/latest/meta-data/"
+	const private = "http://10.0.0.7/hooks/hubtask"
+
+	closed := outbound()
+	closed.AllowPrivateNetworks = false
+	if err := call(t, clientFor(closed), private); err == nil {
+		t.Error("a webhook to a private address was allowed by default")
+	}
+	if err := call(t, clientFor(closed), metadata); err == nil {
+		t.Error("a webhook to the metadata service was allowed")
+	}
+
+	// Released deliberately and once, for the installation rather than for the subscription: a
+	// per-target opt-out would be an opt-out a request could ask for.
+	opened := outbound()
+	opened.AllowPrivateNetworks = true
+	if err := call(t, clientFor(opened), private); err != nil && isGuardRefusal(err) {
+		t.Errorf("a released private network still refused a webhook: %v", err)
+	}
+	if err := call(t, clientFor(opened), metadata); err == nil {
+		t.Fatal("releasing private networks made the metadata service reachable")
+	}
+}
+
+// isGuardRefusal separates "this installation would not dial that" from "the dial did not work",
+// which is the same distinction the deliverer records. A released private address is expected to
+// fail to connect in a test - nothing is listening - and that is not the guard talking.
+func isGuardRefusal(err error) bool {
+	return errors.Is(err, shared.ErrForbidden)
 }

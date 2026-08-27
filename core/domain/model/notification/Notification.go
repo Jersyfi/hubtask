@@ -48,13 +48,21 @@ const (
 	// MEMBERSHIP: an invitation is the message that decides whether somebody can use the system
 	// at all, and a preference switching it off would be a preference locking somebody out.
 	CategoryInvitation Category = "INVITATION"
+	// CategoryIntegration is what an integration has to tell its owner: today, that a webhook
+	// subscription was disabled because its target stopped answering (G-03).
+	//
+	// Its own category on CategoryReminder's reasoning - the switch is a different switch.
+	// Somebody who does not want to hear about comments still wants to hear that this system
+	// stopped calling their server, and sending it under one of the others would let a preference
+	// nobody set for this purpose silence it.
+	CategoryIntegration Category = "INTEGRATION"
 )
 
 // Categories is the closed set, in the order the schema's check constraint lists them.
 func Categories() []Category {
 	return []Category{
 		CategoryAssignment, CategoryMembership, CategoryComment, CategoryInvitation,
-		CategoryReminder,
+		CategoryReminder, CategoryIntegration,
 	}
 }
 

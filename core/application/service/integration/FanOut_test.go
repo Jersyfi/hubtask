@@ -20,7 +20,7 @@ type disableNotices struct {
 	err        error
 }
 
-func (n *disableNotices) WebhookDisabled(_ context.Context, recipient, _ shared.ID) error {
+func (n *disableNotices) WebhookDisabled(_ context.Context, _, recipient, _ shared.ID) error {
 	if n.err != nil {
 		return n.err
 	}

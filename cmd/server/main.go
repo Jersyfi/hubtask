@@ -1485,6 +1485,13 @@ func run() error {
 		Outcomes: integrationservice.Outcomes{
 			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 			Audit:         auditSink, Clock: clockadapter.System{},
+			// The owner is told through the path C-09 built rather than a new channel: the
+			// preference is honoured and the send is a job like every other.
+			Notifier: notification.RecordWebhookDisabled{
+				Notifications: notifications, Accounts: accounts,
+				Preferences: notificationPreferences, Jobs: jobs,
+				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
 		},
 		Encryptor: encryptor, Signer: security.NewWebhookSigner(),
 		Client:     outboundClient,

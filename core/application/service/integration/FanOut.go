@@ -110,7 +110,7 @@ func (f FanOut) enqueue(
 // unreachability, plus a notification to the owner" is one sentence in automation.md §3.1, and the
 // second half of it is a thing this system already knows how to do.
 type DisableNotifier interface {
-	WebhookDisabled(ctx context.Context, recipient shared.ID, subscriptionID shared.ID) error
+	WebhookDisabled(ctx context.Context, tenantID, recipient, subscriptionID shared.ID) error
 }
 
 // Outcomes is the half of the webhook use cases the delivery path needs: it reports what happened
@@ -181,7 +181,7 @@ func (o Outcomes) Failed(
 	if o.Notifier == nil {
 		return nil
 	}
-	return o.Notifier.WebhookDisabled(ctx, after.CreatedBy, after.ID)
+	return o.Notifier.WebhookDisabled(ctx, after.TenantID, after.CreatedBy, after.ID)
 }
 
 // recordDisabled writes the trail entry for a subscription the system stopped by itself.
