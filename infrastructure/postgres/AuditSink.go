@@ -194,8 +194,12 @@ func auditInsertParams(id shared.ID, seq int64, hash, previousHash []byte, entry
 // same generic types. A nil map stays nil - the sink writes `{}` for it either way, and the hash is
 // taken over that.
 func storedShape(changes map[string]any) (map[string]any, error) {
+	// An entry that changed nothing - a probe, a read that is recorded, a refusal - is stored as
+	// `{}` and read back as `{}`, and a nil map hashes as `null`. So the chain broke at the first
+	// such entry in it, and only there: everything with a changed field in it verified, which is
+	// why a trail could look sound for forty entries and then not (E-12).
 	if len(changes) == 0 {
-		return changes, nil
+		return map[string]any{}, nil
 	}
 
 	encoded, err := json.Marshal(changes)

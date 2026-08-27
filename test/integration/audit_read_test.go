@@ -972,3 +972,28 @@ func TestAnEntryWhoseChangeIsAStructureStillVerifies(t *testing.T) {
 		t.Errorf("a chain carrying a structured change does not verify: %+v", found)
 	}
 }
+
+// An entry that changed nothing at all - a probe, a refusal, a read that is recorded.
+//
+// It is stored as `{}` and read back as `{}`, and a nil map hashes as `null`: the chain broke at
+// the first such entry and nowhere else, which is how a trail could verify for forty entries and
+// then not.
+func TestAnEntryThatChangedNothingStillVerifies(t *testing.T) {
+	ctx := context.Background()
+	tenant := auditTenant(ctx, t)
+
+	entries := mixedEntries(t, tenant, 3)
+	entries[1].Changes = nil
+	entries[2].Changes = map[string]any{}
+	appendTo(ctx, t, tenant, entries)
+
+	found, err := verifierFor(t).Execute(ctx, auditActor(tenant), repository.Period{
+		From: created.Add(-time.Hour), To: created.Add(2000 * time.Second),
+	})
+	if err != nil {
+		t.Fatalf("verifying: %v", err)
+	}
+	if !found.Valid {
+		t.Errorf("a chain carrying an entry that changed nothing does not verify: %+v", found)
+	}
+}
