@@ -59,7 +59,7 @@ Three levels, because one is not enough:
 3. **Hash chain:** `hash = SHA-256(prev_hash ‖ canonical serialisation of the entry)`, one chain per tenant, plus a gapless `seq`. An endpoint `POST /audit:verify` checks the chain and reports the break point and any sequence gap.
 
 **What the hash is taken over is the entry as the row gives it back**, not as the caller built it,
-and that is one rule with three edges — every one of which shipped broken and was found by driving
+and that is one rule with four edges — every one of which shipped broken and was found by driving
 `hubctl audit verify` against a running installation (E-12):
 
 * **The tail is the highest `seq`, never the newest timestamp.** Each caller reads its clock before
@@ -73,10 +73,13 @@ and that is one rule with three edges — every one of which shipped broken and 
 * **The changed fields go through the reader's encoder before they are hashed.** A structure
   marshals in field order on the way in and in key order on the way out of `JSONB`; a retention
   plan or a restore report in an entry was enough to make a sound chain report tampering.
+* **An entry that changed nothing hashes `{}`, not `null`.** A probe, a refusal, a recorded read:
+  the row stores an empty object and reads back an empty object, and a nil map hashes as `null`. A
+  trail verified for forty entries and broke at the first probe in it.
 
-All three belong to the adapter, where the storage's precision and shape are known — the port and
-the domain keep knowing nothing about PostgreSQL — and all three are held by tests that write
-concurrently, with nanoseconds, and with a structure in the changes.
+All four belong to the adapter, where the storage's precision and shape are known — the port and
+the domain keep knowing nothing about PostgreSQL — and all four are held by tests that write
+concurrently, with nanoseconds, with a structure in the changes, and with no changes at all.
 
 A deliberate limit: the chain proves tampering **inside** the database, not against an attacker with
 full database access who recomputes the entire chain. Anyone who needs that level exports the daily
