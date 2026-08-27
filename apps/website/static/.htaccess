@@ -2,10 +2,10 @@
 
 AddDefaultCharset UTF-8
 
-# The HTTPS redirect, prepared and switched off. It must not run before the domain has its
-# certificate ("Domains & SSL" in the IONOS panel, the lock next to hubtask.eu): with no
-# certificate assigned, redirecting every visitor to https breaks the site instead of securing
-# it. Once the lock is green, remove the leading '#' of the three lines below.
-#RewriteEngine On
-#RewriteCond %{HTTPS} off
-#RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+# The HTTPS redirect. Switched on on 2026-08-27, after the certificate was assigned to the
+# domain and a check showed IONOS adds no redirect of its own - two redirects on one hop is a
+# loop. With no certificate this rule would break the site instead of securing it, which is why
+# it shipped commented out until the lock next to hubtask.eu was green.
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
