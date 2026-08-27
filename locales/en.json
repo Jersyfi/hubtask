@@ -724,6 +724,7 @@
   "webhooks.subscription_version_conflict": "Somebody else changed that subscription. Read it again and retry.",
   "webhooks.state_not_settable": "A subscription cannot be set to {state} by hand. Pause it instead; DISABLED is what a run of failures produces.",
   "webhooks.delivery_not_found": "There is no such delivery.",
+  "webhooks.delivery_not_retryable": "That delivery is {status} and has no further attempt due.",
   "webhooks.delivery_not_replayable": "Only a delivery in the dead letter can be replayed. That one is {status}.",
   "webhooks.delivery_status_unknown": "There is no delivery status called {status}.",
   "webhooks.delivery_incomplete": "This installation could not record that delivery.",

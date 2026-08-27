@@ -255,7 +255,7 @@ func (d Deliverer) retryOrStop(
 		return nil
 	}
 
-	next, err := settled.Replayed(d.IDs.NewID(), d.Clock.Now())
+	next, err := settled.Retried(d.IDs.NewID(), d.Clock.Now())
 	if err != nil {
 		return err
 	}

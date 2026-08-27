@@ -126,3 +126,29 @@ func TestOnlyADeadLetteredDeliveryCanBeReplayed(t *testing.T) {
 		}
 	}
 }
+
+// A retry and a replay are different things, and both guards are load bearing: a retry of a dead
+// letter would restart a ladder that was deliberately ended, and a replay of a failed attempt
+// would put two attempts of one event in flight.
+func TestARetryFollowsAFailureAndAReplayFollowsADeadLetter(t *testing.T) {
+	failed := attempt(t, 1).Failed(503, "webhooks.target_unavailable", hookNow.Add(time.Minute))
+	dead := attempt(t, MaxDeliveryAttempts).Failed(503, "webhooks.target_unavailable", time.Time{})
+
+	next, err := failed.Retried(replayID, hookNow)
+	if err != nil {
+		t.Fatalf("retrying a failed attempt: %v", err)
+	}
+	if next.Attempt != failed.Attempt+1 || next.EventID != failed.EventID {
+		t.Errorf("the retry is %+v", next)
+	}
+
+	if _, err := dead.Retried(replayID, hookNow); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("a dead letter was retried automatically: %v", err)
+	}
+	if _, err := failed.Replayed(replayID, hookNow); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("an attempt still being retried was replayed by hand: %v", err)
+	}
+	if _, err := dead.Replayed(replayID, hookNow); err != nil {
+		t.Errorf("a dead letter could not be replayed: %v", err)
+	}
+}

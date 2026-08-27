@@ -101,6 +101,22 @@ func (d WebhookDelivery) Failed(status int, code string, nextAttemptAt time.Time
 // IsDeadLettered reports where the attempts stopped, which is what a replay acts on.
 func (d WebhookDelivery) IsDeadLettered() bool { return d.Status == DeliveryDeadLetter }
 
+// Retried is the next attempt after one that failed and has another coming.
+//
+// A separate constructor from Replayed, and the guard is the difference between them: a retry
+// follows automatically from an attempt that failed, and a replay is a person acting on one that
+// stopped. Sharing one method would mean one of the two guards had to go, and both are load
+// bearing - a retry of a dead letter would restart a ladder that was deliberately ended, and a
+// replay of a failed attempt would put two attempts of one event in flight.
+func (d WebhookDelivery) Retried(id shared.ID, now time.Time) (WebhookDelivery, error) {
+	if d.Status != DeliveryFailed {
+		return WebhookDelivery{}, shared.ErrConflict.
+			WithDetail("webhooks.delivery_not_retryable").
+			WithParams(map[string]string{"status": string(d.Status)})
+	}
+	return NewWebhookDelivery(id, d.TenantID, d.SubscriptionID, d.EventID, d.Attempt+1, now)
+}
+
 // Replayed is the same event sent again by hand, after whatever made it fail has been fixed.
 //
 // The identifier is new because this is a new attempt with its own outcome; the event identifier
