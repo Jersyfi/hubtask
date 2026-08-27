@@ -173,7 +173,7 @@ func (a Applier) claim(ctx context.Context, in ApplyInput) (claimed, error) {
 func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.Report, error) {
 	reader := archive.NewReader(ready.store, a.Cipher)
 
-	chain, key, err := a.precheck(ctx, reader, ready.restore)
+	chain, key, err := a.precheck(ctx, reader, ready.restore, in.TenantID)
 	if err != nil {
 		return domain.Report{}, err
 	}
@@ -181,6 +181,11 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 	plan := plan{
 		restore: ready.restore, chain: chain, key: key,
 		reader: reader, scope: ready.into, asker: in.TenantID, report: in.Report,
+		// NEW_TENANT copies a workspace whose rows still live in this installation, and every
+		// identity in the schema is a global one - so the copy derives a new identity for every
+		// row and follows the references, the way DUPLICATE does for a collision. Without this the
+		// first insert collides with the source (#206).
+		remapAll: ready.restore.Mode == domain.RestoreNewTenant,
 	}
 
 	// A dry run and an INSPECT are the same thing said twice: INSPECT is the mode that cannot
@@ -189,6 +194,11 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 	// promise.
 	plan.dry = ready.restore.DryRun || !ready.restore.Mode.Writes()
 
+	if !plan.dry && ready.restore.Mode == domain.RestoreNewTenant {
+		if err := a.assertFresh(ctx, ready.into); err != nil {
+			return domain.Report{}, err
+		}
+	}
 	if !plan.dry && ready.restore.Mode.Destructive() {
 		if err := a.takeSafetyCopy(ctx, in, &ready); err != nil {
 			return domain.Report{}, err
@@ -204,7 +214,7 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 // through leaves a tenant in a state that was never a state - and the pre-check is cheap: it reads
 // manifests, not data.
 func (a Applier) precheck(
-	ctx context.Context, reader *archive.Reader, restore domain.Restore,
+	ctx context.Context, reader *archive.Reader, restore domain.Restore, asking shared.ID,
 ) ([]archive.Description, secret.Bytes, error) {
 	chain, err := reader.Chain(ctx, restore.SourceArchive)
 	if err != nil {
@@ -212,14 +222,28 @@ func (a Applier) precheck(
 	}
 	newest := chain[0]
 
+	// INSTANCE has nothing to restore yet (0.6.0): no writer produces an instance-scoped archive,
+	// and a tenant archive under the INSTANCE mode would be an approximation §8's table does not
+	// allow. backup-restore.md §8 says the scope check refuses the mode; it used to fall out of
+	// the comparison below by accident, and now it is said.
+	if restore.Mode == domain.RestoreInstance {
+		return nil, secret.Bytes{}, shared.ErrValidation.
+			WithDetail(domain.CodeRestoreArchiveScopeMismatch).
+			WithParams(map[string]string{"archive": restore.SourceArchive})
+	}
+
 	// BK-10 at the dry run and at the execution, not only at the listing. The archive's scope is
 	// in its manifest, and the manifest is the one member nobody can forge without the target's
 	// credentials.
-	scope := restore.TenantID
-	if scope.IsZero() {
-		scope = restore.TargetID // an instance restore names no tenant; the check below refuses it
-	}
-	if newest.Manifest.Scope.Kind != archive.ScopeTenant || newest.Manifest.Scope.ID != scope.String() {
+	//
+	// The manifest is compared against the tenant that *asked* - the one the run row lives in -
+	// because BK-10 protects the archive's owner, and the owner question is the same in every
+	// mode. Where the rows land is a separate question: for every mode but NEW_TENANT it is the
+	// asker itself (StartRestore refuses any other), and for NEW_TENANT it is an identifier the
+	// use case minted a moment ago, guarded by assertFresh below. Comparing against the
+	// destination instead is the defect #206 records: a NEW_TENANT restore could never match its
+	// own archive.
+	if newest.Manifest.Scope.Kind != archive.ScopeTenant || newest.Manifest.Scope.ID != asking.String() {
 		return nil, secret.Bytes{}, shared.ErrValidation.
 			WithDetail(domain.CodeRestoreArchiveScopeMismatch).
 			WithParams(map[string]string{"archive": restore.SourceArchive})
@@ -246,6 +270,30 @@ func (a Applier) precheck(
 		}
 	}
 	return chain, key, nil
+}
+
+// assertFresh refuses a NEW_TENANT restore whose destination already exists.
+//
+// The mode's whole safety argument is that its destination was minted by the use case a moment
+// ago, so nothing of anybody else's can be under it. A run row naming a living tenant - however it
+// came to - is a row that argument no longer covers, and the honest outcome is a refusal before
+// the first row is written rather than a write into somebody's workspace. The read runs in the
+// destination's own scope, where row level security lets a tenant see exactly its own row: a
+// tenant that does not exist answers nothing, which is the answer this wants.
+func (a Applier) assertFresh(ctx context.Context, into persistence.Scope) error {
+	var held bool
+	err := a.UnitOfWork.WithinReadOnly(ctx, into, func(ctx context.Context) error {
+		var err error
+		held, err = a.Import.Holds(ctx, tenantTable, map[string]any{"id": into.TenantID.String()})
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if held {
+		return shared.ErrConflict.WithDetail(domain.CodeRestoreTenantNotNew)
+	}
+	return nil
 }
 
 // takeSafetyCopy is §8.3 step 4: a copy of the current state before a destructive mode.
@@ -346,9 +394,14 @@ type plan struct {
 	scope  persistence.Scope
 	// asker is the tenant that asked, which is where the run row lives. It differs from scope only
 	// for NEW_TENANT.
-	asker  shared.ID
-	dry    bool
-	report func(float64)
+	asker shared.ID
+	// remapAll is the NEW_TENANT identity rule: every row with an identity of its own gets a
+	// derived new one and every reference follows, because the source rows still live in this
+	// installation and every identity in the schema is global. Derived rather than drawn, for the
+	// reason DuplicateID gives: a resumed attempt has to produce the same identifiers.
+	remapAll bool
+	dry      bool
+	report   func(float64)
 }
 
 // newest is the archive the restore represents: the one that was asked for.
@@ -648,6 +701,15 @@ func (s *state) stage(ctx context.Context, entity archive.Entity, record archive
 		s.report.Withhold(domain.WithheldNotSelected)
 		return nil
 	}
+	// A calendar feed is a credential: its token hash is unique across the installation, and a
+	// copy of a workspace that duplicated it would make one URL read two workspaces - §8.4's
+	// reasoning, and the same unique index would refuse the row anyway. The copy mints its own
+	// feeds the way it mints its own tokens: by somebody asking for one.
+	if s.plan.remapAll && entity.Table == calendarFeedTable {
+		s.withhold(entity.Table, record.ID)
+		s.report.Withhold(domain.WithheldExcluded)
+		return nil
+	}
 
 	s.pending = append(s.pending, staged{entity: entity, record: record})
 	if len(s.pending) < s.batch() {
@@ -757,7 +819,11 @@ func (s *state) flush(ctx context.Context) error {
 		if s.plan.dry {
 			return nil
 		}
-		if s.plan.scope.TenantID == s.plan.restore.TenantID {
+		// The run row lives in the tenant that asked, so "same transaction" is only available
+		// when the batch is landing there too - the comparison is against the asker, not against
+		// the row's target tenant, which for NEW_TENANT is the same minted identity the batch
+		// lands in and exactly the scope the row is invisible from.
+		if s.plan.scope.TenantID == s.plan.asker {
 			return s.applier.Restores.RecordProgress(ctx, s.plan.restore.ID, s.report, s.decided)
 		}
 		return nil
@@ -765,7 +831,7 @@ func (s *state) flush(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if !s.plan.dry && s.plan.scope.TenantID != s.plan.restore.TenantID {
+	if !s.plan.dry && s.plan.scope.TenantID != s.plan.asker {
 		err = s.applier.UnitOfWork.Within(ctx, s.plan.asking(), func(ctx context.Context) error {
 			return s.applier.Restores.RecordProgress(ctx, s.plan.restore.ID, s.report, s.decided)
 		})
@@ -792,6 +858,19 @@ func (s *state) write(ctx context.Context, item staged) error {
 			return nil
 		}
 		data["id"] = s.plan.scope.TenantID.String()
+		// The slug is unique across the installation, and a copy that kept the source's could
+		// never be inserted beside it. A technical one derived from the minted identity - stable
+		// across resumed attempts, renameable afterwards - is what a copy deserves.
+		if s.plan.remapAll {
+			data["slug"] = domain.RestoredSlug(s.plan.scope.TenantID)
+		}
+	}
+
+	// The NEW_TENANT identity rule (see plan.remapAll): the copy's rows get identities of their
+	// own, minted before anything reads data["id"] - the media storage key below is derived from
+	// it, and a key minted from the source's identity would collide the way the row would.
+	if s.plan.remapAll && item.entity.HasOwnIdentity() && item.entity.Table != tenantTable {
+		s.mint(item.entity, data, item.record.ID)
 	}
 
 	// A medium's storage key is minted from the tenant it belongs to, and this restore may be
@@ -888,7 +967,10 @@ func (s *state) lapse(entity archive.Entity, data map[string]any) {
 	}
 }
 
-const reminderTable = "reminder"
+const (
+	reminderTable     = "reminder"
+	calendarFeedTable = "calendar_feed"
+)
 
 // mint gives a duplicated row an identity of its own.
 //
@@ -917,6 +999,9 @@ func (s *state) mint(entity archive.Entity, data map[string]any, originalID stri
 // matters because the archive's order within an entity is by change time: a parent can be written
 // after its child, and a map built as the records went past would miss it.
 func (s *state) remapReferences(ctx context.Context, entity archive.Entity, data map[string]any) error {
+	if s.plan.remapAll {
+		return s.remapEveryReference(entity, data)
+	}
 	if ruleOf(s.plan.restore) != domain.ConflictDuplicate {
 		return nil
 	}
@@ -948,6 +1033,29 @@ func (s *state) remapReferences(ctx context.Context, entity archive.Entity, data
 		minted := domain.DuplicateID(s.plan.restore.ID, target.Name, id).String()
 		s.remap[reference.Table+"/"+id] = minted
 		data[reference.Field] = minted
+	}
+	return nil
+}
+
+// remapEveryReference is the NEW_TENANT half of the remap: every reference to an entity with an
+// identity of its own follows the derivation, unconditionally.
+//
+// No liveness question and no memory of what was seen, because the answer does not depend on
+// either: the copy's identity for a row is a function of the restore, the entity and the original,
+// so a reference can be rewritten before or after its target went past and land on the same value.
+// That is also what makes a self-reference written child-first - a comment thread, a container
+// tree - safe without a second pass.
+func (s *state) remapEveryReference(entity archive.Entity, data map[string]any) error {
+	for _, reference := range entity.References {
+		id, named := data[reference.Field].(string)
+		if !named || id == "" {
+			continue
+		}
+		target, known := archive.FindEntityByTable(reference.Table)
+		if !known || !target.HasOwnIdentity() || reference.Table == tenantTable {
+			continue
+		}
+		data[reference.Field] = domain.DuplicateID(s.plan.restore.ID, target.Name, id).String()
 	}
 	return nil
 }

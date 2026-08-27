@@ -485,16 +485,19 @@ func TestADryRunChangesNothingAtAll(t *testing.T) {
 // ── BK-10 ─────────────────────────────────────────────────────────────────────────────────────
 
 // BK-10: another tenant's archive is refused at the dry run and at the execution, not only at the
-// listing - and refused before anything is written.
+// listing - and refused before anything is written. The manifest is compared against the tenant
+// that asked - the archive's owner - not against the destination, which for NEW_TENANT is a
+// workspace minted a moment ago and could never match (#206).
 func TestAnotherTenantsArchiveIsRefusedAtEveryStage(t *testing.T) {
 	other := shared.MustParseID("0198f0a0-0000-7000-8000-0000000000ee")
 
 	for name, dry := range map[string]bool{"at the dry run": true, "at the execution": false} {
 		t.Run(name, func(t *testing.T) {
 			h := newRestoreHarness(t, aTenantWithEverythingThatCouldFire)
-			in := h.accept(t, func(r *domain.Restore) {
-				r.TenantID, r.DryRun = other, dry
-			})
+			in := h.accept(t, func(r *domain.Restore) { r.DryRun = dry })
+			// The asker is the tenant the run row lives in, and here it is not the tenant the
+			// archive's manifest names.
+			in.TenantID = other
 
 			_, err := h.applier(t).Apply(context.Background(), in)
 

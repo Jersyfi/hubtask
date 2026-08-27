@@ -373,6 +373,21 @@ func DuplicateID(runID shared.ID, entity, original string) shared.ID {
 		hexed[16:20] + "-" + hexed[20:32])
 }
 
+// RestoredSlug is the slug a NEW_TENANT restore gives its copy.
+//
+// The slug is unique across the installation, so the copy cannot keep the source's - and a
+// technical one derived from the minted tenant identity is stable across resumed attempts (BK-7)
+// and tells whoever lists the workspaces exactly what this one is. Renaming it afterwards is an
+// ordinary edit. Twelve hex characters of the identity keep it well inside the slug's forty-char
+// bound and its `^[a-z0-9][a-z0-9-]{2,39}$` shape.
+func RestoredSlug(tenantID shared.ID) string {
+	compact := strings.ReplaceAll(tenantID.String(), "-", "")
+	if len(compact) > 12 {
+		compact = compact[:12]
+	}
+	return "restored-" + compact
+}
+
 // The refusals of a restore, as codes rather than as prose.
 const (
 	CodeRestoreTargetRequired      = "backup.restore_target_required"
@@ -399,6 +414,11 @@ const (
 	// which is BK-10's refusal. It is the one every mode is checked for, at the listing, at the
 	// dry run and at the execution.
 	CodeRestoreArchiveScopeMismatch = "backup.restore_archive_scope_mismatch"
+	// CodeRestoreTenantNotNew is a NEW_TENANT restore whose destination already exists. The mode's
+	// safety argument is that the identifier was minted by the use case a moment ago, so nothing
+	// of anybody else's can be under it - and a run row that names a living tenant, however it
+	// came to, is a row that argument no longer covers. Refused before a row is written.
+	CodeRestoreTenantNotNew = "backup.restore_tenant_not_new"
 	// CodeRestoreSchemaAhead is an archive from a newer schema than this build has migrated to.
 	// A restore reads JSON Lines and migrates upwards; downwards it cannot go, and guessing which
 	// columns a future migration added is how a restore writes a row that is silently wrong.
