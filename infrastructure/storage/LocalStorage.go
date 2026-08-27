@@ -103,7 +103,7 @@ func (s LocalStorage) Get(_ context.Context, key string) (port.Object, error) {
 	contentType, err := os.ReadFile(path + typeSuffix)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return port.Object{}, shared.ErrNotFound
+			return port.Object{}, objectMissing(key)
 		}
 		return port.Object{}, ioFailed("reading the content type", err)
 	}
@@ -111,7 +111,7 @@ func (s LocalStorage) Get(_ context.Context, key string) (port.Object, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return port.Object{}, shared.ErrNotFound
+			return port.Object{}, objectMissing(key)
 		}
 		return port.Object{}, ioFailed("opening the object", err)
 	}
@@ -173,6 +173,21 @@ func keyInvalid(key string) error {
 	return shared.ErrInternal.
 		WithDetail("storage.key_invalid").
 		WithCause(fmt.Errorf("the key %q is not a name this store hands out", key))
+}
+
+// objectMissing is the one answer for a key the store has no bytes under.
+//
+// Coded rather than bare: the sentinel on its own renders as the catalogue's generic 404, which
+// names neither the object nor the fact that storage - not the database - is the layer that
+// answered. A caller reading the record and finding no bytes behind it needs exactly that
+// distinction (ADR-0011).
+//
+// The key travels as a parameter, unlike the paths in keyInvalid and ioFailed: it is minted,
+// opaque, and carries no user text - the file name stays on the record (rule 10).
+func objectMissing(key string) error {
+	return shared.ErrNotFound.
+		WithDetail("media.object_missing").
+		WithParams(map[string]string{"key": key})
 }
 
 // ioFailed is the disk's problems, coded rather than quoted: a path in an error can carry a

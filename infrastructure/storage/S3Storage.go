@@ -161,7 +161,7 @@ func (s *S3Storage) Get(ctx context.Context, key string) (port.Object, error) {
 		}, nil
 	case http.StatusNotFound:
 		drain(resp)
-		return port.Object{}, shared.ErrNotFound
+		return port.Object{}, objectMissing(key)
 	default:
 		defer drain(resp)
 		return port.Object{}, s.unexpected(resp)
