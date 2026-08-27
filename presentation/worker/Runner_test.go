@@ -5,6 +5,7 @@ package worker
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,6 +43,12 @@ type queueDouble struct {
 	completed []shared.ID
 	repeated  map[shared.ID]time.Time
 	failures  []queue.Failure
+
+	// mu and claimed exist for the two loop tests, which read the double from the test goroutine
+	// while the runner writes it from its own. Every other test here is single-goroutine and pays
+	// only an uncontended lock for it.
+	mu      sync.Mutex
+	claimed int
 }
 
 func newQueue(jobs ...queue.Job) *queueDouble {
@@ -50,7 +57,17 @@ func newQueue(jobs ...queue.Job) *queueDouble {
 
 func (q *queueDouble) Enqueue(context.Context, queue.Request) (shared.ID, error) { return "", nil }
 
+func (q *queueDouble) claims() int {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.claimed
+}
+
 func (q *queueDouble) Claim(_ context.Context, lease queue.Lease) ([]queue.Job, error) {
+	q.mu.Lock()
+	q.claimed++
+	q.mu.Unlock()
+
 	claimed := q.claimable
 	if len(claimed) > lease.Batch {
 		claimed = claimed[:lease.Batch]
@@ -553,4 +570,58 @@ func TestADetachedFailureStillGoesBackToTheQueue(t *testing.T) {
 	if jobs.failures[0].Code != "dependency.object_storage_unavailable" {
 		t.Errorf("the failure is recorded as %q", jobs.failures[0].Code)
 	}
+}
+
+// The doorbell (G-02, ADR-0007). A poll interval far longer than the test's patience, so that a
+// round happening at all can only be the notification's doing.
+func TestANotificationWakesTheLoopBeforeThePollInterval(t *testing.T) {
+	jobs := newQueue()
+	woken := make(chan struct{}, 1)
+
+	loop := runner(jobs, &unitOfWork{}, handlerFunc(nil), nil)
+	loop.PollInterval = time.Hour
+	loop.Woken = woken
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	concurrency.Go(ctx, "test.worker.woken", func(context.Context) { loop.Run(ctx) })
+
+	// The first round happens immediately and finds nothing; the loop then settles into its
+	// hour-long wait. Ringing has to produce a second claim.
+	waitForClaims(t, jobs, 1)
+	woken <- struct{}{}
+	waitForClaims(t, jobs, 2)
+}
+
+// And the fallback, which is the half that matters when the notification does not arrive: a runner
+// with no doorbell at all still works, at its interval. That is why Woken is optional rather than
+// required - the notification is latency, never delivery.
+func TestWithoutADoorbellTheLoopStillPolls(t *testing.T) {
+	jobs := newQueue()
+
+	loop := runner(jobs, &unitOfWork{}, handlerFunc(nil), nil)
+	loop.PollInterval = 10 * time.Millisecond
+	loop.Woken = nil
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	concurrency.Go(ctx, "test.worker.polling", func(context.Context) { loop.Run(ctx) })
+
+	waitForClaims(t, jobs, 3)
+}
+
+// waitForClaims blocks until the queue has been asked at least count times, or the test's patience
+// runs out. Polling the double rather than a channel handshake, because the loop is what is under
+// test and instrumenting it would change the thing being measured.
+func waitForClaims(t *testing.T, jobs *queueDouble, count int) {
+	t.Helper()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if jobs.claims() >= count {
+			return
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	t.Fatalf("the queue was claimed from %d times, want at least %d", jobs.claims(), count)
 }

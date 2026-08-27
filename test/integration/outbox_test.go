@@ -16,7 +16,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -410,5 +412,115 @@ func TestConsumptionIsRecordedPerTenant(t *testing.T) {
 	}
 	if !claimIn(tenantB) {
 		t.Error("tenant A's consumption silenced tenant B's consumer")
+	}
+}
+
+// The other half of ADR-0007's first countermeasure, end to end: enqueueing rings the doorbell,
+// and it rings because of the trigger rather than because anything remembered to announce.
+//
+// Here rather than in the adapter's own tests for the change listener's reason: whether a `NOTIFY`
+// reaches a `LISTEN` is a property of the schema, and a fake cannot have that property.
+func TestEnqueueingAJobWakesTheWorkersListener(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	listener := postgres.NewJobListener(appPool(ctx, t))
+	listening, stopListening := context.WithCancel(ctx)
+	defer stopListening()
+	concurrency.Go(listening, "test.job_listener", listener.Run)
+
+	waitFor(t, 5*time.Second, "the job listener to connect", listener.Connected)
+
+	// The ring the listener sends on connecting, so that the assertion below is about the trigger
+	// rather than about that one.
+	drain(listener.Woken())
+
+	jobs := postgres.NewQueue(clockadapter.NewUUIDv7(clockadapter.System{}), clockadapter.System{})
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+
+	started := time.Now()
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		_, err := jobs.Enqueue(txCtx, queue.Request{
+			Kind: queue.KindOutboxDispatch, TenantID: tenantA, RunAt: time.Now(),
+		})
+		return err
+	}); err != nil {
+		t.Fatalf("enqueueing: %v", err)
+	}
+
+	select {
+	case <-listener.Woken():
+	case <-time.After(5 * time.Second):
+		t.Fatal("enqueueing a job did not wake the listener")
+	}
+
+	// The point of the whole mechanism, and the assertion is deliberately loose: what has to be
+	// true is that the wait was nothing like the two-second poll interval the queue is configured
+	// with, not that it was any particular number of milliseconds. A tighter bound would be a
+	// test that fails on a loaded CI runner and says nothing when it does.
+	if waited := time.Since(started); waited > time.Second {
+		t.Errorf("the doorbell took %v; the poll interval it exists to beat is 2s", waited)
+	}
+}
+
+// Delivered at COMMIT and not before: a runner woken by an uncommitted insert would claim nothing
+// and go back to sleep having missed the job. That is the one property of the trigger that a unit
+// test cannot have an opinion about.
+func TestTheDoorbellRingsAtCommitRatherThanAtInsert(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	listener := postgres.NewJobListener(appPool(ctx, t))
+	listening, stopListening := context.WithCancel(ctx)
+	defer stopListening()
+	concurrency.Go(listening, "test.job_listener_commit", listener.Run)
+
+	waitFor(t, 5*time.Second, "the job listener to connect", listener.Connected)
+	drain(listener.Woken())
+
+	jobs := postgres.NewQueue(clockadapter.NewUUIDv7(clockadapter.System{}), clockadapter.System{})
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+
+	inserted := make(chan struct{})
+	release := make(chan struct{})
+	done := make(chan error, 1)
+	concurrency.Go(ctx, "test.job_listener_holding_tx", func(context.Context) {
+		done <- work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+			if _, err := jobs.Enqueue(txCtx, queue.Request{
+				Kind: queue.KindOutboxDispatch, TenantID: tenantA, RunAt: time.Now(),
+			}); err != nil {
+				return err
+			}
+			close(inserted)
+			<-release
+			return nil
+		})
+	})
+
+	<-inserted
+	select {
+	case <-listener.Woken():
+		close(release)
+		t.Fatal("the doorbell rang while the transaction was still open")
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("the transaction failed: %v", err)
+	}
+
+	select {
+	case <-listener.Woken():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the doorbell did not ring after the commit")
+	}
+}
+
+// drain empties the doorbell without blocking on an empty one.
+func drain(woken <-chan struct{}) {
+	select {
+	case <-woken:
+	default:
 	}
 }
