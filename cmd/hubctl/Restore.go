@@ -7,7 +7,6 @@ import (
 	"context"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -22,7 +21,7 @@ func restoreGroup() group {
 		commands: []command{
 			{
 				name:    "inspect",
-				usage:   "--target <id> --archive <path> [--wait <d>]",
+				usage:   "--target <id> --archive <path> --tenant <id> [--wait <d>]",
 				summary: "read an archive without changing anything",
 				run:     restoreInspect,
 				waits:   true,
@@ -47,9 +46,13 @@ func restoreGroup() group {
 // its own because it is the one a person reaches for first, and because reading an archive with a
 // verb called "run" reads like a thing that changes something.
 func restoreInspect(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "restore", "inspect", "--target <id> --archive <path>")
+	flags := commandFlags(cli, "restore", "inspect", "--target <id> --archive <path> --tenant <id>")
 	target := flags.String("target", "", "the target the archive lies at")
 	archive := flags.String("archive", "", "the archive, as `hubctl backup ls` prints it")
+	// An inspection reads an archive and writes nothing, and it still names a workspace: reading
+	// one is scoped like every other read, and the modes that write into a workspace that already
+	// exists are the same set (`needsTenant` in the domain).
+	tenant := flags.String("tenant", "", "the workspace the reading is scoped to")
 	wait := waitFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
 		return err
@@ -58,6 +61,13 @@ func restoreInspect(ctx context.Context, cli *CLI, args []string) error {
 	request, err := cli.restoreRequest(*target, *archive, string(openapi.RestoreRequestModeINSPECT))
 	if err != nil {
 		return err
+	}
+	if *tenant != "" {
+		tenantID, err := cli.parseID("--tenant", *tenant)
+		if err != nil {
+			return err
+		}
+		request.TargetTenantId = &tenantID
 	}
 	return cli.startRestore(ctx, request, *wait)
 }
@@ -147,12 +157,9 @@ func (cli *CLI) restoreRequest(target, archive, mode string) (openapi.RestoreReq
 		ArchiveId: archive,
 		Mode:      openapi.RestoreRequestMode(mode),
 	}
-	// The passphrase is read from the environment only, never from a flag, and never asked for on
-	// a prompt here: a restore is the command most likely to be run from a script, and a prompt in
-	// the middle of one is a hang nobody can see.
-	if passphrase := strings.TrimSpace(cli.Env(envBackupPassphrase)); passphrase != "" {
-		request.DecryptionPassphrase = &passphrase
-	}
+	// No `decryption_passphrase`, for the reason `backup target add` sends no passphrase: the key
+	// an archive is written under is derived from the installation's master key (E-02), and this
+	// version refuses the field rather than ignoring it.
 	return request, nil
 }
 
@@ -184,7 +191,32 @@ func (cli *CLI) startRestore(
 	if err := cli.readResult(ctx, client, accepted, &run); err != nil {
 		return err
 	}
-	return cli.emitRestore(run)
+	if err := cli.emitRestore(run); err != nil {
+		return err
+	}
+
+	// A job that finished and a restore that worked are two different statements, and the second
+	// is the one somebody asked about: the worker can complete its job having refused the restore
+	// inside it. Printing the report and exiting 0 would tell a script that a failed restore was
+	// fine - the same mistake as a verification that prints `valid false` and succeeds.
+	if run.Status == openapi.RestoreRunStatusFAILED || run.Status == openapi.RestoreRunStatusCANCELLED {
+		return cli.restoreFailed(run)
+	}
+	return nil
+}
+
+// restoreFailed turns the run's own failure into the sentence the catalogue has for it, so that a
+// restore refused by the server reads the same whether the refusal came back on the request or
+// minutes later on the run.
+func (cli *CLI) restoreFailed(run openapi.RestoreRun) error {
+	code := "backup.restore_failed"
+	if run.ErrorCode != nil && *run.ErrorCode != "" {
+		code = *run.ErrorCode
+	}
+	if message, ok := cli.Catalogue.Message(code, nil); ok {
+		return errorString(message)
+	}
+	return errorString("the restore did not work: " + code)
 }
 
 // emitRestore prints the run and, underneath it, what the run did to each kind of object. Two

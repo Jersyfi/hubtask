@@ -46,6 +46,21 @@ services:
       HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:-http://localhost:8080}
       HUBTASK_TENANCY_MODE: single
       HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}
+      # The master keyring for envelope encryption (E-02). Empty means this installation encrypts
+      # nothing and says so when asked to seal something; `.env.example` shows how to fill it.
+      #
+      # It is passed through here because it did not used to be, and the two variables the example
+      # documents therefore reached the process not at all: an encrypted backup failed in the
+      # worker with `crypto.no_encryption_key`, minutes after the request that asked for it was
+      # accepted (E-12 found it running the drill).
+      #
+      # One key by name, `k1`. Compose cannot pass a variable whose *name* comes from another
+      # variable, so a keyring of two - which is what a rotation is - means adding the second line
+      # here beside this one. Rotation is rare and deliberate, and a line in the file somebody
+      # already edits is a smaller price than an `env_file` that hands the container every
+      # variable in it, the database's password included.
+      HUBTASK_ENCRYPTION_KEYS: ${HUBTASK_ENCRYPTION_KEYS:-}
+      HUBTASK_ENCRYPTION_KEY_K1: ${HUBTASK_ENCRYPTION_KEY_K1:-}
       HUBTASK_LOG_FORMAT: json
       # Backup target: the default is a local volume. Further targets are configured in the
       # application, not here (see docs/architecture/backup-restore.md).

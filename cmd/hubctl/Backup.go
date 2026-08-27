@@ -6,8 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -18,15 +17,6 @@ const (
 	backupTargetsPath = "/backup-targets"
 	backupsPath       = "/backups"
 )
-
-// envBackupPassphrase is where the passphrase comes from.
-//
-// Not a flag, deliberately. A passphrase typed as `--passphrase secret` is in the shell's history,
-// in `ps`, and in the CI log of whoever scripted it, and the one value in this whole CLI that
-// cannot be reissued is this one: without it the archive is unreadable for ever
-// (backup-restore.md §4). An environment variable and standard input are the two ways to hand a
-// secret over that do not write it down.
-const envBackupPassphrase = "HUBTASK_BACKUP_PASSPHRASE" //nolint:gosec // G101: the name of an environment variable, not a secret.
 
 func backupGroup() group {
 	return group{
@@ -125,19 +115,16 @@ func backupTargetAdd(ctx context.Context, cli *CLI, args []string) error {
 		create.Credentials = &values
 	}
 
+	// The mode, and no passphrase with it. The contract has an `encryption_passphrase` and this
+	// version refuses it: an archive is written under a key derived from the installation's master
+	// key (E-02), and a passphrase that had no effect would leave somebody believing their
+	// archives are protected by one. So there is nothing here for a person to keep safe, and
+	// nothing for this CLI to ask for - the flag arrives with the version that serves the field.
 	mode := openapi.BackupTargetCreateEncryptionModeAES256GCM
 	if *unencrypted {
 		mode = openapi.BackupTargetCreateEncryptionModeNONE
 	}
 	create.EncryptionMode = &mode
-
-	if !*unencrypted {
-		passphrase, err := cli.backupPassphrase()
-		if err != nil {
-			return err
-		}
-		create.EncryptionPassphrase = &passphrase
-	}
 
 	client, err := cli.client()
 	if err != nil {
@@ -146,12 +133,6 @@ func backupTargetAdd(ctx context.Context, cli *CLI, args []string) error {
 	var target openapi.BackupTarget
 	if err := client.Post(ctx, backupTargetsPath, create, &target); err != nil {
 		return err
-	}
-	// The one thing a person has to be told rather than shown: the passphrase is not stored, and
-	// nothing in this installation can hand it back.
-	if !*unencrypted {
-		printf(cli.Err, "hubctl: keep the passphrase safe - without it the archives at %q "+
-			"cannot be read, and this installation does not have a copy\n", target.Name)
 	}
 	return cli.Emit(target, targetTable([]openapi.BackupTarget{target}))
 }
@@ -173,6 +154,10 @@ func backupTargetList(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(targets, targetTable(targets))
 }
 
+// backupTargetTest is a write/read/delete probe rather than a reading of the target, and it
+// answers what happened rather than the row: whether it worked, whether the *write* half worked,
+// how long it took, and how much room is left. A target that can be read and not written is the
+// common permissions mistake, so it gets a column of its own.
 func backupTargetTest(ctx context.Context, cli *CLI, args []string) error {
 	const usage = "backup target test <id>"
 	targetID, rest, err := cli.takeID(args, usage)
@@ -188,11 +173,30 @@ func backupTargetTest(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	var target openapi.BackupTarget
-	if err := client.Post(ctx, backupTargetsPath+"/"+targetID.String()+":test", nil, &target); err != nil {
+	var probe openapi.BackupTargetProbe
+	if err := client.Post(ctx, backupTargetsPath+"/"+targetID.String()+":test", nil, &probe); err != nil {
 		return err
 	}
-	return cli.Emit(target, targetTable([]openapi.BackupTarget{target}))
+
+	if err := cli.Emit(probe, Table{
+		Columns: []string{"ok", "writable", "latency", "free", "error"},
+		Rows: [][]string{{
+			boolText(probe.Ok),
+			boolText(probe.Writable),
+			strconv.Itoa(int(probe.LatencyMs)) + "ms",
+			byteSize(probe.FreeBytes),
+			text(probe.ErrorCode),
+		}},
+	}); err != nil {
+		return err
+	}
+	// A probe that failed is a failure of the command. `hubctl backup target test` is what a
+	// person runs to find out whether a target works, and answering "no" with exit 0 is the same
+	// mistake as a verification that prints `valid false` and succeeds.
+	if !probe.Ok {
+		return errorString(fmt.Sprintf("the target %s did not answer the probe", targetID))
+	}
+	return nil
 }
 
 func backupRun(ctx context.Context, cli *CLI, args []string) error {
@@ -258,9 +262,14 @@ func backupRun(ctx context.Context, cli *CLI, args []string) error {
 // backupList reads the target rather than the database, which is the whole point of it: it is the
 // listing that still answers after the installation that wrote the archives is gone
 // (backup-restore.md §6), and it is where `hubctl restore` gets an archive to name.
+//
+// What it answers is an **archive** rather than a run: a path, what wrote it, whether it is
+// complete, whether it is encrypted. There is no run row behind it - that is the database's
+// reading - and the two are deliberately different shapes.
 func backupList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "backup", "ls", "--target <id>")
+	flags := commandFlags(cli, "backup", "ls", "--target <id> [--refresh]")
 	target := flags.String("target", "", "the target to look at")
+	refresh := flags.Bool("refresh", false, "read the target again rather than the cached listing")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -272,15 +281,49 @@ func backupList(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 
+	query := url.Values{}
+	if *refresh {
+		query.Set("refresh", "true")
+	}
+
 	client, err := cli.client()
 	if err != nil {
 		return err
 	}
-	var archives []openapi.BackupRun
-	if err := client.Get(ctx, backupTargetsPath+"/"+targetID.String()+"/backups", nil, &archives); err != nil {
+	var archives []openapi.BackupArchive
+	if err := client.Get(ctx,
+		backupTargetsPath+"/"+targetID.String()+"/backups", query, &archives); err != nil {
 		return err
 	}
-	return cli.Emit(archives, runTable(archives))
+	return cli.Emit(archives, archiveTable(archives))
+}
+
+func archiveTable(archives []openapi.BackupArchive) Table {
+	rows := make([][]string, 0, len(archives))
+	for _, archive := range archives {
+		rows = append(rows, []string{
+			text(archive.Path),
+			shortTime(archive.CreatedAt),
+			modeOf(archive),
+			count(archive.ItemCount),
+			byteSize(archive.SizeBytes),
+			// An archive without `checksums.txt` is not damaged: it is a run still going, or one
+			// that died. Whoever is deciding what to restore from needs that told apart.
+			yesNo(archive.Complete),
+			yesNo(archive.Encrypted),
+		})
+	}
+	return Table{
+		Columns: []string{"archive", "created", "mode", "items", "size", "complete", "encrypted"},
+		Rows:    rows,
+	}
+}
+
+func modeOf(archive openapi.BackupArchive) string {
+	if archive.Mode == nil {
+		return "-"
+	}
+	return string(*archive.Mode)
 }
 
 func backupShow(ctx context.Context, cli *CLI, args []string) error {
@@ -363,32 +406,6 @@ func (cli *CLI) readResult(
 			"job %s was accepted without saying where its result will be", accepted.JobId))
 	}
 	return client.Get(ctx, *accepted.ResultUrl, nil, into)
-}
-
-// backupPassphrase reads the passphrase from the environment, or asks for it on standard input.
-func (cli *CLI) backupPassphrase() (string, error) {
-	if fromEnv := strings.TrimSpace(cli.Env(envBackupPassphrase)); fromEnv != "" {
-		return fromEnv, nil
-	}
-	// A prompt only where somebody is there to read it, like `auth login`: piped input gets none,
-	// so that `echo "$PHRASE" | hubctl backup target add …` writes nothing it did not ask for.
-	if file, ok := cli.In.(*os.File); ok {
-		if info, err := file.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
-			printf(cli.Err, "Passphrase for the archives (it will be visible, "+
-				"it is not stored, and it cannot be recovered), then press Ctrl-D:\n")
-		}
-	}
-
-	raw, err := io.ReadAll(cli.In)
-	if err != nil {
-		return "", err
-	}
-	typed := strings.TrimSpace(string(raw))
-	if typed == "" {
-		return "", usagef("a passphrase is needed, or --unencrypted with --insecure-acknowledged; "+
-			"%s is read when it is set", envBackupPassphrase)
-	}
-	return typed, nil
 }
 
 func targetTable(targets []openapi.BackupTarget) Table {

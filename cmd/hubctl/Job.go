@@ -146,7 +146,7 @@ func (cli *CLI) followJob(
 
 		select {
 		case <-ctx.Done():
-			return openapi.Job{}, waitedLongEnough(jobID, ctx.Err())
+			return openapi.Job{}, waitedLongEnough(jobID, job, ctx.Err())
 		case <-time.After(pollInterval):
 		}
 	}
@@ -162,19 +162,37 @@ func finished(status openapi.JobStatus) bool {
 	}
 }
 
+// progressLine is what a watching command says while it waits.
+//
+// The error code belongs in it. A job that is being retried carries the code of its last failure
+// and goes back to `QUEUED` between attempts (`Job.error_code` in the contract), so a line that
+// only printed the status would repeat "QUEUED" for the whole wait while the work failed six times
+// - which is exactly what it did against a stack with no encryption keyring.
 func progressLine(job openapi.Job) string {
-	if job.Progress == nil {
-		return string(job.Status)
+	line := string(job.Status)
+	if job.Progress != nil {
+		line = fmt.Sprintf("%s %d%%", line, int(*job.Progress*100))
 	}
-	return fmt.Sprintf("%s %d%%", job.Status, int(*job.Progress*100))
+	if job.ErrorCode != nil && *job.ErrorCode != "" {
+		line += " (retrying after " + *job.ErrorCode + ")"
+	}
+	return line
 }
 
 // waitedLongEnough turns the deadline into the sentence a person can act on. The job is still
 // running - nothing was lost by giving up on watching it - and both halves of what to do next are
 // in the one line.
-func waitedLongEnough(jobID openapitypes.UUID, cause error) error {
+func waitedLongEnough(jobID openapitypes.UUID, job openapi.Job, cause error) error {
 	if !errors.Is(cause, context.DeadlineExceeded) {
 		return cause
+	}
+	// A job that kept failing and kept being retried is not "still running" in any sense a person
+	// means, so the last failure is in the sentence: without it, a wait that ran out looks like
+	// slowness rather than like something that will never work.
+	if job.ErrorCode != nil && *job.ErrorCode != "" {
+		return fmt.Errorf(
+			"the job is still being retried after --wait, last failure %s; "+
+				"ask again with `hubctl job show %s`", *job.ErrorCode, jobID)
 	}
 	return fmt.Errorf(
 		"the job is still running after --wait; ask again with `hubctl job show %s`, "+

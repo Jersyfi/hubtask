@@ -405,7 +405,6 @@ a drill yet, and an absence rule would page every installation for a feature tha
 **What runs one** (E-12). The client is the drill:
 
 ```bash
-export HUBTASK_BACKUP_PASSPHRASE="…"
 hubctl backup run --target "$TARGET" --follow --wait 30m
 hubctl backup verify "$RUN" --follow
 hubctl restore inspect --target "$TARGET" --archive "$ARCHIVE"

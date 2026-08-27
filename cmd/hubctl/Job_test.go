@@ -129,3 +129,25 @@ func TestAFollowingCommandTakesItsWaitAfterTheVerb(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
 }
+
+// A job that is being retried carries the code of its last failure and goes back to QUEUED between
+// attempts. A watching command that printed the status alone would repeat "QUEUED" for the whole
+// wait while the work failed six times - which is what it did against a stack with no keyring.
+func TestAWatchedJobThatKeepsFailingSaysWhy(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{
+	  "job_id":"`+jobID+`","status":"QUEUED","progress":null,"result_url":null,
+	  "error_code":"crypto.no_encryption_key","created_at":"2026-08-27T09:00:00Z",
+	  "finished_at":null}`)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"job", "show", jobID, "--follow", "--wait", "3s")
+	if code != exitError {
+		t.Fatalf("exit %d, want %d: %s", code, exitError, errOut)
+	}
+	if !strings.Contains(errOut, "retrying after crypto.no_encryption_key") {
+		t.Errorf("the wait says nothing about the failures: %q", errOut)
+	}
+	if !strings.Contains(errOut, "last failure crypto.no_encryption_key") {
+		t.Errorf("giving up says nothing about why: %q", errOut)
+	}
+}

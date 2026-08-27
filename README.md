@@ -118,7 +118,6 @@ bin/hubctl calendar mint --view "$VIEW"      # prints the feed URL once; it is t
 What an operator does with an installation is the same client:
 
 ```bash
-export HUBTASK_BACKUP_PASSPHRASE="…"          # never a flag: without it an archive is unreadable
 TARGET=$(bin/hubctl backup target add --name nightly --kind LOCAL --config path=daily | awk 'NR==2 {print $1}')
 bin/hubctl backup target test "$TARGET"
 bin/hubctl backup run --target "$TARGET" --follow --wait 30m

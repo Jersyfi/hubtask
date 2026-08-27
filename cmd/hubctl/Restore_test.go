@@ -51,9 +51,7 @@ const inspectedRun = `{"id":"` + restoreID + `","target_id":"` + targetID + `",
 func TestInspectingAnArchiveAsksForTheInspectModeAndPrintsTheReport(t *testing.T) {
 	stub, asked := restoring(t, inspectedRun)
 
-	env := signedIn(stub)
-	env[envBackupPassphrase] = "a long passphrase"
-	code, out, errOut := invokeAgainst(t, stub, env, "",
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
 		"restore", "inspect", "--target", targetID, "--archive", "daily/2026-08-27.hubtask")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
@@ -69,8 +67,10 @@ func TestInspectingAnArchiveAsksForTheInspectModeAndPrintsTheReport(t *testing.T
 	if sent["archive_id"] != "daily/2026-08-27.hubtask" {
 		t.Errorf("the archive did not travel: %v", sent["archive_id"])
 	}
-	if sent["decryption_passphrase"] != "a long passphrase" {
-		t.Error("the passphrase was not read from the environment")
+	// The contract has a `decryption_passphrase` and this version refuses it: an archive's key is
+	// derived from the installation's master key (E-02).
+	if _, sentAnyway := sent["decryption_passphrase"]; sentAnyway {
+		t.Error("a passphrase was sent to a version that refuses the field")
 	}
 	// The report is the whole point: the counts and what each entity contributed.
 	if !strings.Contains(out, "42") || !strings.Contains(out, "work_item") {
@@ -181,5 +181,35 @@ func TestShowingARestoreReadsItsRun(t *testing.T) {
 	}
 	if !strings.Contains(out, "SUCCEEDED") {
 		t.Errorf("output %q", out)
+	}
+}
+
+// A job that finished and a restore that worked are two different statements. The worker completes
+// its job having refused the restore inside it, and a command that printed the report and exited 0
+// would tell a script that a failed restore was fine.
+func TestARestoreThatFailedFailsTheCommand(t *testing.T) {
+	failed := `{"id":"` + restoreID + `","target_id":"` + targetID + `",
+	  "source_archive":"daily/2026-08-27.hubtask","mode":"NEW_TENANT","dry_run":false,
+	  "status":"FAILED","error_code":"backup.restore_archive_scope_mismatch",
+	  "started_at":"2026-08-27T09:00:00Z","finished_at":"2026-08-27T09:01:00Z",
+	  "report":{"new":0,"skipped":0,"conflicts":0}}`
+	stub, _ := restoring(t, failed)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"restore", "run", "--target", targetID, "--archive", "a.hubtask",
+		"--mode", "NEW_TENANT", "--apply")
+	if code != exitError {
+		t.Fatalf("exit %d, want %d: %s", code, exitError, errOut)
+	}
+	// The report is still printed - what it did is what somebody has to read - and the failure is
+	// the catalogue's sentence rather than the code.
+	if !strings.Contains(out, "FAILED") {
+		t.Errorf("the run was not shown: %q", out)
+	}
+	if strings.Contains(errOut, "backup.restore_archive_scope_mismatch") {
+		t.Errorf("the code reached the person instead of the sentence: %q", errOut)
+	}
+	if errOut == "" {
+		t.Error("the failure was not reported at all")
 	}
 }

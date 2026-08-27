@@ -29,9 +29,7 @@ const oneRun = `{"id":"` + runID + `","target_id":"` + targetID + `","trigger":"
 func TestAddingATargetSendsTheConfigurationAsPairsAndTheModeItWasAskedFor(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneTarget)
 
-	env := signedIn(stub)
-	env[envBackupPassphrase] = "a long passphrase nobody guesses"
-	code, out, errOut := invokeAgainst(t, stub, env, "",
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
 		"backup", "target", "add", "--name", "nightly", "--kind", "LOCAL", "--config", "path=daily")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
@@ -51,45 +49,48 @@ func TestAddingATargetSendsTheConfigurationAsPairsAndTheModeItWasAskedFor(t *tes
 	if sent["encryption_mode"] != "AES256_GCM" {
 		t.Errorf("encryption mode %v", sent["encryption_mode"])
 	}
-	if sent["encryption_passphrase"] != "a long passphrase nobody guesses" {
-		t.Errorf("the passphrase did not travel from the environment")
-	}
-	// The one thing that cannot be reissued gets said out loud, and on standard error.
-	if !strings.Contains(errOut, "keep the passphrase safe") {
-		t.Errorf("nobody was warned about the passphrase: %q", errOut)
+	// The contract has an `encryption_passphrase` and this version refuses it: the key is derived
+	// from the installation's master key (E-02). Sending one would have every target creation
+	// answer 400.
+	if _, sentAnyway := sent["encryption_passphrase"]; sentAnyway {
+		t.Error("a passphrase was sent to a version that refuses the field")
 	}
 	if !strings.Contains(out, "nightly") {
 		t.Errorf("output %q", out)
 	}
 }
 
-// The passphrase is never a flag: it would be in the shell history and in `ps`. It comes from the
-// environment or from a pipe, and asking for it any other way is a usage error.
-func TestATargetWithoutAPassphraseAndWithoutEncryptionIsRefused(t *testing.T) {
-	stub := serveJSON(t, http.StatusCreated, oneTarget)
-
-	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"backup", "target", "add", "--name", "nightly", "--kind", "LOCAL", "--config", "path=daily")
-	if code != exitUsage {
-		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
-	}
-	if !strings.Contains(errOut, envBackupPassphrase) {
-		t.Errorf("the complaint does not say where a passphrase may come from: %q", errOut)
-	}
-}
-
 func TestAConfigurationThatIsNotPairsIsRefusedWhole(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneTarget)
 
-	env := signedIn(stub)
-	env[envBackupPassphrase] = "a long passphrase"
-	code, _, errOut := invokeAgainst(t, stub, env, "",
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
 		"backup", "target", "add", "--name", "n", "--kind", "LOCAL", "--config", "path")
 	if code != exitUsage {
 		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
 	}
 	if !strings.Contains(errOut, "k=v") {
 		t.Errorf("the complaint does not say what a pair is: %q", errOut)
+	}
+}
+
+// An unencrypted target is the one shape that needs saying out loud, and the acknowledgement
+// travels with it rather than being assumed.
+func TestAnUnencryptedTargetSendsTheModeAndTheAcknowledgement(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneTarget)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"backup", "target", "add", "--name", "n", "--kind", "LOCAL", "--config", "path=daily",
+		"--unencrypted", "--insecure-acknowledged")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if sent["encryption_mode"] != "NONE" || sent["insecure_acknowledged"] != true {
+		t.Errorf("the request does not say what was asked for: %v", sent)
 	}
 }
 
@@ -108,15 +109,42 @@ func TestListingTargetsShowsWhetherAnybodyHasEverTestedThem(t *testing.T) {
 	}
 }
 
-func TestTestingATargetPostsToItsTestPath(t *testing.T) {
-	stub := serveJSON(t, http.StatusOK, oneTarget)
+// A probe answers what happened rather than the row, and a probe that failed fails the command:
+// `backup target test` is what somebody runs to find out whether a target works.
+func TestTestingATargetReportsTheProbeAndFailsWhenItDidNot(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		payload string
+		code    int
+		shows   string
+	}{
+		{
+			"a target that answers",
+			`{"ok":true,"writable":true,"latency_ms":12,"free_bytes":1048576,"error_code":null}`,
+			exitOK, "1.0 MiB",
+		},
+		{
+			"a target that cannot be written",
+			`{"ok":false,"writable":false,"latency_ms":8,"free_bytes":null,
+			  "error_code":"backup.target_unreachable"}`,
+			exitError, "backup.target_unreachable",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stub := serveJSON(t, http.StatusOK, tc.payload)
 
-	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "backup", "target", "test", targetID)
-	if code != exitOK {
-		t.Fatalf("exit %d: %s", code, errOut)
-	}
-	if want := APIPath + backupTargetsPath + "/" + targetID + ":test"; stub.request.URL.Path != want {
-		t.Errorf("path %q, want %q", stub.request.URL.Path, want)
+			code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+				"backup", "target", "test", targetID)
+			if code != tc.code {
+				t.Fatalf("exit %d, want %d: %s", code, tc.code, errOut)
+			}
+			if want := APIPath + backupTargetsPath + "/" + targetID + ":test"; stub.request.URL.Path != want {
+				t.Errorf("path %q, want %q", stub.request.URL.Path, want)
+			}
+			if !strings.Contains(out+errOut, tc.shows) {
+				t.Errorf("output %q / %q does not carry %q", out, errOut, tc.shows)
+			}
+		})
 	}
 }
 
@@ -188,19 +216,32 @@ func TestFollowingABackupEndsWithTheRunTheJobNamed(t *testing.T) {
 	}
 }
 
-func TestListingBackupsReadsTheTargetRatherThanTheDatabase(t *testing.T) {
-	stub := serveJSON(t, http.StatusOK, `[`+oneRun+`]`)
+// The listing at the target answers **archives** rather than runs: a path, what wrote it, whether
+// it is complete, whether it is encrypted. There is no run row behind it - that is the database's
+// reading - and the archive's path is what a restore names.
+func TestListingBackupsReadsTheArchivesLyingAtTheTarget(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `[{
+	  "archive_id":"01936f2a-7c1e-7000-8000-0000000000b2",
+	  "path":"daily/hubtask-backup-20260827T004305Z-full","created_at":"2026-08-27T09:00:00Z",
+	  "mode":"FULL","item_count":42,"media_count":3,"size_bytes":5242880,
+	  "complete":true,"encrypted":true}]`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"backup", "ls", "--target", targetID)
+		"backup", "ls", "--target", targetID, "--refresh")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
 	if want := APIPath + backupTargetsPath + "/" + targetID + "/backups"; stub.request.URL.Path != want {
 		t.Errorf("path %q, want %q", stub.request.URL.Path, want)
 	}
-	if !strings.Contains(out, "never") {
-		t.Errorf("an archive nobody verified does not say so: %q", out)
+	if stub.request.URL.Query().Get("refresh") != "true" {
+		t.Errorf("the cache was not bypassed: %v", stub.request.URL.Query())
+	}
+	if !strings.Contains(out, "hubtask-backup-20260827T004305Z-full") {
+		t.Errorf("the archive a restore would name is not in the listing: %q", out)
+	}
+	if !strings.Contains(out, "5.0 MiB") {
+		t.Errorf("the size does not read like a size: %q", out)
 	}
 }
 

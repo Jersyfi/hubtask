@@ -82,6 +82,8 @@ cat > "$ENV_FILE" <<ENV
 POSTGRES_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
 HUBTASK_DB_APP_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
 HUBTASK_SECRET_KEY=$(head -c 32 /dev/urandom | base64)
+HUBTASK_ENCRYPTION_KEYS=k1
+HUBTASK_ENCRYPTION_KEY_K1=$(head -c 32 /dev/urandom | base64)
 HUBTASK_IMAGE=$IMAGE
 HUBTASK_VERSION=$TAG
 HUBTASK_PORT=$HTTP_PORT
@@ -473,10 +475,9 @@ expect_contains "the subtree came back too" \
 	"$(hubctl item ls --collection "$COLLECTION_ID" --parent "$PACKAGE_ID")" "Find the aisle"
 
 echo "--- a place to write copies to ---"
-# The passphrase is drawn rather than written down, for the reason every other secret in this
-# script is: a literal would be a credential in the repository even though it protects nothing.
-# It goes through the environment, which is the documented path - never an argument.
-export HUBTASK_BACKUP_PASSPHRASE="$(head -c 24 /dev/urandom | base64 | tr -d '/+=')"
+# No passphrase: the contract has one and this version refuses it, because an archive is written
+# under a key derived from the installation's master key (E-02). A target created with one would
+# answer 400, which is what makes this worth a line rather than a silence.
 target="$(hubctl backup target add --name 'the local target' --kind LOCAL --config path=e2e)"
 TARGET_ID="$(printf '%s\n' "$target" | first_id)"
 [ -n "$TARGET_ID" ] || { echo "FAILED: creating the target produced no identifier: $target"; exit 1; }
