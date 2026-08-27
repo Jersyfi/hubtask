@@ -46,3 +46,6 @@ coverage.*
 # succeeds without Node.js (ADR-0028).
 /presentation/webui/dist/*
 !/presentation/webui/dist/index.html
+
+# Local Claude Code tooling (launch configurations); session-specific, not project content.
+.claude/
