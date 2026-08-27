@@ -2109,6 +2109,93 @@ func (e ViewExportFormat) Valid() bool {
 	}
 }
 
+// Defines values for WebhookDeliveryStatus.
+const (
+	WebhookDeliveryStatusDEADLETTER WebhookDeliveryStatus = "DEAD_LETTER"
+	WebhookDeliveryStatusFAILED     WebhookDeliveryStatus = "FAILED"
+	WebhookDeliveryStatusPENDING    WebhookDeliveryStatus = "PENDING"
+	WebhookDeliveryStatusSUCCEEDED  WebhookDeliveryStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the WebhookDeliveryStatus enum.
+func (e WebhookDeliveryStatus) Valid() bool {
+	switch e {
+	case WebhookDeliveryStatusDEADLETTER:
+		return true
+	case WebhookDeliveryStatusFAILED:
+		return true
+	case WebhookDeliveryStatusPENDING:
+		return true
+	case WebhookDeliveryStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookSubscriptionState.
+const (
+	WebhookSubscriptionStateACTIVE   WebhookSubscriptionState = "ACTIVE"
+	WebhookSubscriptionStateDISABLED WebhookSubscriptionState = "DISABLED"
+	WebhookSubscriptionStatePAUSED   WebhookSubscriptionState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the WebhookSubscriptionState enum.
+func (e WebhookSubscriptionState) Valid() bool {
+	switch e {
+	case WebhookSubscriptionStateACTIVE:
+		return true
+	case WebhookSubscriptionStateDISABLED:
+		return true
+	case WebhookSubscriptionStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookSubscriptionSecretState.
+const (
+	WebhookSubscriptionSecretStateACTIVE   WebhookSubscriptionSecretState = "ACTIVE"
+	WebhookSubscriptionSecretStateDISABLED WebhookSubscriptionSecretState = "DISABLED"
+	WebhookSubscriptionSecretStatePAUSED   WebhookSubscriptionSecretState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the WebhookSubscriptionSecretState enum.
+func (e WebhookSubscriptionSecretState) Valid() bool {
+	switch e {
+	case WebhookSubscriptionSecretStateACTIVE:
+		return true
+	case WebhookSubscriptionSecretStateDISABLED:
+		return true
+	case WebhookSubscriptionSecretStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookSubscriptionUpdateState.
+const (
+	WebhookSubscriptionUpdateStateACTIVE      WebhookSubscriptionUpdateState = "ACTIVE"
+	WebhookSubscriptionUpdateStateLessThannil WebhookSubscriptionUpdateState = "<nil>"
+	WebhookSubscriptionUpdateStatePAUSED      WebhookSubscriptionUpdateState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the WebhookSubscriptionUpdateState enum.
+func (e WebhookSubscriptionUpdateState) Valid() bool {
+	switch e {
+	case WebhookSubscriptionUpdateStateACTIVE:
+		return true
+	case WebhookSubscriptionUpdateStateLessThannil:
+		return true
+	case WebhookSubscriptionUpdateStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -2124,6 +2211,30 @@ func (e ListAuditEntriesParamsOutcome) Valid() bool {
 	case ListAuditEntriesParamsOutcomeFAILED:
 		return true
 	case ListAuditEntriesParamsOutcomeSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListWebhookDeliveriesParamsStatus.
+const (
+	ListWebhookDeliveriesParamsStatusDEADLETTER ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
+	ListWebhookDeliveriesParamsStatusFAILED     ListWebhookDeliveriesParamsStatus = "FAILED"
+	ListWebhookDeliveriesParamsStatusPENDING    ListWebhookDeliveriesParamsStatus = "PENDING"
+	ListWebhookDeliveriesParamsStatusSUCCEEDED  ListWebhookDeliveriesParamsStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the ListWebhookDeliveriesParamsStatus enum.
+func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
+	switch e {
+	case ListWebhookDeliveriesParamsStatusDEADLETTER:
+		return true
+	case ListWebhookDeliveriesParamsStatusFAILED:
+		return true
+	case ListWebhookDeliveriesParamsStatusPENDING:
+		return true
+	case ListWebhookDeliveriesParamsStatusSUCCEEDED:
 		return true
 	default:
 		return false
@@ -4274,6 +4385,124 @@ type ViewExportDocument struct {
 	ViewId    openapi_types.UUID `json:"view_id"`
 }
 
+// WebhookDelivery One attempt at one event against one subscription.
+type WebhookDelivery struct {
+	// Attempt Which attempt this is, from one. It carries on across a replay rather than resetting.
+	Attempt   int       `json:"attempt"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// ErrorCode A message code, never the target's response body.
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// EventId The event's own identifier, which travels as `X-Hubtask-Event-Id`. A replay carries the same one, so a subscriber that deduplicates on it recognises the repeat.
+	EventId openapi_types.UUID `json:"event_id"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// NextAttemptAt When the next attempt is due; null once there will not be one.
+	NextAttemptAt *time.Time `json:"next_attempt_at,omitempty"`
+
+	// ResponseStatus What the target answered, where it answered at all.
+	ResponseStatus *int                  `json:"response_status,omitempty"`
+	Status         WebhookDeliveryStatus `json:"status"`
+	SubscriptionId openapi_types.UUID    `json:"subscription_id"`
+}
+
+// WebhookDeliveryStatus defines model for WebhookDelivery.Status.
+type WebhookDeliveryStatus string
+
+// WebhookDeliveryPage defines model for WebhookDeliveryPage.
+type WebhookDeliveryPage struct {
+	Data []WebhookDelivery `json:"data"`
+	Page PageInfo          `json:"page"`
+}
+
+// WebhookSecretRotation defines model for WebhookSecretRotation.
+type WebhookSecretRotation struct {
+	// GraceSeconds How long the previous secret keeps verifying, so a subscriber can deploy the new one without dropping what arrives in between. Zero retires the old secret at once, which is what a leak calls for. At most seven days.
+	GraceSeconds *int `json:"grace_seconds,omitempty"`
+}
+
+// WebhookSubscription One external system's standing request to be told what happens here. The signing secret is not a member: it is answered once, at creation and at each rotation, and stored sealed.
+type WebhookSubscription struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// EventTypes The types this subscription wants, as `/meta/capabilities` lists them. A type this build does not emit is refused rather than stored, so a subscription cannot quietly wait for something that will never arrive.
+	EventTypes []string `json:"event_types"`
+
+	// FailureCount Consecutive failed deliveries. Reset by the first success, and what the auto-disable counts against.
+	FailureCount int `json:"failure_count"`
+
+	// Filter A CEL expression narrowing the subscription further. Refused until the expression engine lands, and refused rather than stored and ignored: a filter that is accepted and does nothing is a subscriber receiving events they asked not to receive.
+	Filter *string            `json:"filter,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
+
+	// LastError A message code for the last failure, never a response body from the target.
+	LastError *string `json:"last_error,omitempty"`
+
+	// State `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
+	State WebhookSubscriptionState `json:"state"`
+
+	// TargetUrl Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded client: a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	TargetUrl string `json:"target_url"`
+	Version   int    `json:"version"`
+}
+
+// WebhookSubscriptionState `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
+type WebhookSubscriptionState string
+
+// WebhookSubscriptionCreate defines model for WebhookSubscriptionCreate.
+type WebhookSubscriptionCreate struct {
+	EventTypes []string `json:"event_types"`
+
+	// Filter Refused until the expression engine lands.
+	Filter    *string `json:"filter,omitempty"`
+	TargetUrl string  `json:"target_url"`
+}
+
+// WebhookSubscriptionSecret defines model for WebhookSubscriptionSecret.
+type WebhookSubscriptionSecret struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// EventTypes The types this subscription wants, as `/meta/capabilities` lists them. A type this build does not emit is refused rather than stored, so a subscription cannot quietly wait for something that will never arrive.
+	EventTypes []string `json:"event_types"`
+
+	// FailureCount Consecutive failed deliveries. Reset by the first success, and what the auto-disable counts against.
+	FailureCount int `json:"failure_count"`
+
+	// Filter A CEL expression narrowing the subscription further. Refused until the expression engine lands, and refused rather than stored and ignored: a filter that is accepted and does nothing is a subscriber receiving events they asked not to receive.
+	Filter *string            `json:"filter,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
+
+	// LastError A message code for the last failure, never a response body from the target.
+	LastError *string `json:"last_error,omitempty"`
+
+	// Secret The signing secret, in clear, for the only time. Store it or rotate it: what is kept is sealed under the installation's key, and no read answers it again.
+	Secret string `json:"secret"`
+
+	// State `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
+	State WebhookSubscriptionSecretState `json:"state"`
+
+	// TargetUrl Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded client: a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	TargetUrl string `json:"target_url"`
+	Version   int    `json:"version"`
+}
+
+// WebhookSubscriptionSecretState `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
+type WebhookSubscriptionSecretState string
+
+// WebhookSubscriptionUpdate Every field optional; an omitted one is left alone.
+type WebhookSubscriptionUpdate struct {
+	EventTypes *[]string `json:"event_types,omitempty"`
+	Filter     *string   `json:"filter,omitempty"`
+
+	// State `DISABLED` is not settable by hand: it is what the system concludes from a run of failures. Pausing is how somebody stops deliveries deliberately, and the two say different things to whoever reads the list.
+	State     *WebhookSubscriptionUpdateState `json:"state,omitempty"`
+	TargetUrl *string                         `json:"target_url,omitempty"`
+}
+
+// WebhookSubscriptionUpdateState `DISABLED` is not settable by hand: it is what the system concludes from a run of failures. Pausing is how somebody stops deliveries deliberately, and the two say different things to whoever reads the list.
+type WebhookSubscriptionUpdateState string
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	ArchivedAt *time.Time          `json:"archived_at,omitempty"`
@@ -4406,6 +4635,9 @@ type CustomFieldId = openapi_types.UUID
 // CustomFieldKey defines model for CustomFieldKey.
 type CustomFieldKey = string
 
+// DeliveryId defines model for DeliveryId.
+type DeliveryId = openapi_types.UUID
+
 // Expand defines model for Expand.
 type Expand = []string
 
@@ -4456,6 +4688,9 @@ type TokenId = openapi_types.UUID
 
 // ViewId defines model for ViewId.
 type ViewId = openapi_types.UUID
+
+// WebhookId defines model for WebhookId.
+type WebhookId = openapi_types.UUID
 
 // InviteAccountParams defines parameters for InviteAccount.
 type InviteAccountParams struct {
@@ -4657,6 +4892,36 @@ type UpdateGroupParams struct {
 
 // CreateCalendarFeedParams defines parameters for CreateCalendarFeed.
 type CreateCalendarFeedParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CreateWebhookSubscriptionParams defines parameters for CreateWebhookSubscription.
+type CreateWebhookSubscriptionParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UpdateWebhookSubscriptionParams defines parameters for UpdateWebhookSubscription.
+type UpdateWebhookSubscriptionParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListWebhookDeliveriesParams defines parameters for ListWebhookDeliveries.
+type ListWebhookDeliveriesParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Status Narrow to one outcome - `DEAD_LETTER` is the one an operator usually wants.
+	Status *ListWebhookDeliveriesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListWebhookDeliveriesParamsStatus defines parameters for ListWebhookDeliveries.
+type ListWebhookDeliveriesParamsStatus string
+
+// RotateWebhookSecretParams defines parameters for RotateWebhookSecret.
+type RotateWebhookSecretParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -5165,6 +5430,15 @@ type UpdateGroupJSONRequestBody = GroupUpdate
 // CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
 type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
 
+// CreateWebhookSubscriptionJSONRequestBody defines body for CreateWebhookSubscription for application/json ContentType.
+type CreateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionCreate
+
+// UpdateWebhookSubscriptionJSONRequestBody defines body for UpdateWebhookSubscription for application/json ContentType.
+type UpdateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionUpdate
+
+// RotateWebhookSecretJSONRequestBody defines body for RotateWebhookSecret for application/json ContentType.
+type RotateWebhookSecretJSONRequestBody = WebhookSecretRotation
+
 // CreateWorkItemJSONRequestBody defines body for CreateWorkItem for application/json ContentType.
 type CreateWorkItemJSONRequestBody = WorkItemCreate
 
@@ -5422,6 +5696,30 @@ type ServerInterface interface {
 
 	// (DELETE /integrations/calendar-feeds/{feedId})
 	RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
+	// ListWebhookSubscriptions The workspace's webhook subscriptions
+	// (GET /integrations/webhooks)
+	ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request)
+	// CreateWebhookSubscription Subscribe an external system to the event stream
+	// (POST /integrations/webhooks)
+	CreateWebhookSubscription(w http.ResponseWriter, r *http.Request, params CreateWebhookSubscriptionParams)
+	// DeleteWebhookSubscription Unsubscribe
+	// (DELETE /integrations/webhooks/{webhookId})
+	DeleteWebhookSubscription(w http.ResponseWriter, r *http.Request, webhookId WebhookId)
+	// GetWebhookSubscription One webhook subscription
+	// (GET /integrations/webhooks/{webhookId})
+	GetWebhookSubscription(w http.ResponseWriter, r *http.Request, webhookId WebhookId)
+	// UpdateWebhookSubscription Change a subscription
+	// (PATCH /integrations/webhooks/{webhookId})
+	UpdateWebhookSubscription(w http.ResponseWriter, r *http.Request, webhookId WebhookId, params UpdateWebhookSubscriptionParams)
+	// ListWebhookDeliveries What was delivered, and what happened to it
+	// (GET /integrations/webhooks/{webhookId}/deliveries)
+	ListWebhookDeliveries(w http.ResponseWriter, r *http.Request, webhookId WebhookId, params ListWebhookDeliveriesParams)
+	// ReplayWebhookDelivery Send a dead-lettered delivery again
+	// (POST /integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay)
+	ReplayWebhookDelivery(w http.ResponseWriter, r *http.Request, webhookId WebhookId, deliveryId DeliveryId)
+	// RotateWebhookSecret Issue a new signing secret
+	// (POST /integrations/webhooks/{webhookId}:rotate-secret)
+	RotateWebhookSecret(w http.ResponseWriter, r *http.Request, webhookId WebhookId, params RotateWebhookSecretParams)
 
 	// (GET /items)
 	ListWorkItems(w http.ResponseWriter, r *http.Request, params ListWorkItemsParams)
@@ -7592,6 +7890,316 @@ func (siw *ServerInterfaceWrapper) RevokeCalendarFeed(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeCalendarFeed(w, r, feedId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWebhookSubscriptions operation middleware
+func (siw *ServerInterfaceWrapper) ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWebhookSubscriptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateWebhookSubscription operation middleware
+func (siw *ServerInterfaceWrapper) CreateWebhookSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateWebhookSubscriptionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateWebhookSubscription(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteWebhookSubscription operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWebhookSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteWebhookSubscription(w, r, webhookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetWebhookSubscription operation middleware
+func (siw *ServerInterfaceWrapper) GetWebhookSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetWebhookSubscription(w, r, webhookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateWebhookSubscription operation middleware
+func (siw *ServerInterfaceWrapper) UpdateWebhookSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateWebhookSubscriptionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateWebhookSubscription(w, r, webhookId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWebhookDeliveries operation middleware
+func (siw *ServerInterfaceWrapper) ListWebhookDeliveries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListWebhookDeliveriesParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWebhookDeliveries(w, r, webhookId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplayWebhookDelivery operation middleware
+func (siw *ServerInterfaceWrapper) ReplayWebhookDelivery(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "deliveryId" -------------
+	var deliveryId DeliveryId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "deliveryId", r.PathValue("deliveryId"), &deliveryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "deliveryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplayWebhookDelivery(w, r, webhookId, deliveryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateWebhookSecret operation middleware
+func (siw *ServerInterfaceWrapper) RotateWebhookSecret(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateWebhookSecretParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateWebhookSecret(w, r, webhookId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11456,6 +12064,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/views/{viewId}", wrapper.UpdateSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:share", wrapper.ShareSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks", wrapper.ListWebhookSubscriptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks", wrapper.CreateWebhookSubscription)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.DeleteWebhookSubscription)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.GetWebhookSubscription)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.UpdateWebhookSubscription)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries", wrapper.ListWebhookDeliveries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay", wrapper.ReplayWebhookDelivery)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:rotate-secret", wrapper.RotateWebhookSecret)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.ListCalendarFeeds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.CreateCalendarFeed)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/calendar-feeds/{feedId}", wrapper.RevokeCalendarFeed)

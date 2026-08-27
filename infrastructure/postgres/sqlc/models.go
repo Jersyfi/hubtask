@@ -1122,17 +1122,23 @@ type WebhookDelivery struct {
 }
 
 type WebhookSubscription struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	TargetUrl    string
-	EventTypes   []string
-	FilterExpr   *string
-	SecretEnc    []byte
-	State        string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	Version      int32
+	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
+	TargetUrl           string
+	EventTypes          []string
+	FilterExpr          *string
+	SecretEnc           []byte
+	State               string
+	FailureCount        int32
+	CreatedBy           pgtype.UUID
+	CreatedAt           pgtype.Timestamptz
+	Version             int32
+	SecretKeyID         *string
+	PreviousSecretEnc   []byte
+	PreviousSecretKeyID *string
+	PreviousSecretUntil pgtype.Timestamptz
+	LastError           *string
+	DisabledAt          pgtype.Timestamptz
 }
 
 type WorkItem struct {
