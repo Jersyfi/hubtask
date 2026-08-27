@@ -82,6 +82,12 @@
   "access.token_expiry_required": "A token needs an expiry date. There is no default - choose one.",
   "access.token_expiry_past": "That expiry date is already past.",
   "access.token_expiry_too_far": "A token may live at most {max_days} days.",
+  "access.token_expiry_malformed": "That is not a date this API understands. Use RFC 3339, such as 2027-01-31T09:00:00Z.",
+  "access.token_id_required": "Which token? Send token_id.",
+  "access.token_not_found": "There is no such access token.",
+  "access.token_owner_required": "An access token belongs to an account, and this caller is not one.",
+  "access.token_not_administrable": "Somebody else's access tokens are theirs. You can disable the account or revoke its permissions instead.",
+  "access.token_unmintable": "This installation could not draw a token. Try again.",
   "access.not_permitted": "Your role in this workspace does not allow that ({permission}).",
   "access.account_not_active": "This account cannot be used at the moment. Its status is {status}.",
 

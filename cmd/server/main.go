@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/catalogue"
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -354,6 +355,18 @@ func run() error {
 	accounts := postgres.NewAccountRepository()
 	groups := postgres.NewGroupRepository()
 	grants := postgres.NewMembershipGrantRepository()
+
+	// The three credential use cases share one dependency set, because the rule about whose
+	// tokens somebody may touch is one rule (G-01). The known scopes come from the catalogue
+	// rather than a list: a use case cannot read the catalogue it is part of, and a list beside
+	// the descriptors is one that grows a scope no operation checks.
+	accessTokenWriter := identity.AccessTokenWriter{
+		Tokens:   postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
+		Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy:     clockadapter.CryptoRandom{},
+		KnownScopes: catalogue.Scopes(),
+	}
 
 	// The work management use cases share theirs the same way. The capability profiles in
 	// particular: /meta/capabilities answers from the same reader that decides whether a
@@ -699,6 +712,9 @@ func run() error {
 			Groups: groups, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
+		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
+		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		work.CreateContainer{
 			Containers: containers,
 			Authorizer: authorizer,

@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**124 use cases, 108 distinct action codes, 92 of them recorded on every call.** A use case that
+**127 use cases, 111 distinct action codes, 94 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -20,6 +20,14 @@ What is **not** here is what audit.md §4 keeps out of the trail: the content of
 comments and attachments; passwords, tokens and secrets in any form; full IP addresses; and AI
 prompts and responses. The `changes` of an entry are masked per field classification, so a
 `SENSITIVE` value travels as a fingerprint and a `SECRET` one not at all.
+
+## Access
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `access.token_created` | CreateAccessToken | `access_token` | INFO | Every time |
+| `access.token_read` | ListAccessTokens | `access_token` | INFO | When refused |
+| `access.token_revoked` | RevokeAccessToken | `access_token` | INFO | Every time |
 
 ## Accounts
 
