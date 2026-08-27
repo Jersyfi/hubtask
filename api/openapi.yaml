@@ -30,6 +30,7 @@ security:
 tags:
   - name: meta
   - name: identity
+  - name: auth
   - name: containers
   - name: items
   - name: structure
@@ -1256,6 +1257,149 @@ paths:
       responses:
         "200":
           description: The account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/tokens:
+    get:
+      tags: [auth]
+      operationId: listAccessTokens
+      summary: The caller's own personal access tokens
+      description: >
+        One's own tokens, newest first, with the scopes each carries, when it expires, when it was
+        last used and whether it was revoked. Never anybody else's: a token is a credential its
+        holder holds, and an administrator who could list one could not use it but could learn
+        exactly which of somebody's automations to attack.
+
+        The token itself is not among the fields. It is answered once, at creation, and stored
+        only as a hash keyed on the installation secret; a token that was lost is revoked and
+        minted again.
+
+        A service account's tokens are listed here too, by naming it - which is the one exception,
+        and needs the permission that manages members, because a service account is nothing but
+        access and somebody has to answer for it.
+      parameters:
+        - name: account_id
+          in: query
+          required: false
+          description: >
+            Whose tokens. Omitted means the caller's own. Naming a service account answers its
+            tokens and needs the member management permission; naming another person is refused,
+            whatever the role.
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccessToken"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [auth]
+      operationId: createAccessToken
+      summary: Mint a personal access token
+      description: >
+        Answers the credential, in clear, for the only time. What is stored is its hash keyed on
+        the installation secret under its own purpose label, so a hash from here can never be
+        replayed as a signed cursor or a calendar feed token, and nothing can turn the stored
+        value back into the token.
+
+        The expiry is mandatory and at most a year out. There is no default: a caller has to say
+        how long the credential should live, because the alternative is a credential nobody ever
+        revokes.
+
+        The scopes are requested explicitly and are never defaulted to everything. Each has to be
+        one the installation declares - the manifest at `/meta/capabilities` lists them - and a
+        token can never do more than its holder may, whatever it asks for: the scope is a second
+        bound on top of the role, not a grant.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessTokenCreate"
+      responses:
+        "201":
+          description: Minted, with the credential shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessTokenSecret"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/tokens/{tokenId}:
+    parameters:
+      - $ref: "#/components/parameters/TokenId"
+    delete:
+      tags: [auth]
+      operationId: revokeAccessToken
+      summary: Revoke a personal access token
+      description: >
+        Takes effect on the next call: the hash is checked against the row on every request, so a
+        revoked token refuses immediately rather than at the end of some cache's life.
+
+        The row stays, stamped with the moment it was withdrawn, and that stamp is separate from
+        the expiry - "it ran out" and "somebody pulled it" are different answers to "why did this
+        stop working", and a reader of the trail is owed both.
+
+        Revoking twice is not an error; somebody else's token is not found rather than forbidden.
+      responses:
+        "204":
+          description: Revoked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/service-accounts:
+    get:
+      tags: [auth]
+      operationId: listServiceAccounts
+      summary: The workspace's service accounts
+      description: >
+        The accounts that exist only to be acted through: an integration, a script, a rule that
+        has to keep running after the person who wrote it has left. Needs the permission that
+        manages members, because that is the person who answers for who holds access.
+      responses:
+        "200":
+          description: The service accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [auth]
+      operationId: createServiceAccount
+      summary: Create a service account
+      description: >
+        Creates an account of kind `SERVICE_ACCOUNT`: no mail address, no sign-in anywhere, and
+        tokens as its only credential. It holds rights the way a person does - through
+        memberships granted to it - and it is what an automation rule runs as, so that a rule
+        does not die with its author's departure.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceAccountCreate"
+      responses:
+        "201":
+          description: Created
           content:
             application/json:
               schema:
@@ -3564,6 +3708,12 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    TokenId:
+      name: tokenId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     ContainerId:
       name: containerId
       in: path
@@ -3833,6 +3983,96 @@ components:
         locale: { type: [string, "null"] }
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+
+    ServiceAccountCreate:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: >
+            What the audit trail records next to the identifier. Name it after what it does -
+            "the nightly export", not "svc1" - because it is what a reader of the trail sees.
+
+    AccessToken:
+      type: object
+      description: >
+        A minted credential as it is listed afterwards. The token itself is not a member: it
+        exists in the answer to the call that minted it and nowhere else.
+      required: [id, account_id, name, scopes, expires_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        account_id:
+          type: string
+          format: uuid
+          description: Whose credential it is, and therefore whose rights bound it.
+        name: { type: string, minLength: 1, maxLength: 200 }
+        scopes:
+          type: array
+          items: { type: string }
+          description: >
+            The second bound on what the token may do, on top of the role its holder carries.
+            Both have to allow an operation.
+        expires_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        last_used_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When a request last presented it, to the minute rather than to the request - the
+            value exists so an owner can spot a credential nobody uses, and writing it on every
+            call would be a write per request.
+        revoked_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When it was withdrawn. Separate from the expiry on purpose: "it ran out" and
+            "somebody pulled it" are different answers.
+
+    AccessTokenCreate:
+      type: object
+      required: [name, scopes, expires_at]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: >
+            What this token is for, in the owner's own words. It is what they will read in a year
+            when deciding whether it is still needed.
+        scopes:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: >
+            Requested explicitly, never defaulted to everything. Each has to be one the
+            installation declares; one it does not is refused as a field error naming it.
+        expires_at:
+          type: string
+          format: date-time
+          description: >
+            Mandatory, in the future, and at most a year out. There is no default - a caller has
+            to choose.
+        account_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Whose token. Omitted means the caller's own. A service account's needs the member
+            management permission; another person's is refused, whatever the role.
+
+    AccessTokenSecret:
+      allOf:
+        - $ref: "#/components/schemas/AccessToken"
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: >
+                The credential, in clear, for the only time. Store it or lose it: what is kept is
+                a hash, and nothing can turn that back into this.
 
     Group:
       type: object

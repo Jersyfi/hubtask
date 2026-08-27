@@ -2130,6 +2130,62 @@ func (e ListAuditEntriesParamsOutcome) Valid() bool {
 	}
 }
 
+// AccessToken A minted credential as it is listed afterwards. The token itself is not a member: it exists in the answer to the call that minted it and nowhere else.
+type AccessToken struct {
+	// AccountId Whose credential it is, and therefore whose rights bound it.
+	AccountId openapi_types.UUID `json:"account_id"`
+	CreatedAt time.Time          `json:"created_at"`
+	ExpiresAt time.Time          `json:"expires_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When a request last presented it, to the minute rather than to the request - the value exists so an owner can spot a credential nobody uses, and writing it on every call would be a write per request.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	Name       string     `json:"name"`
+
+	// RevokedAt When it was withdrawn. Separate from the expiry on purpose: "it ran out" and "somebody pulled it" are different answers.
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+
+	// Scopes The second bound on what the token may do, on top of the role its holder carries. Both have to allow an operation.
+	Scopes []string `json:"scopes"`
+}
+
+// AccessTokenCreate defines model for AccessTokenCreate.
+type AccessTokenCreate struct {
+	// AccountId Whose token. Omitted means the caller's own. A service account's needs the member management permission; another person's is refused, whatever the role.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// ExpiresAt Mandatory, in the future, and at most a year out. There is no default - a caller has to choose.
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Name What this token is for, in the owner's own words. It is what they will read in a year when deciding whether it is still needed.
+	Name string `json:"name"`
+
+	// Scopes Requested explicitly, never defaulted to everything. Each has to be one the installation declares; one it does not is refused as a field error naming it.
+	Scopes []string `json:"scopes"`
+}
+
+// AccessTokenSecret defines model for AccessTokenSecret.
+type AccessTokenSecret struct {
+	// AccountId Whose credential it is, and therefore whose rights bound it.
+	AccountId openapi_types.UUID `json:"account_id"`
+	CreatedAt time.Time          `json:"created_at"`
+	ExpiresAt time.Time          `json:"expires_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When a request last presented it, to the minute rather than to the request - the value exists so an owner can spot a credential nobody uses, and writing it on every call would be a write per request.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	Name       string     `json:"name"`
+
+	// RevokedAt When it was withdrawn. Separate from the expiry on purpose: "it ran out" and "somebody pulled it" are different answers.
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+
+	// Scopes The second bound on what the token may do, on top of the role its holder carries. Both have to allow an operation.
+	Scopes []string `json:"scopes"`
+
+	// Token The credential, in clear, for the only time. Store it or lose it: what is kept is a hash, and nothing can turn that back into this.
+	Token string `json:"token"`
+}
+
 // Account defines model for Account.
 type Account struct {
 	DisplayName string               `json:"display_name"`
@@ -3937,6 +3993,12 @@ type SavedViewUpdate struct {
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
 }
 
+// ServiceAccountCreate defines model for ServiceAccountCreate.
+type ServiceAccountCreate struct {
+	// DisplayName What the audit trail records next to the identifier. Name it after what it does - "the nightly export", not "svc1" - because it is what a reader of the trail sees.
+	DisplayName string `json:"display_name"`
+}
+
 // SyncChange defines model for SyncChange.
 type SyncChange struct {
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
@@ -4389,6 +4451,9 @@ type ReminderId = openapi_types.UUID
 // TemplateId defines model for TemplateId.
 type TemplateId = openapi_types.UUID
 
+// TokenId defines model for TokenId.
+type TokenId = openapi_types.UUID
+
 // ViewId defines model for ViewId.
 type ViewId = openapi_types.UUID
 
@@ -4424,6 +4489,24 @@ type ListAuditEntriesParamsOutcome string
 type VerifyAuditChainJSONBody struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
+}
+
+// CreateServiceAccountParams defines parameters for CreateServiceAccount.
+type CreateServiceAccountParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ListAccessTokensParams defines parameters for ListAccessTokens.
+type ListAccessTokensParams struct {
+	// AccountId Whose tokens. Omitted means the caller's own. Naming a service account answers its tokens and needs the member management permission; naming another person is refused, whatever the role.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// CreateAccessTokenParams defines parameters for CreateAccessToken.
+type CreateAccessTokenParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ListBackupsAtTargetParams defines parameters for ListBackupsAtTarget.
@@ -5025,6 +5108,12 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 
+// CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
+type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
+
+// CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
+type CreateAccessTokenJSONRequestBody = AccessTokenCreate
+
 // CreateBackupScheduleJSONRequestBody defines body for CreateBackupSchedule for application/json ContentType.
 type CreateBackupScheduleJSONRequestBody = BackupSchedule
 
@@ -5204,6 +5293,21 @@ type ServerInterface interface {
 	// VerifyAuditChain Verify the integrity of the audit chain
 	// (POST /audit:verify)
 	VerifyAuditChain(w http.ResponseWriter, r *http.Request)
+	// ListServiceAccounts The workspace's service accounts
+	// (GET /auth/service-accounts)
+	ListServiceAccounts(w http.ResponseWriter, r *http.Request)
+	// CreateServiceAccount Create a service account
+	// (POST /auth/service-accounts)
+	CreateServiceAccount(w http.ResponseWriter, r *http.Request, params CreateServiceAccountParams)
+	// ListAccessTokens The caller's own personal access tokens
+	// (GET /auth/tokens)
+	ListAccessTokens(w http.ResponseWriter, r *http.Request, params ListAccessTokensParams)
+	// CreateAccessToken Mint a personal access token
+	// (POST /auth/tokens)
+	CreateAccessToken(w http.ResponseWriter, r *http.Request, params CreateAccessTokenParams)
+	// RevokeAccessToken Revoke a personal access token
+	// (DELETE /auth/tokens/{tokenId})
+	RevokeAccessToken(w http.ResponseWriter, r *http.Request, tokenId TokenId)
 	// CreateBackupSchedule Create a backup schedule
 	// (POST /backup-schedules)
 	CreateBackupSchedule(w http.ResponseWriter, r *http.Request)
@@ -5845,6 +5949,161 @@ func (siw *ServerInterfaceWrapper) VerifyAuditChain(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyAuditChain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListServiceAccounts operation middleware
+func (siw *ServerInterfaceWrapper) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListServiceAccounts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateServiceAccount operation middleware
+func (siw *ServerInterfaceWrapper) CreateServiceAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateServiceAccountParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateServiceAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAccessTokens operation middleware
+func (siw *ServerInterfaceWrapper) ListAccessTokens(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAccessTokensParams
+
+	// ------------- Optional query parameter "account_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "account_id", r.URL.Query(), &params.AccountId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "account_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "account_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAccessTokens(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAccessToken operation middleware
+func (siw *ServerInterfaceWrapper) CreateAccessToken(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateAccessTokenParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAccessToken(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeAccessToken operation middleware
+func (siw *ServerInterfaceWrapper) RevokeAccessToken(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tokenId" -------------
+	var tokenId TokenId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tokenId", r.PathValue("tokenId"), &tokenId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tokenId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeAccessToken(w, r, tokenId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11232,6 +11491,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invite", wrapper.InviteAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/tokens", wrapper.ListAccessTokens)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/tokens", wrapper.CreateAccessToken)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/tokens/{tokenId}", wrapper.RevokeAccessToken)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/service-accounts", wrapper.ListServiceAccounts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/service-accounts", wrapper.CreateServiceAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests", wrapper.ListDataSubjectRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests", wrapper.CreateDataSubjectRequest)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/privacy/requests/{requestId}", wrapper.UpdateDataSubjectRequest)

@@ -67,6 +67,28 @@ func (pending) DeleteGroup(w http.ResponseWriter, r *http.Request, _ openapi.Gro
 	notAvailable(w, r)
 }
 
+// The credential operations of G-01. They land with the use cases; until then the routes exist
+// because the contract declares them.
+func (pending) ListAccessTokens(w http.ResponseWriter, r *http.Request, _ openapi.ListAccessTokensParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateAccessToken(w http.ResponseWriter, r *http.Request, _ openapi.CreateAccessTokenParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RevokeAccessToken(w http.ResponseWriter, r *http.Request, _ openapi.TokenId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateServiceAccount(w http.ResponseWriter, r *http.Request, _ openapi.CreateServiceAccountParams) {
+	notAvailable(w, r)
+}
+
 // ListAuditEntries is overridden by RestController; it stays here because the compile-time
 // assertion is on `pending` itself.
 func (pending) ListAuditEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListAuditEntriesParams) {
