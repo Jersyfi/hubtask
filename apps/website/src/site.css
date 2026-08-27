@@ -1,7 +1,14 @@
 /* SPDX-License-Identifier: BUSL-1.1
    Copyright (c) 2026 Jérôme Bastian Winkel
 
-   Same rule as everywhere else: every value is a token (ADR-0029). */
+   Same rule as everywhere else: every value is a token (ADR-0029). Border widths use the CSS
+   keyword `thin` for exactly that reason - there is no border-width token yet, and a keyword is
+   not a literal. Depth follows design-system.md §6 rule 1: the cards are raised because each is
+   a standalone element. */
+
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
@@ -13,10 +20,27 @@ body {
   line-height: var(--lh-normal);
 }
 
-#site {
-  padding: var(--sp-1000) var(--sp-600);
-  max-width: 72ch;
+main {
+  padding: var(--sp-1000) var(--sp-600) var(--sp-800);
+  max-width: 88ch;
   margin: 0 auto;
+}
+
+/* ── The hero ─────────────────────────────────────────────────────────────── */
+
+/* The signature wash: an ambient ember glow behind the title, the quietest way the brand colour
+   is allowed to appear (design-system.md - ambient tokens are washes, never surfaces). */
+.hero {
+  position: relative;
+  padding-bottom: var(--sp-600);
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 90% at 20% 0%, var(--ambient-signature), transparent);
+  pointer-events: none;
 }
 
 h1 {
@@ -25,6 +49,53 @@ h1 {
   font-size: var(--fs-800);
   font-weight: var(--fw-bold);
   line-height: var(--lh-tight);
+}
+
+/* The one solid appearance of the signature colour: a short rule under the name. */
+h1::after {
+  content: "";
+  display: block;
+  width: var(--sp-800);
+  height: var(--sp-050);
+  margin-top: var(--sp-300);
+  border-radius: var(--r-full);
+  background: var(--accent-signature);
+}
+
+.lede {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-300);
+  max-width: 56ch;
+}
+
+/* The five levels, set like the data they are: mono, quiet, one line that says the whole model. */
+.levels {
+  margin: var(--sp-400) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-075);
+  color: var(--text-subtle);
+}
+
+.levels span[aria-hidden] {
+  color: var(--accent-signature);
+}
+
+/* ── The cards ────────────────────────────────────────────────────────────── */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(32ch, 1fr));
+  gap: var(--sp-300);
+  margin-top: var(--sp-400);
+}
+
+.card {
+  background: var(--bg-surface);
+  border: thin solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  padding: var(--sp-500);
+  box-shadow: var(--shadow-raised);
 }
 
 h2 {
@@ -41,17 +112,33 @@ p {
   font-size: var(--fs-200);
 }
 
-.lede {
-  font-size: var(--fs-300);
+.card p + p {
+  margin-top: var(--sp-200);
+}
+
+/* ── The legal pages ──────────────────────────────────────────────────────── */
+
+.crumb {
+  margin-bottom: var(--sp-600);
+  font-size: var(--fs-075);
 }
 
 section {
-  margin-top: var(--sp-800);
+  margin-top: var(--sp-600);
 }
 
 section p + p {
   margin-top: var(--sp-200);
 }
+
+address {
+  font-style: normal;
+  color: var(--text-secondary);
+  font-size: var(--fs-200);
+  line-height: var(--lh-loose);
+}
+
+/* ── Links and the footer ─────────────────────────────────────────────────── */
 
 a {
   color: var(--accent-primary);
@@ -66,4 +153,35 @@ a:focus-visible {
   outline: var(--sp-025) solid var(--focus-ring);
   outline-offset: var(--sp-050);
   border-radius: var(--r-xs);
+}
+
+footer {
+  max-width: 88ch;
+  margin: 0 auto;
+  padding: var(--sp-500) var(--sp-600) var(--sp-800);
+  border-top: thin solid var(--border-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-100) var(--sp-400);
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+footer nav {
+  display: flex;
+  gap: var(--sp-200);
+  font-size: var(--fs-075);
+}
+
+footer nav a {
+  color: var(--text-subtle);
+}
+
+footer nav a:hover {
+  color: var(--text-primary);
+}
+
+footer p {
+  font-size: var(--fs-075);
+  color: var(--text-subtle);
 }
