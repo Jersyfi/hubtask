@@ -439,14 +439,19 @@ func TestEnqueueingAJobWakesTheWorkersListener(t *testing.T) {
 	work := postgres.NewUnitOfWork(appPool(ctx, t))
 
 	started := time.Now()
+	var enqueued shared.ID
 	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
-		_, err := jobs.Enqueue(txCtx, queue.Request{
+		var err error
+		enqueued, err = jobs.Enqueue(txCtx, queue.Request{
 			Kind: queue.KindOutboxDispatch, TenantID: tenantA, RunAt: time.Now(),
 		})
 		return err
 	}); err != nil {
 		t.Fatalf("enqueueing: %v", err)
 	}
+	// The suite shares a database and a pending dispatch job per tenant is an invariant another
+	// test asserts on. This one is about the doorbell, so it puts back what it took.
+	t.Cleanup(func() { deleteJob(ctx, t, enqueued) })
 
 	select {
 	case <-listener.Woken():
@@ -484,13 +489,16 @@ func TestTheDoorbellRingsAtCommitRatherThanAtInsert(t *testing.T) {
 	inserted := make(chan struct{})
 	release := make(chan struct{})
 	done := make(chan error, 1)
+	enqueued := make(chan shared.ID, 1)
 	concurrency.Go(ctx, "test.job_listener_holding_tx", func(context.Context) {
 		done <- work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
-			if _, err := jobs.Enqueue(txCtx, queue.Request{
+			id, err := jobs.Enqueue(txCtx, queue.Request{
 				Kind: queue.KindOutboxDispatch, TenantID: tenantA, RunAt: time.Now(),
-			}); err != nil {
+			})
+			if err != nil {
 				return err
 			}
+			enqueued <- id
 			close(inserted)
 			<-release
 			return nil
@@ -509,11 +517,25 @@ func TestTheDoorbellRingsAtCommitRatherThanAtInsert(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatalf("the transaction failed: %v", err)
 	}
+	deleteJob(ctx, t, <-enqueued)
 
 	select {
 	case <-listener.Woken():
 	case <-time.After(5 * time.Second):
 		t.Fatal("the doorbell did not ring after the commit")
+	}
+}
+
+// deleteJob removes a job this file's tests enqueued. They enqueue with no dedupe key - the
+// doorbell rings on any insert, and giving them one would be testing the queue's collapsing rather
+// than the trigger - so each has to clear up after itself.
+func deleteJob(ctx context.Context, t *testing.T, id shared.ID) {
+	t.Helper()
+	if id.IsZero() {
+		return
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx, `DELETE FROM job WHERE id = $1`, id.String()); err != nil {
+		t.Fatalf("removing the enqueued job: %v", err)
 	}
 }
 
