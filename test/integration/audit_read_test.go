@@ -909,3 +909,33 @@ func TestOverlappingWritersDoNotReuseASequenceNumber(t *testing.T) {
 		t.Errorf("a chain written by overlapping writers does not verify: %+v", found)
 	}
 }
+
+// An entry whose timestamp carries nanoseconds must still verify.
+//
+// The column is `timestamptz`, which keeps microseconds; the hash was taken over the entry's own
+// `time.Time`, which on Linux carries nanoseconds. Verification recomputes the hash from the stored
+// row, so every entry written with a clock finer than a microsecond hashed one instant and was read
+// back as another - and the chain reported tampering that never happened. AT-2 could not see it:
+// its entries are built from a fixed base plus whole seconds.
+func TestAnEntryWrittenWithNanosecondsStillVerifies(t *testing.T) {
+	ctx := context.Background()
+	tenant := auditTenant(ctx, t)
+
+	entries := mixedEntries(t, tenant, 4)
+	for i := range entries {
+		// 123 nanoseconds past a microsecond: what a real clock hands over, and what the column
+		// cannot keep.
+		entries[i].OccurredAt = created.Add(time.Duration(i)*time.Second + 123*time.Nanosecond)
+	}
+	appendTo(ctx, t, tenant, entries)
+
+	found, err := verifierFor(t).Execute(ctx, auditActor(tenant), repository.Period{
+		From: created.Add(-time.Hour), To: created.Add(2000 * time.Second),
+	})
+	if err != nil {
+		t.Fatalf("verifying: %v", err)
+	}
+	if !found.Valid {
+		t.Errorf("a chain written by a clock with nanoseconds does not verify: %+v", found)
+	}
+}

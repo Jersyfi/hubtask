@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/audit"
@@ -59,6 +60,19 @@ func (s AuditSink) Append(ctx context.Context, entry port.Entry) error {
 			WithParams(map[string]string{"entry": entry.TenantID.String(), "transaction": scope.TenantID.String()})
 	}
 	queries := sqlc.New(tx)
+
+	// The instant, at the precision the column keeps.
+	//
+	// `timestamptz` holds microseconds and a clock hands over nanoseconds, so an entry hashed as
+	// it arrived and read back from the row is two different entries: verification recomputes the
+	// hash from what was stored, and every entry written with a finer clock than the column
+	// reported tampering that never happened (E-12 found it; AT-2 builds its entries from a fixed
+	// base plus whole seconds and could not).
+	//
+	// Truncated here rather than in `audit.Canonical`, because this is where the storage's
+	// precision is known: the port and the domain have no business knowing what PostgreSQL keeps.
+	// Rounding would move an instant forwards; truncation cannot.
+	entry.OccurredAt = entry.OccurredAt.UTC().Truncate(time.Microsecond)
 
 	if err := queries.LockAuditChain(ctx); err != nil {
 		return shared.ErrUnavailable.

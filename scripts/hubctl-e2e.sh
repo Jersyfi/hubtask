@@ -484,7 +484,11 @@ TARGET_ID="$(printf '%s\n' "$target" | first_id)"
 expect_contains "backup target add" "$target" "AES256_GCM"
 # A target nobody has tested says so, and one that has been says when and whether it worked.
 expect_contains "backup target ls" "$(hubctl backup target ls)" "never"
-expect_contains "backup target test" "$(hubctl backup target test "$TARGET_ID")" "ok"
+# The probe answers what happened rather than the target's row: whether it worked, whether the
+# *write* half worked, how long it took, how much room is left.
+probe="$(hubctl backup target test "$TARGET_ID")"
+expect_contains "backup target test" "$probe" "WRITABLE"
+expect_contains "backup target test" "$probe" "yes"
 
 echo "--- the restore drill: a backup, verified, and read back ---"
 # What the source holds, straight from the database. The comparison below is against this number
