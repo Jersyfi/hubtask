@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -816,5 +817,95 @@ func TestAnAuditorWhoIsAlsoAMemberKeepsBoth(t *testing.T) {
 		if !allowed {
 			t.Errorf("holding both memberships does not carry %s", permission)
 		}
+	}
+}
+
+// Test AT-2, the half a thousand sequential entries cannot reach: writers that overlap.
+//
+// The defect this pins down was real and shipped. `LastAuditEntry` ordered the tail by
+// `occurred_at DESC, seq DESC`, and every caller takes its own `Clock.Now()` *before* it queues for
+// the per-tenant advisory lock - so the newest timestamp is not always the highest sequence number.
+// A transaction that read such a tail continued from a number that was already taken, and the
+// unique index could not stop it: a partitioned table's unique index has to carry the partition
+// key, and `(tenant_id, occurred_at, seq)` lets one `seq` appear twice under two timestamps. Eight
+// concurrent writes were enough to produce duplicated sequence numbers, a chain that no longer
+// verified, and an `audit.chain_broken` entry reporting tampering that never happened.
+//
+// The entries here carry deliberately *descending* timestamps, which is what a set of callers whose
+// clocks disagree looks like from the database's side, and what makes this test fail against the
+// old ordering every time rather than once in a while.
+func TestOverlappingWritersDoNotReuseASequenceNumber(t *testing.T) {
+	ctx := context.Background()
+	tenant := auditTenant(ctx, t)
+
+	const writers = 8
+	entries := mixedEntries(t, tenant, writers)
+	for i := range entries {
+		entries[i].OccurredAt = created.Add(time.Duration(writers-i) * time.Second)
+	}
+
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	sink := postgres.NewAuditSink(generator{t})
+
+	var wg sync.WaitGroup
+	failures := make(chan error, writers)
+	for _, entry := range entries {
+		wg.Add(1)
+		go func(entry port.Entry) {
+			defer wg.Done()
+			if err := unitOfWork.Within(ctx, persistence.Scope{TenantID: tenant},
+				func(ctx context.Context) error { return sink.Append(ctx, entry) }); err != nil {
+				failures <- err
+			}
+		}(entry)
+	}
+	wg.Wait()
+	close(failures)
+	for err := range failures {
+		t.Fatalf("appending concurrently: %v", err)
+	}
+
+	// The numbering itself, read straight from the table: one row per sequence number, and no
+	// number skipped. This is the assertion the verifier's own report is derived from, and it is
+	// checked here rather than through it so that a break is unambiguous.
+	rows, err := adminPool(ctx, t).Query(ctx,
+		`SELECT seq, count(*) FROM audit_log WHERE tenant_id = $1 GROUP BY seq ORDER BY seq`,
+		tenant.String())
+	if err != nil {
+		t.Fatalf("reading the chain: %v", err)
+	}
+	defer rows.Close()
+
+	expected := int64(1)
+	for rows.Next() {
+		var seq, count int64
+		if err := rows.Scan(&seq, &count); err != nil {
+			t.Fatalf("reading the chain: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("sequence number %d was written %d times - two writers continued from one tail",
+				seq, count)
+		}
+		if seq != expected {
+			t.Errorf("sequence number %d follows %d - the chain has a hole", seq, expected-1)
+		}
+		expected = seq + 1
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("reading the chain: %v", err)
+	}
+	if expected-1 != writers {
+		t.Errorf("%d entries are in the chain, %d were written", expected-1, writers)
+	}
+
+	// And the verdict the operator would get from `hubctl audit verify`.
+	found, err := verifierFor(t).Execute(ctx, auditActor(tenant), repository.Period{
+		From: created.Add(-time.Hour), To: created.Add(2000 * time.Second),
+	})
+	if err != nil {
+		t.Fatalf("verifying: %v", err)
+	}
+	if !found.Valid || found.GapCount != 0 {
+		t.Errorf("a chain written by overlapping writers does not verify: %+v", found)
 	}
 }

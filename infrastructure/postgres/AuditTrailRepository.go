@@ -127,8 +127,11 @@ func (r AuditTrailRepository) Walk(
 			}
 		}
 
-		last := rows[len(rows)-1]
-		params.CursorOccurredAt, params.CursorID = last.OccurredAt, last.ID
+		// The cursor is the sequence number, because the walk is ordered by it (E-12): a keyset on
+		// the timestamp would skip or repeat entries wherever two of them carry timestamps in the
+		// opposite order to their place in the chain.
+		seq := rows[len(rows)-1].Seq
+		params.CursorSeq = &seq
 		if len(rows) < walkBatch {
 			// A short batch is the end of the period. Asking once more would be one round trip per
 			// walk to be told what this already says.
