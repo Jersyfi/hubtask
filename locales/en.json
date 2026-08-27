@@ -793,6 +793,7 @@
   "backup.restore_step_up_required": "This restore replaces data, so it needs you to confirm who you are again. Send step_up_token.",
   "backup.restore_step_up_unavailable": "This installation cannot ask you to confirm who you are again yet, so it will not replace data. Import the archive as a new workspace and switch over, or wait for the release that brings sign-in back.",
   "backup.restore_archive_scope_mismatch": "That archive belongs to another workspace, so it cannot be restored here.",
+  "backup.restore_tenant_not_new": "A restore into a new workspace needs a workspace that does not exist yet, and this one already does. Ask for the restore again.",
   "backup.restore_schema_ahead": "That archive comes from a newer version of Hubtask ({archive}) than this one ({installed}). Update first, then restore.",
   "backup.restore_in_progress": "A restore is already running here. Wait for it to finish.",
   "backup.restore_safety_copy_unavailable": "This restore would replace data and no safety copy could be taken first, so it was refused. Configure a backup target with room on it, or ask for the restore without a safety copy once you are sure.",

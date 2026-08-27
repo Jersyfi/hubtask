@@ -582,20 +582,84 @@ func TestADestructiveModeWithNoSafetyCopyIsRefused(t *testing.T) {
 	}
 }
 
-// BK-10 at the dry run and at the execution, not only at the listing.
+// BK-10 at the dry run and at the execution, not only at the listing. The manifest is compared
+// against the tenant that asked - the archive's owner - so a run row in tenant B pointing at A's
+// archive path on a shared target is refused whatever mode it names, NEW_TENANT included (#206).
 func TestAnArchiveOfAnotherTenantIsRefusedAtTheRestore(t *testing.T) {
-	h := newApplyHarness(t, containerRows)
 	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000ff")
-	in := h.accept(t, func(r *domain.Restore) { r.TenantID = other })
+	for name, change := range map[string]func(*domain.Restore){
+		"MERGE":      func(r *domain.Restore) { r.TenantID = other },
+		"NEW_TENANT": func(r *domain.Restore) { r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant },
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newApplyHarness(t, containerRows)
+			in := h.accept(t, change)
+			// The asker is the tenant the run row lives in, and here it is not the tenant the
+			// archive's manifest names.
+			in.TenantID = other
+
+			_, err := h.applier().Apply(context.Background(), in)
+
+			var domainErr *shared.Error
+			if !errors.As(err, &domainErr) || domainErr.DetailCode != domain.CodeRestoreArchiveScopeMismatch {
+				t.Fatalf("refused with %v", err)
+			}
+			if h.imports.writes != 0 {
+				t.Error("the restore wrote something before the scope was checked")
+			}
+		})
+	}
+}
+
+// mintedTenant stands in for the identifier StartRestore mints for a NEW_TENANT restore.
+var mintedTenant = shared.MustParseID("0192f000-0000-7000-8000-0000000000ee")
+
+// The mode backup-restore.md §10 recommends for a trial restore: the archive is the asker's own,
+// and the rows land in the workspace that was minted for them (#206). Before the fix the precheck
+// compared the manifest against that minted workspace and could never match.
+func TestANewTenantRestoreAcceptsItsOwnArchive(t *testing.T) {
+	h := newApplyHarness(t, containerRows)
+	in := h.accept(t, func(r *domain.Restore) {
+		r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant
+	})
+
+	report, err := h.applier().Apply(context.Background(), in)
+	if err != nil {
+		t.Fatalf("restoring into the minted workspace: %v", err)
+	}
+
+	if report.New != 3 {
+		t.Errorf("%d records restored, wanted the archive's 3", report.New)
+	}
+	if len(h.imports.tables["work_item"]) != 2 || len(h.imports.tables["container"]) != 1 {
+		t.Errorf("the minted workspace holds %d items and %d containers",
+			len(h.imports.tables["work_item"]), len(h.imports.tables["container"]))
+	}
+	if len(h.restores.outcomes) != 1 || h.restores.outcomes[0].Status != domain.RestoreSucceeded {
+		t.Errorf("the run was left as %+v", h.restores.outcomes)
+	}
+}
+
+// A NEW_TENANT restore whose destination already exists is refused before a row is written. The
+// mode's safety argument is that the destination was minted a moment ago; a run row naming a
+// living tenant is one that argument no longer covers.
+func TestANewTenantRestoreIntoALivingTenantIsRefused(t *testing.T) {
+	h := newApplyHarness(t, containerRows)
+	h.imports.tables["tenant"] = map[string]map[string]any{
+		mintedTenant.String(): {"id": mintedTenant.String()},
+	}
+	in := h.accept(t, func(r *domain.Restore) {
+		r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant
+	})
 
 	_, err := h.applier().Apply(context.Background(), in)
 
 	var domainErr *shared.Error
-	if !errors.As(err, &domainErr) || domainErr.DetailCode != domain.CodeRestoreArchiveScopeMismatch {
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != domain.CodeRestoreTenantNotNew {
 		t.Fatalf("refused with %v", err)
 	}
 	if h.imports.writes != 0 {
-		t.Error("the restore wrote something before the scope was checked")
+		t.Error("the restore wrote something into the living tenant")
 	}
 }
 

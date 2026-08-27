@@ -193,6 +193,39 @@ func TestAnImportCannotReachAnotherTenant(t *testing.T) {
 	}
 }
 
+// The freshness question a NEW_TENANT restore asks under real row level security (#206): a tenant
+// sees exactly its own row in `tenant`, so a minted identifier answers "not held" and a living one
+// answers "held" - which is what turns a run row naming a living tenant into a refusal rather than
+// a write into somebody's workspace.
+func TestAFreshTenantScopeHoldsNoTenantRow(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	minted := freshID(t)
+
+	var mintedHeld, livingHeld bool
+	if err := write(ctx, t, minted, func(ctx context.Context) error {
+		var err error
+		mintedHeld, err = importRepo().Holds(ctx, "tenant", map[string]any{"id": minted.String()})
+		return err
+	}); err != nil {
+		t.Fatalf("asking the minted scope: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		livingHeld, err = importRepo().Holds(ctx, "tenant", map[string]any{"id": tenantA.String()})
+		return err
+	}); err != nil {
+		t.Fatalf("asking the living scope: %v", err)
+	}
+
+	if mintedHeld {
+		t.Error("a tenant that was never created answered as held")
+	}
+	if !livingHeld {
+		t.Error("a living tenant answered as not held, so a NEW_TENANT restore would write into it")
+	}
+}
+
 // REPLACE_TENANT is made of this, and it may not be made of anything wider: a clear empties the
 // table inside the tenant and nowhere else.
 func TestClearEmptiesTheTenantAndAnswersHowMuchWent(t *testing.T) {

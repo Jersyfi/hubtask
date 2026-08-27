@@ -173,7 +173,7 @@ func (a Applier) claim(ctx context.Context, in ApplyInput) (claimed, error) {
 func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.Report, error) {
 	reader := archive.NewReader(ready.store, a.Cipher)
 
-	chain, key, err := a.precheck(ctx, reader, ready.restore)
+	chain, key, err := a.precheck(ctx, reader, ready.restore, in.TenantID)
 	if err != nil {
 		return domain.Report{}, err
 	}
@@ -189,6 +189,11 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 	// promise.
 	plan.dry = ready.restore.DryRun || !ready.restore.Mode.Writes()
 
+	if !plan.dry && ready.restore.Mode == domain.RestoreNewTenant {
+		if err := a.assertFresh(ctx, ready.into); err != nil {
+			return domain.Report{}, err
+		}
+	}
 	if !plan.dry && ready.restore.Mode.Destructive() {
 		if err := a.takeSafetyCopy(ctx, in, &ready); err != nil {
 			return domain.Report{}, err
@@ -204,7 +209,7 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 // through leaves a tenant in a state that was never a state - and the pre-check is cheap: it reads
 // manifests, not data.
 func (a Applier) precheck(
-	ctx context.Context, reader *archive.Reader, restore domain.Restore,
+	ctx context.Context, reader *archive.Reader, restore domain.Restore, asking shared.ID,
 ) ([]archive.Description, secret.Bytes, error) {
 	chain, err := reader.Chain(ctx, restore.SourceArchive)
 	if err != nil {
@@ -215,11 +220,15 @@ func (a Applier) precheck(
 	// BK-10 at the dry run and at the execution, not only at the listing. The archive's scope is
 	// in its manifest, and the manifest is the one member nobody can forge without the target's
 	// credentials.
-	scope := restore.TenantID
-	if scope.IsZero() {
-		scope = restore.TargetID // an instance restore names no tenant; the check below refuses it
-	}
-	if newest.Manifest.Scope.Kind != archive.ScopeTenant || newest.Manifest.Scope.ID != scope.String() {
+	//
+	// The manifest is compared against the tenant that *asked* - the one the run row lives in -
+	// because BK-10 protects the archive's owner, and the owner question is the same in every
+	// mode. Where the rows land is a separate question: for every mode but NEW_TENANT it is the
+	// asker itself (StartRestore refuses any other), and for NEW_TENANT it is an identifier the
+	// use case minted a moment ago, guarded by assertFresh below. Comparing against the
+	// destination instead is the defect #206 records: a NEW_TENANT restore could never match its
+	// own archive.
+	if newest.Manifest.Scope.Kind != archive.ScopeTenant || newest.Manifest.Scope.ID != asking.String() {
 		return nil, secret.Bytes{}, shared.ErrValidation.
 			WithDetail(domain.CodeRestoreArchiveScopeMismatch).
 			WithParams(map[string]string{"archive": restore.SourceArchive})
@@ -246,6 +255,30 @@ func (a Applier) precheck(
 		}
 	}
 	return chain, key, nil
+}
+
+// assertFresh refuses a NEW_TENANT restore whose destination already exists.
+//
+// The mode's whole safety argument is that its destination was minted by the use case a moment
+// ago, so nothing of anybody else's can be under it. A run row naming a living tenant - however it
+// came to - is a row that argument no longer covers, and the honest outcome is a refusal before
+// the first row is written rather than a write into somebody's workspace. The read runs in the
+// destination's own scope, where row level security lets a tenant see exactly its own row: a
+// tenant that does not exist answers nothing, which is the answer this wants.
+func (a Applier) assertFresh(ctx context.Context, into persistence.Scope) error {
+	var held bool
+	err := a.UnitOfWork.WithinReadOnly(ctx, into, func(ctx context.Context) error {
+		var err error
+		held, err = a.Import.Holds(ctx, tenantTable, map[string]any{"id": into.TenantID.String()})
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if held {
+		return shared.ErrConflict.WithDetail(domain.CodeRestoreTenantNotNew)
+	}
+	return nil
 }
 
 // takeSafetyCopy is §8.3 step 4: a copy of the current state before a destructive mode.
