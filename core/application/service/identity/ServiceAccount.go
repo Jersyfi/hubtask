@@ -123,11 +123,13 @@ func (s ServiceAccounts) recordCreation(
 	ctx context.Context, actor appshared.ActorContext, account domain.Account, at time.Time,
 ) error {
 	return s.Audit.Append(ctx, audit.Entry{
-		TenantID:    account.TenantID,
-		OccurredAt:  at,
-		Action:      ServiceAccountCreatedAction,
-		Outcome:     audit.OutcomeSuccess,
-		Severity:    audit.SeverityInfo,
+		TenantID:   account.TenantID,
+		OccurredAt: at,
+		Action:     ServiceAccountCreatedAction,
+		Outcome:    audit.OutcomeSuccess,
+		// Notice rather than info, for the reason an invitation is: somebody - something - now
+		// has a way into this workspace, and one that outlives every person in it.
+		Severity:    audit.SeverityNotice,
 		ActorKind:   actor.Kind,
 		ActorID:     actor.AccountID,
 		ActorLabel:  actor.AccountName,
@@ -162,7 +164,7 @@ func (h CreateServiceAccount) Descriptor() usecase.Descriptor {
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ServiceAccountCreatedAction, TargetType: accountTarget,
-			Severity: audit.SeverityInfo, Required: true,
+			Severity: audit.SeverityNotice, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "An account is not an entry, and the item history is keyed on an entry.",

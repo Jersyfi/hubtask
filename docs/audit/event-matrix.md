@@ -25,9 +25,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
-| `access.token_created` | CreateAccessToken | `access_token` | INFO | Every time |
+| `access.token_created` | CreateAccessToken | `access_token` | NOTICE | Every time |
 | `access.token_read` | ListAccessTokens | `access_token` | INFO | When refused |
-| `access.token_revoked` | RevokeAccessToken | `access_token` | INFO | Every time |
+| `access.token_revoked` | RevokeAccessToken | `access_token` | NOTICE | Every time |
 
 ## Accounts
 
@@ -35,7 +35,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
 | `account.preferences_changed` | UpdateAccountPreferences | `account` | INFO | Every time |
-| `account.service_account_created` | CreateServiceAccount | `account` | INFO | Every time |
+| `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
 
 ## Audit of the audit

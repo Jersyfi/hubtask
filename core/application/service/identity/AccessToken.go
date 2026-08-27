@@ -347,7 +347,10 @@ func (w AccessTokenWriter) recordAudit(
 		OccurredAt: at,
 		Action:     action,
 		Outcome:    audit.OutcomeSuccess,
-		Severity:   audit.SeverityInfo,
+		// Notice rather than info, on InviteAccount's reasoning: somebody now has a way into this
+		// workspace, or one has just been taken away. Both are the class of event a review looks
+		// for, and a listing is not (audit.md §2).
+		Severity:   audit.SeverityNotice,
 		ActorKind:  actor.Kind,
 		ActorID:    actor.AccountID,
 		ActorLabel: actor.AccountName,
@@ -450,7 +453,7 @@ func (h CreateAccessToken) Descriptor() usecase.Descriptor {
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: TokenCreatedAction, TargetType: tokenTarget,
-			Severity: audit.SeverityInfo, Required: true,
+			Severity: audit.SeverityNotice, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "A credential is not an entry, and the item history is keyed on an entry.",
@@ -558,7 +561,7 @@ func (h RevokeAccessToken) Descriptor() usecase.Descriptor {
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: TokenRevokedAction, TargetType: tokenTarget,
-			Severity: audit.SeverityInfo, Required: true,
+			Severity: audit.SeverityNotice, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "The same reason minting one is exempt: a credential is not an entry.",
