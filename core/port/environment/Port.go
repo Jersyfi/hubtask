@@ -204,10 +204,16 @@ type MediaConfig struct {
 	// its target and is still pushing 64 MiB up a slow line has not abandoned anything - and the
 	// only cost of it being generous is a row and its bytes sitting unreferenced for that long.
 	StagingGrace time.Duration
+	// UnreferencedGrace is how long a confirmed object may point at nothing before the
+	// reconciliation calls it an orphan. Never zero: an object is unreferenced between its
+	// confirmation and the first thing that uses it, and again between a detachment and the next
+	// attachment, and a pass landing in either window would mark a file somebody is in the middle
+	// of using. Marking is where the loss begins rather than where it is decided - every read path
+	// refuses a marked object, so nothing can attach it back.
+	UnreferencedGrace time.Duration
 	// OrphanGrace is how long a marked object waits before its bytes go. The window in which a
-	// mistake is still a mistake rather than a loss: an object marked because its last reference
-	// went, and then attached again before the grace ends, is recounted and unmarked by the next
-	// pass rather than removed.
+	// mistaken removal is still recoverable by hand: the row says what it was and the bytes are
+	// still in the bucket.
 	OrphanGrace time.Duration
 	// BatchSize is how many orphans one pass reclaims. Batched for the reason a retention pass is:
 	// each object costs a call to a bucket, and a pass that took them all would be a pass nobody

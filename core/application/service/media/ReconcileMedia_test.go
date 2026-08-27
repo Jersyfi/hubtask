@@ -47,28 +47,33 @@ func (s *signals) MediaReclaimFailed(_ context.Context, count int64) { s.failed 
 type reconcilingObjects struct {
 	*objects
 	orphans []repository.Orphan
-	// recounted and markedAt record that the two halves of the plan ran, and when.
-	recounted    int
-	pendingCut   time.Time
-	markedBefore time.Time
-	takenBatch   int
-	removedRows  []shared.ID
-	removeErr    error
+	// recounted and the cuts record that the two halves of the plan ran, and against which
+	// instants: the graces are the whole of what this pass decides, so a test that did not read
+	// them back would be checking that the calls happened rather than what they asked for.
+	recounted       int
+	recountedAt     time.Time
+	pendingCut      time.Time
+	unreferencedCut time.Time
+	markedBefore    time.Time
+	takenBatch      int
+	removedRows     []shared.ID
+	removeErr       error
 }
 
 func newReconcilingObjects() *reconcilingObjects {
 	return &reconcilingObjects{objects: newObjects()}
 }
 
-func (o *reconcilingObjects) Recount(context.Context) error {
+func (o *reconcilingObjects) Recount(_ context.Context, now time.Time) error {
 	o.recounted++
+	o.recountedAt = now
 	return nil
 }
 
 func (o *reconcilingObjects) MarkOrphans(
-	_ context.Context, _, pendingBefore time.Time,
+	_ context.Context, _ time.Time, before repository.Thresholds,
 ) (int, error) {
-	o.pendingCut = pendingBefore
+	o.pendingCut, o.unreferencedCut = before.Pending, before.Unreferenced
 	return len(o.orphans), nil
 }
 
@@ -106,7 +111,8 @@ func reconcilingHarness() (ReconcileMedia, *reconcilingObjects, *store, *removal
 		UnitOfWork: &unitOfWork{},
 		Clock:      clock.Fixed(now),
 		Config: env.MediaConfig{
-			StagingGrace: 24 * time.Hour, OrphanGrace: time.Hour, BatchSize: 2,
+			StagingGrace: 24 * time.Hour, UnreferencedGrace: 30 * time.Minute,
+			OrphanGrace: time.Hour, BatchSize: 2,
 		},
 		Retention: env.RetentionConfig{TombstoneWindow: 90 * 24 * time.Hour},
 		Signals:   published,
@@ -178,13 +184,43 @@ func TestThePlanUsesTheConfiguredGraces(t *testing.T) {
 	if want := now.Add(-24 * time.Hour); records.pendingCut != want {
 		t.Errorf("stagings before %v are reclaimed, want %v", records.pendingCut, want)
 	}
-	// A marked object waits out its grace, which is the window in which an object that lost its
-	// last reference and gained a new one is recounted rather than removed.
+	// A confirmed object is an orphan only once nothing has pointed at it for its own grace. The
+	// window between a confirmation and the first thing that uses the object is not evidence of
+	// anything, and marking is where the loss begins: nothing can attach a marked object back.
+	if want := now.Add(-30 * time.Minute); records.unreferencedCut != want {
+		t.Errorf("objects unreferenced before %v are marked, want %v", records.unreferencedCut, want)
+	}
+	// The stamp the sweep marks against is written by the recount in the same transaction, and at
+	// the same instant the marking is decided at.
+	if records.recountedAt != now {
+		t.Errorf("the recount stamped at %v, want %v", records.recountedAt, now)
+	}
+	// A marked object waits out its grace, which is the window in which an operator who notices a
+	// mistaken removal still finds the bytes where they were.
 	if want := now.Add(-time.Hour); records.markedBefore != want {
 		t.Errorf("orphans marked before %v are taken, want %v", records.markedBefore, want)
 	}
 	if records.takenBatch != 2 {
 		t.Errorf("the batch is %d, want 2", records.takenBatch)
+	}
+}
+
+// The defaults exist because a build without configuration must not divide the world into
+// zero-length graces: an unreferenced grace of nothing is exactly the defect that made a confirmed
+// upload disappear between its confirmation and its attachment.
+func TestAnUnconfiguredPassStillGivesAConfirmedObjectItsGrace(t *testing.T) {
+	handler, records, _, _, _ := reconcilingHarness()
+	handler.Config = env.MediaConfig{}
+
+	if _, err := handler.Execute(t.Context(), systemActor()); err != nil {
+		t.Fatalf("the pass failed: %v", err)
+	}
+
+	if want := now.Add(-time.Hour); records.unreferencedCut != want {
+		t.Errorf("objects unreferenced before %v are marked, want %v", records.unreferencedCut, want)
+	}
+	if want := now.Add(-24 * time.Hour); records.pendingCut != want {
+		t.Errorf("stagings before %v are reclaimed, want %v", records.pendingCut, want)
 	}
 }
 

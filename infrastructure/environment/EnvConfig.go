@@ -124,12 +124,14 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		Media: env.MediaConfig{
 			// A day for an abandoned staging: long enough that no upload over any line anybody
 			// still uses is mistaken for one, short enough that a bucket does not fill with them.
-			// An hour of grace before the bytes go, which is the window in which an object that
-			// lost its last reference and gained a new one is recounted rather than removed.
-			StagingGrace: getDuration("HUBTASK_MEDIA_STAGING_GRACE", 24*time.Hour),
-			OrphanGrace:  getDuration("HUBTASK_MEDIA_ORPHAN_GRACE", time.Hour),
-			BatchSize:    getInt("HUBTASK_MEDIA_RECONCILE_BATCH_SIZE", 100),
-			Interval:     getDuration("HUBTASK_MEDIA_RECONCILE_INTERVAL", 6*time.Hour),
+			// An hour before a confirmed object that points at nothing counts as an orphan, which
+			// is the window a person needs between uploading a file and attaching it - and another
+			// hour after the marking, in which a mistaken removal is still recoverable by hand.
+			StagingGrace:      getDuration("HUBTASK_MEDIA_STAGING_GRACE", 24*time.Hour),
+			UnreferencedGrace: getDuration("HUBTASK_MEDIA_UNREFERENCED_GRACE", time.Hour),
+			OrphanGrace:       getDuration("HUBTASK_MEDIA_ORPHAN_GRACE", time.Hour),
+			BatchSize:         getInt("HUBTASK_MEDIA_RECONCILE_BATCH_SIZE", 100),
+			Interval:          getDuration("HUBTASK_MEDIA_RECONCILE_INTERVAL", 6*time.Hour),
 		},
 		Metrics: env.MetricsConfig{
 			TenantLabel: getBool("HUBTASK_METRICS_TENANT_LABEL", false),

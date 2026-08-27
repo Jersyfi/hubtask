@@ -814,19 +814,20 @@ type LegalHold struct {
 }
 
 type MediaObject struct {
-	ID         pgtype.UUID
-	TenantID   pgtype.UUID
-	StorageKey string
-	MimeType   string
-	ByteSize   int64
-	Checksum   *string
-	Usage      string
-	RefCount   int32
-	CreatedBy  pgtype.UUID
-	CreatedAt  pgtype.Timestamptz
-	DeletedAt  pgtype.Timestamptz
-	Status     string
-	FileName   *string
+	ID                pgtype.UUID
+	TenantID          pgtype.UUID
+	StorageKey        string
+	MimeType          string
+	ByteSize          int64
+	Checksum          *string
+	Usage             string
+	RefCount          int32
+	CreatedBy         pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+	Status            string
+	FileName          *string
+	UnreferencedSince pgtype.Timestamptz
 }
 
 type Membership struct {

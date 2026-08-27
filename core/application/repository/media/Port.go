@@ -27,6 +27,22 @@ type Orphan struct {
 	StorageKey string
 }
 
+// Thresholds are the two clocks the orphan sweep marks against, as instants rather than as
+// durations: the application layer owns the Clock port, and a repository that subtracted a grace
+// from a time of its own would be a second clock nobody could fix in a test (arc42 §8.13).
+//
+// A struct rather than two more parameters, because both are timestamps in the past and a caller
+// that swapped them would compile, run, and mark the wrong rows.
+type Thresholds struct {
+	// Unreferenced is how far back a READY object must have stopped being pointed at. An object
+	// is unreferenced between its confirmation and the first thing that uses it, and again between
+	// a detachment and the next attachment; neither is evidence that it is garbage.
+	Unreferenced time.Time
+	// Pending is how far back a staging must have been made for nobody's confirmation to count as
+	// abandonment.
+	Pending time.Time
+}
+
 // ItemRef is one item a media object serves, with the collection its authorisation path starts
 // from.
 type ItemRef struct {
@@ -62,12 +78,15 @@ type Objects interface {
 	// reports whether it matched - a referenced object never does.
 	MarkDeleted(ctx context.Context, id shared.ID, at time.Time) (bool, error)
 
-	// Recount makes every live counter what the references say.
-	Recount(ctx context.Context) error
+	// Recount makes every live counter what the references say, and records against every row
+	// that reaches zero since when nothing has pointed at it - keeping the first such moment
+	// rather than the latest, and clearing it again when a reference appears.
+	Recount(ctx context.Context, now time.Time) error
 
-	// MarkOrphans marks what nothing references: READY rows at zero, and PENDING rows staged
-	// before pendingBefore that nobody ever confirmed.
-	MarkOrphans(ctx context.Context, now, pendingBefore time.Time) (int, error)
+	// MarkOrphans marks what nothing references and has not for long enough: READY rows
+	// unreferenced since before before.Unreferenced, and PENDING rows staged before
+	// before.Pending that nobody ever confirmed.
+	MarkOrphans(ctx context.Context, now time.Time, before Thresholds) (int, error)
 
 	// TakeOrphans returns up to batch marked rows whose grace ended before markedBefore.
 	TakeOrphans(ctx context.Context, markedBefore time.Time, batch int) ([]Orphan, error)

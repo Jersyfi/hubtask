@@ -29,8 +29,10 @@ import (
 // anything; the rest exist because the port is one interface.
 type reclaimable struct{ orphans []mediarepo.Orphan }
 
-func (r *reclaimable) Recount(context.Context) error { return nil }
-func (r *reclaimable) MarkOrphans(context.Context, time.Time, time.Time) (int, error) {
+func (r *reclaimable) Recount(context.Context, time.Time) error { return nil }
+func (r *reclaimable) MarkOrphans(
+	context.Context, time.Time, mediarepo.Thresholds,
+) (int, error) {
 	return len(r.orphans), nil
 }
 

@@ -153,13 +153,48 @@ func TestReferencesAreCountedAndTheRecountKeepsThemHonest(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return mediaRepo().Recount(ctx)
+		return mediaRepo().Recount(ctx, changedAt)
 	}); err != nil {
 		t.Fatalf("recounting: %v", err)
 	}
 	if stored := findMedia(ctx, t, tenantA, object.ID); stored.RefCount != 0 {
 		t.Fatalf("ref_count %d after the recount, want 0", stored.RefCount)
 	}
+	// The counter says nothing points at it; the stamp says since when, which is what the sweep
+	// waits out. Read through SQL: it is bookkeeping the domain has no field for.
+	if stamp := unreferencedSince(ctx, t, object.ID); stamp == nil {
+		t.Fatal("the recount left an unreferenced object without a stamp")
+	} else if !stamp.Equal(changedAt) {
+		t.Errorf("stamped %s, want %s", stamp, changedAt)
+	}
+
+	// A reference appearing again clears it, so that the grace starts over the next time the
+	// object loses one rather than measuring from the first time it ever did.
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := mediaRepo().Add(ctx, task, object.ID, shared.HLC{}); err != nil {
+			return err
+		}
+		return mediaRepo().Recount(ctx, changedAt.Add(time.Minute))
+	}); err != nil {
+		t.Fatalf("re-attaching: %v", err)
+	}
+	if stamp := unreferencedSince(ctx, t, object.ID); stamp != nil {
+		t.Errorf("a referenced object still carries a stamp: %s", stamp)
+	}
+}
+
+// unreferencedSince reads the sweep's stamp. Through the admin pool because it is the one column
+// of media_object no port exposes: the domain has no use for it, and the reconciliation reads it
+// only inside SQL.
+func unreferencedSince(ctx context.Context, t *testing.T, id shared.ID) *time.Time {
+	t.Helper()
+	var stamp *time.Time
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		"SELECT unreferenced_since FROM media_object WHERE id = $1", id.String()).
+		Scan(&stamp); err != nil {
+		t.Fatal(err)
+	}
+	return stamp
 }
 
 func TestTheOrphanSweepMarksTakesAndRemoves(t *testing.T) {
@@ -177,10 +212,29 @@ func TestTheOrphanSweepMarksTakesAndRemoves(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The suites share a tenant, so the sweep may find other tests' leftovers beside these two -
+	// The READY orphan lost its last reference two hours ago. The stamp is what says so, and the
+	// recount is the only thing that writes it.
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return mediaRepo().Recount(ctx, now.Add(-2*time.Hour))
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Confirmed just now and attached to nothing yet: the state every upload passes through
+	// between its confirmation and the call that uses it. The pass below runs straight through
+	// that window, which is what used to mark it.
+	justConfirmed := sealMedia(
+		ctx, t, tenantA, stagedMedia(ctx, t, tenantA, authorA, media.UsageAttachment))
+
+	// The suites share a tenant, so the sweep may find other tests' leftovers beside these -
 	// the assertions are about *these* rows, never about totals.
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		marked, err := mediaRepo().MarkOrphans(ctx, now, now.Add(-24*time.Hour))
+		if err := mediaRepo().Recount(ctx, now); err != nil {
+			return err
+		}
+		marked, err := mediaRepo().MarkOrphans(ctx, now, mediarepo.Thresholds{
+			Unreferenced: now.Add(-time.Hour), Pending: now.Add(-24 * time.Hour),
+		})
 		if err != nil {
 			return err
 		}
@@ -193,6 +247,14 @@ func TestTheOrphanSweepMarksTakesAndRemoves(t *testing.T) {
 	}
 	if stored := findMedia(ctx, t, tenantA, fresh.ID); stored.DeletedAt != nil {
 		t.Fatal("a staging inside its window was marked")
+	}
+	if stored := findMedia(ctx, t, tenantA, justConfirmed.ID); stored.DeletedAt != nil {
+		t.Fatal("an object confirmed inside the grace was marked before anything could use it")
+	}
+	// The second recount did not restart the first one's clock: the orphan is marked on the stamp
+	// it got two hours ago, not on the zero this pass saw.
+	if stored := findMedia(ctx, t, tenantA, orphan.ID); stored.DeletedAt == nil {
+		t.Fatal("an object unreferenced for two hours survived the sweep")
 	}
 
 	var taken []mediarepo.Orphan
@@ -406,10 +468,12 @@ func TestMediaIsInvisibleFromAnotherTenant(t *testing.T) {
 
 	t.Run("sweep stays home", func(t *testing.T) {
 		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-			if err := mediaRepo().Recount(ctx); err != nil {
+			if err := mediaRepo().Recount(ctx, changedAt); err != nil {
 				return err
 			}
-			marked, err := mediaRepo().MarkOrphans(ctx, changedAt, changedAt)
+			marked, err := mediaRepo().MarkOrphans(ctx, changedAt, mediarepo.Thresholds{
+				Unreferenced: changedAt, Pending: changedAt,
+			})
 			if err != nil {
 				return err
 			}
