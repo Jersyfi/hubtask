@@ -58,6 +58,26 @@ Three levels, because one is not enough:
 2. **Trigger lock:** a `BEFORE UPDATE OR DELETE` trigger raises an exception. Protection also against an operator who accidentally configured themselves too much power.
 3. **Hash chain:** `hash = SHA-256(prev_hash ‖ canonical serialisation of the entry)`, one chain per tenant, plus a gapless `seq`. An endpoint `POST /audit:verify` checks the chain and reports the break point and any sequence gap.
 
+**What the hash is taken over is the entry as the row gives it back**, not as the caller built it,
+and that is one rule with three edges — every one of which shipped broken and was found by driving
+`hubctl audit verify` against a running installation (E-12):
+
+* **The tail is the highest `seq`, never the newest timestamp.** Each caller reads its clock before
+  it queues for the chain's per-tenant lock, so timestamps and sequence numbers disagree under
+  concurrency. Reading the tail by time let two transactions continue from one number, and the
+  unique index cannot catch it: a partitioned table's unique index has to carry the partition key,
+  and `(tenant_id, occurred_at, seq)` lets one `seq` appear twice under two timestamps. The walk
+  that verification uses is ordered by `seq` for the same reason.
+* **The instant is truncated to what `timestamptz` keeps.** A clock offers nanoseconds and the
+  column keeps microseconds, so an entry hashed as it arrived is not the entry that is read back.
+* **The changed fields go through the reader's encoder before they are hashed.** A structure
+  marshals in field order on the way in and in key order on the way out of `JSONB`; a retention
+  plan or a restore report in an entry was enough to make a sound chain report tampering.
+
+All three belong to the adapter, where the storage's precision and shape are known — the port and
+the domain keep knowing nothing about PostgreSQL — and all three are held by tests that write
+concurrently, with nanoseconds, and with a structure in the changes.
+
 A deliberate limit: the chain proves tampering **inside** the database, not against an attacker with
 full database access who recomputes the entire chain. Anyone who needs that level exports the daily
 chain end value (the "anchor") to an external, append-only target (a WORM bucket, a log service, a
