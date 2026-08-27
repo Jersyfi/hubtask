@@ -939,3 +939,36 @@ func TestAnEntryWrittenWithNanosecondsStillVerifies(t *testing.T) {
 		t.Errorf("a chain written by a clock with nanoseconds does not verify: %+v", found)
 	}
 }
+
+// An entry whose changed value is a structure, rather than a string or a number.
+//
+// The sink hashes the entry as the caller built it; verification hashes what came back out of the
+// row, and that has been through JSONB and `map[string]any`. A structure marshals in field order on
+// the way in and in key order on the way out, so the two hashes differed for any entry carrying
+// one - and the trail reported tampering that never happened.
+func TestAnEntryWhoseChangeIsAStructureStillVerifies(t *testing.T) {
+	ctx := context.Background()
+	tenant := auditTenant(ctx, t)
+
+	entries := mixedEntries(t, tenant, 2)
+	entries[1].Changes = map[string]any{
+		// Field order that is not key order, which is what any real structure looks like: a
+		// retention plan, a restore report, a view's query.
+		"plan": struct {
+			Weekly int `json:"weekly"`
+			Daily  int `json:"daily"`
+			Age    int `json:"age"`
+		}{Weekly: 8, Daily: 14, Age: 3},
+	}
+	appendTo(ctx, t, tenant, entries)
+
+	found, err := verifierFor(t).Execute(ctx, auditActor(tenant), repository.Period{
+		From: created.Add(-time.Hour), To: created.Add(2000 * time.Second),
+	})
+	if err != nil {
+		t.Fatalf("verifying: %v", err)
+	}
+	if !found.Valid {
+		t.Errorf("a chain carrying a structured change does not verify: %+v", found)
+	}
+}

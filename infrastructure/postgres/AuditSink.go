@@ -74,6 +74,22 @@ func (s AuditSink) Append(ctx context.Context, entry port.Entry) error {
 	// Rounding would move an instant forwards; truncation cannot.
 	entry.OccurredAt = entry.OccurredAt.UTC().Truncate(time.Microsecond)
 
+	// And the changed fields, in the shape the row will give them back.
+	//
+	// The same asymmetry as the timestamp, one level deeper: the caller hands over Go values - a
+	// structure, an integer, a slice - and verification recomputes the hash from what came out of
+	// JSONB through `map[string]any`. A structure marshals in *field* order on the way in and in
+	// key order on the way out, so every entry carrying one hashed differently than it read back,
+	// and the trail reported tampering that never happened (E-12).
+	//
+	// One round trip through the same encoder the reader uses settles it: what is hashed is what
+	// any reader will see, whatever the caller built it from.
+	changes, err := storedShape(entry.Changes)
+	if err != nil {
+		return err
+	}
+	entry.Changes = changes
+
 	if err := queries.LockAuditChain(ctx); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -172,4 +188,27 @@ func auditInsertParams(id shared.ID, seq int64, hash, previousHash []byte, entry
 		PrevHash:     previousHash,
 		Hash:         hash,
 	}, nil
+}
+
+// storedShape is a value as it comes back out of the database: through the same encoder, into the
+// same generic types. A nil map stays nil - the sink writes `{}` for it either way, and the hash is
+// taken over that.
+func storedShape(changes map[string]any) (map[string]any, error) {
+	if len(changes) == 0 {
+		return changes, nil
+	}
+
+	encoded, err := json.Marshal(changes)
+	if err != nil {
+		return nil, shared.ErrInternal.
+			WithDetail("audit.entry_unserialisable").
+			WithCause(fmt.Errorf("normalising the changes of an audit entry: %w", err))
+	}
+	var stored map[string]any
+	if err := json.Unmarshal(encoded, &stored); err != nil {
+		return nil, shared.ErrInternal.
+			WithDetail("audit.entry_unserialisable").
+			WithCause(fmt.Errorf("normalising the changes of an audit entry: %w", err))
+	}
+	return stored, nil
 }
