@@ -65,7 +65,7 @@ const (
 // SecretPurpose binds a sealed secret to the subscription it belongs to, so that a ciphertext
 // lifted out of one row and dropped into another no longer opens (core/port/crypto).
 func SecretPurpose(id shared.ID) crypto.Purpose {
-	return crypto.Purpose("webhook_subscription.secret:" + id.String())
+	return crypto.Purpose(domain.SecretPurposeFor(id))
 }
 
 // Authorizer is the application's own decision point. Declared here rather than imported so that

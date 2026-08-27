@@ -335,3 +335,14 @@ func itoa(n int) string {
 	}
 	return string(digits)
 }
+
+// SecretPurposeFor is what a sealed signing secret is bound to: the field and the row, so that a
+// ciphertext lifted out of one subscription and dropped into another no longer opens
+// (core/port/crypto).
+//
+// A string here rather than a crypto.Purpose, because the domain imports no port - and it lives
+// here rather than in either caller because the application seals with it and the delivery adapter
+// opens with it, and a second copy of the string is a second chance to change one of them.
+func SecretPurposeFor(id shared.ID) string {
+	return "webhook_subscription.secret:" + id.String()
+}

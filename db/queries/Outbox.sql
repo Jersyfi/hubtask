@@ -97,3 +97,12 @@ WHERE (tenant_id, consumer, event_id) IN (
   ORDER BY due.consumed_at
   LIMIT sqlc.arg('batch')
 );
+
+-- name: FindOutboxEvent :one
+-- One event, as it was written. The webhook deliverer renders the body from this rather than from
+-- a copy in the job payload, so a retry two days later sends what the first attempt would have -
+-- and a job row does not become a second place a workspace's content lives.
+SELECT id, tenant_id, event_type, subject, payload, actor_type, actor_id,
+       correlation_id, causation_id, causation_depth, occurred_at, replay
+FROM outbox_event
+WHERE id = sqlc.arg('id');
