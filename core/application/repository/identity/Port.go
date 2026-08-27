@@ -48,6 +48,23 @@ type AccessTokens interface {
 	// TouchLastUsed records that the token was used. Called at most once per interval, so an
 	// owner can see a token nobody uses without every request costing a write.
 	TouchLastUsed(ctx context.Context, tokenID shared.ID, at time.Time) error
+
+	// Insert writes a minted token together with the credential that was drawn beside it. The
+	// presented token is passed whole for the reason the interface is: the hash is the adapter's
+	// to compute, and the application layer must never hold a value it could store by mistake.
+	Insert(ctx context.Context, token identity.AccessToken, presented identity.Token) error
+
+	// Find returns one token by its identifier, revoked or not, or an error wrapping
+	// shared.ErrNotFound. A token of another tenant is not found rather than forbidden.
+	Find(ctx context.Context, tokenID shared.ID) (identity.AccessToken, error)
+
+	// ListForAccount returns one account's own tokens, newest first. Not paged: a person holds a
+	// handful of credentials, and a cursor over a handful is machinery nobody reads.
+	ListForAccount(ctx context.Context, accountID shared.ID) ([]identity.AccessToken, error)
+
+	// Revoke stamps the token and reports whether it changed anything. False means it was already
+	// revoked, which is not an error - the second call is somebody making sure.
+	Revoke(ctx context.Context, tokenID shared.ID, at time.Time) (bool, error)
 }
 
 // Memberships answers what an account holds.
@@ -96,6 +113,11 @@ type Accounts interface {
 	// Insert writes a new account. It fails with a conflict when the address is taken, because
 	// the uniqueness is the database's to enforce and racing callers must not both win.
 	Insert(ctx context.Context, account identity.Account) error
+
+	// ListOfKind returns the tenant's accounts of one kind, newest first. It exists for the
+	// service accounts, which are the one kind somebody administers as a set: a person is found
+	// by name or address, and a machine is found in the list of machines.
+	ListOfKind(ctx context.Context, kind identity.AccountKind) ([]identity.Account, error)
 
 	// UpdatePreferences writes the three preference columns and nothing else. A method per
 	// concern rather than a general update: an update that can write any column is one that can

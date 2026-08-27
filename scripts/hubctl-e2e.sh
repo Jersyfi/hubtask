@@ -13,10 +13,13 @@
 # domain mints one is a token the server accepts. That is what this checks, and it is why it uses
 # the published image rather than `go run`.
 #
-# There is no endpoint that issues a personal access token yet (roadmap.md puts PAT administration
-# in 0.6), so the session mints one and writes it into access_token itself. Both halves come from
-# the real constructions - test/e2e/mint - because a token hashed by this script the way this
-# script hashes tokens would prove nothing.
+# The session's own credential is minted through the API it tests (G-01), which makes the auth
+# surface the first thing it proves rather than something it works around. What still comes from
+# outside is the *bootstrap*: an installation whose first account has no credential cannot be
+# reached at all, and no first-run path exists yet - so the script seeds one narrow, ten-minute
+# credential by SQL, uses it to mint the working PAT through `hubctl token create`, and then
+# revokes it. Both halves of the bootstrap come from the real constructions (test/e2e/mint),
+# because a token hashed by this script the way this script hashes tokens would prove nothing.
 
 set -euo pipefail
 
@@ -120,9 +123,9 @@ if [ -z "$ready" ]; then
 fi
 echo "ready after $((SECONDS - started))s"
 
-echo "--- minting a personal access token and seeding the account that holds it ---"
+echo "--- seeding the workspace and its bootstrap credential ---"
 INSTALLATION_SECRET="$(grep '^HUBTASK_SECRET_KEY=' "$ENV_FILE" | cut -d= -f2-)"
-read -r TOKEN TOKEN_HASH < <(HUBTASK_SECRET_KEY="$INSTALLATION_SECRET" go run ./test/e2e/mint --tenant "$TENANT_ID")
+read -r BOOTSTRAP_TOKEN BOOTSTRAP_HASH < <(HUBTASK_SECRET_KEY="$INSTALLATION_SECRET" go run ./test/e2e/mint --tenant "$TENANT_ID")
 
 compose_in_place exec -T db psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -q <<SQL
 INSERT INTO tenant (id, slug, display_name)
@@ -134,17 +137,15 @@ INSERT INTO account (id, tenant_id, kind, display_name, status)
 INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
   VALUES ('$MEMBERSHIP_ID', '$TENANT_ID', '$ACCOUNT_ID', 'TENANT', 'OWNER')
   ON CONFLICT (id) DO NOTHING;
+-- The bootstrap, and deliberately the smallest one that can do its one job: mint a token. Ten
+-- minutes and two scopes, so that a run which dies before revoking it leaves behind a credential
+-- that could not have done anything anyway.
 INSERT INTO access_token
     (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-  VALUES ('$TOKEN_ROW_ID', '$TENANT_ID', '$ACCOUNT_ID', 'the end-to-end session',
-          decode('$TOKEN_HASH', 'hex'), 'hbt_pat_',
-          ARRAY['containers:read','containers:write','items:read','items:write','trash:read',
-                'comments:write','media:read','media:write',
-                'reminders:write','recurrence:write','templates:read','templates:write',
-                'jobs:read','jobs:cancel','backup:read','backup:manage',
-                'retention:read','retention:manage','audit:read','audit:export',
-                'privacy:read','privacy:manage'],
-          now() + interval '1 hour')
+  VALUES ('$TOKEN_ROW_ID', '$TENANT_ID', '$ACCOUNT_ID', 'the end-to-end bootstrap',
+          decode('$BOOTSTRAP_HASH', 'hex'), 'hbt_pat_',
+          ARRAY['accounts:read','accounts:write'],
+          now() + interval '10 minutes')
   ON CONFLICT (id) DO NOTHING;
 SQL
 
@@ -155,14 +156,35 @@ hubctl() { "$WORK_DIR/hubctl" "$@"; }
 export HUBTASK_PROFILE="$WORK_DIR/profile.json"
 INSTALLATION="http://127.0.0.1:$HTTP_PORT"
 
-echo "--- signing in ---"
+echo "--- signing in with the bootstrap, and minting the session's own token through the API ---"
 # Through the pipe, which is the documented path: an argument would be visible in `ps`. The
 # credential then lives in the profile, so nothing below carries it - which is the point of the
 # profile and worth exercising rather than short-circuiting with HUBTASK_TOKEN.
-printf '%s\n' "$TOKEN" | hubctl auth login --url "$INSTALLATION"
+printf '%s\n' "$BOOTSTRAP_TOKEN" | hubctl auth login --url "$INSTALLATION"
 status="$(hubctl --json auth status)"
 expect_contains "auth status" "$status" '"token_source": "profile"'
 expect_contains "auth status" "$status" '"signed_in": true'
+
+# The first thing the session does with the API is ask it for a credential. Everything after this
+# line runs on a token this installation minted, hashed and can revoke - which is what makes the
+# rest of the session a test of the product rather than of a row somebody wrote by hand.
+#
+# The scopes are every one this build declares. A name the catalogue does not carry is refused as
+# a field error, so the list is checked by being used rather than by being maintained.
+SESSION_SCOPES='accounts:read,accounts:write,audit:export,audit:read,backup:manage,backup:read'
+SESSION_SCOPES="$SESSION_SCOPES,comments:write,containers:read,containers:write,items:read,items:write"
+SESSION_SCOPES="$SESSION_SCOPES,jobs:cancel,jobs:read,media:read,media:write,members:write"
+SESSION_SCOPES="$SESSION_SCOPES,privacy:manage,privacy:read,recurrence:write,reminders:write"
+SESSION_SCOPES="$SESSION_SCOPES,retention:manage,retention:read,templates:read,templates:write,trash:read"
+minted="$(hubctl --json token create --name 'the end-to-end session' --days 1 --scope "$SESSION_SCOPES")"
+TOKEN="$(printf '%s\n' "$minted" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')"
+[ -n "$TOKEN" ] || { echo "FAILED: the mint answered no credential"; echo "$minted"; exit 1; }
+
+printf '%s\n' "$TOKEN" | hubctl auth login --url "$INSTALLATION"
+# Everything the credentials still owe - the listing, the revocation, the service account - is
+# checked at the end of the session rather than here. The rate limiter's burst is what a client
+# firing a whole first hour in two seconds runs into, and the calls that have to be *here* are
+# only the ones without which nothing else can run.
 
 echo "--- a hub, and a collection inside it ---"
 HUB_ID="$(hubctl container create --type HUB --name 'The end-to-end hub' | first_id)"
@@ -227,6 +249,14 @@ expect_contains "item assign" "$assigned" "$ACCOUNT_ID"
 hubctl item unassign "$TASK_ID" >/dev/null
 
 echo "--- the stream, watched ---"
+# A beat first, and it is not padding. The rate limiter's burst is a minute's budget that may be
+# spent at once (HUBTASK_RATE_LIMIT_BURST, 20 by default), and everything above spends it in about
+# half a second - a script compressing a person's first hour into one. Every command so far can be
+# refused and retried; the watch cannot, because it opens a stream that starts "from now", so a
+# refusal there loses the events the loop below is waiting for rather than delaying them. Two
+# seconds refills the bucket at either level (10/s per credential, 50/s per tenant).
+sleep 2
+
 # The binary itself rather than the shell function, so that the SIGINT below reaches hubctl and
 # not a subshell wrapped around it - the clean exit on Ctrl-C is exactly what is under test.
 WATCH_LOG="$WORK_DIR/watch.log"
@@ -635,6 +665,30 @@ expect_contains "the JSON page" "$page" '"has_more"'
 if [ "$(head -c 1 <<< "$page")" != "{" ]; then
 	fail "the JSON output does not begin with a document: $page"
 fi
+
+echo "--- what the credentials still owed ---"
+# The credential is answered once and nowhere else. A listing that carried it would make "shown
+# once" a sentence in the documentation rather than a property of the server.
+listed="$(hubctl --json token ls)"
+expect_contains "token ls" "$listed" "the end-to-end session"
+expect_missing "token ls" "$listed" "$TOKEN"
+
+# A service account: no address, nothing to accept, active from the moment it exists. G-05's
+# run_as points at one of these, so that a rule outlives its author.
+MACHINE_ID="$(hubctl service-account create --name 'the nightly export' | first_id)"
+[ -n "$MACHINE_ID" ] || { echo "FAILED: creating the service account produced no identifier"; exit 1; }
+expect_contains "service-account ls" "$(hubctl service-account ls)" "$MACHINE_ID"
+
+# Its credentials are administered by whoever answers for access, and it starts with none.
+machine_token="$(hubctl --json token create --account "$MACHINE_ID" --name 'the export job' \
+	--days 30 --scope 'items:read')"
+expect_contains "token create --account" "$machine_token" '"account_id": "'"$MACHINE_ID"'"'
+
+# And the bootstrap goes. Revocation takes effect on the next call, because the hash is checked
+# against the row on every request - so proving it costs one call with the withdrawn credential.
+hubctl token revoke "$TOKEN_ROW_ID"
+refused="$(HUBTASK_TOKEN="$BOOTSTRAP_TOKEN" hubctl container ls 2>&1 || true)"
+expect_contains "a revoked token" "$refused" "revoked"
 
 echo "--- what a refusal looks like ---"
 # A collection that does not exist, so the answer is a problem document - and what a person sees

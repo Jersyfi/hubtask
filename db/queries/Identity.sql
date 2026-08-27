@@ -166,3 +166,51 @@ SELECT id
 FROM account
 WHERE id = ANY(sqlc.arg('account_ids')::uuid[])
   AND status IN ('RESTRICTED', 'ANONYMIZED');
+
+-- ========================== Personal access tokens ==========================
+-- The tenant is never a parameter here either: row level security bounds every statement to the
+-- tenant of the running transaction, which is what makes a token of another workspace invisible
+-- rather than forbidden (ADR-0010).
+
+-- name: InsertAccessToken :exec
+-- The hash is computed in the adapter, because the pepper is a secret of that layer and the
+-- application must never hold a value it could store by mistake (security.md §8).
+INSERT INTO access_token
+    (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at, created_at)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('name'),
+  sqlc.arg('token_hash'), sqlc.arg('token_prefix'), sqlc.arg('scopes'),
+  sqlc.arg('expires_at'), sqlc.arg('created_at')
+);
+
+-- name: FindAccessToken :one
+SELECT id, tenant_id, account_id, name, scopes, expires_at, last_used_at, revoked_at, created_at
+FROM access_token
+WHERE id = sqlc.arg('id');
+
+-- name: AccessTokensForAccount :many
+-- Newest first, which is the order somebody reads their own credentials in. Bounded by the
+-- account rather than by a page: a person holds a handful, and the index answers both the filter
+-- and the sort (access_token_account_idx).
+SELECT id, tenant_id, account_id, name, scopes, expires_at, last_used_at, revoked_at, created_at
+FROM access_token
+WHERE account_id = sqlc.arg('account_id')
+ORDER BY created_at DESC, id DESC;
+
+-- name: RevokeAccessToken :execrows
+-- Only the first withdrawal writes. A second call matches nothing, which is how the use case
+-- tells "revoked just now" from "already revoked" without reading the row again - and what keeps
+-- the moment it was first pulled from being overwritten.
+UPDATE access_token SET revoked_at = sqlc.arg('revoked_at')
+WHERE id = sqlc.arg('id') AND revoked_at IS NULL;
+
+-- name: AccountsOfKind :many
+-- The workspace's service accounts, newest first by identifier - UUIDv7 is time-ordered, so the
+-- primary key is the creation order and needs no second column to sort on.
+--
+-- Bounded by the kind rather than by a page: an installation has a handful of integrations, and a
+-- cursor over a handful is machinery nobody reads.
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+FROM account
+WHERE kind = sqlc.arg('kind') AND deleted_at IS NULL
+ORDER BY id DESC;

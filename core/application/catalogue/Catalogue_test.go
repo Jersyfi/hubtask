@@ -4,6 +4,7 @@
 package catalogue_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/catalogue"
@@ -53,5 +54,38 @@ func TestReadingTheCatalogueDoesNotChangeIt(t *testing.T) {
 
 	if catalogue.Descriptors()[0].Name == "Tampered" {
 		t.Error("a caller changed the catalogue by reading it")
+	}
+}
+
+// Scopes is derived rather than written down, so what is worth testing is the derivation: that it
+// is the descriptors' own set, sorted, without repeats, and without the empty scope an operation
+// that needs none declares.
+func TestScopesAreTheDescriptorsOwnSetSortedAndUnique(t *testing.T) {
+	scopes := catalogue.Scopes()
+	if len(scopes) == 0 {
+		t.Fatal("the build declares no scope at all")
+	}
+	if !slices.IsSorted(scopes) {
+		t.Errorf("the scopes are not sorted: %v", scopes)
+	}
+
+	seen := map[string]bool{}
+	for _, scope := range scopes {
+		if scope == "" {
+			t.Error("the empty scope is in the list; an operation that needs none declares it")
+		}
+		if seen[scope] {
+			t.Errorf("%s appears twice", scope)
+		}
+		seen[scope] = true
+	}
+
+	// Every scope a use case asks for has to be one a token can be minted with. The reverse is
+	// what CreateAccessToken refuses: a name nothing checks is a bound nothing applies.
+	for _, descriptor := range catalogue.Descriptors() {
+		if descriptor.TokenScope != "" && !seen[descriptor.TokenScope] {
+			t.Errorf("%s needs %s, which no token could carry",
+				descriptor.Name, descriptor.TokenScope)
+		}
 	}
 }

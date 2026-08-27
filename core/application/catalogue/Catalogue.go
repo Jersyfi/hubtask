@@ -19,6 +19,8 @@
 package catalogue
 
 import (
+	"slices"
+
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -157,5 +159,31 @@ func Descriptors() []usecase.Descriptor {
 		identity.CreateGroup{}.Descriptor(),
 		identity.UpdateGroup{}.Descriptor(),
 		identity.DeleteGroup{}.Descriptor(),
+		identity.CreateAccessToken{}.Descriptor(),
+		identity.ListAccessTokens{}.Descriptor(),
+		identity.RevokeAccessToken{}.Descriptor(),
+		identity.CreateServiceAccount{}.Descriptor(),
+		identity.ListServiceAccounts{}.Descriptor(),
 	}
+}
+
+// Scopes is every token scope this build declares, sorted and without repeats.
+//
+// Derived from the descriptors rather than written down, because a list somebody maintains beside
+// them is a list that grows a scope no operation checks - and a scope no operation checks is a
+// bound a token's holder believes in and nothing applies. It is what CreateAccessToken validates
+// a request against, handed to it by the composition root: a use case cannot read the catalogue
+// it is itself part of (ADR-0001).
+func Scopes() []string {
+	seen := make(map[string]bool)
+	scopes := make([]string, 0, len(Descriptors()))
+	for _, descriptor := range Descriptors() {
+		if descriptor.TokenScope == "" || seen[descriptor.TokenScope] {
+			continue
+		}
+		seen[descriptor.TokenScope] = true
+		scopes = append(scopes, descriptor.TokenScope)
+	}
+	slices.Sort(scopes)
+	return scopes
 }
