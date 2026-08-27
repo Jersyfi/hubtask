@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+
+name: Website
+
+# hubtask.eu is served from the domain owner's IONOS webspace, and this is the workflow that puts
+# it there (open point CI-4, F1-12): build the prerendered site, prove it is plain static files,
+# and mirror dist/ over SFTP. Only main deploys - a pull request's build is checked by CI's
+# Workspace job, and publishing is not a review tool.
+#
+# The transport is lftp over SFTP with the host key pinned, deliberately: no third-party deploy
+# action (an action is a supply-chain decision, and lftp comes from the runner's own archive), and
+# no trust-on-first-use - the sftp backup adapter refuses TOFU, and the workflow that publishes
+# the public website does not get a laxer rule than a backup target.
+#
+# On a fork, or before the deploy configuration exists, the deploy half skips politely and says
+# so. The variables and secrets it needs, set in the repository settings:
+#   vars.WEBSITE_SFTP_HOST      - the IONOS SFTP host (e.g. access-xxxxxxxxx.webspace-host.com)
+#   vars.WEBSITE_SFTP_HOST_KEY  - one known_hosts line for that host (`ssh-keyscan <host>`)
+#   vars.WEBSITE_REMOTE_DIR     - the directory the domain serves (e.g. `.` or `hubtask.eu`)
+#   secrets.WEBSITE_SFTP_USER / secrets.WEBSITE_SFTP_PASSWORD
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/website/**"
+      - "packages/design-system/**"
+      - ".github/workflows/website.yml"
+      - "pnpm-lock.yaml"
+  # A redeploy without a commit: after the webspace was reconfigured, or to publish the current
+  # state once the variables above are first set.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One publish at a time, and never a cancelled one: an interrupted mirror leaves the webspace
+# half old and half new, which is worse than briefly stale.
+concurrency:
+  group: website-deploy
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      # The same command a contributor runs, so the version of pnpm is pinned in exactly one
+      # place - `packageManager` in package.json (ADR-0027).
+      - run: make tools-node
+      - run: echo "$PWD/.tools" >> "$GITHUB_PATH"
+      - id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+      # The build runs check-static.js itself: what leaves this job is proven plain static files,
+      # or nothing.
+      - run: make website
+
+      - name: Decide whether this installation deploys
+        id: config
+        env:
+          HOST: ${{ vars.WEBSITE_SFTP_HOST }}
+        run: |
+          if [ -n "$HOST" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "website: built and checked; deploy skipped - WEBSITE_SFTP_HOST is not configured"
+          fi
+
+      - name: Publish dist/ to the webspace
+        if: steps.config.outputs.deploy == 'true'
+        env:
+          HOST: ${{ vars.WEBSITE_SFTP_HOST }}
+          HOST_KEY: ${{ vars.WEBSITE_SFTP_HOST_KEY }}
+          REMOTE_DIR: ${{ vars.WEBSITE_REMOTE_DIR }}
+          SFTP_USER: ${{ secrets.WEBSITE_SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.WEBSITE_SFTP_PASSWORD }}
+        run: |
+          set -eu
+          if [ -z "$HOST_KEY" ] || [ -z "$SFTP_USER" ] || [ -z "$SFTP_PASSWORD" ]; then
+            echo "website: WEBSITE_SFTP_HOST is set but the host key, user or password is not" >&2
+            exit 1
+          fi
+          sudo apt-get update -q && sudo apt-get install -qy lftp
+          mkdir -p ~/.ssh && printf '%s\n' "$HOST_KEY" > ~/.ssh/known_hosts
+          # `--delete` makes the webspace mirror dist/ exactly: what the build no longer produces
+          # disappears, so a renamed asset does not linger as an orphan forever.
+          lftp -u "$SFTP_USER,$SFTP_PASSWORD" "sftp://$HOST" -e "
+            set sftp:auto-confirm no;
+            mirror -R --delete --parallel=4 apps/website/dist/ ${REMOTE_DIR:-.};
+            bye"
+          echo "website: published to $HOST/${REMOTE_DIR:-.}"

@@ -208,7 +208,7 @@ for that (open point CI-1).
 | CI-1 | Self-hosted runner for load tests | `0.6.0` |
 | CI-2 | Whether to enable the merge queue (worthwhile once several contributors work in parallel) | As needed |
 | CI-3 | Enforce image signature verification at deployment (Kyverno/Sigstore policy) | `0.9.0` |
-| CI-4 | Where `hubtask.eu` is served from, and which workflow deploys it — the `website` job builds and lints, nothing publishes | `0.4.0` (the pre-release site, [roadmap](../roadmap.md) phase 5) |
+| CI-4 | ~~Where `hubtask.eu` is served from, and which workflow deploys it~~ — answered with F1-12: the domain owner's IONOS webspace, published by `.github/workflows/website.yml` over SFTP with the host key pinned. What remains with the owner: setting `WEBSITE_SFTP_HOST`, `WEBSITE_SFTP_HOST_KEY`, `WEBSITE_REMOTE_DIR` and the two secrets in the repository settings, and pointing the domain at the webspace — the workflow builds, checks and skips politely until then | Closed (F1-12), configuration pending |
 
 ---
 
