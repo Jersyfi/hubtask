@@ -217,6 +217,16 @@ func (a Applier) precheck(
 	}
 	newest := chain[0]
 
+	// INSTANCE has nothing to restore yet (0.6.0): no writer produces an instance-scoped archive,
+	// and a tenant archive under the INSTANCE mode would be an approximation §8's table does not
+	// allow. backup-restore.md §8 says the scope check refuses the mode; it used to fall out of
+	// the comparison below by accident, and now it is said.
+	if restore.Mode == domain.RestoreInstance {
+		return nil, secret.Bytes{}, shared.ErrValidation.
+			WithDetail(domain.CodeRestoreArchiveScopeMismatch).
+			WithParams(map[string]string{"archive": restore.SourceArchive})
+	}
+
 	// BK-10 at the dry run and at the execution, not only at the listing. The archive's scope is
 	// in its manifest, and the manifest is the one member nobody can forge without the target's
 	// credentials.

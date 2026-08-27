@@ -537,21 +537,25 @@ else
 	echo "the drill holds: $CONFLICTS records read back, against $SOURCE_ITEMS entries in the source"
 fi
 
-# And the half that does not work yet, asserted rather than left out. `NEW_TENANT` mints a
-# workspace and then refuses its own archive: the precheck compares the manifest's scope against
-# the tenant being restored *into* (`Applier.precheck`), which for this mode is the one that was
-# minted a moment ago and can never match. So the mode that backup-restore.md §10 recommends for a
-# trial restore cannot complete, and this says so until it can - the same shape as the `--cascade`
-# check above.
-set +e
-new_tenant="$(hubctl restore run --target "$TARGET_ID" --archive "$ARCHIVE" \
-	--mode NEW_TENANT --apply --wait 5m 2>&1 >/dev/null)"
-new_tenant_code=$?
-set -e
-if [ "$new_tenant_code" -ne 1 ]; then
-	fail "a NEW_TENANT restore exited $new_tenant_code - if it works now, this check and the drill above it should become the round trip"
+# And the round trip backup-restore.md §10 recommends: the archive read back into a workspace of
+# its own (#206). The minted workspace's identifier comes back on the run, and the comparison is
+# the drill's whole point - the new workspace holds exactly as many entries as the source did,
+# counted in the database on both sides rather than looked at.
+new_tenant="$(hubctl --json restore run --target "$TARGET_ID" --archive "$ARCHIVE" \
+	--mode NEW_TENANT --apply --wait 5m)"
+expect_contains "restore run --mode NEW_TENANT" "$new_tenant" '"status": "SUCCEEDED"'
+NEW_TENANT_ID="$(printf '%s\n' "$new_tenant" | grep -o '"tenant_id": "[0-9a-f-]*"' | head -1 | cut -d'"' -f4)"
+[ -n "$NEW_TENANT_ID" ] || { echo "FAILED: the NEW_TENANT restore named no workspace: $new_tenant"; exit 1; }
+if [ "$NEW_TENANT_ID" = "$TENANT_ID" ]; then
+	fail "the NEW_TENANT restore landed in the source workspace itself"
 fi
-expect_contains "restore run --mode NEW_TENANT" "$new_tenant" "workspace"
+RESTORED_ITEMS="$(compose_in_place exec -T db psql -U hubtask -d hubtask -tAq \
+	-c "SELECT count(*) FROM work_item WHERE tenant_id = '$NEW_TENANT_ID'" | tr -d '[:space:]')"
+if [ "$RESTORED_ITEMS" != "$SOURCE_ITEMS" ]; then
+	fail "the new workspace holds $RESTORED_ITEMS entries, the source held $SOURCE_ITEMS - the round trip lost or invented data"
+else
+	echo "the round trip holds: $RESTORED_ITEMS entries in the new workspace, $SOURCE_ITEMS in the source"
+fi
 
 echo "--- how long things are kept ---"
 policy="$(hubctl retention add --kind COMPLETED_ITEM --days 90 --action TRASH)"

@@ -611,6 +611,25 @@ func TestAnArchiveOfAnotherTenantIsRefusedAtTheRestore(t *testing.T) {
 	}
 }
 
+// INSTANCE has nothing to restore until 0.6.0, and the refusal is explicit rather than an
+// accident of the scope comparison: even the asker's own tenant archive is refused under it.
+func TestAnInstanceRestoreIsRefused(t *testing.T) {
+	h := newApplyHarness(t, containerRows)
+	in := h.accept(t, func(r *domain.Restore) {
+		r.Mode, r.TenantID = domain.RestoreInstance, shared.ID("")
+	})
+
+	_, err := h.applier().Apply(context.Background(), in)
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != domain.CodeRestoreArchiveScopeMismatch {
+		t.Fatalf("refused with %v", err)
+	}
+	if h.imports.writes != 0 {
+		t.Error("the instance restore wrote something")
+	}
+}
+
 // mintedTenant stands in for the identifier StartRestore mints for a NEW_TENANT restore.
 var mintedTenant = shared.MustParseID("0192f000-0000-7000-8000-0000000000ee")
 
