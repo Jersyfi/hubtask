@@ -207,6 +207,20 @@ func (e *encryptor) Open(_ context.Context, sealed crypto.Sealed, _ crypto.Purpo
 	return secret.New(strings.TrimPrefix(string(sealed.Ciphertext), "sealed:")), nil
 }
 
+// countingEntropy draws different bytes each time, which clock.FixedEntropy deliberately does not.
+// A rotation whose second draw equalled its first would be a test that could not tell a rotation
+// from a no-op.
+type countingEntropy struct{ draws byte }
+
+func (e *countingEntropy) Bytes(n int) ([]byte, error) {
+	e.draws++
+	drawn := make([]byte, n)
+	for i := range drawn {
+		drawn[i] = e.draws + byte(i)
+	}
+	return drawn, nil
+}
+
 type ids struct{ next shared.ID }
 
 func (i ids) NewID() shared.ID { return i.next }
@@ -235,7 +249,7 @@ func newHarness(existing ...repository.StoredSubscription) *harness {
 	h.writer = Writer{
 		Subscriptions: h.store, Deliveries: h.delivered, Authorizer: h.auth,
 		Encryptor: h.sealer, Audit: h.sink, UnitOfWork: &unitOfWork{},
-		Clock: clock.Fixed(now), IDs: ids{next: hookID}, Entropy: clock.FixedEntropy{Seed: 3},
+		Clock: clock.Fixed(now), IDs: ids{next: hookID}, Entropy: &countingEntropy{},
 	}
 	return h
 }

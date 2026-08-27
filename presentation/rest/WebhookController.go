@@ -178,3 +178,112 @@ func webhookResponse(out usecase.Output) openapi.WebhookSubscription {
 	}
 	return subscription
 }
+
+// The deliveries and the rotation. Two of the three carry a secret or a log rather than a
+// subscription, so their responses are shaped here beside the ones above.
+const (
+	listWebhookDeliveriesUseCase = "ListWebhookDeliveries"
+	replayWebhookDeliveryUseCase = "ReplayWebhookDelivery"
+	rotateWebhookSecretUseCase   = "RotateWebhookSecret" //nolint:gosec // G101: a use case name, not a credential.
+)
+
+// ListWebhookDeliveries answers GET /integrations/webhooks/{webhookId}/deliveries.
+func (c *RestController) ListWebhookDeliveries(
+	w http.ResponseWriter, r *http.Request, webhookID openapi.WebhookId,
+	params openapi.ListWebhookDeliveriesParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		input := usecase.Input{"webhook_id": webhookID.String()}
+		if params.Status != nil {
+			input["status"] = string(*params.Status)
+		}
+		if params.Cursor != nil {
+			input["cursor"] = *params.Cursor
+		}
+		if params.Size != nil {
+			input["size"] = *params.Size
+		}
+		return c.UseCases.Invoke(r.Context(), listWebhookDeliveriesUseCase, actor, input)
+	}, func(out usecase.Output) {
+		rows, _ := out["data"].([]usecase.Output)
+		deliveries := make([]openapi.WebhookDelivery, 0, len(rows))
+		for _, row := range rows {
+			deliveries = append(deliveries, deliveryResponse(row))
+		}
+		writeJSON(w, r, http.StatusOK, openapi.WebhookDeliveryPage{
+			Data: deliveries, Page: pageResponse(out),
+		})
+	})
+}
+
+// ReplayWebhookDelivery answers POST /integrations/webhooks/{id}/deliveries/{deliveryId}:replay.
+func (c *RestController) ReplayWebhookDelivery(
+	w http.ResponseWriter, r *http.Request, webhookID openapi.WebhookId, deliveryID openapi.DeliveryId,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), replayWebhookDeliveryUseCase, actor, usecase.Input{
+			"webhook_id":  webhookID.String(),
+			"delivery_id": deliveryID.String(),
+		})
+	}, func(out usecase.Output) {
+		// Accepted rather than created: the attempt is recorded and queued, and whether the target
+		// answers is not something this response can know.
+		writeJSON(w, r, http.StatusAccepted, deliveryResponse(out))
+	})
+}
+
+// RotateWebhookSecret answers POST /integrations/webhooks/{webhookId}:rotate-secret.
+func (c *RestController) RotateWebhookSecret(
+	w http.ResponseWriter, r *http.Request, webhookID openapi.WebhookId,
+	_ openapi.RotateWebhookSecretParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		input := usecase.Input{"webhook_id": webhookID.String()}
+
+		// The body is optional, and an absent one is not an empty one: omitting the period asks
+		// for the default, and sending zero asks for the old secret to be retired at once. A
+		// rotation with no body at all is the common case - "give me a new secret, the usual
+		// grace" - so an empty body is read as that rather than refused.
+		if r.ContentLength > 0 {
+			var body openapi.WebhookSecretRotation
+			if err := decodeJSON(r, &body); err != nil {
+				return nil, err
+			}
+			if body.GraceSeconds != nil {
+				input["grace_seconds"] = *body.GraceSeconds
+			}
+		}
+		return c.UseCases.Invoke(r.Context(), rotateWebhookSecretUseCase, actor, input)
+	}, func(out usecase.Output) {
+		rotated := openapi.WebhookSubscriptionSecret{
+			Id:           uuidValue(out.String("id")),
+			TargetUrl:    out.String("target_url"),
+			EventTypes:   scopeList(out["event_types"]),
+			State:        openapi.WebhookSubscriptionSecretState(out.String("state")),
+			FailureCount: out.Int("failure_count"),
+			CreatedAt:    timeValue(out["created_at"]),
+			Version:      out.Int("version"),
+			Secret:       out.String("secret"),
+		}
+		writeJSON(w, r, http.StatusOK, rotated)
+	})
+}
+
+func deliveryResponse(out usecase.Output) openapi.WebhookDelivery {
+	delivery := openapi.WebhookDelivery{
+		Id:             uuidValue(out.String("id")),
+		SubscriptionId: uuidValue(out.String("subscription_id")),
+		EventId:        uuidValue(out.String("event_id")),
+		Attempt:        out.Int("attempt"),
+		Status:         openapi.WebhookDeliveryStatus(out.String("status")),
+		CreatedAt:      timeValue(out["created_at"]),
+		NextAttemptAt:  optionalTimeField(out["next_attempt_at"]),
+	}
+	if status, ok := out["response_status"].(int); ok {
+		delivery.ResponseStatus = &status
+	}
+	if code := out.String("error_code"); code != "" {
+		delivery.ErrorCode = &code
+	}
+	return delivery
+}

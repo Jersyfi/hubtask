@@ -744,6 +744,9 @@ func run() error {
 		integrationservice.ListWebhookSubscriptions{Writer: webhookWriter}.Descriptor(),
 		integrationservice.UpdateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
 		integrationservice.DeleteWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.ListWebhookDeliveries{Writer: webhookWriter}.Descriptor(),
+		integrationservice.ReplayWebhookDelivery{Writer: webhookWriter, Jobs: jobs}.Descriptor(),
+		integrationservice.RotateWebhookSecret{Writer: webhookWriter}.Descriptor(),
 		work.CreateContainer{
 			Containers: containers,
 			Authorizer: authorizer,
