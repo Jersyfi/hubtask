@@ -136,6 +136,35 @@ For platforms without a stable public URL:
 `GET /api/v1/integrations/triggers/{eventType}?since=<cursor>&limit=100` returns events in
 ascending order with a stable cursor — deduplicable through `event_id`.
 
+* Payload: the same **CloudEvents 1.0** document a webhook subscription would have been POSTed, and
+  `id` is the value `X-Hubtask-Event-Id` carries there. One schema, two transports: a consumer that
+  deduplicates on it needs to learn nothing new to switch between them.
+* The cursor is opaque and signed, and it names a position in the outbox — so it survives a restart
+  and a failover, and a client can neither construct one nor read one.
+* `since` absent starts at the oldest event still inside the window. A caller with no cursor has
+  either never polled or lost its cursor, and both need what is there rather than a gap they cannot
+  see.
+* **Retention bounds the window.** The outbox keeps dispatched events for the tenant's retention
+  period (`OUTBOX_EVENT`, seven days by default). A cursor older than that is answered `410 gone`
+  with `triggers.cursor_expired` rather than silently restarted: a poller that missed more than the
+  window has to know it missed, or it reports a completeness it does not have.
+* **Authorisation is the event's, not the endpoint's.** A poll needs `automation:manage` — the same
+  scope a webhook subscription needs, because pointing this workspace's whole event stream at an
+  outside address and reading it directly are the same power — *and* the event type's own read
+  scope: `items:read` for `de.hubtask.work.item.*`, `containers:read` for containers, buckets and
+  labels, `media:read` for attachments, `templates:read` for a template instantiation. A token
+  scoped to read items polls item events and is refused what it is not scoped for.
+* **A poll reads a moment behind the present.** `occurred_at` is stamped by the writing transaction
+  rather than by its commit, so a transaction that began before one already answered can still
+  commit a row that sorts *behind* the cursor — and a poller past it would step over the event
+  silently. Rows younger than `HUBTASK_TRIGGER_POLL_LAG` are therefore withheld from the page and
+  from the cursor together, and answered by the next poll. An event is visible to a poller a lag
+  after it happened; a webhook delivery is not delayed by this.
+* A replayed event — one a restore wrote rather than one somebody did — is not answered, exactly as
+  it is not delivered to a webhook (backup-restore.md §8.4).
+* An event type this build does not declare is refused by name rather than answered with an empty
+  page: a trigger configured against a typo would otherwise poll forever and report nothing wrong.
+
 ### 3.3 Recommendations for n8n/Zapier/Make
 
 | Need | Endpoint |

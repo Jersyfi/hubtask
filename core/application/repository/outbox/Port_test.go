@@ -1,43 +1,68 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-package outbox
+package outbox_test
 
 import (
-	"context"
-	"errors"
 	"testing"
+	"time"
 
-	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-type double struct {
-	appended []event.Envelope
-	err      error
-}
+// Before has to say what `(occurred_at, id) > (…, …)` says in the query, including inside one
+// microsecond - the two are one order written twice, and a disagreement between them is a poll that
+// repeats a row or steps over one.
+func TestAPositionSortsByTheMomentThenTheIdentifier(t *testing.T) {
+	at := time.Date(2026, 8, 27, 9, 0, 0, 0, time.UTC)
+	low := shared.ID("01936f2a-0000-7000-8000-000000000001")
+	high := shared.ID("01936f2a-0000-7000-8000-000000000002")
 
-func (d *double) Append(_ context.Context, envelope event.Envelope) error {
-	if d.err != nil {
-		return d.err
+	cases := []struct {
+		name   string
+		left   outbox.Position
+		right  outbox.Position
+		before bool
+	}{
+		{
+			name:  "an earlier moment",
+			left:  outbox.Position{OccurredAt: at, ID: high},
+			right: outbox.Position{OccurredAt: at.Add(time.Microsecond), ID: low}, before: true,
+		},
+		{
+			name:  "a later moment",
+			left:  outbox.Position{OccurredAt: at.Add(time.Microsecond), ID: low},
+			right: outbox.Position{OccurredAt: at, ID: high}, before: false,
+		},
+		{
+			name:  "the same moment, a lower identifier",
+			left:  outbox.Position{OccurredAt: at, ID: low},
+			right: outbox.Position{OccurredAt: at, ID: high}, before: true,
+		},
+		{
+			name:  "the same moment, a higher identifier",
+			left:  outbox.Position{OccurredAt: at, ID: high},
+			right: outbox.Position{OccurredAt: at, ID: low}, before: false,
+		},
+		{
+			name:  "the same position",
+			left:  outbox.Position{OccurredAt: at, ID: low},
+			right: outbox.Position{OccurredAt: at, ID: low}, before: false,
+		},
+		{
+			// The start of the window: no identifier at all, which sorts before every row of that
+			// microsecond. It is the position a caller with no cursor begins at.
+			name:  "the start of a moment",
+			left:  outbox.Position{OccurredAt: at},
+			right: outbox.Position{OccurredAt: at, ID: low}, before: true,
+		},
 	}
-	d.appended = append(d.appended, envelope)
-	return nil
-}
-
-var _ Events = (*double)(nil)
-
-// The one behaviour the port promises: a failure is reported rather than swallowed. An event
-// dropped quietly is a change that automation and webhooks never hear about, and nothing later
-// can tell that it is missing.
-func TestAFailureIsReportedRatherThanSwallowed(t *testing.T) {
-	failing := &double{err: shared.ErrUnavailable.WithDetail("postgres.query_failed")}
-
-	err := failing.Append(t.Context(), event.Envelope{Type: event.ContainerCreated})
-	if !errors.Is(err, shared.ErrUnavailable) {
-		t.Errorf("error %v, want the failure to reach the caller", err)
-	}
-	if len(failing.appended) != 0 {
-		t.Error("a failed append recorded something")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.left.Before(tc.right); got != tc.before {
+				t.Errorf("Before = %v, want %v", got, tc.before)
+			}
+		})
 	}
 }
