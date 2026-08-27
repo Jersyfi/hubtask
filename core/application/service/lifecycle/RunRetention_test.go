@@ -49,9 +49,10 @@ func (s *policyStore) Find(_ context.Context, kind domain.DataKind) (domain.Poli
 // eventStore is the outbox's remover, in memory. Rows carry whether they have been dispatched,
 // because that is the one thing about an outbox row the sweep is not allowed to ignore.
 type eventStore struct {
-	rows      []outboxRow
-	askedAt   time.Time
-	deleteErr error
+	rows              []outboxRow
+	askedAt           time.Time
+	consumptionCutoff time.Time
+	deleteErr         error
 }
 
 type outboxRow struct {
@@ -71,6 +72,11 @@ func (s *eventStore) due(cutoff time.Time, limit int) []int {
 		}
 	}
 	return due
+}
+
+func (s *eventStore) DeleteExpiredConsumption(_ context.Context, cutoff time.Time, _ int) (int, error) {
+	s.consumptionCutoff = cutoff
+	return 0, nil
 }
 
 func (s *eventStore) CountExpired(_ context.Context, cutoff time.Time, ceiling int) (int, error) {
@@ -545,5 +551,22 @@ func TestAPassWithoutTheOutboxSweepStillRuns(t *testing.T) {
 
 	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
 		t.Fatalf("a pass without the outbox sweep failed: %v", err)
+	}
+}
+
+// The twin table goes at the same cutoff, in the same pass. Two periods that could drift apart
+// would give one of them a value at which a consumption record outlives an event nobody can
+// deliver again - which is a dedupe entry protecting against nothing.
+func TestTheConsumptionRecordsAreSweptWithTheirEvents(t *testing.T) {
+	h := newRunHarness()
+	h.events.rows = []outboxRow{{occurredAt: now.Add(-30 * 24 * time.Hour), dispatched: true}}
+
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if !h.events.consumptionCutoff.Equal(h.events.askedAt) {
+		t.Errorf("the records were cut off at %v and the events at %v",
+			h.events.consumptionCutoff, h.events.askedAt)
 	}
 }

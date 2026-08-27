@@ -83,6 +83,11 @@ type NotificationHistory interface {
 type DispatchedEvents interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+
+	// DeleteExpiredConsumption removes the record of who has already consumed what. The outbox's
+	// twin table, swept at the same period and by the same pass: a record whose event has been
+	// swept can say nothing about an event nobody can deliver again (ADR-0007).
+	DeleteExpiredConsumption(ctx context.Context, cutoff time.Time, batch int) (int, error)
 }
 
 // Execute runs one pass for the tenant the transaction is bound to, and reports what it did.
@@ -212,6 +217,12 @@ func (h RunRetention) sweepEvents(ctx context.Context, started time.Time) (Outco
 		return Outcome{}, err
 	}
 	removed, sweepErr := h.Events.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+	if sweepErr == nil {
+		// The twin table, in the same pass and at the same cutoff. Not counted into the outcome:
+		// what the outcome decides is whether the job comes back straight away, and that question
+		// is about events rather than about the bookkeeping beside them.
+		_, sweepErr = h.Events.DeleteExpiredConsumption(ctx, cutoff, h.Purger.BatchSize)
+	}
 
 	finished := h.Clock.Now()
 	status := repository.RunSucceeded

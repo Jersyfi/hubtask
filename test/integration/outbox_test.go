@@ -556,8 +556,11 @@ func TestTheSweepTakesDispatchedRowsAndLeavesTheRest(t *testing.T) {
 		t.Fatalf("sweeping: %v", err)
 	}
 
-	if due != 1 || removed != 1 {
-		t.Errorf("due = %d, removed = %d; want one each - the old dispatched row", due, removed)
+	// At least one rather than exactly one: the suite shares a database, so another test's old
+	// dispatched rows are legitimately due as well. What this test is about is which of *its*
+	// three rows went, and that is asserted row by row below.
+	if due < 1 || removed < 1 {
+		t.Errorf("due = %d, removed = %d; the old dispatched row was neither due nor removed", due, removed)
 	}
 	if outboxRowExists(ctx, t, dispatched) {
 		t.Error("the old dispatched row survived the sweep")
@@ -571,6 +574,9 @@ func TestTheSweepTakesDispatchedRowsAndLeavesTheRest(t *testing.T) {
 	if !outboxRowExists(ctx, t, recent) {
 		t.Error("an event inside its period was swept")
 	}
+
+	deleteOutboxRow(ctx, t, pending)
+	deleteOutboxRow(ctx, t, recent)
 }
 
 // The cross-tenant negative gate SG-3 requires of every new repository method. Row level security
@@ -598,12 +604,18 @@ func TestTheSweepCannotReachAnotherTenantsEvents(t *testing.T) {
 		t.Fatalf("sweeping from the wrong tenant failed for the wrong reason: %v", err)
 	}
 
+	// Tenant B has none of its own here, so nothing at all may be due. Unlike the test above this
+	// one can be absolute: the assertion is precisely that a tenant sees zero of another's.
 	if due != 0 || removed != 0 {
 		t.Errorf("tenant B saw %d due and removed %d of tenant A's events", due, removed)
 	}
 	if !outboxRowExists(ctx, t, inA) {
 		t.Fatal("another tenant swept an event - the boundary did not hold")
 	}
+
+	// Cleaned up, because it is an old dispatched row and would otherwise be due in every later
+	// test that sweeps tenant A.
+	deleteOutboxRow(ctx, t, inA)
 }
 
 // seedOutboxRow writes one row directly, which is the only way to fix both its age and whether it
@@ -627,6 +639,13 @@ func seedOutboxRow(ctx context.Context, t *testing.T, tenant shared.ID, occurred
 		t.Fatalf("seeding an outbox row: %v", err)
 	}
 	return id
+}
+
+func deleteOutboxRow(ctx context.Context, t *testing.T, id string) {
+	t.Helper()
+	if _, err := adminPool(ctx, t).Exec(ctx, `DELETE FROM outbox_event WHERE id = $1`, id); err != nil {
+		t.Fatalf("removing the seeded outbox row: %v", err)
+	}
 }
 
 func outboxRowExists(ctx context.Context, t *testing.T, id string) bool {

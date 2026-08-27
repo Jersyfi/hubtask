@@ -114,18 +114,13 @@ func (d Dispatcher) deliver(ctx context.Context, envelope event.Envelope) error 
 			continue
 		}
 
-		// The claim comes first, and it is a write rather than a question: two dispatchers asking
-		// "has this been consumed" would both be told no. A repeat is not an error - it is the
-		// at-least-once guarantee doing what it says (ADR-0007).
-		first, err := d.Consumed.Claim(ctx, subscriber.Name(), envelope.ID)
-		if err != nil {
-			return err
-		}
-		if !first {
-			continue
-		}
-
-		if err := subscriber.Deliver(ctx, envelope); err != nil {
+		// Through the library function rather than the claim directly (ADR-0007's third
+		// countermeasure). The order of the claim and the work is the part that is easy to get
+		// wrong, and getting it wrong is invisible until an event is acted on twice - so it lives
+		// in one place that G-03's webhook delivery and G-07's rule engine call as well.
+		if _, err := eventbusport.Once(ctx, d.Consumed, subscriber.Name(), envelope,
+			func(ctx context.Context) error { return subscriber.Deliver(ctx, envelope) },
+		); err != nil {
 			return fmt.Errorf("subscriber %s: %w", subscriber.Name(), err)
 		}
 	}

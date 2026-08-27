@@ -78,3 +78,22 @@ SELECT count(*) FROM (
     AND occurred_at < sqlc.arg('cutoff')
   LIMIT sqlc.arg('ceiling')
 ) AS due;
+
+-- name: DeleteExpiredConsumption :execrows
+-- The other half of the outbox's sweep: the record of who has already consumed what
+-- (core/port/eventbus.RetentionWindow).
+--
+-- event_consumption_gc_idx has existed since phase 0 and nothing ever collected against it. The
+-- table is the outbox's twin - one row per event per consumer - so leaving it unswept would have
+-- made the sweep of the events themselves a half measure.
+--
+-- The same period as the events, deliberately: a record whose event has been swept can say nothing
+-- about an event nobody can deliver again. Two periods that could drift apart would give one of
+-- them a value at which this stops being true.
+DELETE FROM event_consumption
+WHERE (tenant_id, consumer, event_id) IN (
+  SELECT due.tenant_id, due.consumer, due.event_id FROM event_consumption AS due
+  WHERE due.consumed_at < sqlc.arg('cutoff')
+  ORDER BY due.consumed_at
+  LIMIT sqlc.arg('batch')
+);

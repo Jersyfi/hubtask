@@ -293,6 +293,26 @@ func (DispatchedEvents) DeleteExpired(ctx context.Context, cutoff time.Time, bat
 	return int(removed), nil
 }
 
+// DeleteExpiredConsumption removes one batch of consumption records. Called by the same sweep and
+// bounded by the same period as the events themselves - see db/queries/Outbox.sql.
+func (DispatchedEvents) DeleteExpiredConsumption(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	removed, err := queries.DeleteExpiredConsumption(ctx, sqlc.DeleteExpiredConsumptionParams{
+		Cutoff: timestampOf(cutoff),
+		Batch:  int32(batch), //nolint:gosec // G115: a batch size from the configuration.
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the consumption records: %w", err))
+	}
+	return int(removed), nil
+}
+
 // CountExpired reports how many rows are due, counted no higher than the ceiling.
 func (DispatchedEvents) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
 	queries, err := queriesFrom(ctx)
