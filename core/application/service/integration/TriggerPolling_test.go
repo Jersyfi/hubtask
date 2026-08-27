@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -107,11 +109,16 @@ func (c plainCursors) Decode(cursor string) (outbox.Position, error) {
 	if c.refuse {
 		return outbox.Position{}, shared.ErrValidation.WithDetail("triggers.cursor_invalid")
 	}
-	var micros int64
-	var id string
-	if _, err := fmt.Sscanf(cursor, "%d|%s", &micros, &id); err != nil {
+	moment, id, found := strings.Cut(cursor, "|")
+	if !found {
 		return outbox.Position{}, shared.ErrValidation.WithDetail("triggers.cursor_invalid")
 	}
+	micros, err := strconv.ParseInt(moment, 10, 64)
+	if err != nil {
+		return outbox.Position{}, shared.ErrValidation.WithDetail("triggers.cursor_invalid")
+	}
+	// An empty identifier is the start of the window, exactly as the real codec reads it: the
+	// service issues that position, so a fake that refused it would prove the opposite of the truth.
 	return outbox.Position{OccurredAt: time.UnixMicro(micros).UTC(), ID: shared.ID(id)}, nil
 }
 
@@ -174,8 +181,37 @@ func TestAPollAnswersTheTypeItWasAskedFor(t *testing.T) {
 	if got := page.Events[0]["id"]; got != wanted.ID.String() {
 		t.Errorf("answered %v, want %s", got, wanted.ID)
 	}
-	if page.Cursor.ID != wanted.ID {
-		t.Errorf("the cursor stands at %s, want %s", page.Cursor.ID, wanted.ID)
+	// The page did not come back full, so everything up to the horizon has been read and the cursor
+	// says so. It never passes the horizon.
+	if want := now.Add(-pollLag); !page.Cursor.OccurredAt.Equal(want) {
+		t.Errorf("the cursor stands at %v, want the horizon %v", page.Cursor.OccurredAt, want)
+	}
+	if page.More {
+		t.Error("a page that was not full reported more")
+	}
+}
+
+// Where the cursor of a partial page moves, and why it must move at all: a caller with no cursor
+// starts at the retention cutoff, and the cutoff walks forward with the clock. A cursor left on it
+// would be older than the cutoff by the next poll and refused as expired - so a quiet stream would
+// answer 410 to every second call.
+func TestTheCursorOfAQuietStreamDoesNotFallBehindTheWindow(t *testing.T) {
+	h := newPollHarness()
+
+	page, err := h.handler.Execute(context.Background(), pollingActor(bothScopes()...),
+		PollTriggerEventsCommand{EventType: string(event.ItemCreated)})
+	if err != nil {
+		t.Fatalf("the first poll: %v", err)
+	}
+
+	// The clock moves on, and with it the cutoff. The cursor just issued has to survive that.
+	h.handler.Clock = clock.Fixed(now.Add(time.Hour))
+	if _, err := h.handler.Execute(context.Background(), pollingActor(bothScopes()...),
+		PollTriggerEventsCommand{
+			EventType: string(event.ItemCreated),
+			Cursor:    plainCursors{}.Encode(page.Cursor),
+		}); err != nil {
+		t.Fatalf("the second poll refused the cursor the first one issued: %v", err)
 	}
 }
 
@@ -194,9 +230,15 @@ func TestAPollWithholdsWhatIsYoungerThanTheLag(t *testing.T) {
 	if len(page.Events) != 1 || page.Events[0]["id"] != settled.ID.String() {
 		t.Fatalf("answered %v, want only the settled event", page.Events)
 	}
-	if page.Cursor.ID != settled.ID {
-		t.Errorf("the cursor stands at %s, want %s - it must not pass the horizon",
-			page.Cursor.ID, settled.ID)
+	// The cursor reaches the horizon and stops there, which is well short of the fresh event: a
+	// cursor that had passed it would step over whatever is still committing behind it.
+	horizon := now.Add(-pollLag)
+	if !page.Cursor.OccurredAt.Equal(horizon) {
+		t.Errorf("the cursor stands at %v, want the horizon %v", page.Cursor.OccurredAt, horizon)
+	}
+	if !page.Cursor.OccurredAt.Before(fresh.OccurredAt) {
+		t.Errorf("the cursor reached %v, which is at or past the withheld event at %v",
+			page.Cursor.OccurredAt, fresh.OccurredAt)
 	}
 	if horizon := h.log.asked[0].horizon; !horizon.Equal(now.Add(-pollLag)) {
 		t.Errorf("horizon %v, want %v", horizon, now.Add(-pollLag))
@@ -244,8 +286,11 @@ func TestTwoPollsWithTheCursorNeitherRepeatNorSkip(t *testing.T) {
 	}
 }
 
-// An empty page still advances nothing, and a poller crawling a quiet stretch does not re-walk it.
-func TestAnEmptyPageKeepsTheCursorItStartedFrom(t *testing.T) {
+// An empty page moves the cursor to the horizon and no further. Nothing is stepped over by moving:
+// the query answered every row up to the horizon and there were none, and no transaction that could
+// still write one behind it is open. A poller crawling a quiet stretch therefore does not re-walk
+// it, and does not run ahead of what is settled either.
+func TestAnEmptyPageAdvancesToTheHorizonAndNoFurther(t *testing.T) {
 	h := newPollHarness()
 
 	from := outbox.Position{
@@ -261,8 +306,34 @@ func TestAnEmptyPageKeepsTheCursorItStartedFrom(t *testing.T) {
 	if len(page.Events) != 0 || page.More {
 		t.Fatalf("an empty log answered %d events (more=%v)", len(page.Events), page.More)
 	}
-	if page.Cursor != from {
-		t.Errorf("the cursor moved to %v, want %v", page.Cursor, from)
+	if want := now.Add(-pollLag); !page.Cursor.OccurredAt.Equal(want) {
+		t.Errorf("the cursor moved to %v, want the horizon %v", page.Cursor.OccurredAt, want)
+	}
+	if !page.Cursor.OccurredAt.Before(now) {
+		t.Error("the cursor reached the present, which is past what is settled")
+	}
+}
+
+// A full page leaves the cursor on the last row it read: there may be more before the horizon, and
+// jumping to it would step over them.
+func TestAFullPageLeavesTheCursorOnItsLastRow(t *testing.T) {
+	var rows []event.Envelope
+	for i := range 3 {
+		rows = append(rows, emitted(now.Add(-time.Duration(10-i)*time.Minute),
+			fmt.Sprintf("01936f2a-0000-7000-8000-00000000000%d", i+1), event.ItemCreated))
+	}
+	h := newPollHarness(rows...)
+
+	page, err := h.handler.Execute(context.Background(), pollingActor(bothScopes()...),
+		PollTriggerEventsCommand{EventType: string(event.ItemCreated), Limit: 2})
+	if err != nil {
+		t.Fatalf("polling: %v", err)
+	}
+	if !page.More {
+		t.Fatal("a full page did not report more")
+	}
+	if page.Cursor.ID != rows[1].ID {
+		t.Errorf("the cursor stands at %s, want the last row read %s", page.Cursor.ID, rows[1].ID)
 	}
 }
 

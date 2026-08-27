@@ -137,6 +137,7 @@ func (h PollTriggerEvents) Execute(
 	}
 
 	now := h.Clock.Now()
+	horizon := now.Add(-h.Lag)
 
 	var (
 		policy    lifecycle.Policy
@@ -159,7 +160,7 @@ func (h PollTriggerEvents) Execute(
 		if from, err = h.resume(cmd.Cursor, policy, now); err != nil {
 			return err
 		}
-		envelopes, err = h.Events.Poll(ctx, eventType, from, now.Add(-h.Lag), boundedLimit(cmd.Limit))
+		envelopes, err = h.Events.Poll(ctx, eventType, from, horizon, boundedLimit(cmd.Limit))
 		return err
 	})
 	if err != nil {
@@ -171,18 +172,32 @@ func (h PollTriggerEvents) Execute(
 		rendered = append(rendered, h.Rendering.Render(envelope))
 	}
 
-	// The position of the last row read, and the one it started from when nothing was read. A
-	// cursor that stalled on an empty page would re-walk the same quiet stretch on every poll.
+	more := len(envelopes) == boundedLimit(cmd.Limit)
+
 	cursor := from
 	if last := len(envelopes) - 1; last >= 0 {
 		cursor = outbox.Position{OccurredAt: envelopes[last].OccurredAt, ID: envelopes[last].ID}
 	}
 
-	return Page{
-		Events: rendered,
-		Cursor: cursor,
-		More:   len(envelopes) == boundedLimit(cmd.Limit),
-	}, nil
+	// A page that did not come back full has read everything up to the horizon, so the cursor moves
+	// to the horizon rather than staying where the last row was - or, on an empty page, where it
+	// started.
+	//
+	// It is not a nicety. The starting position of a caller with no cursor is the retention cutoff,
+	// and the cutoff moves with the clock: a cursor left sitting on it would be older than the
+	// cutoff by the next poll and refused as expired, which would make a quiet stream answer 410 to
+	// every second call. Advancing keeps the cursor a lag behind the present rather than a window
+	// behind it.
+	//
+	// Nothing is stepped over by moving. The query answered every row up to the horizon, and the
+	// horizon is the moment before which no transaction can still be open - which is the whole
+	// reason it exists. A row standing exactly on the horizon keeps its own position, because that
+	// sorts after the horizon's own and the comparison here says so.
+	if edge := (outbox.Position{OccurredAt: horizon}); !more && cursor.Before(edge) {
+		cursor = edge
+	}
+
+	return Page{Events: rendered, Cursor: cursor, More: more}, nil
 }
 
 // resume decides where the walk starts, and refuses a cursor the window no longer covers.

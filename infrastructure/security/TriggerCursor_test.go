@@ -4,6 +4,7 @@
 package security_test
 
 import (
+	"encoding/base64"
 	"net/url"
 	"testing"
 	"time"
@@ -74,12 +75,15 @@ func TestATamperedTriggerCursorIsRefused(t *testing.T) {
 		triggerPosition(t, time.Date(2026, 8, 27, 9, 0, 0, 0, time.UTC)))
 
 	mutations := map[string]string{
-		"a flipped byte":  flipLast(cursor),
-		"truncated":       cursor[:len(cursor)-4],
-		"empty":           "",
-		"not base64":      "not a cursor!!",
-		"only a tag":      cursor[:8],
-		"another payload": triggerCursors().Encode(outbox.Position{}),
+		"a flipped byte": flipLast(cursor),
+		"truncated":      cursor[:len(cursor)-4],
+		"empty":          "",
+		"not base64":     "not a cursor!!",
+		"only a tag":     cursor[:8],
+		// A payload nobody signed: the fields are the right shape, and the tag in front of them is
+		// somebody's guess.
+		"an unsigned payload": base64.RawURLEncoding.EncodeToString(
+			append(make([]byte, 16), []byte("1000000000000000.01a04489-d819-752a-91ae-85e8bf4f236b")...)),
 	}
 	for name, forged := range mutations {
 		t.Run(name, func(t *testing.T) {
@@ -122,4 +126,22 @@ func flipLast(cursor string) string {
 		raw[len(raw)-1] = 'A'
 	}
 	return string(raw)
+}
+
+// The start of the window is a position like any other, and the service issues it whenever a poll
+// comes back empty. A codec that refused it would make an empty first page a dead end.
+func TestTheStartOfTheWindowRoundTrips(t *testing.T) {
+	at := time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC)
+	codec := triggerCursors()
+
+	back, err := codec.Decode(codec.Encode(outbox.Position{OccurredAt: at}))
+	if err != nil {
+		t.Fatalf("decoding the start of the window: %v", err)
+	}
+	if !back.OccurredAt.Equal(at) {
+		t.Errorf("occurred at %v, want %v", back.OccurredAt, at)
+	}
+	if !back.ID.IsZero() {
+		t.Errorf("id %s, want the zero value", back.ID)
+	}
 }

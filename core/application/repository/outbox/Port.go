@@ -63,6 +63,18 @@ type Position struct {
 	ID         shared.ID
 }
 
+// Before reports whether this position sorts ahead of the other one, in the table's order.
+//
+// The identifier breaks the tie inside one microsecond, exactly as `(occurred_at, id) > (…, …)`
+// does in the query. Having the comparison here rather than written out at each call site is what
+// keeps the two statements of the order from disagreeing.
+func (p Position) Before(other Position) bool {
+	if p.OccurredAt.Equal(other.OccurredAt) {
+		return p.ID < other.ID
+	}
+	return p.OccurredAt.Before(other.OccurredAt)
+}
+
 // Pollable is the outbox as an external trigger reads it: one event type, oldest first, from a
 // position (automation.md §3.2).
 //

@@ -95,9 +95,16 @@ func (c TriggerCursorCodec) Decode(cursor string) (outbox.Position, error) {
 	if err != nil {
 		return outbox.Position{}, errTriggerCursorInvalid
 	}
-	id, err := shared.ParseID(fields[1])
-	if err != nil {
-		return outbox.Position{}, errTriggerCursorInvalid
+	// An empty identifier is a position rather than a malformed one: it is what "the start of the
+	// window, nothing read yet" encodes to, and the service issues exactly that cursor for a poll
+	// that came back empty. Refusing it here would make an empty first page a cursor the next poll
+	// cannot use.
+	var id shared.ID
+	if fields[1] != "" {
+		var err error
+		if id, err = shared.ParseID(fields[1]); err != nil {
+			return outbox.Position{}, errTriggerCursorInvalid
+		}
 	}
 	return outbox.Position{OccurredAt: time.UnixMicro(micros).UTC(), ID: id}, nil
 }
