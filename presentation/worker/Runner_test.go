@@ -225,6 +225,50 @@ func TestTheLastAttemptEndsInTheDeadLetter(t *testing.T) {
 	}
 }
 
+// releasingHandler records what the runner asked it to let go of (queue.Releaser).
+type releasingHandler struct {
+	handlerFunc
+	released []queue.Job
+}
+
+func (h *releasingHandler) Release(_ context.Context, job queue.Job) {
+	h.released = append(h.released, job)
+}
+
+// A handler holding a lock beyond the job row is asked to let it go exactly when the queue gives
+// up - at the dead letter, and not on an attempt that will be retried (#207). A run row left
+// RUNNING by a dead job would hold its target's lock for ever.
+func TestADeadLetteredJobReleasesWhatItHolds(t *testing.T) {
+	failing := func(context.Context, queue.Job) (queue.Result, error) {
+		return queue.Result{}, shared.ErrInternal.WithDetail("outbox.dispatch_without_tenant")
+	}
+
+	t.Run("the dead letter releases", func(t *testing.T) {
+		jobs := newQueue()
+		handler := &releasingHandler{handlerFunc: failing}
+
+		runner(jobs, &unitOfWork{}, handler, &signalsDouble{}).execute(t.Context(), job(3))
+
+		if len(handler.released) != 1 {
+			t.Fatalf("released %d times, want once", len(handler.released))
+		}
+		if handler.released[0].ID != jobID {
+			t.Errorf("released job %s, want %s", handler.released[0].ID, jobID)
+		}
+	})
+
+	t.Run("a retry does not", func(t *testing.T) {
+		jobs := newQueue()
+		handler := &releasingHandler{handlerFunc: failing}
+
+		runner(jobs, &unitOfWork{}, handler, &signalsDouble{}).execute(t.Context(), job(1))
+
+		if len(handler.released) != 0 {
+			t.Errorf("released %d times on an attempt that will be retried", len(handler.released))
+		}
+	})
+}
+
 // A panic in a job is a failed job, not a dead process (rule 5). It is retried like any other
 // failure, and the value that was thrown does not travel into the error - it can carry anything.
 func TestAPanickingHandlerFailsTheJobRatherThanTheProcess(t *testing.T) {

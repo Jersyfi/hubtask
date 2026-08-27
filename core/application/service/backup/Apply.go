@@ -349,6 +349,25 @@ func (a Applier) succeed(
 	})
 }
 
+// Abandon closes a restore whose job the queue has given up on (#207).
+//
+// The open row - PENDING or RUNNING - holds the one-restore-per-tenant lock: InProgress refuses
+// every later restore while it stands, and the worker that would have closed it is not coming
+// back. Closed as FAILED under its own code; a row already terminal answers a conflict this
+// treats as done.
+func (a Applier) Abandon(ctx context.Context, restoreID, tenantID shared.ID) error {
+	err := a.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {
+		return a.Restores.Finish(ctx, domain.RestoreOutcome{
+			ID: restoreID, Status: domain.RestoreFailed,
+			FinishedAt: a.Clock.Now(), ErrorCode: domain.CodeRestoreAbandoned,
+		})
+	})
+	if err != nil && !errors.Is(err, shared.ErrConflict) && !errors.Is(err, shared.ErrNotFound) {
+		return err
+	}
+	return nil
+}
+
 // fail closes a restore that did not work, with the code and nothing else.
 //
 // The code and never a message: an error's text can carry a bucket name, a host or a path, and a

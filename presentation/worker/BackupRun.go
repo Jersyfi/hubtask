@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	service "github.com/Jersyfi/hubtask/core/application/service/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
@@ -36,6 +37,7 @@ type BackupRun struct {
 var (
 	_ queue.Handler  = BackupRun{}
 	_ queue.Detached = BackupRun{}
+	_ queue.Releaser = BackupRun{}
 )
 
 // OwnsItsTransactions is the assertion queue.Detached asks for. See the type's comment.
@@ -51,18 +53,47 @@ func (h BackupRun) Run(ctx context.Context, job queue.Job) (queue.Result, error)
 
 	run, err := h.Performer.Perform(ctx, in)
 	if err != nil {
-		// Another run holds the target. Not a failure to retry into: the work is happening, and a
-		// second archive at the same moment is what the lock exists to prevent.
+		// Another run holds the target. Not a failure to retry into - the work is happening, and
+		// a second archive at the same moment is what the lock exists to prevent - but not a
+		// success either: this job was asked for an archive and has not written one. It comes
+		// back when the target should be free and writes it then, so the job's final state never
+		// says SUCCEEDED over work that did not happen (#207).
 		if busy(err) {
-			slog.InfoContext(ctx, "a backup was already running at that target",
+			slog.InfoContext(ctx, "a backup was already running at that target; coming back",
 				slog.String("target_id", in.TargetID.String()))
-			return queue.Result{}, nil
+			return queue.Result{Repeat: true, RepeatAfter: busyRetryDelay}, nil
 		}
 		return queue.Result{}, err
 	}
 
 	h.Expiry.After(ctx, run)
 	return queue.Result{}, nil
+}
+
+// busyRetryDelay is how long a run waits for its target to free up before it looks again.
+//
+// Long enough that a legitimate hours-long backup is polled a handful of times rather than
+// hammered, short enough that a freed target is picked up the same night the schedule meant. The
+// looking is one refused insert - cheap - so the exact number matters less than that there is one.
+const busyRetryDelay = 5 * time.Minute
+
+// Release closes the run row of a job the queue has given up on (queue.Releaser, #207).
+//
+// A run left RUNNING holds the one-run-per-target lock for ever: every later backup at that target
+// is refused, and the refusals come back as repeats that never end. The row is closed as FAILED
+// with its own code, which frees the target and puts the truth where GetBackupRun reads - and a
+// run that is already terminal, or that never claimed its row, answers a conflict this treats as
+// done.
+func (h BackupRun) Release(ctx context.Context, job queue.Job) {
+	in, err := performInputOf(job)
+	if err != nil {
+		return
+	}
+	if err := h.Performer.Abandon(ctx, in.RunID, in.TenantID); err != nil {
+		slog.WarnContext(ctx, "an abandoned backup run could not be closed; its target stays locked",
+			slog.String("run_id", in.RunID.String()),
+			slog.String("error", shared.AsError(err).Code))
+	}
 }
 
 // reporter turns the queue's fence into the callback the performer takes, and swallows what it

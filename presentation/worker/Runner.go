@@ -238,6 +238,19 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string) {
 		}
 	}
 
+	// The dead letter is where the queue's account of the work ends, so a handler holding a lock
+	// beyond the job row - a run row saying RUNNING - lets it go now rather than for ever (#207).
+	// Before the failure is recorded, on the same detached context: a released lock whose dead
+	// letter was lost costs one repeated release, while a dead letter whose release was lost
+	// costs a target nobody can back up again.
+	if attemptClass == "final" {
+		if releaser, holds := r.Handlers[job.Kind].(queue.Releaser); holds {
+			releaseCtx, cancelRelease := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingTimeout)
+			releaser.Release(releaseCtx, job)
+			cancelRelease()
+		}
+	}
+
 	// The code and the identifiers only. What the job was working on may be user content, and a
 	// log line is not the place for it (rule 10).
 	slog.WarnContext(ctx, "job failed",

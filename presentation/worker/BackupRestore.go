@@ -36,7 +36,25 @@ type BackupRestore struct {
 var (
 	_ queue.Handler  = BackupRestore{}
 	_ queue.Detached = BackupRestore{}
+	_ queue.Releaser = BackupRestore{}
 )
+
+// Release closes the restore row of a job the queue has given up on (queue.Releaser, #207).
+//
+// The open row holds the one-restore-per-tenant lock, and with the job in the dead letter nothing
+// else will ever close it: every later restore in the tenant would be refused for ever. Closed as
+// FAILED under its own code; a row already terminal is left as it is.
+func (h BackupRestore) Release(ctx context.Context, job queue.Job) {
+	restoreID, err := identifierIn(job, "restore_id")
+	if err != nil || job.TenantID.IsZero() {
+		return
+	}
+	if err := h.Applier.Abandon(ctx, restoreID, job.TenantID); err != nil {
+		slog.WarnContext(ctx, "an abandoned restore could not be closed; the workspace stays locked for restores",
+			slog.String("restore_id", restoreID.String()),
+			slog.String("error", shared.AsError(err).Code))
+	}
+}
 
 // OwnsItsTransactions is the assertion queue.Detached asks for. See the type's comment.
 func (h BackupRestore) OwnsItsTransactions() {}

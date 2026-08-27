@@ -254,6 +254,28 @@ type Detached interface {
 	OwnsItsTransactions()
 }
 
+// Releaser is a handler that holds a lock outside the job table - a run row, a claim - and has to
+// let it go when the queue gives up on the job.
+//
+// The runner calls Release once, when a job goes to the dead letter. Without it, a lock whose row
+// says RUNNING outlives the job that would have finished it: every later backup at that target is
+// refused for ever, and nothing on any dashboard says why (#207). Release is the reconciliation at
+// the moment the queue's own account of the work ends - not a retry, not a second attempt at the
+// job, only the honest closing of what the job left open.
+//
+// It must be safe to call for a job that never took its lock (the row may not exist, or may be
+// terminal already) and safe to call twice - the runner promises one call per dead-lettered job,
+// but a lease that expired between the failure and its recording can hand the job to a second
+// worker whose failure dead-letters it again.
+type Releaser interface {
+	Handler
+
+	// Release lets go of whatever the job's work holds beyond the job row itself. Best effort:
+	// the runner logs a failure and does not retry it, so an implementation that can leave a
+	// stale lock behind should say so where the lock is documented.
+	Release(ctx context.Context, job Job)
+}
+
 // Reporter is how a long job says how far along it is (E-05).
 //
 // A second interface rather than a method on Queue, for the reason persistence.Snapshot is one:
