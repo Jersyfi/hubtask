@@ -203,3 +203,14 @@ ORDER BY created_at DESC, id DESC;
 -- the moment it was first pulled from being overwritten.
 UPDATE access_token SET revoked_at = sqlc.arg('revoked_at')
 WHERE id = sqlc.arg('id') AND revoked_at IS NULL;
+
+-- name: AccountsOfKind :many
+-- The workspace's service accounts, newest first by identifier - UUIDv7 is time-ordered, so the
+-- primary key is the creation order and needs no second column to sort on.
+--
+-- Bounded by the kind rather than by a page: an installation has a handful of integrations, and a
+-- cursor over a handful is machinery nobody reads.
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+FROM account
+WHERE kind = sqlc.arg('kind') AND deleted_at IS NULL
+ORDER BY id DESC;

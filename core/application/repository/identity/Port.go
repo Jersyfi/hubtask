@@ -114,6 +114,11 @@ type Accounts interface {
 	// the uniqueness is the database's to enforce and racing callers must not both win.
 	Insert(ctx context.Context, account identity.Account) error
 
+	// ListOfKind returns the tenant's accounts of one kind, newest first. It exists for the
+	// service accounts, which are the one kind somebody administers as a set: a person is found
+	// by name or address, and a machine is found in the list of machines.
+	ListOfKind(ctx context.Context, kind identity.AccountKind) ([]identity.Account, error)
+
 	// UpdatePreferences writes the three preference columns and nothing else. A method per
 	// concern rather than a general update: an update that can write any column is one that can
 	// write the status by accident.

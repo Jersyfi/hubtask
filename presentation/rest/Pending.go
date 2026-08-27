@@ -67,9 +67,8 @@ func (pending) DeleteGroup(w http.ResponseWriter, r *http.Request, _ openapi.Gro
 	notAvailable(w, r)
 }
 
-// The three token operations are overridden by RestController; they stay here because the
-// compile-time check above needs every method of the interface. The two service account ones land
-// with their use cases, and until then the routes exist because the contract declares them.
+// The five credential operations of G-01. All of them are overridden by RestController; they stay
+// here because the compile-time check above needs every method of the interface.
 func (pending) ListAccessTokens(w http.ResponseWriter, r *http.Request, _ openapi.ListAccessTokensParams) {
 	notAvailable(w, r)
 }

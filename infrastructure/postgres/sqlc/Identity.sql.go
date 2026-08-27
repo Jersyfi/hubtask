@@ -63,6 +63,58 @@ func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.U
 	return items, nil
 }
 
+const accountsOfKind = `-- name: AccountsOfKind :many
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+FROM account
+WHERE kind = $1 AND deleted_at IS NULL
+ORDER BY id DESC
+`
+
+type AccountsOfKindRow struct {
+	ID          pgtype.UUID
+	Kind        AccountKind
+	Email       *string
+	DisplayName string
+	Status      AccountStatus
+	Locale      *string
+	TimeZone    *string
+	WeekStart   *string
+}
+
+// The workspace's service accounts, newest first by identifier - UUIDv7 is time-ordered, so the
+// primary key is the creation order and needs no second column to sort on.
+//
+// Bounded by the kind rather than by a page: an installation has a handful of integrations, and a
+// cursor over a handful is machinery nobody reads.
+func (q *Queries) AccountsOfKind(ctx context.Context, kind AccountKind) ([]AccountsOfKindRow, error) {
+	rows, err := q.db.Query(ctx, accountsOfKind, kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AccountsOfKindRow{}
+	for rows.Next() {
+		var i AccountsOfKindRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Email,
+			&i.DisplayName,
+			&i.Status,
+			&i.Locale,
+			&i.TimeZone,
+			&i.WeekStart,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const addGroupMember = `-- name: AddGroupMember :exec
 INSERT INTO account_group_member (tenant_id, group_id, account_id)
 VALUES (current_tenant_id(), $1, $2)

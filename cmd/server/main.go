@@ -368,6 +368,13 @@ func run() error {
 		KnownScopes: catalogue.Scopes(),
 	}
 
+	// The service accounts share theirs for the same reason: creating one and listing them are
+	// the same permission over the same store.
+	serviceAccounts := identity.ServiceAccounts{
+		Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	// The work management use cases share theirs the same way. The capability profiles in
 	// particular: /meta/capabilities answers from the same reader that decides whether a
 	// placement is permitted, so what an installation advertises and what it accepts cannot
@@ -715,6 +722,8 @@ func run() error {
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
+		identity.CreateServiceAccount{Accounts: serviceAccounts}.Descriptor(),
+		identity.ListServiceAccounts{Accounts: serviceAccounts}.Descriptor(),
 		work.CreateContainer{
 			Containers: containers,
 			Authorizer: authorizer,

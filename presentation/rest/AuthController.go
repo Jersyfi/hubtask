@@ -9,6 +9,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -21,6 +22,9 @@ const (
 	listAccessTokensUseCase  = "ListAccessTokens"
 	createAccessTokenUseCase = "CreateAccessToken"
 	revokeAccessTokenUseCase = "RevokeAccessToken"
+
+	listServiceAccountsUseCase  = "ListServiceAccounts"
+	createServiceAccountUseCase = "CreateServiceAccount"
 )
 
 // ListAccessTokens answers GET /auth/tokens.
@@ -122,4 +126,50 @@ func scopeList(value any) []string {
 		}
 	}
 	return scopes
+}
+
+// ListServiceAccounts answers GET /auth/service-accounts.
+//
+// Written out rather than through the identity helper, for the reason ListCalendarFeeds is: the
+// helper's closure takes no context, and an operation with no parameters gives the linter nothing
+// to trace the request's context through.
+func (c *RestController) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(
+		r.Context(), listServiceAccountsUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	rows, _ := out["data"].([]usecase.Output)
+	accounts := make([]openapi.Account, 0, len(rows))
+	for _, row := range rows {
+		accounts = append(accounts, accountResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, accounts)
+}
+
+// CreateServiceAccount answers POST /auth/service-accounts.
+func (c *RestController) CreateServiceAccount(
+	w http.ResponseWriter, r *http.Request, _ openapi.CreateServiceAccountParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.ServiceAccountCreate
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+		return c.UseCases.Invoke(r.Context(), createServiceAccountUseCase, actor, usecase.Input{
+			"display_name": body.DisplayName,
+		})
+	}, func(out usecase.Output) {
+		account := accountResponse(out)
+		w.Header().Set("Location", APIBasePath+"/auth/service-accounts/"+account.Id.String())
+		writeJSON(w, r, http.StatusCreated, account)
+	})
 }

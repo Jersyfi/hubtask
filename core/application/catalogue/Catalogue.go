@@ -162,6 +162,8 @@ func Descriptors() []usecase.Descriptor {
 		identity.CreateAccessToken{}.Descriptor(),
 		identity.ListAccessTokens{}.Descriptor(),
 		identity.RevokeAccessToken{}.Descriptor(),
+		identity.CreateServiceAccount{}.Descriptor(),
+		identity.ListServiceAccounts{}.Descriptor(),
 	}
 }
 

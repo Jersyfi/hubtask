@@ -6,6 +6,8 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,6 +86,19 @@ func (s *accountStore) Insert(_ context.Context, account domain.Account) error {
 	s.byEmail[account.Email] = account
 	s.inserted = append(s.inserted, account)
 	return nil
+}
+
+// ListOfKind reads the store's own accounts. Insertion order, so that a listing test can say
+// which came first without a clock.
+func (s *accountStore) ListOfKind(_ context.Context, kind domain.AccountKind) ([]domain.Account, error) {
+	var found []domain.Account
+	for _, account := range s.byID {
+		if account.Kind == kind {
+			found = append(found, account)
+		}
+	}
+	slices.SortFunc(found, func(a, b domain.Account) int { return strings.Compare(string(b.ID), string(a.ID)) })
+	return found, nil
 }
 
 func (s *accountStore) UpdatePreferences(_ context.Context, account domain.Account, _ time.Time) error {
