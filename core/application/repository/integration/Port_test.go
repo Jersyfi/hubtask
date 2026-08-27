@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -51,5 +52,56 @@ func TestTheEmptyAnswersAreDistinguishable(t *testing.T) {
 	changed, err := (double{}).Revoke(t.Context(), "", time.Time{})
 	if err != nil || changed {
 		t.Errorf("revoking nothing answered (%v, %v)", changed, err)
+	}
+}
+
+// The two G-03 ports, held in place the same way. A signature change that breaks the use case
+// tests breaks this first, with a clearer message.
+type subscriptions struct{}
+
+func (subscriptions) Insert(context.Context, StoredSubscription) error { return nil }
+func (subscriptions) Find(context.Context, shared.ID) (StoredSubscription, error) {
+	return StoredSubscription{}, shared.ErrNotFound
+}
+func (subscriptions) List(context.Context) ([]domain.WebhookSubscription, error) { return nil, nil }
+func (subscriptions) WantingEvent(context.Context, event.Type) ([]StoredSubscription, error) {
+	return nil, nil
+}
+func (subscriptions) Update(context.Context, domain.WebhookSubscription, int) (bool, error) {
+	return false, nil
+}
+func (subscriptions) Rotate(context.Context, shared.ID, SealedSecret, time.Time, int) (bool, error) {
+	return false, nil
+}
+func (subscriptions) Delete(context.Context, shared.ID) (bool, error) { return false, nil }
+
+type deliveries struct{}
+
+func (deliveries) Insert(context.Context, domain.WebhookDelivery) error { return nil }
+func (deliveries) Find(context.Context, shared.ID) (domain.WebhookDelivery, error) {
+	return domain.WebhookDelivery{}, shared.ErrNotFound
+}
+func (deliveries) List(context.Context, DeliveryQuery) ([]domain.WebhookDelivery, error) {
+	return nil, nil
+}
+func (deliveries) RecordOutcome(context.Context, DeliveryOutcome) error { return nil }
+
+var (
+	_ WebhookSubscriptions = subscriptions{}
+	_ WebhookDeliveries    = deliveries{}
+)
+
+// A sealed value is a pair, and the zero value has to say "there is none" - a subscription that
+// has never been rotated carries an empty previous secret, and the sweep of a rotation that
+// retired its grace deliberately carries one too.
+func TestTheZeroSealedSecretIsRecognisable(t *testing.T) {
+	if !(SealedSecret{}).IsZero() {
+		t.Error("the zero sealed secret does not report itself empty")
+	}
+	if (SealedSecret{Ciphertext: []byte("x")}).IsZero() {
+		t.Error("a ciphertext without a key identifier reports itself empty")
+	}
+	if (SealedSecret{KeyID: "k1"}).IsZero() {
+		t.Error("a key identifier without a ciphertext reports itself empty")
 	}
 }

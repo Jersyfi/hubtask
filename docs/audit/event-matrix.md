@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**129 use cases, 113 distinct action codes, 95 of them recorded on every call.** A use case that
+**134 use cases, 117 distinct action codes, 98 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -239,3 +239,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `view.read` | ListSavedViews | `saved_view` | INFO | When refused |
 | `view.shared` | ShareSavedView | `saved_view` | INFO | Every time |
 | `view.updated` | UpdateSavedView | `saved_view` | INFO | Every time |
+
+## Webhooks
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `webhooks.subscription_created` | CreateWebhookSubscription | `webhook_subscription` | NOTICE | Every time |
+| `webhooks.subscription_deleted` | DeleteWebhookSubscription | `webhook_subscription` | NOTICE | Every time |
+| `webhooks.subscription_read` | GetWebhookSubscription | `webhook_subscription` | INFO | When refused |
+| `webhooks.subscription_read` | ListWebhookSubscriptions | `webhook_subscription` | INFO | When refused |
+| `webhooks.subscription_updated` | UpdateWebhookSubscription | `webhook_subscription` | NOTICE | Every time |

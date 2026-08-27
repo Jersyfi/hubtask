@@ -85,8 +85,9 @@ func (pending) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
-// The webhook subscriptions of G-03. They land with their use cases; until then the routes exist
-// because the contract declares them.
+// The webhook subscriptions of G-03. The five CRUD operations are overridden by RestController;
+// they stay here because the compile-time check above needs every method of the interface. The
+// deliveries and the rotation land with their own use cases.
 func (pending) ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

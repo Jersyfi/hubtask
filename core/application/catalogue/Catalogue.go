@@ -24,6 +24,7 @@ import (
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
@@ -164,6 +165,11 @@ func Descriptors() []usecase.Descriptor {
 		identity.RevokeAccessToken{}.Descriptor(),
 		identity.CreateServiceAccount{}.Descriptor(),
 		identity.ListServiceAccounts{}.Descriptor(),
+		integration.CreateWebhookSubscription{}.Descriptor(),
+		integration.GetWebhookSubscription{}.Descriptor(),
+		integration.ListWebhookSubscriptions{}.Descriptor(),
+		integration.UpdateWebhookSubscription{}.Descriptor(),
+		integration.DeleteWebhookSubscription{}.Descriptor(),
 	}
 }
 

@@ -33,6 +33,7 @@ import (
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
@@ -355,6 +356,20 @@ func run() error {
 	accounts := postgres.NewAccountRepository()
 	groups := postgres.NewGroupRepository()
 	grants := postgres.NewMembershipGrantRepository()
+
+	// The webhook subscriptions (G-03). One dependency set for the same reason the credentials
+	// have one: the rule that decides who may touch a subscription is a single rule.
+	//
+	// The encryptor is the one E-02 built. A signing secret is sealed exactly as a backup
+	// target's credential is, under a purpose that names the row - so a ciphertext lifted out of
+	// one subscription and dropped into another no longer opens.
+	webhookWriter := integrationservice.Writer{
+		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+		Deliveries:    postgres.NewWebhookDeliveryRepository(),
+		Authorizer:    authorizer, Encryptor: encryptor, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{},
+	}
 
 	// The three credential use cases share one dependency set, because the rule about whose
 	// tokens somebody may touch is one rule (G-01). The known scopes come from the catalogue
@@ -724,6 +739,11 @@ func run() error {
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.CreateServiceAccount{Accounts: serviceAccounts}.Descriptor(),
 		identity.ListServiceAccounts{Accounts: serviceAccounts}.Descriptor(),
+		integrationservice.CreateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.GetWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.ListWebhookSubscriptions{Writer: webhookWriter}.Descriptor(),
+		integrationservice.UpdateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.DeleteWebhookSubscription{Writer: webhookWriter}.Descriptor(),
 		work.CreateContainer{
 			Containers: containers,
 			Authorizer: authorizer,
