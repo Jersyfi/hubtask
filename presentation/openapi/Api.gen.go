@@ -4361,6 +4361,17 @@ type TrashPage struct {
 	Page PageInfo     `json:"page"`
 }
 
+// TriggerEvent One event as a subscriber receives it: the CloudEvents 1.0 structured-JSON document itself, unwrapped - `specversion`, `id`, `source`, `type`, `time`, `data`, and the extension attributes that carry the tenant, the actor and the causal chain.
+// The same bytes a webhook delivery would have POSTed, which is what makes the two transports one contract. `id` is the value `X-Hubtask-Event-Id` names on the push side, so a consumer deduplicates on it either way.
+// Free-form here on purpose. The document's shape is owned by the schemas under `api/events/` and by the CloudEvents specification, and a second list of its properties in this file would be a copy that drifts - and one that silently drops an extension attribute the day one is added.
+type TriggerEvent map[string]interface{}
+
+// TriggerEventPage defines model for TriggerEventPage.
+type TriggerEventPage struct {
+	Data []TriggerEvent `json:"data"`
+	Page PageInfo       `json:"page"`
+}
+
 // ViewExport What to render and how. The view decides which rows; the format decides what they become.
 type ViewExport struct {
 	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
@@ -4638,6 +4649,9 @@ type CustomFieldKey = string
 // DeliveryId defines model for DeliveryId.
 type DeliveryId = openapi_types.UUID
 
+// EventType defines model for EventType.
+type EventType = string
+
 // Expand defines model for Expand.
 type Expand = []string
 
@@ -4894,6 +4908,13 @@ type UpdateGroupParams struct {
 type CreateCalendarFeedParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// PollTriggerEventsParams defines parameters for PollTriggerEvents.
+type PollTriggerEventsParams struct {
+	// Since Where the last poll stopped. Absent starts at the oldest event still inside the retention window, which is what lets a poller that has never called before catch up rather than begin with a gap it cannot see.
+	Since *string `form:"since,omitempty" json:"since,omitempty"`
+	Limit *int    `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // CreateWebhookSubscriptionParams defines parameters for CreateWebhookSubscription.
@@ -5696,6 +5717,9 @@ type ServerInterface interface {
 
 	// (DELETE /integrations/calendar-feeds/{feedId})
 	RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
+	// PollTriggerEvents The pull half of the event stream
+	// (GET /integrations/triggers/{eventType})
+	PollTriggerEvents(w http.ResponseWriter, r *http.Request, eventType EventType, params PollTriggerEventsParams)
 	// ListWebhookSubscriptions The workspace's webhook subscriptions
 	// (GET /integrations/webhooks)
 	ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request)
@@ -7890,6 +7914,61 @@ func (siw *ServerInterfaceWrapper) RevokeCalendarFeed(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeCalendarFeed(w, r, feedId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PollTriggerEvents operation middleware
+func (siw *ServerInterfaceWrapper) PollTriggerEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "eventType" -------------
+	var eventType EventType
+
+	err = runtime.BindStyledParameterWithOptions("simple", "eventType", r.PathValue("eventType"), &eventType, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "eventType", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PollTriggerEventsParams
+
+	// ------------- Optional query parameter "since" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "since", r.URL.Query(), &params.Since, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "since"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "since", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PollTriggerEvents(w, r, eventType, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12072,6 +12151,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries", wrapper.ListWebhookDeliveries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay", wrapper.ReplayWebhookDelivery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:rotate-secret", wrapper.RotateWebhookSecret)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/triggers/{eventType}", wrapper.PollTriggerEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.ListCalendarFeeds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.CreateCalendarFeed)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/calendar-feeds/{feedId}", wrapper.RevokeCalendarFeed)

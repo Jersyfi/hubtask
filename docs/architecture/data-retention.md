@@ -72,7 +72,7 @@ turning out to be relevant after all.
 | `ACTIVITY_ENTRY` | `occurred_at` | Follows the item | Item history |
 | `RULE_RUN` | `started_at` | 30 days | Automation log |
 | `WEBHOOK_DELIVERY` | `created_at` | 30 days | Delivery log |
-| `OUTBOX_EVENT` | `occurred_at` | 7 days | Dispatched events (ADR-0007). A row nobody has consumed yet is never due, whatever the period says |
+| `OUTBOX_EVENT` | `occurred_at` | 7 days | Dispatched events (ADR-0007). A row nobody has consumed yet is never due, whatever the period says. It is also the window a polling trigger may reach back into: a cursor older than this period is refused rather than restarted, because the events it names are gone (automation.md §3.2) |
 | `SESSION` | `last_seen_at` | 30 days | |
 | `AUDIT` | `occurred_at` | 400 days | Special case: pseudonymisation instead of deletion ([audit.md](./audit.md) §6) |
 | `MEDIA_ORPHAN` | `created_at` | 7 days | Unreferenced objects |

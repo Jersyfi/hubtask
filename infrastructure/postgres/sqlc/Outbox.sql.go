@@ -311,3 +311,102 @@ func (q *Queries) MarkEventsDispatched(ctx context.Context, arg MarkEventsDispat
 	_, err := q.db.Exec(ctx, markEventsDispatched, arg.DispatchedAt, arg.Ids)
 	return err
 }
+
+const pollOutboxEvents = `-- name: PollOutboxEvents :many
+SELECT
+  id, tenant_id, event_type, subject, payload,
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
+FROM outbox_event
+WHERE event_type = $1
+  AND replay = false
+  AND occurred_at <= $2
+  AND (occurred_at, id) > ($3::timestamptz, $4::uuid)
+ORDER BY occurred_at, id
+LIMIT $5
+`
+
+type PollOutboxEventsParams struct {
+	EventType       string
+	Horizon         pgtype.Timestamptz
+	AfterOccurredAt pgtype.Timestamptz
+	AfterID         pgtype.UUID
+	Batch           int32
+}
+
+type PollOutboxEventsRow struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	EventType      string
+	Subject        *string
+	Payload        []byte
+	ActorType      string
+	ActorID        pgtype.UUID
+	CorrelationID  pgtype.UUID
+	CausationID    pgtype.UUID
+	CausationDepth int32
+	OccurredAt     pgtype.Timestamptz
+	Replay         bool
+}
+
+// The pull half of the stream (G-04, automation.md §3.2): one type, oldest first, from a position.
+//
+// Three predicates and each is a boundary the endpoint has to draw.
+//
+// `replay = false` is the same rule the push half keeps: a restore's events go to nobody
+// outward-facing, or a restore would report last month's states to every trigger (migration 0033).
+//
+// `occurred_at <= horizon` is what makes the cursor gapless. The order is `(occurred_at, id)`, and
+// `occurred_at` comes from the writing transaction rather than from its commit - so a transaction
+// that began before one already answered can still commit a row that sorts *behind* the cursor,
+// and a poller would step over it and never know. The horizon is a moment far enough back that no
+// such transaction can still be open; rows newer than it are withheld from the page and from the
+// cursor together, and are answered by the next poll. Withholding an event for a few seconds is a
+// delay, and stepping over it is a loss.
+//
+// The keyset itself is the row comparison rather than `occurred_at > $1 OR (= AND id > $2)`: one
+// comparison the index can seek on, where the disjunction is two it cannot.
+//
+// The two sides of the keyset are cast, because a row comparison gives sqlc nothing to infer a
+// parameter's type from: without them `after_id` is generated as a timestamp, and the mistake is one
+// the compiler would not catch until it was a uuid being written into a timestamptz.
+//
+// No `dispatched_at` predicate. A poll answers what has been delivered as readily as what has not:
+// the pull half is a second transport, not a second delivery.
+func (q *Queries) PollOutboxEvents(ctx context.Context, arg PollOutboxEventsParams) ([]PollOutboxEventsRow, error) {
+	rows, err := q.db.Query(ctx, pollOutboxEvents,
+		arg.EventType,
+		arg.Horizon,
+		arg.AfterOccurredAt,
+		arg.AfterID,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PollOutboxEventsRow{}
+	for rows.Next() {
+		var i PollOutboxEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.EventType,
+			&i.Subject,
+			&i.Payload,
+			&i.ActorType,
+			&i.ActorID,
+			&i.CorrelationID,
+			&i.CausationID,
+			&i.CausationDepth,
+			&i.OccurredAt,
+			&i.Replay,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

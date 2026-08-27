@@ -17,6 +17,7 @@ import (
 	usecases "github.com/Jersyfi/hubtask/core/application/catalogue"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
@@ -308,4 +309,31 @@ func readFile(t *testing.T, path string) []byte {
 		t.Fatalf("%s is not readable: %v", path, err)
 	}
 	return content
+}
+
+// Every scope an event names has to be a scope some use case actually serves (G-04).
+//
+// core/domain may not import the application layer (ADR-0001), so `items:read` is written down in
+// both places and nothing but this gate holds the two together. What it catches is the drift that
+// would otherwise be silent: a scope renamed in the catalogue leaves the events pointing at a name
+// no token is ever issued for, and every poll of them is then refused for a reason nobody can see.
+func TestEveryEventScopeIsAScopeSomeUseCaseDeclares(t *testing.T) {
+	served := map[string]bool{}
+	for _, descriptor := range useCaseCatalogue(t).All() {
+		if descriptor.TokenScope != "" {
+			served[descriptor.TokenScope] = true
+		}
+	}
+
+	for _, eventType := range event.Types() {
+		scope := eventType.ReadScope()
+		if scope == "" {
+			t.Errorf("%s declares no read scope", eventType)
+			continue
+		}
+		if !served[scope] {
+			t.Errorf("%s is read with %q, which no use case declares - the catalogue renamed it, "+
+				"or core/domain/event/ReadScope.go has a typo", eventType, scope)
+		}
+	}
 }

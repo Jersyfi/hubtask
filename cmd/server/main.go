@@ -44,6 +44,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
@@ -749,6 +750,15 @@ func run() error {
 		integrationservice.ListWebhookDeliveries{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ReplayWebhookDelivery{Writer: webhookWriter, Jobs: jobs}.Descriptor(),
 		integrationservice.RotateWebhookSecret{Writer: webhookWriter}.Descriptor(),
+		integrationservice.PollTriggerEvents{
+			Events: outbox, Policies: lifecycleStore,
+			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
+			Rendering: cloudEventRendering{source: cfg.BaseURL},
+			// The pull half renders through the very function the push half delivers, so that one
+			// schema really is two transports rather than two renderings that agree for now.
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Lag: cfg.Queue.TriggerPollLag,
+		}.Descriptor(),
 		work.CreateContainer{
 			Containers: containers,
 			Authorizer: authorizer,
@@ -1837,6 +1847,20 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 		return syncservice.Position{}, err
 	}
 	return syncservice.Position{Seq: decoded.Seq, IssuedAt: decoded.IssuedAt}, nil
+}
+
+// cloudEventRendering bridges the polling trigger's rendering port to the CloudEvents mapping the
+// webhook deliverer already sends (G-04).
+//
+// The point is that there is one function. The pull half and the push half are two transports over
+// one contract, and the way to keep that true is for both to call ToCloudEvent rather than for each
+// to build a document that happens to match. The source is the installation's own identifier, the
+// same value a delivery carries, so a consumer receiving from two installations tells them apart
+// whichever way the event reached it.
+type cloudEventRendering struct{ source string }
+
+func (r cloudEventRendering) Render(envelope event.Envelope) map[string]any {
+	return eventbus.ToCloudEvent(envelope, r.source)
 }
 
 // deferredCatalogue hands the bulk use case the catalogue it is itself an entry of.

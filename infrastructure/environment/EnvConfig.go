@@ -113,6 +113,9 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			OutboxBatch:       getInt("HUBTASK_OUTBOX_BATCH_SIZE", 100),
 			OutboxMinInterval: getDuration("HUBTASK_OUTBOX_MIN_INTERVAL", time.Second),
 			OutboxMaxInterval: getDuration("HUBTASK_OUTBOX_MAX_INTERVAL", 15*time.Second),
+			// The worker's statement timeout, because that is the longest write this
+			// installation documents a bound for and the lag has to outlast it (G-04).
+			TriggerPollLag: getDuration("HUBTASK_TRIGGER_POLL_LAG", 60*time.Second),
 		},
 		Retention: env.RetentionConfig{
 			// 90 days: the maximum offline window offline-sync.md §7 documents, and therefore the
@@ -363,6 +366,7 @@ func validateQueue(q env.QueueConfig) []error {
 		"HUBTASK_SCHEDULER_TICK_INTERVAL": q.SchedulerTick,
 		"HUBTASK_OUTBOX_MIN_INTERVAL":     q.OutboxMinInterval,
 		"HUBTASK_OUTBOX_MAX_INTERVAL":     q.OutboxMaxInterval,
+		"HUBTASK_TRIGGER_POLL_LAG":        q.TriggerPollLag,
 	} {
 		if d <= 0 {
 			errs = append(errs, configError("config.duration_invalid", variable))
