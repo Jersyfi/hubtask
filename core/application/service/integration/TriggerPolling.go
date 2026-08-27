@@ -304,9 +304,15 @@ func (h PollTriggerEvents) invoke(
 	for _, rendered := range page.Events {
 		rows = append(rows, rendered)
 	}
+
+	// `{ "data": [...], "page": {...} }`, the shape every paged answer has (api-guidelines.md §4).
+	// The cursor is always present, even on an empty page: it is where the next poll starts, and a
+	// caller that had to fall back to its previous one would re-walk what it just read.
 	return usecase.Output{
-		"data":        rows,
-		"next_cursor": h.Cursors.Encode(page.Cursor),
-		"has_more":    page.More,
+		"data": rows,
+		"page": map[string]any{
+			"next_cursor": h.Cursors.Encode(page.Cursor),
+			"has_more":    page.More,
+		},
 	}, nil
 }

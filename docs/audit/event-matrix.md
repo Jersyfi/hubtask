@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**137 use cases, 119 distinct action codes, 100 of them recorded on every call.** A use case that
+**138 use cases, 120 distinct action codes, 100 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -224,6 +224,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `template.read` | GetTemplate | `template` | INFO | When refused |
 | `template.read` | ListTemplates | `template` | INFO | When refused |
 | `template.updated` | UpdateTemplate | `template` | INFO | Every time |
+
+## Triggers
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `triggers.polled` | PollTriggerEvents | `trigger` | INFO | When refused |
 
 ## Views, exports and feeds
 

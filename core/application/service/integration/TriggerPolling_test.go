@@ -495,10 +495,14 @@ func TestThePollOutputCarriesTheCursorAndThePage(t *testing.T) {
 	if !ok || len(rows) != 1 {
 		t.Fatalf("data is %v, want one rendered event", out["data"])
 	}
-	if out["next_cursor"] == "" {
+	page, ok := out["page"].(map[string]any)
+	if !ok {
+		t.Fatalf("page is %v, want the paging block api-guidelines.md §4 declares", out["page"])
+	}
+	if page["next_cursor"] == "" {
 		t.Error("no cursor was answered")
 	}
-	if out["has_more"] != false {
-		t.Errorf("has_more is %v, want false", out["has_more"])
+	if page["has_more"] != false {
+		t.Errorf("has_more is %v, want false", page["has_more"])
 	}
 }

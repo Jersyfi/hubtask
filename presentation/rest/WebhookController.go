@@ -287,3 +287,42 @@ func deliveryResponse(out usecase.Output) openapi.WebhookDelivery {
 	}
 	return delivery
 }
+
+// The polling trigger (G-04). Its own operation rather than a variant of the subscription routes:
+// the two are one stream and two transports, and this is the transport that carries no state.
+const pollTriggerEventsUseCase = "PollTriggerEvents"
+
+// PollTriggerEvents answers GET /integrations/triggers/{eventType}.
+//
+// The entries pass through unread. What the use case rendered is the CloudEvents document a webhook
+// delivery would have carried, and a controller that re-assembled it field by field would be a
+// second statement of the wire format - one that drops an extension attribute the day one is added,
+// silently and only for the pull half.
+func (c *RestController) PollTriggerEvents(
+	w http.ResponseWriter, r *http.Request, eventType openapi.EventType,
+	params openapi.PollTriggerEventsParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		input := usecase.Input{"event_type": string(eventType)}
+		if params.Since != nil {
+			input["cursor"] = *params.Since
+		}
+		if params.Limit != nil {
+			input["limit"] = *params.Limit
+		}
+		return c.UseCases.Invoke(r.Context(), pollTriggerEventsUseCase, actor, input)
+	}, func(out usecase.Output) {
+		rows, _ := out["data"].([]any)
+		events := make([]openapi.TriggerEvent, 0, len(rows))
+		for _, row := range rows {
+			rendered, ok := row.(map[string]any)
+			if !ok {
+				continue
+			}
+			events = append(events, rendered)
+		}
+		writeJSON(w, r, http.StatusOK, openapi.TriggerEventPage{
+			Data: events, Page: pageResponse(out),
+		})
+	})
+}

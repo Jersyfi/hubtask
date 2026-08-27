@@ -4868,25 +4868,19 @@ components:
     TriggerEvent:
       type: object
       description: >
-        One event as a subscriber receives it: the CloudEvents 1.0 document itself, unwrapped.
-        The same bytes a webhook delivery would have carried, which is what makes the two
-        transports one contract - the schemas under `api/events/` judge both.
-      required: [specversion, id, source, type, time, data]
+        One event as a subscriber receives it: the CloudEvents 1.0 structured-JSON document itself,
+        unwrapped - `specversion`, `id`, `source`, `type`, `time`, `data`, and the extension
+        attributes that carry the tenant, the actor and the causal chain.
+
+        The same bytes a webhook delivery would have POSTed, which is what makes the two transports
+        one contract. `id` is the value `X-Hubtask-Event-Id` names on the push side, so a consumer
+        deduplicates on it either way.
+
+        Free-form here on purpose. The document's shape is owned by the schemas under `api/events/`
+        and by the CloudEvents specification, and a second list of its properties in this file would
+        be a copy that drifts - and one that silently drops an extension attribute the day one is
+        added.
       additionalProperties: true
-      properties:
-        specversion: { type: string, example: "1.0" }
-        id:
-          type: string
-          format: uuid
-          description: >
-            The event's identity, and the value `X-Hubtask-Event-Id` carries on the push side. A
-            poller deduplicates on it, which is what makes an overlapping window harmless.
-        source: { type: string }
-        type: { type: string, example: "de.hubtask.work.item.created.v1" }
-        subject: { type: [string, "null"] }
-        time: { type: string, format: date-time }
-        datacontenttype: { type: string }
-        data: { type: object, additionalProperties: true }
 
     TriggerEventPage:
       type: object

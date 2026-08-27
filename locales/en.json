@@ -740,6 +740,9 @@
   "webhooks.target_refused": "The target refused the delivery.",
   "events.event_not_found": "That event is no longer available.",
   "webhooks.rotation_grace_too_long": "The old secret may keep working for at most {max_seconds} seconds.",
+  "triggers.event_type_unknown": "{event_type} is not an event type this installation publishes.",
+  "triggers.cursor_invalid": "This poll position is not one this installation issued. Poll again without one.",
+  "triggers.cursor_expired": "This poll position is older than the {retain_days} days of events that are kept, so what happened since then is no longer all there. Poll again without a position, and expect to have missed events.",
   "calendar.owner_required": "A calendar feed reads as a person. A service account has nobody to read as.",
   "calendar.token_unmintable": "This installation could not draw the randomness a feed token needs. Try again.",
 
