@@ -611,6 +611,26 @@ func TestAnArchiveOfAnotherTenantIsRefusedAtTheRestore(t *testing.T) {
 	}
 }
 
+// An abandoned restore is closed rather than left holding the one-restore-per-tenant lock (#207):
+// the queue gave up on the job, nobody else will ever close the row, and InProgress would refuse
+// every later restore while it stood.
+func TestAnAbandonedRestoreIsClosedUnderItsOwnCode(t *testing.T) {
+	h := newApplyHarness(t, containerRows)
+	h.accept(t, func(r *domain.Restore) { r.Status = domain.RestoreRunning })
+
+	if err := h.applier().Abandon(context.Background(), restoreID, tenantID); err != nil {
+		t.Fatalf("abandoning: %v", err)
+	}
+
+	if len(h.restores.outcomes) != 1 {
+		t.Fatalf("%d outcomes written, want the abandoned restore's", len(h.restores.outcomes))
+	}
+	outcome := h.restores.outcomes[0]
+	if outcome.Status != domain.RestoreFailed || outcome.ErrorCode != domain.CodeRestoreAbandoned {
+		t.Errorf("closed as %s under %q", outcome.Status, outcome.ErrorCode)
+	}
+}
+
 // INSTANCE has nothing to restore until 0.6.0, and the refusal is explicit rather than an
 // accident of the scope comparison: even the asker's own tenant archive is refused under it.
 func TestAnInstanceRestoreIsRefused(t *testing.T) {

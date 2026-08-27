@@ -314,6 +314,13 @@ const (
 	CodeTargetBusy                  = "backup.target_busy"
 	CodeChainIncomplete             = "backup.chain_incomplete"
 	CodeRunFailed                   = "backup.run_failed"
+	// CodeRunAbandoned closes a run whose job the queue gave up on (#207). The row was RUNNING
+	// and its worker is not coming back; left open it would hold the one-run-per-target lock for
+	// ever, so the dead letter closes it under this code and the target is free again.
+	CodeRunAbandoned = "backup.run_abandoned"
+	// CodeRestoreAbandoned is the same closing for a restore run, whose open row holds the
+	// one-restore-per-tenant lock.
+	CodeRestoreAbandoned = "backup.restore_abandoned"
 )
 
 // Trigger is why a run happened.

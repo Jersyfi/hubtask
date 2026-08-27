@@ -335,6 +335,26 @@ func (p Performer) succeed(
 	return run, nil
 }
 
+// Abandon closes a run whose job the queue has given up on (#207).
+//
+// A row left RUNNING by a worker that is not coming back holds the one-run-per-target lock for
+// ever; this closes it as FAILED under its own code, which frees the target and puts the truth
+// where GetBackupRun reads. A run that never claimed its row, or that is terminal already, answers
+// a conflict - the same "nothing to close" this treats as done, because both mean nobody is
+// waiting on the row.
+func (p Performer) Abandon(ctx context.Context, runID, tenantID shared.ID) error {
+	err := p.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {
+		return p.Runs.Finish(ctx, domain.Outcome{
+			ID: runID, Status: domain.RunFailed,
+			FinishedAt: p.Clock.Now(), ErrorCode: domain.CodeRunAbandoned,
+		})
+	})
+	if err != nil && !errors.Is(err, shared.ErrConflict) && !errors.Is(err, shared.ErrNotFound) {
+		return err
+	}
+	return nil
+}
+
 // fail closes a run that did not work, with the code and nothing else.
 //
 // The code and never a message: an error's text can carry a bucket name, a host or a path, and a
