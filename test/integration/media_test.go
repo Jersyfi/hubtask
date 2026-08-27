@@ -220,6 +220,13 @@ func TestTheOrphanSweepMarksTakesAndRemoves(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// A staging carries no stamp, whatever the recount above found: it points at nothing by
+	// definition, and a clock started here would already be running when somebody confirmed the
+	// object late. What bounds a staging is its own grace, against created_at.
+	if stamp := unreferencedSince(ctx, t, fresh.ID); stamp != nil {
+		t.Errorf("a staging was stamped as unreferenced: %s", stamp)
+	}
+
 	// Confirmed just now and attached to nothing yet: the state every upload passes through
 	// between its confirmation and the call that uses it. The pass below runs straight through
 	// that window, which is what used to mark it.
@@ -250,6 +257,13 @@ func TestTheOrphanSweepMarksTakesAndRemoves(t *testing.T) {
 	}
 	if stored := findMedia(ctx, t, tenantA, justConfirmed.ID); stored.DeletedAt != nil {
 		t.Fatal("an object confirmed inside the grace was marked before anything could use it")
+	}
+	// Its clock starts at the confirmation rather than at the staging: the recount that ran two
+	// hours ago saw the row as PENDING and left it alone.
+	if stamp := unreferencedSince(ctx, t, justConfirmed.ID); stamp == nil {
+		t.Error("a confirmed object was left without a stamp")
+	} else if !stamp.Equal(now) {
+		t.Errorf("the grace of a confirmed object runs from %s, want %s", stamp, now)
 	}
 	// The second recount did not restart the first one's clock: the orphan is marked on the stamp
 	// it got two hours ago, not on the zero this pass saw.

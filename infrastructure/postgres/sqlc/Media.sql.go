@@ -364,7 +364,7 @@ const recountMediaReferences = `-- name: RecountMediaReferences :exec
 UPDATE media_object m SET
   ref_count = c.total,
   unreferenced_since = CASE
-    WHEN c.total = 0 THEN COALESCE(m.unreferenced_since, $1)
+    WHEN c.total = 0 AND m.status = 'READY' THEN COALESCE(m.unreferenced_since, $1)
     ELSE NULL
   END
 FROM (
@@ -389,6 +389,12 @@ WHERE m.id = c.id AND m.deleted_at IS NULL
 // not have its grace restarted by every pass that walks past it - and a row that gained a
 // reference has its stamp cleared, which is what makes the grace start again when it next loses
 // one.
+//
+// READY only, and that is not tidiness. A staging points at nothing by definition, and a stamp it
+// collected while it was PENDING would be an hour old by the time somebody confirmed it late -
+// which would hand the confirmation an object already past its grace. A PENDING row is bounded by
+// its own clock, which runs from the staging; this one starts at the confirmation, where the
+// object first becomes something anything can point at.
 func (q *Queries) RecountMediaReferences(ctx context.Context, now pgtype.Timestamptz) error {
 	_, err := q.db.Exec(ctx, recountMediaReferences, now)
 	return err
