@@ -200,6 +200,33 @@ func (o Outbox) CountPending(ctx context.Context) (int, error) {
 // way out it would mean that during a rolling update the old pod dead-letters the events the new
 // pod writes (ADR-0003, expand/contract). What is in the table was validated when it was written;
 // reading it back is not the place to have second thoughts.
+// FindEvent reads one event as it was written (G-03). The webhook deliverer renders its body from
+// this rather than from a copy in the job payload, so a retry two days later sends what the first
+// attempt would have.
+func (o Outbox) FindEvent(ctx context.Context, eventID shared.ID) (event.Envelope, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return event.Envelope{}, err
+	}
+	id, err := uuidOf(eventID)
+	if err != nil {
+		return event.Envelope{}, err
+	}
+
+	row, err := queries.FindOutboxEvent(ctx, id)
+	if err != nil {
+		if IsNoRows(err) {
+			return event.Envelope{}, shared.ErrNotFound.
+				WithDetail("events.event_not_found").
+				WithParams(map[string]string{"event_id": eventID.String()})
+		}
+		return event.Envelope{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading event %s: %w", eventID, err))
+	}
+	return envelopeFrom(sqlc.ClaimPendingEventsRow(row))
+}
+
 func envelopeFrom(row sqlc.ClaimPendingEventsRow) (event.Envelope, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {

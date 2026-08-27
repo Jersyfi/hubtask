@@ -33,6 +33,7 @@ import (
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
@@ -43,6 +44,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
@@ -70,6 +72,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	"github.com/Jersyfi/hubtask/infrastructure/stepup"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
+	"github.com/Jersyfi/hubtask/infrastructure/webhook"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 	"github.com/Jersyfi/hubtask/presentation/webui"
@@ -355,6 +358,20 @@ func run() error {
 	accounts := postgres.NewAccountRepository()
 	groups := postgres.NewGroupRepository()
 	grants := postgres.NewMembershipGrantRepository()
+
+	// The webhook subscriptions (G-03). One dependency set for the same reason the credentials
+	// have one: the rule that decides who may touch a subscription is a single rule.
+	//
+	// The encryptor is the one E-02 built. A signing secret is sealed exactly as a backup
+	// target's credential is, under a purpose that names the row - so a ciphertext lifted out of
+	// one subscription and dropped into another no longer opens.
+	webhookWriter := integrationservice.Writer{
+		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+		Deliveries:    postgres.NewWebhookDeliveryRepository(),
+		Authorizer:    authorizer, Encryptor: encryptor, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{},
+	}
 
 	// The three credential use cases share one dependency set, because the rule about whose
 	// tokens somebody may touch is one rule (G-01). The known scopes come from the catalogue
@@ -724,6 +741,14 @@ func run() error {
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.CreateServiceAccount{Accounts: serviceAccounts}.Descriptor(),
 		identity.ListServiceAccounts{Accounts: serviceAccounts}.Descriptor(),
+		integrationservice.CreateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.GetWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.ListWebhookSubscriptions{Writer: webhookWriter}.Descriptor(),
+		integrationservice.UpdateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.DeleteWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.ListWebhookDeliveries{Writer: webhookWriter}.Descriptor(),
+		integrationservice.ReplayWebhookDelivery{Writer: webhookWriter, Jobs: jobs}.Descriptor(),
+		integrationservice.RotateWebhookSecret{Writer: webhookWriter}.Descriptor(),
 		work.CreateContainer{
 			Containers: containers,
 			Authorizer: authorizer,
@@ -1241,10 +1266,19 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 	}
 
+	webhookFanOut := integrationservice.FanOut{
+		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+		Deliveries:    postgres.NewWebhookDeliveryRepository(),
+		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	dispatcher := eventbus.Dispatcher{
-		Events:      postgres.NewOutbox(jobs),
-		Consumed:    postgres.NewConsumption(clockadapter.System{}),
-		Subscribers: []eventbusport.Subscriber{notify},
+		Events:   postgres.NewOutbox(jobs),
+		Consumed: postgres.NewConsumption(clockadapter.System{}),
+		// The webhook fan-out is a subscriber like the notifications: one event in, a delivery job
+		// per interested subscription out. It deliberately does not implement TakesReplays, so a
+		// restore reaches no external system (backup-restore.md §8.4).
+		Subscribers: []eventbusport.Subscriber{notify, webhookFanOut},
 		Clock:       clockadapter.System{},
 		Batch:       cfg.Queue.OutboxBatch,
 		MinInterval: cfg.Queue.OutboxMinInterval,
@@ -1436,6 +1470,43 @@ func run() error {
 		},
 	}
 
+	// The webhook deliverer (G-03). Detached, because the call to somebody else's server happens
+	// between two short transactions rather than inside one long one - holding a database
+	// connection for as long as a subscriber's server feels like taking is what
+	// observability-reliability.md §8 forbids.
+	//
+	// Through the guarded client, always: a webhook target is an egress channel exactly as a
+	// backup target is, so a private range or the cloud metadata address is refused unless the
+	// installation has deliberately released private networks (rule 6, T-07).
+	webhookDelivery := webhook.Deliverer{
+		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+		Deliveries:    postgres.NewWebhookDeliveryRepository(),
+		Events:        postgres.NewOutbox(jobs),
+		Outcomes: integrationservice.Outcomes{
+			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+			Audit:         auditSink, Clock: clockadapter.System{},
+			// The owner is told through the path C-09 built rather than a new channel: the
+			// preference is honoured and the send is a job like every other.
+			Notifier: notification.RecordWebhookDisabled{
+				Notifications: notifications, Accounts: accounts,
+				Preferences: notificationPreferences, Jobs: jobs,
+				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
+		},
+		Encryptor: encryptor, Signer: security.NewWebhookSigner(),
+		Client:     outboundClient,
+		UnitOfWork: backgroundWork, Jobs: jobs,
+		Clock: clockadapter.System{}, IDs: ids,
+		Source: cfg.BaseURL,
+		NextAttempt: resilience.Backoff{
+			// automation.md §3.1's ladder: eight attempts with the backoff reaching a day, which
+			// comes to a little over two days of trying before the dead letter.
+			Attempts: integrationmodel.MaxDeliveryAttempts,
+			Base:     30 * time.Second,
+			Max:      24 * time.Hour,
+		}.Delay,
+	}
+
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire:          reminderFiring,
 		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
@@ -1444,6 +1515,7 @@ func run() error {
 		queueport.KindMediaReconcile:        mediaReconciliation,
 		queueport.KindInvitationEmail:       invitationMessage,
 		queueport.KindNotificationDeliver:   notificationDelivery,
+		queueport.KindWebhookDeliver:        webhookDelivery,
 		queueport.KindBackupRun:             backupRun,
 		queueport.KindBackupVerify:          worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{

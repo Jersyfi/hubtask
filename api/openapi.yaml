@@ -46,6 +46,7 @@ tags:
   - name: sync
   - name: views
   - name: calendar
+  - name: webhooks
   - name: jobs
 
 paths:
@@ -410,6 +411,207 @@ paths:
                 $ref: "#/components/schemas/ViewExportDocument"
             text/calendar:
               schema: { type: string }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks:
+    get:
+      tags: [webhooks]
+      operationId: listWebhookSubscriptions
+      summary: The workspace's webhook subscriptions
+      description: >
+        Every subscription in the workspace, newest first, with its state and how many consecutive
+        failures it has seen. The secret is not among the fields: it is answered once, at creation
+        and at each rotation, and stored sealed - there is no read that can produce it again.
+      responses:
+        "200":
+          description: The subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WebhookSubscription"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [webhooks]
+      operationId: createWebhookSubscription
+      summary: Subscribe an external system to the event stream
+      description: >
+        The `subscribe` half of the REST hooks pattern: an integration platform creates its own
+        subscription through this route and deletes it again when the user turns the automation
+        off.
+
+        What arrives at the target is the CloudEvent, identical to the one this system uses
+        internally - there is no feature available only internally or only externally - signed
+        with a secret generated here, answered once in this response, and never readable
+        afterwards.
+
+        The target is an egress channel and is treated as one: it goes through the guarded client,
+        so a private range or the cloud metadata address is refused unless the installation has
+        deliberately released private networks (T-07).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookSubscriptionCreate"
+      responses:
+        "201":
+          description: Subscribed, with the signing secret shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookSubscriptionSecret"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks/{webhookId}:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    get:
+      tags: [webhooks]
+      operationId: getWebhookSubscription
+      summary: One webhook subscription
+      responses:
+        "200":
+          description: The subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookSubscription"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [webhooks]
+      operationId: updateWebhookSubscription
+      summary: Change a subscription
+      description: >
+        The target, the event types, the filter and the state. Re-enabling a subscription that was
+        disabled for sustained unreachability is a write like any other and is audited as one -
+        somebody decided the target is reachable again, and the trail says who.
+
+        An omitted field is left alone. The secret is not changeable here; rotation has its own
+        route, because handing a new secret to a subscriber is a different act from editing one.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookSubscriptionUpdate"
+      responses:
+        "200":
+          description: The subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookSubscription"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [webhooks]
+      operationId: deleteWebhookSubscription
+      summary: Unsubscribe
+      description: >
+        The `unsubscribe` half of the REST hooks pattern. The deliveries go with the subscription:
+        a delivery log for a subscription nobody can reach any more is a record of attempts against
+        an address the workspace no longer knows.
+      responses:
+        "204":
+          description: Unsubscribed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks/{webhookId}/deliveries:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    get:
+      tags: [webhooks]
+      operationId: listWebhookDeliveries
+      summary: What was delivered, and what happened to it
+      description: >
+        Every attempt with its status, the response the target gave and when the next attempt is
+        due. A run of eight failures ends in `DEAD_LETTER`, which is where an operator looks and
+        what a replay acts on.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          required: false
+          description: Narrow to one outcome - `DEAD_LETTER` is the one an operator usually wants.
+          schema:
+            type: string
+            enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER]
+      responses:
+        "200":
+          description: The deliveries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDeliveryPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+      - $ref: "#/components/parameters/DeliveryId"
+    post:
+      tags: [webhooks]
+      operationId: replayWebhookDelivery
+      summary: Send a dead-lettered delivery again
+      description: >
+        The same event, sent again by hand after whatever made it fail has been fixed. The event
+        identifier is the one it always had, so a subscriber that deduplicates on
+        `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather
+        than resetting, so the delivery log stays a true account of how many times this event was
+        sent.
+      responses:
+        "202":
+          description: Queued for delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDelivery"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks/{webhookId}:rotate-secret:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    post:
+      tags: [webhooks]
+      operationId: rotateWebhookSecret
+      summary: Issue a new signing secret
+      description: >
+        Answers the new secret once, and keeps the old one verifying for a grace period. That
+        overlap is the whole point of the route: a subscriber cannot deploy atomically, and a
+        rotation that took effect instantly would drop every event arriving between the call and
+        the deployment.
+
+        Signatures are computed with the current secret from this moment on. What the grace period
+        buys is the subscriber's side of the check, not ours.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookSecretRotation"
+      responses:
+        "200":
+          description: Rotated, with the new secret shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookSubscriptionSecret"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -3734,6 +3936,16 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    WebhookId:
+      name: webhookId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DeliveryId:
+      name: deliveryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     TemplateId:
       name: templateId
       in: path
@@ -4455,6 +4667,147 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WorkItem"
+
+    WebhookSubscription:
+      type: object
+      description: >
+        One external system's standing request to be told what happens here. The signing secret is
+        not a member: it is answered once, at creation and at each rotation, and stored sealed.
+      required: [id, target_url, event_types, state, failure_count, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        target_url:
+          type: string
+          format: uri
+          description: >
+            Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded
+            client: a private range or the cloud metadata address is refused unless the
+            installation has deliberately released private networks (T-07).
+        event_types:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: >
+            The types this subscription wants, as `/meta/capabilities` lists them. A type this
+            build does not emit is refused rather than stored, so a subscription cannot quietly
+            wait for something that will never arrive.
+        filter:
+          type: [string, "null"]
+          description: >
+            A CEL expression narrowing the subscription further. Refused until the expression
+            engine lands, and refused rather than stored and ignored: a filter that is accepted
+            and does nothing is a subscriber receiving events they asked not to receive.
+        state:
+          type: string
+          enum: [ACTIVE, PAUSED, DISABLED]
+          description: >
+            `DISABLED` is what sustained unreachability produces, with a notification to the owner.
+            Re-enabling is an ordinary write and is audited as one.
+        failure_count:
+          type: integer
+          description: >
+            Consecutive failed deliveries. Reset by the first success, and what the auto-disable
+            counts against.
+        last_error:
+          type: [string, "null"]
+          description: A message code for the last failure, never a response body from the target.
+        created_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    WebhookSubscriptionCreate:
+      type: object
+      required: [target_url, event_types]
+      properties:
+        target_url: { type: string, format: uri, maxLength: 2000 }
+        event_types:
+          type: array
+          minItems: 1
+          items: { type: string }
+        filter:
+          type: [string, "null"]
+          description: Refused until the expression engine lands.
+
+    WebhookSubscriptionUpdate:
+      type: object
+      description: Every field optional; an omitted one is left alone.
+      properties:
+        target_url: { type: [string, "null"], format: uri, maxLength: 2000 }
+        event_types:
+          type: [array, "null"]
+          minItems: 1
+          items: { type: string }
+        filter: { type: [string, "null"] }
+        state:
+          type: [string, "null"]
+          enum: [ACTIVE, PAUSED, null]
+          description: >
+            `DISABLED` is not settable by hand: it is what the system concludes from a run of
+            failures. Pausing is how somebody stops deliveries deliberately, and the two say
+            different things to whoever reads the list.
+
+    WebhookSubscriptionSecret:
+      allOf:
+        - $ref: "#/components/schemas/WebhookSubscription"
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: string
+              description: >
+                The signing secret, in clear, for the only time. Store it or rotate it: what is
+                kept is sealed under the installation's key, and no read answers it again.
+
+    WebhookSecretRotation:
+      type: object
+      properties:
+        grace_seconds:
+          type: [integer, "null"]
+          minimum: 0
+          maximum: 604800
+          description: >
+            How long the previous secret keeps verifying, so a subscriber can deploy the new one
+            without dropping what arrives in between. Zero retires the old secret at once, which is
+            what a leak calls for. At most seven days.
+
+    WebhookDelivery:
+      type: object
+      description: One attempt at one event against one subscription.
+      required: [id, subscription_id, event_id, attempt, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        subscription_id: { type: string, format: uuid }
+        event_id:
+          type: string
+          format: uuid
+          description: >
+            The event's own identifier, which travels as `X-Hubtask-Event-Id`. A replay carries the
+            same one, so a subscriber that deduplicates on it recognises the repeat.
+        attempt:
+          type: integer
+          description: Which attempt this is, from one. It carries on across a replay rather than resetting.
+        status:
+          type: string
+          enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER]
+        response_status:
+          type: [integer, "null"]
+          description: What the target answered, where it answered at all.
+        error_code:
+          type: [string, "null"]
+          description: A message code, never the target's response body.
+        next_attempt_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the next attempt is due; null once there will not be one.
+        created_at: { type: string, format: date-time }
+
+    WebhookDeliveryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/WebhookDelivery" }
+        page: { $ref: "#/components/schemas/PageInfo" }
 
     CalendarFeed:
       type: object

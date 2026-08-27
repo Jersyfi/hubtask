@@ -162,6 +162,15 @@ const (
 	// records a case seeds it, each pass reschedules itself while the tenant has an open case, and
 	// a tenant that owes nothing costs a row that is not there.
 	KindPrivacyDeadlines Kind = "privacy.deadlines"
+
+	// KindWebhookDeliver sends one event to one subscription (G-03, automation.md §3.1).
+	//
+	// One job per delivery rather than one per event, and that is the whole retry discipline: a
+	// target that is down must not hold up the events of every other subscriber, and eight
+	// attempts with a backoff reaching a day is a schedule the queue already knows how to keep.
+	// The job carries the subscription and the event; the body is rendered at each attempt from
+	// the event as it was, so a retry sends what the first attempt would have.
+	KindWebhookDeliver Kind = "webhook.deliver"
 )
 
 func (k Kind) String() string { return string(k) }

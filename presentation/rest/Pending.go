@@ -85,6 +85,40 @@ func (pending) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+// The webhook subscriptions of G-03. All eight are overridden by RestController; they stay here
+// because the compile-time check above needs every method of the interface.
+func (pending) ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateWebhookSubscription(w http.ResponseWriter, r *http.Request, _ openapi.CreateWebhookSubscriptionParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetWebhookSubscription(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateWebhookSubscription(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId, _ openapi.UpdateWebhookSubscriptionParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteWebhookSubscription(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListWebhookDeliveries(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId, _ openapi.ListWebhookDeliveriesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplayWebhookDelivery(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId, _ openapi.DeliveryId) {
+	notAvailable(w, r)
+}
+
+func (pending) RotateWebhookSecret(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId, _ openapi.RotateWebhookSecretParams) {
+	notAvailable(w, r)
+}
+
 func (pending) CreateServiceAccount(w http.ResponseWriter, r *http.Request, _ openapi.CreateServiceAccountParams) {
 	notAvailable(w, r)
 }

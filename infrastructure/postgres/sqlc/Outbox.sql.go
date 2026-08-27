@@ -249,6 +249,51 @@ func (q *Queries) DeleteExpiredConsumption(ctx context.Context, arg DeleteExpire
 	return result.RowsAffected(), nil
 }
 
+const findOutboxEvent = `-- name: FindOutboxEvent :one
+SELECT id, tenant_id, event_type, subject, payload, actor_type, actor_id,
+       correlation_id, causation_id, causation_depth, occurred_at, replay
+FROM outbox_event
+WHERE id = $1
+`
+
+type FindOutboxEventRow struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	EventType      string
+	Subject        *string
+	Payload        []byte
+	ActorType      string
+	ActorID        pgtype.UUID
+	CorrelationID  pgtype.UUID
+	CausationID    pgtype.UUID
+	CausationDepth int32
+	OccurredAt     pgtype.Timestamptz
+	Replay         bool
+}
+
+// One event, as it was written. The webhook deliverer renders the body from this rather than from
+// a copy in the job payload, so a retry two days later sends what the first attempt would have -
+// and a job row does not become a second place a workspace's content lives.
+func (q *Queries) FindOutboxEvent(ctx context.Context, id pgtype.UUID) (FindOutboxEventRow, error) {
+	row := q.db.QueryRow(ctx, findOutboxEvent, id)
+	var i FindOutboxEventRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.EventType,
+		&i.Subject,
+		&i.Payload,
+		&i.ActorType,
+		&i.ActorID,
+		&i.CorrelationID,
+		&i.CausationID,
+		&i.CausationDepth,
+		&i.OccurredAt,
+		&i.Replay,
+	)
+	return i, err
+}
+
 const markEventsDispatched = `-- name: MarkEventsDispatched :exec
 UPDATE outbox_event
 SET dispatched_at = $1

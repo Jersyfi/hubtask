@@ -712,6 +712,20 @@ CREATE TABLE webhook_subscription (
   secret_enc    bytea NOT NULL,
   state         text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE','PAUSED','DISABLED')),
   failure_count integer NOT NULL DEFAULT 0,
+  -- The key a sealed value opens under. An installation that has rotated its keyring holds
+  -- several, so the ciphertext alone is not enough (E-02).
+  secret_key_id         text,
+  -- The rotation grace (G-03): one previous secret, verifying until this moment. A pair rather
+  -- than a table, because a history of retired secrets is a history of values that must not be
+  -- readable.
+  previous_secret_enc    bytea,
+  previous_secret_key_id text,
+  previous_secret_until  timestamptz,
+  -- The message code of the last failure, never a response body from the target (rule 10).
+  last_error    text,
+  -- When unreachability disabled it. Separate from the state, which goes back to ACTIVE on a
+  -- re-enable and then cannot say when the trouble was.
+  disabled_at   timestamptz,
   created_by    uuid NOT NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   version       integer NOT NULL DEFAULT 1
@@ -733,6 +747,7 @@ CREATE TABLE webhook_delivery (
     FOREIGN KEY (tenant_id, subscription_id) REFERENCES webhook_subscription (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX delivery_retry_idx ON webhook_delivery (tenant_id, status, next_attempt_at);
+CREATE INDEX webhook_delivery_subscription_idx ON webhook_delivery (tenant_id, subscription_id, created_at DESC, id DESC);
 
 CREATE TABLE calendar_feed (
   id          uuid PRIMARY KEY,
@@ -758,7 +773,7 @@ CREATE TABLE notification (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   recipient_id uuid NOT NULL,
-  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER')),
+  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION')),
   channel      text NOT NULL CHECK (channel IN ('EMAIL')),
   state        text NOT NULL CHECK (state IN ('PENDING','SENT','SUPPRESSED','FAILED')),
   reason       text,                             -- a detail code, never a sentence (rule 8)
@@ -789,7 +804,7 @@ CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
 CREATE TABLE notification_preference (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id    uuid NOT NULL,
-  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER')),
+  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION')),
   channel       text NOT NULL CHECK (channel IN ('EMAIL')),
   enabled       boolean NOT NULL DEFAULT true,
   include_title boolean NOT NULL DEFAULT true,   -- data-protection.md §9: the minimum is switchable

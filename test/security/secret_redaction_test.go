@@ -19,7 +19,9 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	model "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	port "github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
@@ -86,6 +88,14 @@ func confidentialValues(t *testing.T) []any {
 		// response as a whole struct, and the whole struct is what a careless log line writes.
 		identity.MintedToken{
 			Token:  model.AccessToken{ID: "01936f2a-7c1e-7000-8000-0000000000d1", Name: "a token"},
+			Secret: secret.New(credential),
+		},
+		// And the path G-03 added: a webhook's signing secret, which travels the same way and is
+		// the one value that would let anybody forge a delivery from this installation.
+		integrationservice.MintedSubscription{
+			Subscription: integrationmodel.WebhookSubscription{
+				ID: "01936f2a-7c1e-7000-8000-0000000000d2", TargetURL: "https://example.org/hooks",
+			},
 			Secret: secret.New(credential),
 		},
 	}
