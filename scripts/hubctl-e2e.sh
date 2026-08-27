@@ -595,12 +595,19 @@ expect_contains "audit query" "$trail" "lifecycle.hold_placed"
 expect_contains "audit query" "$trail" "lifecycle.hold_released"
 # A read that succeeds is not itself recorded (audit.md §5), so nothing here is about reading.
 expect_missing "audit query" "$trail" "audit.read"
-chain="$(hubctl audit verify --from "$TODAY" --to "$TOMORROW")"
-expect_contains "audit verify" "$chain" "yes"
-expect_contains "audit verify" "$chain" "none"
-# Nothing anchors a chain outside the database yet, and the column says so rather than staying
-# blank - the check proves the chain intact *inside* the database and no more.
-expect_contains "audit verify" "$chain" "never"
+# Read as the document rather than the table, because a chain that does not hold has to say which
+# entry it is: the failure below prints this, and `first_broken_seq` is where an investigation
+# starts. `|| true` because a broken chain is a failed command, which is the point of it.
+chain="$(hubctl --json audit verify --from "$TODAY" --to "$TOMORROW" || true)"
+expect_contains "audit verify" "$chain" '"valid": true'
+expect_contains "audit verify" "$chain" '"gap_count": 0'
+# Nothing anchors a chain outside the database yet, and the answer says so rather than being blank -
+# the check proves the chain intact *inside* the database and no more.
+expect_contains "audit verify" "$chain" '"sealed_until": null'
+if ! grep -q '"valid": true' <<< "$chain"; then
+	echo "--- the trail, so that the entry the break names can be read ---"
+	hubctl audit query --from "$TODAY" --to "$TOMORROW" --limit 60 || true
+fi
 
 echo "--- a right somebody exercised ---"
 dsr="$(hubctl dsr create --kind RECTIFICATION --subject "$ACCOUNT_ID" --notes 'asked by email')"
