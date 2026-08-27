@@ -119,6 +119,10 @@ func (pending) RotateWebhookSecret(w http.ResponseWriter, r *http.Request, _ ope
 	notAvailable(w, r)
 }
 
+func (pending) PollTriggerEvents(w http.ResponseWriter, r *http.Request, _ openapi.EventType, _ openapi.PollTriggerEventsParams) {
+	notAvailable(w, r)
+}
+
 func (pending) CreateServiceAccount(w http.ResponseWriter, r *http.Request, _ openapi.CreateServiceAccountParams) {
 	notAvailable(w, r)
 }

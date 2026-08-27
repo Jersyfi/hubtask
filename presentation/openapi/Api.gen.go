@@ -6,6 +6,7 @@
 package openapi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -4361,6 +4362,27 @@ type TrashPage struct {
 	Page PageInfo     `json:"page"`
 }
 
+// TriggerEvent One event as a subscriber receives it: the CloudEvents 1.0 document itself, unwrapped. The same bytes a webhook delivery would have carried, which is what makes the two transports one contract - the schemas under `api/events/` judge both.
+type TriggerEvent struct {
+	Data            map[string]interface{} `json:"data"`
+	Datacontenttype *string                `json:"datacontenttype,omitempty"`
+
+	// Id The event's identity, and the value `X-Hubtask-Event-Id` carries on the push side. A poller deduplicates on it, which is what makes an overlapping window harmless.
+	Id                   openapi_types.UUID     `json:"id"`
+	Source               string                 `json:"source"`
+	Specversion          string                 `json:"specversion"`
+	Subject              *string                `json:"subject,omitempty"`
+	Time                 time.Time              `json:"time"`
+	Type                 string                 `json:"type"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// TriggerEventPage defines model for TriggerEventPage.
+type TriggerEventPage struct {
+	Data []TriggerEvent `json:"data"`
+	Page PageInfo       `json:"page"`
+}
+
 // ViewExport What to render and how. The view decides which rows; the format decides what they become.
 type ViewExport struct {
 	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
@@ -4638,6 +4660,9 @@ type CustomFieldKey = string
 // DeliveryId defines model for DeliveryId.
 type DeliveryId = openapi_types.UUID
 
+// EventType defines model for EventType.
+type EventType = string
+
 // Expand defines model for Expand.
 type Expand = []string
 
@@ -4894,6 +4919,13 @@ type UpdateGroupParams struct {
 type CreateCalendarFeedParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// PollTriggerEventsParams defines parameters for PollTriggerEvents.
+type PollTriggerEventsParams struct {
+	// Since Where the last poll stopped. Absent starts at the oldest event still inside the retention window, which is what lets a poller that has never called before catch up rather than begin with a gap it cannot see.
+	Since *string `form:"since,omitempty" json:"since,omitempty"`
+	Limit *int    `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // CreateWebhookSubscriptionParams defines parameters for CreateWebhookSubscription.
@@ -5547,6 +5579,169 @@ type ExportViewJSONRequestBody = ViewExport
 // ShareSavedViewJSONRequestBody defines body for ShareSavedView for application/json ContentType.
 type ShareSavedViewJSONRequestBody = SavedViewShare
 
+// Getter for additional properties for TriggerEvent. Returns the specified
+// element and whether it was found
+func (a TriggerEvent) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for TriggerEvent
+func (a *TriggerEvent) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for TriggerEvent to handle AdditionalProperties
+func (a *TriggerEvent) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["data"]; found {
+		err = json.Unmarshal(raw, &a.Data)
+		if err != nil {
+			return fmt.Errorf("error reading 'data': %w", err)
+		}
+		delete(object, "data")
+	}
+
+	if raw, found := object["datacontenttype"]; found {
+		err = json.Unmarshal(raw, &a.Datacontenttype)
+		if err != nil {
+			return fmt.Errorf("error reading 'datacontenttype': %w", err)
+		}
+		delete(object, "datacontenttype")
+	}
+
+	if raw, found := object["id"]; found {
+		err = json.Unmarshal(raw, &a.Id)
+		if err != nil {
+			return fmt.Errorf("error reading 'id': %w", err)
+		}
+		delete(object, "id")
+	}
+
+	if raw, found := object["source"]; found {
+		err = json.Unmarshal(raw, &a.Source)
+		if err != nil {
+			return fmt.Errorf("error reading 'source': %w", err)
+		}
+		delete(object, "source")
+	}
+
+	if raw, found := object["specversion"]; found {
+		err = json.Unmarshal(raw, &a.Specversion)
+		if err != nil {
+			return fmt.Errorf("error reading 'specversion': %w", err)
+		}
+		delete(object, "specversion")
+	}
+
+	if raw, found := object["subject"]; found {
+		err = json.Unmarshal(raw, &a.Subject)
+		if err != nil {
+			return fmt.Errorf("error reading 'subject': %w", err)
+		}
+		delete(object, "subject")
+	}
+
+	if raw, found := object["time"]; found {
+		err = json.Unmarshal(raw, &a.Time)
+		if err != nil {
+			return fmt.Errorf("error reading 'time': %w", err)
+		}
+		delete(object, "time")
+	}
+
+	if raw, found := object["type"]; found {
+		err = json.Unmarshal(raw, &a.Type)
+		if err != nil {
+			return fmt.Errorf("error reading 'type': %w", err)
+		}
+		delete(object, "type")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for TriggerEvent to handle AdditionalProperties
+func (a TriggerEvent) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Data != nil {
+		object["data"], err = json.Marshal(a.Data)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'data': %w", err)
+		}
+	}
+
+	if a.Datacontenttype != nil {
+		object["datacontenttype"], err = json.Marshal(a.Datacontenttype)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'datacontenttype': %w", err)
+		}
+	}
+
+	object["id"], err = json.Marshal(a.Id)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'id': %w", err)
+	}
+
+	object["source"], err = json.Marshal(a.Source)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'source': %w", err)
+	}
+
+	object["specversion"], err = json.Marshal(a.Specversion)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'specversion': %w", err)
+	}
+
+	if a.Subject != nil {
+		object["subject"], err = json.Marshal(a.Subject)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'subject': %w", err)
+		}
+	}
+
+	object["time"], err = json.Marshal(a.Time)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'time': %w", err)
+	}
+
+	object["type"], err = json.Marshal(a.Type)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'type': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// UpdateAccountPreferences Set how the product speaks to an account
@@ -5696,6 +5891,9 @@ type ServerInterface interface {
 
 	// (DELETE /integrations/calendar-feeds/{feedId})
 	RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
+	// PollTriggerEvents The pull half of the event stream
+	// (GET /integrations/triggers/{eventType})
+	PollTriggerEvents(w http.ResponseWriter, r *http.Request, eventType EventType, params PollTriggerEventsParams)
 	// ListWebhookSubscriptions The workspace's webhook subscriptions
 	// (GET /integrations/webhooks)
 	ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request)
@@ -7890,6 +8088,61 @@ func (siw *ServerInterfaceWrapper) RevokeCalendarFeed(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeCalendarFeed(w, r, feedId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PollTriggerEvents operation middleware
+func (siw *ServerInterfaceWrapper) PollTriggerEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "eventType" -------------
+	var eventType EventType
+
+	err = runtime.BindStyledParameterWithOptions("simple", "eventType", r.PathValue("eventType"), &eventType, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "eventType", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PollTriggerEventsParams
+
+	// ------------- Optional query parameter "since" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "since", r.URL.Query(), &params.Since, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "since"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "since", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PollTriggerEvents(w, r, eventType, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12072,6 +12325,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries", wrapper.ListWebhookDeliveries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay", wrapper.ReplayWebhookDelivery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:rotate-secret", wrapper.RotateWebhookSecret)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/triggers/{eventType}", wrapper.PollTriggerEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.ListCalendarFeeds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.CreateCalendarFeed)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/calendar-feeds/{feedId}", wrapper.RevokeCalendarFeed)

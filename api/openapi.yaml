@@ -615,6 +615,53 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /integrations/triggers/{eventType}:
+    parameters:
+      - $ref: "#/components/parameters/EventType"
+    get:
+      tags: [webhooks]
+      operationId: pollTriggerEvents
+      summary: The pull half of the event stream
+      description: >
+        Events of one type, oldest first, for a platform that has no address a webhook could
+        reach - an n8n instance behind NAT, a Zapier polling trigger (automation.md §3.2). The
+        body of each entry is the same CloudEvent a webhook subscription would have been POSTed:
+        one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a
+        consumer that already deduplicates on it needs to learn nothing new.
+
+        The cursor is opaque, signed and derived from the outbox's own ordering, so it survives a
+        restart and a failover. Two polls with it neither repeat an event nor step over one.
+
+        The window is the outbox's retention period, and a cursor older than it is refused with
+        `410 gone` rather than silently answered from the beginning. A poller that missed more
+        than the window has to be told that it missed - one that was quietly restarted would go
+        on reporting a consistency it does not have.
+
+        A replayed event - one a restore wrote rather than one somebody did - is not answered
+        here, exactly as it is not delivered to a webhook.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: >
+            Where the last poll stopped. Absent starts at the oldest event still inside the
+            retention window, which is what lets a poller that has never called before catch up
+            rather than begin with a gap it cannot see.
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+      responses:
+        "200":
+          description: The events, oldest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriggerEventPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /integrations/calendar-feeds:
     get:
       tags: [calendar]
@@ -4010,6 +4057,15 @@ components:
       name: cursor
       in: query
       schema: { type: string }
+    EventType:
+      name: eventType
+      in: path
+      required: true
+      description: >
+        The type to poll, in full - `de.hubtask.work.item.created.v1`. A type this build does not
+        declare is refused by name rather than answered with an empty page: a trigger configured
+        against a typo would otherwise poll forever and report nothing wrong.
+      schema: { type: string }
     PageSize:
       name: size
       in: query
@@ -4807,6 +4863,38 @@ components:
         data:
           type: array
           items: { $ref: "#/components/schemas/WebhookDelivery" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    TriggerEvent:
+      type: object
+      description: >
+        One event as a subscriber receives it: the CloudEvents 1.0 document itself, unwrapped.
+        The same bytes a webhook delivery would have carried, which is what makes the two
+        transports one contract - the schemas under `api/events/` judge both.
+      required: [specversion, id, source, type, time, data]
+      additionalProperties: true
+      properties:
+        specversion: { type: string, example: "1.0" }
+        id:
+          type: string
+          format: uuid
+          description: >
+            The event's identity, and the value `X-Hubtask-Event-Id` carries on the push side. A
+            poller deduplicates on it, which is what makes an overlapping window harmless.
+        source: { type: string }
+        type: { type: string, example: "de.hubtask.work.item.created.v1" }
+        subject: { type: [string, "null"] }
+        time: { type: string, format: date-time }
+        datacontenttype: { type: string }
+        data: { type: object, additionalProperties: true }
+
+    TriggerEventPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/TriggerEvent" }
         page: { $ref: "#/components/schemas/PageInfo" }
 
     CalendarFeed:
