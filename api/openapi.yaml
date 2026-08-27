@@ -414,6 +414,172 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /automation/rules:
+    get:
+      tags: [automation]
+      operationId: listAutomationRules
+      summary: The workspace's automation rules
+      description: >
+        Newest first, and only the rules the caller may see: a member manages their own rules, and
+        an administrator the scope's (domain-model.md §3.2). Deleted rules are not among them - the
+        deletion is soft so that the runs a rule produced stay readable, not so that the rule stays
+        listed.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: enabled
+          in: query
+          required: false
+          description: Narrow to the rules that are switched on, or to the ones that are not.
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: The rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRulePage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [automation]
+      operationId: createAutomationRule
+      summary: Write a rule
+      description: >
+        A rule is created **switched off**. Enabling it is its own call and its own audit entry:
+        writing what a rule would do and letting it loose on the workspace are two decisions, and
+        a rule that ran the moment it was saved would give nobody the chance to read it back first.
+
+        Writing a rule needs the automation permission at its scope **and** the rights its own
+        actions need. Without the second half a member with automation rights and nothing else
+        would write a rule that runs as a generously-scoped service account and does what they may
+        not (automation.md §2).
+
+        What this build refuses, and says so by code rather than by silence: a non-empty condition,
+        until the expression language arrives with it; an action naming a kind automation.md §1.3
+        documents and no release serves yet; a parameter the action's use case does not declare.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationRuleCreate"
+      responses:
+        "201":
+          description: Written, and switched off
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules/{ruleId}:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    get:
+      tags: [automation]
+      operationId: getAutomationRule
+      summary: One rule, as it stands
+      responses:
+        "200":
+          description: The rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [automation]
+      operationId: updateAutomationRule
+      summary: Change what a rule does
+      description: >
+        An omitted field is left alone. `enabled` is not among the fields: switching a rule on or
+        off is its own call, so that the audit trail says which of the two somebody did rather than
+        leaving it to be inferred from a change set.
+
+        The same two-sided permission check as creating one, against the rule as it would be
+        afterwards - a rule may not be edited into doing something its writer may not do.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationRuleUpdate"
+      responses:
+        "200":
+          description: The rule as it now stands
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [automation]
+      operationId: deleteAutomationRule
+      summary: Remove a rule
+      description: >
+        A soft delete. The rule stops matching anything at once and disappears from the listing,
+        and the runs it produced stay readable: a run log whose rule vanished would be a record of
+        actions nobody can account for.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules/{ruleId}:enable:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    post:
+      tags: [automation]
+      operationId: enableAutomationRule
+      summary: Switch a rule on
+      description: >
+        Its own call and its own audit entry, on both sides. Letting a rule act on the workspace is
+        the decision worth recording, and the permission is re-checked here rather than trusted
+        from whenever the rule was written: the writer's rights may have narrowed since.
+
+        Enabling also clears the failure counter, because a rule somebody has looked at and turned
+        back on is a rule whose run of failures has been dealt with.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: On
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules/{ruleId}:disable:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    post:
+      tags: [automation]
+      operationId: disableAutomationRule
+      summary: Switch a rule off
+      description: >
+        The rule stays, and stops acting. What a run of failures does automatically, a person can
+        do deliberately - and the trail says which of the two it was.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Off
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /integrations/webhooks:
     get:
       tags: [webhooks]
@@ -3983,6 +4149,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    RuleId:
+      name: ruleId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     WebhookId:
       name: webhookId
       in: path
@@ -4855,6 +5026,208 @@ components:
           format: date-time
           description: When the next attempt is due; null once there will not be one.
         created_at: { type: string, format: date-time }
+
+    RuleScope:
+      type: object
+      description: >
+        Where the rule applies: the whole workspace, one hub, or one collection - the three levels
+        `automation_rule.scope_type` has carried since the first migration. Descendants are included
+        by the ordinary rule rather than by a flag: a permission held at a hub applies downwards
+        (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [TENANT, HUB, COLLECTION]
+        id:
+          type: string
+          format: uuid
+          description: The hub or the collection. Absent for `TENANT`, and required for the others.
+
+    RuleTrigger:
+      type: object
+      description: >
+        What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and
+        no others - a trigger carrying a cron expression and an event type would be a rule nobody
+        can read.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
+        event_type:
+          type: string
+          description: >
+            `EVENT` only, and required there: the full type, `de.hubtask.work.item.overdue.v1`. One
+            this build does not publish is refused by name.
+        changed_fields:
+          type: array
+          description: >
+            `EVENT` only, optional. Narrows an `item.updated` trigger to the fields that moved, so
+            that a rule about deadlines does not fire on a rename.
+          items: { type: string }
+        rrule:
+          type: string
+          description: "`SCHEDULE` only, and required there: an RFC 5545 RRULE."
+        timezone:
+          type: string
+          description: >
+            `SCHEDULE` only, and required there: an IANA zone. A schedule without one is a schedule
+            that means something different in summer.
+        anchor:
+          type: string
+          enum: [DUE_DATE, CREATED_AT]
+          description: "`RELATIVE_DATE` only, and required there: which instant the offset is from."
+        offset:
+          type: string
+          description: >
+            `RELATIVE_DATE` only, and required there: a signed ISO 8601 duration, `-PT24H` for
+            "24 hours before".
+
+    RuleAction:
+      type: object
+      description: >
+        One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows
+        with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a
+        new use case becomes an action without anybody editing anything.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          description: >
+            `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind automation.md §1.3 documents and no
+            release serves yet is refused by name rather than stored to be ignored.
+        params:
+          type: object
+          additionalProperties: true
+          description: >
+            The action's parameters. A key the use case behind the kind does not declare is
+            refused, exactly as it would be on the call itself.
+
+    RuleThrottle:
+      type: object
+      description: >
+        What bounds a storm. Both are optional, and both are stored rather than enforced here: the
+        engine that runs a rule is what observes them (automation.md §2).
+      properties:
+        max_runs_per_hour:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        dedupe_key_expr:
+          type: string
+          description: >
+            An expression whose value collapses runs that mean the same thing. Refused while it is
+            non-empty, with the conditions and for their reason: the language arrives with the
+            engine that evaluates it.
+
+    AutomationRule:
+      type: object
+      required:
+        [id, name, scope, enabled, run_as, trigger, conditions, actions, on_error,
+         failure_count, created_by, created_at, updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        scope: { $ref: "#/components/schemas/RuleScope" }
+        enabled:
+          type: boolean
+          description: >
+            Switched off when the rule is written. `:enable` and `:disable` are what move it, so
+            that the trail says which of the two somebody did.
+        run_as:
+          type: string
+          format: uuid
+          description: >
+            The account the rule acts as. It can never do more than that account may
+            (automation.md §2), which is why the writer has to hold those rights too.
+        trigger: { $ref: "#/components/schemas/RuleTrigger" }
+        conditions:
+          type: array
+          description: >
+            Empty in this release. A non-empty condition is refused until the expression language
+            that evaluates it arrives - stored and ignored is the one thing it must not be.
+          items: { $ref: "#/components/schemas/RuleCondition" }
+        actions:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/RuleAction" }
+        throttle: { $ref: "#/components/schemas/RuleThrottle" }
+        on_error:
+          type: string
+          enum: [STOP, CONTINUE, RETRY]
+        failure_count:
+          type: integer
+          description: >
+            Consecutive failed runs. A run of them disables the rule by itself, and enabling it by
+            hand clears the count.
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    RuleCondition:
+      type: object
+      required: [expr]
+      properties:
+        expr:
+          type: string
+          description: A CEL expression (ADR-0009). Refused while it is non-empty in this release.
+
+    AutomationRuleCreate:
+      type: object
+      required: [name, scope, run_as, trigger, actions]
+      properties:
+        name: { type: string, maxLength: 200 }
+        scope: { $ref: "#/components/schemas/RuleScope" }
+        run_as: { type: string, format: uuid }
+        trigger: { $ref: "#/components/schemas/RuleTrigger" }
+        conditions:
+          type: array
+          items: { $ref: "#/components/schemas/RuleCondition" }
+        actions:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/RuleAction" }
+        throttle: { $ref: "#/components/schemas/RuleThrottle" }
+        on_error:
+          type: string
+          enum: [STOP, CONTINUE, RETRY]
+          default: STOP
+
+    AutomationRuleUpdate:
+      type: object
+      description: >
+        An omitted field is left alone. `enabled` is deliberately absent: it moves through `:enable`
+        and `:disable`, which are audited as the decisions they are.
+      properties:
+        name: { type: string, maxLength: 200 }
+        scope: { $ref: "#/components/schemas/RuleScope" }
+        run_as: { type: string, format: uuid }
+        trigger: { $ref: "#/components/schemas/RuleTrigger" }
+        conditions:
+          type: array
+          items: { $ref: "#/components/schemas/RuleCondition" }
+        actions:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/RuleAction" }
+        throttle: { $ref: "#/components/schemas/RuleThrottle" }
+        on_error:
+          type: string
+          enum: [STOP, CONTINUE, RETRY]
+        expected_version:
+          type: integer
+          description: The version last read. A mismatch is a conflict rather than an overwrite.
+
+    AutomationRulePage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/AutomationRule" }
+        page: { $ref: "#/components/schemas/PageInfo" }
 
     WebhookDeliveryPage:
       type: object

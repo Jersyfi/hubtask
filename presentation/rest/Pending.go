@@ -119,6 +119,35 @@ func (pending) RotateWebhookSecret(w http.ResponseWriter, r *http.Request, _ ope
 	notAvailable(w, r)
 }
 
+// The automation rules, until G-05 registers the use cases behind them.
+func (pending) ListAutomationRules(w http.ResponseWriter, r *http.Request, _ openapi.ListAutomationRulesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateAutomationRule(w http.ResponseWriter, r *http.Request, _ openapi.CreateAutomationRuleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetAutomationRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateAutomationRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteAutomationRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId) {
+	notAvailable(w, r)
+}
+
+func (pending) EnableAutomationRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.EnableAutomationRuleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DisableAutomationRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.DisableAutomationRuleParams) {
+	notAvailable(w, r)
+}
+
 func (pending) PollTriggerEvents(w http.ResponseWriter, r *http.Request, _ openapi.EventType, _ openapi.PollTriggerEventsParams) {
 	notAvailable(w, r)
 }
