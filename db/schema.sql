@@ -517,7 +517,12 @@ CREATE TABLE media_object (
   -- The upload life (C-06, migration 0013): PENDING between staging and confirmation, READY once
   -- the bytes were read back, judged and sealed. Fail-closed default.
   status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY')),
-  file_name   text
+  file_name   text,
+  -- Since when nothing has pointed at this object, NULL while something does (migration 0049).
+  -- The recount maintains it, and the sweep waits it out before marking: an object is at
+  -- ref_count = 0 between its confirmation and the first thing that uses it, and that window is
+  -- not evidence of anything.
+  unreferenced_since timestamptz
 );
 CREATE UNIQUE INDEX media_object_tenant_id_uq ON media_object (tenant_id, id);
 CREATE INDEX media_object_reconcile_idx ON media_object (tenant_id, status, ref_count, created_at);
