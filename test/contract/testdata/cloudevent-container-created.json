@@ -1,0 +1,29 @@
+{
+  "actorid": "0192f000-0000-7000-8000-00000000000d",
+  "actortype": "USER",
+  "causationdepth": 0,
+  "correlationid": "0192f000-0000-7000-8000-0000000000e1",
+  "data": {
+    "archived_at": null,
+    "auto_assign": null,
+    "completion_policy": "MANUAL",
+    "created_at": "2026-08-17T09:00:00Z",
+    "created_by": "0192f000-0000-7000-8000-00000000000d",
+    "effective_archived": false,
+    "id": "0192f000-0000-7000-8000-00000000000b",
+    "name": "Shopping",
+    "order_key": "a0",
+    "parent_id": "0192f000-0000-7000-8000-00000000000c",
+    "type": "COLLECTION",
+    "updated_at": "2026-08-17T09:00:00Z",
+    "version": 1
+  },
+  "datacontenttype": "application/json",
+  "id": "0192f000-0000-7000-8000-0000000000e1",
+  "source": "urn:hubtask:golden",
+  "specversion": "1.0",
+  "subject": "container/0192f000-0000-7000-8000-00000000000b",
+  "tenantid": "0192f000-0000-7000-8000-00000000000a",
+  "time": "2026-08-17T09:00:00Z",
+  "type": "de.hubtask.work.container.created.v1"
+}
