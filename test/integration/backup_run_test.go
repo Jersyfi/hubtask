@@ -104,6 +104,47 @@ func TestARunThatDiedContinuesItsOwnClaim(t *testing.T) {
 	}
 }
 
+// The stuck-target defect of #207, proved against the statements: a run left RUNNING blocks every
+// later run at its target, and closing it the way the dead letter now does - FAILED under its own
+// code - is exactly what frees the target again.
+func TestClosingAnAbandonedRunFreesItsTarget(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	target := seedTarget(ctx, t, tenantA)
+	stuck, next := freshID(t), freshID(t)
+
+	var blocked, freed bool
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := runRepo().Start(ctx, runIn(tenantA, target, stuck, domain.ModeFull)); err != nil {
+			return err
+		}
+		var err error
+		blocked, err = runRepo().Start(ctx, runIn(tenantA, target, next, domain.ModeFull))
+		if err != nil {
+			return err
+		}
+		// What Performer.Abandon writes when the queue gives up on the stuck run's job.
+		err = runRepo().Finish(ctx, domain.Outcome{
+			ID: stuck, Status: domain.RunFailed,
+			FinishedAt: created, ErrorCode: domain.CodeRunAbandoned,
+		})
+		if err != nil {
+			return err
+		}
+		freed, err = runRepo().Start(ctx, runIn(tenantA, target, next, domain.ModeFull))
+		return err
+	}); err != nil {
+		t.Fatalf("running the sequence: %v", err)
+	}
+
+	if blocked {
+		t.Fatal("a second run claimed a target a stuck row was holding")
+	}
+	if !freed {
+		t.Fatal("closing the abandoned run did not free its target")
+	}
+}
+
 func TestARunRoundTripsAndFinishes(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
