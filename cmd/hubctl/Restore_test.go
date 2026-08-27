@@ -27,10 +27,13 @@ func restoring(t *testing.T, run string) (*installation, *string) {
 			// copy, because the two calls that follow overwrite it.
 			asked = stub.body
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = w.Write([]byte(`{"job_id":"` + restoreID + `","status":"QUEUED"}`))
+			// The job and the restore are two identifiers, and the 202 is the only answer that
+			// carries both.
+			_, _ = w.Write([]byte(`{"job_id":"` + jobID + `","status":"QUEUED",
+			  "result_url":"` + restoresPath + `/` + restoreID + `"}`))
 		case strings.HasPrefix(r.URL.Path, APIPath+jobsPath):
-			_, _ = w.Write([]byte(`{"job_id":"` + restoreID + `","status":"SUCCEEDED","progress":1,
-			  "result_url":"/v1/restores/` + restoreID + `","error_code":null,
+			_, _ = w.Write([]byte(`{"job_id":"` + jobID + `","status":"SUCCEEDED","progress":1,
+			  "result_url":null,"error_code":null,
 			  "created_at":"2026-08-27T09:00:00Z","finished_at":"2026-08-27T09:03:00Z"}`))
 		default:
 			_, _ = w.Write([]byte(run))

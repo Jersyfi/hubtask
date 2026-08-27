@@ -146,20 +146,25 @@ func TestStartingABackupAnswersTheJob(t *testing.T) {
 
 // With --follow it waits, and then reads the run rather than the job: what a person asked for is
 // what the archive is, not that a job finished.
-func TestFollowingABackupEndsWithTheRunItself(t *testing.T) {
+// A job identifier is not a run identifier. The 202 carries both, and only its `result_url` says
+// which run the job is making - the job resource itself carries none, because nothing writes one.
+func TestFollowingABackupEndsWithTheRunTheJobNamed(t *testing.T) {
 	var calls atomic.Int32
+	var read string
 	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.Method == http.MethodPost:
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = w.Write([]byte(`{"job_id":"` + runID + `","status":"QUEUED"}`))
+			_, _ = w.Write([]byte(`{"job_id":"` + jobID + `","status":"QUEUED",
+			  "result_url":"` + backupsPath + `/` + runID + `"}`))
 		case strings.HasPrefix(r.URL.Path, APIPath+jobsPath):
 			calls.Add(1)
-			_, _ = w.Write([]byte(`{"job_id":"` + runID + `","status":"SUCCEEDED","progress":1,
-			  "result_url":"/v1/backups/` + runID + `","error_code":null,
+			_, _ = w.Write([]byte(`{"job_id":"` + jobID + `","status":"SUCCEEDED","progress":1,
+			  "result_url":null,"error_code":null,
 			  "created_at":"2026-08-27T09:00:00Z","finished_at":"2026-08-27T09:01:00Z"}`))
 		default:
+			read = r.URL.Path
 			_, _ = w.Write([]byte(oneRun))
 		}
 	})
@@ -171,6 +176,9 @@ func TestFollowingABackupEndsWithTheRunItself(t *testing.T) {
 	}
 	if calls.Load() == 0 {
 		t.Error("the job was never asked about")
+	}
+	if want := APIPath + backupsPath + "/" + runID; read != want {
+		t.Errorf("it read %q rather than the run the job named, %q", read, want)
 	}
 	if !strings.Contains(out, "daily/2026-08-27.hubtask") {
 		t.Errorf("the archive is not in the answer: %q", out)
@@ -204,9 +212,9 @@ func TestAnArchiveThatDoesNotVerifyFailsTheCommand(t *testing.T) {
 		switch {
 		case r.Method == http.MethodPost:
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = w.Write([]byte(`{"job_id":"` + runID + `","status":"QUEUED"}`))
+			_, _ = w.Write([]byte(`{"job_id":"` + jobID + `","status":"QUEUED"}`))
 		case strings.HasPrefix(r.URL.Path, APIPath+jobsPath):
-			_, _ = w.Write([]byte(`{"job_id":"` + runID + `","status":"SUCCEEDED","progress":1,
+			_, _ = w.Write([]byte(`{"job_id":"` + jobID + `","status":"SUCCEEDED","progress":1,
 			  "result_url":null,"error_code":null,"created_at":"2026-08-27T09:00:00Z",
 			  "finished_at":"2026-08-27T09:01:00Z"}`))
 		default:

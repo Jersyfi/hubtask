@@ -172,8 +172,10 @@ func (cli *CLI) startRestore(ctx context.Context, request openapi.RestoreRequest
 		return err
 	}
 
+	// The restore is at the path the 202 named: a job identifier is not a restore identifier, and
+	// the job resource carries no result of its own.
 	var run openapi.RestoreRun
-	if err := client.Get(ctx, restoresPath+"/"+job.JobId.String(), nil, &run); err != nil {
+	if err := cli.readResult(ctx, client, accepted, &run); err != nil {
 		return err
 	}
 	return cli.emitRestore(run)

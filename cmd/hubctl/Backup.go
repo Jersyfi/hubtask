@@ -234,9 +234,6 @@ func backupRun(ctx context.Context, cli *CLI, args []string) error {
 		return cli.Emit(accepted, jobRefTable(accepted))
 	}
 
-	// The run's identifier *is* the archive's identifier in the manifest at the target, and it is
-	// the job's identifier too: one value for all three, so following the job and then reading the
-	// run needs no mapping in between (`/backups` in openapi.yaml).
 	job, err := cli.followJob(ctx, client, accepted.JobId)
 	if err != nil {
 		return err
@@ -245,8 +242,11 @@ func backupRun(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 
+	// Where the run is, from the answer that accepted it. A job identifier is not a run
+	// identifier - the 202 carries both, and only the `result_url` of that answer says which run
+	// this job is making. The job resource itself carries none: nothing writes one.
 	var run openapi.BackupRun
-	if err := client.Get(ctx, backupsPath+"/"+job.JobId.String(), nil, &run); err != nil {
+	if err := cli.readResult(ctx, client, accepted, &run); err != nil {
 		return err
 	}
 	return cli.Emit(run, runTable([]openapi.BackupRun{run}))
@@ -344,6 +344,21 @@ func backupVerify(ctx context.Context, cli *CLI, args []string) error {
 		return errorString(fmt.Sprintf("the archive of run %s did not verify", runID))
 	}
 	return cli.Emit(run, runTable([]openapi.BackupRun{run}))
+}
+
+// readResult fetches what a started job produced, at the path the 202 named.
+//
+// `result_url` is a path inside this API - `/backups/<id>`, `/restores/<id>` - and the client
+// speaks paths, so it is used as it arrived rather than parsed for an identifier. An answer
+// without one is a contract this CLI cannot follow, and saying so is better than guessing a path.
+func (cli *CLI) readResult(
+	ctx context.Context, client *Client, accepted openapi.JobRef, into any,
+) error {
+	if accepted.ResultUrl == nil || *accepted.ResultUrl == "" {
+		return errorString(fmt.Sprintf(
+			"job %s was accepted without saying where its result will be", accepted.JobId))
+	}
+	return client.Get(ctx, *accepted.ResultUrl, nil, into)
 }
 
 // backupPassphrase reads the passphrase from the environment, or asks for it on standard input.
