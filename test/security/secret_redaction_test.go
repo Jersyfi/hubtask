@@ -18,6 +18,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	model "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	port "github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
@@ -80,6 +82,12 @@ func confidentialValues(t *testing.T) []any {
 			Key  secret.Secret
 			Data secret.Bytes
 		}{"a target", secret.New(masterMaterial), derived},
+		// The path G-01 added: a minted personal access token travels from the use case to the
+		// response as a whole struct, and the whole struct is what a careless log line writes.
+		identity.MintedToken{
+			Token:  model.AccessToken{ID: "01936f2a-7c1e-7000-8000-0000000000d1", Name: "a token"},
+			Secret: secret.New(credential),
+		},
 	}
 }
 
