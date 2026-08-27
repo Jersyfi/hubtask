@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/audit"
@@ -59,6 +60,35 @@ func (s AuditSink) Append(ctx context.Context, entry port.Entry) error {
 			WithParams(map[string]string{"entry": entry.TenantID.String(), "transaction": scope.TenantID.String()})
 	}
 	queries := sqlc.New(tx)
+
+	// The instant, at the precision the column keeps.
+	//
+	// `timestamptz` holds microseconds and a clock hands over nanoseconds, so an entry hashed as
+	// it arrived and read back from the row is two different entries: verification recomputes the
+	// hash from what was stored, and every entry written with a finer clock than the column
+	// reported tampering that never happened (E-12 found it; AT-2 builds its entries from a fixed
+	// base plus whole seconds and could not).
+	//
+	// Truncated here rather than in `audit.Canonical`, because this is where the storage's
+	// precision is known: the port and the domain have no business knowing what PostgreSQL keeps.
+	// Rounding would move an instant forwards; truncation cannot.
+	entry.OccurredAt = entry.OccurredAt.UTC().Truncate(time.Microsecond)
+
+	// And the changed fields, in the shape the row will give them back.
+	//
+	// The same asymmetry as the timestamp, one level deeper: the caller hands over Go values - a
+	// structure, an integer, a slice - and verification recomputes the hash from what came out of
+	// JSONB through `map[string]any`. A structure marshals in *field* order on the way in and in
+	// key order on the way out, so every entry carrying one hashed differently than it read back,
+	// and the trail reported tampering that never happened (E-12).
+	//
+	// One round trip through the same encoder the reader uses settles it: what is hashed is what
+	// any reader will see, whatever the caller built it from.
+	changes, err := storedShape(entry.Changes)
+	if err != nil {
+		return err
+	}
+	entry.Changes = changes
 
 	if err := queries.LockAuditChain(ctx); err != nil {
 		return shared.ErrUnavailable.
@@ -158,4 +188,31 @@ func auditInsertParams(id shared.ID, seq int64, hash, previousHash []byte, entry
 		PrevHash:     previousHash,
 		Hash:         hash,
 	}, nil
+}
+
+// storedShape is a value as it comes back out of the database: through the same encoder, into the
+// same generic types. A nil map stays nil - the sink writes `{}` for it either way, and the hash is
+// taken over that.
+func storedShape(changes map[string]any) (map[string]any, error) {
+	// An entry that changed nothing - a probe, a read that is recorded, a refusal - is stored as
+	// `{}` and read back as `{}`, and a nil map hashes as `null`. So the chain broke at the first
+	// such entry in it, and only there: everything with a changed field in it verified, which is
+	// why a trail could look sound for forty entries and then not (E-12).
+	if len(changes) == 0 {
+		return map[string]any{}, nil
+	}
+
+	encoded, err := json.Marshal(changes)
+	if err != nil {
+		return nil, shared.ErrInternal.
+			WithDetail("audit.entry_unserialisable").
+			WithCause(fmt.Errorf("normalising the changes of an audit entry: %w", err))
+	}
+	var stored map[string]any
+	if err := json.Unmarshal(encoded, &stored); err != nil {
+		return nil, shared.ErrInternal.
+			WithDetail("audit.entry_unserialisable").
+			WithCause(fmt.Errorf("normalising the changes of an audit entry: %w", err))
+	}
+	return stored, nil
 }

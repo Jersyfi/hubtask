@@ -1,0 +1,545 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+
+	"github.com/Jersyfi/hubtask/presentation/openapi"
+)
+
+const (
+	backupTargetsPath = "/backup-targets"
+	backupsPath       = "/backups"
+)
+
+func backupGroup() group {
+	return group{
+		name:    "backup",
+		summary: "where copies go, and the copies themselves",
+		commands: []command{
+			{
+				name:    "target",
+				usage:   "add|ls|test …",
+				summary: "the places an archive can be written to",
+				run:     backupTarget,
+			},
+			{
+				name:    "run",
+				usage:   "--target <id> [--mode FULL|INCREMENTAL] [--no-media] [--no-audit] [--follow] [--wait <d>]",
+				summary: "start a backup now",
+				run:     backupRun,
+				waits:   true,
+			},
+			{
+				name:    "ls",
+				usage:   "--target <id>",
+				summary: "the archives that are actually lying at the target",
+				run:     backupList,
+			},
+			{
+				name:    "show",
+				usage:   "<id>",
+				summary: "what one run did",
+				run:     backupShow,
+			},
+			{
+				name:    "verify",
+				usage:   "<id> [--follow] [--wait <d>]",
+				summary: "check an archive's checksums and that it decrypts",
+				run:     backupVerify,
+				waits:   true,
+			},
+		},
+	}
+}
+
+// backupTarget is a noun under a noun, so it dispatches its own verb. Three levels rather than
+// two: `hubctl backup target ls` reads as what it is, and flattening it to `hubctl backup-target`
+// would give the CLI a second spelling of the same word.
+func backupTarget(ctx context.Context, cli *CLI, args []string) error {
+	if len(args) == 0 {
+		return usagef("backup target needs a command: add, ls, test")
+	}
+	switch args[0] {
+	case "add":
+		return backupTargetAdd(ctx, cli, args[1:])
+	case "ls":
+		return backupTargetList(ctx, cli, args[1:])
+	case "test":
+		return backupTargetTest(ctx, cli, args[1:])
+	default:
+		return usagef("backup target has no command %q: add, ls, test", args[0])
+	}
+}
+
+func backupTargetAdd(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "backup target", "add",
+		"--name <name> --kind LOCAL|S3|SFTP|… --config <k=v,…> [--unencrypted] [--insecure-acknowledged]")
+	name := flags.String("name", "", "what to call it")
+	kind := flags.String("kind", "", "LOCAL, S3, SFTP, FTPS, FTP, WEBDAV, SMB, AZURE_BLOB, GCS, RCLONE or HTTP_PUT")
+	config := flags.String("config", "", "where it points, as k=v pairs: path=daily or bucket=hubtask,region=eu-central-1")
+	credentials := flags.String("credentials", "",
+		"as k=v pairs, stored encrypted and never read back; prefer the environment for a secret")
+	unencrypted := flags.Bool("unencrypted", false, "write the archives in clear (refused without --insecure-acknowledged)")
+	acknowledged := flags.Bool("insecure-acknowledged", false, "yes, this target is unencrypted or a plaintext protocol")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if *name == "" || *kind == "" {
+		return usagef("backup target add needs --name and --kind")
+	}
+
+	settings, err := pairs("--config", *config)
+	if err != nil {
+		return err
+	}
+	secrets, err := pairs("--credentials", *credentials)
+	if err != nil {
+		return err
+	}
+
+	create := openapi.BackupTargetCreate{
+		Name:                 *name,
+		Kind:                 openapi.BackupTargetKind(*kind),
+		Config:               anyMap(settings),
+		InsecureAcknowledged: acknowledged,
+	}
+	if len(secrets) > 0 {
+		values := anyMap(secrets)
+		create.Credentials = &values
+	}
+
+	// The mode, and no passphrase with it. The contract has an `encryption_passphrase` and this
+	// version refuses it: an archive is written under a key derived from the installation's master
+	// key (E-02), and a passphrase that had no effect would leave somebody believing their
+	// archives are protected by one. So there is nothing here for a person to keep safe, and
+	// nothing for this CLI to ask for - the flag arrives with the version that serves the field.
+	mode := openapi.BackupTargetCreateEncryptionModeAES256GCM
+	if *unencrypted {
+		mode = openapi.BackupTargetCreateEncryptionModeNONE
+	}
+	create.EncryptionMode = &mode
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var target openapi.BackupTarget
+	if err := client.Post(ctx, backupTargetsPath, create, &target); err != nil {
+		return err
+	}
+	return cli.Emit(target, targetTable([]openapi.BackupTarget{target}))
+}
+
+func backupTargetList(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "backup target", "ls", "")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var targets []openapi.BackupTarget
+	if err := client.Get(ctx, backupTargetsPath, nil, &targets); err != nil {
+		return err
+	}
+	return cli.Emit(targets, targetTable(targets))
+}
+
+// backupTargetTest is a write/read/delete probe rather than a reading of the target, and it
+// answers what happened rather than the row: whether it worked, whether the *write* half worked,
+// how long it took, and how much room is left. A target that can be read and not written is the
+// common permissions mistake, so it gets a column of its own.
+func backupTargetTest(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "backup target test <id>"
+	targetID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "backup target", "test", "<id>")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var probe openapi.BackupTargetProbe
+	if err := client.Post(ctx, backupTargetsPath+"/"+targetID.String()+":test", nil, &probe); err != nil {
+		return err
+	}
+
+	if err := cli.Emit(probe, Table{
+		Columns: []string{"ok", "writable", "latency", "free", "error"},
+		Rows: [][]string{{
+			boolText(probe.Ok),
+			boolText(probe.Writable),
+			strconv.Itoa(int(probe.LatencyMs)) + "ms",
+			byteSize(probe.FreeBytes),
+			text(probe.ErrorCode),
+		}},
+	}); err != nil {
+		return err
+	}
+	// A probe that failed is a failure of the command. `hubctl backup target test` is what a
+	// person runs to find out whether a target works, and answering "no" with exit 0 is the same
+	// mistake as a verification that prints `valid false` and succeeds.
+	if !probe.Ok {
+		return errorString(fmt.Sprintf("the target %s did not answer the probe", targetID))
+	}
+	return nil
+}
+
+func backupRun(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "backup", "run",
+		"--target <id> [--mode FULL|INCREMENTAL] [--no-media] [--no-audit] [--follow]")
+	target := flags.String("target", "", "the target to write to")
+	mode := flags.String("mode", "FULL", "FULL or INCREMENTAL")
+	noMedia := flags.Bool("no-media", false, "leave the attachments out")
+	noAudit := flags.Bool("no-audit", false, "leave the audit trail out")
+	follow := flags.Bool("follow", false, "wait for the run to finish")
+	wait := waitFlag(flags)
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if *target == "" {
+		return usagef("backup run needs --target; `hubctl backup target ls` prints the identifiers")
+	}
+	targetID, err := cli.parseID("--target", *target)
+	if err != nil {
+		return err
+	}
+
+	start := openapi.BackupStart{TargetId: targetID}
+	runMode := openapi.BackupStartMode(*mode)
+	start.Mode = &runMode
+	if *noMedia {
+		start.IncludeMedia = boolean(false)
+	}
+	if *noAudit {
+		start.IncludeAudit = boolean(false)
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var accepted openapi.JobRef
+	if err := client.Post(ctx, backupsPath, start, &accepted); err != nil {
+		return err
+	}
+	if !*follow {
+		return cli.Emit(accepted, jobRefTable(accepted))
+	}
+
+	job, err := cli.followJob(ctx, client, accepted.JobId, *wait)
+	if err != nil {
+		return err
+	}
+	if err := cli.jobFailed(job); err != nil {
+		return err
+	}
+
+	// Where the run is, from the answer that accepted it. A job identifier is not a run
+	// identifier - the 202 carries both, and only the `result_url` of that answer says which run
+	// this job is making. The job resource itself carries none: nothing writes one.
+	var run openapi.BackupRun
+	if err := cli.readResult(ctx, client, accepted, &run); err != nil {
+		return err
+	}
+	return cli.Emit(run, runTable([]openapi.BackupRun{run}))
+}
+
+// backupList reads the target rather than the database, which is the whole point of it: it is the
+// listing that still answers after the installation that wrote the archives is gone
+// (backup-restore.md §6), and it is where `hubctl restore` gets an archive to name.
+//
+// What it answers is an **archive** rather than a run: a path, what wrote it, whether it is
+// complete, whether it is encrypted. There is no run row behind it - that is the database's
+// reading - and the two are deliberately different shapes.
+func backupList(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "backup", "ls", "--target <id> [--refresh]")
+	target := flags.String("target", "", "the target to look at")
+	refresh := flags.Bool("refresh", false, "read the target again rather than the cached listing")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if *target == "" {
+		return usagef("backup ls needs --target; `hubctl backup target ls` prints the identifiers")
+	}
+	targetID, err := cli.parseID("--target", *target)
+	if err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	if *refresh {
+		query.Set("refresh", "true")
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var archives []openapi.BackupArchive
+	if err := client.Get(ctx,
+		backupTargetsPath+"/"+targetID.String()+"/backups", query, &archives); err != nil {
+		return err
+	}
+	return cli.Emit(archives, archiveTable(archives))
+}
+
+func archiveTable(archives []openapi.BackupArchive) Table {
+	rows := make([][]string, 0, len(archives))
+	for _, archive := range archives {
+		rows = append(rows, []string{
+			text(archive.Path),
+			shortTime(archive.CreatedAt),
+			modeOf(archive),
+			count(archive.ItemCount),
+			byteSize(archive.SizeBytes),
+			// An archive without `checksums.txt` is not damaged: it is a run still going, or one
+			// that died. Whoever is deciding what to restore from needs that told apart.
+			yesNo(archive.Complete),
+			yesNo(archive.Encrypted),
+		})
+	}
+	return Table{
+		Columns: []string{"archive", "created", "mode", "items", "size", "complete", "encrypted"},
+		Rows:    rows,
+	}
+}
+
+func modeOf(archive openapi.BackupArchive) string {
+	if archive.Mode == nil {
+		return "-"
+	}
+	return string(*archive.Mode)
+}
+
+func backupShow(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "backup show <id>"
+	runID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "backup", "show", "<id>")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var run openapi.BackupRun
+	if err := client.Get(ctx, backupsPath+"/"+runID.String(), nil, &run); err != nil {
+		return err
+	}
+	return cli.Emit(run, runTable([]openapi.BackupRun{run}))
+}
+
+func backupVerify(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "backup verify <id> [--follow]"
+	runID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "backup", "verify", "<id> [--follow]")
+	follow := flags.Bool("follow", false, "wait for the check to finish")
+	wait := waitFlag(flags)
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var accepted openapi.JobRef
+	if err := client.Post(ctx, backupsPath+"/"+runID.String()+":verify", nil, &accepted); err != nil {
+		return err
+	}
+	if !*follow {
+		return cli.Emit(accepted, jobRefTable(accepted))
+	}
+
+	job, err := cli.followJob(ctx, client, accepted.JobId, *wait)
+	if err != nil {
+		return err
+	}
+	if err := cli.jobFailed(job); err != nil {
+		return err
+	}
+
+	// The verdict is on the run rather than on the job: `verified_at` and `verify_ok` are what a
+	// person asked for, and a job that succeeded only says the check ran.
+	var run openapi.BackupRun
+	if err := client.Get(ctx, backupsPath+"/"+runID.String(), nil, &run); err != nil {
+		return err
+	}
+	if run.VerifyOk != nil && !*run.VerifyOk {
+		return errorString(fmt.Sprintf("the archive of run %s did not verify", runID))
+	}
+	return cli.Emit(run, runTable([]openapi.BackupRun{run}))
+}
+
+// readResult fetches what a started job produced, at the path the 202 named.
+//
+// `result_url` is a path inside this API - `/backups/<id>`, `/restores/<id>` - and the client
+// speaks paths, so it is used as it arrived rather than parsed for an identifier. An answer
+// without one is a contract this CLI cannot follow, and saying so is better than guessing a path.
+func (cli *CLI) readResult(
+	ctx context.Context, client *Client, accepted openapi.JobRef, into any,
+) error {
+	if accepted.ResultUrl == nil || *accepted.ResultUrl == "" {
+		return errorString(fmt.Sprintf(
+			"job %s was accepted without saying where its result will be", accepted.JobId))
+	}
+	return client.Get(ctx, *accepted.ResultUrl, nil, into)
+}
+
+func targetTable(targets []openapi.BackupTarget) Table {
+	rows := make([][]string, 0, len(targets))
+	for _, target := range targets {
+		rows = append(rows, []string{
+			target.Id.String(),
+			target.Name,
+			string(target.Kind),
+			string(target.EncryptionMode),
+			yesNo(target.Enabled),
+			lastTest(target),
+			joined(target.Warnings),
+		})
+	}
+	return Table{
+		Columns: []string{"id", "name", "kind", "encryption", "enabled", "last test", "warnings"},
+		Rows:    rows,
+	}
+}
+
+// lastTest folds the two columns a person reads together into one: when it was tried, and whether
+// it worked. A target nobody has tested says so rather than showing an empty pair.
+func lastTest(target openapi.BackupTarget) string {
+	if target.LastTestAt == nil {
+		return "never"
+	}
+	verdict := "failed"
+	if target.LastTestOk != nil && *target.LastTestOk {
+		verdict = "ok"
+	}
+	return shortTime(target.LastTestAt) + " " + verdict
+}
+
+func runTable(runs []openapi.BackupRun) Table {
+	rows := make([][]string, 0, len(runs))
+	for _, run := range runs {
+		rows = append(rows, []string{
+			run.Id.String(),
+			string(run.Status),
+			string(run.Mode),
+			text(run.ArchivePath),
+			count(run.ItemCount),
+			byteSize(run.SizeBytes),
+			shortTime(run.FinishedAt),
+			verified(run),
+		})
+	}
+	return Table{
+		Columns: []string{"id", "status", "mode", "archive", "items", "size", "finished", "verified"},
+		Rows:    rows,
+	}
+}
+
+func verified(run openapi.BackupRun) string {
+	if run.VerifiedAt == nil {
+		return "never"
+	}
+	if run.VerifyOk != nil && *run.VerifyOk {
+		return shortTime(run.VerifiedAt) + " ok"
+	}
+	return shortTime(run.VerifiedAt) + " failed"
+}
+
+// joined renders a list of message codes for a table, and an absent one as a dash.
+func joined(values *[]string) string {
+	if values == nil || len(*values) == 0 {
+		return "-"
+	}
+	return strings.Join(*values, ",")
+}
+
+func jobRefTable(accepted openapi.JobRef) Table {
+	return Table{
+		Columns: []string{"job", "status", "result"},
+		Rows: [][]string{{
+			accepted.JobId.String(),
+			string(accepted.Status),
+			text(accepted.ResultUrl),
+		}},
+	}
+}
+
+// pairs reads `k=v,k=v` into a map, refusing the whole list if any member is not a pair. A flag
+// that silently dropped `bucket` because somebody typed a space would configure a target that
+// points somewhere else.
+func pairs(flag, raw string) (map[string]string, error) {
+	values := map[string]string{}
+	if strings.TrimSpace(raw) == "" {
+		return values, nil
+	}
+	for _, part := range strings.Split(raw, ",") {
+		key, value, found := strings.Cut(part, "=")
+		key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+		if !found || key == "" {
+			return nil, usagef("%s takes k=v pairs separated by commas; %q is not one", flag, part)
+		}
+		values[key] = value
+	}
+	return values, nil
+}
+
+func anyMap(values map[string]string) map[string]any {
+	out := make(map[string]any, len(values))
+	for key, value := range values {
+		out[key] = value
+	}
+	return out
+}
+
+func boolean(value bool) *bool { return &value }
+
+func count(value *int) string {
+	if value == nil {
+		return "-"
+	}
+	return strconv.Itoa(*value)
+}
+
+// byteSize renders a size the way a person reads one. Powers of two, because that is what a disk and
+// a bucket report, and one decimal because the difference between 1.2 and 1.9 GiB matters.
+func byteSize(size *int) string {
+	if size == nil {
+		return "-"
+	}
+	value := float64(*size)
+	for _, unit := range []string{"B", "KiB", "MiB", "GiB", "TiB"} {
+		if value < 1024 || unit == "TiB" {
+			if unit == "B" {
+				return strconv.FormatInt(int64(value), 10) + " B"
+			}
+			return strconv.FormatFloat(value, 'f', 1, 64) + " " + unit
+		}
+		value /= 1024
+	}
+	return strconv.Itoa(*size) + " B"
+}

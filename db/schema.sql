@@ -920,6 +920,9 @@ CREATE UNIQUE INDEX audit_id_uq   ON audit_log (tenant_id, occurred_at, id);
 -- (audit:verify), because a global UNIQUE (tenant_id, seq) across partitions
 -- cannot be enforced.
 CREATE UNIQUE INDEX audit_seq_uq  ON audit_log (tenant_id, occurred_at, seq);
+-- The chain's tail is read by sequence number and nothing else (0045), and every other index here
+-- leads with occurred_at - so without this one that read is a scan of every partition.
+CREATE INDEX audit_seq_idx        ON audit_log (tenant_id, seq DESC);
 CREATE INDEX audit_time_idx       ON audit_log (tenant_id, occurred_at DESC);
 CREATE INDEX audit_action_idx     ON audit_log (tenant_id, action, occurred_at DESC);
 CREATE INDEX audit_actor_idx      ON audit_log (tenant_id, actor_id, occurred_at DESC);

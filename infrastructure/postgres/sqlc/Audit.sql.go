@@ -123,7 +123,7 @@ const lastAuditEntry = `-- name: LastAuditEntry :one
 SELECT seq, hash
 FROM audit_log
 WHERE tenant_id = current_tenant_id()
-ORDER BY occurred_at DESC, seq DESC
+ORDER BY seq DESC
 LIMIT 1
 `
 
@@ -134,6 +134,19 @@ type LastAuditEntryRow struct {
 
 // The tail of this tenant's chain: the sequence number to continue from and the hash to chain to.
 // No row means this is the first entry.
+//
+// Ordered by `seq`, and only by `seq`. It used to read `occurred_at DESC, seq DESC`, and that is a
+// chain that breaks under concurrency: each caller takes its own `Clock.Now()` *before* it queues
+// for the advisory lock, so the entry with the newest timestamp is not always the one with the
+// highest sequence number. A transaction that read such a tail continued from a sequence number
+// that was already taken - the unique index cannot stop it, because a partitioned table's unique
+// index has to carry the partition key and `(tenant_id, occurred_at, seq)` lets one `seq` appear
+// twice under two timestamps. The result was duplicated sequence numbers, a chain that no longer
+// verified, and a `audit.chain_broken` entry reporting tampering that never happened (E-12 found
+// it with eight concurrent writes; AT-2 writes its thousand entries one after another and could
+// not see it).
+//
+// `audit_seq_idx` is what keeps this a lookup rather than a scan of every partition.
 func (q *Queries) LastAuditEntry(ctx context.Context) (LastAuditEntryRow, error) {
 	row := q.db.QueryRow(ctx, lastAuditEntry)
 	var i LastAuditEntryRow
@@ -275,27 +288,30 @@ FROM audit_log
 WHERE tenant_id = current_tenant_id()
   AND ($1::timestamptz IS NULL OR occurred_at >= $1::timestamptz)
   AND ($2::timestamptz IS NULL OR occurred_at < $2::timestamptz)
-  AND (
-    $3::timestamptz IS NULL
-    OR (occurred_at, id) > ($3::timestamptz, $4::uuid)
-  )
-ORDER BY occurred_at ASC, id ASC
-LIMIT $5
+  AND ($3::bigint IS NULL OR seq > $3::bigint)
+ORDER BY seq ASC
+LIMIT $4
 `
 
 type WalkAuditEntriesParams struct {
-	FromTime         pgtype.Timestamptz
-	ToTime           pgtype.Timestamptz
-	CursorOccurredAt pgtype.Timestamptz
-	CursorID         pgtype.UUID
-	BatchSize        int32
+	FromTime  pgtype.Timestamptz
+	ToTime    pgtype.Timestamptz
+	CursorSeq *int64
+	BatchSize int32
 }
 
 // One batch of the trail over a period, oldest first, for a verification or an export.
 //
-// Ascending and by the same pair the page above descends by, because both callers walk the chain
-// rather than read a screen: the chain is built forwards, and a verifier that met the entries
-// newest first would have to hold the whole period in memory before it could check the first link.
+// Ascending, because both callers walk the chain rather than read a screen: the chain is built
+// forwards, and a verifier that met the entries newest first would have to hold the whole period in
+// memory before it could check the first link.
+//
+// Ordered by `seq`, which is what the chain is built over - **not** by `occurred_at`, which is what
+// it read until E-12. Every caller takes its own clock reading before it queues for the chain's
+// lock, so two entries can carry timestamps in the opposite order to their sequence numbers. A walk
+// in timestamp order then meets the chain out of order and reports a hash mismatch and a screenful
+// of gaps for a trail that is perfectly intact. The period still selects by `occurred_at` - that is
+// what an operator asks for, and it is what prunes the partitions - and only the order changes.
 //
 // Its own statement rather than a direction parameter on the list. A direction that decides an
 // ORDER BY is either two statements behind one name or a string somebody assembles, and the second
@@ -304,8 +320,7 @@ func (q *Queries) WalkAuditEntries(ctx context.Context, arg WalkAuditEntriesPara
 	rows, err := q.db.Query(ctx, walkAuditEntries,
 		arg.FromTime,
 		arg.ToTime,
-		arg.CursorOccurredAt,
-		arg.CursorID,
+		arg.CursorSeq,
 		arg.BatchSize,
 	)
 	if err != nil {
