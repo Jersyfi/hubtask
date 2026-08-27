@@ -524,3 +524,117 @@ func drain(woken <-chan struct{}) {
 	default:
 	}
 }
+
+// The sweep, against the database that carries the guard (G-02, ADR-0007's second countermeasure).
+//
+// Here rather than only in the engine's own tests because the guard is a WHERE clause: a fake that
+// implements it correctly proves that the engine asks the right question, and only a real query
+// proves that the answer is the one the schema gives.
+func TestTheSweepTakesDispatchedRowsAndLeavesTheRest(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+	events := postgres.NewDispatchedEvents()
+
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	dispatched := seedOutboxRow(ctx, t, tenantA, old, true)
+	pending := seedOutboxRow(ctx, t, tenantA, old, false)
+	recent := seedOutboxRow(ctx, t, tenantA, time.Now().UTC(), true)
+
+	cutoff := time.Now().UTC().Add(-7 * 24 * time.Hour)
+
+	var due, removed int
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		var err error
+		if due, err = events.CountExpired(txCtx, cutoff, 100); err != nil {
+			return err
+		}
+		removed, err = events.DeleteExpired(txCtx, cutoff, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if due != 1 || removed != 1 {
+		t.Errorf("due = %d, removed = %d; want one each - the old dispatched row", due, removed)
+	}
+	if outboxRowExists(ctx, t, dispatched) {
+		t.Error("the old dispatched row survived the sweep")
+	}
+	// The guard, and the reason it is a WHERE clause rather than a period: the dispatcher stamps
+	// dispatched_at only after every subscriber has had the event, so a NULL means somebody has
+	// not consumed it. A year old and still not due.
+	if !outboxRowExists(ctx, t, pending) {
+		t.Error("an event nobody has consumed was swept")
+	}
+	if !outboxRowExists(ctx, t, recent) {
+		t.Error("an event inside its period was swept")
+	}
+}
+
+// The cross-tenant negative gate SG-3 requires of every new repository method. Row level security
+// is what makes it pass: neither query carries a tenant condition of its own.
+func TestTheSweepCannotReachAnotherTenantsEvents(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+	events := postgres.NewDispatchedEvents()
+
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	inA := seedOutboxRow(ctx, t, tenantA, old, true)
+	cutoff := time.Now().UTC().Add(-7 * 24 * time.Hour)
+
+	var due, removed int
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantB}, func(txCtx context.Context) error {
+		var err error
+		if due, err = events.CountExpired(txCtx, cutoff, 100); err != nil {
+			return err
+		}
+		removed, err = events.DeleteExpired(txCtx, cutoff, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping from the wrong tenant failed for the wrong reason: %v", err)
+	}
+
+	if due != 0 || removed != 0 {
+		t.Errorf("tenant B saw %d due and removed %d of tenant A's events", due, removed)
+	}
+	if !outboxRowExists(ctx, t, inA) {
+		t.Fatal("another tenant swept an event - the boundary did not hold")
+	}
+}
+
+// seedOutboxRow writes one row directly, which is the only way to fix both its age and whether it
+// has been dispatched: the write path stamps neither.
+func seedOutboxRow(ctx context.Context, t *testing.T, tenant shared.ID, occurredAt time.Time, dispatched bool) string {
+	t.Helper()
+
+	id := freshID(t).String()
+	var dispatchedAt *time.Time
+	if dispatched {
+		at := occurredAt.Add(time.Second)
+		dispatchedAt = &at
+	}
+
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO outbox_event (id, tenant_id, event_type, subject, payload, actor_type,
+		                          occurred_at, dispatched_at)
+		VALUES ($1, $2, 'de.hubtask.work.container.created.v1', 'container/x', '{}'::jsonb, 'USER',
+		        $3, $4)`,
+		id, tenant.String(), occurredAt, dispatchedAt); err != nil {
+		t.Fatalf("seeding an outbox row: %v", err)
+	}
+	return id
+}
+
+func outboxRowExists(ctx context.Context, t *testing.T, id string) bool {
+	t.Helper()
+	var found bool
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM outbox_event WHERE id = $1)`, id).Scan(&found); err != nil {
+		t.Fatalf("reading the outbox row: %v", err)
+	}
+	return found
+}

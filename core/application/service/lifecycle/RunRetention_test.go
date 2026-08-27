@@ -6,6 +6,7 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -43,6 +44,53 @@ func (s *policyStore) Find(_ context.Context, kind domain.DataKind) (domain.Poli
 		return domain.Policy{}, shared.ErrNotFound.WithDetail("lifecycle.policy_not_found")
 	}
 	return policy, nil
+}
+
+// eventStore is the outbox's remover, in memory. Rows carry whether they have been dispatched,
+// because that is the one thing about an outbox row the sweep is not allowed to ignore.
+type eventStore struct {
+	rows      []outboxRow
+	askedAt   time.Time
+	deleteErr error
+}
+
+type outboxRow struct {
+	occurredAt time.Time
+	dispatched bool
+}
+
+func (s *eventStore) due(cutoff time.Time, limit int) []int {
+	var due []int
+	for index, row := range s.rows {
+		// The guard the real query carries: a row nobody has consumed yet is never due.
+		if row.dispatched && row.occurredAt.Before(cutoff) {
+			due = append(due, index)
+		}
+		if len(due) >= limit {
+			break
+		}
+	}
+	return due
+}
+
+func (s *eventStore) CountExpired(_ context.Context, cutoff time.Time, ceiling int) (int, error) {
+	s.askedAt = cutoff
+	return len(s.due(cutoff, ceiling)), nil
+}
+
+func (s *eventStore) DeleteExpired(_ context.Context, cutoff time.Time, batch int) (int, error) {
+	if s.deleteErr != nil {
+		return 0, s.deleteErr
+	}
+	removed := s.due(cutoff, batch)
+	kept := make([]outboxRow, 0, len(s.rows))
+	for index, row := range s.rows {
+		if !slices.Contains(removed, index) {
+			kept = append(kept, row)
+		}
+	}
+	s.rows = kept
+	return len(removed), nil
 }
 
 // historyStore is the notification history's remover, in memory: rows keyed by when they were
@@ -86,13 +134,18 @@ func (s *historyStore) DeleteExpired(_ context.Context, cutoff time.Time, batch 
 }
 
 type runStore struct {
-	started   []shared.ID
+	started []shared.ID
+	// kinds is what each run was opened for. Recorded since G-02, because a third kind means
+	// "the log says the pass happened" is no longer the same statement as "the log says which
+	// pass happened".
+	kinds     []domain.DataKind
 	finished  []repository.RunResult
 	finishErr error
 }
 
-func (s *runStore) Start(_ context.Context, id shared.ID, _ domain.DataKind, _ time.Time) error {
+func (s *runStore) Start(_ context.Context, id shared.ID, kind domain.DataKind, _ time.Time) error {
 	s.started = append(s.started, id)
+	s.kinds = append(s.kinds, kind)
 	return nil
 }
 
@@ -130,6 +183,7 @@ type runHarness struct {
 	runs     *runStore
 	signals  *signalSink
 	history  *historyStore
+	events   *eventStore
 }
 
 func newRunHarness() *runHarness {
@@ -140,10 +194,12 @@ func newRunHarness() *runHarness {
 		runs:     &runStore{},
 		signals:  &signalSink{},
 		history:  &historyStore{},
+		events:   &eventStore{},
 	}
 	h.run = RunRetention{
 		Policies: h.policies, Runs: h.runs, Purger: base.purger, History: h.history,
-		Clock: clock.Fixed(now), IDs: &idSource{}, Signals: h.signals,
+		Events: h.events,
+		Clock:  clock.Fixed(now), IDs: &idSource{}, Signals: h.signals,
 	}
 	return h
 }
@@ -189,7 +245,7 @@ func TestAPassOpensAndClosesItsLog(t *testing.T) {
 	}
 
 	// One log entry per kind: the trash and the notification history are two runs of one pass.
-	if len(h.runs.started) != 2 || len(h.runs.finished) != 2 {
+	if len(h.runs.started) != 3 || len(h.runs.finished) != 3 {
 		t.Fatalf("%d runs started and %d finished, want one per data kind",
 			len(h.runs.started), len(h.runs.finished))
 	}
@@ -233,7 +289,7 @@ func TestAPassPublishesItsNumbersEvenWhenTheyAreZero(t *testing.T) {
 		t.Fatalf("the run failed: %v", err)
 	}
 
-	if h.signals.runs != 2 {
+	if h.signals.runs != 3 {
 		t.Errorf("%d durations recorded, want one per data kind", h.signals.runs)
 	}
 	if _, published := h.signals.deleted[string(domain.KindTrash)]; !published {
@@ -340,7 +396,7 @@ func TestAPassSweepsTheNotificationHistoryAtNinetyDays(t *testing.T) {
 	}
 
 	// One log entry per kind, and the second names the notification history.
-	if len(h.runs.started) != 2 {
+	if len(h.runs.started) != 3 {
 		t.Fatalf("%d runs started, want one per data kind", len(h.runs.started))
 	}
 	if _, published := h.signals.deleted[string(domain.KindNotification)]; !published {
@@ -379,8 +435,11 @@ func TestAFailedHistorySweepIsLoggedAndStillRaised(t *testing.T) {
 	if _, err := h.run.Execute(t.Context(), actor()); err == nil {
 		t.Fatal("a failed sweep reported success")
 	}
+	// Two rather than three: the pass raises the failure and the kinds after this one - the
+	// outbox, the rules - are not swept. That is the shape of the whole engine, and it is why a
+	// failing sweep is a failing pass rather than a partial one.
 	if len(h.runs.finished) != 2 {
-		t.Fatalf("%d runs finished, want one per data kind", len(h.runs.finished))
+		t.Fatalf("%d runs finished, want the trash's and the failed history's", len(h.runs.finished))
 	}
 	if h.runs.finished[1].Status != repository.RunFailed {
 		t.Errorf("the history run is logged as %s, want failed", h.runs.finished[1].Status)
@@ -417,7 +476,74 @@ func TestTheHistorySweepPublishesNoBlockReasons(t *testing.T) {
 			t.Errorf("%s was counted %d times", reason, h.signals.blocked[reason])
 		}
 	}
-	if h.signals.runs != 2 {
+	if h.signals.runs != 3 {
 		t.Errorf("%d durations recorded, want one per data kind", h.signals.runs)
+	}
+}
+
+// The outbox's own rows (G-02). ADR-0007's second countermeasure: the one table in this schema
+// that only ever grew.
+func TestAPassSweepsDispatchedEventsAtTheirOwnPeriod(t *testing.T) {
+	h := newRunHarness()
+	old := now.Add(-30 * 24 * time.Hour)
+	h.events.rows = []outboxRow{
+		{occurredAt: old, dispatched: true},
+		{occurredAt: old, dispatched: true},
+		{occurredAt: now.Add(-time.Hour), dispatched: true},
+	}
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	// Seven days, the shortest default in the catalogue.
+	if want := now.Add(-7 * 24 * time.Hour); !h.events.askedAt.Equal(want) {
+		t.Errorf("cut off at %v, want %v", h.events.askedAt, want)
+	}
+	if len(h.events.rows) != 1 {
+		t.Errorf("%d rows left, want the one inside the period", len(h.events.rows))
+	}
+	// The pass reports one outcome across every kind, so that a job which emptied the trash and
+	// left a full batch of events knows it has not finished.
+	if outcome.Removed < 2 {
+		t.Errorf("the pass reported %d removed, and two events went", outcome.Removed)
+	}
+
+	if !slices.Contains(h.runs.kinds, domain.KindOutboxEvent) {
+		t.Errorf("the log names %v and not the outbox", h.runs.kinds)
+	}
+}
+
+// The guard that is not a period: a row nobody has consumed yet is never due, however old it is
+// and whatever the tenant configured. Deleting one would lose the event silently, which is the one
+// failure an outbox exists to rule out (ADR-0007).
+func TestAnEventNobodyHasConsumedIsNeverSwept(t *testing.T) {
+	h := newRunHarness()
+	ancient := now.Add(-365 * 24 * time.Hour)
+	h.events.rows = []outboxRow{
+		{occurredAt: ancient, dispatched: false},
+		{occurredAt: ancient, dispatched: true},
+	}
+
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if len(h.events.rows) != 1 || h.events.rows[0].dispatched {
+		t.Fatalf("rows left = %+v, want the undispatched one alone", h.events.rows)
+	}
+}
+
+// An installation wired without the sweep does what it did before rather than refusing. The
+// difference from the notification history - which is refused when unwired - is which risk each
+// carries: unswept personal data is risk R-09, and an unswept outbox is a table that grows, which
+// the backlog alert already reports.
+func TestAPassWithoutTheOutboxSweepStillRuns(t *testing.T) {
+	h := newRunHarness()
+	h.run.Events = nil
+
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("a pass without the outbox sweep failed: %v", err)
 	}
 }

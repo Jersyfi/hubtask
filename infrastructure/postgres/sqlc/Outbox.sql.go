@@ -146,6 +146,29 @@ func (q *Queries) ClaimPendingEvents(ctx context.Context, batchSize int32) ([]Cl
 	return items, nil
 }
 
+const countDispatchedEvents = `-- name: CountDispatchedEvents :one
+SELECT count(*) FROM (
+  SELECT 1 FROM outbox_event
+  WHERE dispatched_at IS NOT NULL
+    AND occurred_at < $1
+  LIMIT $2
+) AS due
+`
+
+type CountDispatchedEventsParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+// How many rows are due, counted no higher than the ceiling: what the caller needs is "is there
+// more after this batch" rather than a count of the table.
+func (q *Queries) CountDispatchedEvents(ctx context.Context, arg CountDispatchedEventsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countDispatchedEvents, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countPendingEvents = `-- name: CountPendingEvents :one
 SELECT count(*) FROM outbox_event WHERE dispatched_at IS NULL
 `
@@ -157,6 +180,40 @@ func (q *Queries) CountPendingEvents(ctx context.Context) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const deleteDispatchedEvents = `-- name: DeleteDispatchedEvents :execrows
+DELETE FROM outbox_event
+WHERE id IN (
+  SELECT due.id FROM outbox_event AS due
+  WHERE due.dispatched_at IS NOT NULL
+    AND due.occurred_at < $1
+  ORDER BY due.occurred_at
+  LIMIT $2
+)
+`
+
+type DeleteDispatchedEventsParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The retention sweep's batch (data-retention.md §3: anchor `occurred_at`, 7 days).
+//
+// The guard is `dispatched_at IS NOT NULL`, and it is a correctness rule rather than a retention
+// one: the dispatcher stamps that column only after every subscriber has had the event, so a NULL
+// means somebody has not consumed it yet. Such a row is never due, whatever period a tenant
+// configures - deleting it would lose the event silently, which is the one failure an outbox
+// exists to rule out (ADR-0007).
+//
+// Batched through a subquery, because DELETE takes no LIMIT: a pass that took every expired row
+// would be a pass nobody can stop. Oldest first, so a backlog drains in the order it built up.
+func (q *Queries) DeleteDispatchedEvents(ctx context.Context, arg DeleteDispatchedEventsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDispatchedEvents, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const markEventsDispatched = `-- name: MarkEventsDispatched :exec

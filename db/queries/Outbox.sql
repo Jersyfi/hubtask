@@ -48,3 +48,33 @@ SELECT count(*) FROM outbox_event WHERE dispatched_at IS NULL;
 INSERT INTO event_consumption (tenant_id, consumer, event_id, consumed_at)
 VALUES (current_tenant_id(), sqlc.arg('consumer'), sqlc.arg('event_id'), sqlc.arg('consumed_at'))
 ON CONFLICT DO NOTHING;
+
+-- name: DeleteDispatchedEvents :execrows
+-- The retention sweep's batch (data-retention.md §3: anchor `occurred_at`, 7 days).
+--
+-- The guard is `dispatched_at IS NOT NULL`, and it is a correctness rule rather than a retention
+-- one: the dispatcher stamps that column only after every subscriber has had the event, so a NULL
+-- means somebody has not consumed it yet. Such a row is never due, whatever period a tenant
+-- configures - deleting it would lose the event silently, which is the one failure an outbox
+-- exists to rule out (ADR-0007).
+--
+-- Batched through a subquery, because DELETE takes no LIMIT: a pass that took every expired row
+-- would be a pass nobody can stop. Oldest first, so a backlog drains in the order it built up.
+DELETE FROM outbox_event
+WHERE id IN (
+  SELECT due.id FROM outbox_event AS due
+  WHERE due.dispatched_at IS NOT NULL
+    AND due.occurred_at < sqlc.arg('cutoff')
+  ORDER BY due.occurred_at
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountDispatchedEvents :one
+-- How many rows are due, counted no higher than the ceiling: what the caller needs is "is there
+-- more after this batch" rather than a count of the table.
+SELECT count(*) FROM (
+  SELECT 1 FROM outbox_event
+  WHERE dispatched_at IS NOT NULL
+    AND occurred_at < sqlc.arg('cutoff')
+  LIMIT sqlc.arg('ceiling')
+) AS due;

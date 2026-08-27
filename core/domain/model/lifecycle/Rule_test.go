@@ -331,7 +331,7 @@ func TestTheFirstBlockingReasonWins(t *testing.T) {
 // The catalogue is the document's, and every kind it names is here - with the ones nothing sweeps
 // marked rather than absent.
 func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
-	const documented = 15
+	const documented = 16
 	if len(domain.Catalogue()) != documented {
 		t.Fatalf("the catalogue has %d kinds, and data-retention.md §3 lists %d",
 			len(domain.Catalogue()), documented)
@@ -340,7 +340,11 @@ func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
 		if kind.Anchor == "" {
 			t.Errorf("%s says nothing about what its period runs from", kind.Name)
 		}
-		if kind.Swept() && len(kind.Blockable) == 0 && kind.Name != domain.KindNotification {
+		// The two kinds nothing can block are the two that are not somebody's work: a record that
+		// they were told, and a dispatched event. A legal hold is placed on tenants, containers
+		// and items, and neither of these is one.
+		if kind.Swept() && len(kind.Blockable) == 0 &&
+			kind.Name != domain.KindNotification && kind.Name != domain.KindOutboxEvent {
 			t.Errorf("%s is swept and nothing can block it", kind.Name)
 		}
 		for _, action := range kind.Actions {

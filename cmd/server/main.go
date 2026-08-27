@@ -1399,7 +1399,10 @@ func run() error {
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
 			History: notifications,
-			Clock:   clockadapter.System{}, IDs: ids, Signals: metrics,
+			// The outbox's own rows (G-02). ADR-0007's second countermeasure, and until now the
+			// one table in this schema that only ever grew.
+			Events: postgres.NewDispatchedEvents(),
+			Clock:  clockadapter.System{}, IDs: ids, Signals: metrics,
 			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
 			// row that goes.
