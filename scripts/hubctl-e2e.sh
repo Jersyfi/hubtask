@@ -44,7 +44,19 @@ TOKEN_ROW_ID="01936f2a-7c1e-7000-8000-00000000e2e3"
 
 WORK_DIR="$(mktemp -d)"
 ENV_FILE="$WORK_DIR/env"
+# The stack goes at the end, and what it was saying goes with it - so anything but a clean exit
+# prints the server's own account first.
+#
+# It exists because of what a failure used to look like: `set -e` aborts on the first command that
+# returns non-zero, the counted-failure summary below never runs, and the whole report is one
+# sentence from hubctl. A sentence is what a person needs and a code is what a maintainer needs,
+# and the code was in a container that had already been removed.
 cleanup() {
+	local status=$?
+	if [ "$status" -ne 0 ]; then
+		echo "--- the session ended with status $status; the server's last words follow ---"
+		(cd deploy/docker && $COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 120) 2>&1 || true
+	fi
 	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
 	rm -rf "$WORK_DIR"
 }
