@@ -518,7 +518,7 @@ CREATE TABLE media_object (
   -- the bytes were read back, judged and sealed. Fail-closed default.
   status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY')),
   file_name   text,
-  -- Since when nothing has pointed at this object, NULL while something does (migration 0049).
+  -- Since when nothing has pointed at this object, NULL while something does (migration 0051).
   -- The recount maintains it, and the sweep waits it out before marking: an object is at
   -- ref_count = 0 between its confirmation and the first thing that uses it, and that window is
   -- not evidence of anything.
