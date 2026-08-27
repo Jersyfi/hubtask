@@ -180,32 +180,11 @@ minted="$(hubctl --json token create --name 'the end-to-end session' --days 1 --
 TOKEN="$(printf '%s\n' "$minted" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')"
 [ -n "$TOKEN" ] || { echo "FAILED: the mint answered no credential"; echo "$minted"; exit 1; }
 
-# The credential is answered once and nowhere else. A listing that carried it would make "shown
-# once" a sentence in the documentation rather than a property of the server.
-listed="$(hubctl --json token ls)"
-expect_contains "token ls" "$listed" "the end-to-end session"
-expect_missing "token ls" "$listed" "$TOKEN"
-
 printf '%s\n' "$TOKEN" | hubctl auth login --url "$INSTALLATION"
-
-echo "--- and the bootstrap is withdrawn ---"
-# Revocation takes effect on the next call, because the hash is checked against the row on every
-# request. Proving that costs one call with the old credential.
-hubctl token revoke "$TOKEN_ROW_ID"
-refused="$(HUBTASK_TOKEN="$BOOTSTRAP_TOKEN" hubctl container ls 2>&1 || true)"
-expect_contains "a revoked token" "$refused" "revoked"
-
-echo "--- a service account, which is what a rule will run as ---"
-# An account that exists only to be acted through: no address, nothing to accept, active from the
-# moment it exists. G-05's run_as points at one of these, so that a rule outlives its author.
-MACHINE_ID="$(hubctl service-account create --name 'the nightly export' | first_id)"
-[ -n "$MACHINE_ID" ] || { echo "FAILED: creating the service account produced no identifier"; exit 1; }
-expect_contains "service-account ls" "$(hubctl service-account ls)" "$MACHINE_ID"
-
-# Its credentials are administered by whoever answers for access, and it starts with none.
-machine_token="$(hubctl --json token create --account "$MACHINE_ID" --name 'the export job' \
-	--days 30 --scope 'items:read')"
-expect_contains "token create --account" "$machine_token" '"account_id": "'"$MACHINE_ID"'"'
+# Everything the credentials still owe - the listing, the revocation, the service account - is
+# checked at the end of the session rather than here. The rate limiter's burst is what a client
+# firing a whole first hour in two seconds runs into, and the calls that have to be *here* are
+# only the ones without which nothing else can run.
 
 echo "--- a hub, and a collection inside it ---"
 HUB_ID="$(hubctl container create --type HUB --name 'The end-to-end hub' | first_id)"
@@ -270,6 +249,14 @@ expect_contains "item assign" "$assigned" "$ACCOUNT_ID"
 hubctl item unassign "$TASK_ID" >/dev/null
 
 echo "--- the stream, watched ---"
+# A beat first, and it is not padding. The rate limiter's burst is a minute's budget that may be
+# spent at once (HUBTASK_RATE_LIMIT_BURST, 20 by default), and everything above spends it in about
+# half a second - a script compressing a person's first hour into one. Every command so far can be
+# refused and retried; the watch cannot, because it opens a stream that starts "from now", so a
+# refusal there loses the events the loop below is waiting for rather than delaying them. Two
+# seconds refills the bucket at either level (10/s per credential, 50/s per tenant).
+sleep 2
+
 # The binary itself rather than the shell function, so that the SIGINT below reaches hubctl and
 # not a subshell wrapped around it - the clean exit on Ctrl-C is exactly what is under test.
 WATCH_LOG="$WORK_DIR/watch.log"
@@ -678,6 +665,30 @@ expect_contains "the JSON page" "$page" '"has_more"'
 if [ "$(head -c 1 <<< "$page")" != "{" ]; then
 	fail "the JSON output does not begin with a document: $page"
 fi
+
+echo "--- what the credentials still owed ---"
+# The credential is answered once and nowhere else. A listing that carried it would make "shown
+# once" a sentence in the documentation rather than a property of the server.
+listed="$(hubctl --json token ls)"
+expect_contains "token ls" "$listed" "the end-to-end session"
+expect_missing "token ls" "$listed" "$TOKEN"
+
+# A service account: no address, nothing to accept, active from the moment it exists. G-05's
+# run_as points at one of these, so that a rule outlives its author.
+MACHINE_ID="$(hubctl service-account create --name 'the nightly export' | first_id)"
+[ -n "$MACHINE_ID" ] || { echo "FAILED: creating the service account produced no identifier"; exit 1; }
+expect_contains "service-account ls" "$(hubctl service-account ls)" "$MACHINE_ID"
+
+# Its credentials are administered by whoever answers for access, and it starts with none.
+machine_token="$(hubctl --json token create --account "$MACHINE_ID" --name 'the export job' \
+	--days 30 --scope 'items:read')"
+expect_contains "token create --account" "$machine_token" '"account_id": "'"$MACHINE_ID"'"'
+
+# And the bootstrap goes. Revocation takes effect on the next call, because the hash is checked
+# against the row on every request - so proving it costs one call with the withdrawn credential.
+hubctl token revoke "$TOKEN_ROW_ID"
+refused="$(HUBTASK_TOKEN="$BOOTSTRAP_TOKEN" hubctl container ls 2>&1 || true)"
+expect_contains "a revoked token" "$refused" "revoked"
 
 echo "--- what a refusal looks like ---"
 # A collection that does not exist, so the answer is a problem document - and what a person sees
