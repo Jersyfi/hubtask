@@ -157,7 +157,7 @@ func (o Object) Sealed(judgedType string, measuredSize int64) (Object, error) {
 		return Object{}, shared.ErrConflict.WithDetail("media.already_confirmed")
 	}
 	if o.DeletedAt != nil {
-		return Object{}, shared.ErrNotFound
+		return Object{}, notFound()
 	}
 
 	o.Status = StatusReady
@@ -170,7 +170,7 @@ func (o Object) Sealed(judgedType string, measuredSize int64) (Object, error) {
 // attachment, which is what its usage says it was staged for.
 func (o Object) Attachable(usage Usage) error {
 	if o.DeletedAt != nil {
-		return shared.ErrNotFound
+		return notFound()
 	}
 	if o.Status != StatusReady {
 		return shared.ErrValidation.
@@ -184,6 +184,14 @@ func (o Object) Attachable(usage Usage) error {
 			WithFields(shared.FieldError{Path: "/media_id", Code: "media.usage_mismatch"})
 	}
 	return nil
+}
+
+// notFound is the one answer for an object on its way out, and it carries a code because the
+// alternative is what a bare category produces: "This entry does not exist.", the sentence every
+// not-found in the system falls back to. A person told that about a file they have just uploaded
+// learns nothing, and the log of the installation that told them learns no more (rule 8).
+func notFound() error {
+	return shared.ErrNotFound.WithDetail("media.not_found")
 }
 
 // validFileName keeps the name a name: bounded, on one line, and never path material. The
