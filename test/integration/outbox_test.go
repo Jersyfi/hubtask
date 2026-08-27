@@ -640,6 +640,74 @@ func TestTheSweepCannotReachAnotherTenantsEvents(t *testing.T) {
 	deleteOutboxRow(ctx, t, inA)
 }
 
+// The consumption records are the outbox's twin table, and gate SG-3 wants a negative for that
+// method too: it is a second statement against a second table, and "the first one is bounded"
+// proves nothing about the second.
+func TestTheConsumptionSweepCannotReachAnotherTenantsRecords(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+	events := postgres.NewDispatchedEvents()
+
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	eventID := seedOutboxRow(ctx, t, tenantA, old, true)
+	seedConsumption(ctx, t, tenantA, "the-consumer", eventID, old)
+
+	cutoff := time.Now().UTC().Add(-7 * 24 * time.Hour)
+
+	var removed int
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantB}, func(txCtx context.Context) error {
+		var err error
+		removed, err = events.DeleteExpiredConsumption(txCtx, cutoff, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping from the wrong tenant failed for the wrong reason: %v", err)
+	}
+	if removed != 0 {
+		t.Errorf("tenant B removed %d of tenant A's consumption records", removed)
+	}
+	if !consumptionExists(ctx, t, tenantA, "the-consumer", eventID) {
+		t.Fatal("another tenant swept a consumption record - the boundary did not hold")
+	}
+
+	// And the tenant's own sweep does reach it, so the test above is about the boundary rather
+	// than about a query that removes nothing at all.
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		var err error
+		removed, err = events.DeleteExpiredConsumption(txCtx, cutoff, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping in the owning tenant: %v", err)
+	}
+	if removed < 1 || consumptionExists(ctx, t, tenantA, "the-consumer", eventID) {
+		t.Errorf("the owning tenant removed %d and the record is still there", removed)
+	}
+
+	deleteOutboxRow(ctx, t, eventID)
+}
+
+func seedConsumption(ctx context.Context, t *testing.T, tenant shared.ID, consumer, eventID string, at time.Time) {
+	t.Helper()
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO event_consumption (tenant_id, consumer, event_id, consumed_at)
+		VALUES ($1, $2, $3, $4)`, tenant.String(), consumer, eventID, at); err != nil {
+		t.Fatalf("seeding a consumption record: %v", err)
+	}
+}
+
+func consumptionExists(ctx context.Context, t *testing.T, tenant shared.ID, consumer, eventID string) bool {
+	t.Helper()
+	var found bool
+	if err := adminPool(ctx, t).QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM event_consumption
+		               WHERE tenant_id = $1 AND consumer = $2 AND event_id = $3)`,
+		tenant.String(), consumer, eventID).Scan(&found); err != nil {
+		t.Fatalf("reading the consumption record: %v", err)
+	}
+	return found
+}
+
 // seedOutboxRow writes one row directly, which is the only way to fix both its age and whether it
 // has been dispatched: the write path stamps neither.
 func seedOutboxRow(ctx context.Context, t *testing.T, tenant shared.ID, occurredAt time.Time, dispatched bool) string {
