@@ -254,6 +254,22 @@ type QueueConfig struct {
 	// maximum is the worst case for SLO-4, so it stays well under thirty seconds.
 	OutboxMinInterval time.Duration
 	OutboxMaxInterval time.Duration
+	// TriggerPollLag is how far behind the present the polling trigger reads (G-04,
+	// automation.md §3.2).
+	//
+	// The endpoint pages the outbox in `(occurred_at, id)` order, and `occurred_at` is stamped by
+	// the writing transaction rather than by its commit. A transaction that began before one
+	// already answered can therefore still commit a row sorting behind the cursor - and a poller
+	// that had moved past it would step over the event and have no way to know. Rows younger than
+	// this are withheld from the page and from the cursor together, so that by the time an event
+	// is answered, nothing can still arrive in front of it.
+	//
+	// It has to exceed the longest transaction that appends an event. This installation bounds a
+	// statement rather than a transaction, so the closest documented bound is the worker's
+	// statement timeout, and the default is that. An operator who knows their writes are short can
+	// lower it and get a fresher trigger; one who has raised the worker's budget should raise this
+	// with it.
+	TriggerPollLag time.Duration
 }
 
 // LeaseMargin is how much longer a claim holds than the job it covers.
