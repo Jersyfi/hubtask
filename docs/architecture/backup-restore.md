@@ -406,10 +406,10 @@ a drill yet, and an absence rule would page every installation for a feature tha
 
 ```bash
 export HUBTASK_BACKUP_PASSPHRASE="…"
-hubctl backup run --target "$TARGET" --follow --timeout 30m
+hubctl backup run --target "$TARGET" --follow --wait 30m
 hubctl backup verify "$RUN" --follow
 hubctl restore inspect --target "$TARGET" --archive "$ARCHIVE"
-hubctl restore run --target "$TARGET" --archive "$ARCHIVE" --mode NEW_TENANT --apply --follow
+hubctl restore run --target "$TARGET" --archive "$ARCHIVE" --mode NEW_TENANT --apply
 ```
 
 `scripts/hubctl-e2e.sh` runs exactly that against the reference Compose stack on every pull

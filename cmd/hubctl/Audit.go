@@ -39,9 +39,10 @@ func auditGroup() group {
 			},
 			{
 				name:    "export",
-				usage:   "--from <t> --to <t> --target <id> [--format JSONL|CSV] [--follow]",
+				usage:   "--from <t> --to <t> --target <id> [--format JSONL|CSV] [--follow] [--wait <d>]",
 				summary: "write a signed copy of a period to a backup target",
 				run:     auditExport,
+				waits:   true,
 			},
 		},
 	}
@@ -182,6 +183,7 @@ func auditExport(ctx context.Context, cli *CLI, args []string) error {
 	target := flags.String("target", "", "the backup target the archive is written to")
 	format := flags.String("format", "", "JSONL for a second system, CSV for a spreadsheet")
 	follow := flags.Bool("follow", false, "wait for the export to finish")
+	wait := waitFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -219,7 +221,7 @@ func auditExport(ctx context.Context, cli *CLI, args []string) error {
 		return cli.Emit(accepted, jobRefTable(accepted))
 	}
 
-	job, err := cli.followJob(ctx, client, accepted.JobId)
+	job, err := cli.followJob(ctx, client, accepted.JobId, *wait)
 	if err != nil {
 		return err
 	}

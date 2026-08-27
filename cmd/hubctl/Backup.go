@@ -41,9 +41,10 @@ func backupGroup() group {
 			},
 			{
 				name:    "run",
-				usage:   "--target <id> [--mode FULL|INCREMENTAL] [--no-media] [--no-audit] [--follow]",
+				usage:   "--target <id> [--mode FULL|INCREMENTAL] [--no-media] [--no-audit] [--follow] [--wait <d>]",
 				summary: "start a backup now",
 				run:     backupRun,
+				waits:   true,
 			},
 			{
 				name:    "ls",
@@ -59,9 +60,10 @@ func backupGroup() group {
 			},
 			{
 				name:    "verify",
-				usage:   "<id> [--follow]",
+				usage:   "<id> [--follow] [--wait <d>]",
 				summary: "check an archive's checksums and that it decrypts",
 				run:     backupVerify,
+				waits:   true,
 			},
 		},
 	}
@@ -201,6 +203,7 @@ func backupRun(ctx context.Context, cli *CLI, args []string) error {
 	noMedia := flags.Bool("no-media", false, "leave the attachments out")
 	noAudit := flags.Bool("no-audit", false, "leave the audit trail out")
 	follow := flags.Bool("follow", false, "wait for the run to finish")
+	wait := waitFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -234,7 +237,7 @@ func backupRun(ctx context.Context, cli *CLI, args []string) error {
 		return cli.Emit(accepted, jobRefTable(accepted))
 	}
 
-	job, err := cli.followJob(ctx, client, accepted.JobId)
+	job, err := cli.followJob(ctx, client, accepted.JobId, *wait)
 	if err != nil {
 		return err
 	}
@@ -310,6 +313,7 @@ func backupVerify(ctx context.Context, cli *CLI, args []string) error {
 	}
 	flags := commandFlags(cli, "backup", "verify", "<id> [--follow]")
 	follow := flags.Bool("follow", false, "wait for the check to finish")
+	wait := waitFlag(flags)
 	if err := parseOnlyFlags(flags, rest, usage); err != nil {
 		return err
 	}
@@ -326,7 +330,7 @@ func backupVerify(ctx context.Context, cli *CLI, args []string) error {
 		return cli.Emit(accepted, jobRefTable(accepted))
 	}
 
-	job, err := cli.followJob(ctx, client, accepted.JobId)
+	job, err := cli.followJob(ctx, client, accepted.JobId, *wait)
 	if err != nil {
 		return err
 	}

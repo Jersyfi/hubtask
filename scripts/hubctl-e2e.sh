@@ -496,7 +496,7 @@ count_items() {
 SOURCE_ITEMS="$(count_items "$TENANT_ID" | tr -d '[:space:]')"
 [ "$SOURCE_ITEMS" -gt 0 ] || { echo "FAILED: the source workspace holds no entries to back up"; exit 1; }
 
-run="$(hubctl backup run --target "$TARGET_ID" --follow --timeout 5m)"
+run="$(hubctl backup run --target "$TARGET_ID" --follow --wait 5m)"
 BACKUP_ID="$(printf '%s\n' "$run" | first_id)"
 [ -n "$BACKUP_ID" ] || { echo "FAILED: the backup produced no identifier: $run"; exit 1; }
 expect_contains "backup run --follow" "$run" "SUCCEEDED"
@@ -508,16 +508,16 @@ ARCHIVE="$(printf '%s\n' "$run" | awk 'NR==2 {print $4}')"
 # losing the installation - so the archive has to be in it.
 expect_contains "backup ls" "$(hubctl backup ls --target "$TARGET_ID")" "$BACKUP_ID"
 
-verified="$(hubctl backup verify "$BACKUP_ID" --follow --timeout 5m)"
+verified="$(hubctl backup verify "$BACKUP_ID" --follow --wait 5m)"
 expect_contains "backup verify" "$verified" "ok"
 
 # Read before it is used, which is what §8.3 asks of a caller: the report of a dry run first.
-inspected="$(hubctl --json restore inspect --target "$TARGET_ID" --archive "$ARCHIVE" --timeout 5m)"
+inspected="$(hubctl --json restore inspect --target "$TARGET_ID" --archive "$ARCHIVE" --wait 5m)"
 expect_contains "restore inspect" "$inspected" '"status": "SUCCEEDED"'
 expect_contains "restore inspect" "$inspected" '"work_item"'
 
 restored="$(hubctl --json restore run --target "$TARGET_ID" --archive "$ARCHIVE" \
-	--mode NEW_TENANT --apply --follow --timeout 5m)"
+	--mode NEW_TENANT --apply --wait 5m)"
 expect_contains "restore run" "$restored" '"status": "SUCCEEDED"'
 expect_contains "restore run" "$restored" '"dry_run": false'
 

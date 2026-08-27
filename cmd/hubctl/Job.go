@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"strconv"
 	"time"
@@ -22,6 +23,16 @@ const jobsPath = "/jobs"
 // answer than "still going".
 const pollInterval = 2 * time.Second
 
+// defaultWait is how long a following command watches before it gives up watching. Half an hour,
+// because that is the order of a backup or a restore of a real workspace, and `--timeout` - which
+// bounds one call - would be the wrong dial for it.
+const defaultWait = 30 * time.Minute
+
+// waitFlag is the bound on watching, declared the same way by every command that can watch.
+func waitFlag(flags *flag.FlagSet) *time.Duration {
+	return flags.Duration("wait", defaultWait, "how long to wait for the work before giving up watching")
+}
+
 func jobGroup() group {
 	return group{
 		name:    "job",
@@ -29,9 +40,10 @@ func jobGroup() group {
 		commands: []command{
 			{
 				name:    "show",
-				usage:   "<id> [--follow]",
+				usage:   "<id> [--follow] [--wait <d>]",
 				summary: "how a piece of background work is getting on",
 				run:     jobShow,
+				waits:   true,
 			},
 			{
 				name:    "cancel",
@@ -51,6 +63,7 @@ func jobShow(ctx context.Context, cli *CLI, args []string) error {
 	}
 	flags := commandFlags(cli, "job", "show", "<id> [--follow]")
 	follow := flags.Bool("follow", false, "keep asking until the job is finished")
+	wait := waitFlag(flags)
 	if err := parseOnlyFlags(flags, rest, usage); err != nil {
 		return err
 	}
@@ -61,7 +74,7 @@ func jobShow(ctx context.Context, cli *CLI, args []string) error {
 	}
 
 	if *follow {
-		job, err := cli.followJob(ctx, client, jobID)
+		job, err := cli.followJob(ctx, client, jobID, *wait)
 		if err != nil {
 			return err
 		}
@@ -103,13 +116,17 @@ func jobCancel(ctx context.Context, cli *CLI, args []string) error {
 // document the command finally emits, and a script that follows a backup should not have to strip
 // percentages out of it.
 //
-// The wait is bounded by the command's own `--timeout`, deliberately rather than by a loop with no
-// end (CLAUDE.md rule 7). A backup of a real workspace outlives the default thirty seconds, so the
-// message on running out says what to pass and how to ask again - a command that hung until
-// somebody pressed Ctrl-C would leave a job nobody knows the identifier of.
+// The wait is bounded by `--wait` rather than by a loop with no end (CLAUDE.md rule 7), and the
+// message on running out says how to ask again - a command that hung until somebody pressed Ctrl-C
+// would leave a job nobody knows the identifier of.
 func (cli *CLI) followJob(
-	ctx context.Context, client *Client, jobID openapitypes.UUID,
+	ctx context.Context, client *Client, jobID openapitypes.UUID, wait time.Duration,
 ) (openapi.Job, error) {
+	// The wait is bounded here rather than left to run for ever (rule 7), and separately from the
+	// per-call `--timeout`: one call and one piece of work are two different lengths of time.
+	ctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+
 	path := jobsPath + "/" + jobID.String()
 	reported := ""
 
@@ -160,8 +177,8 @@ func waitedLongEnough(jobID openapitypes.UUID, cause error) error {
 		return cause
 	}
 	return fmt.Errorf(
-		"the job is still running after --timeout; ask again with `hubctl job show %s`, "+
-			"or wait for it with a longer --timeout", jobID)
+		"the job is still running after --wait; ask again with `hubctl job show %s`, "+
+			"or watch it for longer with --wait", jobID)
 }
 
 // jobFailed is what a command returns when the work it started did not work. The code is the

@@ -121,7 +121,7 @@ What an operator does with an installation is the same client:
 export HUBTASK_BACKUP_PASSPHRASE="…"          # never a flag: without it an archive is unreadable
 TARGET=$(bin/hubctl backup target add --name nightly --kind LOCAL --config path=daily | awk 'NR==2 {print $1}')
 bin/hubctl backup target test "$TARGET"
-bin/hubctl backup run --target "$TARGET" --follow --timeout 30m
+bin/hubctl backup run --target "$TARGET" --follow --wait 30m
 bin/hubctl backup ls --target "$TARGET"       # what is actually lying at the target
 bin/hubctl backup verify "$RUN" --follow      # fails the command if it does not verify
 

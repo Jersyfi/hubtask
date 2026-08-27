@@ -114,3 +114,18 @@ func TestAJobIdentifierThatIsNotOneIsAUsageError(t *testing.T) {
 		t.Errorf("the complaint does not name the value: %q", errOut)
 	}
 }
+
+// `--timeout` is global and has to come before the command; `--wait` is the command's own, and it
+// is the one a person reaches for after typing `--follow`. A command that watches has to accept it
+// where it is typed, or the flag package would refuse the invocation the README shows.
+func TestAFollowingCommandTakesItsWaitAfterTheVerb(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{
+	  "job_id":"`+jobID+`","status":"SUCCEEDED","progress":1,"result_url":null,
+	  "error_code":null,"created_at":"2026-08-27T09:00:00Z","finished_at":"2026-08-27T09:01:00Z"}`)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"job", "show", jobID, "--follow", "--wait", "2m")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+}

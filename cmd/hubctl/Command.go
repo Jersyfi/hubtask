@@ -73,6 +73,11 @@ type command struct {
 	usage   string
 	summary string
 	run     func(ctx context.Context, cli *CLI, args []string) error
+	// waits says this command may sit and watch a job. `--timeout` bounds one call, and a backup
+	// of a real workspace outlives any sane value for that; such a command bounds its own wait
+	// instead, with `--wait`, and every request inside it stays bounded by the client's own
+	// timeout (rule 7).
+	waits bool
 }
 
 // group is a noun with verbs under it: `hubctl container ls`.
@@ -206,8 +211,11 @@ func dispatch(ctx context.Context, cli *CLI, args []string) error {
 			if c.name != args[1] {
 				continue
 			}
-			ctx, cancel := context.WithTimeout(ctx, cli.Timeout)
-			defer cancel()
+			if !c.waits {
+				bounded, cancel := context.WithTimeout(ctx, cli.Timeout)
+				defer cancel()
+				ctx = bounded
+			}
 			return c.run(ctx, cli, args[2:])
 		}
 		return usagef("%s has no command %q: %s", g.name, args[1], strings.Join(verbs(g), ", "))

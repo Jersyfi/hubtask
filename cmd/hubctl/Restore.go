@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -21,9 +22,10 @@ func restoreGroup() group {
 		commands: []command{
 			{
 				name:    "inspect",
-				usage:   "--target <id> --archive <path>",
+				usage:   "--target <id> --archive <path> [--wait <d>]",
 				summary: "read an archive without changing anything",
 				run:     restoreInspect,
+				waits:   true,
 			},
 			{
 				name:    "run",
@@ -48,6 +50,7 @@ func restoreInspect(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "restore", "inspect", "--target <id> --archive <path>")
 	target := flags.String("target", "", "the target the archive lies at")
 	archive := flags.String("archive", "", "the archive, as `hubctl backup ls` prints it")
+	wait := waitFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -56,7 +59,7 @@ func restoreInspect(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	return cli.startRestore(ctx, request)
+	return cli.startRestore(ctx, request, *wait)
 }
 
 func restoreRun(ctx context.Context, cli *CLI, args []string) error {
@@ -70,6 +73,7 @@ func restoreRun(ctx context.Context, cli *CLI, args []string) error {
 	apply := flags.Bool("apply", false, "actually do it; without this the run is a dry run with a report")
 	noSafety := flags.Bool("no-safety-backup", false, "skip the copy taken before a destructive mode")
 	confirm := flags.String("confirm", "", "the exact workspace name, which a destructive mode requires")
+	wait := waitFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -101,7 +105,7 @@ func restoreRun(ctx context.Context, cli *CLI, args []string) error {
 		}
 		request.TargetTenantId = &tenantID
 	}
-	return cli.startRestore(ctx, request)
+	return cli.startRestore(ctx, request, *wait)
 }
 
 func restoreShow(ctx context.Context, cli *CLI, args []string) error {
@@ -154,7 +158,9 @@ func (cli *CLI) restoreRequest(target, archive, mode string) (openapi.RestoreReq
 
 // startRestore sends the request and follows the job it becomes, because a restore that answered
 // "accepted" and nothing else would leave the report - the whole point of a dry run - unread.
-func (cli *CLI) startRestore(ctx context.Context, request openapi.RestoreRequest) error {
+func (cli *CLI) startRestore(
+	ctx context.Context, request openapi.RestoreRequest, wait time.Duration,
+) error {
 	client, err := cli.client()
 	if err != nil {
 		return err
@@ -164,7 +170,7 @@ func (cli *CLI) startRestore(ctx context.Context, request openapi.RestoreRequest
 		return err
 	}
 
-	job, err := cli.followJob(ctx, client, accepted.JobId)
+	job, err := cli.followJob(ctx, client, accepted.JobId, wait)
 	if err != nil {
 		return err
 	}
