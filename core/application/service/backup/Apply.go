@@ -819,7 +819,11 @@ func (s *state) flush(ctx context.Context) error {
 		if s.plan.dry {
 			return nil
 		}
-		if s.plan.scope.TenantID == s.plan.restore.TenantID {
+		// The run row lives in the tenant that asked, so "same transaction" is only available
+		// when the batch is landing there too - the comparison is against the asker, not against
+		// the row's target tenant, which for NEW_TENANT is the same minted identity the batch
+		// lands in and exactly the scope the row is invisible from.
+		if s.plan.scope.TenantID == s.plan.asker {
 			return s.applier.Restores.RecordProgress(ctx, s.plan.restore.ID, s.report, s.decided)
 		}
 		return nil
@@ -827,7 +831,7 @@ func (s *state) flush(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if !s.plan.dry && s.plan.scope.TenantID != s.plan.restore.TenantID {
+	if !s.plan.dry && s.plan.scope.TenantID != s.plan.asker {
 		err = s.applier.UnitOfWork.Within(ctx, s.plan.asking(), func(ctx context.Context) error {
 			return s.applier.Restores.RecordProgress(ctx, s.plan.restore.ID, s.report, s.decided)
 		})
