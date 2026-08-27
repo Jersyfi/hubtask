@@ -114,6 +114,159 @@ func (r AccessTokenRepository) TouchLastUsed(ctx context.Context, tokenID shared
 	return nil
 }
 
+// Insert writes the minted row. The hash is computed here and nowhere else - the application
+// layer handed over the presented token whole, precisely so that it never held the stored value.
+func (r AccessTokenRepository) Insert(
+	ctx context.Context, token identity.AccessToken, presented identity.Token,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	id, err := uuidOf(token.ID)
+	if err != nil {
+		return err
+	}
+	accountID, err := uuidOf(token.AccountID)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.InsertAccessToken(ctx, sqlc.InsertAccessTokenParams{
+		ID:        id,
+		AccountID: accountID,
+		Name:      token.Name,
+		TokenHash: r.hasher.Hash(presented.Secret()),
+		// The prefix is stored so that an operator can tell one kind of credential from another
+		// in a row they are looking at. It is public by design (security.md §5).
+		TokenPrefix: identity.TokenPrefix,
+		Scopes:      token.Scopes,
+		ExpiresAt:   pgtype.Timestamptz{Time: token.ExpiresAt, Valid: true},
+		CreatedAt:   pgtype.Timestamptz{Time: token.CreatedAt, Valid: true},
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the access token: %w", err))
+	}
+	return nil
+}
+
+// Find reads one token. A token of another tenant is not found rather than forbidden, because row
+// level security makes it invisible before any comparison could be made (multi-tenancy.md §2).
+func (r AccessTokenRepository) Find(
+	ctx context.Context, tokenID shared.ID,
+) (identity.AccessToken, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.AccessToken{}, err
+	}
+
+	id, err := uuidOf(tokenID)
+	if err != nil {
+		return identity.AccessToken{}, err
+	}
+
+	row, err := queries.FindAccessToken(ctx, id)
+	if err != nil {
+		if IsNoRows(err) {
+			return identity.AccessToken{}, shared.ErrNotFound.WithDetail("access.token_unknown")
+		}
+		return identity.AccessToken{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the access token: %w", err))
+	}
+	return tokenFrom(sqlc.AccessTokensForAccountRow(row))
+}
+
+// ListForAccount answers one account's own credentials, newest first.
+func (r AccessTokenRepository) ListForAccount(
+	ctx context.Context, accountID shared.ID,
+) ([]identity.AccessToken, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.AccessTokensForAccount(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the access tokens: %w", err))
+	}
+
+	tokens := make([]identity.AccessToken, 0, len(rows))
+	for _, row := range rows {
+		token, err := tokenFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, token)
+	}
+	return tokens, nil
+}
+
+// Revoke stamps the row and reports whether it changed anything. Nothing changed means it was
+// already revoked, which is not an error - and the moment it was first pulled is kept, because
+// that is the one an auditor asks about.
+func (r AccessTokenRepository) Revoke(
+	ctx context.Context, tokenID shared.ID, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	id, err := uuidOf(tokenID)
+	if err != nil {
+		return false, err
+	}
+
+	changed, err := queries.RevokeAccessToken(ctx, sqlc.RevokeAccessTokenParams{
+		ID:        id,
+		RevokedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("revoking the access token: %w", err))
+	}
+	return changed > 0, nil
+}
+
+// tokenFrom maps a stored row. The two listings and the single read select the same columns in
+// the same order, so one mapping serves all three - a second copy is how two of them come to
+// disagree about what a null expiry means.
+func tokenFrom(row sqlc.AccessTokensForAccountRow) (identity.AccessToken, error) {
+	id, err := idFrom(row.ID)
+	if err != nil {
+		return identity.AccessToken{}, err
+	}
+	tenantID, err := idFrom(row.TenantID)
+	if err != nil {
+		return identity.AccessToken{}, err
+	}
+	accountID, err := idFrom(row.AccountID)
+	if err != nil {
+		return identity.AccessToken{}, err
+	}
+
+	return identity.AccessToken{
+		ID: id, TenantID: tenantID, AccountID: accountID,
+		Name:       row.Name,
+		Scopes:     row.Scopes,
+		ExpiresAt:  timeFrom(row.ExpiresAt),
+		RevokedAt:  timeFrom(row.RevokedAt),
+		LastUsedAt: timeFrom(row.LastUsedAt),
+		CreatedAt:  timeFrom(row.CreatedAt),
+	}, nil
+}
+
 // queriesFrom binds the generated queries to the transaction in the context. There is no path
 // that binds them to the pool: a query outside a unit of work would run without a tenant context
 // (CLAUDE.md rule 3).

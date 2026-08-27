@@ -46,6 +46,11 @@ type tokens struct {
 	touched   shared.ID
 	touchedAt time.Time
 	touchErr  error
+
+	minted    []identity.AccessToken
+	presented identity.Token
+	insertErr error
+	listErr   error
 }
 
 func (f *tokens) FindByToken(context.Context, identity.Token) (repository.Credential, error) {
@@ -55,6 +60,51 @@ func (f *tokens) FindByToken(context.Context, identity.Token) (repository.Creden
 func (f *tokens) TouchLastUsed(_ context.Context, id shared.ID, at time.Time) error {
 	f.touched, f.touchedAt = id, at
 	return f.touchErr
+}
+
+// The write side of the port, as an in-memory store: the three management use cases read back
+// what they wrote, and a fake that only recorded calls could not tell "revoked" from "revoked
+// twice".
+func (f *tokens) Insert(_ context.Context, token identity.AccessToken, presented identity.Token) error {
+	if f.insertErr != nil {
+		return f.insertErr
+	}
+	f.minted = append(f.minted, token)
+	f.presented = presented
+	return nil
+}
+
+func (f *tokens) Find(_ context.Context, id shared.ID) (identity.AccessToken, error) {
+	for _, token := range f.minted {
+		if token.ID == id {
+			return token, nil
+		}
+	}
+	return identity.AccessToken{}, shared.ErrNotFound.WithDetail("access.token_unknown")
+}
+
+func (f *tokens) ListForAccount(_ context.Context, accountID shared.ID) ([]identity.AccessToken, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	var found []identity.AccessToken
+	for _, token := range f.minted {
+		if token.AccountID == accountID {
+			found = append(found, token)
+		}
+	}
+	return found, nil
+}
+
+func (f *tokens) Revoke(_ context.Context, id shared.ID, at time.Time) (bool, error) {
+	for index, token := range f.minted {
+		if token.ID != id || token.IsRevoked() {
+			continue
+		}
+		f.minted[index] = token.Revoked(at)
+		return true, nil
+	}
+	return false, nil
 }
 
 func mintCredential(t *testing.T) (string, repository.Credential) {

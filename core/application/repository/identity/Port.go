@@ -48,6 +48,23 @@ type AccessTokens interface {
 	// TouchLastUsed records that the token was used. Called at most once per interval, so an
 	// owner can see a token nobody uses without every request costing a write.
 	TouchLastUsed(ctx context.Context, tokenID shared.ID, at time.Time) error
+
+	// Insert writes a minted token together with the credential that was drawn beside it. The
+	// presented token is passed whole for the reason the interface is: the hash is the adapter's
+	// to compute, and the application layer must never hold a value it could store by mistake.
+	Insert(ctx context.Context, token identity.AccessToken, presented identity.Token) error
+
+	// Find returns one token by its identifier, revoked or not, or an error wrapping
+	// shared.ErrNotFound. A token of another tenant is not found rather than forbidden.
+	Find(ctx context.Context, tokenID shared.ID) (identity.AccessToken, error)
+
+	// ListForAccount returns one account's own tokens, newest first. Not paged: a person holds a
+	// handful of credentials, and a cursor over a handful is machinery nobody reads.
+	ListForAccount(ctx context.Context, accountID shared.ID) ([]identity.AccessToken, error)
+
+	// Revoke stamps the token and reports whether it changed anything. False means it was already
+	// revoked, which is not an error - the second call is somebody making sure.
+	Revoke(ctx context.Context, tokenID shared.ID, at time.Time) (bool, error)
 }
 
 // Memberships answers what an account holds.

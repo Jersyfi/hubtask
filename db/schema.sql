@@ -192,6 +192,7 @@ CREATE TABLE access_token (
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX access_token_hash_uq ON access_token (token_hash);
+CREATE INDEX access_token_account_idx ON access_token (tenant_id, account_id, created_at DESC);
 
 -- ============================ Work Management ==============================
 
