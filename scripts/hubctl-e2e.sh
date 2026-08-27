@@ -542,8 +542,20 @@ POLICY_ID="$(printf '%s\n' "$policy" | first_id)"
 expect_contains "retention ls" "$(hubctl retention ls)" "COMPLETED_ITEM"
 # The preview is what makes a rule safe to switch on: how much it would take, and what stops it.
 expect_contains "retention preview" "$(hubctl retention preview "$POLICY_ID")" "MATCHED"
-# And one entry taken out of the running period, which is the other half of a retention rule.
-hubctl retention retain "$TASK_ID" >/dev/null
+# And the other half of a retention rule: taking one entry out of the period running against it.
+# Nothing has announced anything yet - the sweep marks entries when a period actually elapses, and
+# this session is minutes old - so what is checked here is the refusal, and that it arrives as the
+# catalogue's sentence rather than as a problem document. The same shape as the `--cascade` check
+# above: the client offers what the contract offers, and what the state of the workspace allows is
+# the server's to say.
+set +e
+retain="$(hubctl retention retain "$TASK_ID" 2>&1 >/dev/null)"
+retain_code=$?
+set -e
+if [ "$retain_code" -ne 1 ]; then
+	fail "retaining an unmarked entry exited $retain_code, want 1"
+fi
+expect_contains "retention retain" "$retain" "not in a retention period"
 
 echo "--- an instruction not to delete something ---"
 hold="$(hubctl hold place --scope CONTAINER --id "$COLLECTION_ID" --reason 'the end-to-end drill')"
@@ -559,9 +571,10 @@ expect_contains "hold ls --include-released" \
 echo "--- the evidence trail, and whether it holds ---"
 TODAY="$(date -u +%Y-%m-%d)"
 TOMORROW="$(date -u -d '+1 day' +%Y-%m-%d 2>/dev/null || date -u -v+1d +%Y-%m-%d)"
-trail="$(hubctl audit query --from "$TODAY" --to "$TOMORROW" --action legal_hold.)"
+trail="$(hubctl audit query --from "$TODAY" --to "$TOMORROW" --action lifecycle.hold)"
 # Everything above was auditable, so the trail has to know about the hold that was just released.
-expect_contains "audit query" "$trail" "legal_hold."
+expect_contains "audit query" "$trail" "lifecycle.hold_placed"
+expect_contains "audit query" "$trail" "lifecycle.hold_released"
 # A read that succeeds is not itself recorded (audit.md §5), so nothing here is about reading.
 expect_missing "audit query" "$trail" "audit.read"
 chain="$(hubctl audit verify --from "$TODAY" --to "$TOMORROW")"
@@ -577,6 +590,9 @@ CASE_ID="$(printf '%s\n' "$dsr" | first_id)"
 [ -n "$CASE_ID" ] || { echo "FAILED: raising the case produced no identifier: $dsr"; exit 1; }
 # The deadline is the point of the resource: thirty days from receipt unless somebody said another.
 expect_contains "dsr ls" "$(hubctl dsr ls --due-within 31)" "$CASE_ID"
+# `RECEIVED → COMPLETED` is not a step the state machine has: a case is taken on first, and that is
+# the transition that would run the work if the kind had any (data-protection.md §4).
+hubctl dsr start "$CASE_ID" >/dev/null
 completed="$(hubctl dsr complete "$CASE_ID" --notes 'the correction was made')"
 expect_contains "dsr complete" "$completed" "COMPLETED"
 # And the case is out of the open list once it is answered.
