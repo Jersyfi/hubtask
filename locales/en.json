@@ -261,6 +261,7 @@
   "media.already_confirmed": "That upload was already confirmed.",
   "media.media_id_required": "Say which media object is meant.",
   "media.content_missing": "The bytes of that upload are not in storage. Upload them, then confirm.",
+  "media.object_missing": "Object storage holds no bytes under the key {key}.",
   "media.not_ready": "That media object is not ready. Confirm its upload first.",
   "media.usage_mismatch": "That media object was staged as {usage} and cannot be used as {wanted}.",
   "media.not_found": "That media object does not exist.",
