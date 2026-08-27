@@ -5040,8 +5040,8 @@ type CreateAccessTokenParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
-// ListAutomationRulesParams defines parameters for ListAutomationRules.
-type ListAutomationRulesParams struct {
+// ListRulesParams defines parameters for ListRules.
+type ListRulesParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
 
@@ -5049,20 +5049,20 @@ type ListAutomationRulesParams struct {
 	Enabled *bool `form:"enabled,omitempty" json:"enabled,omitempty"`
 }
 
-// CreateAutomationRuleParams defines parameters for CreateAutomationRule.
-type CreateAutomationRuleParams struct {
+// CreateRuleParams defines parameters for CreateRule.
+type CreateRuleParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
-// DisableAutomationRuleParams defines parameters for DisableAutomationRule.
-type DisableAutomationRuleParams struct {
+// DisableRuleParams defines parameters for DisableRule.
+type DisableRuleParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
-// EnableAutomationRuleParams defines parameters for EnableAutomationRule.
-type EnableAutomationRuleParams struct {
+// EnableRuleParams defines parameters for EnableRule.
+type EnableRuleParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -5709,11 +5709,11 @@ type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = AccessTokenCreate
 
-// CreateAutomationRuleJSONRequestBody defines body for CreateAutomationRule for application/json ContentType.
-type CreateAutomationRuleJSONRequestBody = AutomationRuleCreate
+// CreateRuleJSONRequestBody defines body for CreateRule for application/json ContentType.
+type CreateRuleJSONRequestBody = AutomationRuleCreate
 
-// UpdateAutomationRuleJSONRequestBody defines body for UpdateAutomationRule for application/json ContentType.
-type UpdateAutomationRuleJSONRequestBody = AutomationRuleUpdate
+// UpdateRuleJSONRequestBody defines body for UpdateRule for application/json ContentType.
+type UpdateRuleJSONRequestBody = AutomationRuleUpdate
 
 // CreateBackupScheduleJSONRequestBody defines body for CreateBackupSchedule for application/json ContentType.
 type CreateBackupScheduleJSONRequestBody = BackupSchedule
@@ -5918,27 +5918,27 @@ type ServerInterface interface {
 	// RevokeAccessToken Revoke a personal access token
 	// (DELETE /auth/tokens/{tokenId})
 	RevokeAccessToken(w http.ResponseWriter, r *http.Request, tokenId TokenId)
-	// ListAutomationRules The workspace's automation rules
+	// ListRules The workspace's automation rules
 	// (GET /automation/rules)
-	ListAutomationRules(w http.ResponseWriter, r *http.Request, params ListAutomationRulesParams)
-	// CreateAutomationRule Write a rule
+	ListRules(w http.ResponseWriter, r *http.Request, params ListRulesParams)
+	// CreateRule Write a rule
 	// (POST /automation/rules)
-	CreateAutomationRule(w http.ResponseWriter, r *http.Request, params CreateAutomationRuleParams)
-	// DeleteAutomationRule Remove a rule
+	CreateRule(w http.ResponseWriter, r *http.Request, params CreateRuleParams)
+	// DeleteRule Remove a rule
 	// (DELETE /automation/rules/{ruleId})
-	DeleteAutomationRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
-	// GetAutomationRule One rule, as it stands
+	DeleteRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
+	// GetRule One rule, as it stands
 	// (GET /automation/rules/{ruleId})
-	GetAutomationRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
-	// UpdateAutomationRule Change what a rule does
+	GetRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
+	// UpdateRule Change what a rule does
 	// (PATCH /automation/rules/{ruleId})
-	UpdateAutomationRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
-	// DisableAutomationRule Switch a rule off
+	UpdateRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
+	// DisableRule Switch a rule off
 	// (POST /automation/rules/{ruleId}:disable)
-	DisableAutomationRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params DisableAutomationRuleParams)
-	// EnableAutomationRule Switch a rule on
+	DisableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params DisableRuleParams)
+	// EnableRule Switch a rule on
 	// (POST /automation/rules/{ruleId}:enable)
-	EnableAutomationRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params EnableAutomationRuleParams)
+	EnableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params EnableRuleParams)
 	// CreateBackupSchedule Create a backup schedule
 	// (POST /backup-schedules)
 	CreateBackupSchedule(w http.ResponseWriter, r *http.Request)
@@ -6771,14 +6771,14 @@ func (siw *ServerInterfaceWrapper) RevokeAccessToken(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
-// ListAutomationRules operation middleware
-func (siw *ServerInterfaceWrapper) ListAutomationRules(w http.ResponseWriter, r *http.Request) {
+// ListRules operation middleware
+func (siw *ServerInterfaceWrapper) ListRules(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params ListAutomationRulesParams
+	var params ListRulesParams
 
 	// ------------- Optional query parameter "cursor" -------------
 
@@ -6820,7 +6820,7 @@ func (siw *ServerInterfaceWrapper) ListAutomationRules(w http.ResponseWriter, r 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListAutomationRules(w, r, params)
+		siw.Handler.ListRules(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6830,14 +6830,14 @@ func (siw *ServerInterfaceWrapper) ListAutomationRules(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
-// CreateAutomationRule operation middleware
-func (siw *ServerInterfaceWrapper) CreateAutomationRule(w http.ResponseWriter, r *http.Request) {
+// CreateRule operation middleware
+func (siw *ServerInterfaceWrapper) CreateRule(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params CreateAutomationRuleParams
+	var params CreateRuleParams
 
 	headers := r.Header
 
@@ -6861,7 +6861,7 @@ func (siw *ServerInterfaceWrapper) CreateAutomationRule(w http.ResponseWriter, r
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateAutomationRule(w, r, params)
+		siw.Handler.CreateRule(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6871,8 +6871,8 @@ func (siw *ServerInterfaceWrapper) CreateAutomationRule(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
-// DeleteAutomationRule operation middleware
-func (siw *ServerInterfaceWrapper) DeleteAutomationRule(w http.ResponseWriter, r *http.Request) {
+// DeleteRule operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRule(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -6887,7 +6887,7 @@ func (siw *ServerInterfaceWrapper) DeleteAutomationRule(w http.ResponseWriter, r
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteAutomationRule(w, r, ruleId)
+		siw.Handler.DeleteRule(w, r, ruleId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6897,8 +6897,8 @@ func (siw *ServerInterfaceWrapper) DeleteAutomationRule(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
-// GetAutomationRule operation middleware
-func (siw *ServerInterfaceWrapper) GetAutomationRule(w http.ResponseWriter, r *http.Request) {
+// GetRule operation middleware
+func (siw *ServerInterfaceWrapper) GetRule(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -6913,7 +6913,7 @@ func (siw *ServerInterfaceWrapper) GetAutomationRule(w http.ResponseWriter, r *h
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetAutomationRule(w, r, ruleId)
+		siw.Handler.GetRule(w, r, ruleId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6923,8 +6923,8 @@ func (siw *ServerInterfaceWrapper) GetAutomationRule(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
-// UpdateAutomationRule operation middleware
-func (siw *ServerInterfaceWrapper) UpdateAutomationRule(w http.ResponseWriter, r *http.Request) {
+// UpdateRule operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRule(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -6939,7 +6939,7 @@ func (siw *ServerInterfaceWrapper) UpdateAutomationRule(w http.ResponseWriter, r
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateAutomationRule(w, r, ruleId)
+		siw.Handler.UpdateRule(w, r, ruleId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6949,8 +6949,8 @@ func (siw *ServerInterfaceWrapper) UpdateAutomationRule(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
-// DisableAutomationRule operation middleware
-func (siw *ServerInterfaceWrapper) DisableAutomationRule(w http.ResponseWriter, r *http.Request) {
+// DisableRule operation middleware
+func (siw *ServerInterfaceWrapper) DisableRule(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -6965,7 +6965,7 @@ func (siw *ServerInterfaceWrapper) DisableAutomationRule(w http.ResponseWriter, 
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params DisableAutomationRuleParams
+	var params DisableRuleParams
 
 	headers := r.Header
 
@@ -6989,7 +6989,7 @@ func (siw *ServerInterfaceWrapper) DisableAutomationRule(w http.ResponseWriter, 
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DisableAutomationRule(w, r, ruleId, params)
+		siw.Handler.DisableRule(w, r, ruleId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6999,8 +6999,8 @@ func (siw *ServerInterfaceWrapper) DisableAutomationRule(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
-// EnableAutomationRule operation middleware
-func (siw *ServerInterfaceWrapper) EnableAutomationRule(w http.ResponseWriter, r *http.Request) {
+// EnableRule operation middleware
+func (siw *ServerInterfaceWrapper) EnableRule(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -7015,7 +7015,7 @@ func (siw *ServerInterfaceWrapper) EnableAutomationRule(w http.ResponseWriter, r
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params EnableAutomationRuleParams
+	var params EnableRuleParams
 
 	headers := r.Header
 
@@ -7039,7 +7039,7 @@ func (siw *ServerInterfaceWrapper) EnableAutomationRule(w http.ResponseWriter, r
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.EnableAutomationRule(w, r, ruleId, params)
+		siw.Handler.EnableRule(w, r, ruleId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12757,13 +12757,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/views/{viewId}", wrapper.UpdateSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:share", wrapper.ShareSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules", wrapper.ListAutomationRules)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules", wrapper.CreateAutomationRule)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.DeleteAutomationRule)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.GetAutomationRule)
-	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateAutomationRule)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableAutomationRule)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableAutomationRule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules", wrapper.ListRules)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules", wrapper.CreateRule)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.DeleteRule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.GetRule)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks", wrapper.ListWebhookSubscriptions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks", wrapper.CreateWebhookSubscription)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.DeleteWebhookSubscription)

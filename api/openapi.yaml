@@ -417,7 +417,7 @@ paths:
   /automation/rules:
     get:
       tags: [automation]
-      operationId: listAutomationRules
+      operationId: listRules
       summary: The workspace's automation rules
       description: >
         Newest first, and only the rules the caller may see: a member manages their own rules, and
@@ -443,7 +443,7 @@ paths:
           $ref: "#/components/responses/Problem"
     post:
       tags: [automation]
-      operationId: createAutomationRule
+      operationId: createRule
       summary: Write a rule
       description: >
         A rule is created **switched off**. Enabling it is its own call and its own audit entry:
@@ -481,7 +481,7 @@ paths:
       - $ref: "#/components/parameters/RuleId"
     get:
       tags: [automation]
-      operationId: getAutomationRule
+      operationId: getRule
       summary: One rule, as it stands
       responses:
         "200":
@@ -494,7 +494,7 @@ paths:
           $ref: "#/components/responses/Problem"
     patch:
       tags: [automation]
-      operationId: updateAutomationRule
+      operationId: updateRule
       summary: Change what a rule does
       description: >
         An omitted field is left alone. `enabled` is not among the fields: switching a rule on or
@@ -520,7 +520,7 @@ paths:
           $ref: "#/components/responses/Problem"
     delete:
       tags: [automation]
-      operationId: deleteAutomationRule
+      operationId: deleteRule
       summary: Remove a rule
       description: >
         A soft delete. The rule stops matching anything at once and disappears from the listing,
@@ -537,7 +537,7 @@ paths:
       - $ref: "#/components/parameters/RuleId"
     post:
       tags: [automation]
-      operationId: enableAutomationRule
+      operationId: enableRule
       summary: Switch a rule on
       description: >
         Its own call and its own audit entry, on both sides. Letting a rule act on the workspace is
@@ -563,7 +563,7 @@ paths:
       - $ref: "#/components/parameters/RuleId"
     post:
       tags: [automation]
-      operationId: disableAutomationRule
+      operationId: disableRule
       summary: Switch a rule off
       description: >
         The rule stays, and stops acting. What a run of failures does automatically, a person can

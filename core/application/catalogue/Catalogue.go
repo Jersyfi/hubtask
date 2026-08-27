@@ -22,6 +22,7 @@ import (
 	"slices"
 
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
+	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/integration"
@@ -174,6 +175,13 @@ func Descriptors() []usecase.Descriptor {
 		integration.ReplayWebhookDelivery{}.Descriptor(),
 		integration.RotateWebhookSecret{}.Descriptor(),
 		integration.PollTriggerEvents{}.Descriptor(),
+		automationservice.CreateRule{}.Descriptor(),
+		automationservice.GetRule{}.Descriptor(),
+		automationservice.ListRules{}.Descriptor(),
+		automationservice.UpdateRule{}.Descriptor(),
+		automationservice.EnableRule{}.Descriptor(),
+		automationservice.DisableRule{}.Descriptor(),
+		automationservice.DeleteRule{}.Descriptor(),
 	}
 }
 

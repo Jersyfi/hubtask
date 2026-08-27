@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**138 use cases, 120 distinct action codes, 100 of them recorded on every call.** A use case that
+**145 use cases, 126 distinct action codes, 105 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -45,6 +45,18 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `audit.chain_broken` | VerifyAuditChain | `audit_trail` | CRITICAL | When refused |
 | `audit.exported` | ExportAuditTrail | `audit_trail` | WARNING | Every time |
 | `audit.read` | ListAuditEntries | `audit_trail` | INFO | When refused |
+
+## Automation
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `automation.rule_created` | CreateRule | `automation_rule` | NOTICE | Every time |
+| `automation.rule_deleted` | DeleteRule | `automation_rule` | NOTICE | Every time |
+| `automation.rule_disabled` | DisableRule | `automation_rule` | NOTICE | Every time |
+| `automation.rule_enabled` | EnableRule | `automation_rule` | NOTICE | Every time |
+| `automation.rule_read` | GetRule | `automation_rule` | INFO | When refused |
+| `automation.rule_read` | ListRules | `automation_rule` | INFO | When refused |
+| `automation.rule_updated` | UpdateRule | `automation_rule` | NOTICE | Every time |
 
 ## Background work
 
