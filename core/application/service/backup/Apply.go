@@ -181,6 +181,11 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 	plan := plan{
 		restore: ready.restore, chain: chain, key: key,
 		reader: reader, scope: ready.into, asker: in.TenantID, report: in.Report,
+		// NEW_TENANT copies a workspace whose rows still live in this installation, and every
+		// identity in the schema is a global one - so the copy derives a new identity for every
+		// row and follows the references, the way DUPLICATE does for a collision. Without this the
+		// first insert collides with the source (#206).
+		remapAll: ready.restore.Mode == domain.RestoreNewTenant,
 	}
 
 	// A dry run and an INSPECT are the same thing said twice: INSPECT is the mode that cannot
@@ -389,9 +394,14 @@ type plan struct {
 	scope  persistence.Scope
 	// asker is the tenant that asked, which is where the run row lives. It differs from scope only
 	// for NEW_TENANT.
-	asker  shared.ID
-	dry    bool
-	report func(float64)
+	asker shared.ID
+	// remapAll is the NEW_TENANT identity rule: every row with an identity of its own gets a
+	// derived new one and every reference follows, because the source rows still live in this
+	// installation and every identity in the schema is global. Derived rather than drawn, for the
+	// reason DuplicateID gives: a resumed attempt has to produce the same identifiers.
+	remapAll bool
+	dry      bool
+	report   func(float64)
 }
 
 // newest is the archive the restore represents: the one that was asked for.
@@ -691,6 +701,15 @@ func (s *state) stage(ctx context.Context, entity archive.Entity, record archive
 		s.report.Withhold(domain.WithheldNotSelected)
 		return nil
 	}
+	// A calendar feed is a credential: its token hash is unique across the installation, and a
+	// copy of a workspace that duplicated it would make one URL read two workspaces - §8.4's
+	// reasoning, and the same unique index would refuse the row anyway. The copy mints its own
+	// feeds the way it mints its own tokens: by somebody asking for one.
+	if s.plan.remapAll && entity.Table == calendarFeedTable {
+		s.withhold(entity.Table, record.ID)
+		s.report.Withhold(domain.WithheldExcluded)
+		return nil
+	}
 
 	s.pending = append(s.pending, staged{entity: entity, record: record})
 	if len(s.pending) < s.batch() {
@@ -835,6 +854,19 @@ func (s *state) write(ctx context.Context, item staged) error {
 			return nil
 		}
 		data["id"] = s.plan.scope.TenantID.String()
+		// The slug is unique across the installation, and a copy that kept the source's could
+		// never be inserted beside it. A technical one derived from the minted identity - stable
+		// across resumed attempts, renameable afterwards - is what a copy deserves.
+		if s.plan.remapAll {
+			data["slug"] = domain.RestoredSlug(s.plan.scope.TenantID)
+		}
+	}
+
+	// The NEW_TENANT identity rule (see plan.remapAll): the copy's rows get identities of their
+	// own, minted before anything reads data["id"] - the media storage key below is derived from
+	// it, and a key minted from the source's identity would collide the way the row would.
+	if s.plan.remapAll && item.entity.HasOwnIdentity() && item.entity.Table != tenantTable {
+		s.mint(item.entity, data, item.record.ID)
 	}
 
 	// A medium's storage key is minted from the tenant it belongs to, and this restore may be
@@ -931,7 +963,10 @@ func (s *state) lapse(entity archive.Entity, data map[string]any) {
 	}
 }
 
-const reminderTable = "reminder"
+const (
+	reminderTable     = "reminder"
+	calendarFeedTable = "calendar_feed"
+)
 
 // mint gives a duplicated row an identity of its own.
 //
@@ -960,6 +995,9 @@ func (s *state) mint(entity archive.Entity, data map[string]any, originalID stri
 // matters because the archive's order within an entity is by change time: a parent can be written
 // after its child, and a map built as the records went past would miss it.
 func (s *state) remapReferences(ctx context.Context, entity archive.Entity, data map[string]any) error {
+	if s.plan.remapAll {
+		return s.remapEveryReference(entity, data)
+	}
 	if ruleOf(s.plan.restore) != domain.ConflictDuplicate {
 		return nil
 	}
@@ -991,6 +1029,29 @@ func (s *state) remapReferences(ctx context.Context, entity archive.Entity, data
 		minted := domain.DuplicateID(s.plan.restore.ID, target.Name, id).String()
 		s.remap[reference.Table+"/"+id] = minted
 		data[reference.Field] = minted
+	}
+	return nil
+}
+
+// remapEveryReference is the NEW_TENANT half of the remap: every reference to an entity with an
+// identity of its own follows the derivation, unconditionally.
+//
+// No liveness question and no memory of what was seen, because the answer does not depend on
+// either: the copy's identity for a row is a function of the restore, the entity and the original,
+// so a reference can be rewritten before or after its target went past and land on the same value.
+// That is also what makes a self-reference written child-first - a comment thread, a container
+// tree - safe without a second pass.
+func (s *state) remapEveryReference(entity archive.Entity, data map[string]any) error {
+	for _, reference := range entity.References {
+		id, named := data[reference.Field].(string)
+		if !named || id == "" {
+			continue
+		}
+		target, known := archive.FindEntityByTable(reference.Table)
+		if !known || !target.HasOwnIdentity() || reference.Table == tenantTable {
+			continue
+		}
+		data[reference.Field] = domain.DuplicateID(s.plan.restore.ID, target.Name, id).String()
 	}
 	return nil
 }

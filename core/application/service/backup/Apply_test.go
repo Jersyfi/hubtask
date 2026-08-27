@@ -636,8 +636,25 @@ var mintedTenant = shared.MustParseID("0192f000-0000-7000-8000-0000000000ee")
 // The mode backup-restore.md §10 recommends for a trial restore: the archive is the asker's own,
 // and the rows land in the workspace that was minted for them (#206). Before the fix the precheck
 // compared the manifest against that minted workspace and could never match.
+//
+// The identity rule is the substance: the source rows still live in this installation and every
+// identity in the schema is global, so the copy derives a new identity for every row, follows the
+// references, rewrites the unique slug, and mints no second copy of a credential - the calendar
+// feed's token hash is unique across the installation.
 func TestANewTenantRestoreAcceptsItsOwnArchive(t *testing.T) {
-	h := newApplyHarness(t, containerRows)
+	h := newApplyHarness(t, func(export *rows) {
+		containerRows(export)
+		export.byTable["tenant"] = []repository.Row{
+			{ID: tenantID.String(), ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": tenantID.String(), "slug": "the-source", "display_name": "The source",
+			}},
+		}
+		export.byTable["calendar_feed"] = []repository.Row{
+			{ID: "f1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{
+				"id": "f1", "token_hash": "abc123",
+			}},
+		}
+	})
 	in := h.accept(t, func(r *domain.Restore) {
 		r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant
 	})
@@ -647,8 +664,8 @@ func TestANewTenantRestoreAcceptsItsOwnArchive(t *testing.T) {
 		t.Fatalf("restoring into the minted workspace: %v", err)
 	}
 
-	if report.New != 3 {
-		t.Errorf("%d records restored, wanted the archive's 3", report.New)
+	if report.New != 4 {
+		t.Errorf("%d records restored, wanted the tenant, the container and the two items", report.New)
 	}
 	if len(h.imports.tables["work_item"]) != 2 || len(h.imports.tables["container"]) != 1 {
 		t.Errorf("the minted workspace holds %d items and %d containers",
@@ -656,6 +673,38 @@ func TestANewTenantRestoreAcceptsItsOwnArchive(t *testing.T) {
 	}
 	if len(h.restores.outcomes) != 1 || h.restores.outcomes[0].Status != domain.RestoreSucceeded {
 		t.Errorf("the run was left as %+v", h.restores.outcomes)
+	}
+
+	// The copy's identities are its own, and the references follow them.
+	mintedContainer := domain.DuplicateID(restoreID, "containers", "c1").String()
+	if _, held := h.imports.tables["container"][mintedContainer]; !held {
+		t.Errorf("the container kept the source's identity: %v", h.imports.tables["container"])
+	}
+	mintedItem := domain.DuplicateID(restoreID, "work_items", "w1").String()
+	item, held := h.imports.tables["work_item"][mintedItem]
+	if !held {
+		t.Fatalf("the item kept the source's identity: %v", h.imports.tables["work_item"])
+	}
+	if item["collection_id"] != mintedContainer {
+		t.Errorf("the item points at %v rather than at the copied container", item["collection_id"])
+	}
+
+	// The tenant row is the minted workspace under a slug of its own.
+	tenant, held := h.imports.tables["tenant"][mintedTenant.String()]
+	if !held {
+		t.Fatalf("the tenant row was not rewritten: %v", h.imports.tables["tenant"])
+	}
+	if tenant["slug"] != domain.RestoredSlug(mintedTenant) {
+		t.Errorf("the copy kept the source's slug %v, which is unique across the installation", tenant["slug"])
+	}
+
+	// A credential is not copied: the feed's token hash is unique across the installation, and a
+	// URL that read two workspaces would be §8.4's defect wearing a copy.
+	if len(h.imports.tables["calendar_feed"]) != 0 {
+		t.Errorf("a calendar feed was copied: %v", h.imports.tables["calendar_feed"])
+	}
+	if report.Withheld[domain.WithheldExcluded] != 1 {
+		t.Errorf("the withheld feed is not on the report: %v", report.Withheld)
 	}
 }
 
