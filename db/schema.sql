@@ -1291,6 +1291,22 @@ END $$;
 CREATE TRIGGER change_log_notify
   AFTER INSERT ON change_log
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
+
+-- The wake-up for the dispatcher (G-02, ADR-0007). The queue rather than outbox_event: an event is
+-- written together with its dispatch job in one transaction, so the row the worker waits for is the
+-- job. No payload - `job` has no tenant column and none is needed, and an empty payload is what
+-- lets PostgreSQL collapse a transaction that enqueued five jobs into one ring of the bell.
+CREATE OR REPLACE FUNCTION hubtask_notify_job() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_job', '');
+  RETURN NULL;
+END $$;
+
+CREATE TRIGGER job_notify
+  AFTER INSERT ON job
+  FOR EACH ROW EXECUTE FUNCTION hubtask_notify_job();
 CREATE INDEX change_log_container_idx ON change_log (tenant_id, container_id, seq);
 
 -- Deletion markers with a minimum lifetime: a hard delete is only allowed after it elapses,

@@ -36,8 +36,12 @@ type RunRetention struct {
 	// because a tenant's periods are one thing to evaluate: two schedules would mean two leases,
 	// two logs and two ways for one of them to quietly stop running.
 	History NotificationHistory
-	Clock   clock.Clock
-	IDs     clock.IDGenerator
+	// Events is the outbox's own remover. Optional, like Rules and Sweeper below: an installation
+	// wired without it sweeps exactly what it did before, which is what lets the two land in
+	// separate releases.
+	Events DispatchedEvents
+	Clock  clock.Clock
+	IDs    clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals
@@ -67,6 +71,23 @@ type RetentionSignals interface {
 type NotificationHistory interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+}
+
+// DispatchedEvents is the slice of the outbox this run removes through (G-02, ADR-0007's second
+// countermeasure). The same two methods as the notification history, and deliberately the same
+// shape: the engine treats a third kind exactly as it treats the second.
+//
+// What the interface does not offer is a way to remove an *undispatched* event. That guard lives
+// in the query rather than in a parameter, because it is not a policy an engine could get wrong
+// once and a tenant could configure away - a row nobody has consumed is never due.
+type DispatchedEvents interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+
+	// DeleteExpiredConsumption removes the record of who has already consumed what. The outbox's
+	// twin table, swept at the same period and by the same pass: a record whose event has been
+	// swept can say nothing about an event nobody can deliver again (ADR-0007).
+	DeleteExpiredConsumption(ctx context.Context, cutoff time.Time, batch int) (int, error)
 }
 
 // Execute runs one pass for the tenant the transaction is bound to, and reports what it did.
@@ -139,6 +160,11 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	events, err := h.sweepEvents(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	rules, err := h.sweepRules(ctx, actor, started)
 	if err != nil {
 		return outcome, err
@@ -149,7 +175,72 @@ func (h RunRetention) Execute(
 	// finished, and a job that stopped there would leave them until the next long interval.
 	outcome.Matched += history.Matched
 	outcome.Removed += history.Removed
+	outcome.Matched += events.Matched
+	outcome.Removed += events.Removed
 	outcome.add(rules)
+	return outcome, nil
+}
+
+// sweepEvents removes one batch of dispatched outbox rows (G-02, data-retention.md §3).
+//
+// The table the outbox pattern leaves behind: an event's job is done the moment every consumer has
+// had it, and until ADR-0007's second countermeasure existed nothing ever removed the row. Seven
+// days by default, the shortest period in the catalogue, because this is a debugging aid rather
+// than a record - the audit trail is the record.
+//
+// No tombstone window, no legal hold and no audit entry, on sweepHistory's reasoning exactly: an
+// event is not an object a device holds, a hold is placed on tenants, containers and items, and an
+// entry per pass per tenant per hour would bury the entries that matter.
+//
+// A missing wiring is skipped rather than refused, which is the one place this differs from the
+// notification history - and the difference is which risk each carries. A notification history
+// that silently stops being swept is personal data kept past its period (risk R-09); an outbox
+// that silently stops being swept is a table that grows, which the backlog alert already reports.
+func (h RunRetention) sweepEvents(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.Events == nil {
+		return Outcome{}, nil
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindOutboxEvent)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindOutboxEvent, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	matched, err := h.Events.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+	removed, sweepErr := h.Events.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+	if sweepErr == nil {
+		// The twin table, in the same pass and at the same cutoff. Not counted into the outcome:
+		// what the outcome decides is whether the job comes back straight away, and that question
+		// is about events rather than about the bookkeeping beside them.
+		_, sweepErr = h.Events.DeleteExpiredConsumption(ctx, cutoff, h.Purger.BatchSize)
+	}
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindOutboxEvent, outcome, finished.Sub(started))
 	return outcome, nil
 }
 

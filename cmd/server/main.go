@@ -1399,7 +1399,10 @@ func run() error {
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
 			History: notifications,
-			Clock:   clockadapter.System{}, IDs: ids, Signals: metrics,
+			// The outbox's own rows (G-02). ADR-0007's second countermeasure, and until now the
+			// one table in this schema that only ever grew.
+			Events: postgres.NewDispatchedEvents(),
+			Clock:  clockadapter.System{}, IDs: ids, Signals: metrics,
 			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
 			// row that goes.
@@ -1471,6 +1474,16 @@ func run() error {
 	}
 
 	if cfg.HasRole(envport.RoleWorker) {
+		// The dispatcher's wake-up, and only where jobs are run: an API process holding a LISTEN
+		// for a queue it does not drain would be a connection occupied for notifications nobody
+		// in it is waiting for - the mirror of the change listener above.
+		//
+		// On the background pool rather than the request pool. A held connection out of the pool
+		// that serves requests is one fewer for them, and the background pool is where every
+		// other long-lived hold already lives (the leader's).
+		jobListener := postgres.NewJobListener(backgroundPool)
+		background = append(background, start(ctx, "worker.job_listener", jobListener.Run))
+
 		// The backoff policy is the resilience adapter's, handed to the runner as a function: the
 		// presentation layer decides when to retry, not how far apart (project-structure.md §2).
 		backoff := resilience.Backoff{
@@ -1490,6 +1503,9 @@ func run() error {
 			Lease:        cfg.Queue.Lease(),
 			NextAttempt:  backoff.Delay,
 			Observe:      observer.Job,
+			// The poll interval stays what it was. This shortens the wait when the notification
+			// arrives and changes nothing when it does not (ADR-0007).
+			Woken: jobListener.Woken(),
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
 	}

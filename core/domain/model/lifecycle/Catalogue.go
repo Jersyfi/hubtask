@@ -178,6 +178,18 @@ var catalogue = []Kind{
 	{Name: KindActivityEntry, Anchor: AnchorOccurredAt},
 	{Name: KindRuleRun, Anchor: AnchorStartedAt, DefaultDays: 30},
 	{Name: KindWebhookDelivery, Anchor: AnchorCreatedAt, DefaultDays: 30},
+	{
+		// The outbox's own rows (G-02). ADR-0007's second countermeasure and, until it existed,
+		// the one table in this schema that only ever grew: an event's job is done the moment
+		// every consumer has had it, and the row lives on afterwards for the day somebody has to
+		// reconstruct what was published.
+		//
+		// Seven days, the shortest default in the catalogue. It is a debugging aid rather than a
+		// record - the audit trail is the record - and a week covers "what happened on Friday"
+		// asked on Monday.
+		Name: KindOutboxEvent, Anchor: AnchorOccurredAt, DefaultDays: 7,
+		Actions: []Action{ActionHardDelete},
+	},
 	{Name: KindSession, Anchor: AnchorLastSeenAt, DefaultDays: 30},
 	{Name: KindAudit, Anchor: AnchorOccurredAt, DefaultDays: 400},
 	{Name: KindMediaOrphan, Anchor: AnchorCreatedAt, DefaultDays: 7},
@@ -187,15 +199,18 @@ var catalogue = []Kind{
 // The classes of data data-retention.md §3 names. Every one of them, including the ones nothing
 // removes yet: the catalogue is the document's, and a subset would be this build's opinion of it.
 const (
-	KindCompletedItem         DataKind = "COMPLETED_ITEM"
-	KindOpenItemStale         DataKind = "OPEN_ITEM_STALE"
-	KindArchivedItem          DataKind = "ARCHIVED_ITEM"
-	KindComment               DataKind = "COMMENT"
-	KindAttachment            DataKind = "ATTACHMENT"
-	KindJumbleEntry           DataKind = "JUMBLE_ENTRY"
-	KindActivityEntry         DataKind = "ACTIVITY_ENTRY"
-	KindRuleRun               DataKind = "RULE_RUN"
-	KindWebhookDelivery       DataKind = "WEBHOOK_DELIVERY"
+	KindCompletedItem   DataKind = "COMPLETED_ITEM"
+	KindOpenItemStale   DataKind = "OPEN_ITEM_STALE"
+	KindArchivedItem    DataKind = "ARCHIVED_ITEM"
+	KindComment         DataKind = "COMMENT"
+	KindAttachment      DataKind = "ATTACHMENT"
+	KindJumbleEntry     DataKind = "JUMBLE_ENTRY"
+	KindActivityEntry   DataKind = "ACTIVITY_ENTRY"
+	KindRuleRun         DataKind = "RULE_RUN"
+	KindWebhookDelivery DataKind = "WEBHOOK_DELIVERY"
+	// KindOutboxEvent is how long a dispatched event stays readable after every consumer has
+	// had it (G-02, ADR-0007's second countermeasure).
+	KindOutboxEvent           DataKind = "OUTBOX_EVENT"
 	KindSession               DataKind = "SESSION"
 	KindAudit                 DataKind = "AUDIT"
 	KindMediaOrphan           DataKind = "MEDIA_ORPHAN"

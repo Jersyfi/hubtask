@@ -12,6 +12,14 @@ of them is behind: automation rules, webhook deliveries, the search index, live 
 The usual cause is not slowness. It is that **nothing is dispatching**: the `worker` role is not
 running, or its dispatch jobs are stuck.
 
+**What feeds the histogram, and what does not.** A dispatch round reports the age of every event it
+had in hand, whether or not the delivery succeeded — so a consumer that fails every time does raise
+this alert (G-02; before that it reported only successful deliveries and the one state where events
+are certainly late was the one state nothing measured). What still reports nothing is a dispatcher
+that is not running at all, because no round happens: for that case read
+`hubtask_job_queue_depth{job_type="outbox.dispatch"}` below, which is a gauge the scheduler
+publishes whether or not anything is dispatching.
+
 ## Immediate action
 
 ```bash

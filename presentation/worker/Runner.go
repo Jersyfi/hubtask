@@ -75,6 +75,15 @@ type Runner struct {
 	// untraced - which is what a test wants and what a process without tracing configured gets
 	// anyway, since the no-op tracer costs nothing.
 	Observe func(ctx context.Context, kind string, fn func(context.Context) error) error
+	// Woken is the doorbell an enqueue rings, so that a job does not wait out the poll interval
+	// before anybody looks at it (ADR-0007: "an adaptive polling interval plus LISTEN/NOTIFY as a
+	// wake-up"). A channel rather than a listener type, because this layer knows no adapter.
+	//
+	// Nil is a supported configuration and not a degraded one in any way that matters: the loop
+	// then waits out its interval exactly as it always did. That is deliberate - the doorbell is
+	// latency, never delivery, and a runner that stopped working when the notification channel
+	// did would have turned an optimisation into a dependency.
+	Woken <-chan struct{}
 }
 
 // bookkeepingTimeout bounds the statements that are not the job itself: claiming a batch, and
@@ -95,7 +104,8 @@ func (r Runner) Run(ctx context.Context) {
 	slog.InfoContext(ctx, "worker ready",
 		slog.Int("batch", r.Batch),
 		slog.Duration("poll_interval", r.PollInterval),
-		slog.Duration("job_timeout", r.JobTimeout))
+		slog.Duration("job_timeout", r.JobTimeout),
+		slog.Bool("woken_by_notification", r.Woken != nil))
 
 	for {
 		claimed := r.round(ctx)
@@ -108,9 +118,42 @@ func (r Runner) Run(ctx context.Context) {
 			}
 			continue
 		}
-		if !wait(ctx, r.PollInterval) {
+		if !r.idle(ctx) {
 			return
 		}
+	}
+}
+
+// idle waits for the poll interval, or for the doorbell, whichever comes first. It reports whether
+// carrying on is still worth it.
+//
+// The interval is kept rather than replaced: a notification that was missed - a listener between
+// connections, a job written by something that is not this application, a trigger dropped by hand -
+// costs one interval of latency instead of costing the job. That is what "the poll is the fallback"
+// means in practice, and it is why the two are an either/or here rather than a choice made once at
+// startup.
+func (r Runner) idle(ctx context.Context) bool {
+	if r.Woken == nil {
+		return wait(ctx, r.PollInterval)
+	}
+	if r.PollInterval <= 0 {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-r.Woken:
+			return true
+		}
+	}
+
+	timer := time.NewTimer(r.PollInterval)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	case <-r.Woken:
+		return true
 	}
 }
 

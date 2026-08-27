@@ -427,6 +427,62 @@ expect_docs_failure "a citation of an ADR nobody wrote" \
 
 The reasoning is in ADR-0099.'
 
+header "Event schemas (make gate-contract)"
+
+# The schemas under api/events/ are the contract a subscriber outside this repository writes
+# against, and the conformance test is what keeps them from drifting from the code that produces
+# the events. A schema that has drifted is exactly as bad as one that was never written, and both
+# are invisible until somebody's integration breaks - so the gate has to catch a wrong field, not
+# only a missing file.
+#
+# The probe edits a real schema and puts it back afterwards, because a schema nobody emits an
+# event for would be caught by the orphan check rather than by the conformance check, and it is
+# the conformance check under test.
+expect_event_schema_failure() {
+	local name="$1" schema="$2" edit="$3"
+	CHECKS=$((CHECKS + 1))
+
+	local original
+	original="$(cat "$schema")"
+	printf '%s\n' "$edit" > "$schema"
+	if make --no-print-directory gate-contract >/dev/null 2>&1; then
+		printf '  FAILED  %-44s make gate-contract stayed green\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	else
+		printf '  ok      %-44s caught by make gate-contract\n' "$name"
+	fi
+	printf '%s\n' "$original" > "$schema"
+}
+
+CONTAINER_SCHEMA="api/events/de.hubtask.work.container.created.v1.json"
+
+if ! command -v jq >/dev/null 2>&1; then
+	# Skipped rather than silently passed, on the same reasoning as the database probes below: a
+	# check that quietly did nothing is worse than one that says it did not run.
+	printf '  skipped %-44s jq is not installed\n' "the event schema probes"
+	SKIPPED=$((SKIPPED + 3))
+else
+
+# The payload sits under `data`, so that is where a probe has to bite: a schema that described the
+# envelope correctly and the payload wrongly would be exactly the drift nobody notices.
+
+# A payload field the event does not carry, declared required. This is the drift that actually
+# happens: a field is renamed in the code and the schema keeps the old name.
+expect_event_schema_failure "a required payload field the event does not carry" "$CONTAINER_SCHEMA" \
+"$(jq '.properties.data.required += ["a_field_that_was_renamed"]
+      | .properties.data.properties.a_field_that_was_renamed = {"type": "string"}' "$CONTAINER_SCHEMA")"
+
+# And the other direction: a field the event does carry, declared as the wrong type.
+expect_event_schema_failure "a payload field declared as the wrong type" "$CONTAINER_SCHEMA" \
+"$(jq '.properties.data.properties.name.type = "integer"' "$CONTAINER_SCHEMA")"
+
+# The envelope half, which is what a broker routes on: an extension attribute the mapping stopped
+# emitting has to be as loud as a payload field that changed.
+expect_event_schema_failure "an extension attribute that is no longer emitted" "$CONTAINER_SCHEMA" \
+"$(jq '.required += ["anextensionnobodyemits"]
+      | .properties.anextensionnobodyemits = {"type": "string"}' "$CONTAINER_SCHEMA")"
+fi
+
 header "The decision list in arc42 §9 (make gate-docs)"
 
 # arc42 §9 repeats what docs/adr/README.md owns, and a repetition nobody checks drifts - this one

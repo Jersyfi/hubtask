@@ -16,7 +16,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -411,4 +413,337 @@ func TestConsumptionIsRecordedPerTenant(t *testing.T) {
 	if !claimIn(tenantB) {
 		t.Error("tenant A's consumption silenced tenant B's consumer")
 	}
+}
+
+// The other half of ADR-0007's first countermeasure, end to end: enqueueing rings the doorbell,
+// and it rings because of the trigger rather than because anything remembered to announce.
+//
+// Here rather than in the adapter's own tests for the change listener's reason: whether a `NOTIFY`
+// reaches a `LISTEN` is a property of the schema, and a fake cannot have that property.
+func TestEnqueueingAJobWakesTheWorkersListener(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	listener := postgres.NewJobListener(appPool(ctx, t))
+	listening, stopListening := context.WithCancel(ctx)
+	defer stopListening()
+	concurrency.Go(listening, "test.job_listener", listener.Run)
+
+	waitFor(t, 5*time.Second, "the job listener to connect", listener.Connected)
+
+	// The ring the listener sends on connecting, so that the assertion below is about the trigger
+	// rather than about that one.
+	drain(listener.Woken())
+
+	jobs := postgres.NewQueue(clockadapter.NewUUIDv7(clockadapter.System{}), clockadapter.System{})
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+
+	started := time.Now()
+	var enqueued shared.ID
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		var err error
+		enqueued, err = jobs.Enqueue(txCtx, queue.Request{
+			Kind: queue.KindOutboxDispatch, TenantID: tenantA, RunAt: time.Now(),
+		})
+		return err
+	}); err != nil {
+		t.Fatalf("enqueueing: %v", err)
+	}
+	// The suite shares a database and a pending dispatch job per tenant is an invariant another
+	// test asserts on. This one is about the doorbell, so it puts back what it took.
+	t.Cleanup(func() { deleteJob(ctx, t, enqueued) })
+
+	select {
+	case <-listener.Woken():
+	case <-time.After(5 * time.Second):
+		t.Fatal("enqueueing a job did not wake the listener")
+	}
+
+	// The point of the whole mechanism, and the assertion is deliberately loose: what has to be
+	// true is that the wait was nothing like the two-second poll interval the queue is configured
+	// with, not that it was any particular number of milliseconds. A tighter bound would be a
+	// test that fails on a loaded CI runner and says nothing when it does.
+	if waited := time.Since(started); waited > time.Second {
+		t.Errorf("the doorbell took %v; the poll interval it exists to beat is 2s", waited)
+	}
+}
+
+// Delivered at COMMIT and not before: a runner woken by an uncommitted insert would claim nothing
+// and go back to sleep having missed the job. That is the one property of the trigger that a unit
+// test cannot have an opinion about.
+func TestTheDoorbellRingsAtCommitRatherThanAtInsert(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	listener := postgres.NewJobListener(appPool(ctx, t))
+	listening, stopListening := context.WithCancel(ctx)
+	defer stopListening()
+	concurrency.Go(listening, "test.job_listener_commit", listener.Run)
+
+	waitFor(t, 5*time.Second, "the job listener to connect", listener.Connected)
+	drain(listener.Woken())
+
+	jobs := postgres.NewQueue(clockadapter.NewUUIDv7(clockadapter.System{}), clockadapter.System{})
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+
+	inserted := make(chan struct{})
+	release := make(chan struct{})
+	done := make(chan error, 1)
+	enqueued := make(chan shared.ID, 1)
+	concurrency.Go(ctx, "test.job_listener_holding_tx", func(context.Context) {
+		done <- work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+			id, err := jobs.Enqueue(txCtx, queue.Request{
+				Kind: queue.KindOutboxDispatch, TenantID: tenantA, RunAt: time.Now(),
+			})
+			if err != nil {
+				return err
+			}
+			enqueued <- id
+			close(inserted)
+			<-release
+			return nil
+		})
+	})
+
+	<-inserted
+	select {
+	case <-listener.Woken():
+		close(release)
+		t.Fatal("the doorbell rang while the transaction was still open")
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("the transaction failed: %v", err)
+	}
+	deleteJob(ctx, t, <-enqueued)
+
+	select {
+	case <-listener.Woken():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the doorbell did not ring after the commit")
+	}
+}
+
+// deleteJob removes a job this file's tests enqueued. They enqueue with no dedupe key - the
+// doorbell rings on any insert, and giving them one would be testing the queue's collapsing rather
+// than the trigger - so each has to clear up after itself.
+func deleteJob(ctx context.Context, t *testing.T, id shared.ID) {
+	t.Helper()
+	if id.IsZero() {
+		return
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx, `DELETE FROM job WHERE id = $1`, id.String()); err != nil {
+		t.Fatalf("removing the enqueued job: %v", err)
+	}
+}
+
+// drain empties the doorbell without blocking on an empty one.
+func drain(woken <-chan struct{}) {
+	select {
+	case <-woken:
+	default:
+	}
+}
+
+// The sweep, against the database that carries the guard (G-02, ADR-0007's second countermeasure).
+//
+// Here rather than only in the engine's own tests because the guard is a WHERE clause: a fake that
+// implements it correctly proves that the engine asks the right question, and only a real query
+// proves that the answer is the one the schema gives.
+func TestTheSweepTakesDispatchedRowsAndLeavesTheRest(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+	events := postgres.NewDispatchedEvents()
+
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	dispatched := seedOutboxRow(ctx, t, tenantA, old, true)
+	pending := seedOutboxRow(ctx, t, tenantA, old, false)
+	recent := seedOutboxRow(ctx, t, tenantA, time.Now().UTC(), true)
+
+	cutoff := time.Now().UTC().Add(-7 * 24 * time.Hour)
+
+	var due, removed int
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		var err error
+		if due, err = events.CountExpired(txCtx, cutoff, 100); err != nil {
+			return err
+		}
+		removed, err = events.DeleteExpired(txCtx, cutoff, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	// At least one rather than exactly one: the suite shares a database, so another test's old
+	// dispatched rows are legitimately due as well. What this test is about is which of *its*
+	// three rows went, and that is asserted row by row below.
+	if due < 1 || removed < 1 {
+		t.Errorf("due = %d, removed = %d; the old dispatched row was neither due nor removed", due, removed)
+	}
+	if outboxRowExists(ctx, t, dispatched) {
+		t.Error("the old dispatched row survived the sweep")
+	}
+	// The guard, and the reason it is a WHERE clause rather than a period: the dispatcher stamps
+	// dispatched_at only after every subscriber has had the event, so a NULL means somebody has
+	// not consumed it. A year old and still not due.
+	if !outboxRowExists(ctx, t, pending) {
+		t.Error("an event nobody has consumed was swept")
+	}
+	if !outboxRowExists(ctx, t, recent) {
+		t.Error("an event inside its period was swept")
+	}
+
+	deleteOutboxRow(ctx, t, pending)
+	deleteOutboxRow(ctx, t, recent)
+}
+
+// The cross-tenant negative gate SG-3 requires of every new repository method. Row level security
+// is what makes it pass: neither query carries a tenant condition of its own.
+func TestTheSweepCannotReachAnotherTenantsEvents(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+	events := postgres.NewDispatchedEvents()
+
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	inA := seedOutboxRow(ctx, t, tenantA, old, true)
+	cutoff := time.Now().UTC().Add(-7 * 24 * time.Hour)
+
+	var due, removed int
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantB}, func(txCtx context.Context) error {
+		var err error
+		if due, err = events.CountExpired(txCtx, cutoff, 100); err != nil {
+			return err
+		}
+		removed, err = events.DeleteExpired(txCtx, cutoff, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping from the wrong tenant failed for the wrong reason: %v", err)
+	}
+
+	// Tenant B has none of its own here, so nothing at all may be due. Unlike the test above this
+	// one can be absolute: the assertion is precisely that a tenant sees zero of another's.
+	if due != 0 || removed != 0 {
+		t.Errorf("tenant B saw %d due and removed %d of tenant A's events", due, removed)
+	}
+	if !outboxRowExists(ctx, t, inA) {
+		t.Fatal("another tenant swept an event - the boundary did not hold")
+	}
+
+	// Cleaned up, because it is an old dispatched row and would otherwise be due in every later
+	// test that sweeps tenant A.
+	deleteOutboxRow(ctx, t, inA)
+}
+
+// The consumption records are the outbox's twin table, and gate SG-3 wants a negative for that
+// method too: it is a second statement against a second table, and "the first one is bounded"
+// proves nothing about the second.
+func TestTheConsumptionSweepCannotReachAnotherTenantsRecords(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+	events := postgres.NewDispatchedEvents()
+
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	eventID := seedOutboxRow(ctx, t, tenantA, old, true)
+	seedConsumption(ctx, t, tenantA, "the-consumer", eventID, old)
+
+	cutoff := time.Now().UTC().Add(-7 * 24 * time.Hour)
+
+	var removed int
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantB}, func(txCtx context.Context) error {
+		var err error
+		removed, err = events.DeleteExpiredConsumption(txCtx, cutoff, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping from the wrong tenant failed for the wrong reason: %v", err)
+	}
+	if removed != 0 {
+		t.Errorf("tenant B removed %d of tenant A's consumption records", removed)
+	}
+	if !consumptionExists(ctx, t, tenantA, "the-consumer", eventID) {
+		t.Fatal("another tenant swept a consumption record - the boundary did not hold")
+	}
+
+	// And the tenant's own sweep does reach it, so the test above is about the boundary rather
+	// than about a query that removes nothing at all.
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		var err error
+		removed, err = events.DeleteExpiredConsumption(txCtx, cutoff, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping in the owning tenant: %v", err)
+	}
+	if removed < 1 || consumptionExists(ctx, t, tenantA, "the-consumer", eventID) {
+		t.Errorf("the owning tenant removed %d and the record is still there", removed)
+	}
+
+	deleteOutboxRow(ctx, t, eventID)
+}
+
+func seedConsumption(ctx context.Context, t *testing.T, tenant shared.ID, consumer, eventID string, at time.Time) {
+	t.Helper()
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO event_consumption (tenant_id, consumer, event_id, consumed_at)
+		VALUES ($1, $2, $3, $4)`, tenant.String(), consumer, eventID, at); err != nil {
+		t.Fatalf("seeding a consumption record: %v", err)
+	}
+}
+
+func consumptionExists(ctx context.Context, t *testing.T, tenant shared.ID, consumer, eventID string) bool {
+	t.Helper()
+	var found bool
+	if err := adminPool(ctx, t).QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM event_consumption
+		               WHERE tenant_id = $1 AND consumer = $2 AND event_id = $3)`,
+		tenant.String(), consumer, eventID).Scan(&found); err != nil {
+		t.Fatalf("reading the consumption record: %v", err)
+	}
+	return found
+}
+
+// seedOutboxRow writes one row directly, which is the only way to fix both its age and whether it
+// has been dispatched: the write path stamps neither.
+func seedOutboxRow(ctx context.Context, t *testing.T, tenant shared.ID, occurredAt time.Time, dispatched bool) string {
+	t.Helper()
+
+	id := freshID(t).String()
+	var dispatchedAt *time.Time
+	if dispatched {
+		at := occurredAt.Add(time.Second)
+		dispatchedAt = &at
+	}
+
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO outbox_event (id, tenant_id, event_type, subject, payload, actor_type,
+		                          occurred_at, dispatched_at)
+		VALUES ($1, $2, 'de.hubtask.work.container.created.v1', 'container/x', '{}'::jsonb, 'USER',
+		        $3, $4)`,
+		id, tenant.String(), occurredAt, dispatchedAt); err != nil {
+		t.Fatalf("seeding an outbox row: %v", err)
+	}
+	return id
+}
+
+func deleteOutboxRow(ctx context.Context, t *testing.T, id string) {
+	t.Helper()
+	if _, err := adminPool(ctx, t).Exec(ctx, `DELETE FROM outbox_event WHERE id = $1`, id); err != nil {
+		t.Fatalf("removing the seeded outbox row: %v", err)
+	}
+}
+
+func outboxRowExists(ctx context.Context, t *testing.T, id string) bool {
+	t.Helper()
+	var found bool
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM outbox_event WHERE id = $1)`, id).Scan(&found); err != nil {
+		t.Fatalf("reading the outbox row: %v", err)
+	}
+	return found
 }

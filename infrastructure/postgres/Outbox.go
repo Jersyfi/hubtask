@@ -257,6 +257,81 @@ type Consumption struct {
 	now clock.Clock
 }
 
+// DispatchedEvents is the outbox as the retention engine sees it: what is due, and one batch of
+// it removed (G-02, ADR-0007's second countermeasure).
+//
+// A type of its own rather than two more methods on Outbox, because the two have nothing to do
+// with each other beyond the table. Outbox is the write path and the dispatcher; this is the
+// sweep, and a retention engine that could reach Claim or Append would be an engine that could
+// publish an event.
+type DispatchedEvents struct{}
+
+func NewDispatchedEvents() DispatchedEvents { return DispatchedEvents{} }
+
+// No compile-time assertion against the application's interface, and that is the layer rule
+// rather than an oversight: an adapter that imported core/application/service would be an adapter
+// that can call a use case (project-structure.md §2, and the gate that says so). The two meet in
+// the composition root, which is the one place allowed to know both.
+
+// DeleteExpired removes one batch. The guard that a row nobody has consumed is never due lives in
+// the query, not here - see db/queries/Outbox.sql.
+func (DispatchedEvents) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	removed, err := queries.DeleteDispatchedEvents(ctx, sqlc.DeleteDispatchedEventsParams{
+		Cutoff: timestampOf(cutoff),
+		Batch:  int32(batch), //nolint:gosec // G115: a batch size from the configuration, bounded there.
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the outbox: %w", err))
+	}
+	return int(removed), nil
+}
+
+// DeleteExpiredConsumption removes one batch of consumption records. Called by the same sweep and
+// bounded by the same period as the events themselves - see db/queries/Outbox.sql.
+func (DispatchedEvents) DeleteExpiredConsumption(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	removed, err := queries.DeleteExpiredConsumption(ctx, sqlc.DeleteExpiredConsumptionParams{
+		Cutoff: timestampOf(cutoff),
+		Batch:  int32(batch), //nolint:gosec // G115: a batch size from the configuration.
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the consumption records: %w", err))
+	}
+	return int(removed), nil
+}
+
+// CountExpired reports how many rows are due, counted no higher than the ceiling.
+func (DispatchedEvents) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	due, err := queries.CountDispatchedEvents(ctx, sqlc.CountDispatchedEventsParams{
+		Cutoff:  timestampOf(cutoff),
+		Ceiling: int32(ceiling), //nolint:gosec // G115: a batch size from the configuration.
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the outbox's due rows: %w", err))
+	}
+	return int(due), nil
+}
+
 func NewConsumption(now clock.Clock) Consumption { return Consumption{now: now} }
 
 var _ eventbus.Consumption = Consumption{}

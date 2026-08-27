@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -1534,5 +1535,133 @@ func TestACommentDeletionEventNeedsATombstone(t *testing.T) {
 		time.Date(2026, 8, 23, 13, 0, 0, 0, time.UTC), event.Cause{})
 	if err == nil {
 		t.Fatal("a deletion event about a living comment was built")
+	}
+}
+
+// goldenCloudEvent is the rendering an integration writes against, byte for byte.
+//
+// A golden file rather than a set of field assertions, and the difference matters: assertions say
+// what somebody remembered to check, and this says what a subscriber actually receives. An
+// attribute renamed, dropped, or quietly added shows up as a diff - which is the point, because
+// every one of those is a breaking change to a contract that lives outside this repository
+// (ADR-0007).
+const goldenCloudEvent = "testdata/cloudevent-container-created.json"
+
+// goldenEnvelope is deliberately not containerCreated: every field a container carries is set, so
+// that the golden shows a subscriber what a populated event looks like rather than what the
+// minimum one does.
+func goldenEnvelope(t *testing.T) event.Envelope {
+	t.Helper()
+
+	created := time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
+	container := work.Container{
+		ID:        shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+		TenantID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		Type:      work.ContainerCollection,
+		ParentID:  shared.MustParseID("0192f000-0000-7000-8000-00000000000c"),
+		Name:      "Shopping",
+		OrderKey:  "a0",
+		CreatedBy: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		CreatedAt: created,
+		UpdatedAt: created,
+		Version:   1,
+	}
+
+	envelope, err := event.NewContainerCreated(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e1"), container,
+		event.Actor{Kind: shared.ActorUser, ID: container.CreatedBy}, created, event.Cause{})
+	if err != nil {
+		t.Fatalf("building the event: %v", err)
+	}
+	return envelope
+}
+
+func TestACloudEventRendersExactlyAsThePublishedGolden(t *testing.T) {
+	rendered := eventbus.ToCloudEvent(goldenEnvelope(t), "urn:hubtask:golden")
+
+	// Marshalled through the standard encoder, which sorts map keys - so the comparison is about
+	// the content rather than about iteration order.
+	actual, err := json.MarshalIndent(rendered, "", "  ")
+	if err != nil {
+		t.Fatalf("rendering the event: %v", err)
+	}
+
+	expected, err := os.ReadFile(goldenCloudEvent)
+	if err != nil {
+		t.Fatalf("reading the golden: %v", err)
+	}
+
+	if string(actual)+"\n" != string(expected) {
+		t.Errorf("the rendering has drifted from the golden.\n--- got ---\n%s\n--- want ---\n%s",
+			actual, expected)
+	}
+}
+
+// The five extension attributes ADR-0007 names, plus the one E-06 added. They are attributes
+// rather than payload fields because a broker and a webhook subscription filter on them without
+// parsing `data` - which is what makes "every event of this tenant" a routing rule rather than a
+// consumer's problem.
+func TestTheExtensionAttributesAreTheOnesTheADRNames(t *testing.T) {
+	root := containerCreated(t)
+	caused, err := event.NewContainerCreated(
+		shared.MustParseID("0192f000-0000-7000-8000-0000000000e2"),
+		work.Container{
+			ID:       shared.MustParseID("0192f000-0000-7000-8000-00000000000b"),
+			TenantID: root.TenantID, Type: work.ContainerCollection,
+			ParentID: shared.MustParseID("0192f000-0000-7000-8000-00000000000c"),
+			Name:     "Shopping", OrderKey: "a0",
+			CreatedBy: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+			CreatedAt: root.OccurredAt, Version: 1,
+		},
+		event.Actor{
+			Kind:       shared.ActorAutomation,
+			ID:         shared.MustParseID("0192f000-0000-7000-8000-00000000000e"),
+			OnBehalfOf: shared.MustParseID("0192f000-0000-7000-8000-00000000000f"),
+		},
+		root.OccurredAt, root.CausedBy())
+	if err != nil {
+		t.Fatalf("building the caused event: %v", err)
+	}
+
+	rendered := eventbus.ToCloudEvent(caused, "urn:hubtask:test")
+
+	for attribute, want := range map[string]any{
+		"tenantid":       root.TenantID.String(),
+		"actortype":      string(shared.ActorAutomation),
+		"actorid":        "0192f000-0000-7000-8000-00000000000e",
+		"onbehalfof":     "0192f000-0000-7000-8000-00000000000f",
+		"correlationid":  root.CorrelationID.String(),
+		"causationid":    root.ID.String(),
+		"causationdepth": 1,
+	} {
+		if rendered[attribute] != want {
+			t.Errorf("%s = %v, want %v", attribute, rendered[attribute], want)
+		}
+	}
+
+	// Lower case without separators, as CloudEvents 1.0 §3 requires of an extension name. A
+	// `causationId` would be rejected by a conforming broker rather than by us.
+	for attribute := range rendered {
+		if attribute != strings.ToLower(attribute) {
+			t.Errorf("the extension %q is not lower case", attribute)
+		}
+	}
+}
+
+// Present only when true, and absent otherwise rather than false: a consumer written before
+// restores existed reads an ordinary event exactly as it always did, and a broker's routing rule
+// can express "has this attribute" where it cannot express "equals false or missing"
+// (ADR-0007, backup-restore.md §8.4).
+func TestReplayIsAbsentOnAnOrdinaryEventAndTrueOnAReplay(t *testing.T) {
+	ordinary := containerCreated(t)
+	if _, present := eventbus.ToCloudEvent(ordinary, "urn:hubtask:test")["replay"]; present {
+		t.Error("an ordinary event carries the replay attribute")
+	}
+
+	replayed := ordinary
+	replayed.Replay = true
+	rendered := eventbus.ToCloudEvent(replayed, "urn:hubtask:test")
+	if rendered["replay"] != true {
+		t.Errorf("replay = %v, want true", rendered["replay"])
 	}
 }
