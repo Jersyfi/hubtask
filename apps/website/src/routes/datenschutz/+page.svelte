@@ -42,9 +42,13 @@
       (IP-Adresse, Datum und Uhrzeit, aufgerufene Datei, übertragene Datenmenge, Browserkennung)
       in Logdateien. Diese Verarbeitung erfolgt auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO;
       das berechtigte Interesse ist die technische Bereitstellung, Stabilität und Sicherheit der
-      Website. Die Logdaten werden von IONOS nach deren Löschfristen automatisch gelöscht und
-      nicht mit anderen Daten zusammengeführt. Mit IONOS besteht ein Vertrag über
-      Auftragsverarbeitung nach Art. 28 DSGVO.
+      Website. Die Logdaten werden automatisch nach den Löschfristen des Hosters gelöscht und
+      nicht mit anderen Daten zusammengeführt; Kriterium für die Speicherdauer ist allein die
+      technische Erforderlichkeit. Das Hosting erfolgt in Deutschland; eine Übermittlung in
+      Drittländer außerhalb der EU findet nicht statt. Mit IONOS besteht ein Vertrag über
+      Auftragsverarbeitung nach Art. 28 DSGVO. Die Bereitstellung dieser Daten ist weder
+      gesetzlich noch vertraglich vorgeschrieben; ohne sie kann die Website technisch jedoch
+      nicht ausgeliefert werden.
     </p>
   </section>
 
@@ -68,14 +72,33 @@
   </section>
 
   <section>
+    <h2>Keine automatisierte Entscheidungsfindung</h2>
+    <p>
+      Eine automatisierte Entscheidungsfindung einschließlich Profiling (Art. 22 DSGVO) findet
+      nicht statt.
+    </p>
+  </section>
+
+  <section>
     <h2>Ihre Rechte</h2>
     <p>
       Sie haben gegenüber dem Verantwortlichen das Recht auf Auskunft (Art. 15 DSGVO),
-      Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18),
-      Datenübertragbarkeit (Art. 20) und Widerspruch gegen die Verarbeitung (Art. 21 DSGVO).
-      Außerdem besteht ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde (Art. 77
-      DSGVO), etwa beim Landesbeauftragten für den Datenschutz und die Informationsfreiheit
-      Baden-Württemberg.
+      Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18) und
+      Datenübertragbarkeit (Art. 20 DSGVO). Außerdem besteht ein Beschwerderecht bei einer
+      Datenschutz-Aufsichtsbehörde (Art. 77 DSGVO), etwa beim Landesbeauftragten für den
+      Datenschutz und die Informationsfreiheit Baden-Württemberg.
+    </p>
+  </section>
+
+  <!-- Art. 21 Abs. 4 DSGVO verlangt, dass auf das Widerspruchsrecht gesondert und hervorgehoben
+       hingewiesen wird - deshalb ein eigener Abschnitt statt einer Zeile in der Aufzählung. -->
+  <section class="emphasis">
+    <h2>Widerspruchsrecht (Art. 21 DSGVO)</h2>
+    <p>
+      Sie haben das Recht, aus Gründen, die sich aus Ihrer besonderen Situation ergeben,
+      jederzeit gegen die Verarbeitung Sie betreffender personenbezogener Daten, die auf
+      Grundlage von Art. 6 Abs. 1 lit. f DSGVO erfolgt, Widerspruch einzulegen. Richten Sie
+      den Widerspruch formlos an die oben genannte E-Mail-Adresse.
     </p>
   </section>
 </main>
