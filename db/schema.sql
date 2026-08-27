@@ -844,6 +844,12 @@ CREATE TABLE outbox_event (
 );
 CREATE INDEX outbox_pending_idx ON outbox_event (occurred_at)
   WHERE dispatched_at IS NULL;
+-- The polling trigger's walk (G-04, migration 0052): one type, in the outbox's own order. The
+-- tenant leads because row level security puts it in front of every predicate; the ordering pair
+-- comes last so a page is a range read rather than a sort. Partial, because a poll never answers a
+-- replayed event.
+CREATE INDEX outbox_poll_idx ON outbox_event (tenant_id, event_type, occurred_at, id)
+  WHERE replay = false;
 
 CREATE TABLE job (
   id           uuid PRIMARY KEY,

@@ -52,3 +52,32 @@ type Pending interface {
 	// dispatcher decides between running again immediately and going back to sleep.
 	CountPending(ctx context.Context) (int, error)
 }
+
+// Position is where a poll stands in the outbox: one row's place in the table's own order.
+//
+// The order is `(occurred_at, id)` - what the dispatcher claims in, and what the polling index is
+// built on. A position is therefore a fact about the table rather than a number a process was
+// holding, which is what makes a cursor survive a restart and a failover (G-04).
+type Position struct {
+	OccurredAt time.Time
+	ID         shared.ID
+}
+
+// Pollable is the outbox as an external trigger reads it: one event type, oldest first, from a
+// position (automation.md §3.2).
+//
+// A port of its own rather than two more methods on Pending, because the readers have nothing to do
+// with each other. The dispatcher takes what nobody has delivered and marks it; a poller takes what
+// happened, delivered or not, and marks nothing - the pull half is a second transport rather than a
+// second delivery, and an interface that held both would let one be handed where the other belongs.
+type Pollable interface {
+	// Poll answers up to limit events of one type after the position, in the table's order.
+	//
+	// Horizon is the newest moment a row may carry to be answered. It is the endpoint's guarantee
+	// that a cursor never steps over an event: `occurred_at` is stamped by the writing transaction
+	// rather than by its commit, so a transaction that began before one already answered can still
+	// commit a row sorting behind the cursor. Withholding what is newer than the horizon costs an
+	// event a few seconds; answering it would lose the ones still in flight behind it.
+	Poll(ctx context.Context, eventType event.Type, after Position, horizon time.Time, limit int) (
+		[]event.Envelope, error)
+}

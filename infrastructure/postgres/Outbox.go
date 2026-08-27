@@ -40,8 +40,9 @@ type Outbox struct {
 func NewOutbox(jobs queue.Queue) Outbox { return Outbox{jobs: jobs} }
 
 var (
-	_ outbox.Events  = Outbox{}
-	_ outbox.Pending = Outbox{}
+	_ outbox.Events   = Outbox{}
+	_ outbox.Pending  = Outbox{}
+	_ outbox.Pollable = Outbox{}
 )
 
 // Append writes the event.
@@ -225,6 +226,59 @@ func (o Outbox) FindEvent(ctx context.Context, eventID shared.ID) (event.Envelop
 			WithCause(fmt.Errorf("reading event %s: %w", eventID, err))
 	}
 	return envelopeFrom(sqlc.ClaimPendingEventsRow(row))
+}
+
+// Poll answers one type's events after a position, for an external trigger (G-04).
+//
+// No tenant parameter and no tenant predicate, like every other read here: row level security has
+// already narrowed the table to the transaction's tenant, and a poller reading another workspace's
+// stream is therefore not a thing this method could be asked to do.
+//
+// The batch is bounded here as well as by the caller. The limit arrives from a query parameter, and
+// a value the specification happens to allow today is not a value this adapter wants to learn from
+// a request tomorrow.
+func (o Outbox) Poll(
+	ctx context.Context, eventType event.Type, after outbox.Position, horizon time.Time, limit int,
+) ([]event.Envelope, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// A position with no identifier is the start of the window: nothing has been read yet, and the
+	// keyset compares against the lowest uuid there is. uuidOf refuses the zero value rather than
+	// rendering it, which is right everywhere else - an entity with no identifier is a bug - so the
+	// one place where "before every row" is a real answer says so here.
+	afterID := pgtype.UUID{Valid: true}
+	if !after.ID.IsZero() {
+		var err error
+		if afterID, err = uuidOf(after.ID); err != nil {
+			return nil, err
+		}
+	}
+
+	rows, err := queries.PollOutboxEvents(ctx, sqlc.PollOutboxEventsParams{
+		EventType:       eventType.String(),
+		Horizon:         timestampOf(horizon),
+		AfterOccurredAt: timestampOf(after.OccurredAt),
+		AfterID:         afterID,
+		Batch:           boundedBatch(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("polling events of type %s: %w", eventType, err))
+	}
+
+	envelopes := make([]event.Envelope, 0, len(rows))
+	for _, row := range rows {
+		envelope, err := envelopeFrom(sqlc.ClaimPendingEventsRow(row))
+		if err != nil {
+			return nil, err
+		}
+		envelopes = append(envelopes, envelope)
+	}
+	return envelopes, nil
 }
 
 func envelopeFrom(row sqlc.ClaimPendingEventsRow) (event.Envelope, error) {

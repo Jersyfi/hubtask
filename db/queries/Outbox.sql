@@ -106,3 +106,39 @@ SELECT id, tenant_id, event_type, subject, payload, actor_type, actor_id,
        correlation_id, causation_id, causation_depth, occurred_at, replay
 FROM outbox_event
 WHERE id = sqlc.arg('id');
+
+-- name: PollOutboxEvents :many
+-- The pull half of the stream (G-04, automation.md §3.2): one type, oldest first, from a position.
+--
+-- Three predicates and each is a boundary the endpoint has to draw.
+--
+-- `replay = false` is the same rule the push half keeps: a restore's events go to nobody
+-- outward-facing, or a restore would report last month's states to every trigger (migration 0033).
+--
+-- `occurred_at <= horizon` is what makes the cursor gapless. The order is `(occurred_at, id)`, and
+-- `occurred_at` comes from the writing transaction rather than from its commit - so a transaction
+-- that began before one already answered can still commit a row that sorts *behind* the cursor,
+-- and a poller would step over it and never know. The horizon is a moment far enough back that no
+-- such transaction can still be open; rows newer than it are withheld from the page and from the
+-- cursor together, and are answered by the next poll. Withholding an event for a few seconds is a
+-- delay, and stepping over it is a loss.
+--
+-- The keyset itself is the row comparison rather than `occurred_at > $1 OR (= AND id > $2)`: one
+-- comparison the index can seek on, where the disjunction is two it cannot.
+--
+-- The two sides of the keyset are cast, because a row comparison gives sqlc nothing to infer a
+-- parameter's type from: without them `after_id` is generated as a timestamp, and the mistake is one
+-- the compiler would not catch until it was a uuid being written into a timestamptz.
+--
+-- No `dispatched_at` predicate. A poll answers what has been delivered as readily as what has not:
+-- the pull half is a second transport, not a second delivery.
+SELECT
+  id, tenant_id, event_type, subject, payload,
+  actor_type, actor_id, correlation_id, causation_id, causation_depth, occurred_at, replay
+FROM outbox_event
+WHERE event_type = sqlc.arg('event_type')
+  AND replay = false
+  AND occurred_at <= sqlc.arg('horizon')
+  AND (occurred_at, id) > (sqlc.arg('after_occurred_at')::timestamptz, sqlc.arg('after_id')::uuid)
+ORDER BY occurred_at, id
+LIMIT sqlc.arg('batch');
