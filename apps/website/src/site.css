@@ -3,8 +3,9 @@
 
    Same rule as everywhere else: every value is a token (ADR-0029). Border widths use the CSS
    keyword `thin` for exactly that reason - there is no border-width token yet, and a keyword is
-   not a literal. Depth follows design-system.md §6 rule 1: the cards are raised because each is
-   a standalone element. */
+   not a literal. Depth follows design-system.md §6 rule 1: cards are raised (standalone), the
+   shell block is sunken (a child inside its section), and nothing here is glass - only overlays
+   blur, and a brochure has none. */
 
 * {
   box-sizing: border-box;
@@ -22,17 +23,17 @@ body {
 
 main {
   padding: var(--sp-1000) var(--sp-600) var(--sp-800);
-  max-width: 88ch;
+  max-width: 96ch;
   margin: 0 auto;
 }
 
 /* ── The hero ─────────────────────────────────────────────────────────────── */
 
 /* The signature wash: an ambient ember glow behind the title, the quietest way the brand colour
-   is allowed to appear (design-system.md - ambient tokens are washes, never surfaces). */
+   is allowed to appear (ambient tokens are washes, never surfaces). */
 .hero {
   position: relative;
-  padding-bottom: var(--sp-600);
+  padding-bottom: var(--sp-800);
 }
 
 .hero::before {
@@ -43,6 +44,10 @@ main {
   pointer-events: none;
 }
 
+.hero > * {
+  position: relative;
+}
+
 h1 {
   margin: 0 0 var(--sp-200);
   font-family: var(--font-display);
@@ -51,7 +56,7 @@ h1 {
   line-height: var(--lh-tight);
 }
 
-/* The one solid appearance of the signature colour: a short rule under the name. */
+/* The one solid appearance of the signature colour above the fold: a short rule under the name. */
 h1::after {
   content: "";
   display: block;
@@ -66,26 +71,148 @@ h1::after {
   margin: 0;
   color: var(--text-secondary);
   font-size: var(--fs-300);
-  max-width: 56ch;
+  max-width: 64ch;
 }
 
-/* The five levels, set like the data they are: mono, quiet, one line that says the whole model. */
+/* The five levels as label chips - the product's own colour vocabulary doing the explaining. */
 .levels {
-  margin: var(--sp-400) 0 0;
+  margin: var(--sp-500) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-100);
+}
+
+.chip {
   font-family: var(--font-mono);
   font-size: var(--fs-075);
-  color: var(--text-subtle);
+  padding: var(--sp-050) var(--sp-200);
+  border-radius: var(--r-full);
 }
 
-.levels span[aria-hidden] {
+.chip-slate {
+  background: var(--label-slate-bg);
+  color: var(--label-slate-fg);
+}
+
+.chip-blue {
+  background: var(--label-blue-bg);
+  color: var(--label-blue-fg);
+}
+
+.chip-teal {
+  background: var(--label-teal-bg);
+  color: var(--label-teal-fg);
+}
+
+.chip-violet {
+  background: var(--label-violet-bg);
+  color: var(--label-violet-fg);
+}
+
+.chip-amber {
+  background: var(--label-amber-bg);
+  color: var(--label-amber-fg);
+}
+
+.sep {
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-075);
+}
+
+.cta-row {
+  margin: var(--sp-600) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-400);
+}
+
+.cta {
+  display: inline-block;
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-100);
+  padding: var(--sp-150) var(--sp-500);
+  border-radius: var(--r-full);
+  text-decoration: none;
+}
+
+.cta:hover {
+  background: var(--accent-primary-hover);
+  color: var(--text-inverse);
+}
+
+.quiet {
+  color: var(--text-secondary);
+  font-size: var(--fs-100);
+}
+
+/* ── Sections ─────────────────────────────────────────────────────────────── */
+
+.block {
+  margin-top: var(--sp-1000);
+}
+
+.kicker {
+  margin: 0 0 var(--sp-100);
+  font-family: var(--font-mono);
+  font-size: var(--fs-075);
+  text-transform: uppercase;
   color: var(--accent-signature);
 }
 
-/* ── The cards ────────────────────────────────────────────────────────────── */
+h2 {
+  margin: 0 0 var(--sp-300);
+  font-family: var(--font-display);
+  font-size: var(--fs-500);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+}
+
+h3 {
+  margin: 0 0 var(--sp-150);
+  font-size: var(--fs-200);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+}
+
+p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-200);
+}
+
+.block > p {
+  max-width: 72ch;
+}
+
+.block p + p,
+section p + p {
+  margin-top: var(--sp-200);
+}
+
+strong {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-075);
+  color: var(--text-primary);
+  background: var(--bg-surface-sunken);
+  padding: var(--sp-025) var(--sp-100);
+  border-radius: var(--r-xs);
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────────── */
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(32ch, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(30ch, 1fr));
   gap: var(--sp-300);
   margin-top: var(--sp-400);
 }
@@ -98,22 +225,58 @@ h1::after {
   box-shadow: var(--shadow-raised);
 }
 
-h2 {
-  margin: 0 0 var(--sp-200);
-  font-family: var(--font-display);
-  font-size: var(--fs-400);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-tight);
+.card p {
+  font-size: var(--fs-100);
 }
 
-p {
-  margin: 0;
+/* The trust section carries the signature: an ember rim on its cards, the colour of the thing
+   the product cares most about. */
+.trust .card {
+  border-color: var(--rim-ember);
+}
+
+/* ── The feature and roadmap lists ────────────────────────────────────────── */
+
+.features,
+.roadmap {
+  list-style: none;
+  margin: var(--sp-400) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-200);
+}
+
+.features {
+  grid-template-columns: repeat(auto-fit, minmax(38ch, 1fr));
+}
+
+.features li,
+.roadmap li {
   color: var(--text-secondary);
-  font-size: var(--fs-200);
+  font-size: var(--fs-100);
 }
 
-.card p + p {
-  margin-top: var(--sp-200);
+.features li code,
+.roadmap li code {
+  margin-inline-end: var(--sp-100);
+}
+
+/* ── The shell block ──────────────────────────────────────────────────────── */
+
+.shell {
+  margin: var(--sp-400) 0 0;
+  background: var(--bg-surface-sunken);
+  border: thin solid var(--border-subtle);
+  border-radius: var(--r-md);
+  padding: var(--sp-300) var(--sp-400);
+  overflow-x: auto;
+}
+
+.shell code {
+  background: transparent;
+  padding: 0;
+  font-size: var(--fs-100);
+  color: var(--text-primary);
 }
 
 /* ── The legal pages ──────────────────────────────────────────────────────── */
@@ -127,8 +290,10 @@ section {
   margin-top: var(--sp-600);
 }
 
-section p + p {
-  margin-top: var(--sp-200);
+/* The separately highlighted objection right (Art. 21 Abs. 4 DSGVO): set apart, not shouted. */
+.emphasis {
+  border-inline-start: var(--sp-050) solid var(--accent-signature);
+  padding-inline-start: var(--sp-400);
 }
 
 address {
@@ -156,7 +321,7 @@ a:focus-visible {
 }
 
 footer {
-  max-width: 88ch;
+  max-width: 96ch;
   margin: 0 auto;
   padding: var(--sp-500) var(--sp-600) var(--sp-800);
   border-top: thin solid var(--border-subtle);
