@@ -137,6 +137,7 @@ storage location is recorded in the data catalogue with a deletion path, and a t
 | Search index (`tsvector`, optionally pgvector/external) | With the row, or via a reindex request |
 | `outbox_event` | Short period (7 days after delivery); event payloads limited to references and `NON_PERSONAL` fields |
 | `webhook_delivery` | 30 days; request bodies stored truncated |
+| `automation_rule` | With the tenant. A rule's `name` is a title somebody wrote and is the only free text on the row - the trigger, the actions and their parameters are identifiers and settings. Deleting a rule is soft, so that the runs it produced stay accountable; the row goes with the workspace, and `rule_run` above bounds how long what it did is kept |
 | `rule_run` | 30 days; input data only as a reference |
 | `activity_entry` | With the item |
 | `audit_log` | **Not** individually deletable; therefore contains no content, only metadata and masked diffs (see [audit.md](./audit.md) §4). An erasure records a pseudonym in `audit_pseudonym` instead, and every read and every export answers the erased actor's label with it - the row is untouched, the chain still verifies, and what leaves carries no name (§6, E-10) |
