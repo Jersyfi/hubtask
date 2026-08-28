@@ -63,6 +63,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
+	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
@@ -417,7 +418,10 @@ func run() error {
 		Accounts:    accounts,
 		Memberships: postgres.NewMembershipRepository(),
 		Catalogue:   ruleCatalogue,
-		Authorizer:  authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		// The one place the expression engine is constructed. A rule's conditions are compiled
+		// when it is written, so a mistake reaches its author rather than a log (G-06, ADR-0009).
+		Conditions: celexpression.New(),
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}
 	containers := postgres.NewContainerRepository(cursors)

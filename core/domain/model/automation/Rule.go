@@ -209,10 +209,8 @@ type NewRuleInput struct {
 	Scope    Scope
 	RunAs    shared.ID
 	Trigger  Trigger
-	// Conditions and DedupeKeyExpr are accepted as parameters and refused as values while they are
-	// non-empty. Taking them and refusing them is deliberate: a caller sending one gets the code
-	// that says the language arrives later, rather than a message about a field that does not
-	// exist.
+	// Conditions are checked for their shape here and compiled by the application layer, which is
+	// the only side that may hold an evaluator.
 	Conditions []Condition
 	Actions    []Action
 	Throttle   Throttle
@@ -242,7 +240,8 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	if err != nil {
 		return Rule{}, err
 	}
-	if err := RefuseConditions(in.Conditions); err != nil {
+	conditions, err := ValidConditionShape(in.Conditions)
+	if err != nil {
 		return Rule{}, err
 	}
 	actions, err := ValidActionShape(in.Actions)
@@ -262,7 +261,7 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	return Rule{
 		ID: in.ID, TenantID: in.TenantID, Name: name, Scope: scope,
 		Enabled: false,
-		RunAs:   in.RunAs, Trigger: trigger, Conditions: []Condition{}, Actions: actions,
+		RunAs:   in.RunAs, Trigger: trigger, Conditions: conditions, Actions: actions,
 		Throttle: throttle, OnError: onError,
 		CreatedBy: in.CreatedBy, CreatedAt: now, UpdatedAt: now, Version: 1,
 	}, nil
@@ -522,39 +521,44 @@ func foreignField(name string) shared.FieldError {
 	}
 }
 
-// RefuseConditions is the boundary between this task and the one that brings the language.
+// ValidConditionShape checks what a condition looks like, and nothing about what it means.
 //
 // An empty list is a rule with no conditions, which is a rule that runs on every match - that is
-// what the model has always meant and it needs no evaluator. Anything else is refused, and the
-// code says why rather than leaving the caller to conclude that the field is unknown. Accepting and
-// ignoring is the one option that is not available: a rule whose owner believes it is filtering and
-// whose behaviour says otherwise is worse than a rule they could not save (E-08).
-func RefuseConditions(conditions []Condition) error {
+// what the model has always meant. An empty *expression* is not a condition at all and is refused
+// as the empty field it is.
+//
+// Whether the text is an expression, and whether it names things that exist, is the compiler's
+// question - and the compiler is a port the application layer holds, because core/domain may not
+// reach for one (ADR-0001). Until G-06 there was no compiler and this function refused every
+// non-empty condition; what replaced that refusal is a real check rather than the absence of one.
+func ValidConditionShape(conditions []Condition) ([]Condition, error) {
+	if len(conditions) > MaxConditions {
+		return nil, shared.ErrValidation.
+			WithDetail("automation.too_many_conditions").
+			WithParams(map[string]string{"maximum": itoa(MaxConditions)}).
+			WithFields(shared.FieldError{
+				Path: "/conditions", Code: "automation.too_many_conditions",
+			})
+	}
+
+	kept := make([]Condition, 0, len(conditions))
 	var findings []shared.FieldError
 	for i, condition := range conditions {
-		if strings.TrimSpace(condition.Expr) == "" {
-			// An empty expression is not a condition at all. Refused as an empty field rather than
-			// as an unsupported language, because that is what it is.
+		expr := strings.TrimSpace(condition.Expr)
+		if expr == "" {
 			findings = append(findings, shared.FieldError{
 				Path: "/conditions/" + itoa(i) + "/expr", Code: "automation.condition_empty",
 			})
 			continue
 		}
-		findings = append(findings, shared.FieldError{
-			Path: "/conditions/" + itoa(i) + "/expr", Code: "automation.conditions_not_supported",
-		})
+		kept = append(kept, Condition{Expr: expr})
 	}
-	if len(findings) == 0 {
-		return nil
+	if len(findings) > 0 {
+		return nil, shared.ErrValidation.
+			WithDetail("automation.condition_empty").
+			WithFields(findings...)
 	}
-	if len(conditions) > MaxConditions {
-		findings = append(findings, shared.FieldError{
-			Path: "/conditions", Code: "automation.too_many_conditions",
-		})
-	}
-	return shared.ErrValidation.
-		WithDetail("automation.conditions_not_supported").
-		WithFields(findings...)
+	return kept, nil
 }
 
 // ValidActionShape checks what a rule's actions look like, and nothing about what they mean.
@@ -599,17 +603,17 @@ func ValidActionShape(actions []Action) ([]Action, error) {
 	return kept, nil
 }
 
-// ValidThrottle checks the bounds, and refuses the expression for RefuseConditions' reason: a
-// dedupe key is an expression, and there is nothing yet that could evaluate one.
+// ValidThrottle checks the bounds. The dedupe key is an expression like any other and is compiled
+// where the conditions are - in the application layer, against the same environment and the same
+// limits, because a key that could not be evaluated would collapse every run into one.
 func ValidThrottle(throttle Throttle) (Throttle, error) {
 	if throttle.MaxRunsPerHour < 0 {
 		return Throttle{}, fieldError("/throttle/max_runs_per_hour", "automation.throttle_invalid")
 	}
-	if strings.TrimSpace(throttle.DedupeKeyExpr) != "" {
-		return Throttle{}, fieldError(
-			"/throttle/dedupe_key_expr", "automation.conditions_not_supported")
-	}
-	return Throttle{MaxRunsPerHour: throttle.MaxRunsPerHour}, nil
+	return Throttle{
+		MaxRunsPerHour: throttle.MaxRunsPerHour,
+		DedupeKeyExpr:  strings.TrimSpace(throttle.DedupeKeyExpr),
+	}, nil
 }
 
 // ValidOnError checks the three values, and reads an absent one as the default.

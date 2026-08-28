@@ -78,18 +78,50 @@ func TestARuleIsWrittenSwitchedOff(t *testing.T) {
 	}
 }
 
-// The boundary between this task and the one that brings the language. G-06's pull request flips
-// this test from a refusal to an acceptance, which is the point of writing it this way round.
-func TestANonEmptyConditionIsRefusedUntilTheLanguageArrives(t *testing.T) {
+// The flip G-05 wrote this test for. It refused a non-empty condition while there was no language;
+// with G-06 the aggregate keeps it, and whether the text is an expression is the compiler's
+// question - asked in the application layer, because core/domain may not hold an evaluator.
+func TestAConditionIsKeptAndLeftForTheCompiler(t *testing.T) {
 	in := validInput()
-	in.Conditions = []automation.Condition{{Expr: "item.type == 'TASK'"}}
+	in.Conditions = []automation.Condition{{Expr: "  item.type == 'TASK'  "}}
+
+	rule, err := automation.NewRule(in)
+	if err != nil {
+		t.Fatalf("a condition was refused by the aggregate: %v", err)
+	}
+	if len(rule.Conditions) != 1 {
+		t.Fatalf("%d conditions, want one", len(rule.Conditions))
+	}
+	// Trimmed, so that what is stored is what a compiler was handed.
+	if rule.Conditions[0].Expr != "item.type == 'TASK'" {
+		t.Errorf("kept %q", rule.Conditions[0].Expr)
+	}
+}
+
+// An empty expression is not a condition at all, and is still refused as the empty field it is.
+func TestAnEmptyConditionIsStillRefused(t *testing.T) {
+	in := validInput()
+	in.Conditions = []automation.Condition{{Expr: "   "}}
 
 	_, err := automation.NewRule(in)
 	if !errors.Is(err, shared.ErrValidation) {
 		t.Fatalf("error %v, want ErrValidation", err)
 	}
-	if code := fieldCodes(t, err)["/conditions/0/expr"]; code != "automation.conditions_not_supported" {
-		t.Errorf("the refusal says %q, want automation.conditions_not_supported", code)
+	if code := fieldCodes(t, err)["/conditions/0/expr"]; code != "automation.condition_empty" {
+		t.Errorf("the refusal says %q, want automation.condition_empty", code)
+	}
+}
+
+// Each condition is evaluated with its own timeout, so the count is what bounds a match's cost.
+func TestTooManyConditionsAreRefused(t *testing.T) {
+	in := validInput()
+	for range automation.MaxConditions + 1 {
+		in.Conditions = append(in.Conditions, automation.Condition{Expr: "true"})
+	}
+
+	_, err := automation.NewRule(in)
+	if code := fieldCodes(t, err)["/conditions"]; code != "automation.too_many_conditions" {
+		t.Errorf("the refusal says %q, want automation.too_many_conditions", code)
 	}
 }
 
@@ -104,17 +136,21 @@ func TestNoConditionsIsAccepted(t *testing.T) {
 	}
 }
 
-// A dedupe key is an expression by another name, and is refused with the conditions.
-func TestADedupeKeyIsRefusedWithTheConditions(t *testing.T) {
+// A dedupe key is an expression by another name, and is kept with the conditions and compiled with
+// them - the other half of the same flip.
+func TestADedupeKeyIsKeptWithTheConditions(t *testing.T) {
 	in := validInput()
-	in.Throttle = automation.Throttle{MaxRunsPerHour: 100, DedupeKeyExpr: "item.id"}
+	in.Throttle = automation.Throttle{MaxRunsPerHour: 100, DedupeKeyExpr: " item.id "}
 
-	_, err := automation.NewRule(in)
-	if !errors.Is(err, shared.ErrValidation) {
-		t.Fatalf("error %v, want ErrValidation", err)
+	rule, err := automation.NewRule(in)
+	if err != nil {
+		t.Fatalf("a dedupe key was refused by the aggregate: %v", err)
 	}
-	if code := fieldCodes(t, err)["/throttle/dedupe_key_expr"]; code != "automation.conditions_not_supported" {
-		t.Errorf("the refusal says %q, want automation.conditions_not_supported", code)
+	if rule.Throttle.DedupeKeyExpr != "item.id" {
+		t.Errorf("kept %q", rule.Throttle.DedupeKeyExpr)
+	}
+	if rule.Throttle.MaxRunsPerHour != 100 {
+		t.Errorf("max_runs_per_hour %d", rule.Throttle.MaxRunsPerHour)
 	}
 }
 
