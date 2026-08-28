@@ -145,7 +145,7 @@ change series (`SET_RECURRENCE`).
 |---|---|
 | Triggering | Outbox dispatcher → automation engine (in-process or its own deployment) |
 | Delivery guarantee | At least once; actions use an `Idempotency-Key` derived from `(rule_id, event_id, action_index)` |
-| Permissions | The rule runs as the `run_as` account; it can never do more than that account may. Writing one needs more than the automation permission — see §2.1 |
+| Permissions | The rule runs as the `run_as` account; it can never do more than that account may. Every action goes through the same registry a person's request goes through, and the authoriser answers it the way it answers anybody (rule 2) — the engine gets no bypass, which is the whole point of `run_as`. A run is *granted* the token scope its action declares rather than narrowed by one: a rule presents no credential, so the bound whose purpose is letting a token be narrower than its owner has nothing to narrow, and the role is what decides. Writing a rule needs more than the automation permission — see §2.1 |
 | Loop protection | `causation_depth` in the event; abort at depth 5 by default, run status `ABORTED_LOOP` |
 | Replays | An event marked `replay: true` is one a restore produced ([backup-restore.md](./backup-restore.md) §8.4) and no rule reacts to it. The flag arrived with E-06 so that the engine finds it already there; it is on the envelope rather than in the payload because the decision is routing, and the dispatcher makes it — a subscriber is handed a replay only if it has asked for one, so the promise does not depend on every consumer remembering it |
 | Throttling | Per rule and per tenant; the dedupe key prevents a storm during mass changes |
@@ -154,6 +154,68 @@ change series (`SET_RECURRENCE`).
 | Log | A `RuleRun` with timestamps, condition results, action results, and errors; retrievable, filterable, replayable |
 | SSRF protection | Outbound calls go through `GuardedClient`: DNS resolution checked, private and link-local networks blocked (with a configurable allowlist for self-hosting), a redirect limit, a timeout, and a response size limit |
 | Secrets | Header values and tokens for HTTP actions are stored encrypted and masked in logs and API responses |
+
+### 2.0 How a run happens
+
+The table above says what the engine promises. This is the shape it has (G-07):
+
+1. **The dispatcher hands the event to a subscriber**, which asks which enabled rules have this
+   event as their trigger and narrows them by scope. It decides only *which* rules are interested —
+   a subscriber runs inside the dispatcher's transaction and may not reach the use case registry.
+2. **One job per matching rule**, not one per event. Failure isolation per rule, the queue's backoff
+   per rule, and a dead letter naming which rule rather than which batch. An event matching six
+   rules that cost one job would make one rule's misconfiguration everybody else's outage.
+3. **The engine runs the job** inside the queue runner's transaction. The run row, the effects its
+   actions had, the idempotency records and the job's own completion commit together, so a process
+   that dies halfway leaves none of them and the job is claimed again.
+
+The order inside a run is the order of what is cheapest to refuse: the **depth** needs nothing, the
+**throttle** is one count, the **conditions** are reads, the **actions** are writes. A run that may
+not act does not evaluate conditions either — evaluating them is where the reads are, and a loop
+that read on every hop would cost exactly what the bound exists to prevent.
+
+**Every run is recorded, including the ones that did nothing.** The row is written `RUNNING` before
+the conditions are evaluated, so a run whose process died is visible as one that started; a row left
+in `RUNNING` is a crash rather than a state anything reaches deliberately. The six statuses are six
+different answers and none of them collapses into another:
+
+| Status | What happened |
+|---|---|
+| `SUCCEEDED` | The run reached its end. Some of its actions may have failed — that is what `on_error: CONTINUE` means, and the per-action results say which |
+| `SKIPPED` | A condition answered no. The ordinary answer of a rule that is working |
+| `THROTTLED` | The rule has already run as often as it may this hour. The conditions were never asked |
+| `FAILED` | The rule could not do what it says: an action refused under `STOP`, or a condition that could not be evaluated at all |
+| `ABORTED_LOOP` | The chain reached `causation_depth` 5. The run did nothing — its own status, because "misconfigured into a loop" and "action refused" send their reader to two different places |
+| `RUNNING` | In flight, or a crash |
+
+**Idempotency is per action, not per run.** The key is `(rule_id, event_id, action_index)` — the
+index rather than the kind, because a rule may say "add this label and that one" and a key that
+collapsed them would perform the first and silently skip the second. A redelivered event therefore
+re-runs into stored answers: the run is recorded again, and it acts on nothing.
+
+**The dedupe key is the queue's.** `job.dedupe_key` is already unique per kind while a job is
+pending or running, so a rule with no `dedupe_key_expr` gets a key naming the rule and the event —
+nothing collapses — and one with an expression gets the rule and the expression's value, which is
+what collapses a storm. The expression is a *template*, not a condition: `item.id` is a value.
+
+**`on_error: RETRY` is the queue's, not the engine's.** "Retry with exponential backoff, and the
+dead letter after the budget" is what the queue already is; a second backoff inside the engine would
+be a second answer to a question this system has answered. A run that was skipped, throttled or
+aborted never comes back — none of them is a transient condition, and a loop is not fixed by trying
+it once more.
+
+**The failure counter counts runs, not actions**, and any run that is not a failure ends the streak —
+including a skip and a throttle. A rule whose conditions said no is a rule that is working, and
+counting that towards being switched off would disable the most careful rules first. At five
+consecutive failures the rule switches itself off and its **author** is told, through the same
+notification path everything else uses. The author rather than the account it runs as: a service
+account has nobody behind it to read a message.
+
+**No rule fires for a replay.** `eventbus.TakesReplays` is opt-in and the engine does not implement
+it, which is how backup-restore.md §8.4 is kept rather than remembered. The engine also refuses its
+own three events, which is the loop protection's first line — a rule reacting to a run is a rule
+reacting to itself, and the depth limit would stop it five hops later rather than never letting it
+start.
 
 ### 2.1 Who may write a rule
 
