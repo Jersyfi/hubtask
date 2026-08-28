@@ -171,6 +171,18 @@ const (
 	// The job carries the subscription and the event; the body is rendered at each attempt from
 	// the event as it was, so a retry sends what the first attempt would have.
 	KindWebhookDeliver Kind = "webhook.deliver"
+
+	// KindAutomationRun is one rule's reaction to one event (G-07, automation.md §2).
+	//
+	// One job per matching rule rather than one per event: failure isolation per rule, the queue's
+	// backoff per rule, and a dead letter naming which rule rather than which batch. An event
+	// matching six rules that cost one job would make one rule's misconfiguration everybody else's
+	// outage.
+	//
+	// The dedupe key is what collapses a storm. Without a rule's own expression it names the rule
+	// and the event, so nothing collapses; with one it names the rule and the expression's value,
+	// and the queue's existing uniqueness does the rest.
+	KindAutomationRun Kind = "automation.run"
 )
 
 func (k Kind) String() string { return string(k) }
