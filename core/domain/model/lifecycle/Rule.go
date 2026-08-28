@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	expression "github.com/Jersyfi/hubtask/core/port/expression"
 )
 
 // ScopeKind is how wide a rule reaches (data-retention.md §2).
@@ -82,9 +83,14 @@ type Rule struct {
 	TenantID shared.ID
 	Scope    Scope
 	DataKind DataKind
-	// Condition is an optional CEL expression. Stored and not evaluated: the language arrives with
-	// the rule engine in 0.5.0 (ADR-0009), and a rule that carried one would be a rule matching
-	// more than it says.
+	// Condition is an optional CEL expression, evaluated per candidate by the sweep
+	// (data-retention.md §2, ADR-0009). Empty is the ordinary case: a rule with no condition is
+	// decided by its scope and its period alone.
+	//
+	// Whether the text is an expression is the compiler's question and is asked in the application
+	// layer, because core/domain may not hold an evaluator (ADR-0001). What is checked here is that
+	// it is not longer than an expression may be - the same bound the engine applies, restated so
+	// that a rule cannot be stored with one the engine would refuse to compile.
 	Condition  string
 	RetainDays int
 	Action     Action
@@ -170,12 +176,11 @@ func NewRule(in NewRuleInput) (Rule, error) {
 			WithFields(shared.FieldError{Path: "/action", Code: CodeActionNotPerformed})
 	case in.RetainDays < 0:
 		return Rule{}, invalidRule(CodeRetainDaysInvalid, "/retain_days")
-	case strings.TrimSpace(in.Condition) != "":
-		// Stored and not evaluated, so a rule that carried one would match more than it says.
-		return Rule{}, shared.ErrConflict.WithDetail(CodeConditionNotAvailable).
-			WithFields(shared.FieldError{Path: "/condition", Code: CodeConditionNotAvailable})
 	}
 
+	if len(strings.TrimSpace(in.Condition)) > MaxConditionLength {
+		return Rule{}, invalidRule(CodeConditionTooLong, "/condition")
+	}
 	if err := validateChain(in, kind); err != nil {
 		return Rule{}, err
 	}
@@ -201,6 +206,9 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	}
 	return Rule{
 		ID: in.ID, TenantID: in.TenantID, Scope: in.Scope, DataKind: in.DataKind,
+		// Trimmed, so that what the sweep compiles is what somebody wrote rather than what they
+		// happened to leave whitespace around.
+		Condition:  strings.TrimSpace(in.Condition),
 		RetainDays: in.RetainDays, Action: in.Action,
 		ThenAfterDays: in.ThenAfterDays, ThenAction: in.ThenAction,
 		GraceDays: grace, Notify: notify, Justification: strings.TrimSpace(in.Justification),
@@ -424,15 +432,22 @@ func invalidRule(code, field string) error {
 
 // The refusals of the rule model, as codes rather than as prose.
 const (
-	CodeRuleIncomplete        = "lifecycle.rule_incomplete"
-	CodeKindUnknown           = "lifecycle.data_kind_unknown"
-	CodeKindNotSwept          = "lifecycle.data_kind_not_swept"
-	CodeScopeInvalid          = "lifecycle.scope_invalid"
-	CodeScopeIDMismatch       = "lifecycle.scope_id_mismatch"
-	CodeActionInvalid         = "lifecycle.action_invalid"
-	CodeActionNotPerformed    = "lifecycle.action_not_performed"
-	CodeRetainDaysInvalid     = "lifecycle.retain_days_invalid"
-	CodeConditionNotAvailable = "lifecycle.condition_not_available"
+	CodeRuleIncomplete     = "lifecycle.rule_incomplete"
+	CodeKindUnknown        = "lifecycle.data_kind_unknown"
+	CodeKindNotSwept       = "lifecycle.data_kind_not_swept"
+	CodeScopeInvalid       = "lifecycle.scope_invalid"
+	CodeScopeIDMismatch    = "lifecycle.scope_id_mismatch"
+	CodeActionInvalid      = "lifecycle.action_invalid"
+	CodeActionNotPerformed = "lifecycle.action_not_performed"
+	CodeRetainDaysInvalid  = "lifecycle.retain_days_invalid"
+	// CodeConditionTooLong is an expression past what the engine will compile. Restated here so
+	// that a rule cannot be stored with one the sweep would refuse every time it ran.
+	CodeConditionTooLong = "lifecycle.condition_too_long"
+
+	// MaxConditionLength is the engine's own bound, restated. The number lives in
+	// core/port/expression; core/domain may import a port, and repeating the value rather than the
+	// import would be two numbers that could drift.
+	MaxConditionLength        = expression.MaxLength
 	CodeChainIncomplete       = "lifecycle.chain_incomplete"
 	CodeChainHasNoSecondStage = "lifecycle.chain_has_no_second_stage"
 	CodeBelowLowerBound       = "lifecycle.below_lower_bound"

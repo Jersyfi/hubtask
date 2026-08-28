@@ -6,6 +6,7 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	expression "github.com/Jersyfi/hubtask/core/port/expression"
 )
 
 // The engine of data-retention.md §5 (E-07): two phases, the safeguards in their order, and the
@@ -407,5 +409,210 @@ func TestAKindWithNoRuleIsNotRead(t *testing.T) {
 	}
 	if outcome.Matched != 0 {
 		t.Errorf("the pass matched %d with nothing configured", outcome.Matched)
+	}
+}
+
+// The second consumer of the expression port, and the reason it is a port (G-06): the retention
+// sweep reads the same language the automation rules do, through the same interface, with the same
+// limits. E-07 refused a condition outright because nothing could evaluate one; these are what
+// replaced that refusal.
+
+// conditions is the expression port as this package sees it. A fake rather than the CEL adapter,
+// because core/application may not import one (ADR-0001) - what these tests are about is that the
+// sweep asks, honours the answer, and reads the entry only when the expression names it.
+type conditions struct {
+	// answer decides per candidate, by identifier, so a test can make one entry match and another
+	// not without writing an expression.
+	answer   map[shared.ID]bool
+	compiles bool
+	// touched records which names each evaluation resolved, which is how the laziness is proved.
+	touched  []string
+	compiled int
+}
+
+func newConditions() *conditions {
+	return &conditions{answer: map[shared.ID]bool{}, compiles: true}
+}
+
+func (c *conditions) Compile(text string, _ expression.Environment) (expression.Program, error) {
+	c.compiled++
+	if !c.compiles {
+		return nil, expression.Refusal{Code: expression.CodeSyntax}.Error()
+	}
+	// The fake honours one expression shape: naming `item` means the entry is read, and naming
+	// only `now` means it is not.
+	return &program{owner: c, readsItem: strings.Contains(text, "item")}, nil
+}
+
+type program struct {
+	owner     *conditions
+	readsItem bool
+}
+
+func (p *program) Evaluate(ctx context.Context, in expression.Activation) (expression.Value, error) {
+	if _, _, err := in.Resolve(ctx, "now"); err != nil {
+		return expression.Value{}, err
+	}
+	p.owner.touched = append(p.owner.touched, "now")
+
+	if !p.readsItem {
+		return expression.Value{Bool: true}, nil
+	}
+
+	value, found, err := in.Resolve(ctx, "item")
+	if err != nil {
+		return expression.Value{}, err
+	}
+	p.owner.touched = append(p.owner.touched, "item")
+	if !found {
+		return expression.Value{}, nil
+	}
+
+	document, _ := value.(map[string]any)
+	id, _ := document["id"].(string)
+	return expression.Value{Bool: p.owner.answer[shared.ID(id)]}, nil
+}
+
+// A rule with a condition sweeps only what matches, and the entry it does not match is not blocked
+// either - nothing is keeping it, its rule was never about it.
+func TestAConditionedRuleSweepsOnlyWhatMatches(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.Condition = "item.completed_at != null"
+	})
+
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000f9")
+	h.items.stored[taskID] = work.WorkItem{ID: taskID, Type: work.ItemTask}
+	h.items.stored[other] = work.WorkItem{ID: other, Type: work.ItemTask}
+	h.marking.due = []repository.Candidate{
+		candidate(taskID, now.AddDate(0, 0, -400)),
+		candidate(other, now.AddDate(0, 0, -400)),
+	}
+
+	engine := newConditions()
+	engine.answer[taskID] = true
+	engine.answer[other] = false
+
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	outcome, err := sweeper.Pass(context.Background(), actor())
+	if err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if len(h.marking.marked) != 1 || h.marking.marked[0] != taskID {
+		t.Fatalf("announced %+v, want only the entry the condition matches", h.marking.marked)
+	}
+	if outcome.Matched != 1 {
+		t.Errorf("matched %d, want 1", outcome.Matched)
+	}
+	// Not a block: the entry the condition excluded is not being held back by anything.
+	if len(outcome.Blocked) != 0 {
+		t.Errorf("the excluded entry was reported as blocked: %v", outcome.Blocked)
+	}
+}
+
+// A rule with no condition costs nothing: the expression is never compiled, and the entry is never
+// read for a question nobody asked.
+func TestARuleWithoutAConditionNeverReachesTheEngine(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(*domain.NewRuleInput) {})
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	engine := newConditions()
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if engine.compiled != 0 {
+		t.Errorf("the engine compiled %d expressions for a rule with none", engine.compiled)
+	}
+	if len(h.marking.marked) != 1 {
+		t.Errorf("the unconditioned rule announced %d entries, want one", len(h.marking.marked))
+	}
+}
+
+// One compilation per rule per pass rather than one per candidate: a pass judges a thousand entries
+// against a handful of rules, and compiling is the expensive half.
+func TestAConditionIsCompiledOncePerPass(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
+
+	var due []repository.Candidate
+	engine := newConditions()
+	for i := range 5 {
+		id := shared.MustParseID("0192f000-0000-7000-8000-00000000010" + string(rune('0'+i)))
+		h.items.stored[id] = work.WorkItem{ID: id, Type: work.ItemTask}
+		due = append(due, candidate(id, now.AddDate(0, 0, -400)))
+		engine.answer[id] = true
+	}
+	h.marking.due = due
+
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if engine.compiled != 1 {
+		t.Errorf("the engine compiled %d times for one rule over five candidates", engine.compiled)
+	}
+}
+
+// The whole point of the lazy activation: `item` is a query, and a pass over a thousand candidates
+// must not make a thousand of them for a condition that only asks about the clock.
+func TestTheEntryIsReadOnlyWhenTheConditionNamesIt(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "now.getHours() < 23" })
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	engine := newConditions()
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	for _, name := range engine.touched {
+		if name == "item" {
+			t.Error("the entry was read for a condition that only names the clock")
+		}
+	}
+}
+
+// Neither direction is an answer. Defaulting to true would delete what the condition was written to
+// protect; defaulting to false would quietly retain everything and look like a working rule.
+func TestAConditionThatCannotBeCompiledStopsThePass(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	engine := newConditions()
+	engine.compiles = false
+
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	if _, err := sweeper.Pass(context.Background(), actor()); err == nil {
+		t.Fatal("a rule whose condition cannot be compiled was acted on")
+	}
+	if len(h.marking.marked) != 0 {
+		t.Errorf("%d entries were announced anyway", len(h.marking.marked))
+	}
+}
+
+// Fail closed: a build with no evaluator refuses to act on a conditioned rule rather than acting on
+// all of it, which is the safe direction for a pass whose job is deleting.
+func TestAConditionedRuleIsRefusedWhenNoEngineIsWired(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); !errors.Is(err, shared.ErrInternal) {
+		t.Fatalf("error %v, want ErrInternal", err)
+	}
+	if len(h.marking.marked) != 0 {
+		t.Errorf("%d entries were announced anyway", len(h.marking.marked))
 	}
 }

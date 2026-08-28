@@ -504,6 +504,7 @@ func run() error {
 	// share a newly created rule reports and the share its preview reports come from the same
 	// reading - RE-7 is exactly that they agree.
 	retentionRules := lifecycle.Rules{
+		Conditions: celexpression.New(),
 		Rules:      postgres.NewRetentionRuleRepository(),
 		Policies:   lifecycleStore,
 		Marking:    postgres.NewRetentionMarkingRepository(),
@@ -1484,7 +1485,7 @@ func run() error {
 			Sweeper: lifecycle.Sweeper{
 				Rules:   postgres.NewRetentionRuleRepository(),
 				Marking: postgres.NewRetentionMarkingRepository(),
-				Holds:   lifecycleStore, Items: items, Purger: purger, Changes: changes,
+				Holds:   lifecycleStore, Items: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
 				Export: backupservice.RetentionExport{
 					Performer: backupPerformer, IDs: ids,
 				},

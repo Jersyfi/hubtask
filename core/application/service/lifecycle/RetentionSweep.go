@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	syncrepo "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -15,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	expression "github.com/Jersyfi/hubtask/core/port/expression"
 )
 
 // ExportBeforeDelete writes an archive to a backup target before a rule removes anything
@@ -46,8 +48,13 @@ type Sweeper struct {
 	Items   workrepo.Items
 	// Purger is the one engine behind every removal, which is what keeps a retention hard delete
 	// owing exactly what a person's purge owes: a journal entry, a tombstone, and an event per row.
-	Purger  Purger
-	Changes syncrepo.ChangeLog
+	Purger Purger
+	// Conditions compiles a rule's expression, and it is the same port and the same language the
+	// automation rules use (G-06, ADR-0009). Optional: a build with none refuses to act on a
+	// conditioned rule rather than acting on all of it, which is the safe direction for a pass
+	// whose job is deleting.
+	Conditions expression.Compiler
+	Changes    syncrepo.ChangeLog
 	// Export is optional. A rule that asks for one when there is nothing to write it with is
 	// refused at the act rather than silently downgraded to a deletion.
 	Export ExportBeforeDelete
@@ -131,6 +138,9 @@ func (s Sweeper) announce(
 	}
 
 	outcome := Outcome{Matched: len(candidates), Blocked: map[string]int{}}
+	// One compilation per rule per pass rather than one per candidate. A pass judges a thousand
+	// entries against a handful of rules, and compiling is the expensive half.
+	programs := map[shared.ID]expression.Program{}
 	byRule := map[shared.ID][]repository.Candidate{}
 	var order []shared.ID
 
@@ -139,6 +149,17 @@ func (s Sweeper) announce(
 		if !found || !candidate.AnchoredAt.Before(rule.Cutoff(now)) {
 			// Caught by the loosest cutoff and not by its own rule's. Not a block - nothing is
 			// keeping it, its period simply has not run out.
+			outcome.Matched--
+			continue
+		}
+		matches, err := s.matchesCondition(ctx, rule, candidate, now, programs)
+		if err != nil {
+			return Outcome{}, err
+		}
+		if !matches {
+			// Not a block and not a hold: the rule simply does not apply to this entry. Counted the
+			// way the cutoff case above is counted, because it is the same kind of answer - nothing
+			// is keeping the entry, its rule was never about it.
 			outcome.Matched--
 			continue
 		}
@@ -412,6 +433,81 @@ func (s Sweeper) remove(
 //
 // The restriction of §4.2 has no source yet - E-10 builds the data subject request - and its place
 // in the order is here so that the task which fills it does not also have to decide where it sits.
+
+// matchesCondition answers whether this rule's condition holds for this entry.
+//
+// A rule with no condition matches everything its scope and period already selected, which is what a
+// retention rule has always meant - and costs nothing, because the expression is never compiled.
+//
+// The entry is read only for a rule that has one, and only for the candidates that got this far.
+// That is the whole point of the port's lazy activation: `item` is a query, and a pass over a
+// thousand candidates must not make a thousand of them for rules that never ask.
+//
+// A condition that cannot be evaluated stops the pass rather than defaulting either way. Defaulting
+// to true would delete what the condition was written to protect; defaulting to false would quietly
+// retain everything and look like a working rule. Neither is an answer, so the failure is reported
+// and the run's own error handling decides.
+func (s Sweeper) matchesCondition(
+	ctx context.Context, rule domain.Rule, candidate repository.Candidate, now time.Time,
+	programs map[shared.ID]expression.Program,
+) (bool, error) {
+	if rule.Condition == "" {
+		return true, nil
+	}
+	if s.Conditions == nil {
+		return false, shared.ErrInternal.WithDetail("lifecycle.expression_engine_unavailable")
+	}
+
+	program, compiled := programs[rule.ID]
+	if !compiled {
+		var err error
+		if program, err = s.Conditions.Compile(rule.Condition, condition.RetentionEnvironment()); err != nil {
+			// The rule was compiled when it was written, so this is a rule stored by a build whose
+			// environment differed - a name since withdrawn, say. Refused rather than ignored:
+			// acting on a rule whose condition this build cannot read is acting on a rule nobody
+			// wrote.
+			return false, err
+		}
+		programs[rule.ID] = program
+	}
+
+	out, err := program.Evaluate(ctx, &candidateValues{sweeper: s, candidate: candidate, now: now})
+	if err != nil {
+		return false, err
+	}
+	return out.Bool, nil
+}
+
+// candidateValues resolves what a retention condition may name, and reads the entry only if the
+// expression asks for it.
+type candidateValues struct {
+	sweeper   Sweeper
+	candidate repository.Candidate
+	now       time.Time
+}
+
+func (v *candidateValues) Resolve(ctx context.Context, name string) (any, bool, error) {
+	switch name {
+	case condition.VarNow:
+		// The pass's instant rather than a fresh reading: an expression evaluated twice in one pass
+		// sees one moment (automation.md §1.2).
+		return v.now, true, nil
+	case condition.VarItem:
+		item, err := v.sweeper.Items.Find(ctx, v.candidate.ID)
+		if err != nil {
+			return nil, false, err
+		}
+		return condition.ItemDocument(item), true, nil
+	case condition.VarTenant:
+		// Declared and empty. The workspace's settings are not something this pass reads, and an
+		// empty document is the honest shape: a condition asking for a setting gets absent rather
+		// than a failure.
+		return map[string]any{"settings": map[string]any{}}, true, nil
+	default:
+		return nil, false, nil
+	}
+}
+
 // Until then nothing sets it, which is the honest state rather than a silent gap.
 func (s Sweeper) blocked(holds domain.Holds, candidate repository.Candidate) (string, bool) {
 	found := map[string]bool{}
