@@ -822,7 +822,9 @@ func TestNoDeferredActionIsAlreadyServed(t *testing.T) {
 // tail is a syntax error with a position, and a name outside the environment is its own code.
 type compiler struct{}
 
-func (compiler) Compile(text string, env expression.Environment) (expression.Program, error) {
+func (compiler) Compile(
+	text string, env expression.Environment, _ expression.Result,
+) (expression.Program, error) {
 	declared := map[string]bool{}
 	for _, variable := range env.Variables {
 		declared[variable.Name] = true

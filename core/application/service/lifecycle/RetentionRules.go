@@ -241,7 +241,7 @@ func (r Rules) checkCondition(text string) error {
 		return shared.ErrInternal.WithDetail("lifecycle.expression_engine_unavailable")
 	}
 
-	if _, err := r.Conditions.Compile(text, condition.RetentionEnvironment()); err != nil {
+	if _, err := r.Conditions.Compile(text, condition.RetentionEnvironment(), expression.Boolean); err != nil {
 		finding := shared.FieldError{Path: "/condition", Code: expression.CodeSyntax}
 		var coded *shared.Error
 		if errors.As(err, &coded) {

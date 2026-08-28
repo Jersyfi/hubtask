@@ -434,7 +434,9 @@ func newConditions() *conditions {
 	return &conditions{answer: map[shared.ID]bool{}, compiles: true}
 }
 
-func (c *conditions) Compile(text string, _ expression.Environment) (expression.Program, error) {
+func (c *conditions) Compile(
+	text string, _ expression.Environment, _ expression.Result,
+) (expression.Program, error) {
 	c.compiled++
 	if !c.compiles {
 		return nil, expression.Refusal{Code: expression.CodeSyntax}.Error()

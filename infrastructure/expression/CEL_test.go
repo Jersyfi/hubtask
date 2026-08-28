@@ -46,8 +46,13 @@ func ruleEnvironment() port.Environment {
 
 func compile(t *testing.T, text string) port.Program {
 	t.Helper()
+	return compileFor(t, text, port.Boolean)
+}
 
-	program, err := expression.New().Compile(text, ruleEnvironment())
+func compileFor(t *testing.T, text string, want port.Result) port.Program {
+	t.Helper()
+
+	program, err := expression.New().Compile(text, ruleEnvironment(), want)
 	if err != nil {
 		t.Fatalf("compiling %q: %v", text, err)
 	}
@@ -98,7 +103,7 @@ func TestAnExpressionNamingSomethingUndeclaredIsRefusedAtCompileTime(t *testing.
 		`payload.body != ''`,
 	} {
 		t.Run(text, func(t *testing.T) {
-			_, err := expression.New().Compile(text, ruleEnvironment())
+			_, err := expression.New().Compile(text, ruleEnvironment(), port.Boolean)
 			if !errors.Is(err, shared.ErrValidation) {
 				t.Fatalf("error %v, want ErrValidation", err)
 			}
@@ -111,7 +116,7 @@ func TestAnExpressionNamingSomethingUndeclaredIsRefusedAtCompileTime(t *testing.
 
 // A mistake is answered to its author, with a position, while they are still looking at it.
 func TestASyntaxErrorCarriesItsPosition(t *testing.T) {
-	_, err := expression.New().Compile("item.type == ", ruleEnvironment())
+	_, err := expression.New().Compile("item.type == ", ruleEnvironment(), port.Boolean)
 	if !errors.Is(err, shared.ErrValidation) {
 		t.Fatalf("error %v, want ErrValidation", err)
 	}
@@ -128,18 +133,64 @@ func TestASyntaxErrorCarriesItsPosition(t *testing.T) {
 	}
 }
 
-// A condition that answered a number is a condition whose author believes it filters.
-func TestAnExpressionThatIsNotABooleanIsRefused(t *testing.T) {
-	program := compile(t, `size(item.labels)`)
+// A condition that answers a number filters nothing, and a template that answers a boolean renders
+// "true". Both are silently wrong every time they run, and CEL knows the output type after the
+// check - so both are answerable when they are written.
+func TestAnExpressionOfTheWrongShapeIsRefusedAtCompileTime(t *testing.T) {
+	cases := []struct {
+		expr string
+		want port.Result
+		code string
+	}{
+		{`size(item.labels)`, port.Boolean, port.CodeNotBoolean},
+		{`'a' + 'b'`, port.Boolean, port.CodeNotBoolean},
+		{`1 == 1`, port.Text, port.CodeNotString},
+		{`size(item.labels)`, port.Text, port.CodeNotString},
+	}
+	for _, tc := range cases {
+		t.Run(tc.expr+" as "+string(tc.want), func(t *testing.T) {
+			_, err := expression.New().Compile(tc.expr, ruleEnvironment(), tc.want)
+			if !errors.Is(err, shared.ErrValidation) {
+				t.Fatalf("error %v, want ErrValidation", err)
+			}
+			if code := detailOf(t, err); code != tc.code {
+				t.Errorf("code %q, want %q", code, tc.code)
+			}
+		})
+	}
+}
 
-	_, err := program.Evaluate(context.Background(),
-		newValues(map[string]any{"item": map[string]any{"labels": []any{"a"}}}))
-	if !errors.Is(err, shared.ErrValidation) {
-		t.Fatalf("error %v, want ErrValidation", err)
-	}
-	if code := detailOf(t, err); code != port.CodeNotBoolean {
-		t.Errorf("code %q, want %q", code, port.CodeNotBoolean)
-	}
+// An expression reading a field of a dynamic map has a dynamic type by construction - `item.title`
+// is exactly that - so the compile-time check cannot decide it, and the value is checked instead.
+func TestADynamicExpressionIsCheckedAtEvaluation(t *testing.T) {
+	rows := map[string]any{"item": map[string]any{"title": "Pay the invoice", "done": true}}
+
+	t.Run("a template may read a dynamic field", func(t *testing.T) {
+		out, err := compileFor(t, `item.title`, port.Text).
+			Evaluate(context.Background(), newValues(rows))
+		if err != nil {
+			t.Fatalf("evaluating: %v", err)
+		}
+		if out.Text != "Pay the invoice" {
+			t.Errorf("rendered %q", out.Text)
+		}
+	})
+
+	t.Run("a condition on a dynamic field that is text is refused", func(t *testing.T) {
+		_, err := compileFor(t, `item.title`, port.Boolean).
+			Evaluate(context.Background(), newValues(rows))
+		if code := detailOf(t, err); code != port.CodeNotBoolean {
+			t.Errorf("code %q, want %q", code, port.CodeNotBoolean)
+		}
+	})
+
+	t.Run("a template on a dynamic field that is a boolean is refused", func(t *testing.T) {
+		_, err := compileFor(t, `item.done`, port.Text).
+			Evaluate(context.Background(), newValues(rows))
+		if code := detailOf(t, err); code != port.CodeNotString {
+			t.Errorf("code %q, want %q", code, port.CodeNotString)
+		}
+	})
 }
 
 // The first of the three limits: the length, checked before the parser rather than by it.
@@ -149,7 +200,7 @@ func TestAnExpressionPastTheLengthLimitIsRefusedUnparsed(t *testing.T) {
 		t.Fatalf("the fixture is %d bytes, which is inside the limit", len(long))
 	}
 
-	_, err := expression.New().Compile(long, ruleEnvironment())
+	_, err := expression.New().Compile(long, ruleEnvironment(), port.Boolean)
 	if !errors.Is(err, shared.ErrValidation) {
 		t.Fatalf("error %v, want ErrValidation", err)
 	}
@@ -171,7 +222,7 @@ func TestAnExpensiveExpressionHitsALimitRatherThanACPU(t *testing.T) {
 	}
 	rows := map[string]any{"item": map[string]any{"labels": big}}
 
-	program, err := expression.New().Compile(text, ruleEnvironment())
+	program, err := expression.New().Compile(text, ruleEnvironment(), port.Boolean)
 	if err != nil {
 		// Refused statically is the better of the two outcomes and satisfies the criterion: the
 		// expression never ran.
@@ -296,16 +347,50 @@ func TestAnAbsentValueIsAskable(t *testing.T) {
 }
 
 // Templating is the same environment applied to strings (automation.md §1.3), and it goes through
-// the same compiler and the same limits.
-func TestATemplateRendersText(t *testing.T) {
-	out, err := compile(t, `'Reminder: ' + item.title`).
-		Evaluate(context.Background(),
-			newValues(map[string]any{"item": map[string]any{"title": "Pay the invoice"}}))
-	if err != nil {
-		t.Fatalf("evaluating: %v", err)
+// the same compiler, the same environment and the same limits - which is the point of it being the
+// same port rather than a second small language for parameters.
+func TestATemplateRendersTextAgainstTheSameEnvironment(t *testing.T) {
+	rows := map[string]any{
+		"item": map[string]any{"title": "Pay the invoice", "type": "TASK"},
+		"now":  time.Date(2026, 8, 28, 9, 0, 0, 0, time.UTC),
 	}
-	if out.Text != "Reminder: Pay the invoice" {
-		t.Errorf("rendered %q", out.Text)
+	cases := map[string]string{
+		`'Reminder: ' + item.title`:                   "Reminder: Pay the invoice",
+		`item.type + ' — ' + item.title`:              "TASK — Pay the invoice",
+		`'Due in ' + string(now.getFullYear())`:       "Due in 2026",
+		`item.title.startsWith('Pay') ? 'yes' : 'no'`: "yes",
+	}
+	for text, want := range cases {
+		t.Run(text, func(t *testing.T) {
+			out, err := compileFor(t, text, port.Text).
+				Evaluate(context.Background(), newValues(rows))
+			if err != nil {
+				t.Fatalf("evaluating: %v", err)
+			}
+			if out.Text != want {
+				t.Errorf("rendered %q, want %q", out.Text, want)
+			}
+		})
+	}
+}
+
+// A template naming something the environment does not declare is refused when it is written, like
+// a condition - there is one environment and one check.
+func TestATemplateIsBoundByTheSameEnvironment(t *testing.T) {
+	if _, err := expression.New().Compile(`'x' + secret`, ruleEnvironment(), port.Text); err == nil {
+		t.Fatal("a template named something undeclared and was accepted")
+	}
+}
+
+// And by the same limits.
+func TestATemplateIsBoundByTheSameLimits(t *testing.T) {
+	long := "'x'" + strings.Repeat(" + 'x'", 800)
+	if len(long) <= port.MaxLength {
+		t.Fatalf("the fixture is %d bytes, which is inside the limit", len(long))
+	}
+	_, err := expression.New().Compile(long, ruleEnvironment(), port.Text)
+	if code := detailOf(t, err); code != port.CodeTooLong {
+		t.Errorf("code %q, want %q", code, port.CodeTooLong)
 	}
 }
 

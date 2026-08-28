@@ -33,13 +33,29 @@ import (
 type Compiler interface {
 	// Compile parses and type-checks one expression against the environment it will be evaluated
 	// in, and reports an error wrapping shared.ErrValidation when the text is not a valid
-	// expression, names a variable the environment does not declare, or is longer than the engine
-	// accepts.
+	// expression, names a variable the environment does not declare, is longer than the engine
+	// accepts, or does not produce what the caller asked for.
+	//
+	// The last of those is why `want` is a parameter rather than a property of the result. A
+	// condition that evaluates to a string and a template that evaluates to a boolean are both
+	// programs somebody wrote by mistake, and both are silently wrong at run time - the first
+	// filters nothing and the second renders "true". CEL knows the output type after the check, so
+	// the mistake is answerable when it is written rather than discoverable when it runs.
 	//
 	// The refusal carries the position, because an editor points at a column and a person reads
 	// one - see Position.
-	Compile(text string, env Environment) (Program, error)
+	Compile(text string, env Environment, want Result) (Program, error)
 }
+
+// Result is what an expression has to produce.
+type Result string
+
+const (
+	// Boolean is a condition: it decides whether something happens.
+	Boolean Result = "boolean"
+	// Text is a template: it renders a value into a parameter (automation.md §1.3).
+	Text Result = "text"
+)
 
 // Program is a compiled expression, ready to be evaluated as often as necessary.
 //

@@ -461,7 +461,8 @@ func (s Sweeper) matchesCondition(
 	program, compiled := programs[rule.ID]
 	if !compiled {
 		var err error
-		if program, err = s.Conditions.Compile(rule.Condition, condition.RetentionEnvironment()); err != nil {
+		if program, err = s.Conditions.Compile(
+			rule.Condition, condition.RetentionEnvironment(), expression.Boolean); err != nil {
 			// The rule was compiled when it was written, so this is a rule stored by a build whose
 			// environment differed - a name since withdrawn, say. Refused rather than ignored:
 			// acting on a rule whose condition this build cannot read is acting on a rule nobody

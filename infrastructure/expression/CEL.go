@@ -42,7 +42,9 @@ func New() CEL { return CEL{} }
 var _ port.Compiler = CEL{}
 
 // Compile parses and type-checks one expression.
-func (CEL) Compile(text string, environment port.Environment) (port.Program, error) {
+func (CEL) Compile(
+	text string, environment port.Environment, want port.Result,
+) (port.Program, error) {
 	if len(text) > port.MaxLength {
 		// Before the parser, deliberately: the length limit exists so that a hostile expression is
 		// refused without being parsed, and a parser handed a megabyte has already done the work
@@ -63,6 +65,14 @@ func (CEL) Compile(text string, environment port.Environment) (port.Program, err
 		return nil, refusalOf(issues.Err()).Error()
 	}
 
+	// The output type, checked here rather than at evaluation. A condition that produces a string
+	// filters nothing and a template that produces a boolean renders "true", and both are silently
+	// wrong every time they run - CEL knows the answer after the check, so the mistake is
+	// answerable to whoever wrote it.
+	if err := producesWhatWasAsked(ast.OutputType(), want); err != nil {
+		return nil, err
+	}
+
 	// Cost is bounded at compile time as well as at evaluation. The static estimate is what
 	// catches an expression whose worst case is expensive before it has ever been run - a limit
 	// applied only at evaluation would let such a rule be saved and then fail every time it fires,
@@ -76,7 +86,30 @@ func (CEL) Compile(text string, environment port.Environment) (port.Program, err
 		return nil, port.Refusal{Code: port.CodeSyntax, Message: err.Error()}.Error()
 	}
 
-	return compiled{program: program, output: ast.OutputType()}, nil
+	return compiled{program: program, want: want}, nil
+}
+
+// producesWhatWasAsked refuses a program whose type is not the one the caller needs.
+//
+// `dyn` is accepted for either. An expression reading a field of a dynamic map has a dynamic type
+// by construction - `item.title` is exactly that - and refusing it would refuse the commonest
+// template there is. What survives the check is the case CEL can decide: a program whose type is
+// known and wrong.
+func producesWhatWasAsked(out *cel.Type, want port.Result) error {
+	if out == nil || out == cel.DynType || out == cel.AnyType {
+		return nil
+	}
+	switch want {
+	case port.Boolean:
+		if out != cel.BoolType {
+			return port.Refusal{Code: port.CodeNotBoolean}.Error()
+		}
+	case port.Text:
+		if out != cel.StringType {
+			return port.Refusal{Code: port.CodeNotString}.Error()
+		}
+	}
+	return nil
 }
 
 // checkFrequency is how often the evaluator looks at the context between steps.
@@ -88,7 +121,9 @@ const checkFrequency = 100
 // compiled is one expression, ready to be evaluated as often as necessary.
 type compiled struct {
 	program cel.Program
-	output  *cel.Type
+	// want is carried so that the runtime check answers the same question the compile-time one did:
+	// a dynamic expression passes the type check and can still produce the wrong thing.
+	want port.Result
 }
 
 // Evaluate answers the expression against one activation.
@@ -110,14 +145,21 @@ func (c compiled) Evaluate(ctx context.Context, in port.Activation) (port.Value,
 		return port.Value{}, evaluationError(ctx, err)
 	}
 
+	// The same question the compile-time check asked, asked again of the value. An expression whose
+	// type was dynamic passed that check by construction and can still produce the wrong thing.
 	switch value := out.Value().(type) {
 	case bool:
+		if c.want == port.Text {
+			return port.Value{}, shared.ErrValidation.WithDetail(port.CodeNotString)
+		}
 		return port.Value{Bool: value, Text: fmt.Sprint(value)}, nil
 	case string:
+		if c.want == port.Boolean {
+			return port.Value{}, shared.ErrValidation.WithDetail(port.CodeNotBoolean)
+		}
 		return port.Value{Text: value}, nil
 	default:
-		// A condition that answered a number is a condition whose author believes it filters.
-		return port.Value{}, shared.ErrValidation.WithDetail(port.CodeNotBoolean)
+		return port.Value{}, shared.ErrValidation.WithDetail(wrongResult(c.want))
 	}
 }
 
@@ -285,6 +327,14 @@ func evaluationError(ctx context.Context, err error) error {
 	return shared.ErrUnavailable.
 		WithDetail(port.CodeTimedOut).
 		WithCause(err)
+}
+
+// wrongResult names the code for a value that is neither of the two shapes an expression may have.
+func wrongResult(want port.Result) string {
+	if want == port.Text {
+		return port.CodeNotString
+	}
+	return port.CodeNotBoolean
 }
 
 func itoa(n int) string {

@@ -148,12 +148,14 @@ func checkConditions(compiler expression.Compiler, rule domain.Rule) error {
 	environment := condition.RuleEnvironment()
 	var findings []shared.FieldError
 	for i, each := range rule.Conditions {
-		if _, err := compiler.Compile(each.Expr, environment); err != nil {
+		if _, err := compiler.Compile(each.Expr, environment, expression.Boolean); err != nil {
 			findings = append(findings, findingFor("/conditions/"+itoa(i)+"/expr", err))
 		}
 	}
 	if rule.Throttle.DedupeKeyExpr != "" {
-		if _, err := compiler.Compile(rule.Throttle.DedupeKeyExpr, environment); err != nil {
+		if _, err := // A dedupe key renders a value that collapses runs meaning the same thing, so it is a
+			// template rather than a condition - `item.id` is a string, not a decision.
+			compiler.Compile(rule.Throttle.DedupeKeyExpr, environment, expression.Text); err != nil {
 			findings = append(findings, findingFor("/throttle/dedupe_key_expr", err))
 		}
 	}
