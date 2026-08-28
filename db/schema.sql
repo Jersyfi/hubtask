@@ -688,6 +688,12 @@ CREATE TABLE automation_rule (
 CREATE UNIQUE INDEX automation_rule_tenant_id_uq ON automation_rule (tenant_id, id);
 CREATE INDEX rule_trigger_idx ON automation_rule (tenant_id, enabled)
   WHERE deleted_at IS NULL;
+-- What the dispatcher asks per event (G-07, migration 0053): the enabled rules whose trigger is
+-- this event type. An expression index, because the trigger is a document - which is the right
+-- shape, and this is what the shape costs.
+CREATE INDEX rule_event_trigger_idx
+  ON automation_rule (tenant_id, (trigger ->> 'kind'), (trigger ->> 'event_type'))
+  WHERE deleted_at IS NULL AND enabled = true;
 
 CREATE TABLE rule_run (
   id           uuid PRIMARY KEY,
