@@ -495,7 +495,7 @@ FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
   AND trigger ->> 'kind' = 'EVENT'
-  AND trigger ->> 'event_type' = $1
+  AND trigger ->> 'event_type' = $1::text
 ORDER BY id
 `
 
@@ -521,10 +521,13 @@ type RulesForEventTypeRow struct {
 
 // What the subscriber asks per event: the enabled rules whose trigger is this event type.
 //
+// The event type is cast, because `->>` gives sqlc nothing to infer a parameter's type from:
+// without it the argument is generated as bytes rather than as the text the column holds.
+//
 // The scope is not in the predicate. A rule scoped to a hub matches an event in that hub's
 // collections, and the event carries a subject rather than a path - so the narrowing is the
 // subscriber's, against what it can resolve, rather than a join this statement cannot make.
-func (q *Queries) RulesForEventType(ctx context.Context, eventType []byte) ([]RulesForEventTypeRow, error) {
+func (q *Queries) RulesForEventType(ctx context.Context, eventType string) ([]RulesForEventTypeRow, error) {
 	rows, err := q.db.Query(ctx, rulesForEventType, eventType)
 	if err != nil {
 		return nil, err

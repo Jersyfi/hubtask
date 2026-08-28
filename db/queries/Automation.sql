@@ -193,6 +193,9 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true
 -- name: RulesForEventType :many
 -- What the subscriber asks per event: the enabled rules whose trigger is this event type.
 --
+-- The event type is cast, because `->>` gives sqlc nothing to infer a parameter's type from:
+-- without it the argument is generated as bytes rather than as the text the column holds.
+--
 -- The scope is not in the predicate. A rule scoped to a hub matches an event in that hub's
 -- collections, and the event carries a subject rather than a path - so the narrowing is the
 -- subscriber's, against what it can resolve, rather than a join this statement cannot make.
@@ -202,5 +205,5 @@ FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
   AND trigger ->> 'kind' = 'EVENT'
-  AND trigger ->> 'event_type' = sqlc.arg('event_type')
+  AND trigger ->> 'event_type' = sqlc.arg('event_type')::text
 ORDER BY id;
