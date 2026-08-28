@@ -66,6 +66,46 @@ Available variables: `event`, `item`, `parent`, `collection`, `hub`, `actor`, `n
 Limits: a maximum expression length, the evaluator's cost limit, and a 50 ms timeout per
 expression.
 
+The engine is `cel-go`, and it is imported by exactly one package — a gate says so by name (G-06).
+The core describes what a condition is and never learns that a third-party evaluator exists
+(ADR-0001), which is what lets the engine be replaced without a rule changing.
+
+**The variable list is a contract, not a suggestion.** The names are declared to the compiler, so an
+expression naming anything else fails when the rule is written rather than when it runs. Their values
+are dynamic documents rather than modelled types: what a rule may depend on is the *names*, not every
+field of every aggregate — a rule written today must not break when a field is renamed. Reaching into
+a document that has no such field is an ordinary CEL answer (`has(item.cover)`), not a compile error.
+
+**Compiling is separate from evaluating**, because the two happen for different people. A condition
+is compiled when somebody writes a rule, so a mistake is answered to its author with a line and a
+column while they are still looking at it; it is evaluated later, thousands of times, by nobody.
+
+**The compiler is told what it is being asked for.** A condition has to produce a boolean and a
+template has to produce text: a condition that answers a string filters nothing, a template that
+answers a boolean renders `true`, and both are silently wrong on every run. Where CEL can decide the
+type it refuses at compile time; where the expression reads a dynamic field it checks the value.
+
+**Values are resolved lazily and once.** A condition naming only `event` costs no reads — the engine
+evaluates every enabled rule against every event, and eagerly building `collection`, `hub` and
+`parent` would turn one event into four queries per rule. A name the environment declared and the
+activation cannot produce fails the evaluation rather than reading as false: a condition that quietly
+took unreadable for false would match the opposite of what it says.
+
+**`now` is one instant per run**, taken from the `Clock` port. A rule with two conditions must not
+have the first answer "before six" and the second "after six" because a second passed between them.
+
+The three limits, and what each one is for:
+
+| Limit | Value | Why it is not covered by the next one |
+|---|---|---|
+| Expression length | 4096 bytes | Checked **before** the parser. A limit that let a megabyte be parsed first has already done the work it exists to prevent |
+| Cost | the evaluator's own budget | Bounded statically as well as at evaluation. A limit applied only at evaluation would let an expensive rule be saved and then fail every time it fires — which looks fine to whoever wrote it |
+| Timeout | 50 ms | **Per expression**, not per rule: a rule with three conditions gets 50 ms each rather than 50 between them |
+
+"No loops, no I/O, terminating" are properties of the language rather than of this configuration.
+What the configuration adds is the bounds above, because *terminates* is not *terminates soon
+enough* — a nested expression can be finite and still spend a worker's afternoon.
+
 ### 1.3 Actions
 
 Every action is an adapter over a use case — the list grows automatically with the catalogue. The
