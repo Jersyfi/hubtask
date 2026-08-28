@@ -8,6 +8,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -64,4 +65,76 @@ type Rules interface {
 	// Delete stamps the rule and reports whether it changed anything. False means it was already
 	// deleted, which is not an error - the second call is somebody making sure.
 	Delete(ctx context.Context, id shared.ID, at time.Time) (bool, error)
+}
+
+// RunQuery narrows a listing of runs.
+type RunQuery struct {
+	// RuleID and Status are zero for "any", which is what an absent query parameter means.
+	RuleID shared.ID
+	Status domain.RunStatus
+	Cursor string
+	Size   int
+}
+
+// RunPage is one page of runs and where the walk stands.
+type RunPage struct {
+	Runs       []domain.Run
+	NextCursor string
+	HasMore    bool
+}
+
+// Runs is the log of what the rules have done (G-07, automation.md §2).
+//
+// A run outlives the rule that produced it, which is why deleting a rule is soft: a record of
+// actions nobody can account for would be worse than the rule staying visible.
+type Runs interface {
+	// Start writes a run in the RUNNING state, before any condition is evaluated. Before rather
+	// than after, because a row written when a run ends loses exactly the runs somebody needs to
+	// see - a process that dies mid-run leaves RUNNING behind.
+	Start(ctx context.Context, run domain.Run) error
+
+	// Finish writes how the run ended, whichever way it ended.
+	Finish(ctx context.Context, run domain.Run) error
+
+	// Find returns one run, or an error wrapping shared.ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (domain.Run, error)
+
+	// List returns a page of the tenant's runs, newest first.
+	List(ctx context.Context, query RunQuery) (RunPage, error)
+
+	// CountSince is what the throttle asks: how often this rule has run in the window. Runs the
+	// throttle itself held back are not counted - a rule held back did not run, and counting the
+	// refusals would make the bound tighten on itself.
+	CountSince(ctx context.Context, ruleID shared.ID, since time.Time) (int, error)
+}
+
+// Failures is the consecutive-failure counter the table has carried since phase 0
+// (automation.md §2).
+//
+// Its own interface rather than three more methods on Rules, because the writer that manages rules
+// and the engine that runs them are different callers with different rights - and a use case that
+// only writes rules should not be handed the ability to switch one off behind a person's back.
+type Failures interface {
+	// Bump records one more consecutive failure and answers the count afterwards.
+	//
+	// Answered by the same statement that incremented it, because the decision that follows is made
+	// on that value: a read after the write is a second statement another run can commit between,
+	// and two runs failing together would each see the other's count and neither would act.
+	Bump(ctx context.Context, ruleID shared.ID, at time.Time) (int, error)
+
+	// Clear ends the streak. One success resets it rather than decrementing, because
+	// `consecutive` is what the counter means.
+	Clear(ctx context.Context, ruleID shared.ID, at time.Time) error
+
+	// Disable switches a rule off because it kept failing, and reports whether it changed
+	// anything. False means somebody or something got there first, which is not an error.
+	Disable(ctx context.Context, ruleID shared.ID, threshold int, at time.Time) (bool, error)
+}
+
+// Matching is what the dispatcher asks per event: the enabled rules whose trigger is this type.
+//
+// Narrow rather than part of Rules, for Failures' reason: a subscriber running inside the
+// dispatcher's transaction has no business being able to write one.
+type Matching interface {
+	ForEventType(ctx context.Context, eventType event.Type) ([]domain.Rule, error)
 }

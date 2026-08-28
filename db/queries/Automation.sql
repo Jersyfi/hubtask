@@ -94,3 +94,116 @@ SET deleted_at = sqlc.arg('deleted_at'),
     updated_at = sqlc.arg('deleted_at'),
     version    = version + 1
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
+
+-- The run log (G-07, automation.md §2). What a rule did, why it did not, and what each action
+-- answered - the record §2 promises is retrievable and filterable.
+
+-- name: InsertRuleRun :exec
+-- Written when the run starts, in the RUNNING state, before any condition is evaluated.
+--
+-- Before rather than after, because a row written when a run ends loses exactly the runs somebody
+-- needs to see: a process that dies mid-run leaves RUNNING behind, and that is the only thing that
+-- distinguishes a crash from a run nobody attempted.
+INSERT INTO rule_run (
+  id, tenant_id, rule_id, event_id, status, condition_results, action_results,
+  started_at, causation_depth
+) VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('rule_id'), sqlc.narg('event_id'),
+  sqlc.arg('status'), sqlc.arg('condition_results'), sqlc.arg('action_results'),
+  sqlc.arg('started_at'), sqlc.arg('causation_depth')
+);
+
+-- name: FinishRuleRun :exec
+-- The one statement that ends a run, whichever way it ended.
+UPDATE rule_run
+SET status            = sqlc.arg('status'),
+    condition_results = sqlc.arg('condition_results'),
+    action_results    = sqlc.arg('action_results'),
+    error_code        = sqlc.narg('error_code'),
+    finished_at       = sqlc.arg('finished_at')
+WHERE id = sqlc.arg('id');
+
+-- name: FindRuleRun :one
+SELECT id, rule_id, event_id, status, condition_results, action_results,
+       error_code, started_at, finished_at, causation_depth
+FROM rule_run
+WHERE id = sqlc.arg('id');
+
+-- name: ListRuleRuns :many
+-- Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the order runs happened
+-- in. The two filters are nullable arguments rather than four statements, because a second statement
+-- differing in one predicate is a second place for a predicate to be forgotten.
+SELECT id, rule_id, event_id, status, condition_results, action_results,
+       error_code, started_at, finished_at, causation_depth
+FROM rule_run
+WHERE (sqlc.narg('rule_id')::uuid IS NULL OR rule_id = sqlc.narg('rule_id')::uuid)
+  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
+  AND (sqlc.narg('after')::uuid IS NULL OR id < sqlc.narg('after')::uuid)
+ORDER BY id DESC
+LIMIT sqlc.arg('page_size');
+
+-- name: CountRunsSince :one
+-- What the throttle asks: how often this rule has run in the window (automation.md §2).
+--
+-- Counted from the run log rather than from a counter on the rule, and that is the point. A counter
+-- would need resetting, and something has to decide when an hour has passed - which is a second
+-- piece of bookkeeping that can be wrong in a way nobody sees. The log already knows, and a count
+-- over an index is cheaper than a piece of state that can drift.
+--
+-- THROTTLED runs are not counted. A rule held back did not run, and counting the refusals would make
+-- the bound tighten on itself: once a rule hit its limit it would stay there for the whole window
+-- however quiet the workspace went.
+SELECT count(*) FROM rule_run
+WHERE rule_id = sqlc.arg('rule_id')
+  AND started_at >= sqlc.arg('since')
+  AND status <> 'THROTTLED';
+
+-- name: BumpRuleFailure :one
+-- One more consecutive failure, and the count afterwards.
+--
+-- Returned rather than read back, because the decision that follows it - has this rule failed often
+-- enough to be switched off - has to be made on the value this statement produced. A read after the
+-- write would be a second statement another run could commit between, and two runs failing together
+-- would each see the other's count and neither would reach the threshold.
+UPDATE automation_rule
+SET failure_count = failure_count + 1,
+    updated_at    = sqlc.arg('at')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
+RETURNING failure_count;
+
+-- name: ClearRuleFailure :exec
+-- A run that worked ends the streak. `consecutive` is what the counter means, so one success
+-- resets it rather than decrementing.
+UPDATE automation_rule
+SET failure_count = 0, updated_at = sqlc.arg('at')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND failure_count <> 0;
+
+-- name: DisableFailingRule :execrows
+-- Switching a rule off because it kept failing.
+--
+-- Its own statement rather than SetAutomationRuleEnabled, and guarded on the count rather than on a
+-- version. Nobody read this rule in order to switch it off - a run did, after failing - so there is
+-- no version to have expected; what makes it safe is that it only fires while the count is still at
+-- or past the threshold, so two runs failing together disable the rule once.
+UPDATE automation_rule
+SET enabled = false, updated_at = sqlc.arg('at'), version = version + 1
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true
+  AND failure_count >= sqlc.arg('threshold');
+
+-- name: RulesForEventType :many
+-- What the subscriber asks per event: the enabled rules whose trigger is this event type.
+--
+-- The event type is cast, because `->>` gives sqlc nothing to infer a parameter's type from:
+-- without it the argument is generated as bytes rather than as the text the column holds.
+--
+-- The scope is not in the predicate. A rule scoped to a hub matches an event in that hub's
+-- collections, and the event carries a subject rather than a path - so the narrowing is the
+-- subscriber's, against what it can resolve, rather than a join this statement cannot make.
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+FROM automation_rule
+WHERE deleted_at IS NULL
+  AND enabled = true
+  AND trigger ->> 'kind' = 'EVENT'
+  AND trigger ->> 'event_type' = sqlc.arg('event_type')::text
+ORDER BY id;

@@ -26,6 +26,10 @@ const (
 	containersRead = "containers:read"
 	mediaRead      = "media:read"
 	templatesRead  = "templates:read"
+	// automationManage is the one scope in this table that is not a `:read`. The automation
+	// use cases declare it for reading and for writing alike - there is no `automation:read` to
+	// name - so an event about a rule run is read with the scope that may see the rule.
+	automationManage = "automation:manage"
 )
 
 // readScopes is exhaustive over types, and TestEveryEventTypeHasAReadScope proves it. A map with a
@@ -92,4 +96,12 @@ var readScopes = map[Type]string{
 	// What was stamped out, and from which template. `templates:read` is what may see that a
 	// template exists at all.
 	TemplateInstantiated: templatesRead,
+
+	// A run is the automation acting, and `automation:manage` is what may see the rules at all -
+	// there is no read scope beside it, because managing rules and reading what they did are one
+	// concern. Not a write scope despite the name: it is the scope every rule operation declares,
+	// including the two that only read.
+	RuleRunStarted:  automationManage,
+	RuleRunFinished: automationManage,
+	RuleRunFailed:   automationManage,
 }

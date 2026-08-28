@@ -11,6 +11,106 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const bumpRuleFailure = `-- name: BumpRuleFailure :one
+UPDATE automation_rule
+SET failure_count = failure_count + 1,
+    updated_at    = $1
+WHERE id = $2 AND deleted_at IS NULL
+RETURNING failure_count
+`
+
+type BumpRuleFailureParams struct {
+	At pgtype.Timestamptz
+	ID pgtype.UUID
+}
+
+// One more consecutive failure, and the count afterwards.
+//
+// Returned rather than read back, because the decision that follows it - has this rule failed often
+// enough to be switched off - has to be made on the value this statement produced. A read after the
+// write would be a second statement another run could commit between, and two runs failing together
+// would each see the other's count and neither would reach the threshold.
+func (q *Queries) BumpRuleFailure(ctx context.Context, arg BumpRuleFailureParams) (int32, error) {
+	row := q.db.QueryRow(ctx, bumpRuleFailure, arg.At, arg.ID)
+	var failure_count int32
+	err := row.Scan(&failure_count)
+	return failure_count, err
+}
+
+const clearRuleFailure = `-- name: ClearRuleFailure :exec
+UPDATE automation_rule
+SET failure_count = 0, updated_at = $1
+WHERE id = $2 AND deleted_at IS NULL AND failure_count <> 0
+`
+
+type ClearRuleFailureParams struct {
+	At pgtype.Timestamptz
+	ID pgtype.UUID
+}
+
+// A run that worked ends the streak. `consecutive` is what the counter means, so one success
+// resets it rather than decrementing.
+func (q *Queries) ClearRuleFailure(ctx context.Context, arg ClearRuleFailureParams) error {
+	_, err := q.db.Exec(ctx, clearRuleFailure, arg.At, arg.ID)
+	return err
+}
+
+const countRunsSince = `-- name: CountRunsSince :one
+SELECT count(*) FROM rule_run
+WHERE rule_id = $1
+  AND started_at >= $2
+  AND status <> 'THROTTLED'
+`
+
+type CountRunsSinceParams struct {
+	RuleID pgtype.UUID
+	Since  pgtype.Timestamptz
+}
+
+// What the throttle asks: how often this rule has run in the window (automation.md §2).
+//
+// Counted from the run log rather than from a counter on the rule, and that is the point. A counter
+// would need resetting, and something has to decide when an hour has passed - which is a second
+// piece of bookkeeping that can be wrong in a way nobody sees. The log already knows, and a count
+// over an index is cheaper than a piece of state that can drift.
+//
+// THROTTLED runs are not counted. A rule held back did not run, and counting the refusals would make
+// the bound tighten on itself: once a rule hit its limit it would stay there for the whole window
+// however quiet the workspace went.
+func (q *Queries) CountRunsSince(ctx context.Context, arg CountRunsSinceParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRunsSince, arg.RuleID, arg.Since)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const disableFailingRule = `-- name: DisableFailingRule :execrows
+UPDATE automation_rule
+SET enabled = false, updated_at = $1, version = version + 1
+WHERE id = $2 AND deleted_at IS NULL AND enabled = true
+  AND failure_count >= $3
+`
+
+type DisableFailingRuleParams struct {
+	At        pgtype.Timestamptz
+	ID        pgtype.UUID
+	Threshold int32
+}
+
+// Switching a rule off because it kept failing.
+//
+// Its own statement rather than SetAutomationRuleEnabled, and guarded on the count rather than on a
+// version. Nobody read this rule in order to switch it off - a run did, after failing - so there is
+// no version to have expected; what makes it safe is that it only fires while the count is still at
+// or past the threshold, so two runs failing together disable the rule once.
+func (q *Queries) DisableFailingRule(ctx context.Context, arg DisableFailingRuleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, disableFailingRule, arg.At, arg.ID, arg.Threshold)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findAutomationRule = `-- name: FindAutomationRule :one
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
@@ -61,6 +161,76 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 		&i.Version,
 	)
 	return i, err
+}
+
+const findRuleRun = `-- name: FindRuleRun :one
+SELECT id, rule_id, event_id, status, condition_results, action_results,
+       error_code, started_at, finished_at, causation_depth
+FROM rule_run
+WHERE id = $1
+`
+
+type FindRuleRunRow struct {
+	ID               pgtype.UUID
+	RuleID           pgtype.UUID
+	EventID          pgtype.UUID
+	Status           string
+	ConditionResults []byte
+	ActionResults    []byte
+	ErrorCode        *string
+	StartedAt        pgtype.Timestamptz
+	FinishedAt       pgtype.Timestamptz
+	CausationDepth   int32
+}
+
+func (q *Queries) FindRuleRun(ctx context.Context, id pgtype.UUID) (FindRuleRunRow, error) {
+	row := q.db.QueryRow(ctx, findRuleRun, id)
+	var i FindRuleRunRow
+	err := row.Scan(
+		&i.ID,
+		&i.RuleID,
+		&i.EventID,
+		&i.Status,
+		&i.ConditionResults,
+		&i.ActionResults,
+		&i.ErrorCode,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.CausationDepth,
+	)
+	return i, err
+}
+
+const finishRuleRun = `-- name: FinishRuleRun :exec
+UPDATE rule_run
+SET status            = $1,
+    condition_results = $2,
+    action_results    = $3,
+    error_code        = $4,
+    finished_at       = $5
+WHERE id = $6
+`
+
+type FinishRuleRunParams struct {
+	Status           string
+	ConditionResults []byte
+	ActionResults    []byte
+	ErrorCode        *string
+	FinishedAt       pgtype.Timestamptz
+	ID               pgtype.UUID
+}
+
+// The one statement that ends a run, whichever way it ended.
+func (q *Queries) FinishRuleRun(ctx context.Context, arg FinishRuleRunParams) error {
+	_, err := q.db.Exec(ctx, finishRuleRun,
+		arg.Status,
+		arg.ConditionResults,
+		arg.ActionResults,
+		arg.ErrorCode,
+		arg.FinishedAt,
+		arg.ID,
+	)
+	return err
 }
 
 const insertAutomationRule = `-- name: InsertAutomationRule :exec
@@ -124,6 +294,50 @@ func (q *Queries) InsertAutomationRule(ctx context.Context, arg InsertAutomation
 	return err
 }
 
+const insertRuleRun = `-- name: InsertRuleRun :exec
+
+INSERT INTO rule_run (
+  id, tenant_id, rule_id, event_id, status, condition_results, action_results,
+  started_at, causation_depth
+) VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6,
+  $7, $8
+)
+`
+
+type InsertRuleRunParams struct {
+	ID               pgtype.UUID
+	RuleID           pgtype.UUID
+	EventID          pgtype.UUID
+	Status           string
+	ConditionResults []byte
+	ActionResults    []byte
+	StartedAt        pgtype.Timestamptz
+	CausationDepth   int32
+}
+
+// The run log (G-07, automation.md §2). What a rule did, why it did not, and what each action
+// answered - the record §2 promises is retrievable and filterable.
+// Written when the run starts, in the RUNNING state, before any condition is evaluated.
+//
+// Before rather than after, because a row written when a run ends loses exactly the runs somebody
+// needs to see: a process that dies mid-run leaves RUNNING behind, and that is the only thing that
+// distinguishes a crash from a run nobody attempted.
+func (q *Queries) InsertRuleRun(ctx context.Context, arg InsertRuleRunParams) error {
+	_, err := q.db.Exec(ctx, insertRuleRun,
+		arg.ID,
+		arg.RuleID,
+		arg.EventID,
+		arg.Status,
+		arg.ConditionResults,
+		arg.ActionResults,
+		arg.StartedAt,
+		arg.CausationDepth,
+	)
+	return err
+}
+
 const listAutomationRules = `-- name: ListAutomationRules :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
@@ -175,6 +389,153 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 	items := []ListAutomationRulesRow{}
 	for rows.Next() {
 		var i ListAutomationRulesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.Name,
+			&i.Enabled,
+			&i.RunAs,
+			&i.Trigger,
+			&i.Conditions,
+			&i.Actions,
+			&i.Throttle,
+			&i.OnError,
+			&i.FailureCount,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRuleRuns = `-- name: ListRuleRuns :many
+SELECT id, rule_id, event_id, status, condition_results, action_results,
+       error_code, started_at, finished_at, causation_depth
+FROM rule_run
+WHERE ($1::uuid IS NULL OR rule_id = $1::uuid)
+  AND ($2::text IS NULL OR status = $2::text)
+  AND ($3::uuid IS NULL OR id < $3::uuid)
+ORDER BY id DESC
+LIMIT $4
+`
+
+type ListRuleRunsParams struct {
+	RuleID   pgtype.UUID
+	Status   *string
+	After    pgtype.UUID
+	PageSize int32
+}
+
+type ListRuleRunsRow struct {
+	ID               pgtype.UUID
+	RuleID           pgtype.UUID
+	EventID          pgtype.UUID
+	Status           string
+	ConditionResults []byte
+	ActionResults    []byte
+	ErrorCode        *string
+	StartedAt        pgtype.Timestamptz
+	FinishedAt       pgtype.Timestamptz
+	CausationDepth   int32
+}
+
+// Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the order runs happened
+// in. The two filters are nullable arguments rather than four statements, because a second statement
+// differing in one predicate is a second place for a predicate to be forgotten.
+func (q *Queries) ListRuleRuns(ctx context.Context, arg ListRuleRunsParams) ([]ListRuleRunsRow, error) {
+	rows, err := q.db.Query(ctx, listRuleRuns,
+		arg.RuleID,
+		arg.Status,
+		arg.After,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRuleRunsRow{}
+	for rows.Next() {
+		var i ListRuleRunsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RuleID,
+			&i.EventID,
+			&i.Status,
+			&i.ConditionResults,
+			&i.ActionResults,
+			&i.ErrorCode,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.CausationDepth,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const rulesForEventType = `-- name: RulesForEventType :many
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+FROM automation_rule
+WHERE deleted_at IS NULL
+  AND enabled = true
+  AND trigger ->> 'kind' = 'EVENT'
+  AND trigger ->> 'event_type' = $1::text
+ORDER BY id
+`
+
+type RulesForEventTypeRow struct {
+	ID           pgtype.UUID
+	ScopeType    string
+	ScopeID      pgtype.UUID
+	Name         string
+	Enabled      bool
+	RunAs        pgtype.UUID
+	Trigger      []byte
+	Conditions   []byte
+	Actions      []byte
+	Throttle     []byte
+	OnError      string
+	FailureCount int32
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	Version      int32
+}
+
+// What the subscriber asks per event: the enabled rules whose trigger is this event type.
+//
+// The event type is cast, because `->>` gives sqlc nothing to infer a parameter's type from:
+// without it the argument is generated as bytes rather than as the text the column holds.
+//
+// The scope is not in the predicate. A rule scoped to a hub matches an event in that hub's
+// collections, and the event carries a subject rather than a path - so the narrowing is the
+// subscriber's, against what it can resolve, rather than a join this statement cannot make.
+func (q *Queries) RulesForEventType(ctx context.Context, eventType string) ([]RulesForEventTypeRow, error) {
+	rows, err := q.db.Query(ctx, rulesForEventType, eventType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RulesForEventTypeRow{}
+	for rows.Next() {
+		var i RulesForEventTypeRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ScopeType,

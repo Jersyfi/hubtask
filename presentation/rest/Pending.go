@@ -150,6 +150,16 @@ func (pending) DisableRule(w http.ResponseWriter, r *http.Request, _ openapi.Rul
 	notAvailable(w, r)
 }
 
+// The run log. RestController overrides both; they are here because pending implements the whole
+// interface, which is what lets the contract test compare the router against the specification.
+func (pending) ListRuleRuns(w http.ResponseWriter, r *http.Request, _ openapi.ListRuleRunsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetRuleRun(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) PollTriggerEvents(w http.ResponseWriter, r *http.Request, _ openapi.EventType, _ openapi.PollTriggerEventsParams) {
 	notAvailable(w, r)
 }
