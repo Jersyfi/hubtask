@@ -277,6 +277,28 @@ const (
 	// own: a rule reacting to people writing must not fire when something is taken down, and a
 	// subscriber filtering on a null payload field to avoid that is one that will eventually not.
 	CommentDeleted Type = "de.hubtask.work.comment.deleted.v1"
+
+	// RuleRunStarted announces that an automation rule began a run (G-07). Consumers: an operator's
+	// dashboard, and anything watching whether the engine is keeping up.
+	//
+	// The context segment is `automation` rather than `work`, and it is the first event that is not
+	// about the work. What happened is not a change to a hub or an entry - it is the system acting
+	// on one, and a subscriber that filters `de.hubtask.work.` must not have to learn about runs it
+	// did not ask for.
+	RuleRunStarted Type = "de.hubtask.automation.rule_run.started.v1"
+	// RuleRunFinished announces a run that ended without failing: it acted, or its conditions said
+	// no, or a throttle held it back. The status says which.
+	//
+	// One type for the three rather than one each, because they are one question with three
+	// answers - "the rule ran and here is what happened" - and a subscriber that cares which reads
+	// `data.status`. The failure is its own type below for the opposite reason.
+	RuleRunFinished Type = "de.hubtask.automation.rule_run.finished.v1"
+	// RuleRunFailed announces a run that could not do what it says. Its own type rather than a
+	// status on the one above, on the reasoning that separates ItemReopened from ItemCompleted: an
+	// alert that fires on rules failing must not have to filter a field to avoid firing on rules
+	// working, and a subscriber that forgets the filter is a subscriber that pages somebody at
+	// three in the morning for a condition answering false.
+	RuleRunFailed Type = "de.hubtask.automation.rule_run.failed.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -295,6 +317,7 @@ var types = [...]Type{
 	ItemLabelAdded, ItemLabelRemoved,
 	AttachmentAdded, AttachmentRemoved,
 	CommentCreated, CommentUpdated, CommentDeleted,
+	RuleRunStarted, RuleRunFinished, RuleRunFailed,
 }
 
 // Types returns every defined event type.

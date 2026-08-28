@@ -580,6 +580,66 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /automation/runs:
+    get:
+      tags: [automation]
+      operationId: listRuleRuns
+      summary: What the rules have done
+      description: >
+        Every run, newest first: which rule, which event started it, how its conditions answered,
+        what each action did, and what went wrong if anything did. This is the log
+        `automation.md` §2 promises - retrievable, filterable, and the only place a person can find
+        out why a rule did or did not act.
+
+        A run outlives the rule that produced it. Deleting a rule is soft for exactly this reason:
+        a record of actions nobody can account for would be worse than the rule staying visible.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: rule_id
+          in: query
+          required: false
+          description: Narrow to one rule.
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          description: >
+            Narrow to one outcome. `FAILED` and `ABORTED_LOOP` are the two an operator usually
+            wants; `THROTTLED` and `SKIPPED` are the ordinary answers of a rule that is working.
+          schema:
+            type: string
+            enum: [RUNNING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+      responses:
+        "200":
+          description: The runs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/runs/{runId}:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [automation]
+      operationId: getRuleRun
+      summary: One run, with every condition and every action
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRun"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /integrations/webhooks:
     get:
       tags: [webhooks]
@@ -5227,6 +5287,91 @@ components:
         data:
           type: array
           items: { $ref: "#/components/schemas/AutomationRule" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    RuleRunStatus:
+      type: string
+      description: >
+        How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes
+        it when the run starts, so a row left in it is a crash rather than a state anything reaches
+        deliberately.
+      enum: [RUNNING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+
+    RuleConditionResult:
+      type: object
+      description: >
+        How one condition answered, in the order the rule declares them. A run that was skipped
+        shows which condition stopped it, which is the question somebody asks first.
+      required: [index, matched]
+      properties:
+        index: { type: integer }
+        matched: { type: boolean }
+        error_code:
+          type: string
+          description: >
+            Present when the condition could not be evaluated at all - a timeout, or a value the
+            engine could not read. Distinct from `matched: false`, which is the condition working.
+
+    RuleActionResult:
+      type: object
+      description: One action's outcome, in the order the rule declares them.
+      required: [index, kind, status]
+      properties:
+        index: { type: integer }
+        kind: { type: string }
+        status:
+          type: string
+          enum: [SUCCEEDED, FAILED, SKIPPED]
+          description: >
+            `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an
+            earlier failure. It is not the same as an action that ran and did nothing.
+        error_code:
+          type: string
+          description: >
+            The code the use case refused with, unchanged. A `run_as` account that may not do what
+            the action asks shows the authoriser's own refusal here, which is what makes the run
+            log answer "why did this not happen".
+        idempotency_key:
+          type: string
+          description: >
+            Derived from the rule, the event and the action's index (automation.md §2), so a
+            redelivered event re-runs into the stored result rather than acting twice.
+
+    RuleRun:
+      type: object
+      required: [id, rule_id, status, condition_results, action_results, started_at, causation_depth]
+      properties:
+        id: { type: string, format: uuid }
+        rule_id: { type: string, format: uuid }
+        event_id:
+          type: [string, "null"]
+          format: uuid
+          description: The event that started the run. Absent for a run nothing published started.
+        status: { $ref: "#/components/schemas/RuleRunStatus" }
+        condition_results:
+          type: array
+          items: { $ref: "#/components/schemas/RuleConditionResult" }
+        action_results:
+          type: array
+          items: { $ref: "#/components/schemas/RuleActionResult" }
+        error_code:
+          type: string
+          description: Why the run as a whole ended badly, when it did.
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        causation_depth:
+          type: integer
+          description: >
+            How far this run is from the act a person performed. A run at the limit is
+            `ABORTED_LOOP` and did nothing, which is the loop protection automation.md §2 names.
+
+    RuleRunPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/RuleRun" }
         page: { $ref: "#/components/schemas/PageInfo" }
 
     WebhookDeliveryPage:

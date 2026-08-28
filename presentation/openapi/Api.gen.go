@@ -1878,6 +1878,57 @@ func (e RoleDescriptionPermissions) Valid() bool {
 	}
 }
 
+// Defines values for RuleActionResultStatus.
+const (
+	RuleActionResultStatusFAILED    RuleActionResultStatus = "FAILED"
+	RuleActionResultStatusSKIPPED   RuleActionResultStatus = "SKIPPED"
+	RuleActionResultStatusSUCCEEDED RuleActionResultStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the RuleActionResultStatus enum.
+func (e RuleActionResultStatus) Valid() bool {
+	switch e {
+	case RuleActionResultStatusFAILED:
+		return true
+	case RuleActionResultStatusSKIPPED:
+		return true
+	case RuleActionResultStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleRunStatus.
+const (
+	RuleRunStatusABORTEDLOOP RuleRunStatus = "ABORTED_LOOP"
+	RuleRunStatusFAILED      RuleRunStatus = "FAILED"
+	RuleRunStatusRUNNING     RuleRunStatus = "RUNNING"
+	RuleRunStatusSKIPPED     RuleRunStatus = "SKIPPED"
+	RuleRunStatusSUCCEEDED   RuleRunStatus = "SUCCEEDED"
+	RuleRunStatusTHROTTLED   RuleRunStatus = "THROTTLED"
+)
+
+// Valid indicates whether the value is a known member of the RuleRunStatus enum.
+func (e RuleRunStatus) Valid() bool {
+	switch e {
+	case RuleRunStatusABORTEDLOOP:
+		return true
+	case RuleRunStatusFAILED:
+		return true
+	case RuleRunStatusRUNNING:
+		return true
+	case RuleRunStatusSKIPPED:
+		return true
+	case RuleRunStatusSUCCEEDED:
+		return true
+	case RuleRunStatusTHROTTLED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuleScopeType.
 const (
 	RuleScopeTypeCOLLECTION RuleScopeType = "COLLECTION"
@@ -2343,6 +2394,36 @@ func (e ListAuditEntriesParamsOutcome) Valid() bool {
 	case ListAuditEntriesParamsOutcomeFAILED:
 		return true
 	case ListAuditEntriesParamsOutcomeSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListRuleRunsParamsStatus.
+const (
+	ListRuleRunsParamsStatusABORTEDLOOP ListRuleRunsParamsStatus = "ABORTED_LOOP"
+	ListRuleRunsParamsStatusFAILED      ListRuleRunsParamsStatus = "FAILED"
+	ListRuleRunsParamsStatusRUNNING     ListRuleRunsParamsStatus = "RUNNING"
+	ListRuleRunsParamsStatusSKIPPED     ListRuleRunsParamsStatus = "SKIPPED"
+	ListRuleRunsParamsStatusSUCCEEDED   ListRuleRunsParamsStatus = "SUCCEEDED"
+	ListRuleRunsParamsStatusTHROTTLED   ListRuleRunsParamsStatus = "THROTTLED"
+)
+
+// Valid indicates whether the value is a known member of the ListRuleRunsParamsStatus enum.
+func (e ListRuleRunsParamsStatus) Valid() bool {
+	switch e {
+	case ListRuleRunsParamsStatusABORTEDLOOP:
+		return true
+	case ListRuleRunsParamsStatusFAILED:
+		return true
+	case ListRuleRunsParamsStatusRUNNING:
+		return true
+	case ListRuleRunsParamsStatusSKIPPED:
+		return true
+	case ListRuleRunsParamsStatusSUCCEEDED:
+		return true
+	case ListRuleRunsParamsStatusTHROTTLED:
 		return true
 	default:
 		return false
@@ -4263,11 +4344,67 @@ type RuleAction struct {
 	Params *map[string]interface{} `json:"params,omitempty"`
 }
 
+// RuleActionResult One action's outcome, in the order the rule declares them.
+type RuleActionResult struct {
+	// ErrorCode The code the use case refused with, unchanged. A `run_as` account that may not do what the action asks shows the authoriser's own refusal here, which is what makes the run log answer "why did this not happen".
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// IdempotencyKey Derived from the rule, the event and the action's index (automation.md §2), so a redelivered event re-runs into the stored result rather than acting twice.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	Index          int     `json:"index"`
+	Kind           string  `json:"kind"`
+
+	// Status `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure. It is not the same as an action that ran and did nothing.
+	Status RuleActionResultStatus `json:"status"`
+}
+
+// RuleActionResultStatus `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure. It is not the same as an action that ran and did nothing.
+type RuleActionResultStatus string
+
 // RuleCondition defines model for RuleCondition.
 type RuleCondition struct {
 	// Expr A CEL expression (ADR-0009). Refused while it is non-empty in this release.
 	Expr string `json:"expr"`
 }
+
+// RuleConditionResult How one condition answered, in the order the rule declares them. A run that was skipped shows which condition stopped it, which is the question somebody asks first.
+type RuleConditionResult struct {
+	// ErrorCode Present when the condition could not be evaluated at all - a timeout, or a value the engine could not read. Distinct from `matched: false`, which is the condition working.
+	ErrorCode *string `json:"error_code,omitempty"`
+	Index     int     `json:"index"`
+	Matched   bool    `json:"matched"`
+}
+
+// RuleRun defines model for RuleRun.
+type RuleRun struct {
+	ActionResults []RuleActionResult `json:"action_results"`
+
+	// CausationDepth How far this run is from the act a person performed. A run at the limit is `ABORTED_LOOP` and did nothing, which is the loop protection automation.md §2 names.
+	CausationDepth   int                   `json:"causation_depth"`
+	ConditionResults []RuleConditionResult `json:"condition_results"`
+
+	// ErrorCode Why the run as a whole ended badly, when it did.
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// EventId The event that started the run. Absent for a run nothing published started.
+	EventId    *openapi_types.UUID `json:"event_id,omitempty"`
+	FinishedAt *time.Time          `json:"finished_at,omitempty"`
+	Id         openapi_types.UUID  `json:"id"`
+	RuleId     openapi_types.UUID  `json:"rule_id"`
+	StartedAt  time.Time           `json:"started_at"`
+
+	// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately.
+	Status RuleRunStatus `json:"status"`
+}
+
+// RuleRunPage defines model for RuleRunPage.
+type RuleRunPage struct {
+	Data []RuleRun `json:"data"`
+	Page PageInfo  `json:"page"`
+}
+
+// RuleRunStatus How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately.
+type RuleRunStatus string
 
 // RuleScope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
 type RuleScope struct {
@@ -5066,6 +5203,21 @@ type EnableRuleParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
+
+// ListRuleRunsParams defines parameters for ListRuleRuns.
+type ListRuleRunsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// RuleId Narrow to one rule.
+	RuleId *openapi_types.UUID `form:"rule_id,omitempty" json:"rule_id,omitempty"`
+
+	// Status Narrow to one outcome. `FAILED` and `ABORTED_LOOP` are the two an operator usually wants; `THROTTLED` and `SKIPPED` are the ordinary answers of a rule that is working.
+	Status *ListRuleRunsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListRuleRunsParamsStatus defines parameters for ListRuleRuns.
+type ListRuleRunsParamsStatus string
 
 // ListBackupsAtTargetParams defines parameters for ListBackupsAtTarget.
 type ListBackupsAtTargetParams struct {
@@ -5939,6 +6091,12 @@ type ServerInterface interface {
 	// EnableRule Switch a rule on
 	// (POST /automation/rules/{ruleId}:enable)
 	EnableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params EnableRuleParams)
+	// ListRuleRuns What the rules have done
+	// (GET /automation/runs)
+	ListRuleRuns(w http.ResponseWriter, r *http.Request, params ListRuleRunsParams)
+	// GetRuleRun One run, with every condition and every action
+	// (GET /automation/runs/{runId})
+	GetRuleRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID)
 	// CreateBackupSchedule Create a backup schedule
 	// (POST /backup-schedules)
 	CreateBackupSchedule(w http.ResponseWriter, r *http.Request)
@@ -7040,6 +7198,104 @@ func (siw *ServerInterfaceWrapper) EnableRule(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EnableRule(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRuleRuns operation middleware
+func (siw *ServerInterfaceWrapper) ListRuleRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRuleRunsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "rule_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "rule_id", r.URL.Query(), &params.RuleId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "rule_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rule_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRuleRuns(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRuleRun operation middleware
+func (siw *ServerInterfaceWrapper) GetRuleRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", r.PathValue("runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRuleRun(w, r, runId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12764,6 +13020,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs", wrapper.ListRuleRuns)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs/{runId}", wrapper.GetRuleRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks", wrapper.ListWebhookSubscriptions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks", wrapper.CreateWebhookSubscription)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.DeleteWebhookSubscription)
