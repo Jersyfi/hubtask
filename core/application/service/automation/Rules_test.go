@@ -289,7 +289,7 @@ func validCommand() CreateRuleCommand {
 	}
 }
 
-func codeOf(t *testing.T, err error) string {
+func detailOf(t *testing.T, err error) string {
 	t.Helper()
 
 	var coded *shared.Error
@@ -364,7 +364,7 @@ func TestAWriterCannotLaunderARightThroughAServiceAccount(t *testing.T) {
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("error %v, want ErrForbidden", err)
 	}
-	if code := codeOf(t, err); code != "automation.writer_lacks_action_right" {
+	if code := detailOf(t, err); code != "automation.writer_lacks_action_right" {
 		t.Errorf("code %q, want automation.writer_lacks_action_right", code)
 	}
 	if len(h.store.rows) != 0 {
@@ -384,7 +384,7 @@ func TestARuleMayNotRunAsAnAccountThatOutranksItsWriter(t *testing.T) {
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("error %v, want ErrForbidden", err)
 	}
-	if code := codeOf(t, err); code != "automation.run_as_exceeds_writer" {
+	if code := detailOf(t, err); code != "automation.run_as_exceeds_writer" {
 		t.Errorf("code %q, want automation.run_as_exceeds_writer", code)
 	}
 }
@@ -414,7 +414,7 @@ func TestARuleMayNotRunAsAnotherPerson(t *testing.T) {
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("error %v, want ErrForbidden", err)
 	}
-	if code := codeOf(t, err); code != "automation.run_as_not_delegable" {
+	if code := detailOf(t, err); code != "automation.run_as_not_delegable" {
 		t.Errorf("code %q, want automation.run_as_not_delegable", code)
 	}
 }
@@ -673,7 +673,7 @@ func TestAnEditIsCheckedAgainstTheRuleAsItWouldBe(t *testing.T) {
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("error %v, want ErrForbidden", err)
 	}
-	if code := codeOf(t, err); code != "automation.writer_lacks_action_right" {
+	if code := detailOf(t, err); code != "automation.writer_lacks_action_right" {
 		t.Errorf("code %q, want automation.writer_lacks_action_right", code)
 	}
 }
@@ -843,12 +843,22 @@ func (compiler) Compile(
 	if cut := strings.IndexAny(root, " ."); cut > 0 {
 		root = root[:cut]
 	}
-	if !declared[root] {
+	// The two literals are not names, and an environment does not declare them.
+	if root != "true" && root != "false" && !declared[root] {
 		return nil, expression.Refusal{
 			Code: expression.CodeUnknownName, Position: expression.Position{Line: 1, Column: 1},
 		}.Error()
 	}
-	return nil, nil
+	return answer{no: trimmed == "false"}, nil
+}
+
+// answer is the compiled half of the fake. `false` is the only expression it reads as false, which
+// is enough for the engine's tests to distinguish a condition that held from one that did not
+// without teaching this stub a language.
+type answer struct{ no bool }
+
+func (a answer) Evaluate(context.Context, expression.Activation) (expression.Value, error) {
+	return expression.Value{Bool: !a.no}, nil
 }
 
 // The other half of G-06's flip, and the half that proves the language is really wired: a rule's
