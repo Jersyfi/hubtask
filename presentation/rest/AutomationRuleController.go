@@ -5,6 +5,9 @@ package rest
 
 import (
 	"net/http"
+	"time"
+
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -367,4 +370,131 @@ func throttleResponse(value any) (openapi.RuleThrottle, bool) {
 func textField(document map[string]any, name string) string {
 	text, _ := document[name].(string)
 	return text
+}
+
+// The run log (G-07). What a rule did, why it did not, and what each action answered.
+
+const (
+	listRuleRunsUseCase = "ListRuleRuns"
+	getRuleRunUseCase   = "GetRuleRun"
+)
+
+// ListRuleRuns answers GET /automation/runs.
+func (c *RestController) ListRuleRuns(
+	w http.ResponseWriter, r *http.Request, params openapi.ListRuleRunsParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		input := usecase.Input{}
+		if params.RuleId != nil {
+			input["rule_id"] = params.RuleId.String()
+		}
+		if params.Status != nil {
+			input["status"] = string(*params.Status)
+		}
+		if params.Cursor != nil {
+			input["cursor"] = *params.Cursor
+		}
+		if params.Size != nil {
+			input["size"] = *params.Size
+		}
+		return c.UseCases.Invoke(r.Context(), listRuleRunsUseCase, actor, input)
+	}, func(out usecase.Output) {
+		rows, _ := out["data"].([]usecase.Output)
+		runs := make([]openapi.RuleRun, 0, len(rows))
+		for _, row := range rows {
+			runs = append(runs, runResponse(row))
+		}
+		writeJSON(w, r, http.StatusOK, openapi.RuleRunPage{Data: runs, Page: pageResponse(out)})
+	})
+}
+
+// GetRuleRun answers GET /automation/runs/{runId}.
+func (c *RestController) GetRuleRun(
+	w http.ResponseWriter, r *http.Request, runID openapi_types.UUID,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), getRuleRunUseCase, actor,
+			usecase.Input{"run_id": runID.String()})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, runResponse(out))
+	})
+}
+
+func runResponse(out usecase.Output) openapi.RuleRun {
+	run := openapi.RuleRun{
+		Id:               uuidValue(out.String("id")),
+		RuleId:           uuidValue(out.String("rule_id")),
+		Status:           openapi.RuleRunStatus(out.String("status")),
+		ConditionResults: conditionResultsResponse(out["condition_results"]),
+		ActionResults:    actionResultsResponse(out["action_results"]),
+		StartedAt:        timeValue(out["started_at"]),
+		CausationDepth:   out.Int("causation_depth"),
+	}
+	if id := out.String("event_id"); id != "" {
+		event := uuidValue(id)
+		run.EventId = &event
+	}
+	if finished, present := out["finished_at"].(time.Time); present {
+		run.FinishedAt = &finished
+	}
+	if code := out.String("error_code"); code != "" {
+		run.ErrorCode = &code
+	}
+	return run
+}
+
+func conditionResultsResponse(value any) []openapi.RuleConditionResult {
+	raw, _ := value.([]any)
+	results := make([]openapi.RuleConditionResult, 0, len(raw))
+	for _, entry := range raw {
+		row, _ := entry.(map[string]any)
+		result := openapi.RuleConditionResult{
+			Index:   intField(row, "index"),
+			Matched: boolField(row, "matched"),
+		}
+		if code := textField(row, "error_code"); code != "" {
+			result.ErrorCode = &code
+		}
+		results = append(results, result)
+	}
+	return results
+}
+
+func actionResultsResponse(value any) []openapi.RuleActionResult {
+	raw, _ := value.([]any)
+	results := make([]openapi.RuleActionResult, 0, len(raw))
+	for _, entry := range raw {
+		row, _ := entry.(map[string]any)
+		result := openapi.RuleActionResult{
+			Index:  intField(row, "index"),
+			Kind:   textField(row, "kind"),
+			Status: openapi.RuleActionResultStatus(textField(row, "status")),
+		}
+		if code := textField(row, "error_code"); code != "" {
+			result.ErrorCode = &code
+		}
+		if key := textField(row, "idempotency_key"); key != "" {
+			result.IdempotencyKey = &key
+		}
+		results = append(results, result)
+	}
+	return results
+}
+
+func intField(document map[string]any, name string) int {
+	switch value := document[name].(type) {
+	case int:
+		return value
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	default:
+		return 0
+	}
+}
+
+func boolField(document map[string]any, name string) bool {
+	value, _ := document[name].(bool)
+	return value
 }

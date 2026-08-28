@@ -109,6 +109,14 @@ type Idempotency interface {
 	Claim(ctx context.Context, actor appshared.ActorContext, key string) (bool, error)
 }
 
+// RuleReader is the one read the queue adapter makes for itself: what a rule says about failure.
+//
+// Its own interface rather than the repository, because the adapter's question is not the engine's -
+// the engine records what happened, and the layer above decides whether the job comes back.
+type RuleReader interface {
+	Find(ctx context.Context, id shared.ID) (domain.Rule, error)
+}
+
 // Command is one job's worth of work.
 type Command struct {
 	RuleID         shared.ID

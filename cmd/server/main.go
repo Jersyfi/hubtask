@@ -28,6 +28,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/catalogue"
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
+	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
@@ -58,6 +59,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	dbfiles "github.com/Jersyfi/hubtask/db"
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
+	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
@@ -413,6 +415,11 @@ func run() error {
 	// actions are use cases, so writing one has to consult the registry - and these seven are
 	// entries of the registry, so it cannot exist yet.
 	ruleCatalogue := &deferredCatalogue{}
+	ruleReader := automationservice.Reader{
+		Runs:       postgres.NewAutomationRunRepository(cursors),
+		Rules:      postgres.NewAutomationRuleRepository(cursors),
+		Authorizer: authorizer, UnitOfWork: unitOfWork,
+	}
 	ruleWriter := automationservice.Writer{
 		Rules:       postgres.NewAutomationRuleRepository(cursors),
 		Accounts:    accounts,
@@ -780,6 +787,8 @@ func run() error {
 		automationservice.EnableRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.DisableRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.DeleteRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.ListRuleRuns{Reader: ruleReader}.Descriptor(),
+		automationservice.GetRuleRun{Reader: ruleReader}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
@@ -1307,6 +1316,15 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 	}
 
+	// The automation engine (G-07). The subscriber turns one event into one job per matching rule;
+	// the engine that runs a job is the handler below, and the two are separate because a
+	// subscriber runs inside the dispatcher's transaction and may not reach the use case registry.
+	automationRuns := postgres.NewAutomationRunRepository(cursors)
+	matchRules := automationservice.MatchRules{
+		Rules: automationRuns, Containers: containers, Jobs: jobs,
+		Conditions: celexpression.New(), Clock: clockadapter.System{},
+	}
+
 	webhookFanOut := integrationservice.FanOut{
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
@@ -1319,7 +1337,9 @@ func run() error {
 		// The webhook fan-out is a subscriber like the notifications: one event in, a delivery job
 		// per interested subscription out. It deliberately does not implement TakesReplays, so a
 		// restore reaches no external system (backup-restore.md §8.4).
-		Subscribers: []eventbusport.Subscriber{notify, webhookFanOut},
+		// The automation engine beside them, and it deliberately does not implement TakesReplays
+		// either: no rule fires for a restore's events (backup-restore.md §8.4, BK-5).
+		Subscribers: []eventbusport.Subscriber{notify, webhookFanOut, matchRules},
 		Clock:       clockadapter.System{},
 		Batch:       cfg.Queue.OutboxBatch,
 		MinInterval: cfg.Queue.OutboxMinInterval,
@@ -1548,6 +1568,32 @@ func run() error {
 		}.Delay,
 	}
 
+	// The engine (G-07). It reaches the use case registry as the rule's own account, which is why
+	// it is a queue handler rather than a subscriber: a subscriber runs inside the dispatcher's
+	// transaction, and an action is a use case.
+	automationRun := worker.AutomationRun{
+		Engine: automationservice.RunRule{
+			Rules:      postgres.NewAutomationRuleRepository(cursors),
+			Runs:       automationRuns,
+			Failures:   automationRuns,
+			Events:     outbox,
+			Source:     outbox,
+			Dispatcher: dispatchActions{catalogue: ruleCatalogue},
+			Scopes:     actionScopes{catalogue: ruleCatalogue},
+			Conditions: celexpression.New(),
+			Entries:    items,
+			Containers: containers,
+			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
+			Owners: notification.RecordRuleDisabled{
+				Notifications: notifications, Accounts: accounts,
+				Preferences: notificationPreferences, Jobs: jobs,
+				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		},
+		Rules: postgres.NewAutomationRuleRepository(cursors),
+	}
+
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire:          reminderFiring,
 		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
@@ -1557,6 +1603,7 @@ func run() error {
 		queueport.KindInvitationEmail:       invitationMessage,
 		queueport.KindNotificationDeliver:   notificationDelivery,
 		queueport.KindWebhookDeliver:        webhookDelivery,
+		queueport.KindAutomationRun:         automationRun,
 		queueport.KindBackupRun:             backupRun,
 		queueport.KindBackupVerify:          worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
@@ -1880,6 +1927,51 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 	return syncservice.Position{Seq: decoded.Seq, IssuedAt: decoded.IssuedAt}, nil
 }
 
+// dispatchActions and actionScopes bridge the engine to the use case registry (G-07).
+//
+// Two small translations rather than the engine naming the adapter's types: the dispatcher lives in
+// infrastructure and the application layer may not import one (ADR-0001). What crosses is a kind and
+// a document, which is what the rule stored.
+type dispatchActions struct{ catalogue *deferredCatalogue }
+
+func (d dispatchActions) Dispatch(
+	ctx context.Context, runAs appshared.ActorContext, kind string, params map[string]any,
+) (usecase.Output, error) {
+	return automation.NewActionDispatcher(d.catalogue).
+		Dispatch(ctx, runAs, automation.Action{Kind: kind, Params: params})
+}
+
+// actionScopes answers which token scope an action's use case declares, which is the one the engine
+// grants a run. See automationservice.Scopes for why a rule is granted a scope rather than narrowed
+// by one.
+type actionScopes struct{ catalogue *deferredCatalogue }
+
+func (a actionScopes) ForAction(kind string) (string, bool) {
+	descriptor, found := a.catalogue.ByAutomationAction(kind)
+	if !found {
+		return "", false
+	}
+	return descriptor.TokenScope, true
+}
+
+// runClaims is the engine's half of the idempotency store: reserve a key, and say whether this
+// attempt is the first.
+//
+// It uses the store directly rather than the Guard, because the Guard's shape is the REST path's -
+// a request hash to compare and an answer to replay. An action has neither: what it needs is the
+// reservation, and the answer it would replay is the effect the first attempt already had.
+type runClaims struct{ store postgres.IdempotencyStore }
+
+func (c runClaims) Claim(
+	ctx context.Context, _ appshared.ActorContext, key string,
+) (bool, error) {
+	_, reserved, err := c.store.Reserve(ctx,
+		// A colon rather than a dot: the endpoint is a scope for the key, not a message code, and
+		// the message-code gate reads anything shaped like one as a promise to translate.
+		idempotencyrepo.Key{Key: key, Endpoint: "automation:run"}, []byte(key))
+	return reserved, err
+}
+
 // cloudEventRendering bridges the polling trigger's rendering port to the CloudEvents mapping the
 // webhook deliverer already sends (G-04).
 //
@@ -1924,6 +2016,16 @@ func (d *deferredCatalogue) Invoke(
 // A rule with no catalogue answers "no such action" for every kind, which is the fail-closed
 // direction: unreachable, because the holder is filled before the server accepts a request, and if
 // it ever were reached it would refuse rules rather than accept unvalidated ones.
+// All is the third face of the same holder, and the last one the dispatcher needs. Empty before the
+// registry exists, which is the fail-closed direction: an engine that ran then would find no action
+// rather than an unvalidated one.
+func (d *deferredCatalogue) All() []usecase.Descriptor {
+	if d.catalogue == nil {
+		return nil
+	}
+	return d.catalogue.All()
+}
+
 func (d *deferredCatalogue) ByAutomationAction(kind string) (usecase.Descriptor, bool) {
 	if d.catalogue == nil {
 		return usecase.Descriptor{}, false
