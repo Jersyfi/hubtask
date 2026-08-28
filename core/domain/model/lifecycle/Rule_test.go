@@ -5,6 +5,7 @@ package lifecycle_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -89,9 +90,11 @@ func TestWhatARuleCannotMean(t *testing.T) {
 			func(in *domain.NewRuleInput) { in.Action = domain.ActionAnonymize },
 			domain.CodeActionNotPerformed,
 		},
-		"a condition, until the language exists": {
-			func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" },
-			domain.CodeConditionNotAvailable,
+		"a condition longer than the engine will compile": {
+			func(in *domain.NewRuleInput) {
+				in.Condition = strings.Repeat("a", domain.MaxConditionLength+1)
+			},
+			domain.CodeConditionTooLong,
 		},
 		"half a chain": {
 			func(in *domain.NewRuleInput) { in.ThenAfterDays = 730 },
@@ -160,6 +163,34 @@ func TestWhatARuleCannotMean(t *testing.T) {
 // audit. The trash is the one kind with a bound today.
 // §4.4 makes the upper bound the operator's - "where the operator has set a maximum period" - so it
 // is handed in rather than read off the kind, and no kind carries one by default.
+// The E-07 refusal, flipped rather than deleted. It refused a condition outright because nothing
+// could evaluate one; with G-06 the aggregate keeps it, and whether the text is an expression is
+// asked by the compiler in the application layer - core/domain may not hold an evaluator.
+func TestAConditionIsKeptForTheCompiler(t *testing.T) {
+	in := ruleInput(func(*domain.NewRuleInput) {})
+	in.Condition = "  item.completed_at != null  "
+
+	rule, err := domain.NewRule(in)
+	if err != nil {
+		t.Fatalf("a condition was refused by the aggregate: %v", err)
+	}
+	// Trimmed, so that what the sweep compiles is what somebody wrote.
+	if rule.Condition != "item.completed_at != null" {
+		t.Errorf("kept %q", rule.Condition)
+	}
+}
+
+// A rule with no condition is the ordinary case and stays empty.
+func TestARuleWithoutAConditionCarriesNone(t *testing.T) {
+	rule, err := domain.NewRule(ruleInput(func(*domain.NewRuleInput) {}))
+	if err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+	if rule.Condition != "" {
+		t.Errorf("condition %q, want none", rule.Condition)
+	}
+}
+
 func TestTheUpperBoundIsAJustificationRatherThanARefusal(t *testing.T) {
 	const ceiling = 400
 

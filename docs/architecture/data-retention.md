@@ -43,7 +43,7 @@ Retention is therefore its own bounded context (`Lifecycle`) with rules as data,
 |---|---|
 | `scope` | `TENANT`, `HUB`, `COLLECTION` — the narrower rule wins over the wider one |
 | `data_kind` | See the catalogue in §3 |
-| `condition` | An optional CEL expression using the same expression language as automation ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)) — not a second filtering mechanism |
+| `condition` | An optional CEL expression using the same expression language as automation ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)) — not a second filtering mechanism, and literally the same port and the same limits ([automation.md](./automation.md) §1.2). Its environment is smaller: `item`, `now` and `tenant`, because a retention pass has no event, no actor and no payload — the clock caused it, and declaring names nothing can fill would let somebody write a condition that is never true. Compiled when the rule is written and evaluated per candidate; the entry is read only for a rule that has one. A condition that cannot be evaluated stops the pass rather than defaulting either way — defaulting to true would delete what the condition was written to protect, and defaulting to false would quietly retain everything and look like a working rule |
 | `retain_days` | The period from the relevant point in time (`completed_at`, `deleted_at`, `archived_at`, `created_at` — defined per data kind) |
 | `action` | `ARCHIVE`, `TRASH`, `ANONYMIZE`, `HARD_DELETE`, `EXPORT_THEN_DELETE`, `NOTIFY_ONLY` |
 | `then_after_days` / `then_action` | Multi-stage chains: completed → archive after 1 year → delete after 2 more years |
@@ -179,8 +179,9 @@ Five things the rule model needed settled, recorded here so that nobody re-deriv
   the notice is checkable.
 * **A kind nothing sweeps is refused rather than configured.** Every kind §3 names is in the
   catalogue, and the ones this build can actually remove are marked; a period configured against
-  nothing would look like a working installation until somebody checked. The same standard refuses a
-  CEL condition (the language arrives with the rule engine in `0.5.0`) and the advance warning
+  nothing would look like a working installation until somebody checked. The same standard held the
+  CEL condition back until an engine could evaluate one — accepted since `0.5.0` (G-06), compiled
+  when the rule is written and evaluated per candidate — and still holds back the advance warning
   (§6).
 
 ---

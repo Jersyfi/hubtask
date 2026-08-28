@@ -6,6 +6,7 @@ package automation
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	expression "github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -808,5 +810,192 @@ func TestNoDeferredActionIsAlreadyServed(t *testing.T) {
 		if _, served := catalogue.ByAutomationAction(kind); served {
 			t.Errorf("%s is served and still listed as deferred", kind)
 		}
+	}
+}
+
+// compiler is the expression port as this package sees it: a fake, because core/application may not
+// import the adapter that holds the engine (ADR-0001) - and because what these tests are about is
+// the mapping from a refusal to a field error, not whether CEL parses. That the real engine reports
+// the position, and refuses an undeclared name, is proved where the engine is.
+//
+// The grammar it knows is deliberately tiny and deliberately shaped like CEL's failures: an empty
+// tail is a syntax error with a position, and a name outside the environment is its own code.
+type compiler struct{}
+
+func (compiler) Compile(
+	text string, env expression.Environment, _ expression.Result,
+) (expression.Program, error) {
+	declared := map[string]bool{}
+	for _, variable := range env.Variables {
+		declared[variable.Name] = true
+	}
+
+	trimmed := strings.TrimSpace(text)
+	switch {
+	case trimmed == "" || strings.HasSuffix(trimmed, "==") || strings.HasSuffix(trimmed, "===") ||
+		strings.HasSuffix(trimmed, "."):
+		return nil, expression.Refusal{
+			Code: expression.CodeSyntax, Position: expression.Position{Line: 1, Column: len(trimmed)},
+		}.Error()
+	}
+
+	root := trimmed
+	if cut := strings.IndexAny(root, " ."); cut > 0 {
+		root = root[:cut]
+	}
+	if !declared[root] {
+		return nil, expression.Refusal{
+			Code: expression.CodeUnknownName, Position: expression.Position{Line: 1, Column: 1},
+		}.Error()
+	}
+	return nil, nil
+}
+
+// The other half of G-06's flip, and the half that proves the language is really wired: a rule's
+// condition is compiled when it is written, against exactly the names automation.md §1.2 declares.
+
+func TestAValidConditionIsAcceptedAndCompiled(t *testing.T) {
+	h := newHarness()
+	h.writer.Conditions = compiler{}
+	h.roleOf(writerID, identity.RoleOwner)
+	h.roleOf(serviceID, identity.RoleMember)
+
+	cmd := validCommand()
+	cmd.Conditions = []domain.Condition{
+		{Expr: "item.type == 'TASK'"},
+		{Expr: "now.getHours() >= 8 && now.getHours() < 18"},
+	}
+	cmd.Throttle = domain.Throttle{MaxRunsPerHour: 100, DedupeKeyExpr: "item.id"}
+
+	rule, err := (CreateRule{Writer: h.writer}).Execute(
+		context.Background(), writerActor(), cmd)
+	if err != nil {
+		t.Fatalf("a valid condition was refused: %v", err)
+	}
+	if len(rule.Conditions) != 2 {
+		t.Errorf("%d conditions stored, want two", len(rule.Conditions))
+	}
+	if rule.Throttle.DedupeKeyExpr != "item.id" {
+		t.Errorf("the dedupe key was not kept: %q", rule.Throttle.DedupeKeyExpr)
+	}
+}
+
+// A typo is answered to its author with a line and a column while they are still looking at it,
+// rather than to a log at three in the morning.
+func TestAParseErrorBecomesAFieldErrorWithItsPosition(t *testing.T) {
+	h := newHarness()
+	h.writer.Conditions = compiler{}
+	h.roleOf(writerID, identity.RoleOwner)
+	h.roleOf(serviceID, identity.RoleMember)
+
+	cmd := validCommand()
+	cmd.Conditions = []domain.Condition{
+		{Expr: "item.type == 'TASK'"},
+		{Expr: "item.type == "},
+	}
+
+	_, err := (CreateRule{Writer: h.writer}).Execute(context.Background(), writerActor(), cmd)
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("error %v, want ErrValidation", err)
+	}
+
+	var coded *shared.Error
+	if !errors.As(err, &coded) {
+		t.Fatalf("the refusal carries no fields: %v", err)
+	}
+	var found bool
+	for _, finding := range coded.Fields {
+		if finding.Path != "/conditions/1/expr" {
+			continue
+		}
+		found = true
+		if finding.Code != "expression.syntax" {
+			t.Errorf("code %q, want expression.syntax", finding.Code)
+		}
+		if finding.Params["line"] == "" || finding.Params["column"] == "" {
+			t.Errorf("the finding carries no position: %v", finding.Params)
+		}
+	}
+	if !found {
+		t.Errorf("no finding names the condition that is wrong: %+v", coded.Fields)
+	}
+	if len(h.store.rows) != 0 {
+		t.Error("the rule was stored despite the refusal")
+	}
+}
+
+// The check that makes the documented variable list a contract: a condition naming something the
+// engine will never provide fails when it is written.
+func TestAConditionNamingAnUndeclaredVariableIsRefused(t *testing.T) {
+	h := newHarness()
+	h.writer.Conditions = compiler{}
+	h.roleOf(writerID, identity.RoleOwner)
+	h.roleOf(serviceID, identity.RoleMember)
+
+	cmd := validCommand()
+	cmd.Conditions = []domain.Condition{{Expr: "secret.value == 1"}}
+
+	_, err := (CreateRule{Writer: h.writer}).Execute(context.Background(), writerActor(), cmd)
+	if code := fieldCodes(t, err)["/conditions/0/expr"]; code != "expression.unknown_name" {
+		t.Errorf("the refusal says %q, want expression.unknown_name", code)
+	}
+}
+
+// A dedupe key is compiled with the conditions, and its refusal names its own field.
+func TestAnInvalidDedupeKeyIsRefusedAtItsOwnField(t *testing.T) {
+	h := newHarness()
+	h.writer.Conditions = compiler{}
+	h.roleOf(writerID, identity.RoleOwner)
+	h.roleOf(serviceID, identity.RoleMember)
+
+	cmd := validCommand()
+	cmd.Throttle = domain.Throttle{DedupeKeyExpr: "item."}
+
+	_, err := (CreateRule{Writer: h.writer}).Execute(context.Background(), writerActor(), cmd)
+	if code := fieldCodes(t, err)["/throttle/dedupe_key_expr"]; code == "" {
+		t.Errorf("no finding names the dedupe key: %v", err)
+	}
+}
+
+// An edit is checked the same way, against the rule as it would be.
+func TestAnEditWithABrokenConditionIsRefused(t *testing.T) {
+	h := newHarness()
+	h.writer.Conditions = compiler{}
+	h.roleOf(writerID, identity.RoleOwner)
+	h.roleOf(serviceID, identity.RoleMember)
+
+	rule, err := (CreateRule{Writer: h.writer}).Execute(
+		context.Background(), writerActor(), validCommand())
+	if err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+
+	broken := []domain.Condition{{Expr: "item.type ==="}}
+	if _, err := (UpdateRule{Writer: h.writer}).Execute(context.Background(), writerActor(),
+		UpdateRuleCommand{ID: rule.ID, Conditions: &broken},
+	); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("error %v, want ErrValidation", err)
+	}
+}
+
+// Fail closed. A build with no evaluator wired cannot promise that a condition means what it says,
+// and storing one on that promise is exactly the failure the old refusal existed for.
+func TestAConditionIsRefusedWhenNoEngineIsWired(t *testing.T) {
+	h := newHarness()
+	h.roleOf(writerID, identity.RoleOwner)
+	h.roleOf(serviceID, identity.RoleMember)
+
+	cmd := validCommand()
+	cmd.Conditions = []domain.Condition{{Expr: "item.type == 'TASK'"}}
+
+	_, err := (CreateRule{Writer: h.writer}).Execute(context.Background(), writerActor(), cmd)
+	if !errors.Is(err, shared.ErrInternal) {
+		t.Fatalf("error %v, want ErrInternal", err)
+	}
+
+	// And a rule with no conditions is unaffected: nothing needs an evaluator.
+	if _, err := (CreateRule{Writer: h.writer}).Execute(
+		context.Background(), writerActor(), validCommand()); err != nil {
+		t.Errorf("a rule with no conditions needed an evaluator: %v", err)
 	}
 }

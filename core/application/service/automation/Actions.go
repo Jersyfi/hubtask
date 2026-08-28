@@ -9,12 +9,15 @@
 package automation
 
 import (
+	"errors"
 	"slices"
 	"strings"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	expression "github.com/Jersyfi/hubtask/core/port/expression"
 )
 
 // Catalogue is the slice of the use case registry this package reads: which action kinds exist, and
@@ -118,6 +121,65 @@ func checkActions(catalogue Catalogue, actions []domain.Action) ([]checkedAction
 			WithFields(findings...)
 	}
 	return checked, nil
+}
+
+// checkConditions compiles a rule's conditions, and its dedupe key with them.
+//
+// This is the flip G-06 promised: until the language existed, a non-empty condition was refused
+// with a code that said so, because a rule whose owner believes it is filtering and whose behaviour
+// says otherwise is worse than one they could not save (E-08). What replaced the refusal is a real
+// check - the expression is parsed and type-checked against exactly the names automation.md §1.2
+// declares, so a typo is answered to its author with a line and a column while they are still
+// looking at it, rather than to a log at three in the morning.
+//
+// Compiled and discarded. What is being asked here is "would this run", and the engine that will
+// run it compiles its own (G-07) - keeping the program would mean caching a rule's compilation in
+// the use case that wrote it, which is the wrong place for a cache and the wrong lifetime.
+func checkConditions(compiler expression.Compiler, rule domain.Rule) error {
+	if compiler == nil {
+		// Fail closed. A build with no evaluator wired cannot promise that a condition means what
+		// it says, and storing one on that promise is exactly the failure the refusal existed for.
+		if len(rule.Conditions) > 0 || rule.Throttle.DedupeKeyExpr != "" {
+			return shared.ErrInternal.WithDetail("automation.expression_engine_unavailable")
+		}
+		return nil
+	}
+
+	environment := condition.RuleEnvironment()
+	var findings []shared.FieldError
+	for i, each := range rule.Conditions {
+		if _, err := compiler.Compile(each.Expr, environment, expression.Boolean); err != nil {
+			findings = append(findings, findingFor("/conditions/"+itoa(i)+"/expr", err))
+		}
+	}
+	if rule.Throttle.DedupeKeyExpr != "" {
+		if _, err := // A dedupe key renders a value that collapses runs meaning the same thing, so it is a
+			// template rather than a condition - `item.id` is a string, not a decision.
+			compiler.Compile(rule.Throttle.DedupeKeyExpr, environment, expression.Text); err != nil {
+			findings = append(findings, findingFor("/throttle/dedupe_key_expr", err))
+		}
+	}
+	if len(findings) == 0 {
+		return nil
+	}
+	return shared.ErrValidation.
+		WithDetail("automation.condition_invalid").
+		WithFields(findings...)
+}
+
+// findingFor renders the compiler's refusal at the field it is about, carrying the position it
+// reported so an editor can put the cursor there.
+func findingFor(path string, err error) shared.FieldError {
+	finding := shared.FieldError{Path: path, Code: expression.CodeSyntax}
+
+	var coded *shared.Error
+	if errors.As(err, &coded) {
+		finding.Code = coded.DetailCode
+		if len(coded.Params) > 0 {
+			finding.Params = coded.Params
+		}
+	}
+	return finding
 }
 
 // requiredScopes is what the rule's actions would need of whoever performs them, in the order they

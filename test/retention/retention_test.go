@@ -32,6 +32,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	"github.com/Jersyfi/hubtask/test/dbtest"
@@ -132,7 +133,10 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 			Items:   postgres.NewItemRepository(security.NewCursorCodec(installationSecret)),
 			Purger:  purger,
 			Changes: postgres.NewChangeLog(),
-			Clock:   clock.Fixed(at), IDs: ids, HLC: hybridAt(at), Batch: 100,
+			// The expression engine, so that a conditioned rule is evaluated here as it is in
+			// production rather than skipped by a nil (G-06).
+			Conditions: celexpression.New(),
+			Clock:      clock.Fixed(at), IDs: ids, HLC: hybridAt(at), Batch: 100,
 		},
 	}
 }
@@ -565,6 +569,7 @@ func (s *suite) completedItem(t *testing.T, collectionID shared.ID, daysAgo int)
 // says yes: what is under test here is the engine, and who may configure it is proved a layer down.
 func (s *suite) rules() lifecycle.Rules {
 	return lifecycle.Rules{
+		Conditions: celexpression.New(),
 		Rules:      postgres.NewRetentionRuleRepository(),
 		Policies:   s.store,
 		Marking:    postgres.NewRetentionMarkingRepository(),
@@ -961,5 +966,78 @@ func TestQS23AHoldPlacedThroughTheAPIStopsEveryDeletion(t *testing.T) {
 	s.sweepAt(t, now.Add(time.Minute))
 	if s.exists(t, held) {
 		t.Error("the entry survived after the hold was lifted")
+	}
+}
+
+// RE-10: a rule with a CEL condition sweeps only what the condition matches.
+//
+// The extension G-06 owes RE. E-07 refused a condition outright because there was nothing that
+// could evaluate one, and every RE test until now described a rule decided by its scope and its
+// period alone. This is the same path with the expression engine in it, end to end and against the
+// database: the entry the condition excludes is not announced, is not blocked, and is still there.
+func TestRE10AConditionedRuleSweepsOnlyWhatMatches(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	collectionID := s.collection(t)
+
+	// Both are past the period. One carries the label the condition protects.
+	protected := s.completedItem(t, collectionID, 400)
+	going := s.completedItem(t, collectionID, 400)
+	if _, err := s.admin.Exec(s.ctx,
+		`UPDATE work_item SET title = 'no-archive' WHERE id = $1`, protected.String()); err != nil {
+		t.Fatalf("marking the protected entry: %v", err)
+	}
+
+	// A workspace with work in it, so the rule is not the broad one §5 turns into an announcement.
+	for range 60 {
+		s.completedItem(t, collectionID, 1)
+	}
+
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionArchive,
+		// The condition data-retention.md §2 documents, in the shape the projection answers.
+		Condition: "item.title != 'no-archive'",
+	})
+
+	s.sweep(t)
+
+	if at, _ := s.marking(t, going); at.IsZero() {
+		t.Error("the entry the condition matches was not announced")
+	}
+	if at, _ := s.marking(t, protected); !at.IsZero() {
+		t.Errorf("the entry the condition excludes was announced at %s", at)
+	}
+}
+
+// A condition the engine cannot compile stops the pass rather than defaulting either way: acting on
+// a rule whose condition this build cannot read is acting on a rule nobody wrote.
+func TestRE10AnUncompilableConditionIsRefusedWhenTheRuleIsWritten(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+
+	_, _, err := (lifecycle.CreateRetentionPolicy{Rules: s.rules()}).
+		Execute(s.ctx, s.actor(), lifecycle.CreateRetentionPolicyCommand{
+			Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+			DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+			Action: lifecycleDomain.ActionArchive, Condition: "item.title == ",
+		})
+	if err == nil {
+		t.Fatal("a rule with an unparseable condition was stored")
+	}
+}
+
+// The environment is the retention one rather than the rule engine's: a condition naming the actor
+// is refused when it is written, because a retention pass has no actor to name.
+func TestRE10AConditionNamingTheActorIsRefused(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+
+	_, _, err := (lifecycle.CreateRetentionPolicy{Rules: s.rules()}).
+		Execute(s.ctx, s.actor(), lifecycle.CreateRetentionPolicyCommand{
+			Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+			DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+			Action: lifecycleDomain.ActionArchive, Condition: "actor.id != ''",
+		})
+	if err == nil {
+		t.Fatal("a retention condition named the actor and was stored")
 	}
 }

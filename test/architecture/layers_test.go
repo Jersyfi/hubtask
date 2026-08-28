@@ -273,3 +273,31 @@ func rel(p string) string {
 	c := filepath.Clean(p)
 	return strings.TrimPrefix(c, "../../")
 }
+
+// The expression engine lives in exactly one package, and this is the gate that says so (G-06).
+//
+// `cel-go` is the milestone's one new direct dependency, and the reason ADR-0009 could choose a
+// library at all is that nothing outside its adapter depends on the choice: the core describes what
+// a condition is, and an engine swapped tomorrow changes no rule anybody wrote.
+//
+// TestCoreStaysTechnologyFree already refuses any third-party import in `core/`. What this adds is
+// the other side of the same sentence - the adapter is one package rather than "somewhere in
+// infrastructure" - so that a second import of it is a decision somebody makes deliberately rather
+// than one that happens.
+func TestTheExpressionEngineIsBehindOneAdapter(t *testing.T) {
+	const engine = "cel.dev/cel-go"
+	const adapter = "infrastructure/expression"
+
+	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"},
+		func(path string, f *ast.File, fset *token.FileSet) {
+			for _, imp := range f.Imports {
+				if !strings.HasPrefix(strings.Trim(imp.Path.Value, `"`), engine) {
+					continue
+				}
+				if !strings.Contains(filepath.ToSlash(path), adapter) {
+					t.Errorf("%s imports %s: the expression engine belongs in %s and nowhere "+
+						"else (ADR-0009, ADR-0001)", rel(path), engine, adapter)
+				}
+			}
+		})
+}

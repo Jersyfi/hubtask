@@ -63,6 +63,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
+	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
@@ -417,7 +418,10 @@ func run() error {
 		Accounts:    accounts,
 		Memberships: postgres.NewMembershipRepository(),
 		Catalogue:   ruleCatalogue,
-		Authorizer:  authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		// The one place the expression engine is constructed. A rule's conditions are compiled
+		// when it is written, so a mistake reaches its author rather than a log (G-06, ADR-0009).
+		Conditions: celexpression.New(),
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}
 	containers := postgres.NewContainerRepository(cursors)
@@ -500,6 +504,7 @@ func run() error {
 	// share a newly created rule reports and the share its preview reports come from the same
 	// reading - RE-7 is exactly that they agree.
 	retentionRules := lifecycle.Rules{
+		Conditions: celexpression.New(),
 		Rules:      postgres.NewRetentionRuleRepository(),
 		Policies:   lifecycleStore,
 		Marking:    postgres.NewRetentionMarkingRepository(),
@@ -1480,7 +1485,7 @@ func run() error {
 			Sweeper: lifecycle.Sweeper{
 				Rules:   postgres.NewRetentionRuleRepository(),
 				Marking: postgres.NewRetentionMarkingRepository(),
-				Holds:   lifecycleStore, Items: items, Purger: purger, Changes: changes,
+				Holds:   lifecycleStore, Items: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
 				Export: backupservice.RetentionExport{
 					Performer: backupPerformer, IDs: ids,
 				},

@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	expression "github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -75,11 +76,14 @@ type Writer struct {
 	Accounts    Accounts
 	Memberships identityrepo.Memberships
 	Catalogue   Catalogue
-	Authorizer  Authorizer
-	Audit       audit.Sink
-	UnitOfWork  persistence.UnitOfWork
-	Clock       clock.Clock
-	IDs         clock.IDGenerator
+	// Conditions compiles a rule's expressions when it is written. A port, so that the use case
+	// never learns which engine evaluates one (ADR-0009, rule 1).
+	Conditions expression.Compiler
+	Authorizer Authorizer
+	Audit      audit.Sink
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
+	IDs        clock.IDGenerator
 }
 
 // CreateRule writes a rule, switched off.
@@ -431,6 +435,12 @@ func (w Writer) authorizeWrite(
 		return err
 	}
 
+	// The conditions before the actions, because a caller who wrote both wants to hear about both -
+	// and a rule refused for its actions with an unparseable condition still in it would be refused
+	// twice, once per round trip.
+	if err := checkConditions(w.Conditions, rule); err != nil {
+		return err
+	}
 	checked, err := checkActions(w.Catalogue, rule.Actions)
 	if err != nil {
 		return err
