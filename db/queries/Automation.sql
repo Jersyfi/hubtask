@@ -15,17 +15,20 @@
 -- says the opposite.
 INSERT INTO automation_rule (
   id, tenant_id, scope_type, scope_id, name, enabled, run_as,
-  trigger, conditions, actions, throttle, on_error, created_by, created_at, updated_at, version
+  trigger, conditions, actions, throttle, on_error, created_by, created_at, updated_at, version,
+  next_run_at
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('scope_type'), sqlc.narg('scope_id'),
   sqlc.arg('name'), sqlc.arg('enabled'), sqlc.arg('run_as'),
   sqlc.arg('trigger'), sqlc.arg('conditions'), sqlc.arg('actions'), sqlc.arg('throttle'),
-  sqlc.arg('on_error'), sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
+  sqlc.arg('on_error'), sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
+  sqlc.narg('next_run_at')
 );
 
 -- name: FindAutomationRule :one
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
-       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -36,7 +39,8 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- is what an absent query parameter means, and a second statement differing in one predicate is a
 -- second place for the `deleted_at` guard to be forgotten.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
-       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND (sqlc.narg('enabled')::boolean IS NULL OR enabled = sqlc.narg('enabled')::boolean)
@@ -62,6 +66,9 @@ SET scope_type = sqlc.arg('scope_type'),
     throttle   = sqlc.arg('throttle'),
     on_error   = sqlc.arg('on_error'),
     updated_at = sqlc.arg('updated_at'),
+    -- An edit may change the recurrence rule, so the moment is recomputed with the definition
+    -- rather than left pointing at an occurrence of a rule that no longer exists.
+    next_run_at = sqlc.narg('next_run_at'),
     version    = version + 1
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND version = sqlc.arg('expected_version');
 
@@ -105,10 +112,11 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- needs to see: a process that dies mid-run leaves RUNNING behind, and that is the only thing that
 -- distinguishes a crash from a run nobody attempted.
 INSERT INTO rule_run (
-  id, tenant_id, rule_id, event_id, status, condition_results, action_results,
-  started_at, causation_depth
+  id, tenant_id, rule_id, event_id, trigger, triggered_by, subject_id,
+  status, condition_results, action_results, started_at, causation_depth
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('rule_id'), sqlc.narg('event_id'),
+  sqlc.arg('trigger'), sqlc.narg('triggered_by'), sqlc.narg('subject_id'),
   sqlc.arg('status'), sqlc.arg('condition_results'), sqlc.arg('action_results'),
   sqlc.arg('started_at'), sqlc.arg('causation_depth')
 );
@@ -124,20 +132,21 @@ SET status            = sqlc.arg('status'),
 WHERE id = sqlc.arg('id');
 
 -- name: FindRuleRun :one
-SELECT id, rule_id, event_id, status, condition_results, action_results,
-       error_code, started_at, finished_at, causation_depth
+SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
+       condition_results, action_results, error_code, started_at, finished_at, causation_depth
 FROM rule_run
 WHERE id = sqlc.arg('id');
 
 -- name: ListRuleRuns :many
 -- Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the order runs happened
--- in. The two filters are nullable arguments rather than four statements, because a second statement
--- differing in one predicate is a second place for a predicate to be forgotten.
-SELECT id, rule_id, event_id, status, condition_results, action_results,
-       error_code, started_at, finished_at, causation_depth
+-- in. The three filters are nullable arguments rather than eight statements, because a second
+-- statement differing in one predicate is a second place for a predicate to be forgotten.
+SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
+       condition_results, action_results, error_code, started_at, finished_at, causation_depth
 FROM rule_run
 WHERE (sqlc.narg('rule_id')::uuid IS NULL OR rule_id = sqlc.narg('rule_id')::uuid)
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
+  AND (sqlc.narg('trigger')::text IS NULL OR trigger = sqlc.narg('trigger')::text)
   AND (sqlc.narg('after')::uuid IS NULL OR id < sqlc.narg('after')::uuid)
 ORDER BY id DESC
 LIMIT sqlc.arg('page_size');
@@ -200,10 +209,135 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true
 -- collections, and the event carries a subject rather than a path - so the narrowing is the
 -- subscriber's, against what it can resolve, rather than a join this statement cannot make.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
-       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
   AND trigger ->> 'kind' = 'EVENT'
   AND trigger ->> 'event_type' = sqlc.arg('event_type')::text
 ORDER BY id;
+
+-- The SCHEDULE trigger (G-08, decision 5 of milestone-0.5.0). The same three statements
+-- `backup_schedule` has, and deliberately: this installation has one schedule engine, and a second
+-- shape for reading a due moment would be a second engine in everything but name.
+
+-- name: DueAutomationRules :many
+-- What one pass claims: this tenant's rules whose moment has come, oldest first.
+--
+-- The tenant is row level security's, not a parameter (ADR-0010). `FOR UPDATE SKIP LOCKED` is
+-- deliberately absent: the pass runs inside one tenant's own poller, of which there is one job, and
+-- the poller holds a row lock on that job before it reads - so two passes for one tenant cannot
+-- overlap, and a lock here would be a second answer to a question the queue has answered.
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE deleted_at IS NULL AND enabled = true
+  AND next_run_at IS NOT NULL AND next_run_at <= sqlc.arg('due')
+ORDER BY next_run_at
+LIMIT sqlc.arg('page_size');
+
+-- name: NextDueAutomationRule :one
+-- The earliest moment this tenant owes anything, and NULL when it owes nothing - which is what
+-- lets the poller finish instead of spinning. `max`/`min` over the partial index rather than a
+-- LIMIT 1 with an ORDER BY, so an empty result is a row with NULL rather than no row at all.
+SELECT min(next_run_at)::timestamptz AS next_run_at
+FROM automation_rule
+WHERE deleted_at IS NULL AND enabled = true AND next_run_at IS NOT NULL;
+
+-- name: SetAutomationRuleNextRun :exec
+-- Moves one rule on to its next moment.
+--
+-- The version is deliberately untouched. Nobody read this rule in order to advance it - a pass did,
+-- because a moment arrived - and bumping the version would make every occurrence look like an edit
+-- to a client holding an optimistic lock.
+UPDATE automation_rule
+SET next_run_at = sqlc.narg('next_run_at')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
+
+-- The RELATIVE_DATE trigger's occurrences (G-08, automation.md §1.1). D-02's shape: a row per
+-- (rule, entry) saying when this rule owes that entry a run, moved when the anchor moves and gone
+-- when the anchor is cleared.
+
+-- name: UpsertRuleOccurrence :exec
+-- Writes or moves the moment one rule owes for one entry.
+--
+-- An upsert rather than a delete-then-insert, because "the due date moved" is one fact: two
+-- statements would leave a window in which the tenant owed nothing, and a pass committing in that
+-- window would answer the wrong next moment.
+INSERT INTO rule_occurrence (id, tenant_id, rule_id, item_id, fire_at)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('rule_id'), sqlc.arg('item_id'),
+  sqlc.arg('fire_at')
+)
+ON CONFLICT (tenant_id, rule_id, item_id) DO UPDATE SET fire_at = EXCLUDED.fire_at;
+
+-- name: ForgetRuleOccurrence :exec
+-- The anchor was cleared: this rule owes this entry nothing.
+DELETE FROM rule_occurrence
+WHERE rule_id = sqlc.arg('rule_id') AND item_id = sqlc.arg('item_id');
+
+-- name: ForgetRuleOccurrencesOfItem :exec
+-- The entry went. Every rule's moment for it goes with it - the foreign key would do this on a
+-- purge, and this is the same statement for the softer endings a purge never reaches.
+DELETE FROM rule_occurrence WHERE item_id = sqlc.arg('item_id');
+
+-- name: ClaimDueRuleOccurrences :many
+-- Takes the moments that have come and removes them in the same statement.
+--
+-- Deleted rather than marked, because the row *is* the debt: once the run is queued the tenant no
+-- longer owes it, and a status column would be a second place for "already fired" to be recorded.
+-- The delete and the run's job commit together in the runner's transaction, so a process that dies
+-- halfway leaves both.
+DELETE FROM rule_occurrence o
+WHERE o.id IN (
+  SELECT due.id FROM rule_occurrence due
+  WHERE due.fire_at <= sqlc.arg('due')
+  ORDER BY due.fire_at
+  LIMIT sqlc.arg('page_size')
+)
+RETURNING o.id, o.rule_id, o.item_id, o.fire_at;
+
+-- name: NextDueRuleOccurrence :one
+-- The earliest moment this tenant owes an occurrence, and NULL when it owes none.
+SELECT min(fire_at)::timestamptz AS fire_at FROM rule_occurrence;
+
+-- name: RulesByTriggerKind :many
+-- The enabled rules of one trigger kind, which is what a producer that is not the event dispatcher
+-- asks. The scope is not in the predicate, for RulesForEventType's reason: the narrowing is the
+-- producer's, against what it can resolve.
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE deleted_at IS NULL
+  AND enabled = true
+  AND trigger ->> 'kind' = sqlc.arg('kind')::text
+ORDER BY id;
+
+-- The INBOUND_WEBHOOK trigger's address (G-08, D-08's credential discipline).
+
+-- name: SetAutomationRuleInboundToken :execrows
+-- Mints or rotates the address. One statement, so the old hash and the new one never coexist:
+-- rotating *is* revoking, and a window in which both open the same rule would be the one thing
+-- "revocable by rotating" must not mean.
+--
+-- The version is deliberately untouched. The address is a credential beside the rule rather than
+-- part of its definition, and bumping the version would make a rotation look like an edit to a
+-- client holding an optimistic lock.
+UPDATE automation_rule
+SET inbound_token_hash = sqlc.arg('token_hash'),
+    inbound_rotated_at = sqlc.arg('rotated_at')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
+
+-- name: FindAutomationRuleByInboundToken :one
+-- What the unauthenticated route asks. The tenant is the transaction's, set from the tenant the
+-- token names inside itself - the only honest source of one on a route with no authentication
+-- (multi-tenancy.md §2.2). The hash is unique across the installation, so a token rewritten to
+-- quote another tenant matches nothing.
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE inbound_token_hash = sqlc.arg('token_hash') AND deleted_at IS NULL;

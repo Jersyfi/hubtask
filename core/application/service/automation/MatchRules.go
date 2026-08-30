@@ -130,7 +130,11 @@ func (m MatchRules) enqueue(
 		Kind:     queue.KindAutomationRun,
 		TenantID: envelope.TenantID,
 		Payload: map[string]any{
-			"rule_id":         rule.ID.String(),
+			"rule_id": rule.ID.String(),
+			// The kind is written even though this producer only ever queues one, because the
+			// engine checks it against the rule: a job for a rule that has since been edited into
+			// another kind must not run, and a job that named nothing could not be checked.
+			"trigger":         string(domain.TriggerEvent),
 			"event_id":        envelope.ID.String(),
 			"causation_depth": envelope.CausationDepth,
 		},

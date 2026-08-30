@@ -1899,6 +1899,36 @@ func (e RuleActionResultStatus) Valid() bool {
 	}
 }
 
+// Defines values for RuleRunTrigger.
+const (
+	RuleRunTriggerEVENT          RuleRunTrigger = "EVENT"
+	RuleRunTriggerINBOUNDWEBHOOK RuleRunTrigger = "INBOUND_WEBHOOK"
+	RuleRunTriggerJUMBLEENTRY    RuleRunTrigger = "JUMBLE_ENTRY"
+	RuleRunTriggerMANUAL         RuleRunTrigger = "MANUAL"
+	RuleRunTriggerRELATIVEDATE   RuleRunTrigger = "RELATIVE_DATE"
+	RuleRunTriggerSCHEDULE       RuleRunTrigger = "SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the RuleRunTrigger enum.
+func (e RuleRunTrigger) Valid() bool {
+	switch e {
+	case RuleRunTriggerEVENT:
+		return true
+	case RuleRunTriggerINBOUNDWEBHOOK:
+		return true
+	case RuleRunTriggerJUMBLEENTRY:
+		return true
+	case RuleRunTriggerMANUAL:
+		return true
+	case RuleRunTriggerRELATIVEDATE:
+		return true
+	case RuleRunTriggerSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuleRunStatus.
 const (
 	RuleRunStatusABORTEDLOOP RuleRunStatus = "ABORTED_LOOP"
@@ -2430,6 +2460,36 @@ func (e ListRuleRunsParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for ListRuleRunsParamsTrigger.
+const (
+	ListRuleRunsParamsTriggerEVENT          ListRuleRunsParamsTrigger = "EVENT"
+	ListRuleRunsParamsTriggerINBOUNDWEBHOOK ListRuleRunsParamsTrigger = "INBOUND_WEBHOOK"
+	ListRuleRunsParamsTriggerJUMBLEENTRY    ListRuleRunsParamsTrigger = "JUMBLE_ENTRY"
+	ListRuleRunsParamsTriggerMANUAL         ListRuleRunsParamsTrigger = "MANUAL"
+	ListRuleRunsParamsTriggerRELATIVEDATE   ListRuleRunsParamsTrigger = "RELATIVE_DATE"
+	ListRuleRunsParamsTriggerSCHEDULE       ListRuleRunsParamsTrigger = "SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the ListRuleRunsParamsTrigger enum.
+func (e ListRuleRunsParamsTrigger) Valid() bool {
+	switch e {
+	case ListRuleRunsParamsTriggerEVENT:
+		return true
+	case ListRuleRunsParamsTriggerINBOUNDWEBHOOK:
+		return true
+	case ListRuleRunsParamsTriggerJUMBLEENTRY:
+		return true
+	case ListRuleRunsParamsTriggerMANUAL:
+		return true
+	case ListRuleRunsParamsTriggerRELATIVEDATE:
+		return true
+	case ListRuleRunsParamsTriggerSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
 	ListWebhookDeliveriesParamsStatusDEADLETTER ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
@@ -2745,10 +2805,16 @@ type AutomationRule struct {
 	Enabled bool `json:"enabled"`
 
 	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
-	FailureCount int                   `json:"failure_count"`
-	Id           openapi_types.UUID    `json:"id"`
-	Name         string                `json:"name"`
-	OnError      AutomationRuleOnError `json:"on_error"`
+	FailureCount int                `json:"failure_count"`
+	Id           openapi_types.UUID `json:"id"`
+
+	// InboundRotatedAt When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.
+	InboundRotatedAt *time.Time `json:"inbound_rotated_at,omitempty"`
+	Name             string     `json:"name"`
+
+	// NextRunAt When a `SCHEDULE` rule next fires. Absent for every other kind, and for a schedule whose recurrence is exhausted - such a rule stays, visible and editable, and fires no more.
+	NextRunAt *time.Time            `json:"next_run_at,omitempty"`
+	OnError   AutomationRuleOnError `json:"on_error"`
 
 	// RunAs The account the rule acts as. It can never do more than that account may (automation.md §2), which is why the writer has to hold those rights too.
 	RunAs openapi_types.UUID `json:"run_as"`
@@ -3625,6 +3691,15 @@ type HealthWarning struct {
 // HealthWarningSeverity defines model for HealthWarning.Severity.
 type HealthWarningSeverity string
 
+// InboundTriggerToken A freshly minted inbound address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read of the rule shows only when it was minted.
+type InboundTriggerToken struct {
+	RotatedAt time.Time          `json:"rotated_at"`
+	RuleId    openapi_types.UUID `json:"rule_id"`
+
+	// Token The credential, prefixed `hbt_hook_`. The prefix is public by design, so that secret scanning finds a leaked URL before somebody else does.
+	Token string `json:"token"`
+}
+
 // ItemAccess How far a role reaches into one entry.
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
 type ItemAccess string
@@ -4395,6 +4470,24 @@ type RuleRun struct {
 
 	// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately.
 	Status RuleRunStatus `json:"status"`
+
+	// SubjectId The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from one entry's due date. Absent where the event carries the subject, which is where a reader should look for it.
+	SubjectId *openapi_types.UUID `json:"subject_id,omitempty"`
+
+	// Trigger Which of the rule's six ways of starting produced this run (automation.md §1.1). On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+	Trigger RuleRunTrigger `json:"trigger"`
+
+	// TriggeredBy Who pulled the trigger, for the one kind a person pulls: `MANUAL`. Absent for every other kind - a schedule, a due date and an inbound delivery have no actor, and naming one would be inventing an author for something nobody did.
+	TriggeredBy *openapi_types.UUID `json:"triggered_by,omitempty"`
+}
+
+// RuleRunTrigger Which of the rule's six ways of starting produced this run (automation.md §1.1). On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+type RuleRunTrigger string
+
+// RuleRunAccepted A run that has been queued and has not started. The identifier is the one the run will carry, so a caller can watch for it - `GET /automation/runs/{runId}` answers `404` until a worker claims the job.
+type RuleRunAccepted struct {
+	RuleId openapi_types.UUID `json:"rule_id"`
+	RunId  openapi_types.UUID `json:"run_id"`
 }
 
 // RuleRunPage defines model for RuleRunPage.
@@ -5177,6 +5270,9 @@ type CreateAccessTokenParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// StartInboundRunJSONBody defines parameters for StartInboundRun.
+type StartInboundRunJSONBody map[string]interface{}
+
 // ListRulesParams defines parameters for ListRules.
 type ListRulesParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -5204,6 +5300,18 @@ type EnableRuleParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// RotateInboundTriggerParams defines parameters for RotateInboundTrigger.
+type RotateInboundTriggerParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// TriggerRuleManuallyParams defines parameters for TriggerRuleManually.
+type TriggerRuleManuallyParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListRuleRunsParams defines parameters for ListRuleRuns.
 type ListRuleRunsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -5214,10 +5322,16 @@ type ListRuleRunsParams struct {
 
 	// Status Narrow to one outcome. `FAILED` and `ABORTED_LOOP` are the two an operator usually wants; `THROTTLED` and `SKIPPED` are the ordinary answers of a rule that is working.
 	Status *ListRuleRunsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Trigger Narrow to one way of starting. "Did the schedule fire last night" and "did anybody press the button" are two questions about the same rule.
+	Trigger *ListRuleRunsParamsTrigger `form:"trigger,omitempty" json:"trigger,omitempty"`
 }
 
 // ListRuleRunsParamsStatus defines parameters for ListRuleRuns.
 type ListRuleRunsParamsStatus string
+
+// ListRuleRunsParamsTrigger defines parameters for ListRuleRuns.
+type ListRuleRunsParamsTrigger string
 
 // ListBackupsAtTargetParams defines parameters for ListBackupsAtTarget.
 type ListBackupsAtTargetParams struct {
@@ -5861,6 +5975,9 @@ type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = AccessTokenCreate
 
+// StartInboundRunJSONRequestBody defines body for StartInboundRun for application/json ContentType.
+type StartInboundRunJSONRequestBody StartInboundRunJSONBody
+
 // CreateRuleJSONRequestBody defines body for CreateRule for application/json ContentType.
 type CreateRuleJSONRequestBody = AutomationRuleCreate
 
@@ -6070,6 +6187,9 @@ type ServerInterface interface {
 	// RevokeAccessToken Revoke a personal access token
 	// (DELETE /auth/tokens/{tokenId})
 	RevokeAccessToken(w http.ResponseWriter, r *http.Request, tokenId TokenId)
+	// StartInboundRun Start a rule from outside
+	// (POST /automation/inbound/{token})
+	StartInboundRun(w http.ResponseWriter, r *http.Request, token string)
 	// ListRules The workspace's automation rules
 	// (GET /automation/rules)
 	ListRules(w http.ResponseWriter, r *http.Request, params ListRulesParams)
@@ -6091,6 +6211,12 @@ type ServerInterface interface {
 	// EnableRule Switch a rule on
 	// (POST /automation/rules/{ruleId}:enable)
 	EnableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params EnableRuleParams)
+	// RotateInboundTrigger Mint the address an inbound-webhook rule answers on
+	// (POST /automation/rules/{ruleId}:rotate-inbound-token)
+	RotateInboundTrigger(w http.ResponseWriter, r *http.Request, ruleId RuleId, params RotateInboundTriggerParams)
+	// TriggerRuleManually Run a rule now
+	// (POST /automation/rules/{ruleId}:trigger)
+	TriggerRuleManually(w http.ResponseWriter, r *http.Request, ruleId RuleId, params TriggerRuleManuallyParams)
 	// ListRuleRuns What the rules have done
 	// (GET /automation/runs)
 	ListRuleRuns(w http.ResponseWriter, r *http.Request, params ListRuleRunsParams)
@@ -6929,6 +7055,32 @@ func (siw *ServerInterfaceWrapper) RevokeAccessToken(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// StartInboundRun operation middleware
+func (siw *ServerInterfaceWrapper) StartInboundRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartInboundRun(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRules operation middleware
 func (siw *ServerInterfaceWrapper) ListRules(w http.ResponseWriter, r *http.Request) {
 
@@ -7207,6 +7359,106 @@ func (siw *ServerInterfaceWrapper) EnableRule(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// RotateInboundTrigger operation middleware
+func (siw *ServerInterfaceWrapper) RotateInboundTrigger(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateInboundTriggerParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateInboundTrigger(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TriggerRuleManually operation middleware
+func (siw *ServerInterfaceWrapper) TriggerRuleManually(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TriggerRuleManuallyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TriggerRuleManually(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRuleRuns operation middleware
 func (siw *ServerInterfaceWrapper) ListRuleRuns(w http.ResponseWriter, r *http.Request) {
 
@@ -7264,6 +7516,19 @@ func (siw *ServerInterfaceWrapper) ListRuleRuns(w http.ResponseWriter, r *http.R
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "trigger" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "trigger", r.URL.Query(), &params.Trigger, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "trigger"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trigger", Err: err})
 		}
 		return
 	}
@@ -13020,6 +13285,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/inbound/{token}", wrapper.StartInboundRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs", wrapper.ListRuleRuns)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs/{runId}", wrapper.GetRuleRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks", wrapper.ListWebhookSubscriptions)

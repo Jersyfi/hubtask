@@ -104,7 +104,21 @@ type Run struct {
 	TenantID shared.ID
 	RuleID   shared.ID
 	// EventID is the event that started the run, and zero for a run nothing published started.
-	EventID          shared.ID
+	EventID shared.ID
+	// Trigger is which of the rule's six ways of starting produced this run (automation.md §1.1).
+	//
+	// Recorded on the run rather than read back from the rule, because a rule can be edited from
+	// one kind into another and a log that resolved the kind at read time would rewrite its own
+	// history: last night's schedule run would start claiming it was a webhook.
+	Trigger TriggerKind
+	// TriggeredBy is who pulled it, for the one kind a person pulls. Zero for every other: a
+	// schedule, a due date and an inbound delivery have no actor, and naming one would invent an
+	// author for something nobody did.
+	TriggeredBy shared.ID
+	// SubjectID is the entry the run is about when no event names it - a RELATIVE_DATE run
+	// measured from one entry's due date. Zero where the event carries the subject, which is where
+	// a reader should look for it.
+	SubjectID        shared.ID
 	Status           RunStatus
 	ConditionResults []ConditionResult
 	ActionResults    []ActionResult
@@ -117,10 +131,16 @@ type Run struct {
 
 // NewRunInput is what starting a run needs.
 type NewRunInput struct {
-	ID             shared.ID
-	TenantID       shared.ID
-	RuleID         shared.ID
-	EventID        shared.ID
+	ID       shared.ID
+	TenantID shared.ID
+	RuleID   shared.ID
+	EventID  shared.ID
+	// Trigger is required. A run that does not know what started it is a programming error rather
+	// than a run with a sensible default: the log's whole value is that it says which of six
+	// things happened, and a default would answer the most common one for all of them.
+	Trigger        TriggerKind
+	TriggeredBy    shared.ID
+	SubjectID      shared.ID
 	CausationDepth int
 	Now            time.Time
 }
@@ -133,12 +153,13 @@ func StartRun(in NewRunInput) (Run, error) {
 	if in.ID.IsZero() || in.TenantID.IsZero() || in.RuleID.IsZero() {
 		return Run{}, shared.ErrInternal.WithDetail("automation.run_incomplete")
 	}
-	if in.CausationDepth < 0 {
+	if in.CausationDepth < 0 || !in.Trigger.Valid() {
 		return Run{}, shared.ErrInternal.WithDetail("automation.run_incomplete")
 	}
 
 	return Run{
 		ID: in.ID, TenantID: in.TenantID, RuleID: in.RuleID, EventID: in.EventID,
+		Trigger: in.Trigger, TriggeredBy: in.TriggeredBy, SubjectID: in.SubjectID,
 		Status:           RunRunning,
 		ConditionResults: []ConditionResult{},
 		ActionResults:    []ActionResult{},

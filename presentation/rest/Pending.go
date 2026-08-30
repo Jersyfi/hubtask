@@ -150,6 +150,24 @@ func (pending) DisableRule(w http.ResponseWriter, r *http.Request, _ openapi.Rul
 	notAvailable(w, r)
 }
 
+func (pending) TriggerRuleManually(
+	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) RotateInboundTrigger(
+	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.RotateInboundTriggerParams,
+) {
+	notAvailable(w, r)
+}
+
+// The public inbound route, which RestController overrides only when the composition root wires
+// the starter - exactly as the calendar feed's is.
+func (pending) StartInboundRun(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
 // The run log. RestController overrides both; they are here because pending implements the whole
 // interface, which is what lets the contract test compare the router against the specification.
 func (pending) ListRuleRuns(w http.ResponseWriter, r *http.Request, _ openapi.ListRuleRunsParams) {

@@ -15,6 +15,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
@@ -40,7 +41,10 @@ func NewAutomationRuleRepository(cursors security.CursorCodec) AutomationRuleRep
 	return AutomationRuleRepository{cursors: cursors}
 }
 
-var _ repository.Rules = AutomationRuleRepository{}
+var (
+	_ repository.Rules     = AutomationRuleRepository{}
+	_ repository.Schedules = AutomationRuleRepository{}
+)
 
 func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) error {
 	queries, err := queriesFrom(ctx)
@@ -83,6 +87,7 @@ func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) 
 		OnError:    string(rule.OnError),
 		CreatedBy:  createdBy,
 		CreatedAt:  timestampOf(rule.CreatedAt),
+		NextRunAt:  scheduleMoment(rule.NextRunAt),
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -205,6 +210,7 @@ func (r AutomationRuleRepository) Update(
 		Throttle:   documents.throttle,
 		OnError:    string(rule.OnError),
 		UpdatedAt:  timestampOf(rule.UpdatedAt),
+		NextRunAt:  scheduleMoment(rule.NextRunAt),
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
 		ExpectedVersion: int32(expectedVersion),
 	})
@@ -387,6 +393,96 @@ func documentsOf(rule domain.Rule) (ruleDocuments, error) {
 // Defensively, although every document in the column was written by a validated aggregate: the row
 // outlives the release that wrote it, and a shape this build cannot read has to be an error a log
 // names rather than a zero value that quietly changes what a rule does.
+// Due answers this tenant's rules whose moment has come (G-08).
+//
+// The tenant is the transaction's, never a parameter: the pass is opened under one tenant's scope
+// by that tenant's own poller, and nothing may enumerate tenants (rule 3, multi-tenancy.md §2.1).
+func (r AutomationRuleRepository) Due(
+	ctx context.Context, at time.Time, limit int,
+) ([]domain.Rule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.DueAutomationRules(ctx, sqlc.DueAutomationRulesParams{
+		Due: timestampOf(at),
+		//nolint:gosec // G115: the caller's batch, bounded by the pass's own constant
+		PageSize: int32(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the due automation rules: %w", err))
+	}
+
+	rules := make([]domain.Rule, 0, len(rows))
+	for _, row := range rows {
+		rule, err := automationRuleFrom(sqlc.ListAutomationRulesRow(row))
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
+// NextDue answers the earliest moment this tenant owes anything, and the zero time when it owes
+// nothing - which is what lets the poller finish rather than spin.
+func (r AutomationRuleRepository) NextDue(ctx context.Context) (time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	next, err := queries.NextDueAutomationRule(ctx)
+	if err != nil {
+		if IsNoRows(err) {
+			return time.Time{}, nil
+		}
+		return time.Time{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the next due automation rule: %w", err))
+	}
+	return timeFrom(next), nil
+}
+
+// SetNextRun moves one rule on to its next moment, or to none.
+//
+// The version is deliberately untouched: nobody read this rule in order to advance it, and bumping
+// it would make every occurrence look like an edit to a client holding an optimistic lock.
+func (r AutomationRuleRepository) SetNextRun(
+	ctx context.Context, id shared.ID, at time.Time,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.SetAutomationRuleNextRun(ctx, sqlc.SetAutomationRuleNextRunParams{
+		ID: key, NextRunAt: scheduleMoment(at),
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("moving automation rule %s to its next moment: %w", id, err))
+	}
+	return nil
+}
+
+// scheduleMoment writes the zero time as NULL. A rule with no next moment is a rule whose
+// recurrence is exhausted or one that is not a schedule at all, and the year one would be neither.
+func scheduleMoment(at time.Time) pgtype.Timestamptz {
+	if at.IsZero() {
+		return pgtype.Timestamptz{}
+	}
+	return timestampOf(at)
+}
+
 func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
@@ -448,12 +544,14 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 		Throttle: domain.Throttle{
 			MaxRunsPerHour: throttle.MaxRunsPerHour, DedupeKeyExpr: throttle.DedupeKeyExpr,
 		},
-		OnError:      domain.OnError(row.OnError),
-		FailureCount: int(row.FailureCount),
-		CreatedBy:    createdBy,
-		CreatedAt:    timeFrom(row.CreatedAt),
-		UpdatedAt:    timeFrom(row.UpdatedAt),
-		Version:      int(row.Version),
+		OnError:          domain.OnError(row.OnError),
+		FailureCount:     int(row.FailureCount),
+		NextRunAt:        timeFrom(row.NextRunAt),
+		InboundRotatedAt: timeFrom(row.InboundRotatedAt),
+		CreatedBy:        createdBy,
+		CreatedAt:        timeFrom(row.CreatedAt),
+		UpdatedAt:        timeFrom(row.UpdatedAt),
+		Version:          int(row.Version),
 	}
 	for _, condition := range conditions {
 		rule.Conditions = append(rule.Conditions, domain.Condition{Expr: condition.Expr})
@@ -485,4 +583,211 @@ func boundedRulePage(size int) int {
 	default:
 		return size
 	}
+}
+
+// The RELATIVE_DATE occurrences (G-08). On the rule repository rather than a type of their own,
+// because they are the same aggregate's bookkeeping: what a rule owes is decided from the rule.
+
+var _ repository.Occurrences = AutomationRuleRepository{}
+
+func (r AutomationRuleRepository) Upsert(
+	ctx context.Context, occurrence domain.Occurrence,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	id, err := uuidOf(occurrence.ID)
+	if err != nil {
+		return err
+	}
+	ruleID, err := uuidOf(occurrence.RuleID)
+	if err != nil {
+		return err
+	}
+	itemID, err := uuidOf(occurrence.ItemID)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.UpsertRuleOccurrence(ctx, sqlc.UpsertRuleOccurrenceParams{
+		ID: id, RuleID: ruleID, ItemID: itemID, FireAt: timestampOf(occurrence.FireAt),
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the occurrence of rule %s: %w", occurrence.RuleID, err))
+	}
+	return nil
+}
+
+func (r AutomationRuleRepository) Forget(ctx context.Context, ruleID, itemID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	rule, err := uuidOf(ruleID)
+	if err != nil {
+		return err
+	}
+	item, err := uuidOf(itemID)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.ForgetRuleOccurrence(ctx, sqlc.ForgetRuleOccurrenceParams{
+		RuleID: rule, ItemID: item,
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("forgetting the occurrence of rule %s: %w", ruleID, err))
+	}
+	return nil
+}
+
+func (r AutomationRuleRepository) ForgetItem(ctx context.Context, itemID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	item, err := uuidOf(itemID)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.ForgetRuleOccurrencesOfItem(ctx, item); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("forgetting the occurrences of entry %s: %w", itemID, err))
+	}
+	return nil
+}
+
+func (r AutomationRuleRepository) ClaimDue(
+	ctx context.Context, at time.Time, limit int,
+) ([]domain.Occurrence, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ClaimDueRuleOccurrences(ctx, sqlc.ClaimDueRuleOccurrencesParams{
+		Due: timestampOf(at),
+		//nolint:gosec // G115: the caller's batch, bounded by the pass's own constant
+		PageSize: int32(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("claiming the due occurrences: %w", err))
+	}
+
+	occurrences := make([]domain.Occurrence, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		ruleID, err := idFrom(row.RuleID)
+		if err != nil {
+			return nil, err
+		}
+		itemID, err := idFrom(row.ItemID)
+		if err != nil {
+			return nil, err
+		}
+		occurrences = append(occurrences, domain.Occurrence{
+			ID: id, RuleID: ruleID, ItemID: itemID, FireAt: timeFrom(row.FireAt),
+		})
+	}
+	return occurrences, nil
+}
+
+func (r AutomationRuleRepository) NextOccurrence(ctx context.Context) (time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	next, err := queries.NextDueRuleOccurrence(ctx)
+	if err != nil {
+		if IsNoRows(err) {
+			return time.Time{}, nil
+		}
+		return time.Time{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the next due occurrence: %w", err))
+	}
+	return timeFrom(next), nil
+}
+
+// AutomationInboundRepository is the address an INBOUND_WEBHOOK rule answers on (G-08).
+//
+// Its own type rather than two more methods on the rule repository, for CalendarFeedRepository's
+// reason: it is the only place that knows how a presented token becomes a hash, and the pepper is
+// a secret of this layer (security.md §8). Everything else about a rule is read through a
+// repository that holds no key at all.
+type AutomationInboundRepository struct {
+	hasher security.InboundTokenHasher
+}
+
+func NewAutomationInboundRepository(hasher security.InboundTokenHasher) AutomationInboundRepository {
+	return AutomationInboundRepository{hasher: hasher}
+}
+
+var _ repository.InboundTriggers = AutomationInboundRepository{}
+
+// SetToken mints or rotates the address. The token itself is not stored, is not logged, and does
+// not leave the call it was answered in.
+func (r AutomationInboundRepository) SetToken(
+	ctx context.Context, ruleID shared.ID, token integration.InboundToken, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	id, err := uuidOf(ruleID)
+	if err != nil {
+		return false, err
+	}
+
+	changed, err := queries.SetAutomationRuleInboundToken(ctx, sqlc.SetAutomationRuleInboundTokenParams{
+		ID: id, TokenHash: r.hasher.Hash(token.Secret()), RotatedAt: timestampOf(at),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("minting the inbound address of rule %s: %w", ruleID, err))
+	}
+	return changed > 0, nil
+}
+
+// FindByToken answers the rule an address opens.
+//
+// The lookup runs in the tenant the token names inside itself, which the caller set as the
+// transaction's scope. The hash covers the whole presented string, so a token rewritten to quote
+// another tenant hashes to something no row carries.
+func (r AutomationInboundRepository) FindByToken(
+	ctx context.Context, token integration.InboundToken,
+) (domain.Rule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.Rule{}, err
+	}
+
+	row, err := queries.FindAutomationRuleByInboundToken(ctx, r.hasher.Hash(token.Secret()))
+	if err != nil {
+		if IsNoRows(err) {
+			// No rule, and no hint as to why. What the route answers is the same for an unknown
+			// address, a rotated one and a rule that has been deleted (T-21).
+			return domain.Rule{}, shared.ErrNotFound.WithDetail("automation.inbound_not_found")
+		}
+		return domain.Rule{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the rule of an inbound address: %w", err))
+	}
+	return automationRuleFrom(sqlc.ListAutomationRulesRow(row))
 }

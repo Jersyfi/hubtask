@@ -23,7 +23,7 @@ func startedRun(t *testing.T, depth int) automation.Run {
 
 	run, err := automation.StartRun(automation.NewRunInput{
 		ID: runID, TenantID: tenantID, RuleID: ruleID, EventID: eventID,
-		CausationDepth: depth, Now: started,
+		Trigger: automation.TriggerEvent, CausationDepth: depth, Now: started,
 	})
 	if err != nil {
 		t.Fatalf("starting the run: %v", err)
@@ -52,10 +52,11 @@ func TestARunOpensAsRunning(t *testing.T) {
 }
 
 func TestARunWithoutItsIdentifiersIsAnInternalError(t *testing.T) {
-	for _, missing := range []string{"run", "tenant", "rule", "depth"} {
+	for _, missing := range []string{"run", "tenant", "rule", "depth", "trigger", "bad trigger"} {
 		t.Run(missing, func(t *testing.T) {
 			in := automation.NewRunInput{
-				ID: runID, TenantID: tenantID, RuleID: ruleID, Now: started,
+				ID: runID, TenantID: tenantID, RuleID: ruleID,
+				Trigger: automation.TriggerEvent, Now: started,
 			}
 			switch missing {
 			case "run":
@@ -66,6 +67,12 @@ func TestARunWithoutItsIdentifiersIsAnInternalError(t *testing.T) {
 				in.RuleID = ""
 			case "depth":
 				in.CausationDepth = -1
+			case "trigger":
+				// A run that does not know what started it. Internal, not a refusal: the six kinds
+				// are named by the producer that queued the job, never by a caller.
+				in.Trigger = ""
+			case "bad trigger":
+				in.Trigger = "CRON"
 			}
 
 			// Internal rather than a validation refusal: no caller sends these.

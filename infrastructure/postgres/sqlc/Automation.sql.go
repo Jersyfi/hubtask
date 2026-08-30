@@ -37,6 +37,60 @@ func (q *Queries) BumpRuleFailure(ctx context.Context, arg BumpRuleFailureParams
 	return failure_count, err
 }
 
+const claimDueRuleOccurrences = `-- name: ClaimDueRuleOccurrences :many
+DELETE FROM rule_occurrence o
+WHERE o.id IN (
+  SELECT due.id FROM rule_occurrence due
+  WHERE due.fire_at <= $1
+  ORDER BY due.fire_at
+  LIMIT $2
+)
+RETURNING o.id, o.rule_id, o.item_id, o.fire_at
+`
+
+type ClaimDueRuleOccurrencesParams struct {
+	Due      pgtype.Timestamptz
+	PageSize int32
+}
+
+type ClaimDueRuleOccurrencesRow struct {
+	ID     pgtype.UUID
+	RuleID pgtype.UUID
+	ItemID pgtype.UUID
+	FireAt pgtype.Timestamptz
+}
+
+// Takes the moments that have come and removes them in the same statement.
+//
+// Deleted rather than marked, because the row *is* the debt: once the run is queued the tenant no
+// longer owes it, and a status column would be a second place for "already fired" to be recorded.
+// The delete and the run's job commit together in the runner's transaction, so a process that dies
+// halfway leaves both.
+func (q *Queries) ClaimDueRuleOccurrences(ctx context.Context, arg ClaimDueRuleOccurrencesParams) ([]ClaimDueRuleOccurrencesRow, error) {
+	rows, err := q.db.Query(ctx, claimDueRuleOccurrences, arg.Due, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimDueRuleOccurrencesRow{}
+	for rows.Next() {
+		var i ClaimDueRuleOccurrencesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RuleID,
+			&i.ItemID,
+			&i.FireAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const clearRuleFailure = `-- name: ClearRuleFailure :exec
 UPDATE automation_rule
 SET failure_count = 0, updated_at = $1
@@ -111,31 +165,122 @@ func (q *Queries) DisableFailingRule(ctx context.Context, arg DisableFailingRule
 	return result.RowsAffected(), nil
 }
 
+const dueAutomationRules = `-- name: DueAutomationRules :many
+
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE deleted_at IS NULL AND enabled = true
+  AND next_run_at IS NOT NULL AND next_run_at <= $1
+ORDER BY next_run_at
+LIMIT $2
+`
+
+type DueAutomationRulesParams struct {
+	Due      pgtype.Timestamptz
+	PageSize int32
+}
+
+type DueAutomationRulesRow struct {
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
+}
+
+// The SCHEDULE trigger (G-08, decision 5 of milestone-0.5.0). The same three statements
+// `backup_schedule` has, and deliberately: this installation has one schedule engine, and a second
+// shape for reading a due moment would be a second engine in everything but name.
+// What one pass claims: this tenant's rules whose moment has come, oldest first.
+//
+// The tenant is row level security's, not a parameter (ADR-0010). `FOR UPDATE SKIP LOCKED` is
+// deliberately absent: the pass runs inside one tenant's own poller, of which there is one job, and
+// the poller holds a row lock on that job before it reads - so two passes for one tenant cannot
+// overlap, and a lock here would be a second answer to a question the queue has answered.
+func (q *Queries) DueAutomationRules(ctx context.Context, arg DueAutomationRulesParams) ([]DueAutomationRulesRow, error) {
+	rows, err := q.db.Query(ctx, dueAutomationRules, arg.Due, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DueAutomationRulesRow{}
+	for rows.Next() {
+		var i DueAutomationRulesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.Name,
+			&i.Enabled,
+			&i.RunAs,
+			&i.Trigger,
+			&i.Conditions,
+			&i.Actions,
+			&i.Throttle,
+			&i.OnError,
+			&i.FailureCount,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.Version,
+			&i.NextRunAt,
+			&i.InboundRotatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findAutomationRule = `-- name: FindAutomationRule :one
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
-       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE id = $1 AND deleted_at IS NULL
 `
 
 type FindAutomationRuleRow struct {
-	ID           pgtype.UUID
-	ScopeType    string
-	ScopeID      pgtype.UUID
-	Name         string
-	Enabled      bool
-	RunAs        pgtype.UUID
-	Trigger      []byte
-	Conditions   []byte
-	Actions      []byte
-	Throttle     []byte
-	OnError      string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
 }
 
 func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindAutomationRuleRow, error) {
@@ -159,13 +304,76 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.Version,
+		&i.NextRunAt,
+		&i.InboundRotatedAt,
+	)
+	return i, err
+}
+
+const findAutomationRuleByInboundToken = `-- name: FindAutomationRuleByInboundToken :one
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE inbound_token_hash = $1 AND deleted_at IS NULL
+`
+
+type FindAutomationRuleByInboundTokenRow struct {
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
+}
+
+// What the unauthenticated route asks. The tenant is the transaction's, set from the tenant the
+// token names inside itself - the only honest source of one on a route with no authentication
+// (multi-tenancy.md §2.2). The hash is unique across the installation, so a token rewritten to
+// quote another tenant matches nothing.
+func (q *Queries) FindAutomationRuleByInboundToken(ctx context.Context, tokenHash []byte) (FindAutomationRuleByInboundTokenRow, error) {
+	row := q.db.QueryRow(ctx, findAutomationRuleByInboundToken, tokenHash)
+	var i FindAutomationRuleByInboundTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.ScopeType,
+		&i.ScopeID,
+		&i.Name,
+		&i.Enabled,
+		&i.RunAs,
+		&i.Trigger,
+		&i.Conditions,
+		&i.Actions,
+		&i.Throttle,
+		&i.OnError,
+		&i.FailureCount,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.Version,
+		&i.NextRunAt,
+		&i.InboundRotatedAt,
 	)
 	return i, err
 }
 
 const findRuleRun = `-- name: FindRuleRun :one
-SELECT id, rule_id, event_id, status, condition_results, action_results,
-       error_code, started_at, finished_at, causation_depth
+SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
+       condition_results, action_results, error_code, started_at, finished_at, causation_depth
 FROM rule_run
 WHERE id = $1
 `
@@ -174,6 +382,9 @@ type FindRuleRunRow struct {
 	ID               pgtype.UUID
 	RuleID           pgtype.UUID
 	EventID          pgtype.UUID
+	Trigger          string
+	TriggeredBy      pgtype.UUID
+	SubjectID        pgtype.UUID
 	Status           string
 	ConditionResults []byte
 	ActionResults    []byte
@@ -190,6 +401,9 @@ func (q *Queries) FindRuleRun(ctx context.Context, id pgtype.UUID) (FindRuleRunR
 		&i.ID,
 		&i.RuleID,
 		&i.EventID,
+		&i.Trigger,
+		&i.TriggeredBy,
+		&i.SubjectID,
 		&i.Status,
 		&i.ConditionResults,
 		&i.ActionResults,
@@ -233,16 +447,45 @@ func (q *Queries) FinishRuleRun(ctx context.Context, arg FinishRuleRunParams) er
 	return err
 }
 
+const forgetRuleOccurrence = `-- name: ForgetRuleOccurrence :exec
+DELETE FROM rule_occurrence
+WHERE rule_id = $1 AND item_id = $2
+`
+
+type ForgetRuleOccurrenceParams struct {
+	RuleID pgtype.UUID
+	ItemID pgtype.UUID
+}
+
+// The anchor was cleared: this rule owes this entry nothing.
+func (q *Queries) ForgetRuleOccurrence(ctx context.Context, arg ForgetRuleOccurrenceParams) error {
+	_, err := q.db.Exec(ctx, forgetRuleOccurrence, arg.RuleID, arg.ItemID)
+	return err
+}
+
+const forgetRuleOccurrencesOfItem = `-- name: ForgetRuleOccurrencesOfItem :exec
+DELETE FROM rule_occurrence WHERE item_id = $1
+`
+
+// The entry went. Every rule's moment for it goes with it - the foreign key would do this on a
+// purge, and this is the same statement for the softer endings a purge never reaches.
+func (q *Queries) ForgetRuleOccurrencesOfItem(ctx context.Context, itemID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, forgetRuleOccurrencesOfItem, itemID)
+	return err
+}
+
 const insertAutomationRule = `-- name: InsertAutomationRule :exec
 
 INSERT INTO automation_rule (
   id, tenant_id, scope_type, scope_id, name, enabled, run_as,
-  trigger, conditions, actions, throttle, on_error, created_by, created_at, updated_at, version
+  trigger, conditions, actions, throttle, on_error, created_by, created_at, updated_at, version,
+  next_run_at
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8, $9, $10,
-  $11, $12, $13, $13, 1
+  $11, $12, $13, $13, 1,
+  $14
 )
 `
 
@@ -260,6 +503,7 @@ type InsertAutomationRuleParams struct {
 	OnError    string
 	CreatedBy  pgtype.UUID
 	CreatedAt  pgtype.Timestamptz
+	NextRunAt  pgtype.Timestamptz
 }
 
 // The automation rules (G-05, automation.md §1). The table has carried the whole model since
@@ -290,6 +534,7 @@ func (q *Queries) InsertAutomationRule(ctx context.Context, arg InsertAutomation
 		arg.OnError,
 		arg.CreatedBy,
 		arg.CreatedAt,
+		arg.NextRunAt,
 	)
 	return err
 }
@@ -297,12 +542,13 @@ func (q *Queries) InsertAutomationRule(ctx context.Context, arg InsertAutomation
 const insertRuleRun = `-- name: InsertRuleRun :exec
 
 INSERT INTO rule_run (
-  id, tenant_id, rule_id, event_id, status, condition_results, action_results,
-  started_at, causation_depth
+  id, tenant_id, rule_id, event_id, trigger, triggered_by, subject_id,
+  status, condition_results, action_results, started_at, causation_depth
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  $7, $8
+  $7, $8, $9,
+  $10, $11
 )
 `
 
@@ -310,6 +556,9 @@ type InsertRuleRunParams struct {
 	ID               pgtype.UUID
 	RuleID           pgtype.UUID
 	EventID          pgtype.UUID
+	Trigger          string
+	TriggeredBy      pgtype.UUID
+	SubjectID        pgtype.UUID
 	Status           string
 	ConditionResults []byte
 	ActionResults    []byte
@@ -329,6 +578,9 @@ func (q *Queries) InsertRuleRun(ctx context.Context, arg InsertRuleRunParams) er
 		arg.ID,
 		arg.RuleID,
 		arg.EventID,
+		arg.Trigger,
+		arg.TriggeredBy,
+		arg.SubjectID,
 		arg.Status,
 		arg.ConditionResults,
 		arg.ActionResults,
@@ -340,7 +592,8 @@ func (q *Queries) InsertRuleRun(ctx context.Context, arg InsertRuleRunParams) er
 
 const listAutomationRules = `-- name: ListAutomationRules :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
-       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND ($1::boolean IS NULL OR enabled = $1::boolean)
@@ -356,23 +609,25 @@ type ListAutomationRulesParams struct {
 }
 
 type ListAutomationRulesRow struct {
-	ID           pgtype.UUID
-	ScopeType    string
-	ScopeID      pgtype.UUID
-	Name         string
-	Enabled      bool
-	RunAs        pgtype.UUID
-	Trigger      []byte
-	Conditions   []byte
-	Actions      []byte
-	Throttle     []byte
-	OnError      string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
 }
 
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the creation order.
@@ -407,6 +662,8 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.Version,
+			&i.NextRunAt,
+			&i.InboundRotatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -419,19 +676,21 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 }
 
 const listRuleRuns = `-- name: ListRuleRuns :many
-SELECT id, rule_id, event_id, status, condition_results, action_results,
-       error_code, started_at, finished_at, causation_depth
+SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
+       condition_results, action_results, error_code, started_at, finished_at, causation_depth
 FROM rule_run
 WHERE ($1::uuid IS NULL OR rule_id = $1::uuid)
   AND ($2::text IS NULL OR status = $2::text)
-  AND ($3::uuid IS NULL OR id < $3::uuid)
+  AND ($3::text IS NULL OR trigger = $3::text)
+  AND ($4::uuid IS NULL OR id < $4::uuid)
 ORDER BY id DESC
-LIMIT $4
+LIMIT $5
 `
 
 type ListRuleRunsParams struct {
 	RuleID   pgtype.UUID
 	Status   *string
+	Trigger  *string
 	After    pgtype.UUID
 	PageSize int32
 }
@@ -440,6 +699,9 @@ type ListRuleRunsRow struct {
 	ID               pgtype.UUID
 	RuleID           pgtype.UUID
 	EventID          pgtype.UUID
+	Trigger          string
+	TriggeredBy      pgtype.UUID
+	SubjectID        pgtype.UUID
 	Status           string
 	ConditionResults []byte
 	ActionResults    []byte
@@ -450,12 +712,13 @@ type ListRuleRunsRow struct {
 }
 
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the order runs happened
-// in. The two filters are nullable arguments rather than four statements, because a second statement
-// differing in one predicate is a second place for a predicate to be forgotten.
+// in. The three filters are nullable arguments rather than eight statements, because a second
+// statement differing in one predicate is a second place for a predicate to be forgotten.
 func (q *Queries) ListRuleRuns(ctx context.Context, arg ListRuleRunsParams) ([]ListRuleRunsRow, error) {
 	rows, err := q.db.Query(ctx, listRuleRuns,
 		arg.RuleID,
 		arg.Status,
+		arg.Trigger,
 		arg.After,
 		arg.PageSize,
 	)
@@ -470,6 +733,9 @@ func (q *Queries) ListRuleRuns(ctx context.Context, arg ListRuleRunsParams) ([]L
 			&i.ID,
 			&i.RuleID,
 			&i.EventID,
+			&i.Trigger,
+			&i.TriggeredBy,
+			&i.SubjectID,
 			&i.Status,
 			&i.ConditionResults,
 			&i.ActionResults,
@@ -488,9 +754,114 @@ func (q *Queries) ListRuleRuns(ctx context.Context, arg ListRuleRunsParams) ([]L
 	return items, nil
 }
 
+const nextDueAutomationRule = `-- name: NextDueAutomationRule :one
+SELECT min(next_run_at)::timestamptz AS next_run_at
+FROM automation_rule
+WHERE deleted_at IS NULL AND enabled = true AND next_run_at IS NOT NULL
+`
+
+// The earliest moment this tenant owes anything, and NULL when it owes nothing - which is what
+// lets the poller finish instead of spinning. `max`/`min` over the partial index rather than a
+// LIMIT 1 with an ORDER BY, so an empty result is a row with NULL rather than no row at all.
+func (q *Queries) NextDueAutomationRule(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, nextDueAutomationRule)
+	var next_run_at pgtype.Timestamptz
+	err := row.Scan(&next_run_at)
+	return next_run_at, err
+}
+
+const nextDueRuleOccurrence = `-- name: NextDueRuleOccurrence :one
+SELECT min(fire_at)::timestamptz AS fire_at FROM rule_occurrence
+`
+
+// The earliest moment this tenant owes an occurrence, and NULL when it owes none.
+func (q *Queries) NextDueRuleOccurrence(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, nextDueRuleOccurrence)
+	var fire_at pgtype.Timestamptz
+	err := row.Scan(&fire_at)
+	return fire_at, err
+}
+
+const rulesByTriggerKind = `-- name: RulesByTriggerKind :many
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE deleted_at IS NULL
+  AND enabled = true
+  AND trigger ->> 'kind' = $1::text
+ORDER BY id
+`
+
+type RulesByTriggerKindRow struct {
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
+}
+
+// The enabled rules of one trigger kind, which is what a producer that is not the event dispatcher
+// asks. The scope is not in the predicate, for RulesForEventType's reason: the narrowing is the
+// producer's, against what it can resolve.
+func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesByTriggerKindRow, error) {
+	rows, err := q.db.Query(ctx, rulesByTriggerKind, kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RulesByTriggerKindRow{}
+	for rows.Next() {
+		var i RulesByTriggerKindRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.Name,
+			&i.Enabled,
+			&i.RunAs,
+			&i.Trigger,
+			&i.Conditions,
+			&i.Actions,
+			&i.Throttle,
+			&i.OnError,
+			&i.FailureCount,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.Version,
+			&i.NextRunAt,
+			&i.InboundRotatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rulesForEventType = `-- name: RulesForEventType :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
-       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -500,23 +871,25 @@ ORDER BY id
 `
 
 type RulesForEventTypeRow struct {
-	ID           pgtype.UUID
-	ScopeType    string
-	ScopeID      pgtype.UUID
-	Name         string
-	Enabled      bool
-	RunAs        pgtype.UUID
-	Trigger      []byte
-	Conditions   []byte
-	Actions      []byte
-	Throttle     []byte
-	OnError      string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
 }
 
 // What the subscriber asks per event: the enabled rules whose trigger is this event type.
@@ -554,6 +927,8 @@ func (q *Queries) RulesForEventType(ctx context.Context, eventType string) ([]Ru
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.Version,
+			&i.NextRunAt,
+			&i.InboundRotatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -603,6 +978,57 @@ func (q *Queries) SetAutomationRuleEnabled(ctx context.Context, arg SetAutomatio
 	return result.RowsAffected(), nil
 }
 
+const setAutomationRuleInboundToken = `-- name: SetAutomationRuleInboundToken :execrows
+
+UPDATE automation_rule
+SET inbound_token_hash = $1,
+    inbound_rotated_at = $2
+WHERE id = $3 AND deleted_at IS NULL
+`
+
+type SetAutomationRuleInboundTokenParams struct {
+	TokenHash []byte
+	RotatedAt pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// The INBOUND_WEBHOOK trigger's address (G-08, D-08's credential discipline).
+// Mints or rotates the address. One statement, so the old hash and the new one never coexist:
+// rotating *is* revoking, and a window in which both open the same rule would be the one thing
+// "revocable by rotating" must not mean.
+//
+// The version is deliberately untouched. The address is a credential beside the rule rather than
+// part of its definition, and bumping the version would make a rotation look like an edit to a
+// client holding an optimistic lock.
+func (q *Queries) SetAutomationRuleInboundToken(ctx context.Context, arg SetAutomationRuleInboundTokenParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setAutomationRuleInboundToken, arg.TokenHash, arg.RotatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setAutomationRuleNextRun = `-- name: SetAutomationRuleNextRun :exec
+UPDATE automation_rule
+SET next_run_at = $1
+WHERE id = $2 AND deleted_at IS NULL
+`
+
+type SetAutomationRuleNextRunParams struct {
+	NextRunAt pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// Moves one rule on to its next moment.
+//
+// The version is deliberately untouched. Nobody read this rule in order to advance it - a pass did,
+// because a moment arrived - and bumping the version would make every occurrence look like an edit
+// to a client holding an optimistic lock.
+func (q *Queries) SetAutomationRuleNextRun(ctx context.Context, arg SetAutomationRuleNextRunParams) error {
+	_, err := q.db.Exec(ctx, setAutomationRuleNextRun, arg.NextRunAt, arg.ID)
+	return err
+}
+
 const softDeleteAutomationRule = `-- name: SoftDeleteAutomationRule :execrows
 UPDATE automation_rule
 SET deleted_at = $1,
@@ -642,8 +1068,11 @@ SET scope_type = $1,
     throttle   = $8,
     on_error   = $9,
     updated_at = $10,
+    -- An edit may change the recurrence rule, so the moment is recomputed with the definition
+    -- rather than left pointing at an occurrence of a rule that no longer exists.
+    next_run_at = $11,
     version    = version + 1
-WHERE id = $11 AND deleted_at IS NULL AND version = $12
+WHERE id = $12 AND deleted_at IS NULL AND version = $13
 `
 
 type UpdateAutomationRuleParams struct {
@@ -657,6 +1086,7 @@ type UpdateAutomationRuleParams struct {
 	Throttle        []byte
 	OnError         string
 	UpdatedAt       pgtype.Timestamptz
+	NextRunAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
@@ -679,6 +1109,7 @@ func (q *Queries) UpdateAutomationRule(ctx context.Context, arg UpdateAutomation
 		arg.Throttle,
 		arg.OnError,
 		arg.UpdatedAt,
+		arg.NextRunAt,
 		arg.ID,
 		arg.ExpectedVersion,
 	)
@@ -686,4 +1117,39 @@ func (q *Queries) UpdateAutomationRule(ctx context.Context, arg UpdateAutomation
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const upsertRuleOccurrence = `-- name: UpsertRuleOccurrence :exec
+
+INSERT INTO rule_occurrence (id, tenant_id, rule_id, item_id, fire_at)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4
+)
+ON CONFLICT (tenant_id, rule_id, item_id) DO UPDATE SET fire_at = EXCLUDED.fire_at
+`
+
+type UpsertRuleOccurrenceParams struct {
+	ID     pgtype.UUID
+	RuleID pgtype.UUID
+	ItemID pgtype.UUID
+	FireAt pgtype.Timestamptz
+}
+
+// The RELATIVE_DATE trigger's occurrences (G-08, automation.md §1.1). D-02's shape: a row per
+// (rule, entry) saying when this rule owes that entry a run, moved when the anchor moves and gone
+// when the anchor is cleared.
+// Writes or moves the moment one rule owes for one entry.
+//
+// An upsert rather than a delete-then-insert, because "the due date moved" is one fact: two
+// statements would leave a window in which the tenant owed nothing, and a pass committing in that
+// window would answer the wrong next moment.
+func (q *Queries) UpsertRuleOccurrence(ctx context.Context, arg UpsertRuleOccurrenceParams) error {
+	_, err := q.db.Exec(ctx, upsertRuleOccurrence,
+		arg.ID,
+		arg.RuleID,
+		arg.ItemID,
+		arg.FireAt,
+	)
+	return err
 }

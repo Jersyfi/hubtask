@@ -502,7 +502,12 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"sync_device":  "a device registration carries a push token, and §8.4's reasoning covers it",
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being
 	// replayed without firing anything, which is a record of things that did not happen.
-	"rule_run":          "§8.4 - no automation fires during a restore, so its run log would be fiction",
+	"rule_run": "§8.4 - no automation fires during a restore, so its run log would be fiction",
+	// The moments the relative-date rules owe (G-08). Derived from the entries and the rules, both
+	// of which the archive carries, and every one of them is a moment in the *source* system's
+	// future - a restore months later would owe a night that has long passed. The rules themselves
+	// are restored; what they owe is worked out again from the anchors, as it always is.
+	"rule_occurrence":   "§8.4 - a debt owed at a moment in the source system's future; the rules are restored, what they owe is recomputed",
 	"webhook_delivery":  "§8.4 - nothing is re-delivered",
 	"outbox_event":      "§8.4 - the archive's outbox is not imported",
 	"event_consumption": "the outbox's companion; without the outbox it says nothing",

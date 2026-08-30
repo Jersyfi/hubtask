@@ -51,11 +51,123 @@ graph LR
 | Kind | Example | Note |
 |---|---|---|
 | `EVENT` | Any domain event (`item.created`, `item.moved`, `comment.created`, …) | Field filters possible through `changed_fields` |
-| `SCHEDULE` | Cron or RRULE, with a time zone | e.g. "weekly report Mondays at 08:00" |
+| `SCHEDULE` | RRULE, with a time zone | e.g. "weekly report Mondays at 08:00". Cron notation is sugar for later, not a second engine |
 | `RELATIVE_DATE` | "24 h before the due date", "3 days after creation" | Internally produces occurrence jobs |
 | `INBOUND_WEBHOOK` | A dedicated, token-protected URL per rule | The payload is available as `payload` in CEL |
 | `MANUAL` | A button, or a call through the API or an MCP tool | For "on demand" flows |
 | `JUMBLE_ENTRY` | A new arrival in the jumble | The basis for automatic conversion |
+
+**Five of the six produce into one engine; none of them is a second execution path** (G-08). What a
+trigger decides is *when* a run starts and what makes it one occasion; everything after that — the
+loop bound, the throttle, the conditions, the actions and the run log — is §2's, identically for all
+of them. The run records which kind started it, on the row rather than resolved from the rule at
+read time, because a rule can be edited from one kind into another and a log that resolved it later
+would rewrite its own history.
+
+| Kind | What starts a run | What makes it one occasion |
+|---|---|---|
+| `EVENT` | The outbox dispatcher, through the matching subscriber | The event |
+| `SCHEDULE` | The tenant's own poller, when the stored `next_run_at` has come | The occurrence's instant |
+| `RELATIVE_DATE` | The same poller, when a stored occurrence has come | The occurrence row |
+| `MANUAL` | `POST /automation/rules/{id}:trigger` | The run, so two presses are two runs |
+| `INBOUND_WEBHOOK` | `POST /automation/inbound/{token}` | The delivery, so two posts are two runs |
+| `JUMBLE_ENTRY` | An arrival in the jumble (G-10) | The entry |
+
+**The occasion is not always the event, and that matters.** §2's idempotency key is
+`(rule_id, event_id, action_index)` because when it was written an event was the only way a run
+could start. Five of the six have no event, and a key derived from an absent one would be *the same
+key for every run of that rule for ever* — the second press of a manual trigger would find the
+first's answer stored and silently do nothing. The key names the run's occasion, and the table above
+is what each kind's occasion is.
+
+#### `SCHEDULE`
+
+RRULE through the one schedule engine this installation has ([ADR-0008](../adr/ADR-0008-jobs-and-scheduling.md),
+D-04's expander with its golden DST expectations, extended by G-08 to a rule firing at 03:00 through
+both transitions). `DTSTART` is the rule's own creation instant, so `FREQ=WEEKLY` written on a
+Tuesday means Tuesdays.
+
+The moment is **stored** on the rule (`next_run_at`) rather than derived on every pass, for the
+reason `backup_schedule` stores one: a poller that re-expanded every rule would pay a library call
+for every rule that is not due, and the expansion is also where a rule this installation cannot read
+is refused — to its author, at the write, rather than at three in the morning.
+
+**Nothing enumerates tenants**, so the leader never sees a tenant's schedule
+([multi-tenancy.md](./multi-tenancy.md) §2.1). The write that makes something owed seeds that
+tenant's poller — for a rule that is the *enable*, since a rule is written switched off — and each
+round reschedules itself to the moment the tenant next owes anything. A tenant that owes nothing
+lets its poller finish; the next write brings it back, and a quiet tenant costs nothing.
+
+Two behaviours are decisions rather than details. **Enabling recomputes from now**: a schedule that
+has been off for a week owes nothing for that week, because "from now on, at three in the morning"
+is what switching a rule on means. And a backlog produces **one catch-up run, then forward** — a
+worker down over a weekend leaves three missed nights on a nightly rule, and firing three runs in a
+row on Monday morning is not what its author asked for.
+
+#### `RELATIVE_DATE`
+
+D-02's shape rather than a new one: a row per (rule, entry) saying when that rule owes that entry a
+run — the `reminder` table's fact with a rule in place of a person.
+
+**The recompute is the substance.** A moment measured from a due date moves whenever the due date
+does, and a system that worked it out at firing time would have to look at every entry in the
+workspace to find out. So a subscriber keeps the row in step with the anchor, and a **cleared
+anchor owes nothing** — as does an entry in the trash and an entry that is gone.
+
+One poller answers both debts and sleeps until whichever comes first. "What does this tenant owe
+now" has one answer, and two jobs per tenant would be two rows, two leases and two wake-ups for one
+question.
+
+**A rule takes effect for what happens after it is switched on.** Nothing walks the entries a rule
+would have matched before it existed: that walk is a scan of the workspace, and a subscriber inside
+the dispatcher's transaction is the worst possible place for one.
+
+#### `MANUAL`
+
+The smallest of the five, and the only kind a *person* pulls: a registered use case behind
+`:trigger`, the automation permission at the rule's scope, and a run that records who pressed it.
+
+The permission is the **plain** one, not the composition check writing a rule needs (§2.1). Pressing
+the button changes nothing about what the rule may do — that was decided when it was written and is
+decided again, per action, when it runs. Asking the writer's question here would mean somebody who
+may manage this rule could not run the rule they are looking at.
+
+It queues rather than runs inline. The actions are writes performed as the `run_as` account, and a
+request holding a connection open while a rule restructures a hub would let its own timeout decide
+how much of the rule happened; the `202` carries the identifier the run will have.
+
+#### `INBOUND_WEBHOOK`
+
+A token-protected URL per rule, with D-08's credential discipline: 32 bytes of entropy, hashed with
+the installation secret under its own purpose label, answered **once**, and prefixed `hbt_hook_` so
+that secret scanning finds a leaked URL before somebody else does.
+
+**Rotating is revoking.** There is exactly one address per rule and the replacement happens in a
+single statement, so the old token and the new one never both open it. Revoking without a
+replacement is switching the rule off, which is the honest way to stop a rule acting.
+
+**The token names its own tenant**, in clear, inside itself — for the calendar feed's reason:
+`automation_rule` is behind row level security, so the lookup needs a tenant context before it can
+happen, and a route with no authentication has no other honest source of one
+([multi-tenancy.md](./multi-tenancy.md) §2.2). The hash covers the whole presented string, tenant
+half included, so a token rewritten to quote another tenant matches nothing at all.
+
+**It authenticates the rule, never a person.** There is no account behind it, the run carries no
+actor — naming one would invent an author for something nobody did — and it can do exactly one
+thing: start that one rule's run. What the run may then do is its `run_as` account's business,
+checked per action exactly as for every other trigger.
+
+The payload enters the CEL environment as `payload`, as **data**: it is never rendered as an
+instruction to anything, which is the discipline [ai-first.md](./ai-first.md) already rules for the
+AI that arrives in 0.7.0. It is bounded twice, and the two bounds are different numbers on purpose —
+the request middleware stops anything large being *transferred*, and the route stops anything large
+being *evaluated*, because this document becomes a CEL activation. A body that is not a JSON object
+is refused rather than coerced: `payload.order_id` has to mean something, and a top-level array has
+no names at all.
+
+Every reason not to serve answers the same `404` with the same body — an unknown token, a rotated
+one, a deleted rule, a switched-off rule and a rule whose trigger has changed. Distinguishing them
+would answer questions for whoever is trying tokens (T-21).
 
 ### 1.2 Conditions
 
@@ -266,7 +378,9 @@ is working).
 | An action naming `SEND_WEBHOOK`, `HTTP_REQUEST`, `WAIT`, `BRANCH`, `STOP`, or an AI kind | Refused by name, with a code that says "not built yet" rather than "no such action" — the difference is whether its author goes looking for a typo or for the milestone |
 | A parameter the action's use case does not declare | Refused, exactly as the call itself would refuse it (C-07). A rule saved with a misspelled `parent_id` fails at a moment nobody is watching |
 | A **required** parameter the rule does not carry | Accepted. A rule supplies some parameters and the run supplies the rest — the entry an event is about is not a value a rule can carry — so demanding them at write time would refuse every correct rule. The run is where the whole input exists, and the registry validates it in full there |
-| A **trigger** of any of the six kinds | Accepted, with the fields its own kind needs and no others. Only `EVENT` has an engine in this release; the rest are stored and, like every newly written rule, switched off |
+| A **trigger** of any of the six kinds | Accepted, with the fields its own kind needs and no others. Five of the six have an engine (G-08); `JUMBLE_ENTRY` is stored and waits for the jumble (G-10), and every newly written rule is switched off whatever its kind |
+| A `SCHEDULE` whose **recurrence** this installation cannot expand | Refused at the write, with the field named. It would otherwise fail at a moment nobody is watching. A rule whose recurrence is merely *exhausted* is accepted and stored with no next moment: it may be perfectly good and simply over |
+| An **address** on a rule whose trigger is not `INBOUND_WEBHOOK` | Refused by name. A credential that opens nothing, handed out as though it worked, is the same failure as a condition that is stored and ignored |
 
 A rule is created **switched off**, and enabling it is its own call with its own audit entry.
 Writing what a rule would do and letting it loose on the workspace are two decisions, and one that

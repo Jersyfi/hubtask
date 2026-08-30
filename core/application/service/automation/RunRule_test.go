@@ -229,7 +229,10 @@ func engineActor() appshared.ActorContext {
 }
 
 func command(depth int) Command {
-	return Command{RuleID: ruleID, EventID: itemEvent().ID, CausationDepth: depth}
+	return Command{
+		RuleID: ruleID, Trigger: domain.TriggerEvent,
+		EventID: itemEvent().ID, CausationDepth: depth,
+	}
 }
 
 // The acceptance criterion: an event matching an enabled rule produces a run whose condition
@@ -696,5 +699,153 @@ func TestARuleWithConditionsNeedsAnEngine(t *testing.T) {
 
 	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); !errors.Is(err, shared.ErrInternal) {
 		t.Fatalf("error %v, want ErrInternal", err)
+	}
+}
+
+// G-08. The run records which of the six triggers produced it, and who pulled it when a person did.
+//
+// On the run rather than resolved from the rule at read time: a rule can be edited from one kind
+// into another, and a log that resolved the kind when somebody opened it would rewrite its own
+// history.
+func TestARunRecordsWhatStartedItAndWhoPulledIt(t *testing.T) {
+	person := shared.ID("01936f2a-7c1e-7000-8000-00000000ac01")
+	rule := enabledRule()
+	rule.Trigger = domain.Trigger{Kind: domain.TriggerManual}
+	h := newEngine(t, rule)
+
+	cmd := Command{
+		RuleID: ruleID, Trigger: domain.TriggerManual,
+		TriggeredBy: person, Occasion: "run/one",
+	}
+	run, err := h.engine.Execute(context.Background(), engineActor(), cmd)
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Trigger != domain.TriggerManual {
+		t.Errorf("the run says %q started it, want MANUAL", run.Trigger)
+	}
+	if run.TriggeredBy != person {
+		t.Errorf("triggered by %q, want the person who pressed it", run.TriggeredBy)
+	}
+	if !run.EventID.IsZero() {
+		t.Errorf("a manual run named event %q", run.EventID)
+	}
+	if h.runs.last().Trigger != domain.TriggerManual {
+		t.Error("the stored run does not say what started it")
+	}
+}
+
+// A job outlives the shape it was written for. A schedule pass queues a run, somebody edits the
+// rule into an `EVENT` rule, and the job arrives: the producer no longer speaks for the rule, so
+// nothing runs and nothing is recorded - a run against a trigger the rule no longer has would be a
+// log entry for something that never happened.
+func TestAJobWhoseTriggerTheRuleNoLongerHasDoesNothing(t *testing.T) {
+	rule := enabledRule()
+	rule.Trigger = domain.Trigger{Kind: domain.TriggerEvent, EventType: event.ItemCreated}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), Command{
+		RuleID: ruleID, Trigger: domain.TriggerSchedule, Occasion: "2026-08-30T03:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != "" {
+		t.Errorf("status %q, want no run at all", run.Status)
+	}
+	if len(h.runs.order) != 0 {
+		t.Errorf("%d runs recorded, want none", len(h.runs.order))
+	}
+	if len(h.dispatcher.calls) != 0 {
+		t.Errorf("%d actions performed, want none", len(h.dispatcher.calls))
+	}
+}
+
+// The idempotency key names the occasion rather than the event, and this is why: five of the six
+// triggers have no event, so a key derived from a zero event identifier would be the *same* key for
+// every run of that rule for ever - the second press of a manual trigger would find the first's
+// answer stored and do nothing at all.
+func TestTwoOccasionsOfOneRuleDoNotShareAnIdempotencyKey(t *testing.T) {
+	rule := enabledRule()
+	rule.Trigger = domain.Trigger{Kind: domain.TriggerManual}
+	rule.Actions = []domain.Action{{Kind: "ADD_LABEL", Params: map[string]any{"label_id": "x"}}}
+	h := newEngine(t, rule)
+
+	keys := map[string]bool{}
+	for _, occasion := range []string{"run/one", "run/two"} {
+		run, err := h.engine.Execute(context.Background(), engineActor(), Command{
+			RuleID: ruleID, Trigger: domain.TriggerManual, Occasion: occasion,
+		})
+		if err != nil {
+			t.Fatalf("running %s: %v", occasion, err)
+		}
+		if len(run.ActionResults) != 1 {
+			t.Fatalf("%d action results for %s, want one", len(run.ActionResults), occasion)
+		}
+		keys[run.ActionResults[0].IdempotencyKey] = true
+	}
+
+	if len(keys) != 2 {
+		t.Errorf("two presses shared one key %v - the second would silently do nothing", keys)
+	}
+	if len(h.dispatcher.calls) != 2 {
+		t.Errorf("%d actions performed, want one per press", len(h.dispatcher.calls))
+	}
+}
+
+// The engine's own guarantees do not belong to `EVENT`. Whatever started a run, the depth bound and
+// the throttle answer the same way and the run is recorded either way - which is what "each
+// producing into the engine G-07 built rather than a second execution path" means (G-08).
+func TestEveryTriggerCarriesTheDepthBoundAndTheThrottle(t *testing.T) {
+	kinds := []domain.TriggerKind{
+		domain.TriggerEvent, domain.TriggerSchedule, domain.TriggerRelativeDate,
+		domain.TriggerInboundWebhook, domain.TriggerManual, domain.TriggerJumbleEntry,
+	}
+	for _, kind := range kinds {
+		t.Run(string(kind), func(t *testing.T) {
+			rule := enabledRule()
+			rule.Trigger = domain.Trigger{Kind: kind}
+			if kind == domain.TriggerEvent {
+				rule.Trigger.EventType = event.ItemCreated
+			}
+			cmd := Command{RuleID: ruleID, Trigger: kind, Occasion: "occasion/" + string(kind)}
+
+			t.Run("depth", func(t *testing.T) {
+				h := newEngine(t, rule)
+				deep := cmd
+				deep.CausationDepth = domain.MaxCausationDepth
+				run, err := h.engine.Execute(context.Background(), engineActor(), deep)
+				if err != nil {
+					t.Fatalf("running: %v", err)
+				}
+				if run.Status != domain.RunAbortedLoop {
+					t.Errorf("status %q at the depth limit, want ABORTED_LOOP", run.Status)
+				}
+				if len(h.dispatcher.calls) != 0 {
+					t.Error("a run at the limit acted")
+				}
+				if h.runs.last().Trigger != kind {
+					t.Errorf("the aborted run says %q started it", h.runs.last().Trigger)
+				}
+			})
+
+			t.Run("throttle", func(t *testing.T) {
+				throttled := rule
+				throttled.Throttle = domain.Throttle{MaxRunsPerHour: 1}
+				h := newEngine(t, throttled)
+				h.runs.since = 2
+
+				run, err := h.engine.Execute(context.Background(), engineActor(), cmd)
+				if err != nil {
+					t.Fatalf("running: %v", err)
+				}
+				if run.Status != domain.RunThrottled {
+					t.Errorf("status %q past the bound, want THROTTLED", run.Status)
+				}
+				if len(h.dispatcher.calls) != 0 {
+					t.Error("a throttled run acted")
+				}
+			})
+		})
 	}
 }

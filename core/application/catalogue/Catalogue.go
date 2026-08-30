@@ -182,6 +182,8 @@ func Descriptors() []usecase.Descriptor {
 		automationservice.EnableRule{}.Descriptor(),
 		automationservice.DisableRule{}.Descriptor(),
 		automationservice.DeleteRule{}.Descriptor(),
+		automationservice.TriggerRuleManually{}.Descriptor(),
+		automationservice.RotateInboundTrigger{}.Descriptor(),
 		automationservice.ListRuleRuns{}.Descriptor(),
 		automationservice.GetRuleRun{}.Descriptor(),
 	}

@@ -33,7 +33,15 @@ type eventValues struct {
 	envelope event.Envelope
 	// now is the run's single reading, passed rather than taken: an expression evaluated twice in
 	// one run sees one instant (automation.md §1.2).
-	now        time.Time
+	now time.Time
+	// subject is the entry a run that no event started is about - a RELATIVE_DATE run measured
+	// from one entry's due date (G-08). The envelope's subject wins where there is one, so an
+	// event-triggered run is unaffected by this field existing.
+	subject shared.ID
+	// payload is the body an inbound delivery carried. Untrusted from end to end: it is read as
+	// *data* under one name and never rendered as an instruction to anything (ai-first.md §4,
+	// automation.md §1.1).
+	payload    map[string]any
 	entries    Entries
 	containers Containers
 }
@@ -51,7 +59,10 @@ func (v eventValues) Resolve(ctx context.Context, name string) (any, bool, error
 		// The body an inbound webhook delivered. Empty for an event-triggered run, which is what
 		// an absent document means rather than a failure - a condition written for one trigger and
 		// used on another asks about something that is not there.
-		return map[string]any{}, true, nil
+		if v.payload == nil {
+			return map[string]any{}, true, nil
+		}
+		return v.payload, true, nil
 	case condition.VarTenant:
 		// Declared and empty, as the retention pass answers it: the workspace's settings are not
 		// something this path reads, and an empty document lets a condition ask without failing.
@@ -61,7 +72,10 @@ func (v eventValues) Resolve(ctx context.Context, name string) (any, bool, error
 	case condition.VarParent:
 		return v.parent(ctx)
 	case condition.VarCollection:
-		return v.container(ctx, collectionOf(v.envelope))
+		if id := collectionOf(v.envelope); !id.IsZero() {
+			return v.container(ctx, id)
+		}
+		return v.collectionOfSubject(ctx)
 	case condition.VarHub:
 		return v.hub(ctx)
 	default:
@@ -69,8 +83,18 @@ func (v eventValues) Resolve(ctx context.Context, name string) (any, bool, error
 	}
 }
 
+// entry is the entry the run is about: the event's subject where there is an event, and the
+// command's subject where there is not. One place answers it, so `item`, `parent`, `collection` and
+// `hub` cannot disagree about which entry a run concerns.
+func (v eventValues) entry() shared.ID {
+	if id := itemOf(v.envelope); !id.IsZero() {
+		return id
+	}
+	return v.subject
+}
+
 func (v eventValues) item(ctx context.Context) (any, bool, error) {
-	id := itemOf(v.envelope)
+	id := v.entry()
 	if id.IsZero() || v.entries == nil {
 		return nil, false, nil
 	}
@@ -88,7 +112,7 @@ func (v eventValues) item(ctx context.Context) (any, bool, error) {
 }
 
 func (v eventValues) parent(ctx context.Context) (any, bool, error) {
-	id := itemOf(v.envelope)
+	id := v.entry()
 	if id.IsZero() || v.entries == nil {
 		return nil, false, nil
 	}
@@ -120,6 +144,12 @@ func (v eventValues) hub(ctx context.Context) (any, bool, error) {
 	}
 
 	collectionID := collectionOf(v.envelope)
+	if collectionID.IsZero() {
+		var err error
+		if collectionID, err = v.subjectCollection(ctx); err != nil {
+			return nil, false, err
+		}
+	}
 	if collectionID.IsZero() || v.containers == nil {
 		return nil, false, nil
 	}
@@ -131,6 +161,34 @@ func (v eventValues) hub(ctx context.Context) (any, bool, error) {
 		return nil, false, err
 	}
 	return v.container(ctx, collection.ParentID)
+}
+
+// collectionOfSubject answers `collection` for a run no event started, by reading the entry the run
+// is about. One read, and only when an expression asks - the laziness the whole activation is built
+// on (automation.md §1.2).
+func (v eventValues) collectionOfSubject(ctx context.Context) (any, bool, error) {
+	id, err := v.subjectCollection(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	return v.container(ctx, id)
+}
+
+// subjectCollection is the collection the run's entry sits in, and zero when there is no entry.
+func (v eventValues) subjectCollection(ctx context.Context) (shared.ID, error) {
+	id := v.entry()
+	if id.IsZero() || v.entries == nil {
+		return "", nil
+	}
+
+	item, err := v.entries.Find(ctx, id)
+	if errors.Is(err, shared.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return item.CollectionID, nil
 }
 
 func (v eventValues) container(ctx context.Context, id shared.ID) (any, bool, error) {

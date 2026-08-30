@@ -580,6 +580,128 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /automation/rules/{ruleId}:trigger:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    post:
+      tags: [automation]
+      operationId: triggerRuleManually
+      summary: Run a rule now
+      description: >
+        The `MANUAL` trigger (automation.md §1.1): the one of the six a person pulls. It queues a
+        run into the same engine every other trigger produces into - the conditions are evaluated,
+        the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle
+        apply exactly as they do to an event's run.
+
+        The run **records who pulled it**, which is the whole reason this is its own call rather
+        than a flag on something else: a rule that acted because somebody asked and a rule that
+        acted because a deadline passed are two different entries in the log.
+
+        Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one.
+        Both refusals name themselves rather than answering an empty success - a call that appears
+        to work and does nothing is the failure `automation.md` §2.2 exists to avoid.
+
+        The answer carries the identifier the run will have. It is a `202`: the run happens on a
+        worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log
+        afterwards.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Queued, with the identifier the run will carry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules/{ruleId}:rotate-inbound-token:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    post:
+      tags: [automation]
+      operationId: rotateInboundTrigger
+      summary: Mint the address an inbound-webhook rule answers on
+      description: >
+        The `INBOUND_WEBHOOK` trigger's credential (automation.md §1.1): a token-protected URL per
+        rule, minted here and answered **once**. It is stored hashed under its own purpose label,
+        so no later read can produce it.
+
+        Rotating is how one is revoked. There is exactly one address per rule and the replacement
+        happens in a single statement, so the old token and the new one never both open the rule -
+        which is what "revocable by rotating" has to mean. Somebody who wants to revoke without a
+        replacement switches the rule off.
+
+        Only a rule whose trigger is `INBOUND_WEBHOOK`. An address on any other rule would be a
+        credential that opens nothing, handed out as though it worked.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Minted, with the token shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundTriggerToken"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/inbound/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: >
+          The rule's inbound token, which is the whole credential: this route carries no bearer
+          authentication, and the URL is what the calling system stores. It names the tenant in
+          clear inside itself because the lookup needs one before it can happen - the table is
+          behind row level security like every other, and a tenant taken from a header or a query
+          would be a way around it (multi-tenancy.md §2.2).
+        schema: { type: string }
+    post:
+      tags: [automation]
+      operationId: startInboundRun
+      security: []
+      summary: Start a rule from outside
+      description: >
+        The other half of the `INBOUND_WEBHOOK` trigger: an external system posts here and the
+        rule's run begins, in the same engine every other trigger produces into.
+
+        **This authenticates the rule, never a person.** There is no account behind the token and
+        it grants nothing beyond starting that one rule - the run carries no actor, because naming
+        one would invent an author for something nobody did. What the run may then do is its
+        `run_as` account's business, checked per action exactly as it is for every other trigger.
+
+        The body is a JSON object and enters the condition language as `payload`, as **data**: it is
+        never rendered as an instruction to anything. It is bounded well below the request limit,
+        because what bounds a transfer and what bounds an evaluation are two different numbers -
+        anything larger is refused rather than truncated.
+
+        An unknown token, a rotated one, a rule that has been deleted, a rule that is switched off
+        and a rule whose trigger is no longer an inbound webhook all answer the same `404` with the
+        same body. Distinguishing them would answer questions to whoever is trying tokens.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: >
+                Whatever the calling system sends, as an object. Free-form on purpose: this is the
+                other system's vocabulary, and a schema here would be this system claiming to know
+                it.
+      responses:
+        "202":
+          description: Queued, with the identifier the run will carry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /automation/runs:
     get:
       tags: [automation]
@@ -610,6 +732,15 @@ paths:
           schema:
             type: string
             enum: [RUNNING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+        - name: trigger
+          in: query
+          required: false
+          description: >
+            Narrow to one way of starting. "Did the schedule fire last night" and "did anybody
+            press the button" are two questions about the same rule.
+          schema:
+            type: string
+            enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
       responses:
         "200":
           description: The runs
@@ -5221,6 +5352,19 @@ components:
           description: >
             Consecutive failed runs. A run of them disables the rule by itself, and enabling it by
             hand clears the count.
+        next_run_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When a `SCHEDULE` rule next fires. Absent for every other kind, and for a schedule whose
+            recurrence is exhausted - such a rule stays, visible and editable, and fires no more.
+        inbound_rotated_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has
+            none. The moment and nothing else: a prefix or a masked value beside it would be a
+            credential whose guessing space has been narrowed for whoever reads the listing.
         created_by: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -5339,10 +5483,33 @@ components:
 
     RuleRun:
       type: object
-      required: [id, rule_id, status, condition_results, action_results, started_at, causation_depth]
+      required:
+        [id, rule_id, trigger, status, condition_results, action_results, started_at,
+         causation_depth]
       properties:
         id: { type: string, format: uuid }
         rule_id: { type: string, format: uuid }
+        trigger:
+          type: string
+          enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
+          description: >
+            Which of the rule's six ways of starting produced this run (automation.md §1.1). On the
+            run rather than read from the rule, because a rule can be edited from one kind into
+            another and the log has to keep saying what actually happened.
+        triggered_by:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Who pulled the trigger, for the one kind a person pulls: `MANUAL`. Absent for every
+            other kind - a schedule, a due date and an inbound delivery have no actor, and naming
+            one would be inventing an author for something nobody did.
+        subject_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from
+            one entry's due date. Absent where the event carries the subject, which is where a
+            reader should look for it.
         event_id:
           type: [string, "null"]
           format: uuid
@@ -5364,6 +5531,33 @@ components:
           description: >
             How far this run is from the act a person performed. A run at the limit is
             `ABORTED_LOOP` and did nothing, which is the loop protection automation.md §2 names.
+
+    InboundTriggerToken:
+      type: object
+      description: >
+        A freshly minted inbound address. The token exists in this answer and nowhere else
+        afterwards: it is stored hashed, and every later read of the rule shows only when it was
+        minted.
+      required: [rule_id, token, rotated_at]
+      properties:
+        rule_id: { type: string, format: uuid }
+        token:
+          type: string
+          description: >
+            The credential, prefixed `hbt_hook_`. The prefix is public by design, so that secret
+            scanning finds a leaked URL before somebody else does.
+        rotated_at: { type: string, format: date-time }
+
+    RuleRunAccepted:
+      type: object
+      description: >
+        A run that has been queued and has not started. The identifier is the one the run will
+        carry, so a caller can watch for it - `GET /automation/runs/{runId}` answers `404` until a
+        worker claims the job.
+      required: [run_id, rule_id]
+      properties:
+        run_id: { type: string, format: uuid }
+        rule_id: { type: string, format: uuid }
 
     RuleRunPage:
       type: object

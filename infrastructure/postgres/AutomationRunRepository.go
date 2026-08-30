@@ -57,6 +57,14 @@ func (r AutomationRunRepository) Start(ctx context.Context, run domain.Run) erro
 	if err != nil {
 		return err
 	}
+	triggeredBy, err := optionalUUID(run.TriggeredBy)
+	if err != nil {
+		return err
+	}
+	subjectID, err := optionalUUID(run.SubjectID)
+	if err != nil {
+		return err
+	}
 	conditions, actions, err := runDocuments(run)
 	if err != nil {
 		return err
@@ -64,6 +72,7 @@ func (r AutomationRunRepository) Start(ctx context.Context, run domain.Run) erro
 
 	if err := queries.InsertRuleRun(ctx, sqlc.InsertRuleRunParams{
 		ID: id, RuleID: ruleID, EventID: eventID,
+		Trigger: string(run.Trigger), TriggeredBy: triggeredBy, SubjectID: subjectID,
 		Status:           string(run.Status),
 		ConditionResults: conditions,
 		ActionResults:    actions,
@@ -157,9 +166,10 @@ func (r AutomationRunRepository) List(
 	// count over the same predicate.
 	size := boundedRulePage(query.Size)
 	rows, err := queries.ListRuleRuns(ctx, sqlc.ListRuleRunsParams{
-		RuleID: ruleID,
-		Status: optionalText(string(query.Status)),
-		After:  after,
+		RuleID:  ruleID,
+		Status:  optionalText(string(query.Status)),
+		Trigger: optionalText(string(query.Trigger)),
+		After:   after,
 		//nolint:gosec // G115: boundedRulePage returns at most maxRulePage, which is 200
 		PageSize: int32(size + 1),
 	})
@@ -291,6 +301,34 @@ func (r AutomationRunRepository) Disable(
 	return changed > 0, nil
 }
 
+// ByTriggerKind answers this tenant's enabled rules of one kind, which is what a producer that is
+// not the event dispatcher asks - the relative-date producer does (G-08).
+func (r AutomationRunRepository) ByTriggerKind(
+	ctx context.Context, kind domain.TriggerKind,
+) ([]domain.Rule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.RulesByTriggerKind(ctx, kind.String())
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the %s rules: %w", kind, err))
+	}
+
+	rules := make([]domain.Rule, 0, len(rows))
+	for _, row := range rows {
+		rule, err := automationRuleFrom(sqlc.ListAutomationRulesRow(row))
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
 func (r AutomationRunRepository) ForEventType(
 	ctx context.Context, eventType event.Type,
 ) ([]domain.Rule, error) {
@@ -389,6 +427,14 @@ func runFrom(row sqlc.ListRuleRunsRow) (domain.Run, error) {
 	if err != nil {
 		return domain.Run{}, err
 	}
+	triggeredBy, err := optionalID(row.TriggeredBy)
+	if err != nil {
+		return domain.Run{}, err
+	}
+	subjectID, err := optionalID(row.SubjectID)
+	if err != nil {
+		return domain.Run{}, err
+	}
 
 	var conditionRows []conditionResultDocument
 	var actionRows []actionResultDocument
@@ -412,6 +458,7 @@ func runFrom(row sqlc.ListRuleRunsRow) (domain.Run, error) {
 
 	run := domain.Run{
 		ID: id, RuleID: ruleID, EventID: eventID,
+		Trigger: domain.TriggerKind(row.Trigger), TriggeredBy: triggeredBy, SubjectID: subjectID,
 		Status:           domain.RunStatus(row.Status),
 		ConditionResults: make([]domain.ConditionResult, 0, len(conditionRows)),
 		ActionResults:    make([]domain.ActionResult, 0, len(actionRows)),

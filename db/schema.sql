@@ -682,6 +682,14 @@ CREATE TABLE automation_rule (
   updated_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
   version     integer NOT NULL DEFAULT 1,
+  -- When a SCHEDULE rule next fires (G-08, migration 0055). NULL for the five triggers that are
+  -- not a schedule, and for a schedule whose rule is exhausted.
+  next_run_at timestamptz,
+  -- The address an INBOUND_WEBHOOK rule answers on (G-08, migration 0057). D-08's discipline: the
+  -- token is hashed, answered once, and revoked by rotating; the moment is the only thing about
+  -- it a listing may show.
+  inbound_token_hash bytea,
+  inbound_rotated_at timestamptz,
   CONSTRAINT automation_rule_run_as_fkey
     FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
 );
@@ -694,12 +702,30 @@ CREATE INDEX rule_trigger_idx ON automation_rule (tenant_id, enabled)
 CREATE INDEX rule_event_trigger_idx
   ON automation_rule (tenant_id, (trigger ->> 'kind'), (trigger ->> 'event_type'))
   WHERE deleted_at IS NULL AND enabled = true;
+-- What the schedule pass asks: which of this tenant's rules are due. `backup_schedule_due_idx`'s
+-- shape, because it is the same question - the tenant predicate is row level security's.
+CREATE INDEX automation_rule_due_idx ON automation_rule (next_run_at)
+  WHERE enabled AND deleted_at IS NULL AND next_run_at IS NOT NULL;
+-- The lookup the unauthenticated inbound route makes. Unique across the installation, so a token
+-- rewritten to quote another tenant matches nothing at all.
+CREATE UNIQUE INDEX automation_rule_inbound_token_uq ON automation_rule (inbound_token_hash)
+  WHERE inbound_token_hash IS NOT NULL;
 
 CREATE TABLE rule_run (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   rule_id      uuid NOT NULL,
   event_id     uuid,
+  -- What started the run (G-08, migration 0054). On the run rather than read back from the rule,
+  -- because a rule can be edited from one kind into another and a log that resolved the kind at
+  -- read time would rewrite its own history.
+  trigger      text NOT NULL DEFAULT 'EVENT',
+  -- Who pulled it, for the one kind a person pulls. No foreign key: a run has to outlive the
+  -- account that started it, exactly as it outlives the rule it belongs to.
+  triggered_by uuid,
+  -- The entry the run is about when no event names it - a RELATIVE_DATE run measured from one
+  -- entry's due date.
+  subject_id   uuid,
   status       text NOT NULL CHECK (status IN ('RUNNING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
   condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
   action_results    jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -708,9 +734,33 @@ CREATE TABLE rule_run (
   finished_at  timestamptz,
   causation_depth integer NOT NULL DEFAULT 0,
   CONSTRAINT rule_run_rule_id_fkey
-    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE
+    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT rule_run_trigger_check
+    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY'))
 );
 CREATE INDEX rule_run_idx ON rule_run (tenant_id, rule_id, started_at DESC);
+-- What the run listing's trigger filter asks: this tenant's runs of one kind, newest first.
+CREATE INDEX rule_run_trigger_idx ON rule_run (tenant_id, trigger, id DESC);
+
+-- What a RELATIVE_DATE rule owes for one entry, and when (G-08, migration 0056). D-02's shape
+-- rather than a new one: `reminder` has carried "this entry, this moment" since phase 0, and a
+-- relative-date rule is the same fact with a rule in place of a person.
+CREATE TABLE rule_occurrence (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  rule_id    uuid NOT NULL,
+  item_id    uuid NOT NULL,
+  fire_at    timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT rule_occurrence_rule_id_fkey
+    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT rule_occurrence_item_id_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+-- One moment per rule per entry: a rule that owed two would fire twice for one deadline, and the
+-- upsert that keeps the moment in step with the anchor conflicts on this.
+CREATE UNIQUE INDEX rule_occurrence_uq ON rule_occurrence (tenant_id, rule_id, item_id);
+CREATE INDEX rule_occurrence_due_idx ON rule_occurrence (tenant_id, fire_at);
 
 -- ============================== Integration ================================
 
@@ -1406,7 +1456,8 @@ BEGIN
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
-    'automation_rule','rule_run','webhook_subscription','webhook_delivery','calendar_feed',
+    'automation_rule','rule_run','rule_occurrence',
+    'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',

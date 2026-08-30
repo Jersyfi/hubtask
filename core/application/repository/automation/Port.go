@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -69,11 +70,12 @@ type Rules interface {
 
 // RunQuery narrows a listing of runs.
 type RunQuery struct {
-	// RuleID and Status are zero for "any", which is what an absent query parameter means.
-	RuleID shared.ID
-	Status domain.RunStatus
-	Cursor string
-	Size   int
+	// RuleID, Status and Trigger are zero for "any", which is what an absent query parameter means.
+	RuleID  shared.ID
+	Status  domain.RunStatus
+	Trigger domain.TriggerKind
+	Cursor  string
+	Size    int
 }
 
 // RunPage is one page of runs and where the walk stands.
@@ -131,10 +133,80 @@ type Failures interface {
 	Disable(ctx context.Context, ruleID shared.ID, threshold int, at time.Time) (bool, error)
 }
 
+// Schedules is what one tenant's schedule pass asks (G-08, automation.md §1.1).
+//
+// Its own interface rather than three more methods on Rules, for Failures' reason: a pass that
+// fires schedules has no business being able to write a rule's definition, and the one field it
+// does move - the next moment - is not part of the definition at all.
+//
+// The tenant is the transaction's, never a parameter. A pass is opened under one tenant's scope by
+// that tenant's own poller, and nothing in this system may enumerate tenants (multi-tenancy.md
+// §2.1) - so the leader cannot see a tenant's schedules even if it wanted to.
+type Schedules interface {
+	// Due answers this tenant's enabled SCHEDULE rules whose moment has come, oldest first, at
+	// most limit of them. The bound is what turns a backlog - a worker that was down for a week -
+	// into several rounds rather than a hundred jobs in one transaction.
+	Due(ctx context.Context, at time.Time, limit int) ([]domain.Rule, error)
+
+	// NextDue is the earliest moment this tenant owes anything, and the zero time when it owes
+	// nothing - which is what lets the poller finish instead of spinning.
+	NextDue(ctx context.Context) (time.Time, error)
+
+	// SetNextRun moves one rule on. The zero time stores none, which is a rule whose recurrence is
+	// exhausted: it stays, visible and editable, and fires no more.
+	SetNextRun(ctx context.Context, id shared.ID, at time.Time) error
+}
+
+// Occurrences is what a RELATIVE_DATE rule owes its entries (G-08, automation.md §1.1).
+//
+// The tenant is the transaction's throughout, like every other repository here.
+type Occurrences interface {
+	// Upsert writes or moves the moment one rule owes for one entry. One statement rather than a
+	// delete and an insert, because "the due date moved" is one fact: two statements would leave a
+	// window in which the tenant owed nothing.
+	Upsert(ctx context.Context, occurrence domain.Occurrence) error
+
+	// Forget is the anchor being cleared: this rule owes this entry nothing.
+	Forget(ctx context.Context, ruleID, itemID shared.ID) error
+
+	// ForgetItem is the entry going. Every rule's moment for it goes with it.
+	ForgetItem(ctx context.Context, itemID shared.ID) error
+
+	// ClaimDue takes the moments that have come and removes them in the same statement. The row
+	// *is* the debt: once the run is queued the tenant no longer owes it, and a status column
+	// would be a second place for "already fired" to be recorded.
+	ClaimDue(ctx context.Context, at time.Time, limit int) ([]domain.Occurrence, error)
+
+	// NextOccurrence is the earliest moment this tenant owes an occurrence, and the zero time for
+	// none. Its own name rather than NextDue, because one repository answers both this and the
+	// schedules' - and two methods called the same thing on one type would be one of them.
+	NextOccurrence(ctx context.Context) (time.Time, error)
+}
+
+// InboundTriggers is the address an INBOUND_WEBHOOK rule answers on (G-08).
+//
+// The port takes the presented token whole rather than a hash, for the reason the calendar feed's
+// does: the pepper is a secret of the infrastructure layer (security.md §8), and an application
+// layer that computed the hash would be an application layer holding it.
+type InboundTriggers interface {
+	// SetToken mints or rotates the address, and reports whether it changed anything. One
+	// statement, so the old hash and the new one never coexist: rotating *is* revoking.
+	SetToken(ctx context.Context, ruleID shared.ID, token integration.InboundToken, at time.Time) (bool, error)
+
+	// FindByToken answers the rule an address opens, or an error wrapping shared.ErrNotFound.
+	FindByToken(ctx context.Context, token integration.InboundToken) (domain.Rule, error)
+}
+
 // Matching is what the dispatcher asks per event: the enabled rules whose trigger is this type.
 //
 // Narrow rather than part of Rules, for Failures' reason: a subscriber running inside the
 // dispatcher's transaction has no business being able to write one.
 type Matching interface {
 	ForEventType(ctx context.Context, eventType event.Type) ([]domain.Rule, error)
+
+	// ByTriggerKind is what a producer that is not the event dispatcher asks: this tenant's
+	// enabled rules of one kind. The relative-date producer asks it, and it is on this interface
+	// rather than on Rules for the same reason - a subscriber running inside the dispatcher's
+	// transaction has no business being able to write one.
+	ByTriggerKind(ctx context.Context, kind domain.TriggerKind) ([]domain.Rule, error)
 }

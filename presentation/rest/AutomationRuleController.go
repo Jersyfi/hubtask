@@ -21,13 +21,15 @@ import (
 // a channel express a combination the aggregate refuses.
 
 const (
-	createRuleUseCase  = "CreateRule"
-	getRuleUseCase     = "GetRule"
-	listRulesUseCase   = "ListRules"
-	updateRuleUseCase  = "UpdateRule"
-	enableRuleUseCase  = "EnableRule"
-	disableRuleUseCase = "DisableRule"
-	deleteRuleUseCase  = "DeleteRule"
+	createRuleUseCase    = "CreateRule"
+	getRuleUseCase       = "GetRule"
+	listRulesUseCase     = "ListRules"
+	updateRuleUseCase    = "UpdateRule"
+	enableRuleUseCase    = "EnableRule"
+	disableRuleUseCase   = "DisableRule"
+	deleteRuleUseCase    = "DeleteRule"
+	triggerRuleUseCase   = "TriggerRuleManually"
+	rotateInboundUseCase = "RotateInboundTrigger"
 )
 
 // ListAutomationRules answers GET /automation/rules.
@@ -192,6 +194,45 @@ func (c *RestController) DeleteRule(
 // The readers. Each maps one document whole, so that what reaches the use case is the shape the
 // aggregate validates rather than a flattening of it.
 
+// TriggerRuleManually answers POST /automation/rules/{ruleId}:trigger.
+//
+// 202 rather than 200: the run happens on a worker, and what comes back is the identifier it will
+// carry rather than the run itself. A caller that wants the outcome watches
+// GET /automation/runs/{runId}, which answers 404 until a worker claims the job.
+func (c *RestController) TriggerRuleManually(
+	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
+	_ openapi.TriggerRuleManuallyParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), triggerRuleUseCase, actor,
+			usecase.Input{"rule_id": ruleID.String()})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusAccepted, openapi.RuleRunAccepted{
+			RunId: uuidValue(out.String("run_id")), RuleId: uuidValue(out.String("rule_id")),
+		})
+	})
+}
+
+// RotateInboundTrigger answers POST /automation/rules/{ruleId}:rotate-inbound-token.
+//
+// The one answer that carries the token. Everything afterwards shows only when it was minted: the
+// value is stored hashed, and there is no read that can produce it again.
+func (c *RestController) RotateInboundTrigger(
+	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
+	_ openapi.RotateInboundTriggerParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), rotateInboundUseCase, actor,
+			usecase.Input{"rule_id": ruleID.String()})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, openapi.InboundTriggerToken{
+			RuleId:    uuidValue(out.String("rule_id")),
+			Token:     out.String("token"),
+			RotatedAt: timeValue(out["rotated_at"]),
+		})
+	})
+}
+
 func scopeInput(scope openapi.RuleScope) map[string]any {
 	document := map[string]any{"type": string(scope.Type)}
 	if scope.Id != nil {
@@ -279,6 +320,14 @@ func ruleResponse(out usecase.Output) openapi.AutomationRule {
 	}
 	if throttle, present := throttleResponse(out["throttle"]); present {
 		rule.Throttle = &throttle
+	}
+	// The two moments this installation worked out for the rule rather than read from its
+	// definition (G-08). Absent where they mean nothing, which is what a null says.
+	if at, present := out["next_run_at"].(time.Time); present {
+		rule.NextRunAt = &at
+	}
+	if at, present := out["inbound_rotated_at"].(time.Time); present {
+		rule.InboundRotatedAt = &at
 	}
 	return rule
 }
@@ -391,6 +440,9 @@ func (c *RestController) ListRuleRuns(
 		if params.Status != nil {
 			input["status"] = string(*params.Status)
 		}
+		if params.Trigger != nil {
+			input["trigger"] = string(*params.Trigger)
+		}
 		if params.Cursor != nil {
 			input["cursor"] = *params.Cursor
 		}
@@ -424,6 +476,7 @@ func runResponse(out usecase.Output) openapi.RuleRun {
 	run := openapi.RuleRun{
 		Id:               uuidValue(out.String("id")),
 		RuleId:           uuidValue(out.String("rule_id")),
+		Trigger:          openapi.RuleRunTrigger(out.String("trigger")),
 		Status:           openapi.RuleRunStatus(out.String("status")),
 		ConditionResults: conditionResultsResponse(out["condition_results"]),
 		ActionResults:    actionResultsResponse(out["action_results"]),
@@ -433,6 +486,14 @@ func runResponse(out usecase.Output) openapi.RuleRun {
 	if id := out.String("event_id"); id != "" {
 		event := uuidValue(id)
 		run.EventId = &event
+	}
+	if id := out.String("triggered_by"); id != "" {
+		actor := uuidValue(id)
+		run.TriggeredBy = &actor
+	}
+	if id := out.String("subject_id"); id != "" {
+		subject := uuidValue(id)
+		run.SubjectId = &subject
 	}
 	if finished, present := out["finished_at"].(time.Time); present {
 		run.FinishedAt = &finished

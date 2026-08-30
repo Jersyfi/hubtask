@@ -475,24 +475,27 @@ type AutoAssignPolicy struct {
 }
 
 type AutomationRule struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	ScopeType    string
-	ScopeID      pgtype.UUID
-	Name         string
-	Enabled      bool
-	RunAs        pgtype.UUID
-	Trigger      []byte
-	Conditions   []byte
-	Actions      []byte
-	Throttle     []byte
-	OnError      string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundTokenHash []byte
+	InboundRotatedAt pgtype.Timestamptz
 }
 
 type BackupRun struct {
@@ -1002,6 +1005,15 @@ type RetentionRun struct {
 	Status         string
 }
 
+type RuleOccurrence struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	RuleID    pgtype.UUID
+	ItemID    pgtype.UUID
+	FireAt    pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
 type RuleRun struct {
 	ID               pgtype.UUID
 	TenantID         pgtype.UUID
@@ -1014,6 +1026,9 @@ type RuleRun struct {
 	StartedAt        pgtype.Timestamptz
 	FinishedAt       pgtype.Timestamptz
 	CausationDepth   int32
+	Trigger          string
+	TriggeredBy      pgtype.UUID
+	SubjectID        pgtype.UUID
 }
 
 type SavedView struct {

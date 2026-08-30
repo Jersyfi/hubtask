@@ -414,6 +414,13 @@ func run() error {
 	// The catalogue is deferred for BulkUpdateWorkItems' reason and it is the same circle: a rule's
 	// actions are use cases, so writing one has to consult the registry - and these seven are
 	// entries of the registry, so it cannot exist yet.
+	// The address an INBOUND_WEBHOOK rule answers on (G-08). Its own hasher, derived from the
+	// installation secret under the inbound trigger's purpose label, so a value from this column
+	// can never be replayed as a calendar feed token, a personal access token or a page cursor
+	// (security.md §5).
+	automationInbound := postgres.NewAutomationInboundRepository(
+		security.NewInboundTokenHasher(cfg.SecretKey))
+
 	ruleCatalogue := &deferredCatalogue{}
 	ruleReader := automationservice.Reader{
 		Runs:       postgres.NewAutomationRunRepository(cursors),
@@ -422,12 +429,19 @@ func run() error {
 	}
 	ruleWriter := automationservice.Writer{
 		Rules:       postgres.NewAutomationRuleRepository(cursors),
+		Schedules:   postgres.NewAutomationRuleRepository(cursors),
 		Accounts:    accounts,
 		Memberships: postgres.NewMembershipRepository(),
 		Catalogue:   ruleCatalogue,
 		// The one place the expression engine is constructed. A rule's conditions are compiled
 		// when it is written, so a mistake reaches its author rather than a log (G-06, ADR-0009).
 		Conditions: celexpression.New(),
+		// The one schedule engine this installation has (ADR-0008, decision 5 of the 0.5.0
+		// backlog). A SCHEDULE rule's next moment is worked out here, so a recurrence this build
+		// cannot read is refused to its author rather than failing on a worker (G-08).
+		Expander: recurrenceadapter.New(),
+		Jobs:     jobs,
+
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -787,6 +801,17 @@ func run() error {
 		automationservice.EnableRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.DisableRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.DeleteRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.TriggerRuleManually{
+			Rules: postgres.NewAutomationRuleRepository(cursors),
+			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		automationservice.RotateInboundTrigger{
+			Rules:      postgres.NewAutomationRuleRepository(cursors),
+			Inbound:    automationInbound,
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
+		}.Descriptor(),
 		automationservice.ListRuleRuns{Reader: ruleReader}.Descriptor(),
 		automationservice.GetRuleRun{Reader: ruleReader}.Descriptor(),
 		integrationservice.PollTriggerEvents{
@@ -1155,6 +1180,14 @@ func run() error {
 			},
 			UnitOfWork: unitOfWork,
 		}
+		// The public inbound-webhook route, for the same reason and with the same discipline: it
+		// answers a credential nobody in this system holds, it can do exactly one thing - start
+		// that one rule's run - and every question it asks is asked inwards of the controller
+		// (G-08, automation.md §1.1).
+		controller.InboundRuns = automationservice.StartInboundRun{
+			Inbound: automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
+		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
 		// call (C-10). The listener is the wake-up; without it the stream still works, at its idle
@@ -1325,6 +1358,15 @@ func run() error {
 		Conditions: celexpression.New(), Clock: clockadapter.System{},
 	}
 
+	// The relative-date producer (G-08). A second subscriber rather than a branch inside the first,
+	// because it answers a different question: MatchRules asks which rules *want* this event, and
+	// this one asks what the entry's deadline now means for the rules that measure from it.
+	relativeDates := automationservice.RelativeDates{
+		Rules: automationRuns, Occurrences: postgres.NewAutomationRuleRepository(cursors),
+		Entries: items, Containers: containers, Jobs: jobs,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	webhookFanOut := integrationservice.FanOut{
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
@@ -1339,7 +1381,7 @@ func run() error {
 		// restore reaches no external system (backup-restore.md §8.4).
 		// The automation engine beside them, and it deliberately does not implement TakesReplays
 		// either: no rule fires for a restore's events (backup-restore.md §8.4, BK-5).
-		Subscribers: []eventbusport.Subscriber{notify, webhookFanOut, matchRules},
+		Subscribers: []eventbusport.Subscriber{notify, webhookFanOut, matchRules, relativeDates},
 		Clock:       clockadapter.System{},
 		Batch:       cfg.Queue.OutboxBatch,
 		MinInterval: cfg.Queue.OutboxMinInterval,
@@ -1611,6 +1653,15 @@ func run() error {
 		},
 		queueport.KindBackupSchedule: worker.BackupScheduling{
 			Pass: backupPass, Fallback: cfg.Retention.Interval,
+		},
+		queueport.KindAutomationSchedule: worker.AutomationScheduling{
+			Pass: automationservice.SchedulePass{
+				Schedules:   postgres.NewAutomationRuleRepository(cursors),
+				Occurrences: postgres.NewAutomationRuleRepository(cursors),
+				Jobs:        jobs, Expander: recurrenceadapter.New(),
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			},
+			Fallback: cfg.Retention.Interval,
 		},
 		queueport.KindAuditExport:    worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},

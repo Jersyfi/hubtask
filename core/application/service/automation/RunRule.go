@@ -119,9 +119,45 @@ type RuleReader interface {
 
 // Command is one job's worth of work.
 type Command struct {
-	RuleID         shared.ID
-	EventID        shared.ID
+	RuleID shared.ID
+	// RunID is the identifier the run is to carry, when its producer already answered one to
+	// somebody. `:trigger` does: it tells the caller what to watch for before the run exists, and a
+	// run that then minted its own identifier would answer a different one. Zero everywhere else,
+	// and the engine mints one.
+	RunID shared.ID
+	// Trigger is which of the rule's six ways of starting produced this job (G-08).
+	//
+	// It is checked against the rule rather than trusted: a job queued by the schedule pass and a
+	// rule that has since been edited into an `EVENT` rule are a run that must not happen, and the
+	// queue is where a job outlives the shape it was written for.
+	Trigger domain.TriggerKind
+	// EventID is the event that started the run, for the one kind an event starts.
+	EventID shared.ID
+	// TriggeredBy is who pulled it, for MANUAL, and SubjectID the entry a RELATIVE_DATE run is
+	// about. Both zero for the kinds that have neither.
+	TriggeredBy shared.ID
+	SubjectID   shared.ID
+	// Occasion is what makes this run's actions idempotent: the thing that happened once.
+	//
+	// The event for an `EVENT` run, the occurrence's instant for a schedule, the run itself for a
+	// manual press or an inbound delivery. It has to be here rather than derived from the event,
+	// because five of the six triggers have no event - and a key derived from a zero event
+	// identifier would be the *same* key for every run of that rule for ever, so the second run
+	// would find the first's answer stored and do nothing at all.
+	Occasion string
+	// Payload is the body an inbound delivery carried, as the CEL environment reads it. Empty for
+	// every other kind.
+	Payload        map[string]any
 	CausationDepth int
+}
+
+// occasion answers what makes this command's actions idempotent, reading the event when the caller
+// named nothing. The fallback keeps every key an `EVENT` run has already written unchanged.
+func (c Command) occasion() string {
+	if c.Occasion != "" {
+		return c.Occasion
+	}
+	return c.EventID.String()
 }
 
 // Execute runs one rule against one event and records what happened.
@@ -148,9 +184,20 @@ func (h RunRule) Execute(
 	if !rule.Enabled {
 		return domain.Run{}, nil
 	}
+	if rule.Trigger.Kind != cmd.Trigger {
+		// Edited into another kind between the job and the run. Not a failure of anything: the
+		// producer that queued this no longer speaks for the rule, and a run recorded against a
+		// trigger the rule no longer has would be a log entry that never happened.
+		return domain.Run{}, nil
+	}
 
+	runID := cmd.RunID
+	if runID.IsZero() {
+		runID = h.IDs.NewID()
+	}
 	run, err := domain.StartRun(domain.NewRunInput{
-		ID: h.IDs.NewID(), TenantID: actor.TenantID, RuleID: rule.ID, EventID: cmd.EventID,
+		ID: runID, TenantID: actor.TenantID, RuleID: rule.ID, EventID: cmd.EventID,
+		Trigger: cmd.Trigger, TriggeredBy: cmd.TriggeredBy, SubjectID: cmd.SubjectID,
 		CausationDepth: cmd.CausationDepth, Now: now,
 	})
 	if err != nil {
@@ -197,7 +244,7 @@ func (h RunRule) decide(
 		return domain.Run{}, err
 	}
 
-	conditions, matched, err := h.evaluate(ctx, rule, envelope, now)
+	conditions, matched, err := h.evaluate(ctx, rule, h.values(envelope, cmd, now))
 	if err != nil {
 		return domain.Run{}, err
 	}
@@ -213,13 +260,27 @@ func (h RunRule) decide(
 		return run.Skip(conditions, now), nil
 	}
 
-	actions, stopped := h.act(ctx, actor, rule, run, envelope)
+	actions, stopped := h.act(ctx, actor, rule, cmd)
 	if stopped {
 		failed := run.Fail("automation.action_failed", now)
 		failed.ConditionResults, failed.ActionResults = conditions, actions
 		return failed, nil
 	}
 	return run.Complete(conditions, actions, now), nil
+}
+
+// values is what the run's expressions are told, built once for the whole run.
+//
+// The command's subject and payload are on it beside the envelope, which is what makes a condition
+// written for one trigger readable under another: `item` is the entry a RELATIVE_DATE run measures
+// from exactly as it is the entry an event was about, and `payload` is the delivery's body or an
+// empty document.
+func (h RunRule) values(envelope event.Envelope, cmd Command, now time.Time) eventValues {
+	return eventValues{
+		envelope: envelope, now: now,
+		subject: cmd.SubjectID, payload: cmd.Payload,
+		entries: h.Entries, containers: h.Containers,
+	}
 }
 
 // throttled answers whether the rule has already run as often as it may.
@@ -259,7 +320,7 @@ func (h RunRule) envelope(ctx context.Context, id shared.ID) (event.Envelope, er
 // this not happen" with one line where somebody wants the whole picture - and the cost is bounded by
 // MaxConditions with a timeout each.
 func (h RunRule) evaluate(
-	ctx context.Context, rule domain.Rule, envelope event.Envelope, now time.Time,
+	ctx context.Context, rule domain.Rule, values eventValues,
 ) ([]domain.ConditionResult, bool, error) {
 	results := make([]domain.ConditionResult, 0, len(rule.Conditions))
 	matched := true
@@ -271,9 +332,6 @@ func (h RunRule) evaluate(
 		return nil, false, shared.ErrInternal.WithDetail("automation.expression_engine_unavailable")
 	}
 
-	values := eventValues{
-		envelope: envelope, now: now, entries: h.Entries, containers: h.Containers,
-	}
 	for i, each := range rule.Conditions {
 		result := domain.ConditionResult{Index: i}
 
@@ -306,8 +364,7 @@ func (h RunRule) evaluate(
 // rule says. RETRY is not decided here: it hands the job back to the queue, whose backoff and dead
 // letter are what "retry" means in this system, and the handler above translates it.
 func (h RunRule) act(
-	ctx context.Context, actor appshared.ActorContext,
-	rule domain.Rule, run domain.Run, envelope event.Envelope,
+	ctx context.Context, actor appshared.ActorContext, rule domain.Rule, cmd Command,
 ) ([]domain.ActionResult, bool) {
 	results := make([]domain.ActionResult, 0, len(rule.Actions))
 	stopped := false
@@ -320,7 +377,7 @@ func (h RunRule) act(
 			continue
 		}
 
-		result.IdempotencyKey = idempotencyKey(rule.ID, run.EventID, i)
+		result.IdempotencyKey = idempotencyKey(rule.ID, cmd.occasion(), i)
 		if err := h.dispatch(ctx, actor, rule, action, result.IdempotencyKey); err != nil {
 			result.Status, result.ErrorCode = domain.ActionFailed, codeOf(err)
 			if rule.OnError == domain.OnErrorStop {
@@ -509,13 +566,18 @@ func (h RunRule) publish(
 	_ = h.Events.Append(ctx, envelope)
 }
 
-// idempotencyKey is what automation.md §2 specifies: the rule, the event and the action's index.
+// idempotencyKey is what automation.md §2 specifies: the rule, the occasion and the action's index.
 //
 // The index rather than the action's kind, because a rule may name one kind twice - "add this label
 // and that one" is two actions of one kind, and a key that collapsed them would perform the first
 // and silently skip the second.
-func idempotencyKey(ruleID, eventID shared.ID, index int) string {
-	return "automation:" + ruleID.String() + ":" + eventID.String() + ":" + itoa(index)
+//
+// The occasion is the event for an `EVENT` run and the thing that happened once for each of the
+// other five (Command.Occasion). §2 writes "event_id" because when it was written that was the only
+// way a run could start; what the sentence means is "the one occurrence this run answers", and a
+// schedule's occurrence or a person's press is that occurrence exactly as an event is.
+func idempotencyKey(ruleID shared.ID, occasion string, index int) string {
+	return "automation:" + ruleID.String() + ":" + occasion + ":" + itoa(index)
 }
 
 // firstConditionError answers the code of the first condition that could not be evaluated, and the
