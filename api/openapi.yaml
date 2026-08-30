@@ -580,6 +580,42 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /automation/rules/{ruleId}:trigger:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    post:
+      tags: [automation]
+      operationId: triggerRuleManually
+      summary: Run a rule now
+      description: >
+        The `MANUAL` trigger (automation.md §1.1): the one of the six a person pulls. It queues a
+        run into the same engine every other trigger produces into - the conditions are evaluated,
+        the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle
+        apply exactly as they do to an event's run.
+
+        The run **records who pulled it**, which is the whole reason this is its own call rather
+        than a flag on something else: a rule that acted because somebody asked and a rule that
+        acted because a deadline passed are two different entries in the log.
+
+        Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one.
+        Both refusals name themselves rather than answering an empty success - a call that appears
+        to work and does nothing is the failure `automation.md` §2.2 exists to avoid.
+
+        The answer carries the identifier the run will have. It is a `202`: the run happens on a
+        worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log
+        afterwards.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Queued, with the identifier the run will carry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /automation/runs:
     get:
       tags: [automation]
@@ -5396,6 +5432,17 @@ components:
           description: >
             How far this run is from the act a person performed. A run at the limit is
             `ABORTED_LOOP` and did nothing, which is the loop protection automation.md §2 names.
+
+    RuleRunAccepted:
+      type: object
+      description: >
+        A run that has been queued and has not started. The identifier is the one the run will
+        carry, so a caller can watch for it - `GET /automation/runs/{runId}` answers `404` until a
+        worker claims the job.
+      required: [run_id, rule_id]
+      properties:
+        run_id: { type: string, format: uuid }
+        rule_id: { type: string, format: uuid }
 
     RuleRunPage:
       type: object

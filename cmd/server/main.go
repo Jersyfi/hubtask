@@ -787,6 +787,11 @@ func run() error {
 		automationservice.EnableRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.DisableRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.DeleteRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.TriggerRuleManually{
+			Rules: postgres.NewAutomationRuleRepository(cursors),
+			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		automationservice.ListRuleRuns{Reader: ruleReader}.Descriptor(),
 		automationservice.GetRuleRun{Reader: ruleReader}.Descriptor(),
 		integrationservice.PollTriggerEvents{

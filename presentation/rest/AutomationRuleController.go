@@ -28,6 +28,7 @@ const (
 	enableRuleUseCase  = "EnableRule"
 	disableRuleUseCase = "DisableRule"
 	deleteRuleUseCase  = "DeleteRule"
+	triggerRuleUseCase = "TriggerRuleManually"
 )
 
 // ListAutomationRules answers GET /automation/rules.
@@ -191,6 +192,25 @@ func (c *RestController) DeleteRule(
 
 // The readers. Each maps one document whole, so that what reaches the use case is the shape the
 // aggregate validates rather than a flattening of it.
+
+// TriggerRuleManually answers POST /automation/rules/{ruleId}:trigger.
+//
+// 202 rather than 200: the run happens on a worker, and what comes back is the identifier it will
+// carry rather than the run itself. A caller that wants the outcome watches
+// GET /automation/runs/{runId}, which answers 404 until a worker claims the job.
+func (c *RestController) TriggerRuleManually(
+	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
+	_ openapi.TriggerRuleManuallyParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), triggerRuleUseCase, actor,
+			usecase.Input{"rule_id": ruleID.String()})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusAccepted, openapi.RuleRunAccepted{
+			RunId: uuidValue(out.String("run_id")), RuleId: uuidValue(out.String("rule_id")),
+		})
+	})
+}
 
 func scopeInput(scope openapi.RuleScope) map[string]any {
 	document := map[string]any{"type": string(scope.Type)}

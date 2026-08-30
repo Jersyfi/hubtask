@@ -4469,6 +4469,12 @@ type RuleRun struct {
 // RuleRunTrigger Which of the rule's six ways of starting produced this run (automation.md §1.1). On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
 type RuleRunTrigger string
 
+// RuleRunAccepted A run that has been queued and has not started. The identifier is the one the run will carry, so a caller can watch for it - `GET /automation/runs/{runId}` answers `404` until a worker claims the job.
+type RuleRunAccepted struct {
+	RuleId openapi_types.UUID `json:"rule_id"`
+	RunId  openapi_types.UUID `json:"run_id"`
+}
+
 // RuleRunPage defines model for RuleRunPage.
 type RuleRunPage struct {
 	Data []RuleRun `json:"data"`
@@ -5272,6 +5278,12 @@ type DisableRuleParams struct {
 
 // EnableRuleParams defines parameters for EnableRule.
 type EnableRuleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// TriggerRuleManuallyParams defines parameters for TriggerRuleManually.
+type TriggerRuleManuallyParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -6169,6 +6181,9 @@ type ServerInterface interface {
 	// EnableRule Switch a rule on
 	// (POST /automation/rules/{ruleId}:enable)
 	EnableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params EnableRuleParams)
+	// TriggerRuleManually Run a rule now
+	// (POST /automation/rules/{ruleId}:trigger)
+	TriggerRuleManually(w http.ResponseWriter, r *http.Request, ruleId RuleId, params TriggerRuleManuallyParams)
 	// ListRuleRuns What the rules have done
 	// (GET /automation/runs)
 	ListRuleRuns(w http.ResponseWriter, r *http.Request, params ListRuleRunsParams)
@@ -7276,6 +7291,56 @@ func (siw *ServerInterfaceWrapper) EnableRule(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EnableRule(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TriggerRuleManually operation middleware
+func (siw *ServerInterfaceWrapper) TriggerRuleManually(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TriggerRuleManuallyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TriggerRuleManually(w, r, ruleId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13111,6 +13176,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs", wrapper.ListRuleRuns)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs/{runId}", wrapper.GetRuleRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks", wrapper.ListWebhookSubscriptions)

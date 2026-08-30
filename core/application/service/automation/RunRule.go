@@ -120,6 +120,11 @@ type RuleReader interface {
 // Command is one job's worth of work.
 type Command struct {
 	RuleID shared.ID
+	// RunID is the identifier the run is to carry, when its producer already answered one to
+	// somebody. `:trigger` does: it tells the caller what to watch for before the run exists, and a
+	// run that then minted its own identifier would answer a different one. Zero everywhere else,
+	// and the engine mints one.
+	RunID shared.ID
 	// Trigger is which of the rule's six ways of starting produced this job (G-08).
 	//
 	// It is checked against the rule rather than trusted: a job queued by the schedule pass and a
@@ -186,8 +191,12 @@ func (h RunRule) Execute(
 		return domain.Run{}, nil
 	}
 
+	runID := cmd.RunID
+	if runID.IsZero() {
+		runID = h.IDs.NewID()
+	}
 	run, err := domain.StartRun(domain.NewRunInput{
-		ID: h.IDs.NewID(), TenantID: actor.TenantID, RuleID: rule.ID, EventID: cmd.EventID,
+		ID: runID, TenantID: actor.TenantID, RuleID: rule.ID, EventID: cmd.EventID,
 		Trigger: cmd.Trigger, TriggeredBy: cmd.TriggeredBy, SubjectID: cmd.SubjectID,
 		CausationDepth: cmd.CausationDepth, Now: now,
 	})

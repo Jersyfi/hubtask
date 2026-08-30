@@ -111,6 +111,10 @@ func commandOf(job queue.Job) (automation.Command, error) {
 	if err != nil {
 		return automation.Command{}, err
 	}
+	runID, err := idPayload(job, "run_id")
+	if err != nil {
+		return automation.Command{}, err
+	}
 	triggeredBy, err := idPayload(job, "triggered_by")
 	if err != nil {
 		return automation.Command{}, err
@@ -146,7 +150,7 @@ func commandOf(job queue.Job) (automation.Command, error) {
 		depth = 0
 	}
 	return automation.Command{
-		RuleID: ruleID, Trigger: trigger, EventID: eventID,
+		RuleID: ruleID, RunID: runID, Trigger: trigger, EventID: eventID,
 		TriggeredBy: triggeredBy, SubjectID: subjectID,
 		Occasion: occasion, Payload: payload, CausationDepth: depth,
 	}, nil
