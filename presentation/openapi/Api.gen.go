@@ -4411,8 +4411,11 @@ type RoleItemAccess struct {
 }
 
 // RuleAction One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a new use case becomes an action without anybody editing anything.
+// Three kinds are the exception, and they are one on purpose: `WAIT`, `BRANCH` and `STOP` are not use cases at all but the engine's own control structures, so they are in no catalogue and there is nothing for MCP or a person to call. Their parameters are therefore checked where every other shape question about a rule is answered - by the rule itself, when it is written.
 type RuleAction struct {
 	// Kind `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind automation.md §1.3 documents and no release serves yet is refused by name rather than stored to be ignored.
+	// `WAIT` takes `duration`, an unsigned ISO 8601 duration of at most a year: the run suspends and a job resumes it, so a rule that waits a day holds no worker and survives a restart. `BRANCH` takes `condition` and the nested lists `then` (required) and `else` (optional) - a nested list rather than a jump target, because "skip the next two" is a rule whose meaning changes when somebody inserts an action above it. `STOP` takes nothing and ends the run where it stands, with the actions after it `SKIPPED` and the run `SUCCEEDED`: stopping early is what the rule said to do.
+	// **A branch's arms are checked exactly as the top level is**, and both of them: the composition rule is about what a rule *may* do, so a rule whose `else` performs something its writer may not do is laundering the same rights the day the condition turns false.
 	Kind string `json:"kind"`
 
 	// Params The action's parameters. A key the use case behind the kind does not declare is refused, exactly as it would be on the call itself.

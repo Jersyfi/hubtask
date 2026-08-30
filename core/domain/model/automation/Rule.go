@@ -597,24 +597,42 @@ func ValidConditionShape(conditions []Condition) ([]Condition, error) {
 // Which kinds exist, and whether the parameters are ones their use case declares, is the
 // application layer's question: the answer is the use case catalogue, and core/domain may not read
 // it (ADR-0001). What is here is the shape - at least one action, not too many, every kind named.
+//
+// The three **flow** kinds are the exception, and they are one on purpose (G-09). `WAIT`, `BRANCH`
+// and `STOP` are not use cases and never reach the catalogue, so their parameters have nobody else
+// to be checked by: a `WAIT` with no delay and a `BRANCH` with no condition are refused here, where
+// every other shape question about a rule is answered.
 func ValidActionShape(actions []Action) ([]Action, error) {
+	return validActionsAt(actions, "/actions", 0)
+}
+
+// validActionsAt is ValidActionShape at a path, so that a branch's arm is checked exactly as the
+// rule's own list is - which is what stops a branch being a way to write an action the top level
+// would refuse.
+//
+// The bound on the count is over the whole tree rather than per list: a rule is executed at least
+// once per matching event, so what has to be bounded is how much work one match can be, and fifty
+// actions arranged as a tree cost what fifty actions cost.
+func validActionsAt(actions []Action, path string, depth int) ([]Action, error) {
 	switch {
-	case len(actions) == 0:
-		return nil, fieldError("/actions", "automation.actions_required")
-	case len(actions) > MaxActions:
+	case len(actions) == 0 && depth == 0:
+		return nil, fieldError(path, "automation.actions_required")
+	case countActions(actions) > MaxActions:
 		return nil, shared.ErrValidation.
 			WithDetail("automation.too_many_actions").
 			WithParams(map[string]string{"maximum": itoa(MaxActions)}).
-			WithFields(shared.FieldError{Path: "/actions", Code: "automation.too_many_actions"})
+			WithFields(shared.FieldError{Path: path, Code: "automation.too_many_actions"})
 	}
 
 	kept := make([]Action, 0, len(actions))
 	var findings []shared.FieldError
 	for i, action := range actions {
+		at := path + "/" + itoa(i)
+
 		kind := strings.TrimSpace(action.Kind)
 		if kind == "" {
 			findings = append(findings, shared.FieldError{
-				Path: "/actions/" + itoa(i) + "/kind", Code: "automation.action_kind_required",
+				Path: at + "/kind", Code: "automation.action_kind_required",
 			})
 			continue
 		}
@@ -624,6 +642,9 @@ func ValidActionShape(actions []Action) ([]Action, error) {
 			// stored is what is read back, and a null would come back as one.
 			params = map[string]any{}
 		}
+		if err := validFlowShape(kind, params, at, depth); err != nil {
+			return nil, err
+		}
 		kept = append(kept, Action{Kind: kind, Params: params})
 	}
 	if len(findings) > 0 {
@@ -632,6 +653,54 @@ func ValidActionShape(actions []Action) ([]Action, error) {
 			WithFields(findings...)
 	}
 	return kept, nil
+}
+
+// validFlowShape checks the parameters of the three kinds that have no use case to check them.
+//
+// A kind that is not one of the three passes through untouched: whether its parameters are ones its
+// use case declares is the catalogue's question, asked in the application layer.
+func validFlowShape(kind string, params map[string]any, path string, depth int) error {
+	switch kind {
+	case ActionWait:
+		_, err := WaitFor(params, path)
+		return err
+	case ActionBranch:
+		_, err := ReadBranch(params, path, depth)
+		return err
+	default:
+		return nil
+	}
+}
+
+// countActions is how many steps a list really is, branches counted whole and all the way down.
+//
+// Recursive rather than one level deep, because the bound is what makes a rule's cost knowable: a
+// rule that hid forty actions inside two branches would pass a count written about the top level,
+// and one that hid them three levels down would pass a count written about the first.
+func countActions(actions []Action) int {
+	total := 0
+	for _, action := range actions {
+		total++
+		if action.Kind != ActionBranch {
+			continue
+		}
+		for _, name := range []string{"then", "else"} {
+			rows, _ := action.Params[name].([]any)
+			for _, row := range rows {
+				document, ok := row.(map[string]any)
+				if !ok {
+					// Not an action at all. Counted as one and refused where the arm is read, so
+					// that a malformed row cannot make the count smaller than the document is.
+					total++
+					continue
+				}
+				kind, _ := document["kind"].(string)
+				params, _ := document["params"].(map[string]any)
+				total += countActions([]Action{{Kind: strings.TrimSpace(kind), Params: params}})
+			}
+		}
+	}
+	return total
 }
 
 // ValidThrottle checks the bounds. The dedupe key is an expression like any other and is compiled

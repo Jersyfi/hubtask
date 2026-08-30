@@ -36,18 +36,16 @@ type Catalogue interface {
 // documentation, so being told it does not exist would send them looking for a typo they did not
 // make, and being told it is not built yet sends them to the milestone.
 //
-// The list shrinks as the tasks land - the outbound and flow kinds with G-09, the AI kinds with
-// their own milestone - and TestNoDeferredActionIsAlreadyServed fails the build if a kind is left
-// here after the catalogue grew one, so removing the entry is not something anybody has to
-// remember.
+// The list shrinks as the tasks land - the flow kinds with G-09's first step, the outbound pair
+// with the steps that build them, the AI kinds with their own milestone - and
+// TestNoDeferredActionIsAlreadyServed fails the build if a kind is left here after the catalogue
+// grew one, so removing the entry is not something anybody has to remember.
 var deferredActions = []string{
 	// Outbound (automation.md §1.3): both call somebody else's server, which is the guarded
-	// client's business and G-09's task.
+	// client's business and lands later in this same task.
 	"SEND_WEBHOOK", "HTTP_REQUEST",
-	// Flow: none of the three is a use case at all. They are the engine's own control structures,
-	// and they mean nothing until there is an engine to control.
-	"WAIT", "BRANCH", "STOP",
-	// AI, optional and configured explicitly.
+	// AI, optional and configured explicitly. The AI port arrives at 0.7.0, and a rule naming one
+	// of these is refused the way a retention rule naming a missing notification category was.
 	"AI_SUGGEST_FIELDS", "AI_SUMMARIZE", "AI_CLASSIFY",
 }
 
@@ -92,6 +90,19 @@ func checkActions(catalogue Catalogue, actions []domain.Action) ([]checkedAction
 			continue
 		}
 
+		if domain.IsFlowAction(action.Kind) {
+			// A flow action is the engine's own control structure and is in no catalogue: its
+			// parameters were checked by the aggregate, where every other shape question about a
+			// rule is answered. It declares no token scope, because it performs nothing - which is
+			// what makes `STOP` free of the composition rule that binds every other kind.
+			nested, err := branchActions(catalogue, action, path)
+			if err != nil {
+				return nil, err
+			}
+			checked = append(checked, nested...)
+			continue
+		}
+
 		descriptor, found := catalogue.ByAutomationAction(action.Kind)
 		if !found {
 			findings = append(findings, shared.FieldError{
@@ -119,6 +130,41 @@ func checkActions(catalogue Catalogue, actions []domain.Action) ([]checkedAction
 		return nil, shared.ErrValidation.
 			WithDetail("automation.actions_invalid").
 			WithFields(findings...)
+	}
+	return checked, nil
+}
+
+// branchActions resolves what a branch would do, on both of its arms.
+//
+// Both arms, not the one a condition happens to take: the composition rule (automation.md §2.1) is
+// about what a rule *may* do, and a rule whose `else` performs something its writer may not do is
+// laundering the same rights the day the condition turns false. A branch that checked only the arm
+// it takes would be a check that passes on Monday and fails on Tuesday.
+//
+// A non-branch flow action resolves to nothing at all, which is right: `WAIT` and `STOP` perform
+// no use case and need no right.
+func branchActions(
+	catalogue Catalogue, action domain.Action, path string,
+) ([]checkedAction, error) {
+	if action.Kind != domain.ActionBranch {
+		return nil, nil
+	}
+
+	branch, err := domain.ReadBranch(action.Params, path, 0)
+	if err != nil {
+		// Unreachable through the aggregate, which read the same parameters when the rule was
+		// built. Reported rather than swallowed, because a branch this layer could not read is a
+		// branch whose rights it has not checked.
+		return nil, err
+	}
+
+	var checked []checkedAction
+	for _, arm := range [][]domain.Action{branch.Then, branch.Else} {
+		nested, err := checkActions(catalogue, arm)
+		if err != nil {
+			return nil, err
+		}
+		checked = append(checked, nested...)
 	}
 	return checked, nil
 }
@@ -152,6 +198,10 @@ func checkConditions(compiler expression.Compiler, rule domain.Rule) error {
 			findings = append(findings, findingFor("/conditions/"+itoa(i)+"/expr", err))
 		}
 	}
+	// A branch's condition is a condition, and it is compiled here for the reason the rule's own
+	// are: a branch whose expression cannot be read would take the same arm for ever, which is a
+	// rule whose author believes it is deciding something (E-08's lesson, applied one level down).
+	findings = append(findings, branchFindings(compiler, environment, rule.Actions, "/actions")...)
 	if rule.Throttle.DedupeKeyExpr != "" {
 		if _, err := // A dedupe key renders a value that collapses runs meaning the same thing, so it is a
 			// template rather than a condition - `item.id` is a string, not a decision.
@@ -165,6 +215,39 @@ func checkConditions(compiler expression.Compiler, rule domain.Rule) error {
 	return shared.ErrValidation.
 		WithDetail("automation.condition_invalid").
 		WithFields(findings...)
+}
+
+// branchFindings compiles every branch condition in a list, and in the branches below it.
+//
+// Depth-first and all the way down, because the aggregate has already bounded both the depth and
+// the count: what is left is to compile what is there.
+func branchFindings(
+	compiler expression.Compiler, environment expression.Environment,
+	actions []domain.Action, path string,
+) []shared.FieldError {
+	var findings []shared.FieldError
+	for i, action := range actions {
+		if action.Kind != domain.ActionBranch {
+			continue
+		}
+		at := path + "/" + itoa(i)
+
+		branch, err := domain.ReadBranch(action.Params, at, 0)
+		if err != nil {
+			// Unreachable through the aggregate, which read the same parameters. Left to the
+			// caller's own refusal rather than turned into a second one here.
+			continue
+		}
+		if _, err := compiler.Compile(
+			branch.Condition, environment, expression.Boolean); err != nil {
+			findings = append(findings, findingFor(at+"/params/condition", err))
+		}
+		findings = append(findings,
+			branchFindings(compiler, environment, branch.Then, at+"/params/then")...)
+		findings = append(findings,
+			branchFindings(compiler, environment, branch.Else, at+"/params/else")...)
+	}
+	return findings
 }
 
 // findingFor renders the compiler's refusal at the field it is about, carrying the position it
