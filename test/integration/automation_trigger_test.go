@@ -372,6 +372,21 @@ func TestTheNewTriggerMethodsCannotReachAnotherTenant(t *testing.T) {
 		}
 	})
 
+	t.Run("upsert an occurrence", func(t *testing.T) {
+		// The composite foreign key is on (tenant_id, rule_id): tenant B writing `current_tenant_id()`
+		// into the row cannot reference tenant A's rule, so the write is refused rather than
+		// silently landing in the wrong workspace.
+		err := write(ctx, t, tenantB, func(ctx context.Context) error {
+			return automationRules().Upsert(ctx, domain.Occurrence{
+				ID: freshID(t), TenantID: tenantB, RuleID: rule.ID, ItemID: item,
+				FireAt: time.Now().UTC(),
+			})
+		})
+		if err == nil {
+			t.Error("tenant B wrote an occurrence against tenant A's rule")
+		}
+	})
+
 	t.Run("forget an occurrence", func(t *testing.T) {
 		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
 			if err := automationRules().Forget(ctx, rule.ID, item); err != nil {
