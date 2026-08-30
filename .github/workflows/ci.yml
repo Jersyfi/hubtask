@@ -227,9 +227,12 @@ jobs:
       # goose, because the RT tests that need a database migrate their own container the way
       # production does - a schema loaded any other way would be a schema nobody deploys.
       - run: make tools
-      # The RT series is a PR gate wherever it can be (observability-reliability.md §12); the
+      # The RT series is a PR gate wherever it can be (observability-reliability.md §12), and
+      # since G-12 that is a measured decision rather than a habit: this job takes about four and
+      # a half minutes beside jobs that take six and eight, so it costs no wall clock, and a
+      # defect it finds reaches the run that reviews the diff that caused it (ci-cd.md §3.2). The
       # three that need hours of load - RT-6, RT-8, RT-11 - live in the load suite and stay
-      # nightly.
+      # nightly, because a shared runner has no hour to give them.
       - run: make gate-resilience
 
   observability:
