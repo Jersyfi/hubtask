@@ -298,6 +298,12 @@ func runOutput(run domain.Run) usecase.Output {
 		row := map[string]any{
 			"index": result.Index, "kind": result.Kind, "status": string(result.Status),
 		}
+		if result.Path != "" {
+			row["path"] = result.Path
+		}
+		if result.Matched != nil {
+			row["matched"] = *result.Matched
+		}
 		if result.ErrorCode != "" {
 			row["error_code"] = result.ErrorCode
 		}

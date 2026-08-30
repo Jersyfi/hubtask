@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -377,6 +378,8 @@ type conditionResultDocument struct {
 type actionResultDocument struct {
 	Index          int    `json:"index"`
 	Kind           string `json:"kind"`
+	Path           string `json:"path,omitempty"`
+	Matched        *bool  `json:"matched,omitempty"`
 	Status         string `json:"status"`
 	ErrorCode      string `json:"error_code,omitempty"`
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
@@ -394,7 +397,8 @@ func runDocuments(run domain.Run) (conditions, actions []byte, err error) {
 	actionRows := make([]actionResultDocument, 0, len(run.ActionResults))
 	for _, result := range run.ActionResults {
 		actionRows = append(actionRows, actionResultDocument{
-			Index: result.Index, Kind: result.Kind, Status: string(result.Status),
+			Index: result.Index, Kind: result.Kind, Path: result.Path, Matched: result.Matched,
+			Status:    string(result.Status),
 			ErrorCode: result.ErrorCode, IdempotencyKey: result.IdempotencyKey,
 		})
 	}
@@ -472,8 +476,14 @@ func runFrom(row sqlc.ListRuleRunsRow) (domain.Run, error) {
 		})
 	}
 	for _, result := range actionRows {
+		path := result.Path
+		if path == "" {
+			// A row written before G-09 named actions by index alone, and every action was
+			// top-level - where the path is the index.
+			path = strconv.Itoa(result.Index)
+		}
 		run.ActionResults = append(run.ActionResults, domain.ActionResult{
-			Index: result.Index, Kind: result.Kind,
+			Index: result.Index, Kind: result.Kind, Path: path, Matched: result.Matched,
 			Status:    domain.ActionStatus(result.Status),
 			ErrorCode: result.ErrorCode, IdempotencyKey: result.IdempotencyKey,
 		})

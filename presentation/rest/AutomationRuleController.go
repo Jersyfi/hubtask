@@ -531,6 +531,12 @@ func actionResultsResponse(value any) []openapi.RuleActionResult {
 			Kind:   textField(row, "kind"),
 			Status: openapi.RuleActionResultStatus(textField(row, "status")),
 		}
+		if path := textField(row, "path"); path != "" {
+			result.Path = &path
+		}
+		if matched, present := row["matched"].(bool); present {
+			result.Matched = &matched
+		}
 		if code := textField(row, "error_code"); code != "" {
 			result.ErrorCode = &code
 		}

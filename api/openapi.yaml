@@ -5477,17 +5477,29 @@ components:
 
     RuleActionResult:
       type: object
-      description: One action's outcome, in the order the rule declares them.
+      description: One action's outcome, in the order the run reached them.
       required: [index, kind, status]
       properties:
         index: { type: integer }
         kind: { type: string }
+        path:
+          type: string
+          description: >
+            Where the action sits in the rule: `"2"` is the third action, `"2/then/0"` the first
+            action of that branch's `then` arm. The path is what shows which way a `BRANCH` went -
+            the nested results carry the arm they belong to in their own name.
+        matched:
+          type: boolean
+          description: >
+            How a `BRANCH`'s condition answered, present only on a `BRANCH` result. `true` means
+            the `then` arm ran; `false` the `else` arm, which may be empty.
         status:
           type: string
           enum: [SUCCEEDED, FAILED, SKIPPED]
           description: >
             `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an
-            earlier failure. It is not the same as an action that ran and did nothing.
+            earlier failure, or a `STOP` action ended it deliberately. It is not the same as an
+            action that ran and did nothing.
         error_code:
           type: string
           description: >
@@ -5497,8 +5509,9 @@ components:
         idempotency_key:
           type: string
           description: >
-            Derived from the rule, the event and the action's index (automation.md §2), so a
-            redelivered event re-runs into the stored result rather than acting twice.
+            Derived from the rule, the occasion and the action's path (automation.md §2), so a
+            redelivered event re-runs into the stored result rather than acting twice. Absent on
+            flow actions, which perform nothing there is to repeat.
 
     RuleRun:
       type: object

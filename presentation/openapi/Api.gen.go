@@ -4422,21 +4422,27 @@ type RuleAction struct {
 	Params *map[string]interface{} `json:"params,omitempty"`
 }
 
-// RuleActionResult One action's outcome, in the order the rule declares them.
+// RuleActionResult One action's outcome, in the order the run reached them.
 type RuleActionResult struct {
 	// ErrorCode The code the use case refused with, unchanged. A `run_as` account that may not do what the action asks shows the authoriser's own refusal here, which is what makes the run log answer "why did this not happen".
 	ErrorCode *string `json:"error_code,omitempty"`
 
-	// IdempotencyKey Derived from the rule, the event and the action's index (automation.md §2), so a redelivered event re-runs into the stored result rather than acting twice.
+	// IdempotencyKey Derived from the rule, the occasion and the action's path (automation.md §2), so a redelivered event re-runs into the stored result rather than acting twice. Absent on flow actions, which perform nothing there is to repeat.
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	Index          int     `json:"index"`
 	Kind           string  `json:"kind"`
 
-	// Status `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure. It is not the same as an action that ran and did nothing.
+	// Matched How a `BRANCH`'s condition answered, present only on a `BRANCH` result. `true` means the `then` arm ran; `false` the `else` arm, which may be empty.
+	Matched *bool `json:"matched,omitempty"`
+
+	// Path Where the action sits in the rule: `"2"` is the third action, `"2/then/0"` the first action of that branch's `then` arm. The path is what shows which way a `BRANCH` went - the nested results carry the arm they belong to in their own name.
+	Path *string `json:"path,omitempty"`
+
+	// Status `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure, or a `STOP` action ended it deliberately. It is not the same as an action that ran and did nothing.
 	Status RuleActionResultStatus `json:"status"`
 }
 
-// RuleActionResultStatus `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure. It is not the same as an action that ran and did nothing.
+// RuleActionResultStatus `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure, or a `STOP` action ended it deliberately. It is not the same as an action that ran and did nothing.
 type RuleActionResultStatus string
 
 // RuleCondition defines model for RuleCondition.

@@ -79,17 +79,29 @@ type ConditionResult struct {
 	ErrorCode string
 }
 
-// ActionResult is one action's outcome, in the order the rule declares them.
+// ActionResult is one action's outcome, in the order the run reached them.
 type ActionResult struct {
-	Index  int
-	Kind   string
+	// Index is the action's position in its own list - the rule's for a top-level action, the
+	// arm's for a nested one. Path is what places it in the rule as a whole.
+	Index int
+	Kind  string
+	// Path is where the action sits in the rule (ActionPath): `"2"` is the third action,
+	// `"2/then/0"` the first action of that branch's `then` arm. The path is what shows which way
+	// a BRANCH went - the nested results carry the arm they belong to in their own name.
+	Path   string
 	Status ActionStatus
+	// Matched is how a BRANCH's condition answered, and nil for every other kind. True means the
+	// `then` arm ran; false the `else` arm, which may be empty - and the value is what keeps an
+	// empty arm's run readable, because an arm with no actions leaves no nested results to show
+	// the way the branch went.
+	Matched *bool
 	// ErrorCode is the code the use case refused with, unchanged. A `run_as` account that may not
 	// do what the action asks shows the authoriser's own refusal here, which is what makes the run
 	// log answer "why did this not happen" rather than "something went wrong".
 	ErrorCode string
 	// IdempotencyKey is what made the action safe to attempt twice. Recorded because a person
-	// comparing two runs of one event needs to see that they carried the same key.
+	// comparing two runs of one event needs to see that they carried the same key. Empty on flow
+	// actions, which perform nothing there is to repeat.
 	IdempotencyKey string
 }
 

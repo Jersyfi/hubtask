@@ -243,8 +243,9 @@ func (h RunRule) decide(
 	if err != nil {
 		return domain.Run{}, err
 	}
+	values := h.values(envelope, cmd, now)
 
-	conditions, matched, err := h.evaluate(ctx, rule, h.values(envelope, cmd, now))
+	conditions, matched, err := h.evaluate(ctx, rule, values)
 	if err != nil {
 		return domain.Run{}, err
 	}
@@ -260,7 +261,7 @@ func (h RunRule) decide(
 		return run.Skip(conditions, now), nil
 	}
 
-	actions, stopped := h.act(ctx, actor, rule, cmd)
+	actions, stopped := h.act(ctx, actor, rule, cmd, values)
 	if stopped {
 		failed := run.Fail("automation.action_failed", now)
 		failed.ConditionResults, failed.ActionResults = conditions, actions
@@ -356,39 +357,138 @@ func (h RunRule) evaluate(
 	return results, matched, nil
 }
 
-// act dispatches the rule's steps and reports whether the run was stopped by a failure.
+// act walks the rule's action tree and reports whether the run was stopped by a failure.
 //
 // `on_error` decides what a failure does to the rest, and the three values do what they say. STOP
 // ends the run and the actions after it are SKIPPED - which is not the same as an action that ran
 // and did nothing. CONTINUE runs the rest and the run still succeeds, because the run did what its
 // rule says. RETRY is not decided here: it hands the job back to the queue, whose backoff and dead
 // letter are what "retry" means in this system, and the handler above translates it.
+//
+// A tree rather than a list since G-09: a BRANCH carries two arms and the run takes the one its
+// condition says, a STOP ends the run deliberately, and every result names its path. The arm a
+// branch did not take is recorded nowhere - it was never part of this run, and the rule itself is
+// where a reader sees what would have been there.
 func (h RunRule) act(
 	ctx context.Context, actor appshared.ActorContext, rule domain.Rule, cmd Command,
+	values eventValues,
 ) ([]domain.ActionResult, bool) {
-	results := make([]domain.ActionResult, 0, len(rule.Actions))
-	stopped := false
+	w := &walk{
+		engine: h, actor: actor, rule: rule, occasion: cmd.occasion(), values: values,
+	}
+	w.list(ctx, rule.Actions, "")
+	return w.results, w.halted
+}
 
-	for i, action := range rule.Actions {
-		result := domain.ActionResult{Index: i, Kind: action.Kind}
-		if stopped {
+// walk is one run's pass over its rule's action tree.
+type walk struct {
+	engine   RunRule
+	actor    appshared.ActorContext
+	rule     domain.Rule
+	occasion string
+	values   eventValues
+	results  []domain.ActionResult
+	// halted is a failure under `on_error: STOP` - the run will fail. ended is a STOP action - the
+	// run succeeded, because stopping early is what the rule said to do. Both skip what is left.
+	halted bool
+	ended  bool
+}
+
+// list performs one list of actions - the rule's own, or a branch's arm - under a parent path.
+func (w *walk) list(ctx context.Context, actions []domain.Action, parent string) {
+	if w.results == nil {
+		w.results = make([]domain.ActionResult, 0, len(actions))
+	}
+
+	for i, action := range actions {
+		path := domain.ActionPath(parent, i)
+		result := domain.ActionResult{Index: i, Kind: action.Kind, Path: path}
+		if w.halted || w.ended {
+			// Skipped without descending into a branch: no arm was chosen, so neither arm's
+			// actions were ever this run's to reach.
 			result.Status = domain.ActionSkipped
-			results = append(results, result)
+			w.results = append(w.results, result)
 			continue
 		}
 
-		result.IdempotencyKey = idempotencyKey(rule.ID, cmd.occasion(), i)
-		if err := h.dispatch(ctx, actor, rule, action, result.IdempotencyKey); err != nil {
-			result.Status, result.ErrorCode = domain.ActionFailed, codeOf(err)
-			if rule.OnError == domain.OnErrorStop {
-				stopped = true
-			}
-		} else {
+		switch action.Kind {
+		case domain.ActionStop:
+			// The run ends where it stands, and it succeeded: stopping early is what the rule
+			// said to do.
 			result.Status = domain.ActionSucceeded
+			w.results = append(w.results, result)
+			w.ended = true
+		case domain.ActionBranch:
+			w.branch(ctx, action, path, result)
+		case domain.ActionWait:
+			// G-09's third step. Until it lands, a run that reaches a WAIT fails it with the code
+			// the write-time refusal used, so its author is sent to the milestone rather than to a
+			// typo hunt.
+			w.record(result, shared.ErrValidation.WithDetail("automation.action_not_available_yet"))
+		default:
+			result.IdempotencyKey = idempotencyKey(w.rule.ID, w.occasion, path)
+			w.record(result,
+				w.engine.dispatch(ctx, w.actor, w.rule, action, result.IdempotencyKey))
 		}
-		results = append(results, result)
 	}
-	return results, stopped
+}
+
+// branch evaluates a BRANCH's condition and takes the arm it says.
+//
+// The condition is evaluated with the run's own values - the same environment, the same single
+// `now` - and its answer is recorded on the result, which is what keeps an empty arm readable. A
+// condition that cannot be evaluated fails the action rather than picking a default arm: a branch
+// that quietly took `else` on a timeout would act out the opposite of what its rule says.
+func (w *walk) branch(
+	ctx context.Context, action domain.Action, path string, result domain.ActionResult,
+) {
+	branch, err := domain.ReadBranch(action.Params, path, 0)
+	if err != nil {
+		// Unreachable through the aggregate, which read the same parameters when the rule was
+		// written. Failed rather than swallowed, because a branch the engine cannot read is a
+		// branch whose arm it cannot choose.
+		w.record(result, err)
+		return
+	}
+
+	if w.engine.Conditions == nil {
+		w.record(result, shared.ErrInternal.WithDetail("automation.expression_engine_unavailable"))
+		return
+	}
+	program, err := w.engine.Conditions.Compile(
+		branch.Condition, condition.RuleEnvironment(), expression.Boolean)
+	if err != nil {
+		w.record(result, err)
+		return
+	}
+	out, err := program.Evaluate(ctx, w.values)
+	if err != nil {
+		w.record(result, err)
+		return
+	}
+
+	matched := out.Bool
+	result.Status, result.Matched = domain.ActionSucceeded, &matched
+	w.results = append(w.results, result)
+
+	arm, name := branch.Then, "then"
+	if !matched {
+		arm, name = branch.Else, "else"
+	}
+	w.list(ctx, arm, path+"/"+name)
+}
+
+// record writes one result, applying `on_error` to a failure.
+func (w *walk) record(result domain.ActionResult, err error) {
+	if err != nil {
+		result.Status, result.ErrorCode = domain.ActionFailed, codeOf(err)
+		if w.rule.OnError == domain.OnErrorStop {
+			w.halted = true
+		}
+	} else {
+		result.Status = domain.ActionSucceeded
+	}
+	w.results = append(w.results, result)
 }
 
 // dispatch performs one action as the rule's account.
@@ -566,18 +666,22 @@ func (h RunRule) publish(
 	_ = h.Events.Append(ctx, envelope)
 }
 
-// idempotencyKey is what automation.md §2 specifies: the rule, the occasion and the action's index.
+// idempotencyKey is what automation.md §2 specifies: the rule, the occasion and the action's place
+// in it.
 //
-// The index rather than the action's kind, because a rule may name one kind twice - "add this label
+// The place rather than the action's kind, because a rule may name one kind twice - "add this label
 // and that one" is two actions of one kind, and a key that collapsed them would perform the first
-// and silently skip the second.
+// and silently skip the second. Since G-09 the place is a path rather than an index: a nested
+// action has no index at the top level, and two branches' first actions keyed by index would share
+// a key and the second would silently do nothing. A top-level action's path *is* its index, so
+// every key an earlier release wrote is unchanged.
 //
 // The occasion is the event for an `EVENT` run and the thing that happened once for each of the
 // other five (Command.Occasion). §2 writes "event_id" because when it was written that was the only
 // way a run could start; what the sentence means is "the one occurrence this run answers", and a
 // schedule's occurrence or a person's press is that occurrence exactly as an event is.
-func idempotencyKey(ruleID shared.ID, occasion string, index int) string {
-	return "automation:" + ruleID.String() + ":" + occasion + ":" + itoa(index)
+func idempotencyKey(ruleID shared.ID, occasion string, path string) string {
+	return "automation:" + ruleID.String() + ":" + occasion + ":" + path
 }
 
 // firstConditionError answers the code of the first condition that could not be evaluated, and the

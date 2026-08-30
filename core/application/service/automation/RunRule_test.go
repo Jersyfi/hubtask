@@ -849,3 +849,234 @@ func TestEveryTriggerCarriesTheDepthBoundAndTheThrottle(t *testing.T) {
 		})
 	}
 }
+
+// The flow vocabulary (G-09). A branch is a nested condition, a STOP is a deliberate end, and the
+// run log names every action by its path.
+
+func branchOf(condition string, then, otherwise []map[string]any) domain.Action {
+	params := map[string]any{"condition": condition}
+	arms := map[string][]map[string]any{"then": then, "else": otherwise}
+	for name, actions := range arms {
+		if actions == nil {
+			continue
+		}
+		rows := make([]any, 0, len(actions))
+		for _, action := range actions {
+			rows = append(rows, map[string]any(action))
+		}
+		params[name] = rows
+	}
+	return domain.Action{Kind: domain.ActionBranch, Params: params}
+}
+
+// The acceptance criterion: BRANCH takes the branch its condition says, and the run log shows both
+// the condition's answer and the path.
+func TestABranchTakesTheArmItsConditionSays(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{branchOf("true",
+		[]map[string]any{{"kind": "ADD_LABEL"}},
+		[]map[string]any{{"kind": "CREATE_BUCKET"}},
+	)}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunSucceeded {
+		t.Fatalf("status %q, want SUCCEEDED", run.Status)
+	}
+	if len(run.ActionResults) != 2 {
+		t.Fatalf("%d action results, want the branch and its arm: %+v", len(run.ActionResults), run.ActionResults)
+	}
+
+	branch := run.ActionResults[0]
+	if branch.Kind != domain.ActionBranch || branch.Status != domain.ActionSucceeded {
+		t.Errorf("the branch's own result is %+v", branch)
+	}
+	if branch.Path != "0" {
+		t.Errorf("the branch's path is %q, want \"0\"", branch.Path)
+	}
+	if branch.Matched == nil || !*branch.Matched {
+		t.Errorf("the log does not say the condition held: %+v", branch)
+	}
+
+	taken := run.ActionResults[1]
+	if taken.Kind != "ADD_LABEL" || taken.Path != "0/then/0" {
+		t.Errorf("the taken arm is %+v, want ADD_LABEL at 0/then/0", taken)
+	}
+	if len(h.dispatcher.calls) != 1 || h.dispatcher.calls[0].kind != "ADD_LABEL" {
+		t.Errorf("dispatched %+v, want just the then arm", h.dispatcher.calls)
+	}
+}
+
+// The arm the condition refuses is the else arm - and the log still shows the answer even though an
+// empty arm leaves no nested results.
+func TestABranchWhoseConditionSaysNoTakesElse(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{branchOf("false",
+		[]map[string]any{{"kind": "ADD_LABEL"}},
+		[]map[string]any{{"kind": "CREATE_BUCKET"}},
+	)}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	branch := run.ActionResults[0]
+	if branch.Matched == nil || *branch.Matched {
+		t.Errorf("the log does not say the condition refused: %+v", branch)
+	}
+	if run.ActionResults[1].Path != "0/else/0" || run.ActionResults[1].Kind != "CREATE_BUCKET" {
+		t.Errorf("the else arm is %+v", run.ActionResults[1])
+	}
+	if len(h.dispatcher.calls) != 1 || h.dispatcher.calls[0].kind != "CREATE_BUCKET" {
+		t.Errorf("dispatched %+v, want just the else arm", h.dispatcher.calls)
+	}
+}
+
+// STOP ends the run where it stands, the rest is SKIPPED, and the run succeeded: stopping early is
+// what the rule said to do.
+func TestAStopEndsTheRunAndTheRestIsSkipped(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		{Kind: "ADD_LABEL"}, {Kind: domain.ActionStop}, {Kind: "CREATE_BUCKET"},
+	}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunSucceeded {
+		t.Errorf("status %q, want SUCCEEDED - stopping is not failing", run.Status)
+	}
+	if run.ActionResults[1].Status != domain.ActionSucceeded {
+		t.Errorf("the STOP itself is %q", run.ActionResults[1].Status)
+	}
+	if run.ActionResults[2].Status != domain.ActionSkipped {
+		t.Errorf("the action after the STOP is %q, want SKIPPED", run.ActionResults[2].Status)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Errorf("%d actions dispatched after a STOP", len(h.dispatcher.calls))
+	}
+}
+
+// A STOP inside a branch ends the whole run, not just the arm it stands in.
+func TestAStopInsideABranchEndsTheWholeRun(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		branchOf("true", []map[string]any{{"kind": string(domain.ActionStop)}}, nil),
+		{Kind: "ADD_LABEL"},
+	}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunSucceeded {
+		t.Errorf("status %q, want SUCCEEDED", run.Status)
+	}
+	last := run.ActionResults[len(run.ActionResults)-1]
+	if last.Kind != "ADD_LABEL" || last.Status != domain.ActionSkipped {
+		t.Errorf("the top-level action after the branch is %+v, want SKIPPED", last)
+	}
+	if len(h.dispatcher.calls) != 0 {
+		t.Errorf("%d actions dispatched after a nested STOP", len(h.dispatcher.calls))
+	}
+}
+
+// G-07's key is (rule, occasion, action index), and a nested action has no index at the top level -
+// two branches' first actions keyed by index would share a key and the second would silently do
+// nothing. The key names the path.
+func TestTwoBranchesFirstActionsDoNotShareAKey(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		branchOf("true", []map[string]any{{"kind": "ADD_LABEL"}}, nil),
+		branchOf("true", []map[string]any{{"kind": "ADD_LABEL"}}, nil),
+	}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if len(h.dispatcher.calls) != 2 {
+		t.Fatalf("%d actions dispatched, want both branches' arms", len(h.dispatcher.calls))
+	}
+
+	keys := map[string]bool{}
+	for _, result := range run.ActionResults {
+		if result.Kind != "ADD_LABEL" {
+			continue
+		}
+		if result.IdempotencyKey == "" {
+			t.Fatalf("a nested action carries no key: %+v", result)
+		}
+		if keys[result.IdempotencyKey] {
+			t.Fatalf("two branches' first actions share the key %q", result.IdempotencyKey)
+		}
+		keys[result.IdempotencyKey] = true
+		if !strings.Contains(result.IdempotencyKey, result.Path) {
+			t.Errorf("the key %q does not name the path %q", result.IdempotencyKey, result.Path)
+		}
+	}
+	if len(keys) != 2 {
+		t.Fatalf("%d nested results, want two", len(keys))
+	}
+}
+
+// A branch whose condition cannot be evaluated fails the action rather than picking a default arm:
+// a branch that quietly took `else` on a timeout would act out the opposite of what its rule says.
+func TestABranchConditionThatCannotBeEvaluatedFailsTheAction(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		branchOf("nonsense", []map[string]any{{"kind": "ADD_LABEL"}}, nil),
+		{Kind: "CREATE_BUCKET"},
+	}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunFailed {
+		t.Errorf("status %q, want FAILED under on_error STOP", run.Status)
+	}
+	branch := run.ActionResults[0]
+	if branch.Status != domain.ActionFailed || branch.ErrorCode == "" {
+		t.Errorf("the branch's result is %+v, want FAILED with a code", branch)
+	}
+	if branch.Matched != nil {
+		t.Errorf("a branch that decided nothing claims an answer: %+v", branch)
+	}
+	if run.ActionResults[1].Status != domain.ActionSkipped {
+		t.Errorf("the action after the failed branch is %q, want SKIPPED", run.ActionResults[1].Status)
+	}
+	if len(h.dispatcher.calls) != 0 {
+		t.Errorf("%d actions dispatched under a branch that decided nothing", len(h.dispatcher.calls))
+	}
+}
+
+// Until G-09's third step lands, a run that reaches a WAIT fails it with the code the write-time
+// refusal used - to the milestone, not to a typo hunt.
+func TestAWaitStillFailsUntilItsStepLands(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		{Kind: domain.ActionWait, Params: map[string]any{"duration": "PT1H"}},
+	}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunFailed {
+		t.Errorf("status %q, want FAILED while WAIT is unserved", run.Status)
+	}
+	if run.ActionResults[0].ErrorCode != "automation.action_not_available_yet" {
+		t.Errorf("the WAIT failed with %q", run.ActionResults[0].ErrorCode)
+	}
+}
