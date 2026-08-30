@@ -99,3 +99,21 @@ func (s IdempotencyStore) Complete(ctx context.Context, key repository.Key, stat
 	}
 	return nil
 }
+
+// Release lets a reservation go (G-09). The engine calls it for an action that claimed its key
+// and then failed, in the same transaction: the claim and the failure commit together, so a
+// replay of the run finds the key free and performs the action the first run never did.
+func (s IdempotencyStore) Release(ctx context.Context, key repository.Key) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if err := queries.ReleaseIdempotencyKey(ctx, sqlc.ReleaseIdempotencyKeyParams{
+		Key: key.Key, Endpoint: key.Endpoint,
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("releasing the idempotency key: %w", err))
+	}
+	return nil
+}

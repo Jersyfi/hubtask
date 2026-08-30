@@ -119,6 +119,11 @@ type Idempotency interface {
 	// Claim reserves the key and reports whether this attempt is the first. False means a previous
 	// attempt already did the work.
 	Claim(ctx context.Context, actor appshared.ActorContext, key string) (bool, error)
+	// Release lets a claim go, for the one attempt that claimed and then failed (G-09). The claim
+	// and the failure commit together, so a claim that outlived its failure would make a replay
+	// find the key taken and "complete" the action without ever performing it - the claim is a
+	// record of work done, and a failed action did none.
+	Release(ctx context.Context, actor appshared.ActorContext, key string) error
 }
 
 // RuleReader is the one read the queue adapter makes for itself: what a rule says about failure.
@@ -222,6 +227,7 @@ func (h RunRule) Execute(
 	run, err := domain.StartRun(domain.NewRunInput{
 		ID: runID, TenantID: actor.TenantID, RuleID: rule.ID, EventID: cmd.EventID,
 		Trigger: cmd.Trigger, TriggeredBy: cmd.TriggeredBy, SubjectID: cmd.SubjectID,
+		Occasion:       cmd.occasion(),
 		CausationDepth: cmd.CausationDepth, Now: now,
 	})
 	if err != nil {
@@ -791,7 +797,15 @@ func (h RunRule) dispatch(
 	if err != nil {
 		return err
 	}
-	_, err = h.Dispatcher.Dispatch(ctx, runAs, action.Kind, action.Params, supplied)
+	if _, err = h.Dispatcher.Dispatch(ctx, runAs, action.Kind, action.Params, supplied); err != nil {
+		if h.Guard != nil {
+			// The claim is a record of work done, and this action did none: released, in the same
+			// transaction the failure commits in, so a replay of the run performs it (G-09).
+			if releaseErr := h.Guard.Release(ctx, actor, key); releaseErr != nil {
+				return releaseErr
+			}
+		}
+	}
 	return err
 }
 

@@ -830,6 +830,12 @@ func run() error {
 			Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
+		automationservice.ReplayRuleRun{
+			Runs:  postgres.NewAutomationRunRepository(cursors),
+			Rules: postgres.NewAutomationRuleRepository(cursors),
+			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
@@ -2056,6 +2062,12 @@ func (c runClaims) Claim(
 		// the message-code gate reads anything shaped like one as a promise to translate.
 		idempotencyrepo.Key{Key: key, Endpoint: "automation:run"}, []byte(key))
 	return reserved, err
+}
+
+// Release lets a failed action's claim go, so a replay can perform what the first run never did
+// (G-09). See the engine's Idempotency port for why a failed claim must not outlive its failure.
+func (c runClaims) Release(ctx context.Context, _ appshared.ActorContext, key string) error {
+	return c.store.Release(ctx, idempotencyrepo.Key{Key: key, Endpoint: "automation:run"})
 }
 
 // cloudEventRendering bridges the polling trigger's rendering port to the CloudEvents mapping the

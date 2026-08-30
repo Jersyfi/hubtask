@@ -460,6 +460,20 @@ func (c *RestController) ListRuleRuns(
 	})
 }
 
+// ReplayRuleRun answers POST /automation/runs/{runId}:replay.
+func (c *RestController) ReplayRuleRun(
+	w http.ResponseWriter, r *http.Request, runID openapi_types.UUID, _ openapi.ReplayRuleRunParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), replayRuleRunUseCase, actor,
+			usecase.Input{"run_id": runID.String()})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusAccepted, openapi.RuleRunAccepted{
+			RunId: uuidValue(out.String("run_id")), RuleId: uuidValue(out.String("rule_id")),
+		})
+	})
+}
+
 // GetRuleRun answers GET /automation/runs/{runId}.
 func (c *RestController) GetRuleRun(
 	w http.ResponseWriter, r *http.Request, runID openapi_types.UUID,
@@ -473,8 +487,9 @@ func (c *RestController) GetRuleRun(
 }
 
 const (
-	httpRequestUseCase = "HttpRequest"
-	testRuleUseCase    = "TestRule"
+	httpRequestUseCase   = "HttpRequest"
+	testRuleUseCase      = "TestRule"
+	replayRuleRunUseCase = "ReplayRuleRun"
 )
 
 // TestRule answers POST /automation/rules:test.

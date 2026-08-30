@@ -74,6 +74,7 @@ func (r AutomationRunRepository) Start(ctx context.Context, run domain.Run) erro
 	if err := queries.InsertRuleRun(ctx, sqlc.InsertRuleRunParams{
 		ID: id, RuleID: ruleID, EventID: eventID,
 		Trigger: string(run.Trigger), TriggeredBy: triggeredBy, SubjectID: subjectID,
+		Occasion:         optionalText(run.Occasion),
 		Status:           string(run.Status),
 		ConditionResults: conditions,
 		ActionResults:    actions,
@@ -468,6 +469,7 @@ func runFrom(row sqlc.ListRuleRunsRow) (domain.Run, error) {
 	run := domain.Run{
 		ID: id, RuleID: ruleID, EventID: eventID,
 		Trigger: domain.TriggerKind(row.Trigger), TriggeredBy: triggeredBy, SubjectID: subjectID,
+		Occasion:         stringFrom(row.Occasion),
 		Status:           domain.RunStatus(row.Status),
 		ConditionResults: make([]domain.ConditionResult, 0, len(conditionRows)),
 		ActionResults:    make([]domain.ActionResult, 0, len(actionRows)),

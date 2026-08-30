@@ -732,6 +732,10 @@ CREATE TABLE rule_run (
   status       text NOT NULL CHECK (status IN ('RUNNING','WAITING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
   condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
   action_results    jsonb NOT NULL DEFAULT '[]'::jsonb,
+  -- What made this run one occurrence (G-09, migration 0059): the idempotency key's middle third,
+  -- kept so a replay can complete a half-finished run around the keys its actions claimed. NULL
+  -- on rows written before the column existed.
+  occasion     text,
   error_code   text,
   started_at   timestamptz NOT NULL DEFAULT now(),
   finished_at  timestamptz,

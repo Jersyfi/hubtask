@@ -136,7 +136,11 @@ type Run struct {
 	// SubjectID is the entry the run is about when no event names it - a RELATIVE_DATE run
 	// measured from one entry's due date. Zero where the event carries the subject, which is where
 	// a reader should look for it.
-	SubjectID        shared.ID
+	SubjectID shared.ID
+	// Occasion is what made this run one occurrence: the idempotency key's middle third (G-09).
+	// Kept on the row so a replay can complete a half-finished run around the keys its actions
+	// claimed. Empty on rows written before it was stored.
+	Occasion         string
 	Status           RunStatus
 	ConditionResults []ConditionResult
 	ActionResults    []ActionResult
@@ -159,6 +163,7 @@ type NewRunInput struct {
 	Trigger        TriggerKind
 	TriggeredBy    shared.ID
 	SubjectID      shared.ID
+	Occasion       string
 	CausationDepth int
 	Now            time.Time
 }
@@ -178,6 +183,7 @@ func StartRun(in NewRunInput) (Run, error) {
 	return Run{
 		ID: in.ID, TenantID: in.TenantID, RuleID: in.RuleID, EventID: in.EventID,
 		Trigger: in.Trigger, TriggeredBy: in.TriggeredBy, SubjectID: in.SubjectID,
+		Occasion:         in.Occasion,
 		Status:           RunRunning,
 		ConditionResults: []ConditionResult{},
 		ActionResults:    []ActionResult{},

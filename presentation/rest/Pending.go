@@ -191,6 +191,12 @@ func (pending) GetRuleRun(w http.ResponseWriter, r *http.Request, _ openapi_type
 	notAvailable(w, r)
 }
 
+func (pending) ReplayRuleRun(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ReplayRuleRunParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) PollTriggerEvents(w http.ResponseWriter, r *http.Request, _ openapi.EventType, _ openapi.PollTriggerEventsParams) {
 	notAvailable(w, r)
 }

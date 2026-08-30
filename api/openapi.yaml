@@ -803,6 +803,42 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /automation/runs/{runId}:replay:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [automation]
+      operationId: replayRuleRun
+      summary: Complete a failed run
+      description: >
+        Re-executes a failed run's remaining actions under the same idempotency keys - which is
+        what makes this a completion rather than a duplication: an action the original run
+        finished finds its key already claimed and does nothing again, and only what never
+        happened happens now.
+
+        Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run
+        resumes by itself, a skipped or throttled one did what its rule says, and a disabled
+        rule must not act. The conditions are evaluated again against the world as it stands -
+        the answer that decides an action is the answer of the day it runs (automation.md §2.1) -
+        and the replay is audited with the replayer, because somebody looked at a failure and
+        decided the world is ready for the rest.
+
+        The answer carries the identifier the replay's run will have, exactly as `:trigger` does.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Queued, with the identifier the replay's run will carry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /integrations/webhooks:
     get:
       tags: [webhooks]

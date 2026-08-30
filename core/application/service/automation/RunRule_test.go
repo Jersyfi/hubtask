@@ -147,6 +147,11 @@ func (c *claims) Claim(_ context.Context, _ appshared.ActorContext, key string) 
 	return true, nil
 }
 
+func (c *claims) Release(_ context.Context, _ appshared.ActorContext, key string) error {
+	delete(c.seen, key)
+	return nil
+}
+
 // published records the run events.
 type published struct{ envelopes []event.Envelope }
 

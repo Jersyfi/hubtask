@@ -113,12 +113,12 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- distinguishes a crash from a run nobody attempted.
 INSERT INTO rule_run (
   id, tenant_id, rule_id, event_id, trigger, triggered_by, subject_id,
-  status, condition_results, action_results, started_at, causation_depth
+  status, condition_results, action_results, occasion, started_at, causation_depth
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('rule_id'), sqlc.narg('event_id'),
   sqlc.arg('trigger'), sqlc.narg('triggered_by'), sqlc.narg('subject_id'),
   sqlc.arg('status'), sqlc.arg('condition_results'), sqlc.arg('action_results'),
-  sqlc.arg('started_at'), sqlc.arg('causation_depth')
+  sqlc.narg('occasion'), sqlc.arg('started_at'), sqlc.arg('causation_depth')
 );
 
 -- name: FinishRuleRun :exec
@@ -134,7 +134,8 @@ WHERE id = sqlc.arg('id');
 
 -- name: FindRuleRun :one
 SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
-       condition_results, action_results, error_code, started_at, finished_at, causation_depth
+       condition_results, action_results, occasion, error_code, started_at, finished_at,
+       causation_depth
 FROM rule_run
 WHERE id = sqlc.arg('id');
 
@@ -143,7 +144,8 @@ WHERE id = sqlc.arg('id');
 -- in. The three filters are nullable arguments rather than eight statements, because a second
 -- statement differing in one predicate is a second place for a predicate to be forgotten.
 SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
-       condition_results, action_results, error_code, started_at, finished_at, causation_depth
+       condition_results, action_results, occasion, error_code, started_at, finished_at,
+       causation_depth
 FROM rule_run
 WHERE (sqlc.narg('rule_id')::uuid IS NULL OR rule_id = sqlc.narg('rule_id')::uuid)
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
