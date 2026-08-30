@@ -580,6 +580,38 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /automation/rules:test:
+    post:
+      tags: [automation]
+      operationId: testRule
+      summary: Dry-run a rule against a sample event
+      description: >
+        The dry run automation.md §2 promises: a sample event in, which conditions matched and
+        which actions *would* run out - and no side effects, with the restore's dry-run
+        discipline behind the promise: nothing below this route opens a writing transaction. No
+        action dispatches, nothing is queued, and the run log records nothing.
+
+        Test either a stored rule by its identifier or a definition you are about to save - the
+        same document `POST /automation/rules` takes, checked by the same validation, so a rule
+        the dry run accepts is a rule the create will accept. Both arms of every branch are
+        reported with whether they would run, which is more than a real run's log shows: the run
+        records the path it took, and the dry run answers the question "and what if it had not".
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleTest"
+      responses:
+        "200":
+          description: What the rule would have done
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleTestResult"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /automation/rules/{ruleId}:trigger:
     parameters:
       - $ref: "#/components/parameters/RuleId"
@@ -731,7 +763,7 @@ paths:
             wants; `THROTTLED` and `SKIPPED` are the ordinary answers of a rule that is working.
           schema:
             type: string
-            enum: [RUNNING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+            enum: [RUNNING, WAITING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
         - name: trigger
           in: query
           required: false
@@ -768,6 +800,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RuleRun"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/runs/{runId}:replay:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [automation]
+      operationId: replayRuleRun
+      summary: Complete a failed run
+      description: >
+        Re-executes a failed run's remaining actions under the same idempotency keys - which is
+        what makes this a completion rather than a duplication: an action the original run
+        finished finds its key already claimed and does nothing again, and only what never
+        happened happens now.
+
+        Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run
+        resumes by itself, a skipped or throttled one did what its rule says, and a disabled
+        rule must not act. The conditions are evaluated again against the world as it stands -
+        the answer that decides an action is the answer of the day it runs (automation.md §2.1) -
+        and the replay is audited with the replayer, because somebody looked at a failure and
+        decided the world is ready for the rest.
+
+        The answer carries the identifier the replay's run will have, exactly as `:trigger` does.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Queued, with the identifier the replay's run will carry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunAccepted"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -939,6 +1007,39 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /integrations/webhooks/{webhookId}:send:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    post:
+      tags: [webhooks]
+      operationId: sendWebhook
+      summary: Deliver one event to this subscription
+      description: >
+        One event, delivered to one named subscription through the same pipeline every delivery
+        takes: the same delivery table, the same signature, the same retry ladder and the same
+        dead letter. The subscription's own event-type filter is deliberately not consulted -
+        naming the subscription is the point of the call - but a paused or disabled subscription
+        is refused, and an event a restore replayed is never delivered
+        (backup-restore.md §8.4).
+
+        This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the
+        subscription, and the run supplies the event it is about.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookSend"
+      responses:
+        "202":
+          description: Queued for delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDelivery"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /integrations/webhooks/{webhookId}:rotate-secret:
     parameters:
       - $ref: "#/components/parameters/WebhookId"
@@ -969,6 +1070,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WebhookSubscriptionSecret"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/http-requests:
+    post:
+      tags: [automation]
+      operationId: httpRequest
+      summary: Call an external HTTP address
+      description: >
+        One outbound call, through the guarded client: private and link-local ranges are refused
+        unless the installation released them, redirects are limited, the call has a deadline and
+        the response a size cap - and the response is then discarded, because a rule cannot read
+        an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after
+        creation.
+
+        This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request,
+        and the run supplies the event its body template is rendered from. The call happens on a
+        job with the webhook ladder's retries; the answer is a `JobRef` to poll.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HttpRequestCall"
+      responses:
+        "202":
+          description: The call was accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRef"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -5175,6 +5307,61 @@ components:
                 The signing secret, in clear, for the only time. Store it or rotate it: what is
                 kept is sealed under the installation's key, and no read answers it again.
 
+    HttpRequestCall:
+      type: object
+      description: >
+        One outbound HTTP call, as a rule's `HTTP_REQUEST` action carries it. The secret header is
+        the one place a credential belongs - never the URL, never the plain headers - and it is
+        sealed at rest and masked as `***` everywhere after creation; sending `***` back on a rule
+        edit keeps the stored secret.
+      required: [method, url]
+      properties:
+        method:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+        url:
+          type: string
+          description: The address, http or https. Whether this installation is willing to dial
+            it is the guard's decision at the call.
+        headers:
+          type: object
+          additionalProperties: { type: string }
+          description: Plain headers - a content type, an API version. Never a credential.
+        secret_header_name:
+          type: string
+          description: The header the secret travels in, e.g. `Authorization`.
+        secret_header_value:
+          type: string
+          description: The secret itself. Answered as `***` ever after.
+        signature_header:
+          type: string
+          description: >
+            When set, this header carries an HMAC-SHA256 over the body computed with the secret -
+            the same `t=<ts>,v1=<hex>` shape a webhook signature has.
+        body_template:
+          type: string
+          description: >
+            A CEL expression producing the body, rendered against the run's event when the call
+            is made. A static body is a string literal.
+        event_id:
+          type: string
+          format: uuid
+          description: >
+            The event the body template reads. A rule leaves this out and the run supplies the
+            event it is about.
+
+    WebhookSend:
+      type: object
+      description: What a deliberate delivery names - the event; the path names the subscription.
+      required: [event_id]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: >
+            The event to deliver, as `X-Hubtask-Event-Id` will carry it. It has to still be inside
+            the outbox's retention window - an event the sweep has taken cannot be rendered.
+
     WebhookSecretRotation:
       type: object
       properties:
@@ -5281,6 +5468,12 @@ components:
         One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows
         with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a
         new use case becomes an action without anybody editing anything.
+
+        Three kinds are the exception, and they are one on purpose: `WAIT`, `BRANCH` and `STOP` are
+        not use cases at all but the engine's own control structures, so they are in no catalogue
+        and there is nothing for MCP or a person to call. Their parameters are therefore checked
+        where every other shape question about a rule is answered - by the rule itself, when it is
+        written.
       required: [kind]
       properties:
         kind:
@@ -5288,6 +5481,19 @@ components:
           description: >
             `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind automation.md §1.3 documents and no
             release serves yet is refused by name rather than stored to be ignored.
+
+            `WAIT` takes `duration`, an unsigned ISO 8601 duration of at most a year: the run
+            suspends and a job resumes it, so a rule that waits a day holds no worker and survives
+            a restart. `BRANCH` takes `condition` and the nested lists `then` (required) and `else`
+            (optional) - a nested list rather than a jump target, because "skip the next two" is a
+            rule whose meaning changes when somebody inserts an action above it. `STOP` takes
+            nothing and ends the run where it stands, with the actions after it `SKIPPED` and the
+            run `SUCCEEDED`: stopping early is what the rule said to do.
+
+            **A branch's arms are checked exactly as the top level is**, and both of them: the
+            composition rule is about what a rule *may* do, so a rule whose `else` performs
+            something its writer may not do is laundering the same rights the day the condition
+            turns false.
         params:
           type: object
           additionalProperties: true
@@ -5399,6 +5605,74 @@ components:
           enum: [STOP, CONTINUE, RETRY]
           default: STOP
 
+    RuleTest:
+      type: object
+      description: >
+        A dry run's input: exactly one of `rule_id` (a stored rule) and `rule` (a definition you
+        are about to save), plus the sample event to evaluate it against.
+      properties:
+        rule_id:
+          type: string
+          format: uuid
+          description: A stored rule to test.
+        rule:
+          $ref: "#/components/schemas/AutomationRuleCreate"
+        sample_event:
+          $ref: "#/components/schemas/RuleTestEvent"
+        payload:
+          type: object
+          description: >
+            The body an inbound delivery would have carried, as the CEL `payload` variable reads
+            it. For testing an `INBOUND_WEBHOOK` rule's conditions.
+
+    RuleTestEvent:
+      type: object
+      description: The sample event, as the CEL `event` variable will read it.
+      required: [type]
+      properties:
+        type:
+          type: string
+          description: The event type, e.g. `de.hubtask.work.item.updated.v1`.
+        subject:
+          type: string
+          description: >
+            What the event is about, e.g. `item/018f...`. Naming a real entry lets a condition
+            that reads `item` resolve it - a read, never a write.
+        payload:
+          type: object
+          description: The event's payload document.
+
+    RuleTestResult:
+      type: object
+      required: [matched, condition_results, actions]
+      properties:
+        matched:
+          type: boolean
+          description: Whether every condition held - whether a real run would have acted at all.
+        condition_results:
+          type: array
+          items: { $ref: "#/components/schemas/RuleConditionResult" }
+        actions:
+          type: array
+          items: { $ref: "#/components/schemas/RuleTestAction" }
+
+    RuleTestAction:
+      type: object
+      description: >
+        One action of the rule, with whether it would have run. Unlike a real run's log, both arms
+        of every branch appear - the dry run answers "and what if it had not" as well.
+      required: [path, kind, would_run]
+      properties:
+        path: { type: string }
+        kind: { type: string }
+        would_run: { type: boolean }
+        matched:
+          type: boolean
+          description: How a `BRANCH`'s condition answered the sample, present only on a branch.
+        error_code:
+          type: string
+          description: Present when a branch's condition could not be evaluated for the sample.
+
     AutomationRuleUpdate:
       type: object
       description: >
@@ -5438,8 +5712,9 @@ components:
       description: >
         How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes
         it when the run starts, so a row left in it is a crash rather than a state anything reaches
-        deliberately.
-      enum: [RUNNING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+        deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written,
+        a scheduled job holds the resume point, and no worker is held while the delay passes.
+      enum: [RUNNING, WAITING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
 
     RuleConditionResult:
       type: object
@@ -5458,17 +5733,29 @@ components:
 
     RuleActionResult:
       type: object
-      description: One action's outcome, in the order the rule declares them.
+      description: One action's outcome, in the order the run reached them.
       required: [index, kind, status]
       properties:
         index: { type: integer }
         kind: { type: string }
+        path:
+          type: string
+          description: >
+            Where the action sits in the rule: `"2"` is the third action, `"2/then/0"` the first
+            action of that branch's `then` arm. The path is what shows which way a `BRANCH` went -
+            the nested results carry the arm they belong to in their own name.
+        matched:
+          type: boolean
+          description: >
+            How a `BRANCH`'s condition answered, present only on a `BRANCH` result. `true` means
+            the `then` arm ran; `false` the `else` arm, which may be empty.
         status:
           type: string
           enum: [SUCCEEDED, FAILED, SKIPPED]
           description: >
             `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an
-            earlier failure. It is not the same as an action that ran and did nothing.
+            earlier failure, or a `STOP` action ended it deliberately. It is not the same as an
+            action that ran and did nothing.
         error_code:
           type: string
           description: >
@@ -5478,8 +5765,9 @@ components:
         idempotency_key:
           type: string
           description: >
-            Derived from the rule, the event and the action's index (automation.md §2), so a
-            redelivered event re-runs into the stored result rather than acting twice.
+            Derived from the rule, the occasion and the action's path (automation.md §2), so a
+            redelivered event re-runs into the stored result rather than acting twice. Absent on
+            flow actions, which perform nothing there is to repeat.
 
     RuleRun:
       type: object

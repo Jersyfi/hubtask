@@ -17,6 +17,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 // runLog is the run repository in memory.
@@ -101,9 +102,10 @@ type dispatched struct {
 }
 
 type dispatchCall struct {
-	kind   string
-	actor  appshared.ActorContext
-	params map[string]any
+	kind     string
+	actor    appshared.ActorContext
+	params   map[string]any
+	supplied map[string]any
 }
 
 func newDispatched() *dispatched {
@@ -114,9 +116,10 @@ func newDispatched() *dispatched {
 }
 
 func (d *dispatched) Dispatch(
-	_ context.Context, runAs appshared.ActorContext, kind string, params map[string]any,
+	_ context.Context, runAs appshared.ActorContext, kind string,
+	params map[string]any, supplied map[string]any,
 ) (usecase.Output, error) {
-	d.calls = append(d.calls, dispatchCall{kind: kind, actor: runAs, params: params})
+	d.calls = append(d.calls, dispatchCall{kind: kind, actor: runAs, params: params, supplied: supplied})
 	if err, refused := d.refuse[kind]; refused {
 		return nil, err
 	}
@@ -142,6 +145,11 @@ func (c *claims) Claim(_ context.Context, _ appshared.ActorContext, key string) 
 	}
 	c.seen[key] = true
 	return true, nil
+}
+
+func (c *claims) Release(_ context.Context, _ appshared.ActorContext, key string) error {
+	delete(c.seen, key)
+	return nil
 }
 
 // published records the run events.
@@ -178,6 +186,14 @@ func (t *told) RuleDisabled(_ context.Context, rule domain.Rule, _ time.Time) er
 	return nil
 }
 
+// queued records what the engine parks on the queue: a WAIT's resume.
+type queued struct{ requests []queue.Request }
+
+func (q *queued) Enqueue(_ context.Context, request queue.Request) (shared.ID, error) {
+	q.requests = append(q.requests, request)
+	return shared.ID("01936f2a-7c1e-7000-8000-0000000000aa"), nil
+}
+
 type engineHarness struct {
 	engine     RunRule
 	rules      *ruleStore
@@ -187,6 +203,7 @@ type engineHarness struct {
 	events     *published
 	owners     *told
 	claims     *claims
+	jobs       *queued
 }
 
 func newEngine(t *testing.T, rule domain.Rule) *engineHarness {
@@ -196,12 +213,13 @@ func newEngine(t *testing.T, rule domain.Rule) *engineHarness {
 	h := &engineHarness{
 		rules: store, runs: newRunLog(), failures: &failures{},
 		dispatcher: newDispatched(), events: &published{}, owners: &told{}, claims: newClaims(),
+		jobs: &queued{},
 	}
 	h.engine = RunRule{
 		Rules: store, Runs: h.runs, Failures: h.failures, Events: h.events,
 		Source:     source{envelope: itemEvent()},
 		Dispatcher: h.dispatcher, Scopes: h.dispatcher,
-		Conditions: compiler{}, Guard: h.claims, Owners: h.owners,
+		Conditions: compiler{}, Guard: h.claims, Owners: h.owners, Jobs: h.jobs,
 		UnitOfWork: unitOfWork{}, Clock: clock.Fixed(now), IDs: runIDs{},
 	}
 	return h
@@ -847,5 +865,490 @@ func TestEveryTriggerCarriesTheDepthBoundAndTheThrottle(t *testing.T) {
 				}
 			})
 		})
+	}
+}
+
+// The flow vocabulary (G-09). A branch is a nested condition, a STOP is a deliberate end, and the
+// run log names every action by its path.
+
+func branchOf(condition string, then, otherwise []map[string]any) domain.Action {
+	params := map[string]any{"condition": condition}
+	arms := map[string][]map[string]any{"then": then, "else": otherwise}
+	for name, actions := range arms {
+		if actions == nil {
+			continue
+		}
+		rows := make([]any, 0, len(actions))
+		for _, action := range actions {
+			rows = append(rows, map[string]any(action))
+		}
+		params[name] = rows
+	}
+	return domain.Action{Kind: domain.ActionBranch, Params: params}
+}
+
+// The acceptance criterion: BRANCH takes the branch its condition says, and the run log shows both
+// the condition's answer and the path.
+func TestABranchTakesTheArmItsConditionSays(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{branchOf("true",
+		[]map[string]any{{"kind": "ADD_LABEL"}},
+		[]map[string]any{{"kind": "CREATE_BUCKET"}},
+	)}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunSucceeded {
+		t.Fatalf("status %q, want SUCCEEDED", run.Status)
+	}
+	if len(run.ActionResults) != 2 {
+		t.Fatalf("%d action results, want the branch and its arm: %+v", len(run.ActionResults), run.ActionResults)
+	}
+
+	branch := run.ActionResults[0]
+	if branch.Kind != domain.ActionBranch || branch.Status != domain.ActionSucceeded {
+		t.Errorf("the branch's own result is %+v", branch)
+	}
+	if branch.Path != "0" {
+		t.Errorf("the branch's path is %q, want \"0\"", branch.Path)
+	}
+	if branch.Matched == nil || !*branch.Matched {
+		t.Errorf("the log does not say the condition held: %+v", branch)
+	}
+
+	taken := run.ActionResults[1]
+	if taken.Kind != "ADD_LABEL" || taken.Path != "0/then/0" {
+		t.Errorf("the taken arm is %+v, want ADD_LABEL at 0/then/0", taken)
+	}
+	if len(h.dispatcher.calls) != 1 || h.dispatcher.calls[0].kind != "ADD_LABEL" {
+		t.Errorf("dispatched %+v, want just the then arm", h.dispatcher.calls)
+	}
+}
+
+// The arm the condition refuses is the else arm - and the log still shows the answer even though an
+// empty arm leaves no nested results.
+func TestABranchWhoseConditionSaysNoTakesElse(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{branchOf("false",
+		[]map[string]any{{"kind": "ADD_LABEL"}},
+		[]map[string]any{{"kind": "CREATE_BUCKET"}},
+	)}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	branch := run.ActionResults[0]
+	if branch.Matched == nil || *branch.Matched {
+		t.Errorf("the log does not say the condition refused: %+v", branch)
+	}
+	if run.ActionResults[1].Path != "0/else/0" || run.ActionResults[1].Kind != "CREATE_BUCKET" {
+		t.Errorf("the else arm is %+v", run.ActionResults[1])
+	}
+	if len(h.dispatcher.calls) != 1 || h.dispatcher.calls[0].kind != "CREATE_BUCKET" {
+		t.Errorf("dispatched %+v, want just the else arm", h.dispatcher.calls)
+	}
+}
+
+// STOP ends the run where it stands, the rest is SKIPPED, and the run succeeded: stopping early is
+// what the rule said to do.
+func TestAStopEndsTheRunAndTheRestIsSkipped(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		{Kind: "ADD_LABEL"}, {Kind: domain.ActionStop}, {Kind: "CREATE_BUCKET"},
+	}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunSucceeded {
+		t.Errorf("status %q, want SUCCEEDED - stopping is not failing", run.Status)
+	}
+	if run.ActionResults[1].Status != domain.ActionSucceeded {
+		t.Errorf("the STOP itself is %q", run.ActionResults[1].Status)
+	}
+	if run.ActionResults[2].Status != domain.ActionSkipped {
+		t.Errorf("the action after the STOP is %q, want SKIPPED", run.ActionResults[2].Status)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Errorf("%d actions dispatched after a STOP", len(h.dispatcher.calls))
+	}
+}
+
+// A STOP inside a branch ends the whole run, not just the arm it stands in.
+func TestAStopInsideABranchEndsTheWholeRun(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		branchOf("true", []map[string]any{{"kind": string(domain.ActionStop)}}, nil),
+		{Kind: "ADD_LABEL"},
+	}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunSucceeded {
+		t.Errorf("status %q, want SUCCEEDED", run.Status)
+	}
+	last := run.ActionResults[len(run.ActionResults)-1]
+	if last.Kind != "ADD_LABEL" || last.Status != domain.ActionSkipped {
+		t.Errorf("the top-level action after the branch is %+v, want SKIPPED", last)
+	}
+	if len(h.dispatcher.calls) != 0 {
+		t.Errorf("%d actions dispatched after a nested STOP", len(h.dispatcher.calls))
+	}
+}
+
+// G-07's key is (rule, occasion, action index), and a nested action has no index at the top level -
+// two branches' first actions keyed by index would share a key and the second would silently do
+// nothing. The key names the path.
+func TestTwoBranchesFirstActionsDoNotShareAKey(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		branchOf("true", []map[string]any{{"kind": "ADD_LABEL"}}, nil),
+		branchOf("true", []map[string]any{{"kind": "ADD_LABEL"}}, nil),
+	}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if len(h.dispatcher.calls) != 2 {
+		t.Fatalf("%d actions dispatched, want both branches' arms", len(h.dispatcher.calls))
+	}
+
+	keys := map[string]bool{}
+	for _, result := range run.ActionResults {
+		if result.Kind != "ADD_LABEL" {
+			continue
+		}
+		if result.IdempotencyKey == "" {
+			t.Fatalf("a nested action carries no key: %+v", result)
+		}
+		if keys[result.IdempotencyKey] {
+			t.Fatalf("two branches' first actions share the key %q", result.IdempotencyKey)
+		}
+		keys[result.IdempotencyKey] = true
+		if !strings.Contains(result.IdempotencyKey, result.Path) {
+			t.Errorf("the key %q does not name the path %q", result.IdempotencyKey, result.Path)
+		}
+	}
+	if len(keys) != 2 {
+		t.Fatalf("%d nested results, want two", len(keys))
+	}
+}
+
+// A branch whose condition cannot be evaluated fails the action rather than picking a default arm:
+// a branch that quietly took `else` on a timeout would act out the opposite of what its rule says.
+func TestABranchConditionThatCannotBeEvaluatedFailsTheAction(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		branchOf("nonsense", []map[string]any{{"kind": "ADD_LABEL"}}, nil),
+		{Kind: "CREATE_BUCKET"},
+	}
+	h := newEngine(t, rule)
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunFailed {
+		t.Errorf("status %q, want FAILED under on_error STOP", run.Status)
+	}
+	branch := run.ActionResults[0]
+	if branch.Status != domain.ActionFailed || branch.ErrorCode == "" {
+		t.Errorf("the branch's result is %+v, want FAILED with a code", branch)
+	}
+	if branch.Matched != nil {
+		t.Errorf("a branch that decided nothing claims an answer: %+v", branch)
+	}
+	if run.ActionResults[1].Status != domain.ActionSkipped {
+		t.Errorf("the action after the failed branch is %q, want SKIPPED", run.ActionResults[1].Status)
+	}
+	if len(h.dispatcher.calls) != 0 {
+		t.Errorf("%d actions dispatched under a branch that decided nothing", len(h.dispatcher.calls))
+	}
+}
+
+// WAIT (G-09): the run suspends and a job resumes it. A WAIT of a day holds no worker, survives a
+// restart - the moment lives on the job row - and resumes on time, proved with the fixed clock.
+
+func waitingRule() domain.Rule {
+	rule := enabledRule()
+	// A real version, as every stored rule has one: the resume carries it, and the mid-wait edit
+	// test bumps it.
+	rule.Version = 1
+	rule.Actions = []domain.Action{
+		{Kind: "ADD_LABEL"},
+		{Kind: domain.ActionWait, Params: map[string]any{"duration": "P1D"}},
+		{Kind: "CREATE_BUCKET"},
+	}
+	return rule
+}
+
+// resumeCommand is the command the queue would hand the engine when the parked job comes due,
+// built from the request the suspension enqueued - which is the restart-survival argument: nothing
+// but this payload and the run row is needed to continue.
+func resumeCommand(t *testing.T, request queue.Request) Command {
+	t.Helper()
+
+	cmd := Command{Trigger: domain.TriggerKind(request.Payload["trigger"].(string))}
+	ids := map[string]*shared.ID{
+		"rule_id": &cmd.RuleID, "run_id": &cmd.RunID,
+		"event_id": &cmd.EventID, "triggered_by": &cmd.TriggeredBy, "subject_id": &cmd.SubjectID,
+	}
+	for key, into := range ids {
+		if text, present := request.Payload[key].(string); present {
+			*into = shared.ID(text)
+		}
+	}
+	cmd.Occasion, _ = request.Payload["occasion"].(string)
+	cmd.ResumeFrom, _ = request.Payload["resume_from"].(string)
+	cmd.RuleVersion, _ = request.Payload["rule_version"].(int)
+	if depth, present := request.Payload["causation_depth"].(int); present {
+		cmd.CausationDepth = depth
+	}
+	return cmd
+}
+
+// The acceptance criterion: a WAIT of a day parks the run - WAITING, not finished - and the queue
+// holds the resume at exactly the moment the delay names.
+func TestAWaitParksTheRunAndTheQueueCarriesTheResume(t *testing.T) {
+	h := newEngine(t, waitingRule())
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunWaiting {
+		t.Fatalf("status %q, want WAITING", run.Status)
+	}
+	if run.FinishedAt != nil {
+		t.Error("a parked run claims to be finished")
+	}
+	// The results so far are written: the action before the WAIT, and nothing after it - what is
+	// left is neither skipped nor recorded, because it is yet to run.
+	if len(run.ActionResults) != 1 || run.ActionResults[0].Kind != "ADD_LABEL" {
+		t.Errorf("the parked run records %+v, want just ADD_LABEL", run.ActionResults)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Errorf("%d actions dispatched before the WAIT", len(h.dispatcher.calls))
+	}
+	if stored := h.runs.last(); stored.Status != domain.RunWaiting {
+		t.Errorf("the stored run says %q", stored.Status)
+	}
+
+	if len(h.jobs.requests) != 1 {
+		t.Fatalf("%d jobs enqueued, want the one resume", len(h.jobs.requests))
+	}
+	request := h.jobs.requests[0]
+	if request.Kind != queue.KindAutomationRun {
+		t.Errorf("the resume is a %q job", request.Kind)
+	}
+	// Resumes on time: the queue's own run_at, a day out from the fixed clock. No worker sleeps.
+	if want := now.Add(24 * time.Hour); !request.RunAt.Equal(want) {
+		t.Errorf("the resume is due %v, want %v", request.RunAt, want)
+	}
+	if request.Payload["resume_from"] != "1" {
+		t.Errorf("the resume points at %v, want the WAIT's path", request.Payload["resume_from"])
+	}
+	if request.Payload["run_id"] != run.ID.String() {
+		t.Errorf("the resume names run %v", request.Payload["run_id"])
+	}
+	// No settlement while parked: the run is not over, so nothing announced a finish and nothing
+	// touched the failure streak.
+	for _, kind := range h.events.types() {
+		if kind == event.RuleRunFinished || kind == event.RuleRunFailed {
+			t.Errorf("a parked run announced %s", kind)
+		}
+	}
+}
+
+// The parked job comes due, the run finishes, and nothing before the WAIT acts twice - the
+// restart-survival acceptance: the payload and the run row are all the resume needs.
+func TestAResumedRunFinishesWithoutActingTwice(t *testing.T) {
+	h := newEngine(t, waitingRule())
+
+	parked, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+
+	resumed, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[0]))
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if resumed.Status != domain.RunSucceeded {
+		t.Fatalf("status %q after the resume, want SUCCEEDED", resumed.Status)
+	}
+	if resumed.ID != parked.ID {
+		t.Errorf("the resume produced a second run %s", resumed.ID)
+	}
+	if len(resumed.ActionResults) != 3 {
+		t.Fatalf("the finished run records %+v", resumed.ActionResults)
+	}
+	if wait := resumed.ActionResults[1]; wait.Kind != domain.ActionWait ||
+		wait.Status != domain.ActionSucceeded {
+		t.Errorf("the WAIT's own result is %+v", wait)
+	}
+
+	// ADD_LABEL once before the WAIT and CREATE_BUCKET once after it: the replay appended the
+	// recorded result rather than dispatching again.
+	counts := map[string]int{}
+	for _, call := range h.dispatcher.calls {
+		counts[call.kind]++
+	}
+	if counts["ADD_LABEL"] != 1 || counts["CREATE_BUCKET"] != 1 {
+		t.Errorf("dispatch counts %v, want each action exactly once", counts)
+	}
+}
+
+// A redelivered resume finds the run finished and does nothing again.
+func TestARedeliveredResumeDoesNothingTwice(t *testing.T) {
+	h := newEngine(t, waitingRule())
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+
+	cmd := resumeCommand(t, h.jobs.requests[0])
+	for range 2 {
+		if _, err := h.engine.Execute(context.Background(), engineActor(), cmd); err != nil {
+			t.Fatalf("resuming: %v", err)
+		}
+	}
+	if len(h.dispatcher.calls) != 2 {
+		t.Errorf("%d dispatches over a delivered and a redelivered resume", len(h.dispatcher.calls))
+	}
+}
+
+// A second WAIT further down parks the run again, on a resume of its own.
+func TestASecondWaitParksTheRunAgain(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		{Kind: domain.ActionWait, Params: map[string]any{"duration": "PT1H"}},
+		{Kind: "ADD_LABEL"},
+		{Kind: domain.ActionWait, Params: map[string]any{"duration": "PT2H"}},
+		{Kind: "CREATE_BUCKET"},
+	}
+	h := newEngine(t, rule)
+
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+	again, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[0]))
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if again.Status != domain.RunWaiting {
+		t.Fatalf("status %q after the first resume, want WAITING on the second WAIT", again.Status)
+	}
+	if len(h.jobs.requests) != 2 {
+		t.Fatalf("%d jobs enqueued, want one per suspension", len(h.jobs.requests))
+	}
+	if h.jobs.requests[1].Payload["resume_from"] != "2" {
+		t.Errorf("the second resume points at %v", h.jobs.requests[1].Payload["resume_from"])
+	}
+
+	final, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[1]))
+	if err != nil {
+		t.Fatalf("finishing: %v", err)
+	}
+	if final.Status != domain.RunSucceeded {
+		t.Errorf("status %q at the end, want SUCCEEDED", final.Status)
+	}
+	if len(final.ActionResults) != 4 {
+		t.Errorf("the finished run records %+v", final.ActionResults)
+	}
+}
+
+// A rule disabled while the run waited cannot keep acting. The run fails with a code naming what
+// happened - and deliberately without touching the failure streak, because "somebody switched the
+// rule off" is not the rule's actions failing.
+func TestARuleDisabledMidWaitFailsTheRunWithoutTheStreak(t *testing.T) {
+	h := newEngine(t, waitingRule())
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+
+	disabled := waitingRule()
+	disabled.Enabled = false
+	h.rules.rows[ruleID] = disabled
+
+	run, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[0]))
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if run.Status != domain.RunFailed || run.ErrorCode != "automation.rule_not_enabled" {
+		t.Errorf("the orphaned run says %q / %q", run.Status, run.ErrorCode)
+	}
+	if h.failures.count != 0 {
+		t.Errorf("the streak was bumped %d times for a disabled rule", h.failures.count)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Errorf("%d dispatches - a disabled rule's resume acted", len(h.dispatcher.calls))
+	}
+}
+
+// A rule edited mid-wait is a different program: the recorded paths may no longer name its
+// actions, so the resume refuses to run a mix of two rules.
+func TestARuleEditedMidWaitDoesNotResume(t *testing.T) {
+	h := newEngine(t, waitingRule())
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+
+	edited := waitingRule()
+	edited.Version++
+	h.rules.rows[ruleID] = edited
+
+	run, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[0]))
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if run.Status != domain.RunFailed || run.ErrorCode != "automation.rule_changed_while_waiting" {
+		t.Errorf("the resumed run says %q / %q", run.Status, run.ErrorCode)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Errorf("%d dispatches - an edited rule's resume acted", len(h.dispatcher.calls))
+	}
+}
+
+// SEND_WEBHOOK's event is not a value a rule can carry - it happens after the rule is written - so
+// the run supplies it to the dispatcher beside the rule's own parameters (automation.md §2.2).
+func TestTheRunSuppliesTheEventBesideTheRulesParameters(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{{
+		Kind:   "SEND_WEBHOOK",
+		Params: map[string]any{"subscription_id": "01936f2a-7c1e-7000-8000-0000000000f7"},
+	}}
+	h := newEngine(t, rule)
+	h.dispatcher.scopes["SEND_WEBHOOK"] = "automation:manage"
+
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Fatalf("%d dispatches", len(h.dispatcher.calls))
+	}
+
+	call := h.dispatcher.calls[0]
+	if call.supplied["event_id"] != itemEvent().ID.String() {
+		t.Errorf("the run supplied %v, want its event", call.supplied)
+	}
+	if _, carried := call.params["event_id"]; carried {
+		t.Error("the event leaked into the rule's own parameters")
 	}
 }

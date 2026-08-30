@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
@@ -93,7 +94,11 @@ type Writer struct {
 	Expander recurrence.Expander
 	// Jobs seeds this tenant's schedule poller. The write that makes something owed is what starts
 	// it, because nothing may enumerate tenants (multi-tenancy.md §2.1).
-	Jobs       Queue
+	Jobs Queue
+	// Encryptor seals an HTTP_REQUEST's header secret when the rule is written (E-02, T-21). The
+	// application never stores a plaintext and the repository never holds a key: the sealing
+	// happens here, between the two.
+	Encryptor  crypto.Encryptor
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -215,6 +220,12 @@ func (h CreateRule) Execute(
 		return domain.Rule{}, err
 	}
 
+	// After every check and before the write: from here on the rule stores ciphertext or nothing,
+	// and the plaintext a caller sent exists nowhere (E-02, T-21).
+	if err := sealOutboundSecrets(ctx, w.Encryptor, &rule, nil); err != nil {
+		return domain.Rule{}, err
+	}
+
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return w.Rules.Insert(ctx, rule)
 	})
@@ -329,6 +340,12 @@ func (h UpdateRule) Execute(
 	// is a rule that fires at a time nobody chose.
 	wanted, err = w.schedule(wanted, w.Clock.Now())
 	if err != nil {
+		return domain.Rule{}, err
+	}
+
+	// A fresh secret is sealed; the mask copies the stored one forward from the same position
+	// (E-02, T-21). After this line the new definition carries ciphertext or nothing.
+	if err := sealOutboundSecrets(ctx, w.Encryptor, &wanted, &current); err != nil {
 		return domain.Rule{}, err
 	}
 

@@ -184,6 +184,16 @@ const (
 	// and the queue's existing uniqueness does the rest.
 	KindAutomationRun Kind = "automation.run"
 
+	// KindAutomationHTTP performs one HTTP_REQUEST action's call (G-09, automation.md §1.3).
+	//
+	// A job rather than a call inside the engine's transaction, for the webhook deliverer's
+	// reason: an external call from inside one holds a database connection for as long as
+	// somebody else's server feels like taking (observability-reliability.md §8). The job
+	// carries the request - method, address, sealed secret, body template - and the sender
+	// renders the body from the event at each attempt, so a retry sends what the first attempt
+	// would have.
+	KindAutomationHTTP Kind = "automation.http"
+
 	// KindAutomationSchedule is one tenant's wake-up for its SCHEDULE rules (G-08).
 	//
 	// The same shape as the reminders', the recurrence materialisation's and the backup schedules':

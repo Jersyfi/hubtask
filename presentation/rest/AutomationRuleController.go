@@ -460,6 +460,20 @@ func (c *RestController) ListRuleRuns(
 	})
 }
 
+// ReplayRuleRun answers POST /automation/runs/{runId}:replay.
+func (c *RestController) ReplayRuleRun(
+	w http.ResponseWriter, r *http.Request, runID openapi_types.UUID, _ openapi.ReplayRuleRunParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), replayRuleRunUseCase, actor,
+			usecase.Input{"run_id": runID.String()})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusAccepted, openapi.RuleRunAccepted{
+			RunId: uuidValue(out.String("run_id")), RuleId: uuidValue(out.String("rule_id")),
+		})
+	})
+}
+
 // GetRuleRun answers GET /automation/runs/{runId}.
 func (c *RestController) GetRuleRun(
 	w http.ResponseWriter, r *http.Request, runID openapi_types.UUID,
@@ -469,6 +483,133 @@ func (c *RestController) GetRuleRun(
 			usecase.Input{"run_id": runID.String()})
 	}, func(out usecase.Output) {
 		writeJSON(w, r, http.StatusOK, runResponse(out))
+	})
+}
+
+const (
+	httpRequestUseCase   = "HttpRequest"
+	testRuleUseCase      = "TestRule"
+	replayRuleRunUseCase = "ReplayRuleRun"
+)
+
+// TestRule answers POST /automation/rules:test.
+//
+//nolint:contextcheck // the closure carries the request's own context exactly as every sibling does
+func (c *RestController) TestRule(w http.ResponseWriter, r *http.Request) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.RuleTest
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+
+		in := usecase.Input{}
+		if body.RuleId != nil {
+			in["rule_id"] = body.RuleId.String()
+		}
+		if body.Rule != nil {
+			rule := map[string]any{
+				"name":    body.Rule.Name,
+				"scope":   scopeInput(body.Rule.Scope),
+				"run_as":  body.Rule.RunAs.String(),
+				"trigger": triggerInput(body.Rule.Trigger),
+				"actions": actionsInput(body.Rule.Actions),
+			}
+			if body.Rule.Conditions != nil {
+				rule["conditions"] = conditionsInput(*body.Rule.Conditions)
+			}
+			if body.Rule.Throttle != nil {
+				rule["throttle"] = throttleInput(*body.Rule.Throttle)
+			}
+			if body.Rule.OnError != nil {
+				rule["on_error"] = string(*body.Rule.OnError)
+			}
+			in["rule"] = rule
+		}
+		if body.SampleEvent != nil {
+			sample := map[string]any{"type": body.SampleEvent.Type}
+			if body.SampleEvent.Subject != nil {
+				sample["subject"] = *body.SampleEvent.Subject
+			}
+			if body.SampleEvent.Payload != nil {
+				sample["payload"] = *body.SampleEvent.Payload
+			}
+			in["sample_event"] = sample
+		}
+		if body.Payload != nil {
+			in["payload"] = map[string]any(*body.Payload)
+		}
+		return c.UseCases.Invoke(r.Context(), testRuleUseCase, actor, in)
+	}, func(out usecase.Output) {
+		matched, _ := out["matched"].(bool)
+		result := openapi.RuleTestResult{
+			Matched:          matched,
+			ConditionResults: conditionResultsResponse(out["condition_results"]),
+			Actions:          testActionsResponse(out["actions"]),
+		}
+		writeJSON(w, r, http.StatusOK, result)
+	})
+}
+
+func testActionsResponse(value any) []openapi.RuleTestAction {
+	raw, _ := value.([]any)
+	results := make([]openapi.RuleTestAction, 0, len(raw))
+	for _, entry := range raw {
+		row, _ := entry.(map[string]any)
+		result := openapi.RuleTestAction{
+			Path:     textField(row, "path"),
+			Kind:     textField(row, "kind"),
+			WouldRun: boolField(row, "would_run"),
+		}
+		if matched, present := row["matched"].(bool); present {
+			result.Matched = &matched
+		}
+		if code := textField(row, "error_code"); code != "" {
+			result.ErrorCode = &code
+		}
+		results = append(results, result)
+	}
+	return results
+}
+
+// HttpRequest answers POST /integrations/http-requests.
+//
+//nolint:revive,contextcheck // the name is oapi-codegen's, and the closure carries the request's own context exactly as every sibling does.
+func (c *RestController) HttpRequest(w http.ResponseWriter, r *http.Request) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.HttpRequestCall
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+
+		in := usecase.Input{"method": string(body.Method), "url": body.Url}
+		if body.Headers != nil {
+			headers := make(map[string]any, len(*body.Headers))
+			for name, value := range *body.Headers {
+				headers[name] = value
+			}
+			in["headers"] = headers
+		}
+		for name, value := range map[string]*string{
+			"secret_header_name":  body.SecretHeaderName,
+			"secret_header_value": body.SecretHeaderValue,
+			"signature_header":    body.SignatureHeader,
+			"body_template":       body.BodyTemplate,
+		} {
+			if value != nil {
+				in[name] = *value
+			}
+		}
+		if body.EventId != nil {
+			in["event_id"] = body.EventId.String()
+		}
+		return c.UseCases.Invoke(r.Context(), httpRequestUseCase, actor, in)
+	}, func(out usecase.Output) {
+		// Accepted: the call is queued, and whether the target answers is the job's to find out -
+		// and deliberately nobody else's, because the response is discarded (ADR-0009).
+		writeJSON(w, r, http.StatusAccepted, openapi.JobRef{
+			JobId:  uuidValue(out.String("job_id")),
+			Status: openapi.JobStatusQUEUED,
+		})
 	})
 }
 
@@ -530,6 +671,12 @@ func actionResultsResponse(value any) []openapi.RuleActionResult {
 			Index:  intField(row, "index"),
 			Kind:   textField(row, "kind"),
 			Status: openapi.RuleActionResultStatus(textField(row, "status")),
+		}
+		if path := textField(row, "path"); path != "" {
+			result.Path = &path
+		}
+		if matched, present := row["matched"].(bool); present {
+			result.Matched = &matched
 		}
 		if code := textField(row, "error_code"); code != "" {
 			result.ErrorCode = &code

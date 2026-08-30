@@ -119,6 +119,15 @@ func (pending) RotateWebhookSecret(w http.ResponseWriter, r *http.Request, _ ope
 	notAvailable(w, r)
 }
 
+func (pending) SendWebhook(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId) {
+	notAvailable(w, r)
+}
+
+//nolint:revive // the method name is oapi-codegen's, derived from the operationId.
+func (pending) HttpRequest(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 // The automation rules. RestController overrides every one of them; they are here because pending
 // implements the whole interface, which is what lets the contract test compare the router against
 // the specification as a whole.
@@ -150,6 +159,10 @@ func (pending) DisableRule(w http.ResponseWriter, r *http.Request, _ openapi.Rul
 	notAvailable(w, r)
 }
 
+func (pending) TestRule(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) TriggerRuleManually(
 	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
 ) {
@@ -175,6 +188,12 @@ func (pending) ListRuleRuns(w http.ResponseWriter, r *http.Request, _ openapi.Li
 }
 
 func (pending) GetRuleRun(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplayRuleRun(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ReplayRuleRunParams,
+) {
 	notAvailable(w, r)
 }
 

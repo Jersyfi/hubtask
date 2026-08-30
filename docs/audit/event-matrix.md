@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**149 use cases, 129 distinct action codes, 107 of them recorded on every call.** A use case that
+**153 use cases, 133 distinct action codes, 110 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -50,6 +50,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `automation.http_requested` | HttpRequest | `http_request` | NOTICE | Every time |
 | `automation.inbound_rotated` | RotateInboundTrigger | `automation_rule` | WARNING | Every time |
 | `automation.rule_created` | CreateRule | `automation_rule` | NOTICE | Every time |
 | `automation.rule_deleted` | DeleteRule | `automation_rule` | NOTICE | Every time |
@@ -57,10 +58,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `automation.rule_enabled` | EnableRule | `automation_rule` | NOTICE | Every time |
 | `automation.rule_read` | GetRule | `automation_rule` | INFO | When refused |
 | `automation.rule_read` | ListRules | `automation_rule` | INFO | When refused |
+| `automation.rule_tested` | TestRule | `automation_rule` | INFO | When refused |
 | `automation.rule_triggered` | TriggerRuleManually | `automation_rule` | NOTICE | Every time |
 | `automation.rule_updated` | UpdateRule | `automation_rule` | NOTICE | Every time |
 | `automation.run_read` | GetRuleRun | `automation_run` | INFO | When refused |
 | `automation.run_read` | ListRuleRuns | `automation_run` | INFO | When refused |
+| `automation.run_replayed` | ReplayRuleRun | `automation_run` | NOTICE | Every time |
 
 ## Background work
 
@@ -267,6 +270,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `webhooks.delivery_replayed` | ReplayWebhookDelivery | `webhook_delivery` | INFO | Every time |
+| `webhooks.delivery_sent` | SendWebhook | `webhook_delivery` | INFO | Every time |
 | `webhooks.secret_rotated` | RotateWebhookSecret | `webhook_subscription` | NOTICE | Every time |
 | `webhooks.subscription_created` | CreateWebhookSubscription | `webhook_subscription` | NOTICE | Every time |
 | `webhooks.subscription_deleted` | DeleteWebhookSubscription | `webhook_subscription` | NOTICE | Every time |

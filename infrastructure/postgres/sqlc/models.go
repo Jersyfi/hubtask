@@ -1029,6 +1029,7 @@ type RuleRun struct {
 	Trigger          string
 	TriggeredBy      pgtype.UUID
 	SubjectID        pgtype.UUID
+	Occasion         *string
 }
 
 type SavedView struct {

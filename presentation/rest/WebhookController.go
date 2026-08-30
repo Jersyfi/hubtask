@@ -184,6 +184,7 @@ func webhookResponse(out usecase.Output) openapi.WebhookSubscription {
 const (
 	listWebhookDeliveriesUseCase = "ListWebhookDeliveries"
 	replayWebhookDeliveryUseCase = "ReplayWebhookDelivery"
+	sendWebhookUseCase           = "SendWebhook"
 	rotateWebhookSecretUseCase   = "RotateWebhookSecret" //nolint:gosec // G101: a use case name, not a credential.
 )
 
@@ -228,6 +229,26 @@ func (c *RestController) ReplayWebhookDelivery(
 	}, func(out usecase.Output) {
 		// Accepted rather than created: the attempt is recorded and queued, and whether the target
 		// answers is not something this response can know.
+		writeJSON(w, r, http.StatusAccepted, deliveryResponse(out))
+	})
+}
+
+// SendWebhook answers POST /integrations/webhooks/{webhookId}:send.
+func (c *RestController) SendWebhook(
+	w http.ResponseWriter, r *http.Request, webhookID openapi.WebhookId,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.WebhookSend
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+		return c.UseCases.Invoke(r.Context(), sendWebhookUseCase, actor, usecase.Input{
+			"subscription_id": webhookID.String(),
+			"event_id":        body.EventId.String(),
+		})
+	}, func(out usecase.Output) {
+		// Accepted rather than created: the delivery is recorded and queued, and whether the
+		// target answers is not something this response can know.
 		writeJSON(w, r, http.StatusAccepted, deliveryResponse(out))
 	})
 }

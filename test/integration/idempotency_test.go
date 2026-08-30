@@ -200,3 +200,49 @@ func TestTheStoreRefusesToRunOutsideATransaction(t *testing.T) {
 		t.Error("Complete ran without a transaction")
 	}
 }
+
+// releaseAs runs one Release in its own transaction, as the given tenant.
+func releaseAs(ctx context.Context, t *testing.T, tenant shared.ID, key repository.Key) {
+	t.Helper()
+	store := postgres.NewIdempotencyStore()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+
+	if err := uow.Within(ctx, persistence.Scope{TenantID: tenant}, func(ctx context.Context) error {
+		return store.Release(ctx, key)
+	}); err != nil {
+		t.Fatalf("releasing as %s: %v", tenant, err)
+	}
+}
+
+// A released claim is free again (G-09): the engine lets a failed action's reservation go so a
+// replay can perform the work the first run never did.
+func TestAReleasedKeyIsFreeAgain(t *testing.T) {
+	ctx := context.Background()
+	key := keyFor("released-and-reclaimed")
+
+	if _, claimed := reserveAs(ctx, t, tenantA, key, []byte("hash")); !claimed {
+		t.Fatal("the key was not claimed")
+	}
+	releaseAs(ctx, t, tenantA, key)
+
+	if _, claimed := reserveAs(ctx, t, tenantA, key, []byte("hash")); !claimed {
+		t.Error("a released key was still taken")
+	}
+}
+
+// The cross-tenant negative for Release (gate SG-3): the delete matches on key and endpoint
+// alone, so with row level security removed this would free the other tenant's claim - and their
+// replay would act twice.
+func TestAReleaseDoesNotFreeAnotherTenantsClaim(t *testing.T) {
+	ctx := context.Background()
+	key := keyFor("released-elsewhere")
+
+	if _, claimed := reserveAs(ctx, t, tenantA, key, []byte("hash-a")); !claimed {
+		t.Fatal("tenant A did not claim the key")
+	}
+	releaseAs(ctx, t, tenantB, key)
+
+	if _, claimed := reserveAs(ctx, t, tenantA, key, []byte("hash-a")); claimed {
+		t.Error("tenant B's release freed tenant A's claim")
+	}
+}

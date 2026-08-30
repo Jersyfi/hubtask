@@ -136,16 +136,11 @@ func commandOf(job queue.Job) (automation.Command, error) {
 
 	occasion, _ := job.Payload["occasion"].(string)
 	payload, _ := job.Payload["payload"].(map[string]any)
+	// A resume job (G-09): the path of the WAIT the run parked on, and the rule's version as the
+	// suspended run knew it. Absent on every fresh run.
+	resumeFrom, _ := job.Payload["resume_from"].(string)
 
-	depth := 0
-	switch value := job.Payload["causation_depth"].(type) {
-	case int:
-		depth = value
-	case int64:
-		depth = int(value)
-	case float64:
-		depth = int(value)
-	}
+	depth := intPayload(job, "causation_depth")
 	if depth < 0 {
 		depth = 0
 	}
@@ -153,7 +148,22 @@ func commandOf(job queue.Job) (automation.Command, error) {
 		RuleID: ruleID, RunID: runID, Trigger: trigger, EventID: eventID,
 		TriggeredBy: triggeredBy, SubjectID: subjectID,
 		Occasion: occasion, Payload: payload, CausationDepth: depth,
+		ResumeFrom: resumeFrom, RuleVersion: intPayload(job, "rule_version"),
 	}, nil
+}
+
+// intPayload reads one number, whichever width the row's round trip gave it.
+func intPayload(job queue.Job, key string) int {
+	switch value := job.Payload[key].(type) {
+	case int:
+		return value
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	default:
+		return 0
+	}
 }
 
 // idPayload reads one identifier. Only the rule is required: every other identifier belongs to

@@ -373,7 +373,8 @@ func (q *Queries) FindAutomationRuleByInboundToken(ctx context.Context, tokenHas
 
 const findRuleRun = `-- name: FindRuleRun :one
 SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
-       condition_results, action_results, error_code, started_at, finished_at, causation_depth
+       condition_results, action_results, occasion, error_code, started_at, finished_at,
+       causation_depth
 FROM rule_run
 WHERE id = $1
 `
@@ -388,6 +389,7 @@ type FindRuleRunRow struct {
 	Status           string
 	ConditionResults []byte
 	ActionResults    []byte
+	Occasion         *string
 	ErrorCode        *string
 	StartedAt        pgtype.Timestamptz
 	FinishedAt       pgtype.Timestamptz
@@ -407,6 +409,7 @@ func (q *Queries) FindRuleRun(ctx context.Context, id pgtype.UUID) (FindRuleRunR
 		&i.Status,
 		&i.ConditionResults,
 		&i.ActionResults,
+		&i.Occasion,
 		&i.ErrorCode,
 		&i.StartedAt,
 		&i.FinishedAt,
@@ -434,7 +437,8 @@ type FinishRuleRunParams struct {
 	ID               pgtype.UUID
 }
 
-// The one statement that ends a run, whichever way it ended.
+// The one statement that ends a run, whichever way it ended - and the one that parks it on a
+// WAIT, where finished_at stays NULL because the run is not over (G-09).
 func (q *Queries) FinishRuleRun(ctx context.Context, arg FinishRuleRunParams) error {
 	_, err := q.db.Exec(ctx, finishRuleRun,
 		arg.Status,
@@ -543,12 +547,12 @@ const insertRuleRun = `-- name: InsertRuleRun :exec
 
 INSERT INTO rule_run (
   id, tenant_id, rule_id, event_id, trigger, triggered_by, subject_id,
-  status, condition_results, action_results, started_at, causation_depth
+  status, condition_results, action_results, occasion, started_at, causation_depth
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8, $9,
-  $10, $11
+  $10, $11, $12
 )
 `
 
@@ -562,6 +566,7 @@ type InsertRuleRunParams struct {
 	Status           string
 	ConditionResults []byte
 	ActionResults    []byte
+	Occasion         *string
 	StartedAt        pgtype.Timestamptz
 	CausationDepth   int32
 }
@@ -584,6 +589,7 @@ func (q *Queries) InsertRuleRun(ctx context.Context, arg InsertRuleRunParams) er
 		arg.Status,
 		arg.ConditionResults,
 		arg.ActionResults,
+		arg.Occasion,
 		arg.StartedAt,
 		arg.CausationDepth,
 	)
@@ -677,7 +683,8 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 
 const listRuleRuns = `-- name: ListRuleRuns :many
 SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
-       condition_results, action_results, error_code, started_at, finished_at, causation_depth
+       condition_results, action_results, occasion, error_code, started_at, finished_at,
+       causation_depth
 FROM rule_run
 WHERE ($1::uuid IS NULL OR rule_id = $1::uuid)
   AND ($2::text IS NULL OR status = $2::text)
@@ -705,6 +712,7 @@ type ListRuleRunsRow struct {
 	Status           string
 	ConditionResults []byte
 	ActionResults    []byte
+	Occasion         *string
 	ErrorCode        *string
 	StartedAt        pgtype.Timestamptz
 	FinishedAt       pgtype.Timestamptz
@@ -739,6 +747,7 @@ func (q *Queries) ListRuleRuns(ctx context.Context, arg ListRuleRunsParams) ([]L
 			&i.Status,
 			&i.ConditionResults,
 			&i.ActionResults,
+			&i.Occasion,
 			&i.ErrorCode,
 			&i.StartedAt,
 			&i.FinishedAt,

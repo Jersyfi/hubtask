@@ -205,7 +205,7 @@ func TestTheAutomationChannelWritesWhatTheDirectCallWrites(t *testing.T) {
 	out, err := dispatcher.Dispatch(ctx, rule, automation.Action{
 		Kind:   "CREATE_CONTAINER",
 		Params: map[string]any{"type": "HUB", "name": freshName(t)},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("the action failed: %v", err)
 	}

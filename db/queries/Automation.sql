@@ -113,27 +113,29 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- distinguishes a crash from a run nobody attempted.
 INSERT INTO rule_run (
   id, tenant_id, rule_id, event_id, trigger, triggered_by, subject_id,
-  status, condition_results, action_results, started_at, causation_depth
+  status, condition_results, action_results, occasion, started_at, causation_depth
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('rule_id'), sqlc.narg('event_id'),
   sqlc.arg('trigger'), sqlc.narg('triggered_by'), sqlc.narg('subject_id'),
   sqlc.arg('status'), sqlc.arg('condition_results'), sqlc.arg('action_results'),
-  sqlc.arg('started_at'), sqlc.arg('causation_depth')
+  sqlc.narg('occasion'), sqlc.arg('started_at'), sqlc.arg('causation_depth')
 );
 
 -- name: FinishRuleRun :exec
--- The one statement that ends a run, whichever way it ended.
+-- The one statement that ends a run, whichever way it ended - and the one that parks it on a
+-- WAIT, where finished_at stays NULL because the run is not over (G-09).
 UPDATE rule_run
 SET status            = sqlc.arg('status'),
     condition_results = sqlc.arg('condition_results'),
     action_results    = sqlc.arg('action_results'),
     error_code        = sqlc.narg('error_code'),
-    finished_at       = sqlc.arg('finished_at')
+    finished_at       = sqlc.narg('finished_at')
 WHERE id = sqlc.arg('id');
 
 -- name: FindRuleRun :one
 SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
-       condition_results, action_results, error_code, started_at, finished_at, causation_depth
+       condition_results, action_results, occasion, error_code, started_at, finished_at,
+       causation_depth
 FROM rule_run
 WHERE id = sqlc.arg('id');
 
@@ -142,7 +144,8 @@ WHERE id = sqlc.arg('id');
 -- in. The three filters are nullable arguments rather than eight statements, because a second
 -- statement differing in one predicate is a second place for a predicate to be forgotten.
 SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
-       condition_results, action_results, error_code, started_at, finished_at, causation_depth
+       condition_results, action_results, occasion, error_code, started_at, finished_at,
+       causation_depth
 FROM rule_run
 WHERE (sqlc.narg('rule_id')::uuid IS NULL OR rule_id = sqlc.narg('rule_id')::uuid)
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)

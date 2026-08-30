@@ -90,7 +90,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 
 | Data category | Table / location | Classification | Purpose | Retention | Deletion path |
 |---|---|---|---|---|---|
-| Automation rules (conditions, actions) | `automation_rule` | `NON_PERSONAL` (references to people possible) | Automation | Until deleted | `CASCADE` |
+| Automation rules (conditions, actions) | `automation_rule` | `NON_PERSONAL` (references to people possible) + `SECRET` (an `HTTP_REQUEST` action's header secret, sealed through E-02 inside the actions document and masked in every API response - G-09) | Automation | Until deleted | `CASCADE` |
 | Rule runs (input as a reference, result) | `rule_run` | `PERSONAL_TECHNICAL` | Debugging, transparency | 30 days | `RETENTION` |
 | Webhook subscriptions (target URL, secret) | `webhook_subscription` | `SECRET` (the secret) + `NON_PERSONAL` | Integration | Until deleted | `CASCADE` |
 | Delivery logs (status, truncated body) | `webhook_delivery` | `PERSONAL_TECHNICAL` | Proof of delivery | 30 days | `RETENTION` |

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -73,6 +74,7 @@ func (r AutomationRunRepository) Start(ctx context.Context, run domain.Run) erro
 	if err := queries.InsertRuleRun(ctx, sqlc.InsertRuleRunParams{
 		ID: id, RuleID: ruleID, EventID: eventID,
 		Trigger: string(run.Trigger), TriggeredBy: triggeredBy, SubjectID: subjectID,
+		Occasion:         optionalText(run.Occasion),
 		Status:           string(run.Status),
 		ConditionResults: conditions,
 		ActionResults:    actions,
@@ -102,16 +104,21 @@ func (r AutomationRunRepository) Finish(ctx context.Context, run domain.Run) err
 		return err
 	}
 
-	finished := run.StartedAt
+	// A parked run has no finished moment, and the column says so: NULL is what keeps a WAITING
+	// row honest about not being over (G-09). A finished run without the stamp - which the domain
+	// never produces - would fall back to when it started rather than inventing a reading here.
+	finished := pgtype.Timestamptz{}
 	if run.FinishedAt != nil {
-		finished = *run.FinishedAt
+		finished = timestampOf(*run.FinishedAt)
+	} else if run.Status.Finished() {
+		finished = timestampOf(run.StartedAt)
 	}
 
 	if err := queries.FinishRuleRun(ctx, sqlc.FinishRuleRunParams{
 		ID: id, Status: string(run.Status),
 		ConditionResults: conditions, ActionResults: actions,
 		ErrorCode:  optionalText(run.ErrorCode),
-		FinishedAt: timestampOf(finished),
+		FinishedAt: finished,
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -377,6 +384,8 @@ type conditionResultDocument struct {
 type actionResultDocument struct {
 	Index          int    `json:"index"`
 	Kind           string `json:"kind"`
+	Path           string `json:"path,omitempty"`
+	Matched        *bool  `json:"matched,omitempty"`
 	Status         string `json:"status"`
 	ErrorCode      string `json:"error_code,omitempty"`
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
@@ -394,7 +403,8 @@ func runDocuments(run domain.Run) (conditions, actions []byte, err error) {
 	actionRows := make([]actionResultDocument, 0, len(run.ActionResults))
 	for _, result := range run.ActionResults {
 		actionRows = append(actionRows, actionResultDocument{
-			Index: result.Index, Kind: result.Kind, Status: string(result.Status),
+			Index: result.Index, Kind: result.Kind, Path: result.Path, Matched: result.Matched,
+			Status:    string(result.Status),
 			ErrorCode: result.ErrorCode, IdempotencyKey: result.IdempotencyKey,
 		})
 	}
@@ -459,6 +469,7 @@ func runFrom(row sqlc.ListRuleRunsRow) (domain.Run, error) {
 	run := domain.Run{
 		ID: id, RuleID: ruleID, EventID: eventID,
 		Trigger: domain.TriggerKind(row.Trigger), TriggeredBy: triggeredBy, SubjectID: subjectID,
+		Occasion:         stringFrom(row.Occasion),
 		Status:           domain.RunStatus(row.Status),
 		ConditionResults: make([]domain.ConditionResult, 0, len(conditionRows)),
 		ActionResults:    make([]domain.ActionResult, 0, len(actionRows)),
@@ -472,8 +483,14 @@ func runFrom(row sqlc.ListRuleRunsRow) (domain.Run, error) {
 		})
 	}
 	for _, result := range actionRows {
+		path := result.Path
+		if path == "" {
+			// A row written before G-09 named actions by index alone, and every action was
+			// top-level - where the path is the index.
+			path = strconv.Itoa(result.Index)
+		}
 		run.ActionResults = append(run.ActionResults, domain.ActionResult{
-			Index: result.Index, Kind: result.Kind,
+			Index: result.Index, Kind: result.Kind, Path: path, Matched: result.Matched,
 			Status:    domain.ActionStatus(result.Status),
 			ErrorCode: result.ErrorCode, IdempotencyKey: result.IdempotencyKey,
 		})

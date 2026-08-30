@@ -1182,6 +1182,33 @@ func (e HealthWarningSeverity) Valid() bool {
 	}
 }
 
+// Defines values for HttpRequestCallMethod.
+const (
+	HttpRequestCallMethodDELETE HttpRequestCallMethod = "DELETE"
+	HttpRequestCallMethodGET    HttpRequestCallMethod = "GET"
+	HttpRequestCallMethodPATCH  HttpRequestCallMethod = "PATCH"
+	HttpRequestCallMethodPOST   HttpRequestCallMethod = "POST"
+	HttpRequestCallMethodPUT    HttpRequestCallMethod = "PUT"
+)
+
+// Valid indicates whether the value is a known member of the HttpRequestCallMethod enum.
+func (e HttpRequestCallMethod) Valid() bool {
+	switch e {
+	case HttpRequestCallMethodDELETE:
+		return true
+	case HttpRequestCallMethodGET:
+		return true
+	case HttpRequestCallMethodPATCH:
+		return true
+	case HttpRequestCallMethodPOST:
+		return true
+	case HttpRequestCallMethodPUT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemAccess.
 const (
 	ItemAccessALL      ItemAccess = "ALL"
@@ -1394,16 +1421,16 @@ func (e MediaObjectUsage) Valid() bool {
 
 // Defines values for MediaTransferMethod.
 const (
-	GET MediaTransferMethod = "GET"
-	PUT MediaTransferMethod = "PUT"
+	MediaTransferMethodGET MediaTransferMethod = "GET"
+	MediaTransferMethodPUT MediaTransferMethod = "PUT"
 )
 
 // Valid indicates whether the value is a known member of the MediaTransferMethod enum.
 func (e MediaTransferMethod) Valid() bool {
 	switch e {
-	case GET:
+	case MediaTransferMethodGET:
 		return true
-	case PUT:
+	case MediaTransferMethodPUT:
 		return true
 	default:
 		return false
@@ -1937,6 +1964,7 @@ const (
 	RuleRunStatusSKIPPED     RuleRunStatus = "SKIPPED"
 	RuleRunStatusSUCCEEDED   RuleRunStatus = "SUCCEEDED"
 	RuleRunStatusTHROTTLED   RuleRunStatus = "THROTTLED"
+	RuleRunStatusWAITING     RuleRunStatus = "WAITING"
 )
 
 // Valid indicates whether the value is a known member of the RuleRunStatus enum.
@@ -1953,6 +1981,8 @@ func (e RuleRunStatus) Valid() bool {
 	case RuleRunStatusSUCCEEDED:
 		return true
 	case RuleRunStatusTHROTTLED:
+		return true
+	case RuleRunStatusWAITING:
 		return true
 	default:
 		return false
@@ -2141,19 +2171,19 @@ func (e SavedViewShareSharing) Valid() bool {
 
 // Defines values for SyncChangeOp.
 const (
-	ACCESSREVOKED SyncChangeOp = "ACCESS_REVOKED"
-	DELETE        SyncChangeOp = "DELETE"
-	UPSERT        SyncChangeOp = "UPSERT"
+	SyncChangeOpACCESSREVOKED SyncChangeOp = "ACCESS_REVOKED"
+	SyncChangeOpDELETE        SyncChangeOp = "DELETE"
+	SyncChangeOpUPSERT        SyncChangeOp = "UPSERT"
 )
 
 // Valid indicates whether the value is a known member of the SyncChangeOp enum.
 func (e SyncChangeOp) Valid() bool {
 	switch e {
-	case ACCESSREVOKED:
+	case SyncChangeOpACCESSREVOKED:
 		return true
-	case DELETE:
+	case SyncChangeOpDELETE:
 		return true
-	case UPSERT:
+	case SyncChangeOpUPSERT:
 		return true
 	default:
 		return false
@@ -2438,6 +2468,7 @@ const (
 	ListRuleRunsParamsStatusSKIPPED     ListRuleRunsParamsStatus = "SKIPPED"
 	ListRuleRunsParamsStatusSUCCEEDED   ListRuleRunsParamsStatus = "SUCCEEDED"
 	ListRuleRunsParamsStatusTHROTTLED   ListRuleRunsParamsStatus = "THROTTLED"
+	ListRuleRunsParamsStatusWAITING     ListRuleRunsParamsStatus = "WAITING"
 )
 
 // Valid indicates whether the value is a known member of the ListRuleRunsParamsStatus enum.
@@ -2454,6 +2485,8 @@ func (e ListRuleRunsParamsStatus) Valid() bool {
 	case ListRuleRunsParamsStatusSUCCEEDED:
 		return true
 	case ListRuleRunsParamsStatusTHROTTLED:
+		return true
+	case ListRuleRunsParamsStatusWAITING:
 		return true
 	default:
 		return false
@@ -3691,6 +3724,34 @@ type HealthWarning struct {
 // HealthWarningSeverity defines model for HealthWarning.Severity.
 type HealthWarningSeverity string
 
+// HttpRequestCall One outbound HTTP call, as a rule's `HTTP_REQUEST` action carries it. The secret header is the one place a credential belongs - never the URL, never the plain headers - and it is sealed at rest and masked as `***` everywhere after creation; sending `***` back on a rule edit keeps the stored secret.
+type HttpRequestCall struct {
+	// BodyTemplate A CEL expression producing the body, rendered against the run's event when the call is made. A static body is a string literal.
+	BodyTemplate *string `json:"body_template,omitempty"`
+
+	// EventId The event the body template reads. A rule leaves this out and the run supplies the event it is about.
+	EventId *openapi_types.UUID `json:"event_id,omitempty"`
+
+	// Headers Plain headers - a content type, an API version. Never a credential.
+	Headers *map[string]string    `json:"headers,omitempty"`
+	Method  HttpRequestCallMethod `json:"method"`
+
+	// SecretHeaderName The header the secret travels in, e.g. `Authorization`.
+	SecretHeaderName *string `json:"secret_header_name,omitempty"`
+
+	// SecretHeaderValue The secret itself. Answered as `***` ever after.
+	SecretHeaderValue *string `json:"secret_header_value,omitempty"`
+
+	// SignatureHeader When set, this header carries an HMAC-SHA256 over the body computed with the secret - the same `t=<ts>,v1=<hex>` shape a webhook signature has.
+	SignatureHeader *string `json:"signature_header,omitempty"`
+
+	// Url The address, http or https. Whether this installation is willing to dial it is the guard's decision at the call.
+	Url string `json:"url"`
+}
+
+// HttpRequestCallMethod defines model for HttpRequestCall.Method.
+type HttpRequestCallMethod string
+
 // InboundTriggerToken A freshly minted inbound address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read of the rule shows only when it was minted.
 type InboundTriggerToken struct {
 	RotatedAt time.Time          `json:"rotated_at"`
@@ -4411,29 +4472,38 @@ type RoleItemAccess struct {
 }
 
 // RuleAction One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a new use case becomes an action without anybody editing anything.
+// Three kinds are the exception, and they are one on purpose: `WAIT`, `BRANCH` and `STOP` are not use cases at all but the engine's own control structures, so they are in no catalogue and there is nothing for MCP or a person to call. Their parameters are therefore checked where every other shape question about a rule is answered - by the rule itself, when it is written.
 type RuleAction struct {
 	// Kind `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind automation.md §1.3 documents and no release serves yet is refused by name rather than stored to be ignored.
+	// `WAIT` takes `duration`, an unsigned ISO 8601 duration of at most a year: the run suspends and a job resumes it, so a rule that waits a day holds no worker and survives a restart. `BRANCH` takes `condition` and the nested lists `then` (required) and `else` (optional) - a nested list rather than a jump target, because "skip the next two" is a rule whose meaning changes when somebody inserts an action above it. `STOP` takes nothing and ends the run where it stands, with the actions after it `SKIPPED` and the run `SUCCEEDED`: stopping early is what the rule said to do.
+	// **A branch's arms are checked exactly as the top level is**, and both of them: the composition rule is about what a rule *may* do, so a rule whose `else` performs something its writer may not do is laundering the same rights the day the condition turns false.
 	Kind string `json:"kind"`
 
 	// Params The action's parameters. A key the use case behind the kind does not declare is refused, exactly as it would be on the call itself.
 	Params *map[string]interface{} `json:"params,omitempty"`
 }
 
-// RuleActionResult One action's outcome, in the order the rule declares them.
+// RuleActionResult One action's outcome, in the order the run reached them.
 type RuleActionResult struct {
 	// ErrorCode The code the use case refused with, unchanged. A `run_as` account that may not do what the action asks shows the authoriser's own refusal here, which is what makes the run log answer "why did this not happen".
 	ErrorCode *string `json:"error_code,omitempty"`
 
-	// IdempotencyKey Derived from the rule, the event and the action's index (automation.md §2), so a redelivered event re-runs into the stored result rather than acting twice.
+	// IdempotencyKey Derived from the rule, the occasion and the action's path (automation.md §2), so a redelivered event re-runs into the stored result rather than acting twice. Absent on flow actions, which perform nothing there is to repeat.
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	Index          int     `json:"index"`
 	Kind           string  `json:"kind"`
 
-	// Status `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure. It is not the same as an action that ran and did nothing.
+	// Matched How a `BRANCH`'s condition answered, present only on a `BRANCH` result. `true` means the `then` arm ran; `false` the `else` arm, which may be empty.
+	Matched *bool `json:"matched,omitempty"`
+
+	// Path Where the action sits in the rule: `"2"` is the third action, `"2/then/0"` the first action of that branch's `then` arm. The path is what shows which way a `BRANCH` went - the nested results carry the arm they belong to in their own name.
+	Path *string `json:"path,omitempty"`
+
+	// Status `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure, or a `STOP` action ended it deliberately. It is not the same as an action that ran and did nothing.
 	Status RuleActionResultStatus `json:"status"`
 }
 
-// RuleActionResultStatus `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure. It is not the same as an action that ran and did nothing.
+// RuleActionResultStatus `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure, or a `STOP` action ended it deliberately. It is not the same as an action that ran and did nothing.
 type RuleActionResultStatus string
 
 // RuleCondition defines model for RuleCondition.
@@ -4468,7 +4538,7 @@ type RuleRun struct {
 	RuleId     openapi_types.UUID  `json:"rule_id"`
 	StartedAt  time.Time           `json:"started_at"`
 
-	// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately.
+	// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
 	Status RuleRunStatus `json:"status"`
 
 	// SubjectId The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from one entry's due date. Absent where the event carries the subject, which is where a reader should look for it.
@@ -4496,7 +4566,7 @@ type RuleRunPage struct {
 	Page PageInfo  `json:"page"`
 }
 
-// RuleRunStatus How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately.
+// RuleRunStatus How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
 type RuleRunStatus string
 
 // RuleScope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
@@ -4508,6 +4578,52 @@ type RuleScope struct {
 
 // RuleScopeType defines model for RuleScope.Type.
 type RuleScopeType string
+
+// RuleTest A dry run's input: exactly one of `rule_id` (a stored rule) and `rule` (a definition you are about to save), plus the sample event to evaluate it against.
+type RuleTest struct {
+	// Payload The body an inbound delivery would have carried, as the CEL `payload` variable reads it. For testing an `INBOUND_WEBHOOK` rule's conditions.
+	Payload *map[string]interface{} `json:"payload,omitempty"`
+	Rule    *AutomationRuleCreate   `json:"rule,omitempty"`
+
+	// RuleId A stored rule to test.
+	RuleId *openapi_types.UUID `json:"rule_id,omitempty"`
+
+	// SampleEvent The sample event, as the CEL `event` variable will read it.
+	SampleEvent *RuleTestEvent `json:"sample_event,omitempty"`
+}
+
+// RuleTestAction One action of the rule, with whether it would have run. Unlike a real run's log, both arms of every branch appear - the dry run answers "and what if it had not" as well.
+type RuleTestAction struct {
+	// ErrorCode Present when a branch's condition could not be evaluated for the sample.
+	ErrorCode *string `json:"error_code,omitempty"`
+	Kind      string  `json:"kind"`
+
+	// Matched How a `BRANCH`'s condition answered the sample, present only on a branch.
+	Matched  *bool  `json:"matched,omitempty"`
+	Path     string `json:"path"`
+	WouldRun bool   `json:"would_run"`
+}
+
+// RuleTestEvent The sample event, as the CEL `event` variable will read it.
+type RuleTestEvent struct {
+	// Payload The event's payload document.
+	Payload *map[string]interface{} `json:"payload,omitempty"`
+
+	// Subject What the event is about, e.g. `item/018f...`. Naming a real entry lets a condition that reads `item` resolve it - a read, never a write.
+	Subject *string `json:"subject,omitempty"`
+
+	// Type The event type, e.g. `de.hubtask.work.item.updated.v1`.
+	Type string `json:"type"`
+}
+
+// RuleTestResult defines model for RuleTestResult.
+type RuleTestResult struct {
+	Actions          []RuleTestAction      `json:"actions"`
+	ConditionResults []RuleConditionResult `json:"condition_results"`
+
+	// Matched Whether every condition held - whether a real run would have acted at all.
+	Matched bool `json:"matched"`
+}
 
 // RuleThrottle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
 type RuleThrottle struct {
@@ -4942,6 +5058,12 @@ type WebhookSecretRotation struct {
 	GraceSeconds *int `json:"grace_seconds,omitempty"`
 }
 
+// WebhookSend What a deliberate delivery names - the event; the path names the subscription.
+type WebhookSend struct {
+	// EventId The event to deliver, as `X-Hubtask-Event-Id` will carry it. It has to still be inside the outbox's retention window - an event the sweep has taken cannot be rendered.
+	EventId openapi_types.UUID `json:"event_id"`
+}
+
 // WebhookSubscription One external system's standing request to be told what happens here. The signing secret is not a member: it is answered once, at creation and at each rotation, and stored sealed.
 type WebhookSubscription struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -5332,6 +5454,12 @@ type ListRuleRunsParamsStatus string
 
 // ListRuleRunsParamsTrigger defines parameters for ListRuleRuns.
 type ListRuleRunsParamsTrigger string
+
+// ReplayRuleRunParams defines parameters for ReplayRuleRun.
+type ReplayRuleRunParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
 
 // ListBackupsAtTargetParams defines parameters for ListBackupsAtTarget.
 type ListBackupsAtTargetParams struct {
@@ -5984,6 +6112,9 @@ type CreateRuleJSONRequestBody = AutomationRuleCreate
 // UpdateRuleJSONRequestBody defines body for UpdateRule for application/json ContentType.
 type UpdateRuleJSONRequestBody = AutomationRuleUpdate
 
+// TestRuleJSONRequestBody defines body for TestRule for application/json ContentType.
+type TestRuleJSONRequestBody = RuleTest
+
 // CreateBackupScheduleJSONRequestBody defines body for CreateBackupSchedule for application/json ContentType.
 type CreateBackupScheduleJSONRequestBody = BackupSchedule
 
@@ -6035,6 +6166,9 @@ type UpdateGroupJSONRequestBody = GroupUpdate
 // CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
 type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
 
+// HttpRequestJSONRequestBody defines body for HttpRequest for application/json ContentType.
+type HttpRequestJSONRequestBody = HttpRequestCall
+
 // CreateWebhookSubscriptionJSONRequestBody defines body for CreateWebhookSubscription for application/json ContentType.
 type CreateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionCreate
 
@@ -6043,6 +6177,9 @@ type UpdateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionUpdate
 
 // RotateWebhookSecretJSONRequestBody defines body for RotateWebhookSecret for application/json ContentType.
 type RotateWebhookSecretJSONRequestBody = WebhookSecretRotation
+
+// SendWebhookJSONRequestBody defines body for SendWebhook for application/json ContentType.
+type SendWebhookJSONRequestBody = WebhookSend
 
 // CreateWorkItemJSONRequestBody defines body for CreateWorkItem for application/json ContentType.
 type CreateWorkItemJSONRequestBody = WorkItemCreate
@@ -6217,12 +6354,18 @@ type ServerInterface interface {
 	// TriggerRuleManually Run a rule now
 	// (POST /automation/rules/{ruleId}:trigger)
 	TriggerRuleManually(w http.ResponseWriter, r *http.Request, ruleId RuleId, params TriggerRuleManuallyParams)
+	// TestRule Dry-run a rule against a sample event
+	// (POST /automation/rules:test)
+	TestRule(w http.ResponseWriter, r *http.Request)
 	// ListRuleRuns What the rules have done
 	// (GET /automation/runs)
 	ListRuleRuns(w http.ResponseWriter, r *http.Request, params ListRuleRunsParams)
 	// GetRuleRun One run, with every condition and every action
 	// (GET /automation/runs/{runId})
 	GetRuleRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID)
+	// ReplayRuleRun Complete a failed run
+	// (POST /automation/runs/{runId}:replay)
+	ReplayRuleRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID, params ReplayRuleRunParams)
 	// CreateBackupSchedule Create a backup schedule
 	// (POST /backup-schedules)
 	CreateBackupSchedule(w http.ResponseWriter, r *http.Request)
@@ -6337,6 +6480,9 @@ type ServerInterface interface {
 
 	// (DELETE /integrations/calendar-feeds/{feedId})
 	RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
+	// HttpRequest Call an external HTTP address
+	// (POST /integrations/http-requests)
+	HttpRequest(w http.ResponseWriter, r *http.Request)
 	// PollTriggerEvents The pull half of the event stream
 	// (GET /integrations/triggers/{eventType})
 	PollTriggerEvents(w http.ResponseWriter, r *http.Request, eventType EventType, params PollTriggerEventsParams)
@@ -6364,6 +6510,9 @@ type ServerInterface interface {
 	// RotateWebhookSecret Issue a new signing secret
 	// (POST /integrations/webhooks/{webhookId}:rotate-secret)
 	RotateWebhookSecret(w http.ResponseWriter, r *http.Request, webhookId WebhookId, params RotateWebhookSecretParams)
+	// SendWebhook Deliver one event to this subscription
+	// (POST /integrations/webhooks/{webhookId}:send)
+	SendWebhook(w http.ResponseWriter, r *http.Request, webhookId WebhookId)
 
 	// (GET /items)
 	ListWorkItems(w http.ResponseWriter, r *http.Request, params ListWorkItemsParams)
@@ -7459,6 +7608,20 @@ func (siw *ServerInterfaceWrapper) TriggerRuleManually(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// TestRule operation middleware
+func (siw *ServerInterfaceWrapper) TestRule(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestRule(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRuleRuns operation middleware
 func (siw *ServerInterfaceWrapper) ListRuleRuns(w http.ResponseWriter, r *http.Request) {
 
@@ -7561,6 +7724,56 @@ func (siw *ServerInterfaceWrapper) GetRuleRun(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetRuleRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplayRuleRun operation middleware
+func (siw *ServerInterfaceWrapper) ReplayRuleRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", r.PathValue("runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReplayRuleRunParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplayRuleRun(w, r, runId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9058,6 +9271,20 @@ func (siw *ServerInterfaceWrapper) RevokeCalendarFeed(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// HttpRequest operation middleware
+func (siw *ServerInterfaceWrapper) HttpRequest(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.HttpRequest(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PollTriggerEvents operation middleware
 func (siw *ServerInterfaceWrapper) PollTriggerEvents(w http.ResponseWriter, r *http.Request) {
 
@@ -9414,6 +9641,32 @@ func (siw *ServerInterfaceWrapper) RotateWebhookSecret(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RotateWebhookSecret(w, r, webhookId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SendWebhook operation middleware
+func (siw *ServerInterfaceWrapper) SendWebhook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SendWebhook(w, r, webhookId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13285,11 +13538,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:test", wrapper.TestRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/inbound/{token}", wrapper.StartInboundRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs", wrapper.ListRuleRuns)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs/{runId}", wrapper.GetRuleRun)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/runs/{runId}:replay", wrapper.ReplayRuleRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks", wrapper.ListWebhookSubscriptions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks", wrapper.CreateWebhookSubscription)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.DeleteWebhookSubscription)
@@ -13297,7 +13552,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.UpdateWebhookSubscription)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries", wrapper.ListWebhookDeliveries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay", wrapper.ReplayWebhookDelivery)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:send", wrapper.SendWebhook)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:rotate-secret", wrapper.RotateWebhookSecret)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/http-requests", wrapper.HttpRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/triggers/{eventType}", wrapper.PollTriggerEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.ListCalendarFeeds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.CreateCalendarFeed)

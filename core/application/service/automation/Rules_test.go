@@ -221,6 +221,15 @@ func defaultCatalogue() catalogue {
 			Name: "CreateBucket", TokenScope: "containers:write",
 			Input: []usecase.Field{{Name: "collection_id"}, {Name: "name"}},
 		},
+		"HTTP_REQUEST": {
+			Name: "HttpRequest", TokenScope: "automation:manage",
+			Input: []usecase.Field{
+				{Name: "method"}, {Name: "url"}, {Name: "headers"},
+				{Name: "secret_header_name"}, {Name: "secret_header_value"},
+				{Name: "secret_header_sealed"}, {Name: "signature_header"},
+				{Name: "body_template"}, {Name: "event_id"},
+			},
+		},
 	}}
 }
 
@@ -231,6 +240,7 @@ type harness struct {
 	sink   *auditSink
 	people *accounts
 	held   *memberships
+	sealer *sealer
 }
 
 func newHarness(existing ...domain.Rule) *harness {
@@ -248,11 +258,13 @@ func newHarness(existing ...domain.Rule) *harness {
 				Status: identity.AccountActive,
 			},
 		}},
-		held: &memberships{rows: map[shared.ID][]identity.Membership{}},
+		held:   &memberships{rows: map[shared.ID][]identity.Membership{}},
+		sealer: &sealer{},
 	}
 	h.writer = Writer{
 		Rules: h.store, Accounts: h.people, Memberships: h.held,
 		Catalogue: defaultCatalogue(), Authorizer: h.auth, Audit: h.sink,
+		Encryptor:  h.sealer,
 		UnitOfWork: unitOfWork{}, Clock: clock.Fixed(now), IDs: ids{next: newRuleID},
 	}
 	return h

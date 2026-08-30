@@ -441,6 +441,9 @@ func run() error {
 		// cannot read is refused to its author rather than failing on a worker (G-08).
 		Expander: recurrenceadapter.New(),
 		Jobs:     jobs,
+		// Seals an HTTP_REQUEST's header secret at the write (E-02, T-21): the rule stores
+		// ciphertext or nothing, and the outbound sender opens it for the length of one call.
+		Encryptor: encryptor,
 
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
@@ -793,6 +796,7 @@ func run() error {
 		integrationservice.DeleteWebhookSubscription{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ListWebhookDeliveries{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ReplayWebhookDelivery{Writer: webhookWriter, Jobs: jobs}.Descriptor(),
+		integrationservice.SendWebhook{Writer: webhookWriter, Jobs: jobs, Events: outbox}.Descriptor(),
 		integrationservice.RotateWebhookSecret{Writer: webhookWriter}.Descriptor(),
 		automationservice.CreateRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.GetRule{Writer: ruleWriter}.Descriptor(),
@@ -814,6 +818,24 @@ func run() error {
 		}.Descriptor(),
 		automationservice.ListRuleRuns{Reader: ruleReader}.Descriptor(),
 		automationservice.GetRuleRun{Reader: ruleReader}.Descriptor(),
+		automationservice.HttpRequest{
+			Jobs: jobs, Authorizer: authorizer, Encryptor: encryptor,
+			Conditions: celexpression.New(), Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		automationservice.TestRule{
+			Rules:     postgres.NewAutomationRuleRepository(cursors),
+			Catalogue: ruleCatalogue, Conditions: celexpression.New(),
+			Entries: items, Containers: containers,
+			Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		automationservice.ReplayRuleRun{
+			Runs:  postgres.NewAutomationRunRepository(cursors),
+			Rules: postgres.NewAutomationRuleRepository(cursors),
+			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
@@ -1610,6 +1632,20 @@ func run() error {
 		}.Delay,
 	}
 
+	// The outbound call (G-09): an HTTP_REQUEST action's HTTP, detached from every transaction and
+	// through the guarded client, with the sealed header secret opened for the length of one call.
+	outboundCall := automation.OutboundCall{
+		Events:     postgres.NewOutbox(jobs),
+		Encryptor:  encryptor,
+		Compiler:   celexpression.New(),
+		Signer:     security.NewWebhookSigner(),
+		Client:     outboundClient,
+		UnitOfWork: backgroundWork,
+		Clock:      clockadapter.System{},
+		Entries:    items,
+		Containers: containers,
+	}
+
 	// The engine (G-07). It reaches the use case registry as the rule's own account, which is why
 	// it is a queue handler rather than a subscriber: a subscriber runs inside the dispatcher's
 	// transaction, and an action is a use case.
@@ -1631,6 +1667,9 @@ func run() error {
 				Preferences: notificationPreferences, Jobs: jobs,
 				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			},
+			// Where a WAIT parks its resume (G-09): the suspended run and the job that brings it
+			// back commit together with the runner's transaction.
+			Jobs:       jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		},
 		Rules: postgres.NewAutomationRuleRepository(cursors),
@@ -1646,6 +1685,7 @@ func run() error {
 		queueport.KindNotificationDeliver:   notificationDelivery,
 		queueport.KindWebhookDeliver:        webhookDelivery,
 		queueport.KindAutomationRun:         automationRun,
+		queueport.KindAutomationHTTP:        outboundCall,
 		queueport.KindBackupRun:             backupRun,
 		queueport.KindBackupVerify:          worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
@@ -1986,10 +2026,11 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 type dispatchActions struct{ catalogue *deferredCatalogue }
 
 func (d dispatchActions) Dispatch(
-	ctx context.Context, runAs appshared.ActorContext, kind string, params map[string]any,
+	ctx context.Context, runAs appshared.ActorContext, kind string,
+	params map[string]any, supplied map[string]any,
 ) (usecase.Output, error) {
 	return automation.NewActionDispatcher(d.catalogue).
-		Dispatch(ctx, runAs, automation.Action{Kind: kind, Params: params})
+		Dispatch(ctx, runAs, automation.Action{Kind: kind, Params: params}, supplied)
 }
 
 // actionScopes answers which token scope an action's use case declares, which is the one the engine
@@ -2021,6 +2062,12 @@ func (c runClaims) Claim(
 		// the message-code gate reads anything shaped like one as a promise to translate.
 		idempotencyrepo.Key{Key: key, Endpoint: "automation:run"}, []byte(key))
 	return reserved, err
+}
+
+// Release lets a failed action's claim go, so a replay can perform what the first run never did
+// (G-09). See the engine's Idempotency port for why a failed claim must not outlive its failure.
+func (c runClaims) Release(ctx context.Context, _ appshared.ActorContext, key string) error {
+	return c.store.Release(ctx, idempotencyrepo.Key{Key: key, Endpoint: "automation:run"})
 }
 
 // cloudEventRendering bridges the polling trigger's rendering port to the CloudEvents mapping the

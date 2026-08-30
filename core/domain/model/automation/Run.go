@@ -30,6 +30,11 @@ const (
 	// RunRunning is a run in flight - or one whose process died. The engine writes it when the run
 	// starts, so a row left in it is a crash rather than a state anything reaches deliberately.
 	RunRunning RunStatus = "RUNNING"
+	// RunWaiting is a run parked on a WAIT action (G-09). Its results so far are written and a
+	// scheduled job holds the resume point - no worker is held while the delay passes. Its own
+	// status rather than RUNNING, because a row left in RUNNING is how a crash is recognised, and
+	// a run deliberately waiting a day must not read as one.
+	RunWaiting RunStatus = "WAITING"
 	// RunSucceeded is a run that acted. Its actions may not all have worked: `on_error: CONTINUE`
 	// finishes a run whose second action was refused, and the per-action results say so.
 	RunSucceeded RunStatus = "SUCCEEDED"
@@ -47,7 +52,7 @@ const (
 // Valid reports whether the status is one the column allows.
 func (s RunStatus) Valid() bool {
 	switch s {
-	case RunRunning, RunSucceeded, RunSkipped, RunFailed, RunAbortedLoop, RunThrottled:
+	case RunRunning, RunWaiting, RunSucceeded, RunSkipped, RunFailed, RunAbortedLoop, RunThrottled:
 		return true
 	default:
 		return false
@@ -55,8 +60,9 @@ func (s RunStatus) Valid() bool {
 }
 
 // Finished reports whether the run is over. What the engine asks before writing a result, and what
-// a reader asks before trusting `finished_at`.
-func (s RunStatus) Finished() bool { return s != RunRunning }
+// a reader asks before trusting `finished_at`. A waiting run is not over: it holds a resume point
+// and will end one way or another when its delay has passed.
+func (s RunStatus) Finished() bool { return s != RunRunning && s != RunWaiting }
 
 // ActionStatus is one action's outcome.
 type ActionStatus string
@@ -79,17 +85,29 @@ type ConditionResult struct {
 	ErrorCode string
 }
 
-// ActionResult is one action's outcome, in the order the rule declares them.
+// ActionResult is one action's outcome, in the order the run reached them.
 type ActionResult struct {
-	Index  int
-	Kind   string
+	// Index is the action's position in its own list - the rule's for a top-level action, the
+	// arm's for a nested one. Path is what places it in the rule as a whole.
+	Index int
+	Kind  string
+	// Path is where the action sits in the rule (ActionPath): `"2"` is the third action,
+	// `"2/then/0"` the first action of that branch's `then` arm. The path is what shows which way
+	// a BRANCH went - the nested results carry the arm they belong to in their own name.
+	Path   string
 	Status ActionStatus
+	// Matched is how a BRANCH's condition answered, and nil for every other kind. True means the
+	// `then` arm ran; false the `else` arm, which may be empty - and the value is what keeps an
+	// empty arm's run readable, because an arm with no actions leaves no nested results to show
+	// the way the branch went.
+	Matched *bool
 	// ErrorCode is the code the use case refused with, unchanged. A `run_as` account that may not
 	// do what the action asks shows the authoriser's own refusal here, which is what makes the run
 	// log answer "why did this not happen" rather than "something went wrong".
 	ErrorCode string
 	// IdempotencyKey is what made the action safe to attempt twice. Recorded because a person
-	// comparing two runs of one event needs to see that they carried the same key.
+	// comparing two runs of one event needs to see that they carried the same key. Empty on flow
+	// actions, which perform nothing there is to repeat.
 	IdempotencyKey string
 }
 
@@ -118,7 +136,11 @@ type Run struct {
 	// SubjectID is the entry the run is about when no event names it - a RELATIVE_DATE run
 	// measured from one entry's due date. Zero where the event carries the subject, which is where
 	// a reader should look for it.
-	SubjectID        shared.ID
+	SubjectID shared.ID
+	// Occasion is what made this run one occurrence: the idempotency key's middle third (G-09).
+	// Kept on the row so a replay can complete a half-finished run around the keys its actions
+	// claimed. Empty on rows written before it was stored.
+	Occasion         string
 	Status           RunStatus
 	ConditionResults []ConditionResult
 	ActionResults    []ActionResult
@@ -141,6 +163,7 @@ type NewRunInput struct {
 	Trigger        TriggerKind
 	TriggeredBy    shared.ID
 	SubjectID      shared.ID
+	Occasion       string
 	CausationDepth int
 	Now            time.Time
 }
@@ -160,6 +183,7 @@ func StartRun(in NewRunInput) (Run, error) {
 	return Run{
 		ID: in.ID, TenantID: in.TenantID, RuleID: in.RuleID, EventID: in.EventID,
 		Trigger: in.Trigger, TriggeredBy: in.TriggeredBy, SubjectID: in.SubjectID,
+		Occasion:         in.Occasion,
 		Status:           RunRunning,
 		ConditionResults: []ConditionResult{},
 		ActionResults:    []ActionResult{},
@@ -193,6 +217,23 @@ func (r Run) Skip(results []ConditionResult, at time.Time) Run {
 
 // Fail ends the run as one that could not do what its rule says.
 func (r Run) Fail(code string, at time.Time) Run { return r.end(RunFailed, code, at) }
+
+// Suspend parks the run on a WAIT, carrying everything it has decided so far.
+//
+// Deliberately not `end`: the run is not over, so `finished_at` stays empty - a reader that asks
+// Finished() before trusting it gets the honest answer - and the results written here are what a
+// person sees while the delay passes: which conditions matched, and what already happened.
+func (r Run) Suspend(conditions []ConditionResult, actions []ActionResult) Run {
+	r.ConditionResults, r.ActionResults = conditions, actions
+	r.Status, r.ErrorCode, r.FinishedAt = RunWaiting, "", nil
+	if r.ConditionResults == nil {
+		r.ConditionResults = []ConditionResult{}
+	}
+	if r.ActionResults == nil {
+		r.ActionResults = []ActionResult{}
+	}
+	return r
+}
 
 // Complete ends the run with what its actions did.
 //

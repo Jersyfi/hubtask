@@ -183,7 +183,9 @@ func (h ListRuleRuns) Descriptor() usecase.Descriptor {
 			{Name: "rule_id", Kind: usecase.KindID, Description: "Narrow to one rule."},
 			{
 				Name: "status", Kind: usecase.KindString,
-				Enum: []string{"RUNNING", "SUCCEEDED", "SKIPPED", "FAILED", "ABORTED_LOOP", "THROTTLED"},
+				Enum: []string{
+					"RUNNING", "WAITING", "SUCCEEDED", "SKIPPED", "FAILED", "ABORTED_LOOP", "THROTTLED",
+				},
 				Description: "Narrow to one outcome. FAILED and ABORTED_LOOP are the two an " +
 					"operator usually wants.",
 			},
@@ -297,6 +299,12 @@ func runOutput(run domain.Run) usecase.Output {
 	for _, result := range run.ActionResults {
 		row := map[string]any{
 			"index": result.Index, "kind": result.Kind, "status": string(result.Status),
+		}
+		if result.Path != "" {
+			row["path"] = result.Path
+		}
+		if result.Matched != nil {
+			row["matched"] = *result.Matched
 		}
 		if result.ErrorCode != "" {
 			row["error_code"] = result.ErrorCode

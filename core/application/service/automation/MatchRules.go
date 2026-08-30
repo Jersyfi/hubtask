@@ -12,7 +12,6 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/eventbus"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
@@ -26,15 +25,6 @@ const ConsumerName = "automation"
 // Queue is the slice of the queue this package writes to.
 type Queue interface {
 	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
-}
-
-// Containers is the one read the matching makes into the work management context: a collection, so
-// that a rule scoped to a hub can be matched against an event in one of its collections.
-//
-// Narrow rather than the whole repository, for the reason every slice here is - a subscriber that
-// held the container repository could create one.
-type Containers interface {
-	Find(ctx context.Context, id shared.ID) (work.Container, error)
 }
 
 // MatchRules is the outbox consumer that turns one event into one job per rule that wants it.
@@ -169,7 +159,7 @@ func (m MatchRules) dedupeKey(
 	if err != nil {
 		return unique, nil
 	}
-	value, err := program.Evaluate(ctx, eventValues{envelope: envelope, now: m.Clock.Now()})
+	value, err := program.Evaluate(ctx, condition.Values{Envelope: envelope, Now: m.Clock.Now()})
 	if err != nil {
 		return unique, nil
 	}
@@ -195,11 +185,11 @@ type location struct {
 func (m MatchRules) locate(ctx context.Context, envelope event.Envelope) (location, error) {
 	// A hub's own event names the hub directly, which no collection lookup could find: a hub sits
 	// under nothing, so asking for its parent would answer the tenant.
-	if hubID := hubOf(envelope); !hubID.IsZero() {
+	if hubID := condition.HubOf(envelope); !hubID.IsZero() {
 		return location{HubID: hubID}, nil
 	}
 
-	collectionID := collectionOf(envelope)
+	collectionID := condition.CollectionOf(envelope)
 	if collectionID.IsZero() {
 		return location{}, nil
 	}
@@ -222,29 +212,6 @@ func (m MatchRules) locate(ctx context.Context, envelope event.Envelope) (locati
 	return location{CollectionID: collectionID, HubID: container.ParentID}, nil
 }
 
-// collectionOf reads the collection out of the payload.
-//
-// Two shapes, because there are two kinds of event. An item event names the collection it is in; a
-// container event *is* the container, so a collection names itself and a hub names nothing - a
-// hub-scoped rule matches the hub's own events through the hub identity below.
-func collectionOf(envelope event.Envelope) shared.ID {
-	if id := idAt(envelope.Payload, "collection_id"); !id.IsZero() {
-		return id
-	}
-	if kind, _ := envelope.Payload["type"].(string); kind == string(work.ContainerCollection) {
-		return idAt(envelope.Payload, "id")
-	}
-	return ""
-}
-
-// hubOf reads a hub the event is directly about, which is the case a collection lookup cannot cover.
-func hubOf(envelope event.Envelope) shared.ID {
-	if kind, _ := envelope.Payload["type"].(string); kind == string(work.ContainerHub) {
-		return idAt(envelope.Payload, "id")
-	}
-	return ""
-}
-
 // covers reports whether a rule's scope reaches this event.
 //
 // A tenant-scoped rule reaches everything, which is what the level means. A hub-scoped one reaches
@@ -263,12 +230,4 @@ func covers(scope domain.Scope, at location) bool {
 		// does not fire. Unreachable while the aggregate validates the three levels.
 		return false
 	}
-}
-
-func idAt(payload map[string]any, key string) shared.ID {
-	text, _ := payload[key].(string)
-	if text == "" {
-		return ""
-	}
-	return shared.ID(text)
 }

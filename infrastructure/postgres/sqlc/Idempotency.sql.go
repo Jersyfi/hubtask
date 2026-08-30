@@ -56,6 +56,24 @@ func (q *Queries) FindIdempotencyRecord(ctx context.Context, arg FindIdempotency
 	return i, err
 }
 
+const releaseIdempotencyKey = `-- name: ReleaseIdempotencyKey :exec
+DELETE FROM idempotency_key
+WHERE key = $1 AND endpoint = $2
+`
+
+type ReleaseIdempotencyKeyParams struct {
+	Key      string
+	Endpoint string
+}
+
+// A reservation whose work failed, let go (G-09). Without this, a failed action's claim would
+// survive the run that recorded the failure - and a replay of that run would find the key taken
+// and "complete" the action without ever performing it.
+func (q *Queries) ReleaseIdempotencyKey(ctx context.Context, arg ReleaseIdempotencyKeyParams) error {
+	_, err := q.db.Exec(ctx, releaseIdempotencyKey, arg.Key, arg.Endpoint)
+	return err
+}
+
 const reserveIdempotencyKey = `-- name: ReserveIdempotencyKey :execrows
 
 INSERT INTO idempotency_key (tenant_id, key, endpoint, request_hash)

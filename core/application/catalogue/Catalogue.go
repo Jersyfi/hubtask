@@ -173,6 +173,7 @@ func Descriptors() []usecase.Descriptor {
 		integration.DeleteWebhookSubscription{}.Descriptor(),
 		integration.ListWebhookDeliveries{}.Descriptor(),
 		integration.ReplayWebhookDelivery{}.Descriptor(),
+		integration.SendWebhook{}.Descriptor(),
 		integration.RotateWebhookSecret{}.Descriptor(),
 		integration.PollTriggerEvents{}.Descriptor(),
 		automationservice.CreateRule{}.Descriptor(),
@@ -186,6 +187,9 @@ func Descriptors() []usecase.Descriptor {
 		automationservice.RotateInboundTrigger{}.Descriptor(),
 		automationservice.ListRuleRuns{}.Descriptor(),
 		automationservice.GetRuleRun{}.Descriptor(),
+		automationservice.HttpRequest{}.Descriptor(),
+		automationservice.TestRule{}.Descriptor(),
+		automationservice.ReplayRuleRun{}.Descriptor(),
 	}
 }
 

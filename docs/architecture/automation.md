@@ -240,8 +240,27 @@ catalogue, not a second register of it:
 | Flow | `WAIT` (a delay as a job), `BRANCH` (a nested condition), `STOP` |
 | AI (optional) | `AI_SUGGEST_FIELDS`, `AI_SUMMARIZE`, `AI_CLASSIFY` — the result as a suggestion or applied directly, configured explicitly |
 
+**The flow kinds are the engine's own** (G-09). `WAIT` suspends the run rather than sleeping on a
+worker: the results so far are written under the run's own `WAITING` status, a job carries the
+resume point with the queue's own `run_at`, and the current job finishes - a restart changes
+nothing, because the moment lives on the job row. `BRANCH` is a nested list, not a jump target,
+and both arms are checked when the rule is written; the run log names every action by its path
+(`2/then/0`), which is also the idempotency key's third part, so two branches' first actions never
+share a key. `STOP` ends the run where it stands, and the run succeeded: stopping early is what
+the rule said to do.
+
+**The outbound pair enqueues rather than calls** (G-09). `SEND_WEBHOOK` delivers the run's event
+to a named subscription through G-03's one pipeline - the same delivery table, signature, retry
+ladder and dead letter - and `HTTP_REQUEST` performs its call on a detached job through the
+guarded client, with the webhook ladder's eight attempts. **A rule cannot read an answer.**
+ADR-0009 excluded external data from conditions, so an `HTTP_REQUEST`'s response is bounded by the
+client's size cap and then discarded unread - it is stored nowhere and available to nothing. That
+refusal is this sentence rather than silently true.
+
 Templating in action parameters uses the same CEL environment (`"Reminder: " + item.title`), plus
-message codes for localised text.
+message codes for localised text. What is built today is the outbound body: an `HTTP_REQUEST`'s
+`body_template` is compiled when the rule is written and rendered from the run's event at each
+attempt, so a retry two days later sends what the first attempt would have.
 
 ### 1.4 Recurring tasks
 
@@ -256,16 +275,16 @@ change series (`SET_RECURRENCE`).
 | Aspect | Implementation |
 |---|---|
 | Triggering | Outbox dispatcher → automation engine (in-process or its own deployment) |
-| Delivery guarantee | At least once; actions use an `Idempotency-Key` derived from `(rule_id, event_id, action_index)` |
+| Delivery guarantee | At least once; actions use an `Idempotency-Key` derived from `(rule_id, occasion, action_path)` - the occasion is the run's one occurrence (§1.1) and the path names nested actions (`2/then/0`). A failed action's claim is released with its failure, so a replay performs what the first run never did |
 | Permissions | The rule runs as the `run_as` account; it can never do more than that account may. Every action goes through the same registry a person's request goes through, and the authoriser answers it the way it answers anybody (rule 2) — the engine gets no bypass, which is the whole point of `run_as`. A run is *granted* the token scope its action declares rather than narrowed by one: a rule presents no credential, so the bound whose purpose is letting a token be narrower than its owner has nothing to narrow, and the role is what decides. Writing a rule needs more than the automation permission — see §2.1 |
 | Loop protection | `causation_depth` in the event; abort at depth 5 by default, run status `ABORTED_LOOP` |
 | Replays | An event marked `replay: true` is one a restore produced ([backup-restore.md](./backup-restore.md) §8.4) and no rule reacts to it. The flag arrived with E-06 so that the engine finds it already there; it is on the envelope rather than in the payload because the decision is routing, and the dispatcher makes it — a subscriber is handed a replay only if it has asked for one, so the promise does not depend on every consumer remembering it |
 | Throttling | Per rule and per tenant; the dedupe key prevents a storm during mass changes |
 | Error handling | `on_error ∈ {STOP, CONTINUE, RETRY}`; retry with exponential backoff; after n failures the rule is disabled automatically and a notification is sent |
-| Dry run | `POST /automation/rules:test` with a sample event → which conditions match, which actions *would* run; no side effects |
-| Log | A `RuleRun` with timestamps, condition results, action results, and errors; retrievable, filterable, replayable |
+| Dry run | `POST /automation/rules:test` with a sample event → which conditions match, which actions *would* run - both arms of every branch; no side effects, and nothing below it opens a writing transaction (E-06's dry-run discipline) |
+| Log | A `RuleRun` with timestamps, condition results, action results, and errors; retrievable, filterable, and - for a `FAILED` run - replayable through `POST /automation/runs/{id}:replay`, which completes the run under its original keys and is audited with the replayer |
 | SSRF protection | Outbound calls go through `GuardedClient`: DNS resolution checked, private and link-local networks blocked (with a configurable allowlist for self-hosting), a redirect limit, a timeout, and a response size limit |
-| Secrets | Header values and tokens for HTTP actions are stored encrypted and masked in logs and API responses |
+| Secrets | An `HTTP_REQUEST`'s header secret is sealed at the write (E-02) under a purpose naming the rule, masked as `***` in every API response, and opened for the length of one call; sending `***` back on an edit keeps the stored secret |
 
 ### 2.0 How a run happens
 
@@ -298,6 +317,7 @@ different answers and none of them collapses into another:
 | `THROTTLED` | The rule has already run as often as it may this hour. The conditions were never asked |
 | `FAILED` | The rule could not do what it says: an action refused under `STOP`, or a condition that could not be evaluated at all |
 | `ABORTED_LOOP` | The chain reached `causation_depth` 5. The run did nothing — its own status, because "misconfigured into a loop" and "action refused" send their reader to two different places |
+| `WAITING` | Parked on a `WAIT`: the results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes |
 | `RUNNING` | In flight, or a crash |
 
 **Idempotency is per action, not per run.** The key is `(rule_id, event_id, action_index)` — the
