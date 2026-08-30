@@ -463,11 +463,22 @@ func seedWorkItemForRules(ctx context.Context, t *testing.T, tenant shared.ID) s
 	t.Helper()
 	admin := adminPool(ctx, t)
 
-	collection := freshID(t)
+	// A hub first: `container`'s check constraint ties `type = 'HUB'` to `parent_id IS NULL`, so a
+	// collection without one is refused by the schema rather than by anything this test asks.
+	hub := freshID(t)
 	if _, err := admin.Exec(ctx, `
 		INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
-		VALUES ($1, $2, 'COLLECTION', 'Rules', 'a0', $3)`,
-		collection.String(), tenant.String(), authorA.String()); err != nil {
+		VALUES ($1, $2, 'HUB', $3, 'a0', $4)`,
+		hub.String(), tenant.String(), freshName(t), authorA.String()); err != nil {
+		t.Fatalf("seeding the hub: %v", err)
+	}
+
+	collection := freshID(t)
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
+		VALUES ($1, $2, 'COLLECTION', $3, $4, 'a0', $5)`,
+		collection.String(), tenant.String(), hub.String(), freshName(t),
+		authorA.String()); err != nil {
 		t.Fatalf("seeding the collection: %v", err)
 	}
 

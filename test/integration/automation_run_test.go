@@ -59,6 +59,9 @@ func startedRun(t *testing.T, tenant, ruleID shared.ID) domain.Run {
 
 	run, err := domain.StartRun(domain.NewRunInput{
 		ID: freshID(t), TenantID: tenant, RuleID: ruleID, EventID: freshID(t),
+		// Required since G-08: a run that does not know what started it is a programming error,
+		// because the log's whole value is that it says which of six things happened.
+		Trigger:        domain.TriggerEvent,
 		CausationDepth: 1, Now: time.Now().UTC().Truncate(time.Microsecond),
 	})
 	if err != nil {
