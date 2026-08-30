@@ -15,6 +15,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
@@ -543,13 +544,14 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 		Throttle: domain.Throttle{
 			MaxRunsPerHour: throttle.MaxRunsPerHour, DedupeKeyExpr: throttle.DedupeKeyExpr,
 		},
-		OnError:      domain.OnError(row.OnError),
-		FailureCount: int(row.FailureCount),
-		NextRunAt:    timeFrom(row.NextRunAt),
-		CreatedBy:    createdBy,
-		CreatedAt:    timeFrom(row.CreatedAt),
-		UpdatedAt:    timeFrom(row.UpdatedAt),
-		Version:      int(row.Version),
+		OnError:          domain.OnError(row.OnError),
+		FailureCount:     int(row.FailureCount),
+		NextRunAt:        timeFrom(row.NextRunAt),
+		InboundRotatedAt: timeFrom(row.InboundRotatedAt),
+		CreatedBy:        createdBy,
+		CreatedAt:        timeFrom(row.CreatedAt),
+		UpdatedAt:        timeFrom(row.UpdatedAt),
+		Version:          int(row.Version),
 	}
 	for _, condition := range conditions {
 		rule.Conditions = append(rule.Conditions, domain.Condition{Expr: condition.Expr})
@@ -719,4 +721,73 @@ func (r AutomationRuleRepository) NextOccurrence(ctx context.Context) (time.Time
 			WithCause(fmt.Errorf("reading the next due occurrence: %w", err))
 	}
 	return timeFrom(next), nil
+}
+
+// AutomationInboundRepository is the address an INBOUND_WEBHOOK rule answers on (G-08).
+//
+// Its own type rather than two more methods on the rule repository, for CalendarFeedRepository's
+// reason: it is the only place that knows how a presented token becomes a hash, and the pepper is
+// a secret of this layer (security.md §8). Everything else about a rule is read through a
+// repository that holds no key at all.
+type AutomationInboundRepository struct {
+	hasher security.InboundTokenHasher
+}
+
+func NewAutomationInboundRepository(hasher security.InboundTokenHasher) AutomationInboundRepository {
+	return AutomationInboundRepository{hasher: hasher}
+}
+
+var _ repository.InboundTriggers = AutomationInboundRepository{}
+
+// SetToken mints or rotates the address. The token itself is not stored, is not logged, and does
+// not leave the call it was answered in.
+func (r AutomationInboundRepository) SetToken(
+	ctx context.Context, ruleID shared.ID, token integration.InboundToken, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	id, err := uuidOf(ruleID)
+	if err != nil {
+		return false, err
+	}
+
+	changed, err := queries.SetAutomationRuleInboundToken(ctx, sqlc.SetAutomationRuleInboundTokenParams{
+		ID: id, TokenHash: r.hasher.Hash(token.Secret()), RotatedAt: timestampOf(at),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("minting the inbound address of rule %s: %w", ruleID, err))
+	}
+	return changed > 0, nil
+}
+
+// FindByToken answers the rule an address opens.
+//
+// The lookup runs in the tenant the token names inside itself, which the caller set as the
+// transaction's scope. The hash covers the whole presented string, so a token rewritten to quote
+// another tenant hashes to something no row carries.
+func (r AutomationInboundRepository) FindByToken(
+	ctx context.Context, token integration.InboundToken,
+) (domain.Rule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.Rule{}, err
+	}
+
+	row, err := queries.FindAutomationRuleByInboundToken(ctx, r.hasher.Hash(token.Secret()))
+	if err != nil {
+		if IsNoRows(err) {
+			// No rule, and no hint as to why. What the route answers is the same for an unknown
+			// address, a rotated one and a rule that has been deleted (T-21).
+			return domain.Rule{}, shared.ErrNotFound.WithDetail("automation.inbound_not_found")
+		}
+		return domain.Rule{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the rule of an inbound address: %w", err))
+	}
+	return automationRuleFrom(sqlc.ListAutomationRulesRow(row))
 }

@@ -28,7 +28,7 @@ INSERT INTO automation_rule (
 -- name: FindAutomationRule :one
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -40,7 +40,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- second place for the `deleted_at` guard to be forgotten.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND (sqlc.narg('enabled')::boolean IS NULL OR enabled = sqlc.narg('enabled')::boolean)
@@ -210,7 +210,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true
 -- subscriber's, against what it can resolve, rather than a join this statement cannot make.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -231,7 +231,7 @@ ORDER BY id;
 -- overlap, and a lock here would be a second answer to a question the queue has answered.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL AND enabled = true
   AND next_run_at IS NOT NULL AND next_run_at <= sqlc.arg('due')
@@ -309,9 +309,35 @@ SELECT min(fire_at)::timestamptz AS fire_at FROM rule_occurrence;
 -- producer's, against what it can resolve.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
   AND trigger ->> 'kind' = sqlc.arg('kind')::text
 ORDER BY id;
+
+-- The INBOUND_WEBHOOK trigger's address (G-08, D-08's credential discipline).
+
+-- name: SetAutomationRuleInboundToken :execrows
+-- Mints or rotates the address. One statement, so the old hash and the new one never coexist:
+-- rotating *is* revoking, and a window in which both open the same rule would be the one thing
+-- "revocable by rotating" must not mean.
+--
+-- The version is deliberately untouched. The address is a credential beside the rule rather than
+-- part of its definition, and bumping the version would make a rotation look like an edit to a
+-- client holding an optimistic lock.
+UPDATE automation_rule
+SET inbound_token_hash = sqlc.arg('token_hash'),
+    inbound_rotated_at = sqlc.arg('rotated_at')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
+
+-- name: FindAutomationRuleByInboundToken :one
+-- What the unauthenticated route asks. The tenant is the transaction's, set from the tenant the
+-- token names inside itself - the only honest source of one on a route with no authentication
+-- (multi-tenancy.md §2.2). The hash is unique across the installation, so a token rewritten to
+-- quote another tenant matches nothing.
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE inbound_token_hash = sqlc.arg('token_hash') AND deleted_at IS NULL;

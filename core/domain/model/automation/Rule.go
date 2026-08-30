@@ -218,11 +218,18 @@ type Rule struct {
 	// It is not part of the definition an edit sends - it is what this installation worked out
 	// from the definition - which is why NewRule neither takes it nor sets it.
 	NextRunAt time.Time
-	CreatedBy shared.ID
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt *time.Time
-	Version   int
+	// InboundRotatedAt is when an INBOUND_WEBHOOK rule's address was last minted, and the zero time
+	// for a rule that has none (G-08).
+	//
+	// The moment and nothing else. The token is hashed and answered once; a prefix or a masked
+	// value beside it would be a credential whose guessing space has been narrowed for whoever
+	// reads the listing.
+	InboundRotatedAt time.Time
+	CreatedBy        shared.ID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        *time.Time
+	Version          int
 }
 
 // NewRuleInput is what writing a rule needs.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -180,6 +181,20 @@ type Occurrences interface {
 	// none. Its own name rather than NextDue, because one repository answers both this and the
 	// schedules' - and two methods called the same thing on one type would be one of them.
 	NextOccurrence(ctx context.Context) (time.Time, error)
+}
+
+// InboundTriggers is the address an INBOUND_WEBHOOK rule answers on (G-08).
+//
+// The port takes the presented token whole rather than a hash, for the reason the calendar feed's
+// does: the pepper is a secret of the infrastructure layer (security.md §8), and an application
+// layer that computed the hash would be an application layer holding it.
+type InboundTriggers interface {
+	// SetToken mints or rotates the address, and reports whether it changed anything. One
+	// statement, so the old hash and the new one never coexist: rotating *is* revoking.
+	SetToken(ctx context.Context, ruleID shared.ID, token integration.InboundToken, at time.Time) (bool, error)
+
+	// FindByToken answers the rule an address opens, or an error wrapping shared.ErrNotFound.
+	FindByToken(ctx context.Context, token integration.InboundToken) (domain.Rule, error)
 }
 
 // Matching is what the dispatcher asks per event: the enabled rules whose trigger is this type.

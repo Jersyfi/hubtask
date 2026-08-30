@@ -2805,10 +2805,16 @@ type AutomationRule struct {
 	Enabled bool `json:"enabled"`
 
 	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
-	FailureCount int                   `json:"failure_count"`
-	Id           openapi_types.UUID    `json:"id"`
-	Name         string                `json:"name"`
-	OnError      AutomationRuleOnError `json:"on_error"`
+	FailureCount int                `json:"failure_count"`
+	Id           openapi_types.UUID `json:"id"`
+
+	// InboundRotatedAt When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.
+	InboundRotatedAt *time.Time `json:"inbound_rotated_at,omitempty"`
+	Name             string     `json:"name"`
+
+	// NextRunAt When a `SCHEDULE` rule next fires. Absent for every other kind, and for a schedule whose recurrence is exhausted - such a rule stays, visible and editable, and fires no more.
+	NextRunAt *time.Time            `json:"next_run_at,omitempty"`
+	OnError   AutomationRuleOnError `json:"on_error"`
 
 	// RunAs The account the rule acts as. It can never do more than that account may (automation.md §2), which is why the writer has to hold those rights too.
 	RunAs openapi_types.UUID `json:"run_as"`
@@ -3684,6 +3690,15 @@ type HealthWarning struct {
 
 // HealthWarningSeverity defines model for HealthWarning.Severity.
 type HealthWarningSeverity string
+
+// InboundTriggerToken A freshly minted inbound address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read of the rule shows only when it was minted.
+type InboundTriggerToken struct {
+	RotatedAt time.Time          `json:"rotated_at"`
+	RuleId    openapi_types.UUID `json:"rule_id"`
+
+	// Token The credential, prefixed `hbt_hook_`. The prefix is public by design, so that secret scanning finds a leaked URL before somebody else does.
+	Token string `json:"token"`
+}
 
 // ItemAccess How far a role reaches into one entry.
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
@@ -5255,6 +5270,9 @@ type CreateAccessTokenParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// StartInboundRunJSONBody defines parameters for StartInboundRun.
+type StartInboundRunJSONBody map[string]interface{}
+
 // ListRulesParams defines parameters for ListRules.
 type ListRulesParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -5278,6 +5296,12 @@ type DisableRuleParams struct {
 
 // EnableRuleParams defines parameters for EnableRule.
 type EnableRuleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// RotateInboundTriggerParams defines parameters for RotateInboundTrigger.
+type RotateInboundTriggerParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -5951,6 +5975,9 @@ type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = AccessTokenCreate
 
+// StartInboundRunJSONRequestBody defines body for StartInboundRun for application/json ContentType.
+type StartInboundRunJSONRequestBody StartInboundRunJSONBody
+
 // CreateRuleJSONRequestBody defines body for CreateRule for application/json ContentType.
 type CreateRuleJSONRequestBody = AutomationRuleCreate
 
@@ -6160,6 +6187,9 @@ type ServerInterface interface {
 	// RevokeAccessToken Revoke a personal access token
 	// (DELETE /auth/tokens/{tokenId})
 	RevokeAccessToken(w http.ResponseWriter, r *http.Request, tokenId TokenId)
+	// StartInboundRun Start a rule from outside
+	// (POST /automation/inbound/{token})
+	StartInboundRun(w http.ResponseWriter, r *http.Request, token string)
 	// ListRules The workspace's automation rules
 	// (GET /automation/rules)
 	ListRules(w http.ResponseWriter, r *http.Request, params ListRulesParams)
@@ -6181,6 +6211,9 @@ type ServerInterface interface {
 	// EnableRule Switch a rule on
 	// (POST /automation/rules/{ruleId}:enable)
 	EnableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params EnableRuleParams)
+	// RotateInboundTrigger Mint the address an inbound-webhook rule answers on
+	// (POST /automation/rules/{ruleId}:rotate-inbound-token)
+	RotateInboundTrigger(w http.ResponseWriter, r *http.Request, ruleId RuleId, params RotateInboundTriggerParams)
 	// TriggerRuleManually Run a rule now
 	// (POST /automation/rules/{ruleId}:trigger)
 	TriggerRuleManually(w http.ResponseWriter, r *http.Request, ruleId RuleId, params TriggerRuleManuallyParams)
@@ -7022,6 +7055,32 @@ func (siw *ServerInterfaceWrapper) RevokeAccessToken(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// StartInboundRun operation middleware
+func (siw *ServerInterfaceWrapper) StartInboundRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartInboundRun(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRules operation middleware
 func (siw *ServerInterfaceWrapper) ListRules(w http.ResponseWriter, r *http.Request) {
 
@@ -7291,6 +7350,56 @@ func (siw *ServerInterfaceWrapper) EnableRule(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EnableRule(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateInboundTrigger operation middleware
+func (siw *ServerInterfaceWrapper) RotateInboundTrigger(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateInboundTriggerParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateInboundTrigger(w, r, ruleId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13177,6 +13286,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/inbound/{token}", wrapper.StartInboundRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs", wrapper.ListRuleRuns)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs/{runId}", wrapper.GetRuleRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks", wrapper.ListWebhookSubscriptions)

@@ -685,6 +685,11 @@ CREATE TABLE automation_rule (
   -- When a SCHEDULE rule next fires (G-08, migration 0055). NULL for the five triggers that are
   -- not a schedule, and for a schedule whose rule is exhausted.
   next_run_at timestamptz,
+  -- The address an INBOUND_WEBHOOK rule answers on (G-08, migration 0057). D-08's discipline: the
+  -- token is hashed, answered once, and revoked by rotating; the moment is the only thing about
+  -- it a listing may show.
+  inbound_token_hash bytea,
+  inbound_rotated_at timestamptz,
   CONSTRAINT automation_rule_run_as_fkey
     FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
 );
@@ -701,6 +706,10 @@ CREATE INDEX rule_event_trigger_idx
 -- shape, because it is the same question - the tenant predicate is row level security's.
 CREATE INDEX automation_rule_due_idx ON automation_rule (next_run_at)
   WHERE enabled AND deleted_at IS NULL AND next_run_at IS NOT NULL;
+-- The lookup the unauthenticated inbound route makes. Unique across the installation, so a token
+-- rewritten to quote another tenant matches nothing at all.
+CREATE UNIQUE INDEX automation_rule_inbound_token_uq ON automation_rule (inbound_token_hash)
+  WHERE inbound_token_hash IS NOT NULL;
 
 CREATE TABLE rule_run (
   id           uuid PRIMARY KEY,

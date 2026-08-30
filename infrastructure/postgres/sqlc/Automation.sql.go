@@ -169,7 +169,7 @@ const dueAutomationRules = `-- name: DueAutomationRules :many
 
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL AND enabled = true
   AND next_run_at IS NOT NULL AND next_run_at <= $1
@@ -183,24 +183,25 @@ type DueAutomationRulesParams struct {
 }
 
 type DueAutomationRulesRow struct {
-	ID           pgtype.UUID
-	ScopeType    string
-	ScopeID      pgtype.UUID
-	Name         string
-	Enabled      bool
-	RunAs        pgtype.UUID
-	Trigger      []byte
-	Conditions   []byte
-	Actions      []byte
-	Throttle     []byte
-	OnError      string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
-	NextRunAt    pgtype.Timestamptz
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
 }
 
 // The SCHEDULE trigger (G-08, decision 5 of milestone-0.5.0). The same three statements
@@ -240,6 +241,7 @@ func (q *Queries) DueAutomationRules(ctx context.Context, arg DueAutomationRules
 			&i.DeletedAt,
 			&i.Version,
 			&i.NextRunAt,
+			&i.InboundRotatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -254,30 +256,31 @@ func (q *Queries) DueAutomationRules(ctx context.Context, arg DueAutomationRules
 const findAutomationRule = `-- name: FindAutomationRule :one
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE id = $1 AND deleted_at IS NULL
 `
 
 type FindAutomationRuleRow struct {
-	ID           pgtype.UUID
-	ScopeType    string
-	ScopeID      pgtype.UUID
-	Name         string
-	Enabled      bool
-	RunAs        pgtype.UUID
-	Trigger      []byte
-	Conditions   []byte
-	Actions      []byte
-	Throttle     []byte
-	OnError      string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
-	NextRunAt    pgtype.Timestamptz
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
 }
 
 func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindAutomationRuleRow, error) {
@@ -302,6 +305,68 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 		&i.DeletedAt,
 		&i.Version,
 		&i.NextRunAt,
+		&i.InboundRotatedAt,
+	)
+	return i, err
+}
+
+const findAutomationRuleByInboundToken = `-- name: FindAutomationRuleByInboundToken :one
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE inbound_token_hash = $1 AND deleted_at IS NULL
+`
+
+type FindAutomationRuleByInboundTokenRow struct {
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
+}
+
+// What the unauthenticated route asks. The tenant is the transaction's, set from the tenant the
+// token names inside itself - the only honest source of one on a route with no authentication
+// (multi-tenancy.md §2.2). The hash is unique across the installation, so a token rewritten to
+// quote another tenant matches nothing.
+func (q *Queries) FindAutomationRuleByInboundToken(ctx context.Context, tokenHash []byte) (FindAutomationRuleByInboundTokenRow, error) {
+	row := q.db.QueryRow(ctx, findAutomationRuleByInboundToken, tokenHash)
+	var i FindAutomationRuleByInboundTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.ScopeType,
+		&i.ScopeID,
+		&i.Name,
+		&i.Enabled,
+		&i.RunAs,
+		&i.Trigger,
+		&i.Conditions,
+		&i.Actions,
+		&i.Throttle,
+		&i.OnError,
+		&i.FailureCount,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.Version,
+		&i.NextRunAt,
+		&i.InboundRotatedAt,
 	)
 	return i, err
 }
@@ -528,7 +593,7 @@ func (q *Queries) InsertRuleRun(ctx context.Context, arg InsertRuleRunParams) er
 const listAutomationRules = `-- name: ListAutomationRules :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND ($1::boolean IS NULL OR enabled = $1::boolean)
@@ -544,24 +609,25 @@ type ListAutomationRulesParams struct {
 }
 
 type ListAutomationRulesRow struct {
-	ID           pgtype.UUID
-	ScopeType    string
-	ScopeID      pgtype.UUID
-	Name         string
-	Enabled      bool
-	RunAs        pgtype.UUID
-	Trigger      []byte
-	Conditions   []byte
-	Actions      []byte
-	Throttle     []byte
-	OnError      string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
-	NextRunAt    pgtype.Timestamptz
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
 }
 
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the creation order.
@@ -597,6 +663,7 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 			&i.DeletedAt,
 			&i.Version,
 			&i.NextRunAt,
+			&i.InboundRotatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -718,7 +785,7 @@ func (q *Queries) NextDueRuleOccurrence(ctx context.Context) (pgtype.Timestamptz
 const rulesByTriggerKind = `-- name: RulesByTriggerKind :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -727,24 +794,25 @@ ORDER BY id
 `
 
 type RulesByTriggerKindRow struct {
-	ID           pgtype.UUID
-	ScopeType    string
-	ScopeID      pgtype.UUID
-	Name         string
-	Enabled      bool
-	RunAs        pgtype.UUID
-	Trigger      []byte
-	Conditions   []byte
-	Actions      []byte
-	Throttle     []byte
-	OnError      string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
-	NextRunAt    pgtype.Timestamptz
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
 }
 
 // The enabled rules of one trigger kind, which is what a producer that is not the event dispatcher
@@ -778,6 +846,7 @@ func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesB
 			&i.DeletedAt,
 			&i.Version,
 			&i.NextRunAt,
+			&i.InboundRotatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -792,7 +861,7 @@ func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesB
 const rulesForEventType = `-- name: RulesForEventType :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at
+       next_run_at, inbound_rotated_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -802,24 +871,25 @@ ORDER BY id
 `
 
 type RulesForEventTypeRow struct {
-	ID           pgtype.UUID
-	ScopeType    string
-	ScopeID      pgtype.UUID
-	Name         string
-	Enabled      bool
-	RunAs        pgtype.UUID
-	Trigger      []byte
-	Conditions   []byte
-	Actions      []byte
-	Throttle     []byte
-	OnError      string
-	FailureCount int32
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
-	NextRunAt    pgtype.Timestamptz
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
 }
 
 // What the subscriber asks per event: the enabled rules whose trigger is this event type.
@@ -858,6 +928,7 @@ func (q *Queries) RulesForEventType(ctx context.Context, eventType string) ([]Ru
 			&i.DeletedAt,
 			&i.Version,
 			&i.NextRunAt,
+			&i.InboundRotatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -901,6 +972,36 @@ func (q *Queries) SetAutomationRuleEnabled(ctx context.Context, arg SetAutomatio
 		arg.ID,
 		arg.ExpectedVersion,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setAutomationRuleInboundToken = `-- name: SetAutomationRuleInboundToken :execrows
+
+UPDATE automation_rule
+SET inbound_token_hash = $1,
+    inbound_rotated_at = $2
+WHERE id = $3 AND deleted_at IS NULL
+`
+
+type SetAutomationRuleInboundTokenParams struct {
+	TokenHash []byte
+	RotatedAt pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// The INBOUND_WEBHOOK trigger's address (G-08, D-08's credential discipline).
+// Mints or rotates the address. One statement, so the old hash and the new one never coexist:
+// rotating *is* revoking, and a window in which both open the same rule would be the one thing
+// "revocable by rotating" must not mean.
+//
+// The version is deliberately untouched. The address is a credential beside the rule rather than
+// part of its definition, and bumping the version would make a rotation look like an edit to a
+// client holding an optimistic lock.
+func (q *Queries) SetAutomationRuleInboundToken(ctx context.Context, arg SetAutomationRuleInboundTokenParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setAutomationRuleInboundToken, arg.TokenHash, arg.RotatedAt, arg.ID)
 	if err != nil {
 		return 0, err
 	}

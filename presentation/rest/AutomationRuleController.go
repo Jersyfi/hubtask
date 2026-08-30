@@ -21,14 +21,15 @@ import (
 // a channel express a combination the aggregate refuses.
 
 const (
-	createRuleUseCase  = "CreateRule"
-	getRuleUseCase     = "GetRule"
-	listRulesUseCase   = "ListRules"
-	updateRuleUseCase  = "UpdateRule"
-	enableRuleUseCase  = "EnableRule"
-	disableRuleUseCase = "DisableRule"
-	deleteRuleUseCase  = "DeleteRule"
-	triggerRuleUseCase = "TriggerRuleManually"
+	createRuleUseCase    = "CreateRule"
+	getRuleUseCase       = "GetRule"
+	listRulesUseCase     = "ListRules"
+	updateRuleUseCase    = "UpdateRule"
+	enableRuleUseCase    = "EnableRule"
+	disableRuleUseCase   = "DisableRule"
+	deleteRuleUseCase    = "DeleteRule"
+	triggerRuleUseCase   = "TriggerRuleManually"
+	rotateInboundUseCase = "RotateInboundTrigger"
 )
 
 // ListAutomationRules answers GET /automation/rules.
@@ -212,6 +213,26 @@ func (c *RestController) TriggerRuleManually(
 	})
 }
 
+// RotateInboundTrigger answers POST /automation/rules/{ruleId}:rotate-inbound-token.
+//
+// The one answer that carries the token. Everything afterwards shows only when it was minted: the
+// value is stored hashed, and there is no read that can produce it again.
+func (c *RestController) RotateInboundTrigger(
+	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
+	_ openapi.RotateInboundTriggerParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), rotateInboundUseCase, actor,
+			usecase.Input{"rule_id": ruleID.String()})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, openapi.InboundTriggerToken{
+			RuleId:    uuidValue(out.String("rule_id")),
+			Token:     out.String("token"),
+			RotatedAt: timeValue(out["rotated_at"]),
+		})
+	})
+}
+
 func scopeInput(scope openapi.RuleScope) map[string]any {
 	document := map[string]any{"type": string(scope.Type)}
 	if scope.Id != nil {
@@ -299,6 +320,14 @@ func ruleResponse(out usecase.Output) openapi.AutomationRule {
 	}
 	if throttle, present := throttleResponse(out["throttle"]); present {
 		rule.Throttle = &throttle
+	}
+	// The two moments this installation worked out for the rule rather than read from its
+	// definition (G-08). Absent where they mean nothing, which is what a null says.
+	if at, present := out["next_run_at"].(time.Time); present {
+		rule.NextRunAt = &at
+	}
+	if at, present := out["inbound_rotated_at"].(time.Time); present {
+		rule.InboundRotatedAt = &at
 	}
 	return rule
 }

@@ -414,6 +414,13 @@ func run() error {
 	// The catalogue is deferred for BulkUpdateWorkItems' reason and it is the same circle: a rule's
 	// actions are use cases, so writing one has to consult the registry - and these seven are
 	// entries of the registry, so it cannot exist yet.
+	// The address an INBOUND_WEBHOOK rule answers on (G-08). Its own hasher, derived from the
+	// installation secret under the inbound trigger's purpose label, so a value from this column
+	// can never be replayed as a calendar feed token, a personal access token or a page cursor
+	// (security.md §5).
+	automationInbound := postgres.NewAutomationInboundRepository(
+		security.NewInboundTokenHasher(cfg.SecretKey))
+
 	ruleCatalogue := &deferredCatalogue{}
 	ruleReader := automationservice.Reader{
 		Runs:       postgres.NewAutomationRunRepository(cursors),
@@ -799,6 +806,12 @@ func run() error {
 			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
+		automationservice.RotateInboundTrigger{
+			Rules:      postgres.NewAutomationRuleRepository(cursors),
+			Inbound:    automationInbound,
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
+		}.Descriptor(),
 		automationservice.ListRuleRuns{Reader: ruleReader}.Descriptor(),
 		automationservice.GetRuleRun{Reader: ruleReader}.Descriptor(),
 		integrationservice.PollTriggerEvents{
@@ -1166,6 +1179,14 @@ func run() error {
 				Clock: clockadapter.System{},
 			},
 			UnitOfWork: unitOfWork,
+		}
+		// The public inbound-webhook route, for the same reason and with the same discipline: it
+		// answers a credential nobody in this system holds, it can do exactly one thing - start
+		// that one rule's run - and every question it asks is asked inwards of the controller
+		// (G-08, automation.md §1.1).
+		controller.InboundRuns = automationservice.StartInboundRun{
+			Inbound: automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
 		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
