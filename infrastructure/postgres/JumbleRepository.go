@@ -300,3 +300,49 @@ func (r JumbleIntakeRepository) RotatedAt(ctx context.Context) (time.Time, error
 	}
 	return timeFrom(rotated), nil
 }
+
+// DeleteExpired removes one batch of entries that arrived before the cutoff and were never
+// converted (G-10, data-retention.md §3).
+//
+// Which entries those are lives in the statement rather than in a parameter: an entry that became
+// a work item is that item's provenance, and no period a tenant configures may reach it.
+func (r JumbleRepository) DeleteExpired(
+	ctx context.Context, cutoff time.Time, batch int,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	removed, err := queries.DeleteExpiredJumbleEntries(ctx, sqlc.DeleteExpiredJumbleEntriesParams{
+		Cutoff: timestampOf(cutoff),
+		Batch:  boundedInt32(batch),
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("removing expired jumble entries: %w", err))
+	}
+	return int(removed), nil
+}
+
+// CountExpired reports how many entries are due, counted no higher than ceiling.
+func (r JumbleRepository) CountExpired(
+	ctx context.Context, cutoff time.Time, ceiling int,
+) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	due, err := queries.CountExpiredJumbleEntries(ctx, sqlc.CountExpiredJumbleEntriesParams{
+		Cutoff:  timestampOf(cutoff),
+		Ceiling: boundedInt32(ceiling),
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting expired jumble entries: %w", err))
+	}
+	return int(due), nil
+}

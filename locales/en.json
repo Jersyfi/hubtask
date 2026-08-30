@@ -368,6 +368,7 @@
   "lifecycle.policy_not_found": "No retention period is configured for that kind of data.",
   "lifecycle.run_unrecordable": "This installation could not record what a deletion run did.",
   "lifecycle.history_not_wired": "This installation is misconfigured: nothing removes the notification history when its period runs out.",
+  "lifecycle.inbox_not_wired": "This installation is misconfigured: nothing removes jumble entries when their period runs out.",
 
   "lifecycle.rule_incomplete": "That retention rule cannot be created as described.",
   "lifecycle.data_kind_unknown": "That is not a kind of data Hubtask keeps a period for.",

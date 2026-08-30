@@ -1597,7 +1597,11 @@ func run() error {
 			// The outbox's own rows (G-02). ADR-0007's second countermeasure, and until now the
 			// one table in this schema that only ever grew.
 			Events: postgres.NewDispatchedEvents(),
-			Clock:  clockadapter.System{}, IDs: ids, Signals: metrics,
+			// The jumble (G-10). Ninety days from the arrival for what was never converted, which
+			// is the kind D-06 predicted and the one place raw inbound text would otherwise sit
+			// for ever.
+			Inbox: postgres.NewJumbleRepository(cursors),
+			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
 			// row that goes.

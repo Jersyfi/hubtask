@@ -170,7 +170,22 @@ var catalogue = []Kind{
 	},
 	{Name: KindComment, Anchor: AnchorCreatedAt},
 	{Name: KindAttachment, Anchor: AnchorCreatedAt},
-	{Name: KindJumbleEntry, Anchor: AnchorCreatedAt, DefaultDays: 90},
+	{
+		// The jumble (G-10). Ninety days from the arrival, and the closed-set change D-06
+		// predicted: the kind was named here with nothing behind it until the inbox existed.
+		//
+		// No marking phase, for the trash's reason turned around. An entry has no grace period to
+		// announce into - nobody can take one back out of a period the way `:retain` takes an item
+		// out - and what governs it is its period and the decision made about it. What is due is
+		// what was never converted; an entry that became a work item is that item's provenance and
+		// stays.
+		Name: KindJumbleEntry, Anchor: AnchorCreatedAt, DefaultDays: 90,
+		Actions: []Action{ActionHardDelete},
+		// A tenant-wide hold, and nothing narrower. An entry sits in no container and under no
+		// item - it is what arrived before anybody decided where it belongs - so a hold on a hub
+		// has nothing to say about it, and "freeze this tenant" has everything to say about it.
+		Blockable: []string{BlockedByLegalHold},
+	},
 	{
 		Name: KindNotification, Anchor: AnchorCreatedAt, DefaultDays: 90,
 		Actions: []Action{ActionHardDelete},

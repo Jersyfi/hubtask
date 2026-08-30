@@ -376,3 +376,78 @@ func bytesOf(fill byte) []byte {
 	}
 	return drawn
 }
+
+// The retention sweep against a real database (G-10, data-retention.md §3): what was never
+// converted ages out, what became a work item stays, and one tenant's cutoff never reaches
+// another tenant's inbox (gate SG-3, RE-8).
+func TestTheJumbleSweepTakesWhatWasNeverConverted(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	longAgo := time.Now().UTC().Add(-200 * 24 * time.Hour).Truncate(time.Microsecond)
+	recently := time.Now().UTC().Add(-1 * time.Hour).Truncate(time.Microsecond)
+
+	expired := seedJumbleEntry(ctx, t, tenantA, func(in *domain.NewEntryInput) {
+		in.Now = longAgo
+	})
+	fresh := seedJumbleEntry(ctx, t, tenantA, func(in *domain.NewEntryInput) {
+		in.Now = recently
+	})
+	// Old enough to go and converted, which is what keeps it: the item it produced names it as its
+	// provenance, and an item claiming an origin nobody can read is worse than a kept message.
+	converted := seedJumbleEntry(ctx, t, tenantA, func(in *domain.NewEntryInput) {
+		in.Now = longAgo
+	})
+	settled, err := converted.Convert(freshID(t), time.Now().UTC().Truncate(time.Microsecond))
+	if err != nil {
+		t.Fatalf("converting: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := jumbleRepo().Settle(ctx, settled)
+		return err
+	}); err != nil {
+		t.Fatalf("settling: %v", err)
+	}
+	// The other tenant's entry, as expired as the first: RE-8 is about a cutoff that stops at the
+	// boundary, and an entry inside the period would prove nothing about one.
+	elsewhere := seedJumbleEntry(ctx, t, tenantB, func(in *domain.NewEntryInput) {
+		in.Now = longAgo
+	})
+
+	cutoff := time.Now().UTC().AddDate(0, 0, -90)
+	var due, removed int
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		if due, err = jumbleRepo().CountExpired(ctx, cutoff, 100); err != nil {
+			return err
+		}
+		removed, err = jumbleRepo().DeleteExpired(ctx, cutoff, 100)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if due != 1 || removed != 1 {
+		t.Errorf("%d due and %d removed, want the one entry nobody converted", due, removed)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := jumbleRepo().Find(ctx, expired.ID)
+		return err
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the expired entry answered %v, want gone", err)
+	}
+	for _, kept := range []shared.ID{fresh.ID, converted.ID} {
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			_, err := jumbleRepo().Find(ctx, kept)
+			return err
+		}); err != nil {
+			t.Errorf("the entry that should have stayed answered %v", err)
+		}
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		_, err := jumbleRepo().Find(ctx, elsewhere.ID)
+		return err
+	}); err != nil {
+		t.Errorf("one tenant's sweep reached another tenant's inbox: %v", err)
+	}
+}

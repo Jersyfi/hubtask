@@ -11,6 +11,62 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countExpiredJumbleEntries = `-- name: CountExpiredJumbleEntries :one
+SELECT count(*) FROM (
+  SELECT 1 FROM jumble_entry AS expired
+  WHERE expired.status <> 'PROCESSED' AND expired.received_at < $1
+  LIMIT $2
+) AS due
+`
+
+type CountExpiredJumbleEntriesParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+// What is due, so a pass can report a backlog it did not get to. Bounded by the batch it would
+// have taken plus one, so a tenant with a million expired rows costs an index scan of a page
+// rather than a count of the table.
+func (q *Queries) CountExpiredJumbleEntries(ctx context.Context, arg CountExpiredJumbleEntriesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredJumbleEntries, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteExpiredJumbleEntries = `-- name: DeleteExpiredJumbleEntries :execrows
+DELETE FROM jumble_entry
+WHERE id IN (
+  SELECT due.id FROM jumble_entry AS due
+  WHERE due.status <> 'PROCESSED' AND due.received_at < $1
+  ORDER BY due.received_at
+  LIMIT $2
+)
+`
+
+type DeleteExpiredJumbleEntriesParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The retention sweep's batch (data-retention.md §3: anchor `created_at`, 90 days, "inbox entries
+// never converted").
+//
+// Never converted is the predicate rather than "dismissed": an entry that became a work item is
+// that item's provenance - `origin_jumble_id` points at this row - and removing it would leave the
+// item claiming an origin nobody can read. What ages out is what was decided against and what was
+// never decided about at all, which is exactly the message nobody ever wanted.
+//
+// Batched through a subquery, because DELETE takes no LIMIT: a pass that took every expired row
+// would be a pass nobody can stop. Oldest first, so a backlog drains in the order it built up.
+func (q *Queries) DeleteExpiredJumbleEntries(ctx context.Context, arg DeleteExpiredJumbleEntriesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredJumbleEntries, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findJumbleEntry = `-- name: FindJumbleEntry :one
 SELECT id, channel, sender, raw_subject, raw_body, attachments, suggestion, status,
        target_item_id, received_at, processed_at
