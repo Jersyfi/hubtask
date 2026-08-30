@@ -244,7 +244,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id,
+  wi.content_language, wi.recurrence_rule_id, wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
   -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
   -- because §6's point is that the object itself says what is coming.
@@ -327,7 +327,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id,
+  wi.content_language, wi.recurrence_rule_id, wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -415,7 +415,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id,
+  wi.content_language, wi.recurrence_rule_id, wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -740,3 +740,11 @@ FROM work_item
 WHERE due_at IS NOT NULL
   AND deleted_at IS NULL AND archived_at IS NULL AND is_completed = false
   AND (due_soon_announced_at IS NULL OR overdue_announced_at IS NULL);
+
+-- name: SetWorkItemOrigin :execrows
+-- The provenance a conversion records (G-10): which jumble entry this item came from. Set exactly
+-- once - the guard is in the WHERE, so a second writer changes nothing - and never cleared: where
+-- an item came from does not stop being true.
+UPDATE work_item
+SET origin_jumble_id = sqlc.arg('origin_jumble_id')
+WHERE id = sqlc.arg('id') AND origin_jumble_id IS NULL AND deleted_at IS NULL;

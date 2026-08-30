@@ -481,6 +481,69 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /jumble/entries/{entryId}:convert:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [jumble]
+      operationId: convertJumbleEntry
+      summary: Turn an entry into work
+      description: >
+        Creates a work item at the named destination - through the same use case a plain create
+        goes through, with the same rights checked there - records the provenance on both sides
+        (`origin_jumble_id` on the item, `target_item_id` on the entry), settles the entry as
+        `PROCESSED` and announces `jumble.entry_converted`. Exactly once: a second conversion of
+        the same entry is refused, and two racing produce one item and one refusal.
+
+        The title defaults to the entry's subject, then to the first line of its body. An entry
+        with no text - an attachment alone - needs a title in the request.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JumbleEntryConvert"
+      responses:
+        "200":
+          description: Converted, with the target item on the entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/entries/{entryId}:dismiss:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [jumble]
+      operationId: dismissJumbleEntry
+      summary: Decide against an entry
+      description: >
+        A state, not a deletion: the entry stays readable, and the retention engine ages it out
+        by rule rather than by hand. Only a `NEW` entry can be dismissed - an entry is decided
+        about exactly once.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Dismissed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /automation/rules:
     get:
       tags: [automation]
@@ -5731,6 +5794,30 @@ components:
           items: { type: string, format: uuid }
           description: Sealed media objects to carry.
 
+    JumbleEntryConvert:
+      type: object
+      description: Where the entry becomes work, and what the item is called.
+      required: [collection_id]
+      properties:
+        collection_id:
+          type: string
+          format: uuid
+          description: The destination. The caller's rights there are checked by the item create.
+        bucket_id:
+          type: string
+          format: uuid
+          description: The board column, when the destination has a board.
+        title:
+          type: string
+          maxLength: 500
+          description: >
+            The item's title. Defaults to the entry's subject, then to the first line of its
+            body; required for an entry with no text.
+        type:
+          type: string
+          enum: [TASK, WORK_PACKAGE, ACTIVITY]
+          default: TASK
+
     JumbleEntryPage:
       type: object
       required: [data, page]
@@ -6327,6 +6414,12 @@ components:
           type: object
           additionalProperties: true
         recurrence_rule_id: { type: [string, "null"], format: uuid }
+        origin_jumble_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The jumble entry this item was converted out of (G-10). Provenance, set once at the
+            conversion and never cleared; absent for an item that was never in the jumble.
         content_language:
           type: [string, "null"]
           description: >

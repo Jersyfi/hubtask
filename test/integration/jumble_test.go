@@ -15,6 +15,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -234,5 +235,66 @@ func TestARecountCountsJumbleAttachments(t *testing.T) {
 	stored := findMedia(ctx, t, tenantA, object.ID)
 	if stored.RefCount != 1 {
 		t.Errorf("the recount answered %d references, want the jumble's one", stored.RefCount)
+	}
+}
+
+// The provenance write (gate SG-3 for the new item method): set exactly once, and never from
+// another tenant.
+func TestAnOriginIsRecordedOnceAndInsideTheTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	item := seedWorkItemForRules(ctx, t, tenantA)
+	entry := seedJumbleEntry(ctx, t, tenantA, nil)
+	other := seedJumbleEntry(ctx, t, tenantA, nil)
+
+	var recorded bool
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		recorded, err = itemRepo().RecordOrigin(ctx, item, entry.ID)
+		return err
+	}); err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+	if !recorded {
+		t.Fatal("the first origin was not recorded")
+	}
+
+	// Set exactly once: a second conversion cannot rewrite where the item came from.
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		recorded, err = itemRepo().RecordOrigin(ctx, item, other.ID)
+		return err
+	}); err != nil {
+		t.Fatalf("recording again: %v", err)
+	}
+	if recorded {
+		t.Error("a second origin overwrote the first")
+	}
+
+	// The cross-tenant negative: another tenant cannot stamp provenance onto the item.
+	freshItem := seedWorkItemForRules(ctx, t, tenantA)
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		recorded, err = itemRepo().RecordOrigin(ctx, freshItem, entry.ID)
+		return err
+	}); err != nil {
+		t.Fatalf("recording as tenant B: %v", err)
+	}
+	if recorded {
+		t.Error("another tenant recorded provenance across the boundary")
+	}
+
+	// And the item reads its origin back.
+	var stored work.WorkItem
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		stored, err = itemRepo().Find(ctx, item)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the item: %v", err)
+	}
+	if stored.OriginJumbleID != entry.ID {
+		t.Errorf("the item's origin reads %s, want the entry", stored.OriginJumbleID)
 	}
 }

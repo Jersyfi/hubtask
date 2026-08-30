@@ -848,6 +848,10 @@ func run() error {
 		}.Descriptor(),
 		jumbleservice.SubmitJumbleEntry{Writer: jumbleWriter}.Descriptor(),
 		jumbleservice.ListJumbleEntries{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.ConvertJumbleEntry{
+			Writer: jumbleWriter, Catalogue: ruleCatalogue, Origins: items,
+		}.Descriptor(),
+		jumbleservice.DismissJumbleEntry{Writer: jumbleWriter}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),

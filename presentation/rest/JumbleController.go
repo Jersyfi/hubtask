@@ -18,9 +18,54 @@ import (
 // may read the inbox and what a conversion produces are all decided inwards of here (ADR-0005).
 
 const (
-	submitJumbleEntryUseCase = "SubmitJumbleEntry"
-	listJumbleEntriesUseCase = "ListJumbleEntries"
+	submitJumbleEntryUseCase  = "SubmitJumbleEntry"
+	listJumbleEntriesUseCase  = "ListJumbleEntries"
+	convertJumbleEntryUseCase = "ConvertJumbleEntry"
+	dismissJumbleEntryUseCase = "DismissJumbleEntry"
 )
+
+// ConvertJumbleEntry answers POST /jumble/entries/{entryId}:convert.
+func (c *RestController) ConvertJumbleEntry(
+	w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID,
+	_ openapi.ConvertJumbleEntryParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.JumbleEntryConvert
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+
+		input := usecase.Input{
+			"entry_id":      entryID.String(),
+			"collection_id": body.CollectionId.String(),
+		}
+		if body.BucketId != nil {
+			input["bucket_id"] = body.BucketId.String()
+		}
+		if body.Title != nil {
+			input["title"] = *body.Title
+		}
+		if body.Type != nil {
+			input["type"] = string(*body.Type)
+		}
+		return c.UseCases.Invoke(r.Context(), convertJumbleEntryUseCase, actor, input)
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
+	})
+}
+
+// DismissJumbleEntry answers POST /jumble/entries/{entryId}:dismiss.
+func (c *RestController) DismissJumbleEntry(
+	w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID,
+	_ openapi.DismissJumbleEntryParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), dismissJumbleEntryUseCase, actor,
+			usecase.Input{"entry_id": entryID.String()})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
+	})
+}
 
 // ListJumbleEntries answers GET /jumble/entries.
 func (c *RestController) ListJumbleEntries(

@@ -193,6 +193,8 @@ func Descriptors() []usecase.Descriptor {
 		automationservice.ReplayRuleRun{}.Descriptor(),
 		jumbleservice.SubmitJumbleEntry{}.Descriptor(),
 		jumbleservice.ListJumbleEntries{}.Descriptor(),
+		jumbleservice.ConvertJumbleEntry{}.Descriptor(),
+		jumbleservice.DismissJumbleEntry{}.Descriptor(),
 	}
 }
 

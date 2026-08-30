@@ -1289,19 +1289,19 @@ func (e ItemQuerySortNulls) Valid() bool {
 
 // Defines values for ItemType.
 const (
-	ACTIVITY    ItemType = "ACTIVITY"
-	TASK        ItemType = "TASK"
-	WORKPACKAGE ItemType = "WORK_PACKAGE"
+	ItemTypeACTIVITY    ItemType = "ACTIVITY"
+	ItemTypeTASK        ItemType = "TASK"
+	ItemTypeWORKPACKAGE ItemType = "WORK_PACKAGE"
 )
 
 // Valid indicates whether the value is a known member of the ItemType enum.
 func (e ItemType) Valid() bool {
 	switch e {
-	case ACTIVITY:
+	case ItemTypeACTIVITY:
 		return true
-	case TASK:
+	case ItemTypeTASK:
 		return true
-	case WORKPACKAGE:
+	case ItemTypeWORKPACKAGE:
 		return true
 	default:
 		return false
@@ -1374,6 +1374,27 @@ func (e JumbleEntryStatus) Valid() bool {
 	case JumbleEntryStatusNEW:
 		return true
 	case JumbleEntryStatusPROCESSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JumbleEntryConvertType.
+const (
+	JumbleEntryConvertTypeACTIVITY    JumbleEntryConvertType = "ACTIVITY"
+	JumbleEntryConvertTypeTASK        JumbleEntryConvertType = "TASK"
+	JumbleEntryConvertTypeWORKPACKAGE JumbleEntryConvertType = "WORK_PACKAGE"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntryConvertType enum.
+func (e JumbleEntryConvertType) Valid() bool {
+	switch e {
+	case JumbleEntryConvertTypeACTIVITY:
+		return true
+	case JumbleEntryConvertTypeTASK:
+		return true
+	case JumbleEntryConvertTypeWORKPACKAGE:
 		return true
 	default:
 		return false
@@ -4055,6 +4076,22 @@ type JumbleEntryChannel string
 // JumbleEntryStatus An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the entry stays readable and ages out by retention rule.
 type JumbleEntryStatus string
 
+// JumbleEntryConvert Where the entry becomes work, and what the item is called.
+type JumbleEntryConvert struct {
+	// BucketId The board column, when the destination has a board.
+	BucketId *openapi_types.UUID `json:"bucket_id,omitempty"`
+
+	// CollectionId The destination. The caller's rights there are checked by the item create.
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Title The item's title. Defaults to the entry's subject, then to the first line of its body; required for an entry with no text.
+	Title *string                 `json:"title,omitempty"`
+	Type  *JumbleEntryConvertType `json:"type,omitempty"`
+}
+
+// JumbleEntryConvertType defines model for JumbleEntryConvert.Type.
+type JumbleEntryConvertType string
+
 // JumbleEntryPage defines model for JumbleEntryPage.
 type JumbleEntryPage struct {
 	Data []JumbleEntry `json:"data"`
@@ -5332,15 +5369,18 @@ type WorkItem struct {
 	DueTimeZone *string `json:"due_time_zone,omitempty"`
 
 	// Hlc The hybrid logical clock of the last change; the basis of offline merging.
-	Hlc              *string               `json:"hlc,omitempty"`
-	Id               openapi_types.UUID    `json:"id"`
-	LabelIds         *[]openapi_types.UUID `json:"label_ids,omitempty"`
-	MemberIds        *[]openapi_types.UUID `json:"member_ids,omitempty"`
-	Notes            *string               `json:"notes,omitempty"`
-	OrderKey         *string               `json:"order_key,omitempty"`
-	ParentId         *openapi_types.UUID   `json:"parent_id,omitempty"`
-	Path             *string               `json:"path,omitempty"`
-	RecurrenceRuleId *openapi_types.UUID   `json:"recurrence_rule_id,omitempty"`
+	Hlc       *string               `json:"hlc,omitempty"`
+	Id        openapi_types.UUID    `json:"id"`
+	LabelIds  *[]openapi_types.UUID `json:"label_ids,omitempty"`
+	MemberIds *[]openapi_types.UUID `json:"member_ids,omitempty"`
+	Notes     *string               `json:"notes,omitempty"`
+	OrderKey  *string               `json:"order_key,omitempty"`
+
+	// OriginJumbleId The jumble entry this item was converted out of (G-10). Provenance, set once at the conversion and never cleared; absent for an item that was never in the jumble.
+	OriginJumbleId   *openapi_types.UUID `json:"origin_jumble_id,omitempty"`
+	ParentId         *openapi_types.UUID `json:"parent_id,omitempty"`
+	Path             *string             `json:"path,omitempty"`
+	RecurrenceRuleId *openapi_types.UUID `json:"recurrence_rule_id,omitempty"`
 
 	// Retention Set for as long as a retention rule applies to this object.
 	Retention *RetentionState `json:"retention,omitempty"`
@@ -6114,6 +6154,18 @@ type SubmitJumbleEntryParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ConvertJumbleEntryParams defines parameters for ConvertJumbleEntry.
+type ConvertJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DismissJumbleEntryParams defines parameters for DismissJumbleEntry.
+type DismissJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListLegalHoldsParams defines parameters for ListLegalHolds.
 type ListLegalHoldsParams struct {
 	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
@@ -6416,6 +6468,9 @@ type QueryItemsJSONRequestBody = ItemQuery
 
 // SubmitJumbleEntryJSONRequestBody defines body for SubmitJumbleEntry for application/json ContentType.
 type SubmitJumbleEntryJSONRequestBody = JumbleEntrySubmit
+
+// ConvertJumbleEntryJSONRequestBody defines body for ConvertJumbleEntry for application/json ContentType.
+type ConvertJumbleEntryJSONRequestBody = JumbleEntryConvert
 
 // PlaceLegalHoldJSONRequestBody defines body for PlaceLegalHold for application/json ContentType.
 type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
@@ -6845,6 +6900,12 @@ type ServerInterface interface {
 	// SubmitJumbleEntry Put something in the jumble
 	// (POST /jumble/entries)
 	SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, params SubmitJumbleEntryParams)
+	// ConvertJumbleEntry Turn an entry into work
+	// (POST /jumble/entries/{entryId}:convert)
+	ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params ConvertJumbleEntryParams)
+	// DismissJumbleEntry Decide against an entry
+	// (POST /jumble/entries/{entryId}:dismiss)
+	DismissJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params DismissJumbleEntryParams)
 	// ListLegalHolds The legal holds in force
 	// (GET /legal-holds)
 	ListLegalHolds(w http.ResponseWriter, r *http.Request, params ListLegalHoldsParams)
@@ -12223,6 +12284,106 @@ func (siw *ServerInterfaceWrapper) SubmitJumbleEntry(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ConvertJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) ConvertJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConvertJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConvertJumbleEntry(w, r, entryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DismissJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) DismissJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DismissJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DismissJumbleEntry(w, r, entryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListLegalHolds operation middleware
 func (siw *ServerInterfaceWrapper) ListLegalHolds(w http.ResponseWriter, r *http.Request) {
 
@@ -13837,6 +13998,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries", wrapper.ListJumbleEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries", wrapper.SubmitJumbleEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:convert", wrapper.ConvertJumbleEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:dismiss", wrapper.DismissJumbleEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules", wrapper.ListRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules", wrapper.CreateRule)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.DeleteRule)

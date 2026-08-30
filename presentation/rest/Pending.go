@@ -172,6 +172,18 @@ func (pending) SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, _ opena
 	notAvailable(w, r)
 }
 
+func (pending) ConvertJumbleEntry(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ConvertJumbleEntryParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) DismissJumbleEntry(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.DismissJumbleEntryParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) TriggerRuleManually(
 	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
 ) {
