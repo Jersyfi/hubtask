@@ -88,7 +88,10 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		Request: env.RequestConfig{
 			MaxBodyBytes:   int64(getInt("HUBTASK_MAX_BODY_BYTES", 1<<20)),   // 1 MiB
 			MaxUploadBytes: int64(getInt("HUBTASK_MAX_UPLOAD_BYTES", 1<<26)), // 64 MiB
-			Timeout:        getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
+			// 25 MiB, which is what the mail providers people actually use accept: a message
+			// bigger than that is one their sender could not have delivered either.
+			MaxMailBytes: int64(getInt("HUBTASK_MAX_MAIL_BYTES", 25<<20)),
+			Timeout:      getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
 		},
 		CORS: env.CORSConfig{
 			AllowedOrigins: getList("HUBTASK_CORS_ALLOWED_ORIGINS"),
@@ -456,6 +459,9 @@ func validateRequest(r env.RequestConfig) []error {
 	}
 	if r.MaxUploadBytes < 1 {
 		errs = append(errs, configError("config.limit_invalid", "HUBTASK_MAX_UPLOAD_BYTES"))
+	}
+	if r.MaxMailBytes < 1 {
+		errs = append(errs, configError("config.limit_invalid", "HUBTASK_MAX_MAIL_BYTES"))
 	}
 	if r.Timeout <= 0 {
 		errs = append(errs, configError("config.duration_invalid", "HUBTASK_REQUEST_TIMEOUT"))

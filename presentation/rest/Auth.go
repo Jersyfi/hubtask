@@ -44,6 +44,9 @@ var PublicRoutes = map[string]bool{
 	// authenticates the *tenant* rather than a person: there is no account behind the token, and
 	// the entry it stores records no actor (G-10).
 	http.MethodPost + " " + APIBasePath + "/jumble/inbound/{token}": true,
+	// The mail door, on the same credential and the same trust model (G-11). What arrives here is
+	// a message somebody else's bridge forwarded, and the token is the whole of what says it may.
+	http.MethodPost + " " + APIBasePath + "/jumble/mail/{token}": true,
 }
 
 // bearerScheme is compared case-insensitively, as RFC 9110 §11.1 requires of an auth scheme.

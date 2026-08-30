@@ -1244,6 +1244,19 @@ func run() error {
 				Clock: clockadapter.System{}, IDs: ids,
 			},
 		}
+		// The mail door beside it (G-11): the message is parsed here, its files go through the
+		// media pipeline's server-side end, and what lands is an EMAIL entry.
+		controller.MailIntake = intake.MailIntake{
+			Deliveries: jumbleservice.IntakeMail{
+				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
+				Media: mediaservice.IngestMedia{
+					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
+					UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+				},
+				Events: outbox, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{}, IDs: ids,
+			},
+		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
 		// call (C-10). The listener is the wake-up; without it the stream still works, at its idle
@@ -1334,6 +1347,9 @@ func run() error {
 					UI:       ui,
 					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Bounded{
 						MaxBodyBytes: cfg.Request.MaxBodyBytes,
+						// The mail door's own bound (G-11): a message is not a document, and the
+						// route reads one whole.
+						MaxMailBytes: cfg.Request.MaxMailBytes,
 						Timeout:      cfg.Request.Timeout,
 						Next: rest.Limited{
 							Limiter: limiter,

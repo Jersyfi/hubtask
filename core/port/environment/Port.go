@@ -325,6 +325,11 @@ type RateLimitConfig struct {
 type RequestConfig struct {
 	MaxBodyBytes   int64
 	MaxUploadBytes int64
+	// MaxMailBytes is the limit for the mail intake, whose body is a whole message rather than a
+	// document (G-11). Its own bound because it is its own shape: a mail with two attachments is
+	// far past what any JSON endpoint here ever carries, and far below what an upload may be -
+	// bounding it by either would make the route useless or make it a way to store files.
+	MaxMailBytes int64
 	// Timeout is the server-side deadline every handler inherits. No call without a deadline
 	// (ADR-0016).
 	Timeout time.Duration

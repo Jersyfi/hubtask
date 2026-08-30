@@ -72,6 +72,10 @@ type RestController struct {
 	// JumbleIntake serves the jumble's public webhook door, for the same reasons (G-10).
 	JumbleIntake JumbleIntakeDeliverer
 
+	// MailIntake serves the mail door beside it (G-11): the same credential, and a body that is
+	// the message itself rather than a shape somebody had to agree on.
+	MailIntake MailDeliverer
+
 	// Stream serves `GET /stream`, which is not a catalogue entry either: it is a connection being
 	// held rather than an operation being invoked, so there is nothing for MCP or an automation
 	// rule to call (C-10). Nil leaves the route answering the pending 404, which is what an
