@@ -1005,6 +1005,37 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /integrations/http-requests:
+    post:
+      tags: [automation]
+      operationId: httpRequest
+      summary: Call an external HTTP address
+      description: >
+        One outbound call, through the guarded client: private and link-local ranges are refused
+        unless the installation released them, redirects are limited, the call has a deadline and
+        the response a size cap - and the response is then discarded, because a rule cannot read
+        an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after
+        creation.
+
+        This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request,
+        and the run supplies the event its body template is rendered from. The call happens on a
+        job with the webhook ladder's retries; the answer is a `JobRef` to poll.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HttpRequestCall"
+      responses:
+        "202":
+          description: The call was accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRef"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /integrations/triggers/{eventType}:
     parameters:
       - $ref: "#/components/parameters/EventType"
@@ -5207,6 +5238,49 @@ components:
               description: >
                 The signing secret, in clear, for the only time. Store it or rotate it: what is
                 kept is sealed under the installation's key, and no read answers it again.
+
+    HttpRequestCall:
+      type: object
+      description: >
+        One outbound HTTP call, as a rule's `HTTP_REQUEST` action carries it. The secret header is
+        the one place a credential belongs - never the URL, never the plain headers - and it is
+        sealed at rest and masked as `***` everywhere after creation; sending `***` back on a rule
+        edit keeps the stored secret.
+      required: [method, url]
+      properties:
+        method:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+        url:
+          type: string
+          description: The address, http or https. Whether this installation is willing to dial
+            it is the guard's decision at the call.
+        headers:
+          type: object
+          additionalProperties: { type: string }
+          description: Plain headers - a content type, an API version. Never a credential.
+        secret_header_name:
+          type: string
+          description: The header the secret travels in, e.g. `Authorization`.
+        secret_header_value:
+          type: string
+          description: The secret itself. Answered as `***` ever after.
+        signature_header:
+          type: string
+          description: >
+            When set, this header carries an HMAC-SHA256 over the body computed with the secret -
+            the same `t=<ts>,v1=<hex>` shape a webhook signature has.
+        body_template:
+          type: string
+          description: >
+            A CEL expression producing the body, rendered against the run's event when the call
+            is made. A static body is a string literal.
+        event_id:
+          type: string
+          format: uuid
+          description: >
+            The event the body template reads. A rule leaves this out and the run supplies the
+            event it is about.
 
     WebhookSend:
       type: object

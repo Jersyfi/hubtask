@@ -472,6 +472,50 @@ func (c *RestController) GetRuleRun(
 	})
 }
 
+const httpRequestUseCase = "HttpRequest"
+
+// HttpRequest answers POST /integrations/http-requests.
+//
+//nolint:revive,contextcheck // the name is oapi-codegen's, and the closure carries the request's own context exactly as every sibling does.
+func (c *RestController) HttpRequest(w http.ResponseWriter, r *http.Request) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.HttpRequestCall
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+
+		in := usecase.Input{"method": string(body.Method), "url": body.Url}
+		if body.Headers != nil {
+			headers := make(map[string]any, len(*body.Headers))
+			for name, value := range *body.Headers {
+				headers[name] = value
+			}
+			in["headers"] = headers
+		}
+		for name, value := range map[string]*string{
+			"secret_header_name":  body.SecretHeaderName,
+			"secret_header_value": body.SecretHeaderValue,
+			"signature_header":    body.SignatureHeader,
+			"body_template":       body.BodyTemplate,
+		} {
+			if value != nil {
+				in[name] = *value
+			}
+		}
+		if body.EventId != nil {
+			in["event_id"] = body.EventId.String()
+		}
+		return c.UseCases.Invoke(r.Context(), httpRequestUseCase, actor, in)
+	}, func(out usecase.Output) {
+		// Accepted: the call is queued, and whether the target answers is the job's to find out -
+		// and deliberately nobody else's, because the response is discarded (ADR-0009).
+		writeJSON(w, r, http.StatusAccepted, openapi.JobRef{
+			JobId:  uuidValue(out.String("job_id")),
+			Status: openapi.JobStatusQUEUED,
+		})
+	})
+}
+
 func runResponse(out usecase.Output) openapi.RuleRun {
 	run := openapi.RuleRun{
 		Id:               uuidValue(out.String("id")),

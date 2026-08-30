@@ -123,6 +123,11 @@ func (pending) SendWebhook(w http.ResponseWriter, r *http.Request, _ openapi.Web
 	notAvailable(w, r)
 }
 
+//nolint:revive // the method name is oapi-codegen's, derived from the operationId.
+func (pending) HttpRequest(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 // The automation rules. RestController overrides every one of them; they are here because pending
 // implements the whole interface, which is what lets the contract test compare the router against
 // the specification as a whole.

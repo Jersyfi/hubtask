@@ -41,12 +41,10 @@ type Catalogue interface {
 // TestNoDeferredActionIsAlreadyServed fails the build if a kind is left here after the catalogue
 // grew one, so removing the entry is not something anybody has to remember.
 var deferredActions = []string{
-	// Outbound (automation.md §1.3): it calls somebody else's server, which is the guarded
-	// client's business and lands later in this same task. SEND_WEBHOOK left the list with the
-	// step that built it through G-03's delivery pipeline.
-	"HTTP_REQUEST",
 	// AI, optional and configured explicitly. The AI port arrives at 0.7.0, and a rule naming one
 	// of these is refused the way a retention rule naming a missing notification category was.
+	// The outbound pair left the list with the G-09 steps that built them: SEND_WEBHOOK through
+	// G-03's delivery pipeline, HTTP_REQUEST through the guarded client.
 	"AI_SUGGEST_FIELDS", "AI_SUMMARIZE", "AI_CLASSIFY",
 }
 
@@ -203,6 +201,9 @@ func checkConditions(compiler expression.Compiler, rule domain.Rule) error {
 	// are: a branch whose expression cannot be read would take the same arm for ever, which is a
 	// rule whose author believes it is deciding something (E-08's lesson, applied one level down).
 	findings = append(findings, branchFindings(compiler, environment, rule.Actions, "/actions")...)
+	// And an HTTP_REQUEST's body template is a template, compiled as one (Text, not Boolean): a
+	// body that cannot be rendered is answered to its author here rather than to a dead letter.
+	findings = append(findings, templateFindings(compiler, environment, rule.Actions)...)
 	if rule.Throttle.DedupeKeyExpr != "" {
 		if _, err := // A dedupe key renders a value that collapses runs meaning the same thing, so it is a
 			// template rather than a condition - `item.id` is a string, not a decision.
@@ -248,6 +249,26 @@ func branchFindings(
 		findings = append(findings,
 			branchFindings(compiler, environment, branch.Else, at+"/params/else")...)
 	}
+	return findings
+}
+
+// templateFindings compiles every HTTP_REQUEST body template in an action tree, branch arms
+// included.
+func templateFindings(
+	compiler expression.Compiler, environment expression.Environment, actions []domain.Action,
+) []shared.FieldError {
+	var findings []shared.FieldError
+	_ = walkOutbound(actions, "", func(path string, params map[string]any) error {
+		template, _ := params["body_template"].(string)
+		if strings.TrimSpace(template) == "" {
+			return nil
+		}
+		if _, err := compiler.Compile(template, environment, expression.Text); err != nil {
+			findings = append(findings, findingFor(
+				"/actions/"+path+"/params/body_template", err))
+		}
+		return nil
+	})
 	return findings
 }
 

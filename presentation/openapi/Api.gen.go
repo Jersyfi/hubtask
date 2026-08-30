@@ -1182,6 +1182,33 @@ func (e HealthWarningSeverity) Valid() bool {
 	}
 }
 
+// Defines values for HttpRequestCallMethod.
+const (
+	HttpRequestCallMethodDELETE HttpRequestCallMethod = "DELETE"
+	HttpRequestCallMethodGET    HttpRequestCallMethod = "GET"
+	HttpRequestCallMethodPATCH  HttpRequestCallMethod = "PATCH"
+	HttpRequestCallMethodPOST   HttpRequestCallMethod = "POST"
+	HttpRequestCallMethodPUT    HttpRequestCallMethod = "PUT"
+)
+
+// Valid indicates whether the value is a known member of the HttpRequestCallMethod enum.
+func (e HttpRequestCallMethod) Valid() bool {
+	switch e {
+	case HttpRequestCallMethodDELETE:
+		return true
+	case HttpRequestCallMethodGET:
+		return true
+	case HttpRequestCallMethodPATCH:
+		return true
+	case HttpRequestCallMethodPOST:
+		return true
+	case HttpRequestCallMethodPUT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemAccess.
 const (
 	ItemAccessALL      ItemAccess = "ALL"
@@ -1394,16 +1421,16 @@ func (e MediaObjectUsage) Valid() bool {
 
 // Defines values for MediaTransferMethod.
 const (
-	GET MediaTransferMethod = "GET"
-	PUT MediaTransferMethod = "PUT"
+	MediaTransferMethodGET MediaTransferMethod = "GET"
+	MediaTransferMethodPUT MediaTransferMethod = "PUT"
 )
 
 // Valid indicates whether the value is a known member of the MediaTransferMethod enum.
 func (e MediaTransferMethod) Valid() bool {
 	switch e {
-	case GET:
+	case MediaTransferMethodGET:
 		return true
-	case PUT:
+	case MediaTransferMethodPUT:
 		return true
 	default:
 		return false
@@ -2144,19 +2171,19 @@ func (e SavedViewShareSharing) Valid() bool {
 
 // Defines values for SyncChangeOp.
 const (
-	ACCESSREVOKED SyncChangeOp = "ACCESS_REVOKED"
-	DELETE        SyncChangeOp = "DELETE"
-	UPSERT        SyncChangeOp = "UPSERT"
+	SyncChangeOpACCESSREVOKED SyncChangeOp = "ACCESS_REVOKED"
+	SyncChangeOpDELETE        SyncChangeOp = "DELETE"
+	SyncChangeOpUPSERT        SyncChangeOp = "UPSERT"
 )
 
 // Valid indicates whether the value is a known member of the SyncChangeOp enum.
 func (e SyncChangeOp) Valid() bool {
 	switch e {
-	case ACCESSREVOKED:
+	case SyncChangeOpACCESSREVOKED:
 		return true
-	case DELETE:
+	case SyncChangeOpDELETE:
 		return true
-	case UPSERT:
+	case SyncChangeOpUPSERT:
 		return true
 	default:
 		return false
@@ -3696,6 +3723,34 @@ type HealthWarning struct {
 
 // HealthWarningSeverity defines model for HealthWarning.Severity.
 type HealthWarningSeverity string
+
+// HttpRequestCall One outbound HTTP call, as a rule's `HTTP_REQUEST` action carries it. The secret header is the one place a credential belongs - never the URL, never the plain headers - and it is sealed at rest and masked as `***` everywhere after creation; sending `***` back on a rule edit keeps the stored secret.
+type HttpRequestCall struct {
+	// BodyTemplate A CEL expression producing the body, rendered against the run's event when the call is made. A static body is a string literal.
+	BodyTemplate *string `json:"body_template,omitempty"`
+
+	// EventId The event the body template reads. A rule leaves this out and the run supplies the event it is about.
+	EventId *openapi_types.UUID `json:"event_id,omitempty"`
+
+	// Headers Plain headers - a content type, an API version. Never a credential.
+	Headers *map[string]string    `json:"headers,omitempty"`
+	Method  HttpRequestCallMethod `json:"method"`
+
+	// SecretHeaderName The header the secret travels in, e.g. `Authorization`.
+	SecretHeaderName *string `json:"secret_header_name,omitempty"`
+
+	// SecretHeaderValue The secret itself. Answered as `***` ever after.
+	SecretHeaderValue *string `json:"secret_header_value,omitempty"`
+
+	// SignatureHeader When set, this header carries an HMAC-SHA256 over the body computed with the secret - the same `t=<ts>,v1=<hex>` shape a webhook signature has.
+	SignatureHeader *string `json:"signature_header,omitempty"`
+
+	// Url The address, http or https. Whether this installation is willing to dial it is the guard's decision at the call.
+	Url string `json:"url"`
+}
+
+// HttpRequestCallMethod defines model for HttpRequestCall.Method.
+type HttpRequestCallMethod string
 
 // InboundTriggerToken A freshly minted inbound address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read of the rule shows only when it was minted.
 type InboundTriggerToken struct {
@@ -6056,6 +6111,9 @@ type UpdateGroupJSONRequestBody = GroupUpdate
 // CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
 type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
 
+// HttpRequestJSONRequestBody defines body for HttpRequest for application/json ContentType.
+type HttpRequestJSONRequestBody = HttpRequestCall
+
 // CreateWebhookSubscriptionJSONRequestBody defines body for CreateWebhookSubscription for application/json ContentType.
 type CreateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionCreate
 
@@ -6361,6 +6419,9 @@ type ServerInterface interface {
 
 	// (DELETE /integrations/calendar-feeds/{feedId})
 	RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
+	// HttpRequest Call an external HTTP address
+	// (POST /integrations/http-requests)
+	HttpRequest(w http.ResponseWriter, r *http.Request)
 	// PollTriggerEvents The pull half of the event stream
 	// (GET /integrations/triggers/{eventType})
 	PollTriggerEvents(w http.ResponseWriter, r *http.Request, eventType EventType, params PollTriggerEventsParams)
@@ -9076,6 +9137,20 @@ func (siw *ServerInterfaceWrapper) RevokeCalendarFeed(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeCalendarFeed(w, r, feedId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// HttpRequest operation middleware
+func (siw *ServerInterfaceWrapper) HttpRequest(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.HttpRequest(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13352,6 +13427,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay", wrapper.ReplayWebhookDelivery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:send", wrapper.SendWebhook)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:rotate-secret", wrapper.RotateWebhookSecret)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/http-requests", wrapper.HttpRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/triggers/{eventType}", wrapper.PollTriggerEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.ListCalendarFeeds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.CreateCalendarFeed)

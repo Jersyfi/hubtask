@@ -411,7 +411,11 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 	}
 	actions := make([]any, 0, len(rule.Actions))
 	for _, action := range rule.Actions {
-		actions = append(actions, map[string]any{"kind": action.Kind, "params": action.Params})
+		// Masked, not raw: an HTTP_REQUEST's sealed header secret reads as the mask on every
+		// channel, which is what "masked everywhere after creation" means (T-21).
+		actions = append(actions, map[string]any{
+			"kind": action.Kind, "params": maskedActionParams(action.Kind, action.Params),
+		})
 	}
 
 	scope := map[string]any{"type": string(rule.Scope.Type)}

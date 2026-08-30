@@ -465,11 +465,11 @@ func (h RunRule) park(
 // written for one trigger readable under another: `item` is the entry a RELATIVE_DATE run measures
 // from exactly as it is the entry an event was about, and `payload` is the delivery's body or an
 // empty document.
-func (h RunRule) values(envelope event.Envelope, cmd Command, now time.Time) eventValues {
-	return eventValues{
-		envelope: envelope, now: now,
-		subject: cmd.SubjectID, payload: cmd.Payload,
-		entries: h.Entries, containers: h.Containers,
+func (h RunRule) values(envelope event.Envelope, cmd Command, now time.Time) condition.Values {
+	return condition.Values{
+		Envelope: envelope, Now: now,
+		Subject: cmd.SubjectID, Payload: cmd.Payload,
+		Entries: h.Entries, Containers: h.Containers,
 	}
 }
 
@@ -510,7 +510,7 @@ func (h RunRule) envelope(ctx context.Context, id shared.ID) (event.Envelope, er
 // this not happen" with one line where somebody wants the whole picture - and the cost is bounded by
 // MaxConditions with a timeout each.
 func (h RunRule) evaluate(
-	ctx context.Context, rule domain.Rule, values eventValues,
+	ctx context.Context, rule domain.Rule, values condition.Values,
 ) ([]domain.ConditionResult, bool, error) {
 	results := make([]domain.ConditionResult, 0, len(rule.Conditions))
 	matched := true
@@ -560,7 +560,7 @@ func (h RunRule) evaluate(
 // where a reader sees what would have been there.
 func (h RunRule) act(
 	ctx context.Context, actor appshared.ActorContext, rule domain.Rule, cmd Command,
-	values eventValues, prior replay,
+	values condition.Values, prior replay,
 ) ([]domain.ActionResult, bool, *suspension) {
 	w := &walk{
 		engine: h, actor: actor, rule: rule, occasion: cmd.occasion(), values: values,
@@ -609,7 +609,7 @@ type walk struct {
 	actor    appshared.ActorContext
 	rule     domain.Rule
 	occasion string
-	values   eventValues
+	values   condition.Values
 	replay   replay
 	supplied map[string]any
 	results  []domain.ActionResult

@@ -655,10 +655,13 @@ func validActionsAt(actions []Action, path string, depth int) ([]Action, error) 
 	return kept, nil
 }
 
-// validFlowShape checks the parameters of the three kinds that have no use case to check them.
+// validFlowShape checks the parameters of the kinds whose shape no registry validation covers: the
+// three flow actions, which have no use case at all, and HTTP_REQUEST, whose method and address
+// can never be supplied by the run later - §2.2's "the run supplies the rest" is about values like
+// the entry an event is about, and an outbound call has none of those.
 //
-// A kind that is not one of the three passes through untouched: whether its parameters are ones its
-// use case declares is the catalogue's question, asked in the application layer.
+// Any other kind passes through untouched: whether its parameters are ones its use case declares
+// is the catalogue's question, asked in the application layer.
 func validFlowShape(kind string, params map[string]any, path string, depth int) error {
 	switch kind {
 	case ActionWait:
@@ -666,6 +669,9 @@ func validFlowShape(kind string, params map[string]any, path string, depth int) 
 		return err
 	case ActionBranch:
 		_, err := ReadBranch(params, path, depth)
+		return err
+	case ActionHTTPRequest:
+		_, err := ReadHTTPRequest(params, path)
 		return err
 	default:
 		return nil

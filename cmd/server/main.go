@@ -441,6 +441,9 @@ func run() error {
 		// cannot read is refused to its author rather than failing on a worker (G-08).
 		Expander: recurrenceadapter.New(),
 		Jobs:     jobs,
+		// Seals an HTTP_REQUEST's header secret at the write (E-02, T-21): the rule stores
+		// ciphertext or nothing, and the outbound sender opens it for the length of one call.
+		Encryptor: encryptor,
 
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
@@ -815,6 +818,11 @@ func run() error {
 		}.Descriptor(),
 		automationservice.ListRuleRuns{Reader: ruleReader}.Descriptor(),
 		automationservice.GetRuleRun{Reader: ruleReader}.Descriptor(),
+		automationservice.HttpRequest{
+			Jobs: jobs, Authorizer: authorizer, Encryptor: encryptor,
+			Conditions: celexpression.New(), Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
@@ -1611,6 +1619,20 @@ func run() error {
 		}.Delay,
 	}
 
+	// The outbound call (G-09): an HTTP_REQUEST action's HTTP, detached from every transaction and
+	// through the guarded client, with the sealed header secret opened for the length of one call.
+	outboundCall := automation.OutboundCall{
+		Events:     postgres.NewOutbox(jobs),
+		Encryptor:  encryptor,
+		Compiler:   celexpression.New(),
+		Signer:     security.NewWebhookSigner(),
+		Client:     outboundClient,
+		UnitOfWork: backgroundWork,
+		Clock:      clockadapter.System{},
+		Entries:    items,
+		Containers: containers,
+	}
+
 	// The engine (G-07). It reaches the use case registry as the rule's own account, which is why
 	// it is a queue handler rather than a subscriber: a subscriber runs inside the dispatcher's
 	// transaction, and an action is a use case.
@@ -1650,6 +1672,7 @@ func run() error {
 		queueport.KindNotificationDeliver:   notificationDelivery,
 		queueport.KindWebhookDeliver:        webhookDelivery,
 		queueport.KindAutomationRun:         automationRun,
+		queueport.KindAutomationHTTP:        outboundCall,
 		queueport.KindBackupRun:             backupRun,
 		queueport.KindBackupVerify:          worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{

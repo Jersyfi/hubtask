@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**150 use cases, 130 distinct action codes, 108 of them recorded on every call.** A use case that
+**151 use cases, 131 distinct action codes, 109 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -50,6 +50,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `automation.http_requested` | HttpRequest | `http_request` | NOTICE | Every time |
 | `automation.inbound_rotated` | RotateInboundTrigger | `automation_rule` | WARNING | Every time |
 | `automation.rule_created` | CreateRule | `automation_rule` | NOTICE | Every time |
 | `automation.rule_deleted` | DeleteRule | `automation_rule` | NOTICE | Every time |

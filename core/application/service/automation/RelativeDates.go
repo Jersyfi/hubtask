@@ -5,8 +5,11 @@ package automation
 
 import (
 	"context"
+
 	"errors"
 	"time"
+
+	"github.com/Jersyfi/hubtask/core/application/condition"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -83,7 +86,7 @@ func (d RelativeDates) Wants(eventType event.Type) bool {
 
 // Deliver brings every relative-date rule's moment for this entry up to date.
 func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) error {
-	itemID := itemOf(envelope)
+	itemID := condition.ItemOf(envelope)
 	if itemID.IsZero() {
 		return nil
 	}
