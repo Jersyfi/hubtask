@@ -110,7 +110,8 @@ func (h GetRuleRun) Execute(
 	if err != nil {
 		return domain.Run{}, err
 	}
-	if err := r.Authorizer.Authorize(ctx, actor, runRequest(rule.Scope, RunReadAction, run.ID)); err != nil {
+	if err := r.Authorizer.Authorize(ctx, actor,
+		readRunRequest(rule.Scope, RunReadAction, run.ID)); err != nil {
 		return domain.Run{}, err
 	}
 	return run, nil
@@ -145,7 +146,7 @@ func (r Reader) mayRead(
 		return false, nil
 	}
 
-	allowed, err := r.Authorizer.Permits(ctx, actor, runRequest(rule.Scope, "", ruleID))
+	allowed, err := r.Authorizer.Permits(ctx, actor, readRunRequest(rule.Scope, "", ruleID))
 	if err != nil {
 		// Not "may not see": nobody was refused anything, the question could not be answered.
 		return false, err
@@ -166,6 +167,14 @@ func runRequest(scope domain.Scope, action audit.Action, target shared.ID) acces
 		TargetType: runTarget,
 		TargetID:   target,
 	}
+}
+
+// readRunRequest is the same question with the auditor's answer added (A-4, G-12): what a rule has
+// done to the workspace's own data is a configuration read, and reading it carries nothing.
+func readRunRequest(scope domain.Scope, action audit.Action, target shared.ID) access.Request {
+	request := runRequest(scope, action, target)
+	request.Alternative = service.PermissionReadConfiguration
+	return request
 }
 
 // Descriptor is the catalogue entry.

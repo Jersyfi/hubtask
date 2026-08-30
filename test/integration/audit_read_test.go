@@ -741,6 +741,11 @@ func TestAnAuditorReadsTheTrailAndNoContent(t *testing.T) {
 	if !permits(domainservice.PermissionAuditRead) {
 		t.Error("an AUDITOR cannot read the trail, which is the whole of what the role is for")
 	}
+	// The second half of the role since G-12 (audit.md §9, A-4): an entry saying a retention rule
+	// removed four hundred objects is a fact nobody can judge without being able to read the rule.
+	if !permits(domainservice.PermissionReadConfiguration) {
+		t.Error("an AUDITOR cannot read the configuration the trail is about")
+	}
 	for _, refused := range []domainservice.Permission{
 		domainservice.PermissionRead,
 		domainservice.PermissionWriteItems,
@@ -768,6 +773,88 @@ func TestAnAuditorReadsTheTrailAndNoContent(t *testing.T) {
 		`SELECT count(*) FROM audit_log WHERE tenant_id = $1 AND outcome = 'DENIED'`,
 		tenant.String()); after != before+1 {
 		t.Errorf("%d denied entries, want %d", after, before+1)
+	}
+}
+
+// A-4's configuration half, against a real database: an auditor reaches the configuration reads
+// through the alternative permission and reaches none of the writes beside them.
+//
+// The pairs are the point. Every one of these reads sits next to a write behind the same
+// permission it always named, and a split that leaked would show up here as a write the auditor
+// may perform - which is the failure mode a matrix test one layer down cannot see, because it
+// tests the matrix rather than the requests the use cases make of it.
+func TestAnAuditorReadsTheConfigurationAndChangesNoneOfIt(t *testing.T) {
+	ctx := context.Background()
+	tenant := auditTenant(ctx, t)
+	auditor := freshID(t)
+
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Iris Auditor')`,
+		auditor.String(), tenant.String()); err != nil {
+		t.Fatalf("seeding the auditor's account: %v", err)
+	}
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		 VALUES ($1, $2, $3, 'TENANT', 'AUDITOR')`,
+		freshID(t).String(), tenant.String(), auditor.String()); err != nil {
+		t.Fatalf("granting the AUDITOR role: %v", err)
+	}
+
+	authorizer := access.Service{
+		Memberships: postgres.NewMembershipRepository(),
+		UnitOfWork:  postgres.NewUnitOfWork(appPool(ctx, t)),
+		Audit:       postgres.NewAuditSink(generator{t}),
+		Clock:       portclock.Fixed(created),
+	}
+	actor := appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: tenant, AccountID: auditor,
+		AccountName: "Iris Auditor",
+		Scopes: []string{
+			"audit:read", "retention:read", "backup:read", "automation:manage",
+		},
+	}
+
+	permits := func(request access.Request) bool {
+		t.Helper()
+		request.Path = []identity.Scope{identity.TenantScope()}
+		allowed, err := authorizer.Permits(ctx, actor, request)
+		if err != nil {
+			t.Fatalf("asking: %v", err)
+		}
+		return allowed
+	}
+
+	// The reads, as the use cases ask them: the writing permission first, the auditor's second.
+	for name, request := range map[string]access.Request{
+		"the retention rules": {
+			Permission:  domainservice.PermissionStructure,
+			Alternative: domainservice.PermissionReadConfiguration,
+		},
+		"the legal holds": {
+			Permission:  domainservice.PermissionStructure,
+			Alternative: domainservice.PermissionReadConfiguration,
+		},
+		"the automation rules": {
+			Permission:  domainservice.PermissionAutomation,
+			Alternative: domainservice.PermissionReadConfiguration,
+		},
+	} {
+		if !permits(request) {
+			t.Errorf("an AUDITOR cannot read %s", name)
+		}
+	}
+
+	// And the writes beside them, as those use cases ask them: no alternative, and therefore no.
+	for name, permission := range map[string]domainservice.Permission{
+		"write a retention rule":   domainservice.PermissionDeleteContainer,
+		"place a legal hold":       domainservice.PermissionStructure,
+		"write an automation rule": domainservice.PermissionAutomation,
+		"add a backup target":      domainservice.PermissionStructure,
+	} {
+		if permits(access.Request{Permission: permission}) {
+			t.Errorf("an AUDITOR may %s", name)
+		}
 	}
 }
 

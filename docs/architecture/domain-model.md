@@ -104,14 +104,32 @@ permissions.
 
 Roles and rights (an extract):
 
-| Role | Read | Write items | Structure (buckets/labels) | Members | Automation | Delete (container) |
-|---|:--:|:--:|:--:|:--:|:--:|:--:|
-| `OWNER` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| `ADMIN` | ✔ | ✔ | ✔ | ✔ | ✔ | ✘ |
-| `MEMBER` | ✔ | ✔ | ✘ | ✘ | Own rules | ✘ |
-| `CONTRIBUTOR` | ✔ | Assigned only | ✘ | ✘ | ✘ | ✘ |
-| `VIEWER` | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ |
-| `GUEST` | Shared items only | Comment | ✘ | ✘ | ✘ | ✘ |
+| Role | Read | Write items | Structure (buckets/labels) | Members | Automation | Delete (container) | Read configuration | Read the trail |
+|---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| `OWNER` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `ADMIN` | ✔ | ✔ | ✔ | ✔ | ✔ | ✘ | ✔ | ✔ |
+| `MEMBER` | ✔ | ✔ | ✘ | ✘ | Own rules | ✘ | ✘ | Own events |
+| `CONTRIBUTOR` | ✔ | Assigned only | ✘ | ✘ | ✘ | ✘ | ✘ | Own events |
+| `VIEWER` | ✔ | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | Own events |
+| `GUEST` | Shared items only | Comment | ✘ | ✘ | ✘ | ✘ | ✘ | Own events |
+| `AUDITOR` | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ | ✔ | ✔ |
+
+**Read configuration** (`READ_CONFIGURATION`) is the column A-4 asked for and G-12 added: reading
+how the workspace is set up — the backup targets and runs, the retention rules and what one would
+do, the legal holds, the automation rules and their runs, the webhook subscriptions — and never a
+secret any of them holds. A signing secret is answered once where it is created and in no
+projection; a backup target's credentials are sealed and are not in a listing.
+
+It was **split out of `STRUCTURE` rather than granted through it**, because `STRUCTURE` is a
+writing permission: it is what somebody who shapes the workspace holds, and "what is this workspace
+configured to do to its data" is a reading question that must not carry the right to change the
+answer. Every configuration read still names the permission it always named and accepts this one as
+well, so no pre-existing role gained or lost anything — the matrix test asserts exactly that, in
+both directions, against the matrix as it stood before the split.
+
+The `AUDITOR` row is not a rung on the ladder. It reads the trail and the configuration and nothing
+else: no `READ`, so every use case over containers, entries and comments refuses it by the ordinary
+rule rather than by a special case somebody has to remember ([audit.md](./audit.md) §5, §9).
 
 Two of those cells are qualifiers no permission name can carry, and both are decided in one place
 in the application layer rather than by each use case that writes

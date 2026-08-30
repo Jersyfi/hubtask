@@ -183,11 +183,15 @@ func (h ListBackupTargets) Execute(
 	// one exists and that its last probe failed.
 	if err := h.Writer.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     TargetChangedAction,
-		TokenScope: backupRead,
-		TargetType: targetType,
-		TargetID:   actor.TenantID,
+		// And the auditor's line beside it (A-4, G-12): where a workspace's data is copied to is
+		// configuration, and the listing carries no credential - the target's secret is never in
+		// a read, which is what makes this one safe to widen.
+		Alternative: service.PermissionReadConfiguration,
+		Path:        []identity.Scope{identity.TenantScope()},
+		Action:      TargetChangedAction,
+		TokenScope:  backupRead,
+		TargetType:  targetType,
+		TargetID:    actor.TenantID,
 	}); err != nil {
 		return nil, err
 	}

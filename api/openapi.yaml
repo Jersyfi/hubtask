@@ -8549,10 +8549,20 @@ components:
         role: { $ref: "#/components/schemas/MembershipRole" }
         permissions:
           type: array
-          description: The columns of the matrix this role carries unqualified.
+          description: >
+            The columns of the matrix this role carries unqualified.
+
+            `AUDIT_READ` is the whole of the tenant's trail, and it is implied by nothing:
+            an auditor holds it without holding `READ`, and a member holds `READ` without holding
+            it. `READ_CONFIGURATION` is reading how the workspace is set up - the backup targets,
+            the retention rules, the holds, the automation rules, the webhook subscriptions, never
+            a secret any of them holds - and it was split out of `STRUCTURE` so that an auditor can
+            read what a workspace does to its data without gaining the right to change it (G-12).
           items:
             type: string
-            enum: [READ, WRITE_ITEMS, STRUCTURE, MANAGE_MEMBERS, AUTOMATION, DELETE_CONTAINER]
+            enum:
+              [READ, WRITE_ITEMS, STRUCTURE, MANAGE_MEMBERS, AUTOMATION, DELETE_CONTAINER,
+               READ_CONFIGURATION, AUDIT_READ]
         item_access: { $ref: "#/components/schemas/RoleItemAccess" }
 
     RoleItemAccess:
