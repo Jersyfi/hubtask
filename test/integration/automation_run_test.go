@@ -138,6 +138,70 @@ func TestARunSurvivesTheColumnsItIsStoredIn(t *testing.T) {
 	}
 }
 
+// The G-09 halves of the row, round-tripped: the path and the branch answer on an action result,
+// the occasion, and a parked run whose finished_at is honestly NULL.
+func TestAParkedRunAndItsPathsSurviveTheRow(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	rule := seedRule(ctx, t, tenantA, nil)
+
+	run, err := domain.StartRun(domain.NewRunInput{
+		ID: freshID(t), TenantID: tenantA, RuleID: rule.ID, EventID: freshID(t),
+		Trigger: domain.TriggerEvent, Occasion: "occasion-under-test",
+		CausationDepth: 0, Now: time.Now().UTC().Truncate(time.Microsecond),
+	})
+	if err != nil {
+		t.Fatalf("starting the run: %v", err)
+	}
+
+	matched := true
+	parked := run.Suspend(nil, []domain.ActionResult{
+		{
+			Index: 0, Kind: domain.ActionBranch, Path: "0",
+			Status: domain.ActionSucceeded, Matched: &matched,
+		},
+		{
+			Index: 0, Kind: "ADD_LABEL", Path: "0/then/0",
+			Status: domain.ActionSucceeded, IdempotencyKey: "k-nested",
+		},
+	})
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := automationRuns().Start(ctx, run); err != nil {
+			return err
+		}
+		return automationRuns().Finish(ctx, parked)
+	}); err != nil {
+		t.Fatalf("writing the run: %v", err)
+	}
+
+	var stored domain.Run
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var findErr error
+		stored, findErr = automationRuns().Find(ctx, run.ID)
+		return findErr
+	}); err != nil {
+		t.Fatalf("reading the run: %v", err)
+	}
+
+	if stored.Status != domain.RunWaiting {
+		t.Errorf("the parked run reads %q", stored.Status)
+	}
+	if stored.FinishedAt != nil {
+		t.Error("a parked run claims a finishing moment")
+	}
+	if stored.Occasion != "occasion-under-test" {
+		t.Errorf("the occasion came back %q", stored.Occasion)
+	}
+	branch := stored.ActionResults[0]
+	if branch.Path != "0" || branch.Matched == nil || !*branch.Matched {
+		t.Errorf("the branch result reads %+v", branch)
+	}
+	if nested := stored.ActionResults[1]; nested.Path != "0/then/0" {
+		t.Errorf("the nested result reads %+v", nested)
+	}
+}
+
 // The counter is returned by the statement that increments it, so two runs failing together do not
 // each see the other's count.
 func TestTheFailureCounterCountsAndTheThresholdDisablesOnce(t *testing.T) {
