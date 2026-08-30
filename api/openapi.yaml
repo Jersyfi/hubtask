@@ -47,6 +47,7 @@ tags:
   - name: views
   - name: calendar
   - name: webhooks
+  - name: jumble
   - name: jobs
 
 paths:
@@ -411,6 +412,72 @@ paths:
                 $ref: "#/components/schemas/ViewExportDocument"
             text/calendar:
               schema: { type: string }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/entries:
+    get:
+      tags: [jumble]
+      operationId: listJumbleEntries
+      summary: The jumble, newest first
+      description: >
+        Everything that arrived and what became of it. The raw content is answered here - to a
+        credential that may read the workspace's entries - and nowhere that travels: it appears
+        in no event payload, no log and no audit entry.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          required: false
+          description: Narrow to one state. `NEW` is the inbox; `DISMISSED` ages out by rule.
+          schema:
+            type: string
+            enum: [NEW, PROCESSED, DISMISSED]
+        - name: channel
+          in: query
+          required: false
+          description: Narrow to one way of arriving.
+          schema:
+            type: string
+            enum: [EMAIL, WEBHOOK, QUICK_CAPTURE, API]
+      responses:
+        "200":
+          description: One page of the jumble
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntryPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [jumble]
+      operationId: submitJumbleEntry
+      summary: Put something in the jumble
+      description: >
+        The near channels: a quick capture or a plain API call, stored as an entry and announced
+        as `jumble.entry_received` - which is what fires a `JUMBLE_ENTRY` automation rule. The
+        two far channels are not a caller's to claim: `EMAIL` and `WEBHOOK` name the intakes that
+        authenticate their own way, and an entry claiming one through this route would be forging
+        its provenance.
+
+        Attachments name media objects already uploaded through the media pipeline - never a
+        second storage path - and each has to be sealed before it can be referenced here.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JumbleEntrySubmit"
+      responses:
+        "201":
+          description: Caught
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -5604,6 +5671,74 @@ components:
           type: string
           enum: [STOP, CONTINUE, RETRY]
           default: STOP
+
+    JumbleEntry:
+      type: object
+      description: >
+        One arrival, as it came in. The raw content is data that arrived from outside: it is
+        shown to a person and matched by rules as data, and it travels in no event, no log and no
+        audit entry.
+      required: [id, channel, attachments, status, received_at]
+      properties:
+        id: { type: string, format: uuid }
+        channel:
+          type: string
+          enum: [EMAIL, WEBHOOK, QUICK_CAPTURE, API]
+        sender:
+          type: string
+          description: >
+            Who the transport says it came from. Data, never an identity: a From header
+            authenticates nothing - the intake token does.
+        raw_subject: { type: string }
+        raw_body: { type: string }
+        attachments:
+          type: array
+          items: { type: string, format: uuid }
+          description: Media objects, stored through the media pipeline.
+        status:
+          type: string
+          enum: [NEW, PROCESSED, DISMISSED]
+          description: >
+            An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the
+            entry stays readable and ages out by retention rule.
+        target_item_id:
+          type: [string, "null"]
+          format: uuid
+          description: The item a conversion produced. The other half of the provenance pair.
+        received_at: { type: string, format: date-time }
+        settled_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the entry stopped being NEW - a conversion or a dismissal.
+
+    JumbleEntrySubmit:
+      type: object
+      description: >
+        A near-channel arrival. At least one of the three contents; `channel` defaults to `API`,
+        and only the near channels may be claimed.
+      properties:
+        channel:
+          type: string
+          enum: [QUICK_CAPTURE, API]
+          default: API
+        sender:
+          type: string
+          description: Optional provenance text, e.g. the capturing surface's own name.
+        raw_subject: { type: string, maxLength: 500 }
+        raw_body: { type: string }
+        attachments:
+          type: array
+          items: { type: string, format: uuid }
+          description: Sealed media objects to carry.
+
+    JumbleEntryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/JumbleEntry" }
+        page: { $ref: "#/components/schemas/PageInfo" }
 
     RuleTest:
       type: object

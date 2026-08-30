@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package rest
+
+import (
+	"net/http"
+	"time"
+
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/presentation/openapi"
+)
+
+// The jumble (G-10). The controller maps documents and nothing else: what may be submitted, who
+// may read the inbox and what a conversion produces are all decided inwards of here (ADR-0005).
+
+const (
+	submitJumbleEntryUseCase = "SubmitJumbleEntry"
+	listJumbleEntriesUseCase = "ListJumbleEntries"
+)
+
+// ListJumbleEntries answers GET /jumble/entries.
+func (c *RestController) ListJumbleEntries(
+	w http.ResponseWriter, r *http.Request, params openapi.ListJumbleEntriesParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		input := usecase.Input{}
+		if params.Status != nil {
+			input["status"] = string(*params.Status)
+		}
+		if params.Channel != nil {
+			input["channel"] = string(*params.Channel)
+		}
+		if params.Cursor != nil {
+			input["cursor"] = *params.Cursor
+		}
+		if params.Size != nil {
+			input["size"] = *params.Size
+		}
+		return c.UseCases.Invoke(r.Context(), listJumbleEntriesUseCase, actor, input)
+	}, func(out usecase.Output) {
+		rows, _ := out["data"].([]usecase.Output)
+		entries := make([]openapi.JumbleEntry, 0, len(rows))
+		for _, row := range rows {
+			entries = append(entries, jumbleEntryResponse(row))
+		}
+		writeJSON(w, r, http.StatusOK, openapi.JumbleEntryPage{
+			Data: entries, Page: pageResponse(out),
+		})
+	})
+}
+
+// SubmitJumbleEntry answers POST /jumble/entries.
+func (c *RestController) SubmitJumbleEntry(
+	w http.ResponseWriter, r *http.Request, _ openapi.SubmitJumbleEntryParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.JumbleEntrySubmit
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+
+		input := usecase.Input{}
+		if body.Channel != nil {
+			input["channel"] = string(*body.Channel)
+		}
+		if body.Sender != nil {
+			input["sender"] = *body.Sender
+		}
+		if body.RawSubject != nil {
+			input["raw_subject"] = *body.RawSubject
+		}
+		if body.RawBody != nil {
+			input["raw_body"] = *body.RawBody
+		}
+		if body.Attachments != nil {
+			attachments := make([]any, 0, len(*body.Attachments))
+			for _, id := range *body.Attachments {
+				attachments = append(attachments, id.String())
+			}
+			input["attachments"] = attachments
+		}
+		return c.UseCases.Invoke(r.Context(), submitJumbleEntryUseCase, actor, input)
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusCreated, jumbleEntryResponse(out))
+	})
+}
+
+func jumbleEntryResponse(out usecase.Output) openapi.JumbleEntry {
+	attachments := []openapi_types.UUID{}
+	if raw, ok := out["attachments"].([]any); ok {
+		for _, id := range raw {
+			if text, ok := id.(string); ok {
+				attachments = append(attachments, uuidValue(text))
+			}
+		}
+	}
+
+	entry := openapi.JumbleEntry{
+		Id:          uuidValue(out.String("id")),
+		Channel:     openapi.JumbleEntryChannel(out.String("channel")),
+		Attachments: attachments,
+		Status:      openapi.JumbleEntryStatus(out.String("status")),
+		ReceivedAt:  timeValue(out["received_at"]),
+	}
+	if sender := out.String("sender"); sender != "" {
+		entry.Sender = &sender
+	}
+	if subject := out.String("raw_subject"); subject != "" {
+		entry.RawSubject = &subject
+	}
+	if body, ok := out["raw_body"].(string); ok && body != "" {
+		entry.RawBody = &body
+	}
+	if id := out.String("target_item_id"); id != "" {
+		target := uuidValue(id)
+		entry.TargetItemId = &target
+	}
+	if settled, ok := out["settled_at"].(time.Time); ok {
+		entry.SettledAt = &settled
+	}
+	return entry
+}

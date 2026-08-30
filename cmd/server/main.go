@@ -37,6 +37,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
+	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
@@ -490,6 +491,15 @@ func run() error {
 	notifications := postgres.NewNotificationRepository()
 	notificationPreferences := postgres.NewNotificationPreferenceRepository()
 	outbox := postgres.NewOutbox(jobs)
+	// The jumble (G-10). The writer is shared by every jumble use case; the media half is the
+	// same repository the attachments use, so an entry's reference counts with theirs.
+	jumbleWriter := jumbleservice.Writer{
+		Entries:    postgres.NewJumbleRepository(cursors),
+		Media:      mediaObjects,
+		Events:     outbox,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
 	changes := postgres.NewChangeLog()
 
 	// What every writer of an entry needs in order to leave a step in its history. Held as one
@@ -836,6 +846,8 @@ func run() error {
 			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
+		jumbleservice.SubmitJumbleEntry{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.ListJumbleEntries{Writer: jumbleWriter}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),

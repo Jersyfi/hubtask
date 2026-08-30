@@ -163,6 +163,15 @@ func (pending) TestRule(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+// The jumble (G-10). RestController overrides them as the steps land.
+func (pending) ListJumbleEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListJumbleEntriesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, _ openapi.SubmitJumbleEntryParams) {
+	notAvailable(w, r)
+}
+
 func (pending) TriggerRuleManually(
 	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
 ) {
