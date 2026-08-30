@@ -10,7 +10,7 @@
 # self-hosting stays two containers: this one and PostgreSQL. A UI container plus a proxy would be
 # four, and would make it possible to run an interface against an API of a different version.
 
-FROM node:24-alpine AS ui
+FROM node:26-alpine AS ui
 WORKDIR /ui
 ENV CI=true
 RUN corepack enable
@@ -33,7 +33,7 @@ RUN pnpm --filter @hubtask/api-client build \
  && pnpm --filter @hubtask/design-system build \
  && pnpm --filter @hubtask/webapp build
 
-FROM golang:1.26-alpine AS build
+FROM golang:1.27-alpine AS build
 WORKDIR /src
 ENV CGO_ENABLED=0
 # Dependencies first - their own layer, so that code changes do not discard the cache.
