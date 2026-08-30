@@ -228,6 +228,12 @@ func TestAnAnnouncementNeverActs(t *testing.T) {
 
 // §4.6: a parent whose children are staying is kept back and goes on the pass after the last of
 // them.
+//
+// Whatever their period, which is what R-2 decided (G-12): the question asked of the repository is
+// "how many below this one are not going in this pass", not "which of them outlive it". A child
+// with a shorter period that is still here is a child something is holding - a hold, a `:retain`,
+// a restriction - and taking its parent would leave it an orphan by policy rather than by
+// accident.
 func TestAParentIsKeptBackWhileSomethingBelowItIsRetained(t *testing.T) {
 	h := newSweepHarness()
 	rule := h.ruleIn(t, func(*domain.NewRuleInput) {})

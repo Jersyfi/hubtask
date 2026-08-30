@@ -104,6 +104,10 @@ Evaluated in this order; the first matching rule wins:
 5. **The minimum tombstone period** → an object may only disappear for good once every known offline device has had the chance to learn about the deletion ([offline-sync.md](./offline-sync.md) §7). Otherwise it comes back on the next sync.
 6. **Referential safeguards** → a work package is not deleted while activities hang off it that have their own, longer period; the chain is worked from the bottom up.
 
+   **A parent is kept back for *any* descendant that is not going in the same pass, whatever its period** (R-2, decided in G-12). The sentence above names the longer-lived case because it is the obvious one, and the shorter-lived case is not its opposite: a child with a shorter period that is still here is a child something is holding — a legal hold, a `:retain`, a restriction of processing, or a rule that has simply not reached it yet. Deleting its parent would take away the context of an object somebody deliberately kept, which is precisely what this safeguard exists to prevent.
+
+   What the engine observes is therefore "not going in this pass" rather than a comparison of periods, and that is deliberate. The two cases it would have to tell apart — a child that will go on the next pass, and a child that will never go while its hold stands — look identical to a query about periods, and guessing wrong in the permissive direction leaves an orphan by policy rather than by accident. The price is a parent that waits: it goes on the pass after the last of its children, which is bounded by construction and costs a delay rather than data.
+
 ---
 
 ## 5. Execution
@@ -191,5 +195,4 @@ Five things the rule model needed settled, recorded here so that nobody re-deriv
 | # | Point | Needed by |
 |---|---|---|
 | R-1 | The advance warning of §6: a notification category, a template, and the resolution of `COLLECTION_ADMINS` and `TENANT_ADMINS`. Until it exists a rule that asks to warn somebody is refused | `0.5.0` |
-| R-2 | Whether the referential safeguard of §4.6 should keep a parent back for a *shorter*-lived child as well, or only for a longer-lived one. Today anything below an entry that is not going in the same pass keeps it back, which is the conservative reading | `0.5.0` |
 | R-3 | What an `ACCOUNT` legal hold should stop. §4.1 names the tenant, the container and the item; the schema also allows an account, and until E-10 answers one it is refused rather than stored (E-08) | `0.4.5`, with E-10 |
