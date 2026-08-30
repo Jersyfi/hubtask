@@ -6,7 +6,9 @@ package jumble
 
 import (
 	"context"
+	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -48,4 +50,21 @@ type Entries interface {
 	// DISMISSED - and reports whether this call was the one that decided. False means another
 	// settlement got there first, which the caller answers as the conflict it is.
 	Settle(ctx context.Context, entry domain.Entry) (bool, error)
+}
+
+// Intake is the tenant's one webhook address (G-10): a hash nobody can present, and the moment it
+// was minted - the only thing about the credential a read may show.
+type Intake interface {
+	// SetToken mints or replaces the address in one statement, so the old token and the new one
+	// never both open the intake.
+	SetToken(ctx context.Context, token integration.InboundToken, at time.Time) error
+
+	// VerifyToken answers whether the presented token opens this tenant's intake. Called under
+	// the tenant context the token itself names - row level security needs one before the row is
+	// visible at all - and false for every way it does not: unknown, rotated, or never minted.
+	VerifyToken(ctx context.Context, token integration.InboundToken) (bool, error)
+
+	// RotatedAt answers when the address was last minted, or ErrNotFound for a tenant that never
+	// minted one.
+	RotatedAt(ctx context.Context) (time.Time, error)
 }

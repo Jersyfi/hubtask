@@ -195,6 +195,7 @@ func Descriptors() []usecase.Descriptor {
 		jumbleservice.ListJumbleEntries{}.Descriptor(),
 		jumbleservice.ConvertJumbleEntry{}.Descriptor(),
 		jumbleservice.DismissJumbleEntry{}.Descriptor(),
+		jumbleservice.RotateJumbleIntake{}.Descriptor(),
 	}
 }
 

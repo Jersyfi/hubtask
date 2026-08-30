@@ -79,6 +79,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/stepup"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
+	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 	"github.com/Jersyfi/hubtask/presentation/webui"
@@ -492,7 +493,11 @@ func run() error {
 	notificationPreferences := postgres.NewNotificationPreferenceRepository()
 	outbox := postgres.NewOutbox(jobs)
 	// The jumble (G-10). The writer is shared by every jumble use case; the media half is the
-	// same repository the attachments use, so an entry's reference counts with theirs.
+	// same repository the attachments use, so an entry's reference counts with theirs. The intake
+	// hashes its tokens under the intake's own purpose label, so a rule's inbound token presented
+	// at the jumble door matches nothing.
+	jumbleIntake := postgres.NewJumbleIntakeRepository(
+		security.NewJumbleIntakeHasher(cfg.SecretKey))
 	jumbleWriter := jumbleservice.Writer{
 		Entries:    postgres.NewJumbleRepository(cursors),
 		Media:      mediaObjects,
@@ -852,6 +857,11 @@ func run() error {
 			Writer: jumbleWriter, Catalogue: ruleCatalogue, Origins: items,
 		}.Descriptor(),
 		jumbleservice.DismissJumbleEntry{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.RotateJumbleIntake{
+			Intake:     jumbleIntake,
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
+		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
@@ -1225,6 +1235,14 @@ func run() error {
 		controller.InboundRuns = automationservice.StartInboundRun{
 			Inbound: automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
+		}
+		// The jumble's public door (G-10): a delivery on the tenant's address becomes an entry.
+		controller.JumbleIntake = intake.WebhookIntake{
+			Deliveries: jumbleservice.IntakeJumbleEntry{
+				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
+				Events: outbox, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{}, IDs: ids,
+			},
 		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to

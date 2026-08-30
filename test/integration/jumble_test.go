@@ -12,11 +12,14 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/jumble"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // The jumble against a real database (G-10): the row survives whole, the settlement is a single
@@ -297,4 +300,79 @@ func TestAnOriginIsRecordedOnceAndInsideTheTenant(t *testing.T) {
 	if stored.OriginJumbleID != entry.ID {
 		t.Errorf("the item's origin reads %s, want the entry", stored.OriginJumbleID)
 	}
+}
+
+// The intake credential against the real database (G-10): minting replaces in one statement, the
+// lookup answers only under the tenant the token names, and the hash store never says more than a
+// moment.
+func TestTheIntakeTokenRotatesAndStaysInsideItsTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	intakes := postgres.NewJumbleIntakeRepository(security.NewJumbleIntakeHasher(secret.New(installationSecret)))
+
+	first, err := integration.NewInboundToken(tenantA, bytesOf(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return intakes.SetToken(ctx, first, time.Now().UTC())
+	}); err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+
+	var opens bool
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		opens, err = intakes.VerifyToken(ctx, first)
+		return err
+	}); err != nil || !opens {
+		t.Fatalf("the minted token does not open its own intake: %v", err)
+	}
+
+	// Rotating kills the old address the same instant.
+	second, err := integration.NewInboundToken(tenantA, bytesOf(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return intakes.SetToken(ctx, second, time.Now().UTC())
+	}); err != nil {
+		t.Fatalf("rotating: %v", err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		opens, err = intakes.VerifyToken(ctx, first)
+		return err
+	}); err != nil || opens {
+		t.Fatalf("the rotated-away token still opens the intake: opens=%v err=%v", opens, err)
+	}
+
+	// The cross-tenant negative (gate SG-3): the same presented credential under another tenant's
+	// context opens nothing - the hash covers the tenant half, and row level security bounds the
+	// row.
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		opens, err = intakes.VerifyToken(ctx, second)
+		return err
+	}); err != nil || opens {
+		t.Fatalf("another tenant's context opened the intake: opens=%v err=%v", opens, err)
+	}
+
+	var rotatedAt time.Time
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		rotatedAt, err = intakes.RotatedAt(ctx)
+		return err
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("tenant B reads tenant A's intake moment %v / %v", rotatedAt, err)
+	}
+}
+
+// bytesOf fills a secret deterministically, so two mints in one test are two credentials.
+func bytesOf(fill byte) []byte {
+	drawn := make([]byte, integration.InboundTokenSecretBytes)
+	for i := range drawn {
+		drawn[i] = fill
+	}
+	return drawn
 }

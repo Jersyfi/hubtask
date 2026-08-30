@@ -646,6 +646,15 @@ CREATE TABLE jumble_entry (
 );
 CREATE INDEX jumble_status_idx ON jumble_entry (tenant_id, status, received_at DESC);
 
+-- The jumble's webhook intake (G-10, migration 0060): one token-protected address per tenant,
+-- stored as a hash under the intake's own purpose label. Rotating replaces it in one statement.
+CREATE TABLE jumble_intake (
+  tenant_id  uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  token_hash bytea NOT NULL,
+  rotated_at timestamptz NOT NULL
+);
+CREATE UNIQUE INDEX jumble_intake_token_uq ON jumble_intake (token_hash);
+
 CREATE TABLE auto_assign_policy (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1463,7 +1472,7 @@ BEGIN
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
-    'automation_rule','rule_run','rule_occurrence',
+    'automation_rule','rule_run','rule_occurrence','jumble_intake',
     'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference',

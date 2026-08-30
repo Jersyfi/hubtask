@@ -4,6 +4,7 @@
 package rest
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	jumbledomain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -168,4 +171,64 @@ func jumbleEntryResponse(out usecase.Output) openapi.JumbleEntry {
 		entry.SettledAt = &settled
 	}
 	return entry
+}
+
+// JumbleIntakeDeliverer serves the public intake route: not a catalogue entry, because it answers
+// a credential nobody in this system holds (G-10). Nil leaves the route answering the pending 404.
+type JumbleIntakeDeliverer interface {
+	Deliver(ctx context.Context, presented, sender, subject, body string) (jumbledomain.Entry, error)
+}
+
+const rotateJumbleIntakeUseCase = "RotateJumbleIntake"
+
+// RotateJumbleIntake answers POST /jumble/intake:rotate-token.
+func (c *RestController) RotateJumbleIntake(
+	w http.ResponseWriter, r *http.Request, _ openapi.RotateJumbleIntakeParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), rotateJumbleIntakeUseCase, actor, usecase.Input{})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, openapi.JumbleIntakeToken{
+			Token:     out.String("token"),
+			RotatedAt: timeValue(out["rotated_at"]),
+		})
+	})
+}
+
+// StartJumbleIntake answers POST /jumble/inbound/{token}.
+func (c *RestController) StartJumbleIntake(
+	w http.ResponseWriter, r *http.Request, presented string,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.JumbleIntake == nil {
+		// The pending 404 rather than an internal error: an installation that does not serve this
+		// tells the internet nothing about why (G-08's reasoning for the inbound route).
+		c.pending.StartJumbleIntake(w, r, presented)
+		return
+	}
+
+	var body openapi.JumbleIntakeDelivery
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	sender, subject, text := "", "", ""
+	if body.Sender != nil {
+		sender = *body.Sender
+	}
+	if body.Subject != nil {
+		subject = *body.Subject
+	}
+	if body.Body != nil {
+		text = *body.Body
+	}
+
+	entry, err := c.JumbleIntake.Deliver(r.Context(), presented, sender, subject, text)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, openapi.JumbleIntakeAccepted{
+		EntryId: uuidValue(entry.ID.String()),
+	})
 }

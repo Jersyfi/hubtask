@@ -184,6 +184,16 @@ func (pending) DismissJumbleEntry(
 	notAvailable(w, r)
 }
 
+func (pending) RotateJumbleIntake(w http.ResponseWriter, r *http.Request, _ openapi.RotateJumbleIntakeParams) {
+	notAvailable(w, r)
+}
+
+// The jumble's public door, overridden only when the composition root wires the intake - exactly
+// as the inbound trigger's is.
+func (pending) StartJumbleIntake(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
 func (pending) TriggerRuleManually(
 	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
 ) {

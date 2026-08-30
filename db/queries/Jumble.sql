@@ -42,3 +42,25 @@ SET status         = sqlc.arg('status'),
     target_item_id = sqlc.narg('target_item_id'),
     processed_at   = sqlc.arg('settled_at')
 WHERE id = sqlc.arg('id') AND status = 'NEW';
+
+-- name: SetJumbleIntakeToken :exec
+-- Minting and rotating are one statement: the upsert replaces the hash, so the old token and the
+-- new one never both open the intake (G-10).
+INSERT INTO jumble_intake (tenant_id, token_hash, rotated_at)
+VALUES (current_tenant_id(), sqlc.arg('token_hash'), sqlc.arg('rotated_at'))
+ON CONFLICT (tenant_id) DO UPDATE
+SET token_hash = EXCLUDED.token_hash, rotated_at = EXCLUDED.rotated_at;
+
+-- name: FindJumbleIntakeByToken :one
+-- The unauthenticated route's lookup, under the tenant context the token itself names
+-- (multi-tenancy.md §2.2): row level security needs one before the row is visible at all, and the
+-- hash covers the whole presented string, so a rewritten tenant half matches nothing.
+SELECT tenant_id, rotated_at
+FROM jumble_intake
+WHERE token_hash = sqlc.arg('token_hash');
+
+-- name: FindJumbleIntake :one
+-- What a listing may show: that an address exists and when it was minted. Never the hash.
+SELECT rotated_at
+FROM jumble_intake
+WHERE tenant_id = current_tenant_id();

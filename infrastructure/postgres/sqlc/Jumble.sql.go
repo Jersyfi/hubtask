@@ -51,6 +51,41 @@ func (q *Queries) FindJumbleEntry(ctx context.Context, id pgtype.UUID) (FindJumb
 	return i, err
 }
 
+const findJumbleIntake = `-- name: FindJumbleIntake :one
+SELECT rotated_at
+FROM jumble_intake
+WHERE tenant_id = current_tenant_id()
+`
+
+// What a listing may show: that an address exists and when it was minted. Never the hash.
+func (q *Queries) FindJumbleIntake(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, findJumbleIntake)
+	var rotated_at pgtype.Timestamptz
+	err := row.Scan(&rotated_at)
+	return rotated_at, err
+}
+
+const findJumbleIntakeByToken = `-- name: FindJumbleIntakeByToken :one
+SELECT tenant_id, rotated_at
+FROM jumble_intake
+WHERE token_hash = $1
+`
+
+type FindJumbleIntakeByTokenRow struct {
+	TenantID  pgtype.UUID
+	RotatedAt pgtype.Timestamptz
+}
+
+// The unauthenticated route's lookup, under the tenant context the token itself names
+// (multi-tenancy.md §2.2): row level security needs one before the row is visible at all, and the
+// hash covers the whole presented string, so a rewritten tenant half matches nothing.
+func (q *Queries) FindJumbleIntakeByToken(ctx context.Context, tokenHash []byte) (FindJumbleIntakeByTokenRow, error) {
+	row := q.db.QueryRow(ctx, findJumbleIntakeByToken, tokenHash)
+	var i FindJumbleIntakeByTokenRow
+	err := row.Scan(&i.TenantID, &i.RotatedAt)
+	return i, err
+}
+
 const insertJumbleEntry = `-- name: InsertJumbleEntry :exec
 
 INSERT INTO jumble_entry (
@@ -162,6 +197,25 @@ func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const setJumbleIntakeToken = `-- name: SetJumbleIntakeToken :exec
+INSERT INTO jumble_intake (tenant_id, token_hash, rotated_at)
+VALUES (current_tenant_id(), $1, $2)
+ON CONFLICT (tenant_id) DO UPDATE
+SET token_hash = EXCLUDED.token_hash, rotated_at = EXCLUDED.rotated_at
+`
+
+type SetJumbleIntakeTokenParams struct {
+	TokenHash []byte
+	RotatedAt pgtype.Timestamptz
+}
+
+// Minting and rotating are one statement: the upsert replaces the hash, so the old token and the
+// new one never both open the intake (G-10).
+func (q *Queries) SetJumbleIntakeToken(ctx context.Context, arg SetJumbleIntakeTokenParams) error {
+	_, err := q.db.Exec(ctx, setJumbleIntakeToken, arg.TokenHash, arg.RotatedAt)
+	return err
 }
 
 const settleJumbleEntry = `-- name: SettleJumbleEntry :execrows

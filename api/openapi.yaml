@@ -809,6 +809,77 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /jumble/intake:rotate-token:
+    post:
+      tags: [jumble]
+      operationId: rotateJumbleIntake
+      summary: Mint the address the jumble accepts webhooks on
+      description: >
+        The tenant's one intake credential (G-10), the inbound trigger's discipline applied to
+        the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over
+        the whole presented string under the intake's own purpose label, and answered **once** -
+        no later read can produce it.
+
+        Rotating is how one is revoked: there is exactly one address per tenant and the
+        replacement happens in a single statement, so the old token and the new one never both
+        open the intake.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Minted, with the token shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleIntakeToken"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/inbound/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: >
+          The tenant's intake token, which is the whole credential: this route carries no bearer
+          authentication, and the URL is what the bridge stores. It names the tenant in clear
+          inside itself because the lookup needs one before it can happen (multi-tenancy.md
+          §2.2).
+        schema: { type: string }
+    post:
+      tags: [jumble]
+      operationId: startJumbleIntake
+      security: []
+      summary: Deliver something into the jumble from outside
+      description: >
+        The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`,
+        `subject`, `body`, all optional but not all empty - and it lands as an entry, fires
+        `jumble.entry_received`, and waits for a person or a rule to decide about it.
+
+        The token authenticates the tenant, never a person: the entry records no actor, and the
+        body is data end to end - bounded twice (the transfer by the request middleware, the
+        entry by its own field bounds), matched by rules as data, and rendered as instructions
+        to nothing.
+
+        Every reason not to serve answers the same `404` with the same body - an unknown token, a
+        rotated one, a tenant that never minted one. Distinguishing them would answer questions
+        for whoever is trying tokens (T-21).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JumbleIntakeDelivery"
+      responses:
+        "201":
+          description: Caught, with the entry it became
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleIntakeAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /automation/inbound/{token}:
     parameters:
       - name: token
@@ -5793,6 +5864,37 @@ components:
           type: array
           items: { type: string, format: uuid }
           description: Sealed media objects to carry.
+
+    JumbleIntakeToken:
+      type: object
+      description: >
+        A freshly minted intake address. The token exists in this answer and nowhere else
+        afterwards: it is stored hashed, and every later read shows only when it was minted.
+      required: [token, rotated_at]
+      properties:
+        token:
+          type: string
+          description: The whole credential. Post to `/jumble/inbound/{token}`.
+        rotated_at: { type: string, format: date-time }
+
+    JumbleIntakeDelivery:
+      type: object
+      description: The small shape the intake accepts. All fields optional, but not all empty.
+      properties:
+        sender:
+          type: string
+          description: Who the bridge says it came from. Data, never an identity.
+        subject: { type: string }
+        body: { type: string }
+
+    JumbleIntakeAccepted:
+      type: object
+      required: [entry_id]
+      properties:
+        entry_id:
+          type: string
+          format: uuid
+          description: The entry the delivery became.
 
     JumbleEntryConvert:
       type: object

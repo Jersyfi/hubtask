@@ -40,6 +40,10 @@ var PublicRoutes = map[string]bool{
 	// there is nothing for this middleware to resolve. The route validates it itself, and what
 	// the run may then do is its `run_as` account's business (G-08, automation.md §1.1).
 	http.MethodPost + " " + APIBasePath + "/automation/inbound/{token}": true,
+	// The jumble's intake carries its credential in the URL with the same trust model, and it
+	// authenticates the *tenant* rather than a person: there is no account behind the token, and
+	// the entry it stores records no actor (G-10).
+	http.MethodPost + " " + APIBasePath + "/jumble/inbound/{token}": true,
 }
 
 // bearerScheme is compared case-insensitively, as RFC 9110 §11.1 requires of an auth scheme.

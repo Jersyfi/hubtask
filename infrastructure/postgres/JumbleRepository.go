@@ -6,10 +6,12 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/jumble"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -225,4 +227,76 @@ func entryFrom(row sqlc.ListJumbleEntriesRow) (domain.Entry, error) {
 		entry.SettledAt = &settled
 	}
 	return entry, nil
+}
+
+// JumbleIntakeRepository is the tenant's one webhook address (G-10).
+//
+// The hasher is the intake's own purpose over the installation secret, so a rule's inbound token
+// presented here matches nothing and a stored hash can never be replayed as a credential of
+// another kind (security.md §5).
+type JumbleIntakeRepository struct {
+	hasher security.InboundTokenHasher
+}
+
+func NewJumbleIntakeRepository(hasher security.InboundTokenHasher) JumbleIntakeRepository {
+	return JumbleIntakeRepository{hasher: hasher}
+}
+
+var _ repository.Intake = JumbleIntakeRepository{}
+
+func (r JumbleIntakeRepository) SetToken(
+	ctx context.Context, token integration.InboundToken, at time.Time,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.SetJumbleIntakeToken(ctx, sqlc.SetJumbleIntakeTokenParams{
+		TokenHash: r.hasher.Hash(token.Secret()),
+		RotatedAt: timestampOf(at),
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("storing the intake token: %w", err))
+	}
+	return nil
+}
+
+func (r JumbleIntakeRepository) VerifyToken(
+	ctx context.Context, token integration.InboundToken,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = queries.FindJumbleIntakeByToken(ctx, r.hasher.Hash(token.Secret()))
+	if err != nil {
+		if IsNoRows(err) {
+			return false, nil
+		}
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("verifying the intake token: %w", err))
+	}
+	return true, nil
+}
+
+func (r JumbleIntakeRepository) RotatedAt(ctx context.Context) (time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	rotated, err := queries.FindJumbleIntake(ctx)
+	if err != nil {
+		if IsNoRows(err) {
+			return time.Time{}, shared.ErrNotFound.WithDetail("jumble.intake_not_minted")
+		}
+		return time.Time{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the intake: %w", err))
+	}
+	return timeFrom(rotated), nil
 }

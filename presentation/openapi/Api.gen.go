@@ -4113,6 +4113,29 @@ type JumbleEntrySubmit struct {
 // JumbleEntrySubmitChannel defines model for JumbleEntrySubmit.Channel.
 type JumbleEntrySubmitChannel string
 
+// JumbleIntakeAccepted defines model for JumbleIntakeAccepted.
+type JumbleIntakeAccepted struct {
+	// EntryId The entry the delivery became.
+	EntryId openapi_types.UUID `json:"entry_id"`
+}
+
+// JumbleIntakeDelivery The small shape the intake accepts. All fields optional, but not all empty.
+type JumbleIntakeDelivery struct {
+	Body *string `json:"body,omitempty"`
+
+	// Sender Who the bridge says it came from. Data, never an identity.
+	Sender  *string `json:"sender,omitempty"`
+	Subject *string `json:"subject,omitempty"`
+}
+
+// JumbleIntakeToken A freshly minted intake address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read shows only when it was minted.
+type JumbleIntakeToken struct {
+	RotatedAt time.Time `json:"rotated_at"`
+
+	// Token The whole credential. Post to `/jumble/inbound/{token}`.
+	Token string `json:"token"`
+}
+
 // Label A tag a collection defines and its entries carry. Defined on the collection rather than on the workspace: a label is a vocabulary the people working in one collection agree on, and a workspace-wide list would make every collection pay for every other's.
 type Label struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -6166,6 +6189,12 @@ type DismissJumbleEntryParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// RotateJumbleIntakeParams defines parameters for RotateJumbleIntake.
+type RotateJumbleIntakeParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListLegalHoldsParams defines parameters for ListLegalHolds.
 type ListLegalHoldsParams struct {
 	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
@@ -6471,6 +6500,9 @@ type SubmitJumbleEntryJSONRequestBody = JumbleEntrySubmit
 
 // ConvertJumbleEntryJSONRequestBody defines body for ConvertJumbleEntry for application/json ContentType.
 type ConvertJumbleEntryJSONRequestBody = JumbleEntryConvert
+
+// StartJumbleIntakeJSONRequestBody defines body for StartJumbleIntake for application/json ContentType.
+type StartJumbleIntakeJSONRequestBody = JumbleIntakeDelivery
 
 // PlaceLegalHoldJSONRequestBody defines body for PlaceLegalHold for application/json ContentType.
 type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
@@ -6906,6 +6938,12 @@ type ServerInterface interface {
 	// DismissJumbleEntry Decide against an entry
 	// (POST /jumble/entries/{entryId}:dismiss)
 	DismissJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params DismissJumbleEntryParams)
+	// StartJumbleIntake Deliver something into the jumble from outside
+	// (POST /jumble/inbound/{token})
+	StartJumbleIntake(w http.ResponseWriter, r *http.Request, token string)
+	// RotateJumbleIntake Mint the address the jumble accepts webhooks on
+	// (POST /jumble/intake:rotate-token)
+	RotateJumbleIntake(w http.ResponseWriter, r *http.Request, params RotateJumbleIntakeParams)
 	// ListLegalHolds The legal holds in force
 	// (GET /legal-holds)
 	ListLegalHolds(w http.ResponseWriter, r *http.Request, params ListLegalHoldsParams)
@@ -12384,6 +12422,73 @@ func (siw *ServerInterfaceWrapper) DismissJumbleEntry(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// StartJumbleIntake operation middleware
+func (siw *ServerInterfaceWrapper) StartJumbleIntake(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartJumbleIntake(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateJumbleIntake operation middleware
+func (siw *ServerInterfaceWrapper) RotateJumbleIntake(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateJumbleIntakeParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateJumbleIntake(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListLegalHolds operation middleware
 func (siw *ServerInterfaceWrapper) ListLegalHolds(w http.ResponseWriter, r *http.Request) {
 
@@ -14010,6 +14115,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:test", wrapper.TestRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/intake:rotate-token", wrapper.RotateJumbleIntake)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/inbound/{token}", wrapper.StartJumbleIntake)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/inbound/{token}", wrapper.StartInboundRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs", wrapper.ListRuleRuns)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs/{runId}", wrapper.GetRuleRun)
