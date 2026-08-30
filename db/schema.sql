@@ -726,7 +726,10 @@ CREATE TABLE rule_run (
   -- The entry the run is about when no event names it - a RELATIVE_DATE run measured from one
   -- entry's due date.
   subject_id   uuid,
-  status       text NOT NULL CHECK (status IN ('RUNNING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
+  -- 'WAITING' is a run parked on a WAIT action (G-09, migration 0058): its results so far are
+  -- written and a scheduled job holds the resume point. Its own status, because a row left in
+  -- RUNNING is how a crash is recognised.
+  status       text NOT NULL CHECK (status IN ('RUNNING','WAITING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
   condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
   action_results    jsonb NOT NULL DEFAULT '[]'::jsonb,
   error_code   text,

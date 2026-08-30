@@ -1937,6 +1937,7 @@ const (
 	RuleRunStatusSKIPPED     RuleRunStatus = "SKIPPED"
 	RuleRunStatusSUCCEEDED   RuleRunStatus = "SUCCEEDED"
 	RuleRunStatusTHROTTLED   RuleRunStatus = "THROTTLED"
+	RuleRunStatusWAITING     RuleRunStatus = "WAITING"
 )
 
 // Valid indicates whether the value is a known member of the RuleRunStatus enum.
@@ -1953,6 +1954,8 @@ func (e RuleRunStatus) Valid() bool {
 	case RuleRunStatusSUCCEEDED:
 		return true
 	case RuleRunStatusTHROTTLED:
+		return true
+	case RuleRunStatusWAITING:
 		return true
 	default:
 		return false
@@ -2438,6 +2441,7 @@ const (
 	ListRuleRunsParamsStatusSKIPPED     ListRuleRunsParamsStatus = "SKIPPED"
 	ListRuleRunsParamsStatusSUCCEEDED   ListRuleRunsParamsStatus = "SUCCEEDED"
 	ListRuleRunsParamsStatusTHROTTLED   ListRuleRunsParamsStatus = "THROTTLED"
+	ListRuleRunsParamsStatusWAITING     ListRuleRunsParamsStatus = "WAITING"
 )
 
 // Valid indicates whether the value is a known member of the ListRuleRunsParamsStatus enum.
@@ -2454,6 +2458,8 @@ func (e ListRuleRunsParamsStatus) Valid() bool {
 	case ListRuleRunsParamsStatusSUCCEEDED:
 		return true
 	case ListRuleRunsParamsStatusTHROTTLED:
+		return true
+	case ListRuleRunsParamsStatusWAITING:
 		return true
 	default:
 		return false
@@ -4477,7 +4483,7 @@ type RuleRun struct {
 	RuleId     openapi_types.UUID  `json:"rule_id"`
 	StartedAt  time.Time           `json:"started_at"`
 
-	// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately.
+	// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
 	Status RuleRunStatus `json:"status"`
 
 	// SubjectId The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from one entry's due date. Absent where the event carries the subject, which is where a reader should look for it.
@@ -4505,7 +4511,7 @@ type RuleRunPage struct {
 	Page PageInfo  `json:"page"`
 }
 
-// RuleRunStatus How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately.
+// RuleRunStatus How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
 type RuleRunStatus string
 
 // RuleScope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.

@@ -17,6 +17,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 // runLog is the run repository in memory.
@@ -178,6 +179,14 @@ func (t *told) RuleDisabled(_ context.Context, rule domain.Rule, _ time.Time) er
 	return nil
 }
 
+// queued records what the engine parks on the queue: a WAIT's resume.
+type queued struct{ requests []queue.Request }
+
+func (q *queued) Enqueue(_ context.Context, request queue.Request) (shared.ID, error) {
+	q.requests = append(q.requests, request)
+	return shared.ID("01936f2a-7c1e-7000-8000-0000000000aa"), nil
+}
+
 type engineHarness struct {
 	engine     RunRule
 	rules      *ruleStore
@@ -187,6 +196,7 @@ type engineHarness struct {
 	events     *published
 	owners     *told
 	claims     *claims
+	jobs       *queued
 }
 
 func newEngine(t *testing.T, rule domain.Rule) *engineHarness {
@@ -196,12 +206,13 @@ func newEngine(t *testing.T, rule domain.Rule) *engineHarness {
 	h := &engineHarness{
 		rules: store, runs: newRunLog(), failures: &failures{},
 		dispatcher: newDispatched(), events: &published{}, owners: &told{}, claims: newClaims(),
+		jobs: &queued{},
 	}
 	h.engine = RunRule{
 		Rules: store, Runs: h.runs, Failures: h.failures, Events: h.events,
 		Source:     source{envelope: itemEvent()},
 		Dispatcher: h.dispatcher, Scopes: h.dispatcher,
-		Conditions: compiler{}, Guard: h.claims, Owners: h.owners,
+		Conditions: compiler{}, Guard: h.claims, Owners: h.owners, Jobs: h.jobs,
 		UnitOfWork: unitOfWork{}, Clock: clock.Fixed(now), IDs: runIDs{},
 	}
 	return h
@@ -1060,23 +1071,250 @@ func TestABranchConditionThatCannotBeEvaluatedFailsTheAction(t *testing.T) {
 	}
 }
 
-// Until G-09's third step lands, a run that reaches a WAIT fails it with the code the write-time
-// refusal used - to the milestone, not to a typo hunt.
-func TestAWaitStillFailsUntilItsStepLands(t *testing.T) {
+// WAIT (G-09): the run suspends and a job resumes it. A WAIT of a day holds no worker, survives a
+// restart - the moment lives on the job row - and resumes on time, proved with the fixed clock.
+
+func waitingRule() domain.Rule {
 	rule := enabledRule()
+	// A real version, as every stored rule has one: the resume carries it, and the mid-wait edit
+	// test bumps it.
+	rule.Version = 1
 	rule.Actions = []domain.Action{
-		{Kind: domain.ActionWait, Params: map[string]any{"duration": "PT1H"}},
+		{Kind: "ADD_LABEL"},
+		{Kind: domain.ActionWait, Params: map[string]any{"duration": "P1D"}},
+		{Kind: "CREATE_BUCKET"},
 	}
-	h := newEngine(t, rule)
+	return rule
+}
+
+// resumeCommand is the command the queue would hand the engine when the parked job comes due,
+// built from the request the suspension enqueued - which is the restart-survival argument: nothing
+// but this payload and the run row is needed to continue.
+func resumeCommand(t *testing.T, request queue.Request) Command {
+	t.Helper()
+
+	cmd := Command{Trigger: domain.TriggerKind(request.Payload["trigger"].(string))}
+	ids := map[string]*shared.ID{
+		"rule_id": &cmd.RuleID, "run_id": &cmd.RunID,
+		"event_id": &cmd.EventID, "triggered_by": &cmd.TriggeredBy, "subject_id": &cmd.SubjectID,
+	}
+	for key, into := range ids {
+		if text, present := request.Payload[key].(string); present {
+			*into = shared.ID(text)
+		}
+	}
+	cmd.Occasion, _ = request.Payload["occasion"].(string)
+	cmd.ResumeFrom, _ = request.Payload["resume_from"].(string)
+	cmd.RuleVersion, _ = request.Payload["rule_version"].(int)
+	if depth, present := request.Payload["causation_depth"].(int); present {
+		cmd.CausationDepth = depth
+	}
+	return cmd
+}
+
+// The acceptance criterion: a WAIT of a day parks the run - WAITING, not finished - and the queue
+// holds the resume at exactly the moment the delay names.
+func TestAWaitParksTheRunAndTheQueueCarriesTheResume(t *testing.T) {
+	h := newEngine(t, waitingRule())
 
 	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
 	if err != nil {
 		t.Fatalf("running: %v", err)
 	}
-	if run.Status != domain.RunFailed {
-		t.Errorf("status %q, want FAILED while WAIT is unserved", run.Status)
+	if run.Status != domain.RunWaiting {
+		t.Fatalf("status %q, want WAITING", run.Status)
 	}
-	if run.ActionResults[0].ErrorCode != "automation.action_not_available_yet" {
-		t.Errorf("the WAIT failed with %q", run.ActionResults[0].ErrorCode)
+	if run.FinishedAt != nil {
+		t.Error("a parked run claims to be finished")
+	}
+	// The results so far are written: the action before the WAIT, and nothing after it - what is
+	// left is neither skipped nor recorded, because it is yet to run.
+	if len(run.ActionResults) != 1 || run.ActionResults[0].Kind != "ADD_LABEL" {
+		t.Errorf("the parked run records %+v, want just ADD_LABEL", run.ActionResults)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Errorf("%d actions dispatched before the WAIT", len(h.dispatcher.calls))
+	}
+	if stored := h.runs.last(); stored.Status != domain.RunWaiting {
+		t.Errorf("the stored run says %q", stored.Status)
+	}
+
+	if len(h.jobs.requests) != 1 {
+		t.Fatalf("%d jobs enqueued, want the one resume", len(h.jobs.requests))
+	}
+	request := h.jobs.requests[0]
+	if request.Kind != queue.KindAutomationRun {
+		t.Errorf("the resume is a %q job", request.Kind)
+	}
+	// Resumes on time: the queue's own run_at, a day out from the fixed clock. No worker sleeps.
+	if want := now.Add(24 * time.Hour); !request.RunAt.Equal(want) {
+		t.Errorf("the resume is due %v, want %v", request.RunAt, want)
+	}
+	if request.Payload["resume_from"] != "1" {
+		t.Errorf("the resume points at %v, want the WAIT's path", request.Payload["resume_from"])
+	}
+	if request.Payload["run_id"] != run.ID.String() {
+		t.Errorf("the resume names run %v", request.Payload["run_id"])
+	}
+	// No settlement while parked: the run is not over, so nothing announced a finish and nothing
+	// touched the failure streak.
+	for _, kind := range h.events.types() {
+		if kind == event.RuleRunFinished || kind == event.RuleRunFailed {
+			t.Errorf("a parked run announced %s", kind)
+		}
+	}
+}
+
+// The parked job comes due, the run finishes, and nothing before the WAIT acts twice - the
+// restart-survival acceptance: the payload and the run row are all the resume needs.
+func TestAResumedRunFinishesWithoutActingTwice(t *testing.T) {
+	h := newEngine(t, waitingRule())
+
+	parked, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+
+	resumed, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[0]))
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if resumed.Status != domain.RunSucceeded {
+		t.Fatalf("status %q after the resume, want SUCCEEDED", resumed.Status)
+	}
+	if resumed.ID != parked.ID {
+		t.Errorf("the resume produced a second run %s", resumed.ID)
+	}
+	if len(resumed.ActionResults) != 3 {
+		t.Fatalf("the finished run records %+v", resumed.ActionResults)
+	}
+	if wait := resumed.ActionResults[1]; wait.Kind != domain.ActionWait ||
+		wait.Status != domain.ActionSucceeded {
+		t.Errorf("the WAIT's own result is %+v", wait)
+	}
+
+	// ADD_LABEL once before the WAIT and CREATE_BUCKET once after it: the replay appended the
+	// recorded result rather than dispatching again.
+	counts := map[string]int{}
+	for _, call := range h.dispatcher.calls {
+		counts[call.kind]++
+	}
+	if counts["ADD_LABEL"] != 1 || counts["CREATE_BUCKET"] != 1 {
+		t.Errorf("dispatch counts %v, want each action exactly once", counts)
+	}
+}
+
+// A redelivered resume finds the run finished and does nothing again.
+func TestARedeliveredResumeDoesNothingTwice(t *testing.T) {
+	h := newEngine(t, waitingRule())
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+
+	cmd := resumeCommand(t, h.jobs.requests[0])
+	for range 2 {
+		if _, err := h.engine.Execute(context.Background(), engineActor(), cmd); err != nil {
+			t.Fatalf("resuming: %v", err)
+		}
+	}
+	if len(h.dispatcher.calls) != 2 {
+		t.Errorf("%d dispatches over a delivered and a redelivered resume", len(h.dispatcher.calls))
+	}
+}
+
+// A second WAIT further down parks the run again, on a resume of its own.
+func TestASecondWaitParksTheRunAgain(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{
+		{Kind: domain.ActionWait, Params: map[string]any{"duration": "PT1H"}},
+		{Kind: "ADD_LABEL"},
+		{Kind: domain.ActionWait, Params: map[string]any{"duration": "PT2H"}},
+		{Kind: "CREATE_BUCKET"},
+	}
+	h := newEngine(t, rule)
+
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+	again, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[0]))
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if again.Status != domain.RunWaiting {
+		t.Fatalf("status %q after the first resume, want WAITING on the second WAIT", again.Status)
+	}
+	if len(h.jobs.requests) != 2 {
+		t.Fatalf("%d jobs enqueued, want one per suspension", len(h.jobs.requests))
+	}
+	if h.jobs.requests[1].Payload["resume_from"] != "2" {
+		t.Errorf("the second resume points at %v", h.jobs.requests[1].Payload["resume_from"])
+	}
+
+	final, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[1]))
+	if err != nil {
+		t.Fatalf("finishing: %v", err)
+	}
+	if final.Status != domain.RunSucceeded {
+		t.Errorf("status %q at the end, want SUCCEEDED", final.Status)
+	}
+	if len(final.ActionResults) != 4 {
+		t.Errorf("the finished run records %+v", final.ActionResults)
+	}
+}
+
+// A rule disabled while the run waited cannot keep acting. The run fails with a code naming what
+// happened - and deliberately without touching the failure streak, because "somebody switched the
+// rule off" is not the rule's actions failing.
+func TestARuleDisabledMidWaitFailsTheRunWithoutTheStreak(t *testing.T) {
+	h := newEngine(t, waitingRule())
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+
+	disabled := waitingRule()
+	disabled.Enabled = false
+	h.rules.rows[ruleID] = disabled
+
+	run, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[0]))
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if run.Status != domain.RunFailed || run.ErrorCode != "automation.rule_not_enabled" {
+		t.Errorf("the orphaned run says %q / %q", run.Status, run.ErrorCode)
+	}
+	if h.failures.count != 0 {
+		t.Errorf("the streak was bumped %d times for a disabled rule", h.failures.count)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Errorf("%d dispatches - a disabled rule's resume acted", len(h.dispatcher.calls))
+	}
+}
+
+// A rule edited mid-wait is a different program: the recorded paths may no longer name its
+// actions, so the resume refuses to run a mix of two rules.
+func TestARuleEditedMidWaitDoesNotResume(t *testing.T) {
+	h := newEngine(t, waitingRule())
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("parking: %v", err)
+	}
+
+	edited := waitingRule()
+	edited.Version++
+	h.rules.rows[ruleID] = edited
+
+	run, err := h.engine.Execute(
+		context.Background(), engineActor(), resumeCommand(t, h.jobs.requests[0]))
+	if err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if run.Status != domain.RunFailed || run.ErrorCode != "automation.rule_changed_while_waiting" {
+		t.Errorf("the resumed run says %q / %q", run.Status, run.ErrorCode)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Errorf("%d dispatches - an edited rule's resume acted", len(h.dispatcher.calls))
 	}
 }

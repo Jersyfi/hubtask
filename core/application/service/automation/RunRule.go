@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 // MaxConsecutiveFailures is the run of failed runs after which a rule switches itself off
@@ -82,6 +83,10 @@ type RunRule struct {
 	Containers Containers
 	Guard      Idempotency
 	Owners     Owners
+	// Jobs is where a WAIT parks its resume (G-09). The engine runs inside the queue runner's
+	// transaction, so the suspended run and the job that will resume it commit together - a
+	// process that dies between them leaves neither.
+	Jobs       Queue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -149,6 +154,14 @@ type Command struct {
 	// every other kind.
 	Payload        map[string]any
 	CausationDepth int
+	// ResumeFrom is the path of the WAIT a suspended run parked on, and empty for a fresh run.
+	// The job the suspension enqueued carries it; the engine picks the run up at that action and
+	// replays what the row already records instead of acting twice.
+	ResumeFrom string
+	// RuleVersion is the rule as the suspended run knew it. A rule edited mid-wait is a different
+	// program - the recorded paths may no longer name its actions - so the resume refuses to run
+	// a mix of two rules and fails the run with a code that says what happened.
+	RuleVersion int
 }
 
 // occasion answers what makes this command's actions idempotent, reading the event when the caller
@@ -171,6 +184,10 @@ func (h RunRule) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd Command,
 ) (domain.Run, error) {
 	now := h.Clock.Now()
+
+	if cmd.ResumeFrom != "" {
+		return h.resume(ctx, actor, cmd, now)
+	}
 
 	rule, err := h.Rules.Find(ctx, cmd.RuleID)
 	if err != nil {
@@ -215,11 +232,119 @@ func (h RunRule) Execute(
 	if err := h.Runs.Finish(ctx, finished); err != nil {
 		return domain.Run{}, err
 	}
+	if finished.Status == domain.RunWaiting {
+		// Parked, not over: the suspension has already enqueued its own resume, and nothing is
+		// settled - the failure streak and the finish event belong to the run's real end.
+		return finished, nil
+	}
 
 	if err := h.settle(ctx, rule, finished, now); err != nil {
 		return domain.Run{}, err
 	}
 	return finished, nil
+}
+
+// resume picks a suspended run up where its WAIT parked it (G-09).
+//
+// The run row is the memory: its recorded results are replayed without acting - a BRANCH descends
+// the arm its recorded answer names, a performed action is not performed again - and live
+// execution begins at the WAIT the resume names. The world may have moved while the run waited,
+// and each possibility gets the honest answer: a run that is no longer WAITING was already
+// resumed, so the redelivered job is done; a rule that is gone, disabled or edited cannot
+// continue, and the run fails with a code naming which - deliberately without counting against
+// the failure streak, because none of the three is the rule's actions failing.
+func (h RunRule) resume(
+	ctx context.Context, actor appshared.ActorContext, cmd Command, now time.Time,
+) (domain.Run, error) {
+	if cmd.RunID.IsZero() {
+		return domain.Run{}, shared.ErrInternal.
+			WithDetail("automation.run_payload_incomplete").
+			WithParams(map[string]string{"field": "run_id"})
+	}
+
+	run, err := h.Runs.Find(ctx, cmd.RunID)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			// Swept by retention while the delay passed. There is nothing left to finish.
+			return domain.Run{}, nil
+		}
+		return domain.Run{}, err
+	}
+	if run.Status != domain.RunWaiting {
+		// Already resumed by an earlier delivery of this job. Done is done.
+		return run, nil
+	}
+
+	rule, err := h.Rules.Find(ctx, cmd.RuleID)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return h.orphan(ctx, domain.Rule{}, run, "automation.rule_not_found", now)
+		}
+		return domain.Run{}, err
+	}
+	if !rule.Enabled {
+		return h.orphan(ctx, rule, run, "automation.rule_not_enabled", now)
+	}
+	if cmd.RuleVersion != 0 && rule.Version != cmd.RuleVersion {
+		return h.orphan(ctx, rule, run, "automation.rule_changed_while_waiting", now)
+	}
+
+	envelope, err := h.envelope(ctx, cmd.EventID)
+	if err != nil {
+		return domain.Run{}, err
+	}
+	values := h.values(envelope, cmd, now)
+
+	actions, halted, pending := h.act(ctx, actor, rule, cmd, values, replay{
+		recorded: recordedByPath(run.ActionResults), resumeFrom: cmd.ResumeFrom,
+	})
+
+	var finished domain.Run
+	switch {
+	case pending != nil:
+		// A second WAIT further down the rule. The run parks again, on a new resume of its own.
+		if err := h.park(ctx, rule, run, cmd, pending, now); err != nil {
+			return domain.Run{}, err
+		}
+		finished = run.Suspend(run.ConditionResults, actions)
+	case halted:
+		failed := run.Fail("automation.action_failed", now)
+		failed.ConditionResults, failed.ActionResults = run.ConditionResults, actions
+		finished = failed
+	default:
+		finished = run.Complete(run.ConditionResults, actions, now)
+	}
+
+	if err := h.Runs.Finish(ctx, finished); err != nil {
+		return domain.Run{}, err
+	}
+	if finished.Status == domain.RunWaiting {
+		return finished, nil
+	}
+	if err := h.settle(ctx, rule, finished, now); err != nil {
+		return domain.Run{}, err
+	}
+	return finished, nil
+}
+
+// orphan ends a suspended run whose rule can no longer speak for it.
+//
+// Recorded and announced, so the log says why the run never finished its actions - but never
+// settled: the streak that switches a rule off counts a rule's actions failing, and "somebody
+// disabled the rule while it waited" is not that. The rule may be gone entirely, in which case
+// the failure event has no rule to name an account from and is skipped rather than invented.
+func (h RunRule) orphan(
+	ctx context.Context, rule domain.Rule, run domain.Run, code string, now time.Time,
+) (domain.Run, error) {
+	failed := run.Fail(code, now)
+	failed.ConditionResults, failed.ActionResults = run.ConditionResults, run.ActionResults
+	if err := h.Runs.Finish(ctx, failed); err != nil {
+		return domain.Run{}, err
+	}
+	if !rule.ID.IsZero() {
+		h.announceFailure(ctx, rule, failed, false, now)
+	}
+	return failed, nil
 }
 
 // decide is everything between starting the run and writing how it ended.
@@ -261,13 +386,70 @@ func (h RunRule) decide(
 		return run.Skip(conditions, now), nil
 	}
 
-	actions, stopped := h.act(ctx, actor, rule, cmd, values)
+	actions, stopped, pending := h.act(ctx, actor, rule, cmd, values, replay{})
+	if pending != nil {
+		if err := h.park(ctx, rule, run, cmd, pending, now); err != nil {
+			return domain.Run{}, err
+		}
+		return run.Suspend(conditions, actions), nil
+	}
 	if stopped {
 		failed := run.Fail("automation.action_failed", now)
 		failed.ConditionResults, failed.ActionResults = conditions, actions
 		return failed, nil
 	}
 	return run.Complete(conditions, actions, now), nil
+}
+
+// park enqueues the job that will resume a suspended run when its WAIT has passed (G-09).
+//
+// The queue's own run_at is the delay - no worker sleeps, and a restart changes nothing, because
+// the moment lives on the job row rather than in a process. The job carries what the original
+// command did plus the resume point: the queue is not a place to keep state the database has, and
+// this is exactly what finding the run again needs. The rule's version travels with it, so a rule
+// edited mid-wait is refused rather than resumed into a different program.
+func (h RunRule) park(
+	ctx context.Context, rule domain.Rule, run domain.Run, cmd Command,
+	pending *suspension, now time.Time,
+) error {
+	if h.Jobs == nil {
+		// Fail closed, and the job's retry brings the run back: a build with no queue wired
+		// cannot promise the run ever resumes, and a run parked on that promise waits for ever.
+		return shared.ErrInternal.WithDetail("automation.queue_unavailable")
+	}
+
+	payload := map[string]any{
+		"rule_id":         rule.ID.String(),
+		"trigger":         string(run.Trigger),
+		"run_id":          run.ID.String(),
+		"occasion":        cmd.occasion(),
+		"resume_from":     pending.path,
+		"rule_version":    rule.Version,
+		"causation_depth": cmd.CausationDepth,
+	}
+	if !cmd.EventID.IsZero() {
+		payload["event_id"] = cmd.EventID.String()
+	}
+	if !cmd.TriggeredBy.IsZero() {
+		payload["triggered_by"] = cmd.TriggeredBy.String()
+	}
+	if !cmd.SubjectID.IsZero() {
+		payload["subject_id"] = cmd.SubjectID.String()
+	}
+	if len(cmd.Payload) > 0 {
+		payload["payload"] = cmd.Payload
+	}
+
+	_, err := h.Jobs.Enqueue(ctx, queue.Request{
+		Kind:     queue.KindAutomationRun,
+		TenantID: run.TenantID,
+		Payload:  payload,
+		// Unique per suspension, so a redelivered job that parks the run again collapses into
+		// the resume that is already scheduled rather than scheduling a second one.
+		DedupeKey: ConsumerName + ":resume:" + run.ID.String() + ":" + pending.path,
+		RunAt:     now.Add(pending.delay),
+	})
+	return err
 }
 
 // values is what the run's expressions are told, built once for the whole run.
@@ -371,13 +553,36 @@ func (h RunRule) evaluate(
 // where a reader sees what would have been there.
 func (h RunRule) act(
 	ctx context.Context, actor appshared.ActorContext, rule domain.Rule, cmd Command,
-	values eventValues,
-) ([]domain.ActionResult, bool) {
+	values eventValues, prior replay,
+) ([]domain.ActionResult, bool, *suspension) {
 	w := &walk{
 		engine: h, actor: actor, rule: rule, occasion: cmd.occasion(), values: values,
+		replay: prior,
 	}
 	w.list(ctx, rule.Actions, "")
-	return w.results, w.halted
+	return w.results, w.halted, w.pending
+}
+
+// replay is what a resumed run already knows: the results its row recorded, and the WAIT it
+// parked on. Empty for a fresh run.
+type replay struct {
+	recorded   map[string]domain.ActionResult
+	resumeFrom string
+}
+
+// recordedByPath indexes a suspended run's results for the replay.
+func recordedByPath(results []domain.ActionResult) map[string]domain.ActionResult {
+	recorded := make(map[string]domain.ActionResult, len(results))
+	for _, result := range results {
+		recorded[result.Path] = result
+	}
+	return recorded
+}
+
+// suspension is a WAIT the walk reached: where the run parks, and for how long.
+type suspension struct {
+	path  string
+	delay time.Duration
 }
 
 // walk is one run's pass over its rule's action tree.
@@ -387,7 +592,11 @@ type walk struct {
 	rule     domain.Rule
 	occasion string
 	values   eventValues
+	replay   replay
 	results  []domain.ActionResult
+	// pending is a WAIT that parks the run: the walk stops where it stands, and what is left is
+	// neither skipped nor recorded - it is yet to run, when the resume comes back for it.
+	pending *suspension
 	// halted is a failure under `on_error: STOP` - the run will fail. ended is a STOP action - the
 	// run succeeded, because stopping early is what the rule said to do. Both skip what is left.
 	halted bool
@@ -401,6 +610,9 @@ func (w *walk) list(ctx context.Context, actions []domain.Action, parent string)
 	}
 
 	for i, action := range actions {
+		if w.pending != nil {
+			return
+		}
 		path := domain.ActionPath(parent, i)
 		result := domain.ActionResult{Index: i, Kind: action.Kind, Path: path}
 		if w.halted || w.ended {
@@ -408,6 +620,14 @@ func (w *walk) list(ctx context.Context, actions []domain.Action, parent string)
 			// actions were ever this run's to reach.
 			result.Status = domain.ActionSkipped
 			w.results = append(w.results, result)
+			continue
+		}
+		if prior, done := w.replay.recorded[path]; done {
+			// A resumed run replays what its row recorded rather than acting twice - and a
+			// recorded BRANCH descends the arm its recorded answer names, without re-evaluating a
+			// condition whose world has moved while the run waited.
+			w.results = append(w.results, prior)
+			w.descendRecorded(ctx, action, path, prior)
 			continue
 		}
 
@@ -421,16 +641,55 @@ func (w *walk) list(ctx context.Context, actions []domain.Action, parent string)
 		case domain.ActionBranch:
 			w.branch(ctx, action, path, result)
 		case domain.ActionWait:
-			// G-09's third step. Until it lands, a run that reaches a WAIT fails it with the code
-			// the write-time refusal used, so its author is sent to the milestone rather than to a
-			// typo hunt.
-			w.record(result, shared.ErrValidation.WithDetail("automation.action_not_available_yet"))
+			w.wait(action, path, result)
 		default:
 			result.IdempotencyKey = idempotencyKey(w.rule.ID, w.occasion, path)
 			w.record(result,
 				w.engine.dispatch(ctx, w.actor, w.rule, action, result.IdempotencyKey))
 		}
 	}
+}
+
+// descendRecorded follows a replayed BRANCH into the arm its recorded answer names.
+func (w *walk) descendRecorded(
+	ctx context.Context, action domain.Action, path string, prior domain.ActionResult,
+) {
+	if action.Kind != domain.ActionBranch || prior.Matched == nil {
+		return
+	}
+	branch, err := domain.ReadBranch(action.Params, path, 0)
+	if err != nil {
+		// Unreachable: the resume checked the rule's version, so the parameters are the ones the
+		// recorded walk read.
+		return
+	}
+	arm, name := branch.Then, "then"
+	if !*prior.Matched {
+		arm, name = branch.Else, "else"
+	}
+	w.list(ctx, arm, path+"/"+name)
+}
+
+// wait parks the run - or lets it pass the one WAIT the resume names as already elapsed.
+func (w *walk) wait(action domain.Action, path string, result domain.ActionResult) {
+	if path == w.replay.resumeFrom {
+		// The delay this resume is about has passed: the queue's own run_at is what measured it,
+		// which is what "resumes on time" means with no worker held.
+		result.Status = domain.ActionSucceeded
+		w.results = append(w.results, result)
+		return
+	}
+
+	delay, err := domain.WaitFor(action.Params, path)
+	if err != nil {
+		// Unreachable through the aggregate, which read the same parameters - but a delay this
+		// walk cannot read is a run it cannot promise to resume, so it fails rather than guesses.
+		w.record(result, err)
+		return
+	}
+	// The WAIT itself is not recorded yet: it succeeds when the run resumes, and until then the
+	// parked run's last written result is honestly the action before it.
+	w.pending = &suspension{path: path, delay: delay}
 }
 
 // branch evaluates a BRANCH's condition and takes the arm it says.

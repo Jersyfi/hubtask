@@ -520,6 +520,8 @@
   "automation.run_trigger_unknown": "This installation could not run that rule.",
   "automation.run_retrying": "This rule asked to be tried again after a failure.",
   "automation.run_status_unknown": "{status} is not an outcome an automation run can have.",
+  "automation.queue_unavailable": "This installation has no job queue, so a WAIT cannot schedule its resume.",
+  "automation.rule_changed_while_waiting": "The rule was edited while this run was waiting, so the run could not continue.",
   "automation.trigger_not_manual": "This rule is started by {kind}, not by hand. Only a rule with a MANUAL trigger can be run this way.",
   "automation.rule_not_enabled": "This rule is switched off. Switch it on before running it.",
   "automation.trigger_not_inbound": "This rule is started by {kind}, not by an address. Only a rule with an INBOUND_WEBHOOK trigger has one.",

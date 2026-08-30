@@ -434,7 +434,8 @@ type FinishRuleRunParams struct {
 	ID               pgtype.UUID
 }
 
-// The one statement that ends a run, whichever way it ended.
+// The one statement that ends a run, whichever way it ended - and the one that parks it on a
+// WAIT, where finished_at stays NULL because the run is not over (G-09).
 func (q *Queries) FinishRuleRun(ctx context.Context, arg FinishRuleRunParams) error {
 	_, err := q.db.Exec(ctx, finishRuleRun,
 		arg.Status,

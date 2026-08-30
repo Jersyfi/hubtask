@@ -183,7 +183,9 @@ func (h ListRuleRuns) Descriptor() usecase.Descriptor {
 			{Name: "rule_id", Kind: usecase.KindID, Description: "Narrow to one rule."},
 			{
 				Name: "status", Kind: usecase.KindString,
-				Enum: []string{"RUNNING", "SUCCEEDED", "SKIPPED", "FAILED", "ABORTED_LOOP", "THROTTLED"},
+				Enum: []string{
+					"RUNNING", "WAITING", "SUCCEEDED", "SKIPPED", "FAILED", "ABORTED_LOOP", "THROTTLED",
+				},
 				Description: "Narrow to one outcome. FAILED and ABORTED_LOOP are the two an " +
 					"operator usually wants.",
 			},

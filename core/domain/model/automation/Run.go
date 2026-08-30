@@ -30,6 +30,11 @@ const (
 	// RunRunning is a run in flight - or one whose process died. The engine writes it when the run
 	// starts, so a row left in it is a crash rather than a state anything reaches deliberately.
 	RunRunning RunStatus = "RUNNING"
+	// RunWaiting is a run parked on a WAIT action (G-09). Its results so far are written and a
+	// scheduled job holds the resume point - no worker is held while the delay passes. Its own
+	// status rather than RUNNING, because a row left in RUNNING is how a crash is recognised, and
+	// a run deliberately waiting a day must not read as one.
+	RunWaiting RunStatus = "WAITING"
 	// RunSucceeded is a run that acted. Its actions may not all have worked: `on_error: CONTINUE`
 	// finishes a run whose second action was refused, and the per-action results say so.
 	RunSucceeded RunStatus = "SUCCEEDED"
@@ -47,7 +52,7 @@ const (
 // Valid reports whether the status is one the column allows.
 func (s RunStatus) Valid() bool {
 	switch s {
-	case RunRunning, RunSucceeded, RunSkipped, RunFailed, RunAbortedLoop, RunThrottled:
+	case RunRunning, RunWaiting, RunSucceeded, RunSkipped, RunFailed, RunAbortedLoop, RunThrottled:
 		return true
 	default:
 		return false
@@ -55,8 +60,9 @@ func (s RunStatus) Valid() bool {
 }
 
 // Finished reports whether the run is over. What the engine asks before writing a result, and what
-// a reader asks before trusting `finished_at`.
-func (s RunStatus) Finished() bool { return s != RunRunning }
+// a reader asks before trusting `finished_at`. A waiting run is not over: it holds a resume point
+// and will end one way or another when its delay has passed.
+func (s RunStatus) Finished() bool { return s != RunRunning && s != RunWaiting }
 
 // ActionStatus is one action's outcome.
 type ActionStatus string
@@ -205,6 +211,23 @@ func (r Run) Skip(results []ConditionResult, at time.Time) Run {
 
 // Fail ends the run as one that could not do what its rule says.
 func (r Run) Fail(code string, at time.Time) Run { return r.end(RunFailed, code, at) }
+
+// Suspend parks the run on a WAIT, carrying everything it has decided so far.
+//
+// Deliberately not `end`: the run is not over, so `finished_at` stays empty - a reader that asks
+// Finished() before trusting it gets the honest answer - and the results written here are what a
+// person sees while the delay passes: which conditions matched, and what already happened.
+func (r Run) Suspend(conditions []ConditionResult, actions []ActionResult) Run {
+	r.ConditionResults, r.ActionResults = conditions, actions
+	r.Status, r.ErrorCode, r.FinishedAt = RunWaiting, "", nil
+	if r.ConditionResults == nil {
+		r.ConditionResults = []ConditionResult{}
+	}
+	if r.ActionResults == nil {
+		r.ActionResults = []ActionResult{}
+	}
+	return r
+}
 
 // Complete ends the run with what its actions did.
 //

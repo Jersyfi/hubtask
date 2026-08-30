@@ -731,7 +731,7 @@ paths:
             wants; `THROTTLED` and `SKIPPED` are the ordinary answers of a rule that is working.
           schema:
             type: string
-            enum: [RUNNING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+            enum: [RUNNING, WAITING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
         - name: trigger
           in: query
           required: false
@@ -5457,8 +5457,9 @@ components:
       description: >
         How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes
         it when the run starts, so a row left in it is a crash rather than a state anything reaches
-        deliberately.
-      enum: [RUNNING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+        deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written,
+        a scheduled job holds the resume point, and no worker is held while the delay passes.
+      enum: [RUNNING, WAITING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
 
     RuleConditionResult:
       type: object

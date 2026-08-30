@@ -103,16 +103,21 @@ func (r AutomationRunRepository) Finish(ctx context.Context, run domain.Run) err
 		return err
 	}
 
-	finished := run.StartedAt
+	// A parked run has no finished moment, and the column says so: NULL is what keeps a WAITING
+	// row honest about not being over (G-09). A finished run without the stamp - which the domain
+	// never produces - would fall back to when it started rather than inventing a reading here.
+	finished := pgtype.Timestamptz{}
 	if run.FinishedAt != nil {
-		finished = *run.FinishedAt
+		finished = timestampOf(*run.FinishedAt)
+	} else if run.Status.Finished() {
+		finished = timestampOf(run.StartedAt)
 	}
 
 	if err := queries.FinishRuleRun(ctx, sqlc.FinishRuleRunParams{
 		ID: id, Status: string(run.Status),
 		ConditionResults: conditions, ActionResults: actions,
 		ErrorCode:  optionalText(run.ErrorCode),
-		FinishedAt: timestampOf(finished),
+		FinishedAt: finished,
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").

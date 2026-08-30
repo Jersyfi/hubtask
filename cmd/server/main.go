@@ -1631,6 +1631,9 @@ func run() error {
 				Preferences: notificationPreferences, Jobs: jobs,
 				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			},
+			// Where a WAIT parks its resume (G-09): the suspended run and the job that brings it
+			// back commit together with the runner's transaction.
+			Jobs:       jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		},
 		Rules: postgres.NewAutomationRuleRepository(cursors),

@@ -122,13 +122,14 @@ INSERT INTO rule_run (
 );
 
 -- name: FinishRuleRun :exec
--- The one statement that ends a run, whichever way it ended.
+-- The one statement that ends a run, whichever way it ended - and the one that parks it on a
+-- WAIT, where finished_at stays NULL because the run is not over (G-09).
 UPDATE rule_run
 SET status            = sqlc.arg('status'),
     condition_results = sqlc.arg('condition_results'),
     action_results    = sqlc.arg('action_results'),
     error_code        = sqlc.narg('error_code'),
-    finished_at       = sqlc.arg('finished_at')
+    finished_at       = sqlc.narg('finished_at')
 WHERE id = sqlc.arg('id');
 
 -- name: FindRuleRun :one
