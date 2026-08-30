@@ -43,6 +43,33 @@ WHERE (
   )
   AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]));
 
+-- name: AdministratorsAlongPath :many
+-- Who administers anywhere on this path, for the retention advance warning (R-1, G-12).
+--
+-- The mirror image of MembershipsAlongPath: that one asks what one account holds, this one asks
+-- who holds something. The roles are named here rather than passed in, because "the people who can
+-- answer a warning about work that is about to be deleted" is a property of the role matrix and
+-- not a parameter a caller gets to choose - a caller that could name VIEWER would be a caller
+-- warning everybody.
+--
+-- Through a group as well as directly, on MembershipsAlongPath's reasoning: a right held through a
+-- group is not a lesser right, and an administrator who administers through one still administers.
+-- Distinct, because somebody who holds the role at two levels is one person.
+SELECT DISTINCT account_id FROM (
+  SELECT m.account_id
+  FROM membership m
+  WHERE m.account_id IS NOT NULL
+    AND m.role = ANY(sqlc.arg('roles')::text[])
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM membership m
+  JOIN account_group_member g ON g.group_id = m.group_id
+  WHERE m.group_id IS NOT NULL
+    AND m.role = ANY(sqlc.arg('roles')::text[])
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+) AS holders;
+
 -- name: SharedItemsInCollection :many
 -- The entries inside one collection that the account holds a membership on directly, or through
 -- one of its groups.

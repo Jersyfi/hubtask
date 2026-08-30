@@ -119,3 +119,53 @@ func (r MembershipRepository) SharedItemsIn(
 	}
 	return items, nil
 }
+
+// administratorRoles are the roles the retention warning treats as administrators (R-1, G-12).
+//
+// Named here rather than passed in, because "who can answer a warning about work that is about to
+// be deleted" is a property of the role matrix (domain-model.md §3.2): the two roles that shape
+// the workspace. A caller that could choose would be a caller choosing its own audience.
+var administratorRoles = []string{string(identity.RoleOwner), string(identity.RoleAdmin)}
+
+// Administrators answers who administers anywhere on the path.
+func (r MembershipRepository) Administrators(
+	ctx context.Context, path []identity.Scope,
+) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scopeIDs := make([]pgtype.UUID, 0, len(path))
+	for _, scope := range path {
+		if scope.ID.IsZero() {
+			// The tenant scope carries no identifier; the query matches it by its type.
+			continue
+		}
+		id, err := uuidOf(scope.ID)
+		if err != nil {
+			return nil, err
+		}
+		scopeIDs = append(scopeIDs, id)
+	}
+
+	rows, err := queries.AdministratorsAlongPath(ctx, sqlc.AdministratorsAlongPathParams{
+		Roles:    administratorRoles,
+		ScopeIds: scopeIDs,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the administrators: %w", err))
+	}
+
+	administrators := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		administrators = append(administrators, id)
+	}
+	return administrators, nil
+}

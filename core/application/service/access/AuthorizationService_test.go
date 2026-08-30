@@ -58,6 +58,13 @@ func (m *memberships) SharedItemsIn(_ context.Context, _, _ shared.ID) ([]shared
 	return m.shares, m.err
 }
 
+// Administrators is the reverse question (R-1). Nothing in this package asks it, and the port is
+// one interface: a fake that answered it would be inventing an audience for a test about
+// permissions.
+func (m *memberships) Administrators(context.Context, []identity.Scope) ([]shared.ID, error) {
+	return nil, m.err
+}
+
 func (m *memberships) Along(_ context.Context, _ shared.ID, path []identity.Scope) ([]identity.Membership, error) {
 	m.path = path
 	return m.held, m.err

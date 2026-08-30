@@ -11,6 +11,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
+	notification "github.com/Jersyfi/hubtask/core/application/service/notification"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -37,10 +38,25 @@ func (s *exportSpy) Export(_ context.Context, targetID shared.ID) (shared.ID, er
 
 type sweepHarness struct {
 	*purgeHarness
-	rules   *ruleStore
-	marking *markedItems
-	changes *changeLog
-	export  *exportSpy
+	rules    *ruleStore
+	marking  *markedItems
+	changes  *changeLog
+	export   *exportSpy
+	warnings *warningSpy
+}
+
+// warningSpy is the notification path, as the sweep sees it (R-1).
+type warningSpy struct {
+	sent []notification.RetentionWarning
+	err  error
+}
+
+func (w *warningSpy) Warn(_ context.Context, warning notification.RetentionWarning) error {
+	if w.err != nil {
+		return w.err
+	}
+	w.sent = append(w.sent, warning)
+	return nil
 }
 
 func newSweepHarness() *sweepHarness {
@@ -52,15 +68,16 @@ func newSweepHarness() *sweepHarness {
 			markingStore: &markingStore{},
 			pending:      map[shared.ID]repository.Candidate{},
 		},
-		changes: &changeLog{},
-		export:  &exportSpy{},
+		changes:  &changeLog{},
+		export:   &exportSpy{},
+		warnings: &warningSpy{},
 	}
 }
 
 func (h *sweepHarness) sweeper() Sweeper {
 	return Sweeper{
 		Rules: h.rules, Marking: h.marking, Holds: h.holds, Items: h.items,
-		Purger: h.purger, Changes: h.changes, Export: h.export,
+		Purger: h.purger, Changes: h.changes, Export: h.export, Warnings: h.warnings,
 		Clock: clock.Fixed(now), IDs: &idSource{}, HLC: &hlcSource{}, Batch: 100,
 	}
 }
@@ -622,5 +639,108 @@ func TestAConditionedRuleIsRefusedWhenNoEngineIsWired(t *testing.T) {
 	}
 	if len(h.marking.marked) != 0 {
 		t.Errorf("%d entries were announced anyway", len(h.marking.marked))
+	}
+}
+
+// §6's advance warning, which R-1 left refused until G-12: the people the rule names are told when
+// the entry is marked, and the message is about the entry that was marked.
+func TestTheAdvanceWarningGoesOutWithTheMarking(t *testing.T) {
+	h := newSweepHarness()
+	rule := h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{
+			BeforeDays: 7,
+			Recipients: []domain.Recipient{
+				domain.RecipientItemMembers, domain.RecipientCollectionAdmins,
+			},
+		}
+	})
+	h.marking.due = []repository.Candidate{{
+		ID: taskID, Type: work.ItemTask, Path: work.RootPath(taskID),
+		CollectionID: collectionID, HubID: hubID, AnchoredAt: now.Add(-400 * 24 * time.Hour),
+	}}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if len(h.warnings.sent) != 1 {
+		t.Fatalf("%d warnings, want the one marked entry's", len(h.warnings.sent))
+	}
+	warning := h.warnings.sent[0]
+	if warning.ItemID != taskID || warning.TenantID != rule.TenantID {
+		t.Errorf("the warning is about %+v", warning)
+	}
+	if len(warning.Recipients) != 2 {
+		t.Errorf("the warning names %v", warning.Recipients)
+	}
+	// The entry's chain, because an administrator of the hub administers the collection under it.
+	if len(warning.Path) != 3 {
+		t.Errorf("the warning resolves along %+v", warning.Path)
+	}
+}
+
+// A rule that names nobody warns nobody, and that is the ordinary case: `notify` is off by default
+// and a rule with no recipients is not a rule with a silent one.
+func TestARuleThatNamesNobodyWarnsNobody(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(*domain.NewRuleInput) {})
+	h.marking.due = []repository.Candidate{{
+		ID: taskID, Type: work.ItemTask, Path: work.RootPath(taskID),
+		CollectionID: collectionID, HubID: hubID, AnchoredAt: now.Add(-400 * 24 * time.Hour),
+	}}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if len(h.warnings.sent) != 0 {
+		t.Errorf("%d warnings from a rule that asked for none", len(h.warnings.sent))
+	}
+}
+
+// An entry a hold keeps back is not warned about. It is not going, so a message saying it is would
+// be a false alarm - and the marking says `blocked_by` instead, which is what §6 asks for.
+func TestAHeldEntryIsNotWarnedAbout(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{
+			BeforeDays: 7, Recipients: []domain.Recipient{domain.RecipientTenantAdmins},
+		}
+	})
+	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}
+	h.marking.due = []repository.Candidate{{
+		ID: taskID, Type: work.ItemTask, Path: work.RootPath(taskID),
+		CollectionID: collectionID, HubID: hubID, AnchoredAt: now.Add(-400 * 24 * time.Hour),
+	}}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if len(h.warnings.sent) != 0 {
+		t.Errorf("%d warnings about an entry nothing is going to touch", len(h.warnings.sent))
+	}
+}
+
+// A build wired without the notification path marks and acts exactly as before. The marking is the
+// visibility §6 asks for first; the message is the second half, and losing it must not lose the
+// pass.
+func TestASweepWithoutTheNotificationPathStillMarks(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{
+			BeforeDays: 7, Recipients: []domain.Recipient{domain.RecipientTenantAdmins},
+		}
+	})
+	h.marking.due = []repository.Candidate{{
+		ID: taskID, Type: work.ItemTask, Path: work.RootPath(taskID),
+		CollectionID: collectionID, HubID: hubID, AnchoredAt: now.Add(-400 * 24 * time.Hour),
+	}}
+
+	sweeper := h.sweeper()
+	sweeper.Warnings = nil
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if len(h.marking.marked) == 0 {
+		t.Error("a build with no notification path stopped marking")
 	}
 }

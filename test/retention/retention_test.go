@@ -23,6 +23,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
+	notificationservice "github.com/Jersyfi/hubtask/core/application/service/notification"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	lifecycleDomain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -139,7 +140,18 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 			// The expression engine, so that a conditioned rule is evaluated here as it is in
 			// production rather than skipped by a nil (G-06).
 			Conditions: celexpression.New(),
-			Clock:      clock.Fixed(at), IDs: ids, HLC: hybridAt(at), Batch: 100,
+			// The advance warning of §6, as the server wires it (R-1, G-12): the marking and the
+			// messages to the people who can stop it commit together.
+			Warnings: notificationservice.RecordRetentionWarning{
+				Notifications: postgres.NewNotificationRepository(),
+				Accounts:      postgres.NewAccountRepository(),
+				Memberships:   postgres.NewMembershipRepository(),
+				Members:       postgres.NewItemMemberRepository(),
+				Preferences:   postgres.NewNotificationPreferenceRepository(),
+				Jobs:          noJobs{},
+				Clock:         clock.Fixed(at), IDs: ids,
+			},
+			Clock: clock.Fixed(at), IDs: ids, HLC: hybridAt(at), Batch: 100,
 		},
 	}
 }
@@ -739,6 +751,71 @@ func TestRE4AnObjectTakenOutIsNotDeleted(t *testing.T) {
 	if s.exists(t, going) {
 		t.Error("the entry nobody took out survived phase two")
 	}
+}
+
+// RE-4's other half since G-12 (R-1): the object is not only marked, the people who can take it out
+// are told - and what proves it is a notification row rather than the refusal that used to stand
+// where the message is.
+//
+// The administrator is seeded as a membership rather than assumed, because who is warned is the role
+// matrix's answer: a workspace whose only administrator holds the role at the tenant is the ordinary
+// self-hosted one, and it is exactly the case a resolution that looked only at the collection would
+// have got wrong.
+func TestRE4AWarningReachesTheAdministratorsBeforeTheAct(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	collectionID := s.collection(t)
+	going := s.completedItem(t, collectionID, 400)
+
+	if _, err := s.admin.Exec(s.ctx,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		 VALUES ($1, $2, $3, 'TENANT', 'ADMIN')`,
+		freshID(t).String(), s.tenant.String(), s.author.String()); err != nil {
+		t.Fatalf("granting the administrator role: %v", err)
+	}
+
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionHardDelete, GraceDays: graceOf(14),
+		Notify: &lifecycleDomain.Notify{
+			BeforeDays: 7,
+			Recipients: []lifecycleDomain.Recipient{lifecycleDomain.RecipientTenantAdmins},
+		},
+	})
+
+	// Phase one: the entry is marked and the warning is written in the same transaction.
+	s.sweep(t)
+
+	if at, _ := s.marking(t, going); at.IsZero() {
+		t.Fatal("the entry was not announced")
+	}
+	warned := countIn(t, s,
+		`SELECT count(*) FROM notification
+		 WHERE tenant_id = $1 AND recipient_id = $2 AND category = 'RETENTION' AND item_id = $3`,
+		s.tenant.String(), s.author.String(), going.String())
+	if warned != 1 {
+		t.Fatalf("%d warnings reached the administrator, want one", warned)
+	}
+
+	// And the second pass does not warn again: the entry is marked once, and the phase that marks
+	// it does not see it a second time. A warning per hour for a fortnight is not a warning.
+	s.sweep(t)
+	if again := countIn(t, s,
+		`SELECT count(*) FROM notification
+		 WHERE tenant_id = $1 AND category = 'RETENTION' AND item_id = $2`,
+		s.tenant.String(), going.String()); again != 1 {
+		t.Errorf("%d warnings after a second pass, want the one", again)
+	}
+}
+
+// countIn answers one count against the suite's own tenant.
+func countIn(t *testing.T, s *suite, query string, args ...any) int {
+	t.Helper()
+	var count int
+	if err := s.admin.QueryRow(s.ctx, query, args...).Scan(&count); err != nil {
+		t.Fatalf("counting: %v", err)
+	}
+	return count
 }
 
 // RE-7: the first activation of a broadly matching rule warns instead of deleting, and the share it

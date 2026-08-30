@@ -93,6 +93,16 @@ type Memberships interface {
 	// level. Trashed and archived entries are in the answer as they are stored: which of them the
 	// level shows is the item query's rule, and applying it twice is how the two come to disagree.
 	SharedItemsIn(ctx context.Context, accountID, collectionID shared.ID) ([]shared.ID, error)
+
+	// Administrators answers who administers anywhere on this path: the accounts holding a role
+	// that carries the workspace's structure, directly or through a group (R-1, G-12).
+	//
+	// The mirror image of Along - that one asks what one account holds, this one asks who holds
+	// something - and it exists for the retention advance warning, which has to reach "the
+	// collection's administrators" and "the tenant's administrators" without anybody being able to
+	// name a wider audience. Which roles those are is the role matrix's answer and not a
+	// parameter: a caller that could name VIEWER would be a caller warning everybody.
+	Administrators(ctx context.Context, path []identity.Scope) ([]shared.ID, error)
 }
 
 // Accounts is the store of people and service accounts.
