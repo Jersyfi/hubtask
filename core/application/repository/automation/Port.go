@@ -132,6 +132,30 @@ type Failures interface {
 	Disable(ctx context.Context, ruleID shared.ID, threshold int, at time.Time) (bool, error)
 }
 
+// Schedules is what one tenant's schedule pass asks (G-08, automation.md §1.1).
+//
+// Its own interface rather than three more methods on Rules, for Failures' reason: a pass that
+// fires schedules has no business being able to write a rule's definition, and the one field it
+// does move - the next moment - is not part of the definition at all.
+//
+// The tenant is the transaction's, never a parameter. A pass is opened under one tenant's scope by
+// that tenant's own poller, and nothing in this system may enumerate tenants (multi-tenancy.md
+// §2.1) - so the leader cannot see a tenant's schedules even if it wanted to.
+type Schedules interface {
+	// Due answers this tenant's enabled SCHEDULE rules whose moment has come, oldest first, at
+	// most limit of them. The bound is what turns a backlog - a worker that was down for a week -
+	// into several rounds rather than a hundred jobs in one transaction.
+	Due(ctx context.Context, at time.Time, limit int) ([]domain.Rule, error)
+
+	// NextDue is the earliest moment this tenant owes anything, and the zero time when it owes
+	// nothing - which is what lets the poller finish instead of spinning.
+	NextDue(ctx context.Context) (time.Time, error)
+
+	// SetNextRun moves one rule on. The zero time stores none, which is a rule whose recurrence is
+	// exhausted: it stays, visible and editable, and fires no more.
+	SetNextRun(ctx context.Context, id shared.ID, at time.Time) error
+}
+
 // Matching is what the dispatcher asks per event: the enabled rules whose trigger is this type.
 //
 // Narrow rather than part of Rules, for Failures' reason: a subscriber running inside the

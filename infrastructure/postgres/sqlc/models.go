@@ -493,6 +493,7 @@ type AutomationRule struct {
 	UpdatedAt    pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
 	Version      int32
+	NextRunAt    pgtype.Timestamptz
 }
 
 type BackupRun struct {

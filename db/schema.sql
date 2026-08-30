@@ -682,6 +682,9 @@ CREATE TABLE automation_rule (
   updated_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
   version     integer NOT NULL DEFAULT 1,
+  -- When a SCHEDULE rule next fires (G-08, migration 0055). NULL for the five triggers that are
+  -- not a schedule, and for a schedule whose rule is exhausted.
+  next_run_at timestamptz,
   CONSTRAINT automation_rule_run_as_fkey
     FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
 );
@@ -694,6 +697,10 @@ CREATE INDEX rule_trigger_idx ON automation_rule (tenant_id, enabled)
 CREATE INDEX rule_event_trigger_idx
   ON automation_rule (tenant_id, (trigger ->> 'kind'), (trigger ->> 'event_type'))
   WHERE deleted_at IS NULL AND enabled = true;
+-- What the schedule pass asks: which of this tenant's rules are due. `backup_schedule_due_idx`'s
+-- shape, because it is the same question - the tenant predicate is row level security's.
+CREATE INDEX automation_rule_due_idx ON automation_rule (next_run_at)
+  WHERE enabled AND deleted_at IS NULL AND next_run_at IS NOT NULL;
 
 CREATE TABLE rule_run (
   id           uuid PRIMARY KEY,

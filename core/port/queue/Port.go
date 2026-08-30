@@ -183,6 +183,15 @@ const (
 	// and the event, so nothing collapses; with one it names the rule and the expression's value,
 	// and the queue's existing uniqueness does the rest.
 	KindAutomationRun Kind = "automation.run"
+
+	// KindAutomationSchedule is one tenant's wake-up for its SCHEDULE rules (G-08).
+	//
+	// The same shape as the reminders', the recurrence materialisation's and the backup schedules':
+	// one job per tenant, rescheduling itself to the moment the tenant next owes something, seeded
+	// by the write that made something owed. Nothing in this system may enumerate tenants
+	// (multi-tenancy.md §2.1), so a scheduler cannot create one job per tenant even if it wanted
+	// to - and a tenant with no scheduled rule has no row at all.
+	KindAutomationSchedule Kind = "automation.schedule"
 )
 
 func (k Kind) String() string { return string(k) }

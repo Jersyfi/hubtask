@@ -15,17 +15,20 @@
 -- says the opposite.
 INSERT INTO automation_rule (
   id, tenant_id, scope_type, scope_id, name, enabled, run_as,
-  trigger, conditions, actions, throttle, on_error, created_by, created_at, updated_at, version
+  trigger, conditions, actions, throttle, on_error, created_by, created_at, updated_at, version,
+  next_run_at
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('scope_type'), sqlc.narg('scope_id'),
   sqlc.arg('name'), sqlc.arg('enabled'), sqlc.arg('run_as'),
   sqlc.arg('trigger'), sqlc.arg('conditions'), sqlc.arg('actions'), sqlc.arg('throttle'),
-  sqlc.arg('on_error'), sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
+  sqlc.arg('on_error'), sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
+  sqlc.narg('next_run_at')
 );
 
 -- name: FindAutomationRule :one
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
-       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at
 FROM automation_rule
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -36,7 +39,8 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- is what an absent query parameter means, and a second statement differing in one predicate is a
 -- second place for the `deleted_at` guard to be forgotten.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
-       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND (sqlc.narg('enabled')::boolean IS NULL OR enabled = sqlc.narg('enabled')::boolean)
@@ -62,6 +66,9 @@ SET scope_type = sqlc.arg('scope_type'),
     throttle   = sqlc.arg('throttle'),
     on_error   = sqlc.arg('on_error'),
     updated_at = sqlc.arg('updated_at'),
+    -- An edit may change the recurrence rule, so the moment is recomputed with the definition
+    -- rather than left pointing at an occurrence of a rule that no longer exists.
+    next_run_at = sqlc.narg('next_run_at'),
     version    = version + 1
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND version = sqlc.arg('expected_version');
 
@@ -202,10 +209,49 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true
 -- collections, and the event carries a subject rather than a path - so the narrowing is the
 -- subscriber's, against what it can resolve, rather than a join this statement cannot make.
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
-       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
   AND trigger ->> 'kind' = 'EVENT'
   AND trigger ->> 'event_type' = sqlc.arg('event_type')::text
 ORDER BY id;
+
+-- The SCHEDULE trigger (G-08, decision 5 of milestone-0.5.0). The same three statements
+-- `backup_schedule` has, and deliberately: this installation has one schedule engine, and a second
+-- shape for reading a due moment would be a second engine in everything but name.
+
+-- name: DueAutomationRules :many
+-- What one pass claims: this tenant's rules whose moment has come, oldest first.
+--
+-- The tenant is row level security's, not a parameter (ADR-0010). `FOR UPDATE SKIP LOCKED` is
+-- deliberately absent: the pass runs inside one tenant's own poller, of which there is one job, and
+-- the poller holds a row lock on that job before it reads - so two passes for one tenant cannot
+-- overlap, and a lock here would be a second answer to a question the queue has answered.
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at
+FROM automation_rule
+WHERE deleted_at IS NULL AND enabled = true
+  AND next_run_at IS NOT NULL AND next_run_at <= sqlc.arg('due')
+ORDER BY next_run_at
+LIMIT sqlc.arg('page_size');
+
+-- name: NextDueAutomationRule :one
+-- The earliest moment this tenant owes anything, and NULL when it owes nothing - which is what
+-- lets the poller finish instead of spinning. `max`/`min` over the partial index rather than a
+-- LIMIT 1 with an ORDER BY, so an empty result is a row with NULL rather than no row at all.
+SELECT min(next_run_at)::timestamptz AS next_run_at
+FROM automation_rule
+WHERE deleted_at IS NULL AND enabled = true AND next_run_at IS NOT NULL;
+
+-- name: SetAutomationRuleNextRun :exec
+-- Moves one rule on to its next moment.
+--
+-- The version is deliberately untouched. Nobody read this rule in order to advance it - a pass did,
+-- because a moment arrived - and bumping the version would make every occurrence look like an edit
+-- to a client holding an optimistic lock.
+UPDATE automation_rule
+SET next_run_at = sqlc.narg('next_run_at')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;

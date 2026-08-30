@@ -210,11 +210,19 @@ type Rule struct {
 	// FailureCount is the run of failed runs. A run of them disables the rule by itself, and
 	// enabling it by hand clears the count.
 	FailureCount int
-	CreatedBy    shared.ID
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	DeletedAt    *time.Time
-	Version      int
+	// NextRunAt is when a SCHEDULE rule next fires, and the zero time for every other kind and for
+	// a schedule whose rule is exhausted (G-08).
+	//
+	// Stored rather than derived on every pass, for the reason `backup_schedule` stores one: a
+	// poller that re-expanded every rule would pay a library call for every rule that is not due.
+	// It is not part of the definition an edit sends - it is what this installation worked out
+	// from the definition - which is why NewRule neither takes it nor sets it.
+	NextRunAt time.Time
+	CreatedBy shared.ID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt *time.Time
+	Version   int
 }
 
 // NewRuleInput is what writing a rule needs.
@@ -667,6 +675,14 @@ func (r Rule) Disable(now time.Time) Rule {
 	r.Version++
 	return r
 }
+
+// Anchor is what a SCHEDULE rule's recurrence counts from: when the rule was written.
+//
+// The same answer `backup_schedule` gives, and for the same reason. An RRULE without a DTSTART is
+// meaningless, and the only instant a rule carries that nobody chose arbitrarily is its own
+// creation - so `FREQ=WEEKLY` written on a Tuesday means Tuesdays, which is what somebody writing
+// it without a BYDAY expects.
+func (r Rule) Anchor() time.Time { return r.CreatedAt }
 
 // IsDeleted reports whether the rule is in the soft-deleted state its runs outlive.
 func (r Rule) IsDeleted() bool { return r.DeletedAt != nil }

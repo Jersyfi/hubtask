@@ -19,6 +19,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/port/recurrence"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -72,18 +74,66 @@ type Accounts interface {
 // One struct rather than seven sets of the same six fields, for the reason the webhook writer is
 // one: the six use cases are one aggregate's writers, and a field added to the set is added once.
 type Writer struct {
-	Rules       repository.Rules
+	Rules repository.Rules
+	// Schedules moves a rule's next moment when it is switched on. Separate from Rules for the
+	// port's reason: advancing a moment is not editing a definition, and it deliberately does not
+	// bump the version.
+	Schedules   repository.Schedules
 	Accounts    Accounts
 	Memberships identityrepo.Memberships
 	Catalogue   Catalogue
 	// Conditions compiles a rule's expressions when it is written. A port, so that the use case
 	// never learns which engine evaluates one (ADR-0009, rule 1).
 	Conditions expression.Compiler
+	// Expander works out when a SCHEDULE rule next fires, at the moment it is written (G-08).
+	//
+	// Here rather than only in the pass, for two reasons. A rule this installation cannot expand is
+	// refused to its author while they are looking at it rather than failing at three in the
+	// morning; and the moment has to be stored before the poller can find the rule at all.
+	Expander recurrence.Expander
+	// Jobs seeds this tenant's schedule poller. The write that makes something owed is what starts
+	// it, because nothing may enumerate tenants (multi-tenancy.md §2.1).
+	Jobs       Queue
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+}
+
+// schedule works out a rule's next moment and puts it on the rule.
+//
+// Called wherever a definition is written, so that the stored moment always belongs to the stored
+// rule. It answers the zero time for the five triggers that are not a schedule, which is what makes
+// it safe to call unconditionally.
+func (w Writer) schedule(rule domain.Rule, after time.Time) (domain.Rule, error) {
+	next, err := NextOccurrence(w.Expander, rule, after)
+	if err != nil {
+		return domain.Rule{}, err
+	}
+	rule.NextRunAt = next
+	return rule, nil
+}
+
+// wake seeds or pulls forward this tenant's schedule poller.
+//
+// One job per tenant, rescheduling itself, seeded by the write that made something owed - the shape
+// every per-tenant job in this system has. `Enqueue`'s conflict clause pulls an existing wake-up
+// forward rather than adding a row, so a tenant with forty scheduled rules still has one job.
+//
+// Only for a rule that is *on*. A rule is written switched off, so nothing is owed until somebody
+// enables it - and a poller seeded for a rule that does not act would wake up to find nothing due.
+func (w Writer) wake(ctx context.Context, tenantID shared.ID, rule domain.Rule) error {
+	if w.Jobs == nil || !rule.Enabled || rule.NextRunAt.IsZero() {
+		return nil
+	}
+	_, err := w.Jobs.Enqueue(ctx, queue.Request{
+		Kind:      queue.KindAutomationSchedule,
+		TenantID:  tenantID,
+		DedupeKey: tenantID.String(),
+		RunAt:     rule.NextRunAt.UTC(),
+	})
+	return err
 }
 
 // CreateRule writes a rule, switched off.
@@ -154,6 +204,14 @@ func (h CreateRule) Execute(
 	}
 
 	if err := w.authorizeWrite(ctx, actor, rule, RuleCreatedAction); err != nil {
+		return domain.Rule{}, err
+	}
+
+	// A rule is written switched off, so nothing is owed yet - but the moment is worked out now
+	// all the same, because this is where a recurrence this installation cannot read is refused to
+	// the person who wrote it.
+	rule, err = w.schedule(rule, w.Clock.Now())
+	if err != nil {
 		return domain.Rule{}, err
 	}
 
@@ -266,8 +324,19 @@ func (h UpdateRule) Execute(
 		return domain.Rule{}, err
 	}
 
+	// Recomputed with the definition rather than carried over: an edit may change the recurrence
+	// rule or its zone, and a moment left pointing at an occurrence of a rule that no longer exists
+	// is a rule that fires at a time nobody chose.
+	wanted, err = w.schedule(wanted, w.Clock.Now())
+	if err != nil {
+		return domain.Rule{}, err
+	}
+
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return w.Rules.Update(ctx, wanted, expectedOr(cmd.ExpectedVersion, current.Version))
+		if err := w.Rules.Update(ctx, wanted, expectedOr(cmd.ExpectedVersion, current.Version)); err != nil {
+			return err
+		}
+		return w.wake(ctx, actor.TenantID, wanted)
 	})
 	if err != nil {
 		return domain.Rule{}, err
@@ -358,8 +427,32 @@ func (w Writer) setEnabled(
 	}
 
 	now := w.Clock.Now()
+	if enabled {
+		// Recomputed from *now* rather than fired from wherever the rule was left. A schedule that
+		// has been switched off for a week owes nothing for that week: "from now on, at three in
+		// the morning" is what somebody switching a rule on means, and firing the occurrences it
+		// missed while it was off would be a burst nobody asked for.
+		if rule, err = w.schedule(rule, now); err != nil {
+			return domain.Rule{}, err
+		}
+	}
+
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return w.Rules.SetEnabled(ctx, id, enabled, rule.Version, now)
+		if err := w.Rules.SetEnabled(ctx, id, enabled, rule.Version, now); err != nil {
+			return err
+		}
+		if !enabled {
+			return nil
+		}
+		if w.Schedules == nil {
+			return nil
+		}
+		if err := w.Schedules.SetNextRun(ctx, id, rule.NextRunAt); err != nil {
+			return err
+		}
+		// The write that makes something owed seeds its own tenant's poller. Enabling is that
+		// write: until now the rule was stored and doing nothing.
+		return w.wake(ctx, actor.TenantID, rule.Enable(now))
 	})
 	if err != nil {
 		return domain.Rule{}, err

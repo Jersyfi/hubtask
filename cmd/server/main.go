@@ -422,12 +422,19 @@ func run() error {
 	}
 	ruleWriter := automationservice.Writer{
 		Rules:       postgres.NewAutomationRuleRepository(cursors),
+		Schedules:   postgres.NewAutomationRuleRepository(cursors),
 		Accounts:    accounts,
 		Memberships: postgres.NewMembershipRepository(),
 		Catalogue:   ruleCatalogue,
 		// The one place the expression engine is constructed. A rule's conditions are compiled
 		// when it is written, so a mistake reaches its author rather than a log (G-06, ADR-0009).
 		Conditions: celexpression.New(),
+		// The one schedule engine this installation has (ADR-0008, decision 5 of the 0.5.0
+		// backlog). A SCHEDULE rule's next moment is worked out here, so a recurrence this build
+		// cannot read is refused to its author rather than failing on a worker (G-08).
+		Expander: recurrenceadapter.New(),
+		Jobs:     jobs,
+
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -1616,6 +1623,14 @@ func run() error {
 		},
 		queueport.KindBackupSchedule: worker.BackupScheduling{
 			Pass: backupPass, Fallback: cfg.Retention.Interval,
+		},
+		queueport.KindAutomationSchedule: worker.AutomationScheduling{
+			Pass: automationservice.SchedulePass{
+				Schedules: postgres.NewAutomationRuleRepository(cursors),
+				Jobs:      jobs, Expander: recurrenceadapter.New(),
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			},
+			Fallback: cfg.Retention.Interval,
 		},
 		queueport.KindAuditExport:    worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},

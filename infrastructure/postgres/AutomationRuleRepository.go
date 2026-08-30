@@ -40,7 +40,10 @@ func NewAutomationRuleRepository(cursors security.CursorCodec) AutomationRuleRep
 	return AutomationRuleRepository{cursors: cursors}
 }
 
-var _ repository.Rules = AutomationRuleRepository{}
+var (
+	_ repository.Rules     = AutomationRuleRepository{}
+	_ repository.Schedules = AutomationRuleRepository{}
+)
 
 func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) error {
 	queries, err := queriesFrom(ctx)
@@ -83,6 +86,7 @@ func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) 
 		OnError:    string(rule.OnError),
 		CreatedBy:  createdBy,
 		CreatedAt:  timestampOf(rule.CreatedAt),
+		NextRunAt:  scheduleMoment(rule.NextRunAt),
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -205,6 +209,7 @@ func (r AutomationRuleRepository) Update(
 		Throttle:   documents.throttle,
 		OnError:    string(rule.OnError),
 		UpdatedAt:  timestampOf(rule.UpdatedAt),
+		NextRunAt:  scheduleMoment(rule.NextRunAt),
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
 		ExpectedVersion: int32(expectedVersion),
 	})
@@ -387,6 +392,96 @@ func documentsOf(rule domain.Rule) (ruleDocuments, error) {
 // Defensively, although every document in the column was written by a validated aggregate: the row
 // outlives the release that wrote it, and a shape this build cannot read has to be an error a log
 // names rather than a zero value that quietly changes what a rule does.
+// Due answers this tenant's rules whose moment has come (G-08).
+//
+// The tenant is the transaction's, never a parameter: the pass is opened under one tenant's scope
+// by that tenant's own poller, and nothing may enumerate tenants (rule 3, multi-tenancy.md §2.1).
+func (r AutomationRuleRepository) Due(
+	ctx context.Context, at time.Time, limit int,
+) ([]domain.Rule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.DueAutomationRules(ctx, sqlc.DueAutomationRulesParams{
+		Due: timestampOf(at),
+		//nolint:gosec // G115: the caller's batch, bounded by the pass's own constant
+		PageSize: int32(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the due automation rules: %w", err))
+	}
+
+	rules := make([]domain.Rule, 0, len(rows))
+	for _, row := range rows {
+		rule, err := automationRuleFrom(sqlc.ListAutomationRulesRow(row))
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
+// NextDue answers the earliest moment this tenant owes anything, and the zero time when it owes
+// nothing - which is what lets the poller finish rather than spin.
+func (r AutomationRuleRepository) NextDue(ctx context.Context) (time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	next, err := queries.NextDueAutomationRule(ctx)
+	if err != nil {
+		if IsNoRows(err) {
+			return time.Time{}, nil
+		}
+		return time.Time{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the next due automation rule: %w", err))
+	}
+	return timeFrom(next), nil
+}
+
+// SetNextRun moves one rule on to its next moment, or to none.
+//
+// The version is deliberately untouched: nobody read this rule in order to advance it, and bumping
+// it would make every occurrence look like an edit to a client holding an optimistic lock.
+func (r AutomationRuleRepository) SetNextRun(
+	ctx context.Context, id shared.ID, at time.Time,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.SetAutomationRuleNextRun(ctx, sqlc.SetAutomationRuleNextRunParams{
+		ID: key, NextRunAt: scheduleMoment(at),
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("moving automation rule %s to its next moment: %w", id, err))
+	}
+	return nil
+}
+
+// scheduleMoment writes the zero time as NULL. A rule with no next moment is a rule whose
+// recurrence is exhausted or one that is not a schedule at all, and the year one would be neither.
+func scheduleMoment(at time.Time) pgtype.Timestamptz {
+	if at.IsZero() {
+		return pgtype.Timestamptz{}
+	}
+	return timestampOf(at)
+}
+
 func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
@@ -450,6 +545,7 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 		},
 		OnError:      domain.OnError(row.OnError),
 		FailureCount: int(row.FailureCount),
+		NextRunAt:    timeFrom(row.NextRunAt),
 		CreatedBy:    createdBy,
 		CreatedAt:    timeFrom(row.CreatedAt),
 		UpdatedAt:    timeFrom(row.UpdatedAt),
