@@ -59,14 +59,17 @@ SELECT DISTINCT account_id FROM (
   SELECT m.account_id
   FROM membership m
   WHERE m.account_id IS NOT NULL
-    AND m.role = ANY(sqlc.arg('roles')::text[])
+    -- Cast, because `role` is the enum `membership_role` and the argument is text: comparing the
+    -- two directly is an operator PostgreSQL does not have, and the enum is what the column has
+    -- been since the first migration.
+    AND m.role::text = ANY(sqlc.arg('roles')::text[])
     AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
   UNION
   SELECT g.account_id
   FROM membership m
   JOIN account_group_member g ON g.group_id = m.group_id
   WHERE m.group_id IS NOT NULL
-    AND m.role = ANY(sqlc.arg('roles')::text[])
+    AND m.role::text = ANY(sqlc.arg('roles')::text[])
     AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
 ) AS holders;
 
