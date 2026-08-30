@@ -43,6 +43,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 | Templates | `/templates` | CRUD, `:instantiate` |
 | Views | `/views` | CRUD, `:share`, `:export` |
 | Jumble | `/jumble/entries` | `GET`, `POST`, `:convert`, `:dismiss` |
+| Jumble intake | `/jumble/intake:rotate-token`, `/jumble/inbound/{token}` | `POST` (the address, shown once), `POST` (public, token-protected, capped). The intake authenticates the tenant rather than a person (G-10), on the discipline `/automation/inbound/{token}` set: every reason not to serve answers the same 404 |
 | Trash/archive | `/trash`, `/archive` | `GET`, `:restore`, `:purge` |
 | Automation | `/automation/rules`, `/automation/runs` | CRUD, `:test`, `:trigger`, `:replay` |
 | Webhooks | `/integrations/webhooks`, `/integrations/webhooks/{id}/deliveries` | CRUD, `:replay`, `:rotate-secret` |

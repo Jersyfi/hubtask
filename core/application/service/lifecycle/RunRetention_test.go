@@ -759,3 +759,27 @@ func TestARunWithNothingToSweepTheJumbleWithIsRefused(t *testing.T) {
 		t.Errorf("detail %q", got)
 	}
 }
+
+// And the pass does not come straight back for a tenant it cannot sweep. The trash's blocked rows
+// may go one at a time as holds are lifted from them; a tenant-wide hold blocks every entry until
+// somebody lifts it, and a pass reporting a full batch would spin at the continuation interval for
+// as long as the hold stands.
+func TestAHeldInboxDoesNotBringTheJobStraightBack(t *testing.T) {
+	h := newRunHarness()
+	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}
+	for range h.purger.BatchSize + 5 {
+		h.inbox.rows = append(h.inbox.rows, inboxRow{receivedAt: now.Add(-200 * 24 * time.Hour)})
+	}
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if !h.run.Exhausted(outcome) {
+		t.Error("a held inbox reported itself unfinished, and the job would spin on it")
+	}
+	if outcome.Blocked[BlockedByLegalHold] == 0 {
+		t.Error("the held entries were passed over in silence")
+	}
+}

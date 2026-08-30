@@ -57,7 +57,7 @@ graph LR
 | `MANUAL` | A button, or a call through the API or an MCP tool | For "on demand" flows |
 | `JUMBLE_ENTRY` | A new arrival in the jumble | The basis for automatic conversion |
 
-**Five of the six produce into one engine; none of them is a second execution path** (G-08). What a
+**All six produce into one engine; none of them is a second execution path** (G-08, and `JUMBLE_ENTRY` with the jumble in G-10). What a
 trigger decides is *when* a run starts and what makes it one occasion; everything after that — the
 loop bound, the throttle, the conditions, the actions and the run log — is §2's, identically for all
 of them. The run records which kind started it, on the row rather than resolved from the rule at
@@ -398,7 +398,7 @@ is working).
 | An action naming `SEND_WEBHOOK`, `HTTP_REQUEST`, `WAIT`, `BRANCH`, `STOP`, or an AI kind | Refused by name, with a code that says "not built yet" rather than "no such action" — the difference is whether its author goes looking for a typo or for the milestone |
 | A parameter the action's use case does not declare | Refused, exactly as the call itself would refuse it (C-07). A rule saved with a misspelled `parent_id` fails at a moment nobody is watching |
 | A **required** parameter the rule does not carry | Accepted. A rule supplies some parameters and the run supplies the rest — the entry an event is about is not a value a rule can carry — so demanding them at write time would refuse every correct rule. The run is where the whole input exists, and the registry validates it in full there |
-| A **trigger** of any of the six kinds | Accepted, with the fields its own kind needs and no others. Five of the six have an engine (G-08); `JUMBLE_ENTRY` is stored and waits for the jumble (G-10), and every newly written rule is switched off whatever its kind |
+| A **trigger** of any of the six kinds | Accepted, with the fields its own kind needs and no others. All six have an engine — five since G-08 and `JUMBLE_ENTRY` since G-10, where the arrival that fires it exists — and every newly written rule is switched off whatever its kind |
 | A `SCHEDULE` whose **recurrence** this installation cannot expand | Refused at the write, with the field named. It would otherwise fail at a moment nobody is watching. A rule whose recurrence is merely *exhausted* is accepted and stored with no next moment: it may be perfectly good and simply over |
 | An **address** on a rule whose trigger is not `INBOUND_WEBHOOK` | Refused by name. A credential that opens nothing, handed out as though it worked, is the same failure as a condition that is stored and ignored |
 

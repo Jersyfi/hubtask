@@ -387,13 +387,20 @@ func (h RunRetention) sweepInbox(ctx context.Context, started time.Time) (Outcom
 		return Outcome{}, err
 	}
 	if _, held := holds.Blocking(domain.Target{}); held {
-		outcome := Outcome{Matched: matched, Blocked: map[string]int{domain.BlockedByLegalHold: matched}}
+		blocked := map[string]int{domain.BlockedByLegalHold: matched}
 		if err := h.Runs.Finish(ctx, runID, repository.RunResult{
-			Matched: outcome.Matched, Blocked: outcome.Blocked,
+			Matched: matched, Blocked: blocked,
 			Status: repository.RunSucceeded, FinishedAt: h.Clock.Now(),
 		}); err != nil {
-			return outcome, err
+			return Outcome{Blocked: blocked}, err
 		}
+		// The log row carries what was due; the outcome carries none of it. Matched is the one
+		// number that decides whether the job comes straight back (Exhausted), and under a hold
+		// there is nothing to come back for: the trash's blocked rows may go one at a time as
+		// holds are lifted from them, but a tenant-wide hold blocks every entry until somebody
+		// lifts it, and a pass reporting a full batch would spin at the continuation interval for
+		// as long as the hold stands.
+		outcome := Outcome{Blocked: blocked}
 		h.report(ctx, domain.KindJumbleEntry, outcome, h.Clock.Now().Sub(started))
 		return outcome, nil
 	}
