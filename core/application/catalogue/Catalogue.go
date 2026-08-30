@@ -188,6 +188,7 @@ func Descriptors() []usecase.Descriptor {
 		automationservice.ListRuleRuns{}.Descriptor(),
 		automationservice.GetRuleRun{}.Descriptor(),
 		automationservice.HttpRequest{}.Descriptor(),
+		automationservice.TestRule{}.Descriptor(),
 	}
 }
 

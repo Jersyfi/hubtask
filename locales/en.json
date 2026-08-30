@@ -523,6 +523,8 @@
   "automation.queue_unavailable": "This installation has no job queue, so a WAIT cannot schedule its resume.",
   "automation.rule_changed_while_waiting": "The rule was edited while this run was waiting, so the run could not continue.",
   "automation.http_request_invalid": "That HTTP request cannot be sent as written.",
+  "automation.test_source_required": "Name exactly one thing to test: a stored rule by rule_id, or a definition under rule.",
+  "automation.test_event_type_required": "A dry run needs a sample event with a type.",
   "automation.http_method_required": "An HTTP request needs a method.",
   "automation.http_method_unknown": "That is not a method an outbound call may use. Use GET, POST, PUT, PATCH or DELETE.",
   "automation.http_url_required": "An HTTP request needs an address.",

@@ -4579,6 +4579,52 @@ type RuleScope struct {
 // RuleScopeType defines model for RuleScope.Type.
 type RuleScopeType string
 
+// RuleTest A dry run's input: exactly one of `rule_id` (a stored rule) and `rule` (a definition you are about to save), plus the sample event to evaluate it against.
+type RuleTest struct {
+	// Payload The body an inbound delivery would have carried, as the CEL `payload` variable reads it. For testing an `INBOUND_WEBHOOK` rule's conditions.
+	Payload *map[string]interface{} `json:"payload,omitempty"`
+	Rule    *AutomationRuleCreate   `json:"rule,omitempty"`
+
+	// RuleId A stored rule to test.
+	RuleId *openapi_types.UUID `json:"rule_id,omitempty"`
+
+	// SampleEvent The sample event, as the CEL `event` variable will read it.
+	SampleEvent *RuleTestEvent `json:"sample_event,omitempty"`
+}
+
+// RuleTestAction One action of the rule, with whether it would have run. Unlike a real run's log, both arms of every branch appear - the dry run answers "and what if it had not" as well.
+type RuleTestAction struct {
+	// ErrorCode Present when a branch's condition could not be evaluated for the sample.
+	ErrorCode *string `json:"error_code,omitempty"`
+	Kind      string  `json:"kind"`
+
+	// Matched How a `BRANCH`'s condition answered the sample, present only on a branch.
+	Matched  *bool  `json:"matched,omitempty"`
+	Path     string `json:"path"`
+	WouldRun bool   `json:"would_run"`
+}
+
+// RuleTestEvent The sample event, as the CEL `event` variable will read it.
+type RuleTestEvent struct {
+	// Payload The event's payload document.
+	Payload *map[string]interface{} `json:"payload,omitempty"`
+
+	// Subject What the event is about, e.g. `item/018f...`. Naming a real entry lets a condition that reads `item` resolve it - a read, never a write.
+	Subject *string `json:"subject,omitempty"`
+
+	// Type The event type, e.g. `de.hubtask.work.item.updated.v1`.
+	Type string `json:"type"`
+}
+
+// RuleTestResult defines model for RuleTestResult.
+type RuleTestResult struct {
+	Actions          []RuleTestAction      `json:"actions"`
+	ConditionResults []RuleConditionResult `json:"condition_results"`
+
+	// Matched Whether every condition held - whether a real run would have acted at all.
+	Matched bool `json:"matched"`
+}
+
 // RuleThrottle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
 type RuleThrottle struct {
 	// DedupeKeyExpr An expression whose value collapses runs that mean the same thing. Refused while it is non-empty, with the conditions and for their reason: the language arrives with the engine that evaluates it.
@@ -6060,6 +6106,9 @@ type CreateRuleJSONRequestBody = AutomationRuleCreate
 // UpdateRuleJSONRequestBody defines body for UpdateRule for application/json ContentType.
 type UpdateRuleJSONRequestBody = AutomationRuleUpdate
 
+// TestRuleJSONRequestBody defines body for TestRule for application/json ContentType.
+type TestRuleJSONRequestBody = RuleTest
+
 // CreateBackupScheduleJSONRequestBody defines body for CreateBackupSchedule for application/json ContentType.
 type CreateBackupScheduleJSONRequestBody = BackupSchedule
 
@@ -6299,6 +6348,9 @@ type ServerInterface interface {
 	// TriggerRuleManually Run a rule now
 	// (POST /automation/rules/{ruleId}:trigger)
 	TriggerRuleManually(w http.ResponseWriter, r *http.Request, ruleId RuleId, params TriggerRuleManuallyParams)
+	// TestRule Dry-run a rule against a sample event
+	// (POST /automation/rules:test)
+	TestRule(w http.ResponseWriter, r *http.Request)
 	// ListRuleRuns What the rules have done
 	// (GET /automation/runs)
 	ListRuleRuns(w http.ResponseWriter, r *http.Request, params ListRuleRunsParams)
@@ -7538,6 +7590,20 @@ func (siw *ServerInterfaceWrapper) TriggerRuleManually(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TriggerRuleManually(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestRule operation middleware
+func (siw *ServerInterfaceWrapper) TestRule(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestRule(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13413,6 +13479,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:test", wrapper.TestRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/inbound/{token}", wrapper.StartInboundRun)

@@ -472,7 +472,89 @@ func (c *RestController) GetRuleRun(
 	})
 }
 
-const httpRequestUseCase = "HttpRequest"
+const (
+	httpRequestUseCase = "HttpRequest"
+	testRuleUseCase    = "TestRule"
+)
+
+// TestRule answers POST /automation/rules:test.
+//
+//nolint:contextcheck // the closure carries the request's own context exactly as every sibling does
+func (c *RestController) TestRule(w http.ResponseWriter, r *http.Request) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.RuleTest
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+
+		in := usecase.Input{}
+		if body.RuleId != nil {
+			in["rule_id"] = body.RuleId.String()
+		}
+		if body.Rule != nil {
+			rule := map[string]any{
+				"name":    body.Rule.Name,
+				"scope":   scopeInput(body.Rule.Scope),
+				"run_as":  body.Rule.RunAs.String(),
+				"trigger": triggerInput(body.Rule.Trigger),
+				"actions": actionsInput(body.Rule.Actions),
+			}
+			if body.Rule.Conditions != nil {
+				rule["conditions"] = conditionsInput(*body.Rule.Conditions)
+			}
+			if body.Rule.Throttle != nil {
+				rule["throttle"] = throttleInput(*body.Rule.Throttle)
+			}
+			if body.Rule.OnError != nil {
+				rule["on_error"] = string(*body.Rule.OnError)
+			}
+			in["rule"] = rule
+		}
+		if body.SampleEvent != nil {
+			sample := map[string]any{"type": body.SampleEvent.Type}
+			if body.SampleEvent.Subject != nil {
+				sample["subject"] = *body.SampleEvent.Subject
+			}
+			if body.SampleEvent.Payload != nil {
+				sample["payload"] = *body.SampleEvent.Payload
+			}
+			in["sample_event"] = sample
+		}
+		if body.Payload != nil {
+			in["payload"] = map[string]any(*body.Payload)
+		}
+		return c.UseCases.Invoke(r.Context(), testRuleUseCase, actor, in)
+	}, func(out usecase.Output) {
+		matched, _ := out["matched"].(bool)
+		result := openapi.RuleTestResult{
+			Matched:          matched,
+			ConditionResults: conditionResultsResponse(out["condition_results"]),
+			Actions:          testActionsResponse(out["actions"]),
+		}
+		writeJSON(w, r, http.StatusOK, result)
+	})
+}
+
+func testActionsResponse(value any) []openapi.RuleTestAction {
+	raw, _ := value.([]any)
+	results := make([]openapi.RuleTestAction, 0, len(raw))
+	for _, entry := range raw {
+		row, _ := entry.(map[string]any)
+		result := openapi.RuleTestAction{
+			Path:     textField(row, "path"),
+			Kind:     textField(row, "kind"),
+			WouldRun: boolField(row, "would_run"),
+		}
+		if matched, present := row["matched"].(bool); present {
+			result.Matched = &matched
+		}
+		if code := textField(row, "error_code"); code != "" {
+			result.ErrorCode = &code
+		}
+		results = append(results, result)
+	}
+	return results
+}
 
 // HttpRequest answers POST /integrations/http-requests.
 //

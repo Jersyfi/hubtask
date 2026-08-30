@@ -823,6 +823,13 @@ func run() error {
 			Conditions: celexpression.New(), Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
+		automationservice.TestRule{
+			Rules:     postgres.NewAutomationRuleRepository(cursors),
+			Catalogue: ruleCatalogue, Conditions: celexpression.New(),
+			Entries: items, Containers: containers,
+			Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),

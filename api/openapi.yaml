@@ -580,6 +580,38 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /automation/rules:test:
+    post:
+      tags: [automation]
+      operationId: testRule
+      summary: Dry-run a rule against a sample event
+      description: >
+        The dry run automation.md §2 promises: a sample event in, which conditions matched and
+        which actions *would* run out - and no side effects, with the restore's dry-run
+        discipline behind the promise: nothing below this route opens a writing transaction. No
+        action dispatches, nothing is queued, and the run log records nothing.
+
+        Test either a stored rule by its identifier or a definition you are about to save - the
+        same document `POST /automation/rules` takes, checked by the same validation, so a rule
+        the dry run accepts is a rule the create will accept. Both arms of every branch are
+        reported with whether they would run, which is more than a real run's log shows: the run
+        records the path it took, and the dry run answers the question "and what if it had not".
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleTest"
+      responses:
+        "200":
+          description: What the rule would have done
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleTestResult"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /automation/rules/{ruleId}:trigger:
     parameters:
       - $ref: "#/components/parameters/RuleId"
@@ -5536,6 +5568,74 @@ components:
           type: string
           enum: [STOP, CONTINUE, RETRY]
           default: STOP
+
+    RuleTest:
+      type: object
+      description: >
+        A dry run's input: exactly one of `rule_id` (a stored rule) and `rule` (a definition you
+        are about to save), plus the sample event to evaluate it against.
+      properties:
+        rule_id:
+          type: string
+          format: uuid
+          description: A stored rule to test.
+        rule:
+          $ref: "#/components/schemas/AutomationRuleCreate"
+        sample_event:
+          $ref: "#/components/schemas/RuleTestEvent"
+        payload:
+          type: object
+          description: >
+            The body an inbound delivery would have carried, as the CEL `payload` variable reads
+            it. For testing an `INBOUND_WEBHOOK` rule's conditions.
+
+    RuleTestEvent:
+      type: object
+      description: The sample event, as the CEL `event` variable will read it.
+      required: [type]
+      properties:
+        type:
+          type: string
+          description: The event type, e.g. `de.hubtask.work.item.updated.v1`.
+        subject:
+          type: string
+          description: >
+            What the event is about, e.g. `item/018f...`. Naming a real entry lets a condition
+            that reads `item` resolve it - a read, never a write.
+        payload:
+          type: object
+          description: The event's payload document.
+
+    RuleTestResult:
+      type: object
+      required: [matched, condition_results, actions]
+      properties:
+        matched:
+          type: boolean
+          description: Whether every condition held - whether a real run would have acted at all.
+        condition_results:
+          type: array
+          items: { $ref: "#/components/schemas/RuleConditionResult" }
+        actions:
+          type: array
+          items: { $ref: "#/components/schemas/RuleTestAction" }
+
+    RuleTestAction:
+      type: object
+      description: >
+        One action of the rule, with whether it would have run. Unlike a real run's log, both arms
+        of every branch appear - the dry run answers "and what if it had not" as well.
+      required: [path, kind, would_run]
+      properties:
+        path: { type: string }
+        kind: { type: string }
+        would_run: { type: boolean }
+        matched:
+          type: boolean
+          description: How a `BRANCH`'s condition answered the sample, present only on a branch.
+        error_code:
+          type: string
+          description: Present when a branch's condition could not be evaluated for the sample.
 
     AutomationRuleUpdate:
       type: object

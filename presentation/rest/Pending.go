@@ -159,6 +159,10 @@ func (pending) DisableRule(w http.ResponseWriter, r *http.Request, _ openapi.Rul
 	notAvailable(w, r)
 }
 
+func (pending) TestRule(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) TriggerRuleManually(
 	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
 ) {
