@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**153 use cases, 133 distinct action codes, 110 of them recorded on every call.** A use case that
+**158 use cases, 138 distinct action codes, 114 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -174,6 +174,16 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `dsr.recorded` | CreateDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
 | `dsr.recorded` | ListDataSubjectRequests | `data_subject_request` | INFO | When refused |
 | `dsr.started` | UpdateDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
+
+## Jumble
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `jumble.entry_converted` | ConvertJumbleEntry | `jumble_entry` | INFO | Every time |
+| `jumble.entry_dismissed` | DismissJumbleEntry | `jumble_entry` | INFO | Every time |
+| `jumble.entry_read` | ListJumbleEntries | `jumble_entry` | INFO | When refused |
+| `jumble.entry_submitted` | SubmitJumbleEntry | `jumble_entry` | INFO | Every time |
+| `jumble.intake_rotated` | RotateJumbleIntake | `jumble_entry` | WARNING | Every time |
 
 ## Permissions
 

@@ -104,4 +104,10 @@ var readScopes = map[Type]string{
 	RuleRunStarted:  automationManage,
 	RuleRunFinished: automationManage,
 	RuleRunFailed:   automationManage,
+
+	// The jumble's arrivals and conversions are read with the entries they become: the jumble use
+	// cases declare items:read for their listings, and an event about one - which carries no raw
+	// content - says no more than the listing would.
+	JumbleEntryReceived:  itemsRead,
+	JumbleEntryConverted: itemsRead,
 }

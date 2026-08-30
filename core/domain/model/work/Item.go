@@ -149,6 +149,11 @@ type WorkItem struct {
 	// a genuine conflict with one answer (offline-sync.md §4.2).
 	ContentLanguage string
 
+	// OriginJumbleID is the jumble entry this item came from, and zero for an item that was not
+	// converted out of one (G-10). Provenance, set exactly once at the conversion and never
+	// cleared: where an item came from does not stop being true.
+	OriginJumbleID shared.ID
+
 	// RecurrenceRuleID is the series this entry is the template of, and empty for an entry that
 	// repeats never (D-04). The link is on the entry rather than the rule holding a list, because
 	// a series has exactly one template - and it is what tells a reader, without a second query,

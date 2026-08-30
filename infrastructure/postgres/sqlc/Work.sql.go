@@ -373,7 +373,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id,
+  wi.content_language, wi.recurrence_rule_id, wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
   -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
   -- because §6's point is that the object itself says what is coming.
@@ -411,6 +411,7 @@ type FindWorkItemRow struct {
 	CustomFields          []byte
 	ContentLanguage       *string
 	RecurrenceRuleID      pgtype.UUID
+	OriginJumbleID        pgtype.UUID
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
@@ -455,6 +456,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.CustomFields,
 		&i.ContentLanguage,
 		&i.RecurrenceRuleID,
+		&i.OriginJumbleID,
 		&i.RetentionPendingUntil,
 		&i.RetentionRuleID,
 		&i.RetentionAction,
@@ -878,7 +880,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id,
+  wi.content_language, wi.recurrence_rule_id, wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -939,6 +941,7 @@ type ListWorkItemsRow struct {
 	CustomFields          []byte
 	ContentLanguage       *string
 	RecurrenceRuleID      pgtype.UUID
+	OriginJumbleID        pgtype.UUID
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
@@ -1006,6 +1009,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.CustomFields,
 			&i.ContentLanguage,
 			&i.RecurrenceRuleID,
+			&i.OriginJumbleID,
 			&i.RetentionPendingUntil,
 			&i.RetentionRuleID,
 			&i.RetentionAction,
@@ -1638,6 +1642,28 @@ func (q *Queries) SetWorkItemOrderKey(ctx context.Context, arg SetWorkItemOrderK
 	return result.RowsAffected(), nil
 }
 
+const setWorkItemOrigin = `-- name: SetWorkItemOrigin :execrows
+UPDATE work_item
+SET origin_jumble_id = $1
+WHERE id = $2 AND origin_jumble_id IS NULL AND deleted_at IS NULL
+`
+
+type SetWorkItemOriginParams struct {
+	OriginJumbleID pgtype.UUID
+	ID             pgtype.UUID
+}
+
+// The provenance a conversion records (G-10): which jumble entry this item came from. Set exactly
+// once - the guard is in the WHERE, so a second writer changes nothing - and never cleared: where
+// an item came from does not stop being true.
+func (q *Queries) SetWorkItemOrigin(ctx context.Context, arg SetWorkItemOriginParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWorkItemOrigin, arg.OriginJumbleID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setWorkItemPlacement = `-- name: SetWorkItemPlacement :execrows
 UPDATE work_item SET
   parent_id     = $1::uuid,
@@ -1701,7 +1727,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id,
+  wi.content_language, wi.recurrence_rule_id, wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -1746,6 +1772,7 @@ type SubtreeOfWorkItemRow struct {
 	CustomFields          []byte
 	ContentLanguage       *string
 	RecurrenceRuleID      pgtype.UUID
+	OriginJumbleID        pgtype.UUID
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
@@ -1815,6 +1842,7 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.CustomFields,
 			&i.ContentLanguage,
 			&i.RecurrenceRuleID,
+			&i.OriginJumbleID,
 			&i.RetentionPendingUntil,
 			&i.RetentionRuleID,
 			&i.RetentionAction,

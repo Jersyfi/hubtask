@@ -163,6 +163,37 @@ func (pending) TestRule(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+// The jumble (G-10). RestController overrides them as the steps land.
+func (pending) ListJumbleEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListJumbleEntriesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, _ openapi.SubmitJumbleEntryParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ConvertJumbleEntry(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ConvertJumbleEntryParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) DismissJumbleEntry(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.DismissJumbleEntryParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) RotateJumbleIntake(w http.ResponseWriter, r *http.Request, _ openapi.RotateJumbleIntakeParams) {
+	notAvailable(w, r)
+}
+
+// The jumble's public door, overridden only when the composition root wires the intake - exactly
+// as the inbound trigger's is.
+func (pending) StartJumbleIntake(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
 func (pending) TriggerRuleManually(
 	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
 ) {

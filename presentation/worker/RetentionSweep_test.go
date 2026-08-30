@@ -101,6 +101,12 @@ type emptyHistory struct{}
 func (emptyHistory) DeleteExpired(context.Context, time.Time, int) (int, error) { return 0, nil }
 func (emptyHistory) CountExpired(context.Context, time.Time, int) (int, error)  { return 0, nil }
 
+// emptyInbox is a jumble with nothing due, wired for emptyHistory's reason exactly (G-10).
+type emptyInbox struct{}
+
+func (emptyInbox) DeleteExpired(context.Context, time.Time, int) (int, error) { return 0, nil }
+func (emptyInbox) CountExpired(context.Context, time.Time, int) (int, error)  { return 0, nil }
+
 func sweepFor(rows int, batchSize int) RetentionSweep {
 	items := make([]repository.ExpiredItem, 0, rows)
 	for i := range rows {
@@ -119,9 +125,10 @@ func sweepFor(rows int, batchSize int) RetentionSweep {
 				policy: domain.Policy{DataKind: domain.KindTrash, RetainDays: 30, MinDays: 7},
 			},
 			Runs: silentRuns{},
-			// The notification history, empty: what this file is about is when the job comes back,
-			// and a second kind with nothing in it does not change that answer.
+			// The notification history and the jumble, both empty: what this file is about is when
+			// the job comes back, and further kinds with nothing in them do not change that answer.
 			History: emptyHistory{},
+			Inbox:   emptyInbox{},
 			Purger: lifecycle.Purger{
 				Trash: noTrash{}, Expired: expiredRows{items: items}, Holds: noHolds{},
 				Removals: noRemovals{}, Events: noEvents{}, Audit: noAudit{},

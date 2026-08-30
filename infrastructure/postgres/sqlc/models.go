@@ -792,6 +792,12 @@ type JumbleEntry struct {
 	ProcessedAt  pgtype.Timestamptz
 }
 
+type JumbleIntake struct {
+	TenantID  pgtype.UUID
+	TokenHash []byte
+	RotatedAt pgtype.Timestamptz
+}
+
 type Label struct {
 	ID           pgtype.UUID
 	TenantID     pgtype.UUID

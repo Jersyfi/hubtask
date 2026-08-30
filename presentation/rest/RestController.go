@@ -69,6 +69,9 @@ type RestController struct {
 	// automation rule to call (G-08). Nil leaves the route answering the pending 404.
 	InboundRuns InboundRunStarter
 
+	// JumbleIntake serves the jumble's public webhook door, for the same reasons (G-10).
+	JumbleIntake JumbleIntakeDeliverer
+
 	// Stream serves `GET /stream`, which is not a catalogue entry either: it is a connection being
 	// held rather than an operation being invoked, so there is nothing for MCP or an automation
 	// rule to call (C-10). Nil leaves the route answering the pending 404, which is what an

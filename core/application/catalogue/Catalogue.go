@@ -27,6 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
+	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
@@ -190,6 +191,11 @@ func Descriptors() []usecase.Descriptor {
 		automationservice.HttpRequest{}.Descriptor(),
 		automationservice.TestRule{}.Descriptor(),
 		automationservice.ReplayRuleRun{}.Descriptor(),
+		jumbleservice.SubmitJumbleEntry{}.Descriptor(),
+		jumbleservice.ListJumbleEntries{}.Descriptor(),
+		jumbleservice.ConvertJumbleEntry{}.Descriptor(),
+		jumbleservice.DismissJumbleEntry{}.Descriptor(),
+		jumbleservice.RotateJumbleIntake{}.Descriptor(),
 	}
 }
 

@@ -67,7 +67,7 @@ turning out to be relevant after all.
 | `ARCHIVED_ITEM` | `archived_at` | off | The archive is permanent per F-10; deletion only on an explicit rule |
 | `COMMENT` | `created_at` | off | Configurable separately, because comments often stay relevant longer than the case |
 | `ATTACHMENT` | `created_at` | off | Storage cost; deleting the attachment leaves the item in place |
-| `JUMBLE_ENTRY` | `created_at` | 90 days | Inbox entries never converted |
+| `JUMBLE_ENTRY` | `created_at` | 90 days | Inbox entries never converted (G-10). Never converted is the predicate rather than "dismissed": an entry that became a work item is that item's provenance — `origin_jumble_id` names it — and is never due. No marking phase, for the trash's reason turned around: nobody can take an entry out of a running period, so an announcement would have no action behind it. A tenant-wide legal hold does stop the sweep, which is where this kind parts company with the notification history and the outbox — an entry is somebody's work that nobody has filed yet |
 | `NOTIFICATION` | `created_at` | 90 days | Notification history |
 | `ACTIVITY_ENTRY` | `occurred_at` | Follows the item | Item history |
 | `RULE_RUN` | `started_at` | 30 days | Automation log |

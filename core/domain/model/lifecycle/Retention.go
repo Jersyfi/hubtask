@@ -62,6 +62,10 @@ func DefaultPolicies() []Policy {
 		// due, whatever the period says - because that is a correctness rule rather than a
 		// retention one.
 		{DataKind: KindOutboxEvent, RetainDays: 7},
+		// The jumble (G-10). Ninety days, as data-retention.md §3 gives it, and no lower bound for
+		// the notification history's reason: no document sets one, and a tenant asking for a
+		// shorter inbox is asking for less of the least trusted text in the system to be kept.
+		{DataKind: KindJumbleEntry, RetainDays: 90},
 	}
 }
 

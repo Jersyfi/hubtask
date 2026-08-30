@@ -46,3 +46,17 @@ func (h InboundTokenHasher) Hash(presented string) []byte {
 	mac.Write([]byte(presented))
 	return mac.Sum(nil)
 }
+
+// jumbleIntakePepperInfo separates the jumble intake's tokens from the automation rules' (G-10).
+//
+// Its own label, so a rule's inbound token presented at the jumble intake matches nothing and
+// vice versa - the two stores share a prefix and a shape, and the purpose is what keeps them two
+// credential spaces rather than one.
+const jumbleIntakePepperInfo = "hubtask/jumble-intake/v1"
+
+// NewJumbleIntakeHasher is the same construction under the intake's own purpose label.
+func NewJumbleIntakeHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(jumbleIntakePepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}

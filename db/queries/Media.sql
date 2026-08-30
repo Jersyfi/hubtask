@@ -74,7 +74,10 @@ UPDATE media_object m SET
 FROM (
   SELECT o.id,
     (SELECT count(*) FROM item_attachment a WHERE a.media_id = o.id)
-    + (SELECT count(*) FROM work_item w WHERE w.cover_media_id = o.id) AS total
+    + (SELECT count(*) FROM work_item w WHERE w.cover_media_id = o.id)
+    -- A jumble entry's attachments are references too (G-10): an object a mail brought in must
+    -- not be reclaimed while the entry that carries it is still readable.
+    + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments)) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c

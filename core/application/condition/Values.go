@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -49,6 +50,11 @@ type Values struct {
 	Payload    map[string]any
 	Entries    Entries
 	Containers Containers
+	// JumbleID names the entry a JUMBLE_ENTRY run is about; `payload` is rendered from it, lazily
+	// and as data (G-10). Zero everywhere else - the envelope's own subject still lets an EVENT
+	// rule on a jumble event read the same names.
+	JumbleID shared.ID
+	Jumble   JumbleEntries
 }
 
 // Resolve answers one name.
@@ -61,13 +67,14 @@ func (v Values) Resolve(ctx context.Context, name string) (any, bool, error) {
 	case VarActor:
 		return actorDocument(v.Envelope), true, nil
 	case VarPayload:
-		// The body an inbound webhook delivered. Empty for an event-triggered run, which is what
-		// an absent document means rather than a failure - a condition written for one trigger and
-		// used on another asks about something that is not there.
-		if v.Payload == nil {
-			return map[string]any{}, true, nil
+		// The body an inbound webhook delivered - or, on a jumble run, the entry's fields as data
+		// (G-10). Empty for a run that has neither, which is what an absent document means rather
+		// than a failure - a condition written for one trigger and used on another asks about
+		// something that is not there.
+		if len(v.Payload) > 0 {
+			return v.Payload, true, nil
 		}
-		return v.Payload, true, nil
+		return v.jumblePayload(ctx)
 	case VarTenant:
 		// Declared and empty, as the retention pass answers it: the workspace's settings are not
 		// something this path reads, and an empty document lets a condition ask without failing.
@@ -299,4 +306,61 @@ func idAt(payload map[string]any, key string) shared.ID {
 		return ""
 	}
 	return id
+}
+
+// JumbleEntries is the read `payload` costs on a jumble run: the entry, by its identifier. Narrow
+// for the reason every lookup here is.
+type JumbleEntries interface {
+	Find(ctx context.Context, id shared.ID) (jumble.Entry, error)
+}
+
+// JumbleEntryOf reads the entry a jumble event is about out of its subject, ItemOf's shape.
+func JumbleEntryOf(envelope event.Envelope) shared.ID {
+	const prefix = "jumble_entry/"
+	if len(envelope.Subject) <= len(prefix) || envelope.Subject[:len(prefix)] != prefix {
+		return ""
+	}
+	return shared.ID(envelope.Subject[len(prefix):])
+}
+
+// jumbleEntry is the entry this activation would read `payload` from: the one named outright - a
+// JUMBLE_ENTRY run carries it - or the one the envelope is about, which is what lets an EVENT rule
+// on jumble.entry_received read the same names.
+func (v Values) jumbleEntry() shared.ID {
+	if !v.JumbleID.IsZero() {
+		return v.JumbleID
+	}
+	return JumbleEntryOf(v.Envelope)
+}
+
+// jumblePayload loads the entry and renders it as the CEL `payload` document (automation.md §1.1):
+// the fields as *data*, under the discipline ai-first.md rules - matched, never rendered as
+// instructions to anything. Lazy, like every read here: a condition that never names `payload`
+// costs no read.
+func (v Values) jumblePayload(ctx context.Context) (any, bool, error) {
+	id := v.jumbleEntry()
+	if id.IsZero() || v.Jumble == nil {
+		return map[string]any{}, true, nil
+	}
+
+	entry, err := v.Jumble.Find(ctx, id)
+	if errors.Is(err, shared.ErrNotFound) {
+		// Settled and swept between the arrival and the run. An empty document is honest: what
+		// the entry said is no longer knowable.
+		return map[string]any{}, true, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+
+	return map[string]any{
+		"id":               entry.ID.String(),
+		"channel":          entry.Channel.String(),
+		"sender":           entry.Sender,
+		"raw_subject":      entry.RawSubject,
+		"raw_body":         entry.RawBody,
+		"status":           string(entry.Status),
+		"attachment_count": len(entry.Attachments),
+		"received_at":      entry.ReceivedAt.UTC(),
+	}, true, nil
 }

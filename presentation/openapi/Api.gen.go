@@ -1289,19 +1289,19 @@ func (e ItemQuerySortNulls) Valid() bool {
 
 // Defines values for ItemType.
 const (
-	ACTIVITY    ItemType = "ACTIVITY"
-	TASK        ItemType = "TASK"
-	WORKPACKAGE ItemType = "WORK_PACKAGE"
+	ItemTypeACTIVITY    ItemType = "ACTIVITY"
+	ItemTypeTASK        ItemType = "TASK"
+	ItemTypeWORKPACKAGE ItemType = "WORK_PACKAGE"
 )
 
 // Valid indicates whether the value is a known member of the ItemType enum.
 func (e ItemType) Valid() bool {
 	switch e {
-	case ACTIVITY:
+	case ItemTypeACTIVITY:
 		return true
-	case TASK:
+	case ItemTypeTASK:
 		return true
-	case WORKPACKAGE:
+	case ItemTypeWORKPACKAGE:
 		return true
 	default:
 		return false
@@ -1329,6 +1329,90 @@ func (e JobStatus) Valid() bool {
 	case JobStatusRUNNING:
 		return true
 	case JobStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JumbleEntryChannel.
+const (
+	JumbleEntryChannelAPI          JumbleEntryChannel = "API"
+	JumbleEntryChannelEMAIL        JumbleEntryChannel = "EMAIL"
+	JumbleEntryChannelQUICKCAPTURE JumbleEntryChannel = "QUICK_CAPTURE"
+	JumbleEntryChannelWEBHOOK      JumbleEntryChannel = "WEBHOOK"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntryChannel enum.
+func (e JumbleEntryChannel) Valid() bool {
+	switch e {
+	case JumbleEntryChannelAPI:
+		return true
+	case JumbleEntryChannelEMAIL:
+		return true
+	case JumbleEntryChannelQUICKCAPTURE:
+		return true
+	case JumbleEntryChannelWEBHOOK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JumbleEntryStatus.
+const (
+	JumbleEntryStatusDISMISSED JumbleEntryStatus = "DISMISSED"
+	JumbleEntryStatusNEW       JumbleEntryStatus = "NEW"
+	JumbleEntryStatusPROCESSED JumbleEntryStatus = "PROCESSED"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntryStatus enum.
+func (e JumbleEntryStatus) Valid() bool {
+	switch e {
+	case JumbleEntryStatusDISMISSED:
+		return true
+	case JumbleEntryStatusNEW:
+		return true
+	case JumbleEntryStatusPROCESSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JumbleEntryConvertType.
+const (
+	JumbleEntryConvertTypeACTIVITY    JumbleEntryConvertType = "ACTIVITY"
+	JumbleEntryConvertTypeTASK        JumbleEntryConvertType = "TASK"
+	JumbleEntryConvertTypeWORKPACKAGE JumbleEntryConvertType = "WORK_PACKAGE"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntryConvertType enum.
+func (e JumbleEntryConvertType) Valid() bool {
+	switch e {
+	case JumbleEntryConvertTypeACTIVITY:
+		return true
+	case JumbleEntryConvertTypeTASK:
+		return true
+	case JumbleEntryConvertTypeWORKPACKAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JumbleEntrySubmitChannel.
+const (
+	JumbleEntrySubmitChannelAPI          JumbleEntrySubmitChannel = "API"
+	JumbleEntrySubmitChannelQUICKCAPTURE JumbleEntrySubmitChannel = "QUICK_CAPTURE"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntrySubmitChannel enum.
+func (e JumbleEntrySubmitChannel) Valid() bool {
+	switch e {
+	case JumbleEntrySubmitChannelAPI:
+		return true
+	case JumbleEntrySubmitChannelQUICKCAPTURE:
 		return true
 	default:
 		return false
@@ -1586,13 +1670,13 @@ func (e RecurrenceMode) Valid() bool {
 
 // Defines values for ReminderChannel.
 const (
-	EMAIL ReminderChannel = "EMAIL"
+	ReminderChannelEMAIL ReminderChannel = "EMAIL"
 )
 
 // Valid indicates whether the value is a known member of the ReminderChannel enum.
 func (e ReminderChannel) Valid() bool {
 	switch e {
-	case EMAIL:
+	case ReminderChannelEMAIL:
 		return true
 	default:
 		return false
@@ -2541,6 +2625,51 @@ func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
 	case ListWebhookDeliveriesParamsStatusPENDING:
 		return true
 	case ListWebhookDeliveriesParamsStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListJumbleEntriesParamsStatus.
+const (
+	ListJumbleEntriesParamsStatusDISMISSED ListJumbleEntriesParamsStatus = "DISMISSED"
+	ListJumbleEntriesParamsStatusNEW       ListJumbleEntriesParamsStatus = "NEW"
+	ListJumbleEntriesParamsStatusPROCESSED ListJumbleEntriesParamsStatus = "PROCESSED"
+)
+
+// Valid indicates whether the value is a known member of the ListJumbleEntriesParamsStatus enum.
+func (e ListJumbleEntriesParamsStatus) Valid() bool {
+	switch e {
+	case ListJumbleEntriesParamsStatusDISMISSED:
+		return true
+	case ListJumbleEntriesParamsStatusNEW:
+		return true
+	case ListJumbleEntriesParamsStatusPROCESSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListJumbleEntriesParamsChannel.
+const (
+	ListJumbleEntriesParamsChannelAPI          ListJumbleEntriesParamsChannel = "API"
+	ListJumbleEntriesParamsChannelEMAIL        ListJumbleEntriesParamsChannel = "EMAIL"
+	ListJumbleEntriesParamsChannelQUICKCAPTURE ListJumbleEntriesParamsChannel = "QUICK_CAPTURE"
+	ListJumbleEntriesParamsChannelWEBHOOK      ListJumbleEntriesParamsChannel = "WEBHOOK"
+)
+
+// Valid indicates whether the value is a known member of the ListJumbleEntriesParamsChannel enum.
+func (e ListJumbleEntriesParamsChannel) Valid() bool {
+	switch e {
+	case ListJumbleEntriesParamsChannelAPI:
+		return true
+	case ListJumbleEntriesParamsChannelEMAIL:
+		return true
+	case ListJumbleEntriesParamsChannelQUICKCAPTURE:
+		return true
+	case ListJumbleEntriesParamsChannelWEBHOOK:
 		return true
 	default:
 		return false
@@ -3918,6 +4047,95 @@ type JobRef struct {
 // JobStatus What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
 type JobStatus string
 
+// JumbleEntry One arrival, as it came in. The raw content is data that arrived from outside: it is shown to a person and matched by rules as data, and it travels in no event, no log and no audit entry.
+type JumbleEntry struct {
+	// Attachments Media objects, stored through the media pipeline.
+	Attachments []openapi_types.UUID `json:"attachments"`
+	Channel     JumbleEntryChannel   `json:"channel"`
+	Id          openapi_types.UUID   `json:"id"`
+	RawBody     *string              `json:"raw_body,omitempty"`
+	RawSubject  *string              `json:"raw_subject,omitempty"`
+	ReceivedAt  time.Time            `json:"received_at"`
+
+	// Sender Who the transport says it came from. Data, never an identity: a From header authenticates nothing - the intake token does.
+	Sender *string `json:"sender,omitempty"`
+
+	// SettledAt When the entry stopped being NEW - a conversion or a dismissal.
+	SettledAt *time.Time `json:"settled_at,omitempty"`
+
+	// Status An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the entry stays readable and ages out by retention rule.
+	Status JumbleEntryStatus `json:"status"`
+
+	// TargetItemId The item a conversion produced. The other half of the provenance pair.
+	TargetItemId *openapi_types.UUID `json:"target_item_id,omitempty"`
+}
+
+// JumbleEntryChannel defines model for JumbleEntry.Channel.
+type JumbleEntryChannel string
+
+// JumbleEntryStatus An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the entry stays readable and ages out by retention rule.
+type JumbleEntryStatus string
+
+// JumbleEntryConvert Where the entry becomes work, and what the item is called.
+type JumbleEntryConvert struct {
+	// BucketId The board column, when the destination has a board.
+	BucketId *openapi_types.UUID `json:"bucket_id,omitempty"`
+
+	// CollectionId The destination. The caller's rights there are checked by the item create.
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Title The item's title. Defaults to the entry's subject, then to the first line of its body; required for an entry with no text.
+	Title *string                 `json:"title,omitempty"`
+	Type  *JumbleEntryConvertType `json:"type,omitempty"`
+}
+
+// JumbleEntryConvertType defines model for JumbleEntryConvert.Type.
+type JumbleEntryConvertType string
+
+// JumbleEntryPage defines model for JumbleEntryPage.
+type JumbleEntryPage struct {
+	Data []JumbleEntry `json:"data"`
+	Page PageInfo      `json:"page"`
+}
+
+// JumbleEntrySubmit A near-channel arrival. At least one of the three contents; `channel` defaults to `API`, and only the near channels may be claimed.
+type JumbleEntrySubmit struct {
+	// Attachments Sealed media objects to carry.
+	Attachments *[]openapi_types.UUID     `json:"attachments,omitempty"`
+	Channel     *JumbleEntrySubmitChannel `json:"channel,omitempty"`
+	RawBody     *string                   `json:"raw_body,omitempty"`
+	RawSubject  *string                   `json:"raw_subject,omitempty"`
+
+	// Sender Optional provenance text, e.g. the capturing surface's own name.
+	Sender *string `json:"sender,omitempty"`
+}
+
+// JumbleEntrySubmitChannel defines model for JumbleEntrySubmit.Channel.
+type JumbleEntrySubmitChannel string
+
+// JumbleIntakeAccepted defines model for JumbleIntakeAccepted.
+type JumbleIntakeAccepted struct {
+	// EntryId The entry the delivery became.
+	EntryId openapi_types.UUID `json:"entry_id"`
+}
+
+// JumbleIntakeDelivery The small shape the intake accepts. All fields optional, but not all empty.
+type JumbleIntakeDelivery struct {
+	Body *string `json:"body,omitempty"`
+
+	// Sender Who the bridge says it came from. Data, never an identity.
+	Sender  *string `json:"sender,omitempty"`
+	Subject *string `json:"subject,omitempty"`
+}
+
+// JumbleIntakeToken A freshly minted intake address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read shows only when it was minted.
+type JumbleIntakeToken struct {
+	RotatedAt time.Time `json:"rotated_at"`
+
+	// Token The whole credential. Post to `/jumble/inbound/{token}`.
+	Token string `json:"token"`
+}
+
 // Label A tag a collection defines and its entries carry. Defined on the collection rather than on the workspace: a label is a vocabulary the people working in one collection agree on, and a workspace-wide list would make every collection pay for every other's.
 type Label struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -5174,15 +5392,18 @@ type WorkItem struct {
 	DueTimeZone *string `json:"due_time_zone,omitempty"`
 
 	// Hlc The hybrid logical clock of the last change; the basis of offline merging.
-	Hlc              *string               `json:"hlc,omitempty"`
-	Id               openapi_types.UUID    `json:"id"`
-	LabelIds         *[]openapi_types.UUID `json:"label_ids,omitempty"`
-	MemberIds        *[]openapi_types.UUID `json:"member_ids,omitempty"`
-	Notes            *string               `json:"notes,omitempty"`
-	OrderKey         *string               `json:"order_key,omitempty"`
-	ParentId         *openapi_types.UUID   `json:"parent_id,omitempty"`
-	Path             *string               `json:"path,omitempty"`
-	RecurrenceRuleId *openapi_types.UUID   `json:"recurrence_rule_id,omitempty"`
+	Hlc       *string               `json:"hlc,omitempty"`
+	Id        openapi_types.UUID    `json:"id"`
+	LabelIds  *[]openapi_types.UUID `json:"label_ids,omitempty"`
+	MemberIds *[]openapi_types.UUID `json:"member_ids,omitempty"`
+	Notes     *string               `json:"notes,omitempty"`
+	OrderKey  *string               `json:"order_key,omitempty"`
+
+	// OriginJumbleId The jumble entry this item was converted out of (G-10). Provenance, set once at the conversion and never cleared; absent for an item that was never in the jumble.
+	OriginJumbleId   *openapi_types.UUID `json:"origin_jumble_id,omitempty"`
+	ParentId         *openapi_types.UUID `json:"parent_id,omitempty"`
+	Path             *string             `json:"path,omitempty"`
+	RecurrenceRuleId *openapi_types.UUID `json:"recurrence_rule_id,omitempty"`
 
 	// Retention Set for as long as a retention rule applies to this object.
 	Retention *RetentionState `json:"retention,omitempty"`
@@ -5932,6 +6153,48 @@ type CancelJobParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListJumbleEntriesParams defines parameters for ListJumbleEntries.
+type ListJumbleEntriesParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Status Narrow to one state. `NEW` is the inbox; `DISMISSED` ages out by rule.
+	Status *ListJumbleEntriesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Channel Narrow to one way of arriving.
+	Channel *ListJumbleEntriesParamsChannel `form:"channel,omitempty" json:"channel,omitempty"`
+}
+
+// ListJumbleEntriesParamsStatus defines parameters for ListJumbleEntries.
+type ListJumbleEntriesParamsStatus string
+
+// ListJumbleEntriesParamsChannel defines parameters for ListJumbleEntries.
+type ListJumbleEntriesParamsChannel string
+
+// SubmitJumbleEntryParams defines parameters for SubmitJumbleEntry.
+type SubmitJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ConvertJumbleEntryParams defines parameters for ConvertJumbleEntry.
+type ConvertJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DismissJumbleEntryParams defines parameters for DismissJumbleEntry.
+type DismissJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// RotateJumbleIntakeParams defines parameters for RotateJumbleIntake.
+type RotateJumbleIntakeParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListLegalHoldsParams defines parameters for ListLegalHolds.
 type ListLegalHoldsParams struct {
 	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
@@ -6231,6 +6494,15 @@ type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
+
+// SubmitJumbleEntryJSONRequestBody defines body for SubmitJumbleEntry for application/json ContentType.
+type SubmitJumbleEntryJSONRequestBody = JumbleEntrySubmit
+
+// ConvertJumbleEntryJSONRequestBody defines body for ConvertJumbleEntry for application/json ContentType.
+type ConvertJumbleEntryJSONRequestBody = JumbleEntryConvert
+
+// StartJumbleIntakeJSONRequestBody defines body for StartJumbleIntake for application/json ContentType.
+type StartJumbleIntakeJSONRequestBody = JumbleIntakeDelivery
 
 // PlaceLegalHoldJSONRequestBody defines body for PlaceLegalHold for application/json ContentType.
 type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
@@ -6654,6 +6926,24 @@ type ServerInterface interface {
 	// CancelJob Stop a piece of background work
 	// (POST /jobs/{jobId}:cancel)
 	CancelJob(w http.ResponseWriter, r *http.Request, jobId JobId, params CancelJobParams)
+	// ListJumbleEntries The jumble, newest first
+	// (GET /jumble/entries)
+	ListJumbleEntries(w http.ResponseWriter, r *http.Request, params ListJumbleEntriesParams)
+	// SubmitJumbleEntry Put something in the jumble
+	// (POST /jumble/entries)
+	SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, params SubmitJumbleEntryParams)
+	// ConvertJumbleEntry Turn an entry into work
+	// (POST /jumble/entries/{entryId}:convert)
+	ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params ConvertJumbleEntryParams)
+	// DismissJumbleEntry Decide against an entry
+	// (POST /jumble/entries/{entryId}:dismiss)
+	DismissJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params DismissJumbleEntryParams)
+	// StartJumbleIntake Deliver something into the jumble from outside
+	// (POST /jumble/inbound/{token})
+	StartJumbleIntake(w http.ResponseWriter, r *http.Request, token string)
+	// RotateJumbleIntake Mint the address the jumble accepts webhooks on
+	// (POST /jumble/intake:rotate-token)
+	RotateJumbleIntake(w http.ResponseWriter, r *http.Request, params RotateJumbleIntakeParams)
 	// ListLegalHolds The legal holds in force
 	// (GET /legal-holds)
 	ListLegalHolds(w http.ResponseWriter, r *http.Request, params ListLegalHoldsParams)
@@ -11919,6 +12209,286 @@ func (siw *ServerInterfaceWrapper) CancelJob(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// ListJumbleEntries operation middleware
+func (siw *ServerInterfaceWrapper) ListJumbleEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListJumbleEntriesParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "channel" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "channel", r.URL.Query(), &params.Channel, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "channel"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channel", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJumbleEntries(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SubmitJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) SubmitJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SubmitJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubmitJumbleEntry(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConvertJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) ConvertJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConvertJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConvertJumbleEntry(w, r, entryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DismissJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) DismissJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DismissJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DismissJumbleEntry(w, r, entryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartJumbleIntake operation middleware
+func (siw *ServerInterfaceWrapper) StartJumbleIntake(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartJumbleIntake(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateJumbleIntake operation middleware
+func (siw *ServerInterfaceWrapper) RotateJumbleIntake(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateJumbleIntakeParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateJumbleIntake(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListLegalHolds operation middleware
 func (siw *ServerInterfaceWrapper) ListLegalHolds(w http.ResponseWriter, r *http.Request) {
 
@@ -13531,6 +14101,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/views/{viewId}", wrapper.UpdateSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:share", wrapper.ShareSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries", wrapper.ListJumbleEntries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries", wrapper.SubmitJumbleEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:convert", wrapper.ConvertJumbleEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:dismiss", wrapper.DismissJumbleEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules", wrapper.ListRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules", wrapper.CreateRule)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.DeleteRule)
@@ -13541,6 +14115,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:test", wrapper.TestRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/intake:rotate-token", wrapper.RotateJumbleIntake)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/inbound/{token}", wrapper.StartJumbleIntake)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/inbound/{token}", wrapper.StartInboundRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs", wrapper.ListRuleRuns)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs/{runId}", wrapper.GetRuleRun)

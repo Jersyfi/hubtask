@@ -47,6 +47,7 @@ tags:
   - name: views
   - name: calendar
   - name: webhooks
+  - name: jumble
   - name: jobs
 
 paths:
@@ -414,6 +415,135 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /jumble/entries:
+    get:
+      tags: [jumble]
+      operationId: listJumbleEntries
+      summary: The jumble, newest first
+      description: >
+        Everything that arrived and what became of it. The raw content is answered here - to a
+        credential that may read the workspace's entries - and nowhere that travels: it appears
+        in no event payload, no log and no audit entry.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          required: false
+          description: Narrow to one state. `NEW` is the inbox; `DISMISSED` ages out by rule.
+          schema:
+            type: string
+            enum: [NEW, PROCESSED, DISMISSED]
+        - name: channel
+          in: query
+          required: false
+          description: Narrow to one way of arriving.
+          schema:
+            type: string
+            enum: [EMAIL, WEBHOOK, QUICK_CAPTURE, API]
+      responses:
+        "200":
+          description: One page of the jumble
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntryPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [jumble]
+      operationId: submitJumbleEntry
+      summary: Put something in the jumble
+      description: >
+        The near channels: a quick capture or a plain API call, stored as an entry and announced
+        as `jumble.entry_received` - which is what fires a `JUMBLE_ENTRY` automation rule. The
+        two far channels are not a caller's to claim: `EMAIL` and `WEBHOOK` name the intakes that
+        authenticate their own way, and an entry claiming one through this route would be forging
+        its provenance.
+
+        Attachments name media objects already uploaded through the media pipeline - never a
+        second storage path - and each has to be sealed before it can be referenced here.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JumbleEntrySubmit"
+      responses:
+        "201":
+          description: Caught
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/entries/{entryId}:convert:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [jumble]
+      operationId: convertJumbleEntry
+      summary: Turn an entry into work
+      description: >
+        Creates a work item at the named destination - through the same use case a plain create
+        goes through, with the same rights checked there - records the provenance on both sides
+        (`origin_jumble_id` on the item, `target_item_id` on the entry), settles the entry as
+        `PROCESSED` and announces `jumble.entry_converted`. Exactly once: a second conversion of
+        the same entry is refused, and two racing produce one item and one refusal.
+
+        The title defaults to the entry's subject, then to the first line of its body. An entry
+        with no text - an attachment alone - needs a title in the request.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JumbleEntryConvert"
+      responses:
+        "200":
+          description: Converted, with the target item on the entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/entries/{entryId}:dismiss:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [jumble]
+      operationId: dismissJumbleEntry
+      summary: Decide against an entry
+      description: >
+        A state, not a deletion: the entry stays readable, and the retention engine ages it out
+        by rule rather than by hand. Only a `NEW` entry can be dismissed - an entry is decided
+        about exactly once.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Dismissed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /automation/rules:
     get:
       tags: [automation]
@@ -676,6 +806,77 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InboundTriggerToken"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/intake:rotate-token:
+    post:
+      tags: [jumble]
+      operationId: rotateJumbleIntake
+      summary: Mint the address the jumble accepts webhooks on
+      description: >
+        The tenant's one intake credential (G-10), the inbound trigger's discipline applied to
+        the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over
+        the whole presented string under the intake's own purpose label, and answered **once** -
+        no later read can produce it.
+
+        Rotating is how one is revoked: there is exactly one address per tenant and the
+        replacement happens in a single statement, so the old token and the new one never both
+        open the intake.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Minted, with the token shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleIntakeToken"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/inbound/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: >
+          The tenant's intake token, which is the whole credential: this route carries no bearer
+          authentication, and the URL is what the bridge stores. It names the tenant in clear
+          inside itself because the lookup needs one before it can happen (multi-tenancy.md
+          §2.2).
+        schema: { type: string }
+    post:
+      tags: [jumble]
+      operationId: startJumbleIntake
+      security: []
+      summary: Deliver something into the jumble from outside
+      description: >
+        The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`,
+        `subject`, `body`, all optional but not all empty - and it lands as an entry, fires
+        `jumble.entry_received`, and waits for a person or a rule to decide about it.
+
+        The token authenticates the tenant, never a person: the entry records no actor, and the
+        body is data end to end - bounded twice (the transfer by the request middleware, the
+        entry by its own field bounds), matched by rules as data, and rendered as instructions
+        to nothing.
+
+        Every reason not to serve answers the same `404` with the same body - an unknown token, a
+        rotated one, a tenant that never minted one. Distinguishing them would answer questions
+        for whoever is trying tokens (T-21).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JumbleIntakeDelivery"
+      responses:
+        "201":
+          description: Caught, with the entry it became
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleIntakeAccepted"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -5605,6 +5806,129 @@ components:
           enum: [STOP, CONTINUE, RETRY]
           default: STOP
 
+    JumbleEntry:
+      type: object
+      description: >
+        One arrival, as it came in. The raw content is data that arrived from outside: it is
+        shown to a person and matched by rules as data, and it travels in no event, no log and no
+        audit entry.
+      required: [id, channel, attachments, status, received_at]
+      properties:
+        id: { type: string, format: uuid }
+        channel:
+          type: string
+          enum: [EMAIL, WEBHOOK, QUICK_CAPTURE, API]
+        sender:
+          type: string
+          description: >
+            Who the transport says it came from. Data, never an identity: a From header
+            authenticates nothing - the intake token does.
+        raw_subject: { type: string }
+        raw_body: { type: string }
+        attachments:
+          type: array
+          items: { type: string, format: uuid }
+          description: Media objects, stored through the media pipeline.
+        status:
+          type: string
+          enum: [NEW, PROCESSED, DISMISSED]
+          description: >
+            An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the
+            entry stays readable and ages out by retention rule.
+        target_item_id:
+          type: [string, "null"]
+          format: uuid
+          description: The item a conversion produced. The other half of the provenance pair.
+        received_at: { type: string, format: date-time }
+        settled_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the entry stopped being NEW - a conversion or a dismissal.
+
+    JumbleEntrySubmit:
+      type: object
+      description: >
+        A near-channel arrival. At least one of the three contents; `channel` defaults to `API`,
+        and only the near channels may be claimed.
+      properties:
+        channel:
+          type: string
+          enum: [QUICK_CAPTURE, API]
+          default: API
+        sender:
+          type: string
+          description: Optional provenance text, e.g. the capturing surface's own name.
+        raw_subject: { type: string, maxLength: 500 }
+        raw_body: { type: string }
+        attachments:
+          type: array
+          items: { type: string, format: uuid }
+          description: Sealed media objects to carry.
+
+    JumbleIntakeToken:
+      type: object
+      description: >
+        A freshly minted intake address. The token exists in this answer and nowhere else
+        afterwards: it is stored hashed, and every later read shows only when it was minted.
+      required: [token, rotated_at]
+      properties:
+        token:
+          type: string
+          description: The whole credential. Post to `/jumble/inbound/{token}`.
+        rotated_at: { type: string, format: date-time }
+
+    JumbleIntakeDelivery:
+      type: object
+      description: The small shape the intake accepts. All fields optional, but not all empty.
+      properties:
+        sender:
+          type: string
+          description: Who the bridge says it came from. Data, never an identity.
+        subject: { type: string }
+        body: { type: string }
+
+    JumbleIntakeAccepted:
+      type: object
+      required: [entry_id]
+      properties:
+        entry_id:
+          type: string
+          format: uuid
+          description: The entry the delivery became.
+
+    JumbleEntryConvert:
+      type: object
+      description: Where the entry becomes work, and what the item is called.
+      required: [collection_id]
+      properties:
+        collection_id:
+          type: string
+          format: uuid
+          description: The destination. The caller's rights there are checked by the item create.
+        bucket_id:
+          type: string
+          format: uuid
+          description: The board column, when the destination has a board.
+        title:
+          type: string
+          maxLength: 500
+          description: >
+            The item's title. Defaults to the entry's subject, then to the first line of its
+            body; required for an entry with no text.
+        type:
+          type: string
+          enum: [TASK, WORK_PACKAGE, ACTIVITY]
+          default: TASK
+
+    JumbleEntryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/JumbleEntry" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
     RuleTest:
       type: object
       description: >
@@ -6192,6 +6516,12 @@ components:
           type: object
           additionalProperties: true
         recurrence_rule_id: { type: [string, "null"], format: uuid }
+        origin_jumble_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The jumble entry this item was converted out of (G-10). Provenance, set once at the
+            conversion and never cleared; absent for an item that was never in the jumble.
         content_language:
           type: [string, "null"]
           description: >

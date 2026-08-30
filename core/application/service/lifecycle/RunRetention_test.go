@@ -139,6 +139,59 @@ func (s *historyStore) DeleteExpired(_ context.Context, cutoff time.Time, batch 
 	return removed, nil
 }
 
+// inboxStore is the jumble's remover, in memory. Rows carry whether they were converted, because
+// that is the one thing about a jumble entry the sweep is not allowed to ignore: a converted entry
+// is a work item's provenance.
+type inboxStore struct {
+	rows      []inboxRow
+	askedAt   time.Time
+	batches   []int
+	deleteErr error
+}
+
+type inboxRow struct {
+	receivedAt time.Time
+	converted  bool
+}
+
+func (s *inboxStore) due(cutoff time.Time, limit int) []int {
+	var due []int
+	for i, row := range s.rows {
+		if row.converted || !row.receivedAt.Before(cutoff) {
+			continue
+		}
+		due = append(due, i)
+		if len(due) == limit {
+			break
+		}
+	}
+	return due
+}
+
+func (s *inboxStore) CountExpired(_ context.Context, cutoff time.Time, ceiling int) (int, error) {
+	s.askedAt = cutoff
+	return len(s.due(cutoff, ceiling)), nil
+}
+
+func (s *inboxStore) DeleteExpired(_ context.Context, cutoff time.Time, batch int) (int, error) {
+	s.batches = append(s.batches, batch)
+	if s.deleteErr != nil {
+		return 0, s.deleteErr
+	}
+	going := map[int]bool{}
+	for _, i := range s.due(cutoff, batch) {
+		going[i] = true
+	}
+	kept := s.rows[:0]
+	for i, row := range s.rows {
+		if !going[i] {
+			kept = append(kept, row)
+		}
+	}
+	s.rows = kept
+	return len(going), nil
+}
+
 type runStore struct {
 	started []shared.ID
 	// kinds is what each run was opened for. Recorded since G-02, because a third kind means
@@ -190,6 +243,7 @@ type runHarness struct {
 	signals  *signalSink
 	history  *historyStore
 	events   *eventStore
+	inbox    *inboxStore
 }
 
 func newRunHarness() *runHarness {
@@ -201,11 +255,12 @@ func newRunHarness() *runHarness {
 		signals:  &signalSink{},
 		history:  &historyStore{},
 		events:   &eventStore{},
+		inbox:    &inboxStore{},
 	}
 	h.run = RunRetention{
 		Policies: h.policies, Runs: h.runs, Purger: base.purger, History: h.history,
-		Events: h.events,
-		Clock:  clock.Fixed(now), IDs: &idSource{}, Signals: h.signals,
+		Events: h.events, Inbox: h.inbox,
+		Clock: clock.Fixed(now), IDs: &idSource{}, Signals: h.signals,
 	}
 	return h
 }
@@ -250,8 +305,9 @@ func TestAPassOpensAndClosesItsLog(t *testing.T) {
 		t.Fatalf("the run failed: %v", err)
 	}
 
-	// One log entry per kind: the trash and the notification history are two runs of one pass.
-	if len(h.runs.started) != 3 || len(h.runs.finished) != 3 {
+	// One log entry per kind: the trash, the notification history, the outbox and the jumble
+	// are four runs of one pass.
+	if len(h.runs.started) != 4 || len(h.runs.finished) != 4 {
 		t.Fatalf("%d runs started and %d finished, want one per data kind",
 			len(h.runs.started), len(h.runs.finished))
 	}
@@ -295,7 +351,7 @@ func TestAPassPublishesItsNumbersEvenWhenTheyAreZero(t *testing.T) {
 		t.Fatalf("the run failed: %v", err)
 	}
 
-	if h.signals.runs != 3 {
+	if h.signals.runs != 4 {
 		t.Errorf("%d durations recorded, want one per data kind", h.signals.runs)
 	}
 	if _, published := h.signals.deleted[string(domain.KindTrash)]; !published {
@@ -402,7 +458,7 @@ func TestAPassSweepsTheNotificationHistoryAtNinetyDays(t *testing.T) {
 	}
 
 	// One log entry per kind, and the second names the notification history.
-	if len(h.runs.started) != 3 {
+	if len(h.runs.started) != 4 {
 		t.Fatalf("%d runs started, want one per data kind", len(h.runs.started))
 	}
 	if _, published := h.signals.deleted[string(domain.KindNotification)]; !published {
@@ -482,7 +538,7 @@ func TestTheHistorySweepPublishesNoBlockReasons(t *testing.T) {
 			t.Errorf("%s was counted %d times", reason, h.signals.blocked[reason])
 		}
 	}
-	if h.signals.runs != 3 {
+	if h.signals.runs != 4 {
 		t.Errorf("%d durations recorded, want one per data kind", h.signals.runs)
 	}
 }
@@ -568,5 +624,162 @@ func TestTheConsumptionRecordsAreSweptWithTheirEvents(t *testing.T) {
 	if !h.events.consumptionCutoff.Equal(h.events.askedAt) {
 		t.Errorf("the records were cut off at %v and the events at %v",
 			h.events.consumptionCutoff, h.events.askedAt)
+	}
+}
+
+// The JUMBLE_ENTRY class data-retention.md §3 has been promising since phase 0, arriving with the
+// inbox it is about (G-10, the closed-set change D-06 predicted): ninety days from the arrival,
+// swept by the same job that empties the trash.
+func TestAPassSweepsTheJumbleAtNinetyDays(t *testing.T) {
+	h := newRunHarness()
+	h.inbox.rows = []inboxRow{
+		{receivedAt: now.Add(-200 * 24 * time.Hour)}, // long expired
+		{receivedAt: now.Add(-91 * 24 * time.Hour)},  // just expired
+		{receivedAt: now.Add(-89 * 24 * time.Hour)},  // not yet
+	}
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if want := now.AddDate(0, 0, -90); !h.inbox.askedAt.Equal(want) {
+		t.Errorf("the cutoff was %v, want %v", h.inbox.askedAt, want)
+	}
+	if len(h.inbox.rows) != 1 {
+		t.Errorf("%d entries left, want the one inside the period", len(h.inbox.rows))
+	}
+	if outcome.Removed != 2 {
+		t.Errorf("removed %d, want the two expired entries", outcome.Removed)
+	}
+	if _, published := h.signals.deleted[string(domain.KindJumbleEntry)]; !published {
+		t.Error("the sweep published no deletion count for the jumble")
+	}
+}
+
+// An entry that became a work item is that item's provenance: `origin_jumble_id` points at it, and
+// an item claiming an origin nobody can read is worse than an inbox that kept one message. What
+// ages out is what was never converted, which is what the statement itself decides.
+func TestAConvertedEntryNeverAgesOut(t *testing.T) {
+	h := newRunHarness()
+	ancient := now.Add(-400 * 24 * time.Hour)
+	h.inbox.rows = []inboxRow{
+		{receivedAt: ancient, converted: true},
+		{receivedAt: ancient},
+	}
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if outcome.Removed != 1 {
+		t.Errorf("removed %d, want the one entry nobody converted", outcome.Removed)
+	}
+	if len(h.inbox.rows) != 1 || !h.inbox.rows[0].converted {
+		t.Errorf("the entries left are %v, want the converted one", h.inbox.rows)
+	}
+}
+
+// Where this kind parts company with the notification history and the outbox: an entry is somebody's
+// work that nobody has filed yet, so a tenant-wide hold reaches it (data-retention.md §4.1). The
+// entries are counted as blocked rather than passed over in silence, so a run that removed nothing
+// says why.
+func TestATenantWideHoldStopsTheJumbleSweep(t *testing.T) {
+	h := newRunHarness()
+	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}
+	h.inbox.rows = []inboxRow{{receivedAt: now.Add(-200 * 24 * time.Hour)}}
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if len(h.inbox.rows) != 1 {
+		t.Error("a held tenant's inbox was swept anyway")
+	}
+	if len(h.inbox.batches) != 0 {
+		t.Error("the sweep reached the delete statement under a hold")
+	}
+	if outcome.Blocked[BlockedByLegalHold] == 0 {
+		t.Errorf("the pass reported %v, want the held entry counted", outcome.Blocked)
+	}
+}
+
+// A hold on one hub says nothing about an entry that sits in no hub: the inbox is what arrived
+// before anybody decided where it belongs, and a narrower hold that froze it would freeze it for
+// ever, because nothing will ever move it under that hub.
+func TestAHoldOnOneContainerLeavesTheJumbleAlone(t *testing.T) {
+	h := newRunHarness()
+	h.holds.holds = domain.Holds{
+		{ID: holdID, Scope: domain.HoldContainer, ScopeID: collectionID, Reason: "Litigation"},
+	}
+	h.inbox.rows = []inboxRow{{receivedAt: now.Add(-200 * 24 * time.Hour)}}
+
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+	if len(h.inbox.rows) != 0 {
+		t.Error("a hold on a container kept an inbox entry back")
+	}
+}
+
+// The sweep is batched for the trash's reason: a pass that took every expired row would be a pass
+// nobody can stop (data-retention.md §5).
+func TestTheJumbleSweepTakesOneBatchAndSaysThereIsMore(t *testing.T) {
+	h := newRunHarness()
+	for range h.purger.BatchSize + 5 {
+		h.inbox.rows = append(h.inbox.rows, inboxRow{receivedAt: now.Add(-200 * 24 * time.Hour)})
+	}
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if outcome.Removed != h.purger.BatchSize {
+		t.Errorf("removed %d, want one batch of %d", outcome.Removed, h.purger.BatchSize)
+	}
+	if h.run.Exhausted(outcome) {
+		t.Error("the pass reported itself finished with a full batch still expired")
+	}
+}
+
+// An unswept inbox keeps raw subject, raw body and the sender's address for ever, and it would look
+// like a working installation for ninety days before anybody could notice (risk R-09).
+func TestARunWithNothingToSweepTheJumbleWithIsRefused(t *testing.T) {
+	h := newRunHarness()
+	h.run.Inbox = nil
+
+	_, err := h.run.Execute(t.Context(), actor())
+	if err == nil {
+		t.Fatal("a run with no jumble sweep reported success")
+	}
+	if got := shared.AsError(err).DetailCode; got != "lifecycle.inbox_not_wired" {
+		t.Errorf("detail %q", got)
+	}
+}
+
+// And the pass does not come straight back for a tenant it cannot sweep. The trash's blocked rows
+// may go one at a time as holds are lifted from them; a tenant-wide hold blocks every entry until
+// somebody lifts it, and a pass reporting a full batch would spin at the continuation interval for
+// as long as the hold stands.
+func TestAHeldInboxDoesNotBringTheJobStraightBack(t *testing.T) {
+	h := newRunHarness()
+	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}
+	for range h.purger.BatchSize + 5 {
+		h.inbox.rows = append(h.inbox.rows, inboxRow{receivedAt: now.Add(-200 * 24 * time.Hour)})
+	}
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if !h.run.Exhausted(outcome) {
+		t.Error("a held inbox reported itself unfinished, and the job would spin on it")
+	}
+	if outcome.Blocked[BlockedByLegalHold] == 0 {
+		t.Error("the held entries were passed over in silence")
 	}
 }

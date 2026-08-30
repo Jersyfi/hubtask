@@ -122,6 +122,9 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 	}
 	return lifecycle.RunRetention{
 		Policies: store, Runs: store, History: postgres.NewNotificationRepository(),
+		// The jumble, as the server wires it (G-10): the engine refuses to run with a kind
+		// unwired, and RE-8's cross-tenant question is asked of this kind too.
+		Inbox:  postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
 		Purger: purger,
 		Clock:  clock.Fixed(at),
 		IDs:    ids,

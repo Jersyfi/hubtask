@@ -88,8 +88,11 @@ type RunRule struct {
 	Conditions expression.Compiler
 	Entries    Entries
 	Containers Containers
-	Guard      Idempotency
-	Owners     Owners
+	// Jumble is the read `payload` costs on a JUMBLE_ENTRY run: the entry, rendered as data for
+	// the conditions (G-10). Optional; without it the name resolves to an empty document.
+	Jumble condition.JumbleEntries
+	Guard  Idempotency
+	Owners Owners
 	// Jobs is where a WAIT parks its resume (G-09). The engine runs inside the queue runner's
 	// transaction, so the suspended run and the job that will resume it commit together - a
 	// process that dies between them leaves neither.
@@ -472,11 +475,22 @@ func (h RunRule) park(
 // from exactly as it is the entry an event was about, and `payload` is the delivery's body or an
 // empty document.
 func (h RunRule) values(envelope event.Envelope, cmd Command, now time.Time) condition.Values {
-	return condition.Values{
+	values := condition.Values{
 		Envelope: envelope, Now: now,
 		Subject: cmd.SubjectID, Payload: cmd.Payload,
 		Entries: h.Entries, Containers: h.Containers,
+		Jumble: h.Jumble,
 	}
+	if cmd.Trigger == domain.TriggerJumbleEntry {
+		// The subject of a jumble run is the entry, and `payload` is its fields. Named outright
+		// rather than derived, because a redelivered job must not depend on the event still being
+		// readable.
+		values.JumbleID = cmd.SubjectID
+		// And `item` is not the entry: a jumble entry is not a work item, and the subject must
+		// not leak into the item lookup as though it were one.
+		values.Subject = ""
+	}
+	return values
 }
 
 // throttled answers whether the rule has already run as often as it may.
@@ -583,6 +597,12 @@ func (c Command) supplied() map[string]any {
 	values := map[string]any{}
 	if !c.EventID.IsZero() {
 		values["event_id"] = c.EventID.String()
+	}
+	if c.Trigger == domain.TriggerJumbleEntry && !c.SubjectID.IsZero() {
+		// The entry a JUMBLE_ENTRY run is about, for CONVERT_JUMBLE_ENTRY and
+		// DISMISS_JUMBLE_ENTRY (G-10): not a value a rule can carry, because the entry arrives
+		// after the rule is written.
+		values["entry_id"] = c.SubjectID.String()
 	}
 	return values
 }

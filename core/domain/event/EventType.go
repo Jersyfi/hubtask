@@ -299,6 +299,16 @@ const (
 	// working, and a subscriber that forgets the filter is a subscriber that pages somebody at
 	// three in the morning for a condition answering false.
 	RuleRunFailed Type = "de.hubtask.automation.rule_run.failed.v1"
+
+	// JumbleEntryReceived announces an arrival in the jumble (G-10). Consumers: automation - it is
+	// what fires a JUMBLE_ENTRY rule - webhooks, and the AI suggestions of 0.7.0. The context
+	// segment is `jumble` for the reason the run events' is `automation`: an arrival is not a
+	// change to a hub or an entry, and a subscriber filtering `de.hubtask.work.` must not have to
+	// learn about an inbox it did not ask for.
+	JumbleEntryReceived Type = "de.hubtask.jumble.entry.received.v1"
+	// JumbleEntryConverted announces that an entry became work: an item exists at a destination
+	// with its provenance recorded, and the entry is settled. Consumers: automation, webhooks.
+	JumbleEntryConverted Type = "de.hubtask.jumble.entry.converted.v1"
 )
 
 // types is the closed set. Everything that needs to know which events exist reads it here - the
@@ -318,6 +328,7 @@ var types = [...]Type{
 	AttachmentAdded, AttachmentRemoved,
 	CommentCreated, CommentUpdated, CommentDeleted,
 	RuleRunStarted, RuleRunFinished, RuleRunFailed,
+	JumbleEntryReceived, JumbleEntryConverted,
 }
 
 // Types returns every defined event type.

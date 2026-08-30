@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	jumbledomain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/queue"
@@ -1350,5 +1351,61 @@ func TestTheRunSuppliesTheEventBesideTheRulesParameters(t *testing.T) {
 	}
 	if _, carried := call.params["event_id"]; carried {
 		t.Error("the event leaked into the rule's own parameters")
+	}
+}
+
+// The JUMBLE_ENTRY runs (G-10): the conditions read the entry as data under `payload`, and the
+// run supplies the entry to the actions a rule cannot carry it for.
+
+type jumbleEntries struct{ entry jumbledomain.Entry }
+
+func (j jumbleEntries) Find(_ context.Context, id shared.ID) (jumbledomain.Entry, error) {
+	if j.entry.ID != id {
+		return jumbledomain.Entry{}, shared.ErrNotFound.WithDetail("jumble.entry_not_found")
+	}
+	return j.entry, nil
+}
+
+func TestAJumbleRunReadsTheEntryAndSuppliesIt(t *testing.T) {
+	entry := jumbledomain.Entry{
+		ID:      shared.ID("01936f2a-7c1e-7000-8000-000000000ea1"),
+		Channel: jumbledomain.ChannelWebhook, Sender: "orders@example.org",
+		RawSubject: "Order #42", Status: jumbledomain.StatusNew,
+	}
+
+	rule := enabledRule()
+	rule.Trigger = domain.Trigger{Kind: domain.TriggerJumbleEntry}
+	// `payload` resolves to the entry's fields: the fake compiler answers every declared name, so
+	// what this proves is that the engine hands the run the jumble lookup and the entry's identity.
+	rule.Conditions = []domain.Condition{{Expr: "payload.channel == 'WEBHOOK'"}}
+	rule.Actions = []domain.Action{{Kind: "CONVERT_JUMBLE_ENTRY", Params: map[string]any{
+		"collection_id": "01936f2a-7c1e-7000-8000-000000000ea2",
+	}}}
+	h := newEngine(t, rule)
+	h.engine.Jumble = jumbleEntries{entry: entry}
+	h.dispatcher.scopes["CONVERT_JUMBLE_ENTRY"] = "items:write"
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), Command{
+		RuleID: ruleID, Trigger: domain.TriggerJumbleEntry,
+		SubjectID: entry.ID, Occasion: entry.ID.String(),
+	})
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunSucceeded {
+		t.Fatalf("status %q: %+v", run.Status, run)
+	}
+	if run.SubjectID != entry.ID {
+		t.Errorf("the run's subject is %s, want the entry", run.SubjectID)
+	}
+
+	if len(h.dispatcher.calls) != 1 {
+		t.Fatalf("%d dispatches", len(h.dispatcher.calls))
+	}
+	call := h.dispatcher.calls[0]
+	// The run supplies the entry: not a value a rule can carry, because the entry arrives after
+	// the rule is written.
+	if call.supplied["entry_id"] != entry.ID.String() {
+		t.Errorf("the run supplied %v, want the entry", call.supplied)
 	}
 }

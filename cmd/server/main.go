@@ -37,6 +37,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
+	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
@@ -78,6 +79,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/stepup"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
+	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 	"github.com/Jersyfi/hubtask/presentation/webui"
@@ -490,6 +492,19 @@ func run() error {
 	notifications := postgres.NewNotificationRepository()
 	notificationPreferences := postgres.NewNotificationPreferenceRepository()
 	outbox := postgres.NewOutbox(jobs)
+	// The jumble (G-10). The writer is shared by every jumble use case; the media half is the
+	// same repository the attachments use, so an entry's reference counts with theirs. The intake
+	// hashes its tokens under the intake's own purpose label, so a rule's inbound token presented
+	// at the jumble door matches nothing.
+	jumbleIntake := postgres.NewJumbleIntakeRepository(
+		security.NewJumbleIntakeHasher(cfg.SecretKey))
+	jumbleWriter := jumbleservice.Writer{
+		Entries:    postgres.NewJumbleRepository(cursors),
+		Media:      mediaObjects,
+		Events:     outbox,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
 	changes := postgres.NewChangeLog()
 
 	// What every writer of an entry needs in order to leave a step in its history. Held as one
@@ -835,6 +850,17 @@ func run() error {
 			Rules: postgres.NewAutomationRuleRepository(cursors),
 			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		jumbleservice.SubmitJumbleEntry{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.ListJumbleEntries{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.ConvertJumbleEntry{
+			Writer: jumbleWriter, Catalogue: ruleCatalogue, Origins: items,
+		}.Descriptor(),
+		jumbleservice.DismissJumbleEntry{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.RotateJumbleIntake{
+			Intake:     jumbleIntake,
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
 		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
 			Events: outbox, Policies: lifecycleStore,
@@ -1210,6 +1236,14 @@ func run() error {
 			Inbound: automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}
+		// The jumble's public door (G-10): a delivery on the tenant's address becomes an entry.
+		controller.JumbleIntake = intake.WebhookIntake{
+			Deliveries: jumbleservice.IntakeJumbleEntry{
+				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
+				Events: outbox, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{}, IDs: ids,
+			},
+		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
 		// call (C-10). The listener is the wake-up; without it the stream still works, at its idle
@@ -1377,7 +1411,9 @@ func run() error {
 	automationRuns := postgres.NewAutomationRunRepository(cursors)
 	matchRules := automationservice.MatchRules{
 		Rules: automationRuns, Containers: containers, Jobs: jobs,
-		Conditions: celexpression.New(), Clock: clockadapter.System{},
+		Conditions: celexpression.New(),
+		Jumble:     postgres.NewJumbleRepository(cursors),
+		Clock:      clockadapter.System{},
 	}
 
 	// The relative-date producer (G-08). A second subscriber rather than a branch inside the first,
@@ -1561,7 +1597,11 @@ func run() error {
 			// The outbox's own rows (G-02). ADR-0007's second countermeasure, and until now the
 			// one table in this schema that only ever grew.
 			Events: postgres.NewDispatchedEvents(),
-			Clock:  clockadapter.System{}, IDs: ids, Signals: metrics,
+			// The jumble (G-10). Ninety days from the arrival for what was never converted, which
+			// is the kind D-06 predicted and the one place raw inbound text would otherwise sit
+			// for ever.
+			Inbox: postgres.NewJumbleRepository(cursors),
+			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
 			// row that goes.
@@ -1661,6 +1701,7 @@ func run() error {
 			Conditions: celexpression.New(),
 			Entries:    items,
 			Containers: containers,
+			Jumble:     postgres.NewJumbleRepository(cursors),
 			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
 			Owners: notification.RecordRuleDisabled{
 				Notifications: notifications, Accounts: accounts,

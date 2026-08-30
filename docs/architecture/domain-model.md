@@ -371,7 +371,15 @@ anybody should be able to ask for — the way to influence when a reminder fires
 the get joined with D-07, the way `ListCustomFields` joined with C-07: `/views` says CRUD, and a
 view nobody can read back is not a view.
 
-**Jumble** `SubmitJumbleEntry`, `ConvertJumbleEntry`, `DismissJumbleEntry`, `SuggestFromJumbleEntry` (AI, optional).
+**Jumble** `SubmitJumbleEntry`, `ListJumbleEntries`, `ConvertJumbleEntry`, `DismissJumbleEntry`,
+`RotateJumbleIntake`, `SuggestFromJumbleEntry` (AI, optional). The list joined with G-10 for the reason
+`ListTemplates` and `ListSavedViews` joined theirs: an inbox nobody can read is an inbox nobody can
+empty. Submitting, converting and dismissing ask for `WRITE_ITEMS` at the tenant and reading asks for
+`READ` there - an entry sits in no collection yet, which is what makes it jumble - and the item a
+conversion produces goes through `CreateWorkItem`, where the destination's own rights are checked.
+Rotating the intake address asks for `AUTOMATION` at the tenant, the vocabulary the inbound trigger and the webhook subscriptions
+already use: pointing outside input at the workspace is the same power wherever the input lands. The
+address is shown once (G-10).
 
 **Lifecycle** `ListTrash`, `EmptyTrash`, `ListArchive`, `RunRetention` (internal),
 `CreateRetentionPolicy`, `ListRetentionPolicies`, `PreviewRetentionPolicy`, `RetainItem` (E-07),
