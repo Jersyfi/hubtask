@@ -483,11 +483,15 @@ func seedWorkItemForRules(ctx context.Context, t *testing.T, tenant shared.ID) s
 	}
 
 	item := freshID(t)
+	// The path is its own parameter rather than built from `$1`. PostgreSQL deduces one type per
+	// parameter, and `$1` is already the `uuid` the identifier column takes - concatenating it into
+	// text in the same statement asks it to be both.
 	if _, err := admin.Exec(ctx, `
 		INSERT INTO work_item (id, tenant_id, collection_id, type, path, depth, title, order_key,
 		                       content_language, created_by)
-		VALUES ($1, $2, $3, 'TASK', '/' || $1 || '/', 1, 'Something due', 'a0', 'en', $4)`,
-		item.String(), tenant.String(), collection.String(), authorA.String()); err != nil {
+		VALUES ($1, $2, $3, 'TASK', $4, 1, 'Something due', 'a0', 'en', $5)`,
+		item.String(), tenant.String(), collection.String(), "/"+item.String()+"/",
+		authorA.String()); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}
 	return item
