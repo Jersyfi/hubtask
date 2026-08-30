@@ -1393,7 +1393,9 @@ func run() error {
 	automationRuns := postgres.NewAutomationRunRepository(cursors)
 	matchRules := automationservice.MatchRules{
 		Rules: automationRuns, Containers: containers, Jobs: jobs,
-		Conditions: celexpression.New(), Clock: clockadapter.System{},
+		Conditions: celexpression.New(),
+		Jumble:     postgres.NewJumbleRepository(cursors),
+		Clock:      clockadapter.System{},
 	}
 
 	// The relative-date producer (G-08). A second subscriber rather than a branch inside the first,
@@ -1677,6 +1679,7 @@ func run() error {
 			Conditions: celexpression.New(),
 			Entries:    items,
 			Containers: containers,
+			Jumble:     postgres.NewJumbleRepository(cursors),
 			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
 			Owners: notification.RecordRuleDisabled{
 				Notifications: notifications, Accounts: accounts,

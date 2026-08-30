@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -230,5 +231,68 @@ func TestARealReadFailurePropagates(t *testing.T) {
 	_, _, err := values.Resolve(context.Background(), "item")
 	if !errors.Is(err, shared.ErrUnavailable) {
 		t.Errorf("error = %v, want the read's own failure", err)
+	}
+}
+
+// The jumble half of `payload` (G-10): a JUMBLE_ENTRY run reads the entry's fields as data,
+// lazily, and a swept entry reads as an empty document rather than a failure.
+
+type jumbleStore struct{ rows map[shared.ID]jumble.Entry }
+
+func (s jumbleStore) Find(_ context.Context, id shared.ID) (jumble.Entry, error) {
+	entry, found := s.rows[id]
+	if !found {
+		return jumble.Entry{}, shared.ErrNotFound.WithDetail("jumble.entry_not_found")
+	}
+	return entry, nil
+}
+
+func TestPayloadRendersTheJumbleEntryAsData(t *testing.T) {
+	entryID := shared.ID("01936f2a-7c1e-7000-8000-000000000e10")
+	store := jumbleStore{rows: map[shared.ID]jumble.Entry{
+		entryID: {
+			ID: entryID, Channel: jumble.ChannelWebhook, Sender: "orders@example.org",
+			RawSubject: "Order #42", RawBody: "Call back", Status: jumble.StatusNew,
+			ReceivedAt: readAt,
+		},
+	}}
+
+	// Named outright, as a JUMBLE_ENTRY run names it.
+	values := condition.Values{Now: readAt, JumbleID: entryID, Jumble: store}
+	payload, _ := resolved(t, values, "payload").(map[string]any)
+	if payload["channel"] != "WEBHOOK" || payload["sender"] != "orders@example.org" ||
+		payload["raw_subject"] != "Order #42" {
+		t.Errorf("payload = %v", payload)
+	}
+
+	// Or through the envelope's subject, which is what lets an EVENT rule on
+	// jumble.entry_received read the same names.
+	values = condition.Values{
+		Now: readAt, Jumble: store,
+		Envelope: event.Envelope{Subject: "jumble_entry/" + entryID.String()},
+	}
+	payload, _ = resolved(t, values, "payload").(map[string]any)
+	if payload["raw_body"] != "Call back" {
+		t.Errorf("payload through the subject = %v", payload)
+	}
+
+	// Swept between the arrival and the run: empty and honest, never a failure.
+	values = condition.Values{
+		Now: readAt, Jumble: store,
+		JumbleID: shared.ID("01936f2a-7c1e-7000-8000-000000000e11"),
+	}
+	payload, _ = resolved(t, values, "payload").(map[string]any)
+	if len(payload) != 0 {
+		t.Errorf("a swept entry reads as %v", payload)
+	}
+
+	// An inbound delivery's own body always wins: the two kinds cannot mix.
+	values = condition.Values{
+		Now: readAt, Jumble: store, JumbleID: entryID,
+		Payload: map[string]any{"order_id": "42"},
+	}
+	payload, _ = resolved(t, values, "payload").(map[string]any)
+	if payload["order_id"] != "42" || payload["channel"] != nil {
+		t.Errorf("the inbound body lost to the jumble: %v", payload)
 	}
 }

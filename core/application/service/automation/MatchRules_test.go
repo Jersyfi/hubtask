@@ -30,7 +30,15 @@ var (
 type matching struct{ rules []domain.Rule }
 
 func (m matching) ForEventType(context.Context, event.Type) ([]domain.Rule, error) {
-	return m.rules, nil
+	// The real query answers only enabled EVENT rules; the fake mirrors that much, because the
+	// jumble delivery (G-10) depends on the two kinds not leaking into each other's paths.
+	var of []domain.Rule
+	for _, rule := range m.rules {
+		if rule.Trigger.Kind == domain.TriggerEvent {
+			of = append(of, rule)
+		}
+	}
+	return of, nil
 }
 
 func (m matching) ByTriggerKind(
@@ -380,4 +388,75 @@ func (rendered) Evaluate(ctx context.Context, in expression.Activation) (express
 	document, _ := value.(map[string]any)
 	subject, _ := document["subject"].(string)
 	return expression.Value{Text: subject}, nil
+}
+
+// The JUMBLE_ENTRY trigger (G-10): an arrival fires the engine, one job per rule, with the entry
+// as subject and occasion.
+
+func jumbleArrival() event.Envelope {
+	return event.Envelope{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-000000000e91"), Type: event.JumbleEntryReceived,
+		TenantID: tenant,
+		Subject:  "jumble_entry/01936f2a-7c1e-7000-8000-000000000e92",
+		Payload:  map[string]any{"id": "01936f2a-7c1e-7000-8000-000000000e92", "channel": "WEBHOOK"},
+	}
+}
+
+func TestAnArrivalFiresTheJumbleRules(t *testing.T) {
+	rule := ruleAt(domain.Scope{Type: domain.ScopeTenant}, ruleID)
+	rule.Trigger = domain.Trigger{Kind: domain.TriggerJumbleEntry}
+	matcher, queued, _ := newMatcher([]domain.Rule{rule})
+
+	if err := matcher.Deliver(context.Background(), jumbleArrival()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(queued.queued) != 1 {
+		t.Fatalf("%d jobs queued, want one per matching rule", len(queued.queued))
+	}
+
+	payload := queued.queued[0].Payload
+	if payload["trigger"] != string(domain.TriggerJumbleEntry) {
+		t.Errorf("the job names trigger %v", payload["trigger"])
+	}
+	entry := "01936f2a-7c1e-7000-8000-000000000e92"
+	if payload["subject_id"] != entry || payload["occasion"] != entry {
+		t.Errorf("the job names %v / %v, want the entry as subject and occasion",
+			payload["subject_id"], payload["occasion"])
+	}
+	if payload["event_id"] != jumbleArrival().ID.String() {
+		t.Errorf("the job names event %v", payload["event_id"])
+	}
+}
+
+// Only a tenant-scoped rule can match: an entry sits in no container, and a rule scoped below the
+// tenant does not fire rather than firing everywhere.
+func TestAScopedJumbleRuleDoesNotFire(t *testing.T) {
+	scoped := ruleAt(domain.Scope{Type: domain.ScopeHub, ID: hubID}, ruleID)
+	scoped.Trigger = domain.Trigger{Kind: domain.TriggerJumbleEntry}
+	disabled := ruleAt(domain.Scope{Type: domain.ScopeTenant},
+		shared.ID("01936f2a-7c1e-7000-8000-000000000e93"))
+	disabled.Trigger = domain.Trigger{Kind: domain.TriggerJumbleEntry}
+	disabled.Enabled = false
+
+	matcher, queued, _ := newMatcher([]domain.Rule{scoped, disabled})
+	if err := matcher.Deliver(context.Background(), jumbleArrival()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(queued.queued) != 0 {
+		t.Errorf("%d jobs queued for rules that must not fire", len(queued.queued))
+	}
+}
+
+// An ordinary event fires no jumble rule: the arrival is the one occasion this kind has.
+func TestAnOrdinaryEventFiresNoJumbleRule(t *testing.T) {
+	rule := ruleAt(domain.Scope{Type: domain.ScopeTenant}, ruleID)
+	rule.Trigger = domain.Trigger{Kind: domain.TriggerJumbleEntry}
+	matcher, queued, _ := newMatcher([]domain.Rule{rule})
+
+	if err := matcher.Deliver(context.Background(), itemEvent()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(queued.queued) != 0 {
+		t.Errorf("%d jobs queued on an item event", len(queued.queued))
+	}
 }

@@ -52,7 +52,11 @@ type MatchRules struct {
 	// a rule with no dedupe expression needs none, and a build without an engine still dispatches
 	// every other rule rather than none.
 	Conditions expression.Compiler
-	Clock      clock.Clock
+	// Jumble is the read a dedupe key naming `payload` costs on an arrival (G-10). Optional for
+	// the reason Containers is: without it the name resolves to an empty document, and the key
+	// falls back to the unique one rather than collapsing every arrival into one job.
+	Jumble condition.JumbleEntries
+	Clock  clock.Clock
 }
 
 var _ eventbus.Subscriber = MatchRules{}
@@ -81,6 +85,14 @@ func (m MatchRules) Wants(eventType event.Type) bool {
 
 // Deliver queues one job per rule that wants this event.
 func (m MatchRules) Deliver(ctx context.Context, envelope event.Envelope) error {
+	if envelope.Type == event.JumbleEntryReceived {
+		// An arrival fires the JUMBLE_ENTRY rules beside any EVENT rule on the type itself
+		// (G-10): one engine, and the trigger decides only what makes this run one occasion.
+		if err := m.deliverJumble(ctx, envelope); err != nil {
+			return err
+		}
+	}
+
 	rules, err := m.Rules.ForEventType(ctx, envelope.Type)
 	if err != nil {
 		return err
@@ -101,6 +113,52 @@ func (m MatchRules) Deliver(ctx context.Context, envelope event.Envelope) error 
 			continue
 		}
 		if err := m.enqueue(ctx, rule, envelope); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deliverJumble queues one job per JUMBLE_ENTRY rule for one arrival.
+//
+// Only tenant-scoped rules can match: an entry sits in no container, so covers() with an empty
+// location is the honest answer for a rule scoped below the tenant - it does not fire, rather
+// than firing everywhere.
+func (m MatchRules) deliverJumble(ctx context.Context, envelope event.Envelope) error {
+	entryID := condition.JumbleEntryOf(envelope)
+	if entryID.IsZero() {
+		return nil
+	}
+
+	rules, err := m.Rules.ByTriggerKind(ctx, domain.TriggerJumbleEntry)
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range rules {
+		if !rule.Enabled || !covers(rule.Scope, location{}) {
+			continue
+		}
+		key, err := m.dedupeKey(ctx, rule, envelope)
+		if err != nil {
+			return err
+		}
+		if _, err := m.Jobs.Enqueue(ctx, queue.Request{
+			Kind:     queue.KindAutomationRun,
+			TenantID: envelope.TenantID,
+			Payload: map[string]any{
+				"rule_id":  rule.ID.String(),
+				"trigger":  string(domain.TriggerJumbleEntry),
+				"event_id": envelope.ID.String(),
+				// The entry is what the run is about and what makes it one occasion
+				// (automation.md §1.1): the run's actions key on it, and the engine supplies it
+				// to CONVERT_JUMBLE_ENTRY as the entry a rule cannot carry.
+				"subject_id":      entryID.String(),
+				"occasion":        entryID.String(),
+				"causation_depth": envelope.CausationDepth,
+			},
+			DedupeKey: key,
+		}); err != nil {
 			return err
 		}
 	}
@@ -159,7 +217,7 @@ func (m MatchRules) dedupeKey(
 	if err != nil {
 		return unique, nil
 	}
-	value, err := program.Evaluate(ctx, condition.Values{Envelope: envelope, Now: m.Clock.Now()})
+	value, err := program.Evaluate(ctx, condition.Values{Envelope: envelope, Now: m.Clock.Now(), Jumble: m.Jumble})
 	if err != nil {
 		return unique, nil
 	}
