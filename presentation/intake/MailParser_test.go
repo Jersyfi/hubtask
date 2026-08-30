@@ -4,12 +4,16 @@
 package intake_test
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
+	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
+	jumbledomain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/presentation/intake"
 )
@@ -399,4 +403,99 @@ func expectCode(t *testing.T, err error, want string) {
 	if got := shared.AsError(err).DetailCode; got != want {
 		t.Errorf("the refusal is %q, want %q", got, want)
 	}
+}
+
+// The seam between the two halves (G-11): a payload the parser could not read still reaches the
+// use case, and one that broke a bound does not.
+func TestTheIntakeDeliversWhatItCouldParseAndWhatItCouldNot(t *testing.T) {
+	t.Run("an ordinary mail arrives parsed", func(t *testing.T) {
+		sink := &recordingDeliverer{}
+		door := intake.MailIntake{Deliveries: sink}
+
+		if _, err := door.Deliver(t.Context(), presentedToken(t), mixedMail(t)); err != nil {
+			t.Fatalf("delivering: %v", err)
+		}
+		if sink.delivery.Unparseable {
+			t.Error("an ordinary mail was delivered as unparseable")
+		}
+		if sink.delivery.Subject != "Order #42 \u2014 please call back" {
+			t.Errorf("the subject reached the use case as %q", sink.delivery.Subject)
+		}
+		if len(sink.delivery.Attachments) != 3 {
+			t.Errorf("%d files reached the pipeline", len(sink.delivery.Attachments))
+		}
+	})
+
+	t.Run("a payload nobody can parse arrives as bytes", func(t *testing.T) {
+		sink := &recordingDeliverer{}
+		door := intake.MailIntake{Deliveries: sink}
+
+		if _, err := door.Deliver(t.Context(), presentedToken(t), []byte("\x00 not a mail")); err != nil {
+			t.Fatalf("an unparseable payload was refused: %v", err)
+		}
+		if !sink.delivery.Unparseable {
+			t.Error("the delivery does not say the parse failed")
+		}
+		if string(sink.delivery.Raw) != "\x00 not a mail" {
+			t.Errorf("the raw payload is %q", sink.delivery.Raw)
+		}
+	})
+
+	t.Run("a payload over a bound is refused, and nothing is delivered", func(t *testing.T) {
+		sink := &recordingDeliverer{}
+		door := intake.MailIntake{
+			Deliveries: sink,
+			Limits:     intake.MailLimits{MaxAttachmentBytes: 8},
+		}
+
+		raw := multipartMail(t, "mixed", "--b\r\nContent-Type: application/octet-stream\r\n"+
+			"Content-Disposition: attachment; filename=\"big.bin\"\r\n\r\n"+
+			strings.Repeat("x", 64)+"\r\n--b--\r\n")
+
+		_, err := door.Deliver(t.Context(), presentedToken(t), raw)
+		expectCode(t, err, intake.CodeMailAttachmentTooBig)
+		if sink.called {
+			t.Error("a refused payload reached the use case")
+		}
+	})
+
+	t.Run("a token that is not one answers the intake's own not-found", func(t *testing.T) {
+		sink := &recordingDeliverer{}
+		door := intake.MailIntake{Deliveries: sink}
+
+		_, err := door.Deliver(t.Context(), "not-a-token", mixedMail(t))
+		if !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("a malformed token answered %v", err)
+		}
+		if sink.called {
+			t.Error("a malformed token reached the use case")
+		}
+	})
+}
+
+// recordingDeliverer stands in for the use case: what reaches it is what this seam is about.
+type recordingDeliverer struct {
+	called   bool
+	delivery jumbleservice.MailDelivery
+}
+
+func (d *recordingDeliverer) Execute(
+	_ context.Context, delivery jumbleservice.MailDelivery,
+) (jumbledomain.Entry, error) {
+	d.called = true
+	d.delivery = delivery
+	return jumbledomain.Entry{}, nil
+}
+
+// presentedToken is a token in the shape the route hands over. Whether it opens anything is the
+// use case's question; what this file is about is what reaches it.
+func presentedToken(t testing.TB) string {
+	t.Helper()
+	token, err := integration.NewInboundToken(
+		"0192f000-0000-7000-8000-000000000001",
+		[]byte(strings.Repeat("k", integration.InboundTokenSecretBytes)))
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	return token.Secret()
 }
