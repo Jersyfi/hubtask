@@ -164,8 +164,8 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 }
 
 const findRuleRun = `-- name: FindRuleRun :one
-SELECT id, rule_id, event_id, status, condition_results, action_results,
-       error_code, started_at, finished_at, causation_depth
+SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
+       condition_results, action_results, error_code, started_at, finished_at, causation_depth
 FROM rule_run
 WHERE id = $1
 `
@@ -174,6 +174,9 @@ type FindRuleRunRow struct {
 	ID               pgtype.UUID
 	RuleID           pgtype.UUID
 	EventID          pgtype.UUID
+	Trigger          string
+	TriggeredBy      pgtype.UUID
+	SubjectID        pgtype.UUID
 	Status           string
 	ConditionResults []byte
 	ActionResults    []byte
@@ -190,6 +193,9 @@ func (q *Queries) FindRuleRun(ctx context.Context, id pgtype.UUID) (FindRuleRunR
 		&i.ID,
 		&i.RuleID,
 		&i.EventID,
+		&i.Trigger,
+		&i.TriggeredBy,
+		&i.SubjectID,
 		&i.Status,
 		&i.ConditionResults,
 		&i.ActionResults,
@@ -297,12 +303,13 @@ func (q *Queries) InsertAutomationRule(ctx context.Context, arg InsertAutomation
 const insertRuleRun = `-- name: InsertRuleRun :exec
 
 INSERT INTO rule_run (
-  id, tenant_id, rule_id, event_id, status, condition_results, action_results,
-  started_at, causation_depth
+  id, tenant_id, rule_id, event_id, trigger, triggered_by, subject_id,
+  status, condition_results, action_results, started_at, causation_depth
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  $7, $8
+  $7, $8, $9,
+  $10, $11
 )
 `
 
@@ -310,6 +317,9 @@ type InsertRuleRunParams struct {
 	ID               pgtype.UUID
 	RuleID           pgtype.UUID
 	EventID          pgtype.UUID
+	Trigger          string
+	TriggeredBy      pgtype.UUID
+	SubjectID        pgtype.UUID
 	Status           string
 	ConditionResults []byte
 	ActionResults    []byte
@@ -329,6 +339,9 @@ func (q *Queries) InsertRuleRun(ctx context.Context, arg InsertRuleRunParams) er
 		arg.ID,
 		arg.RuleID,
 		arg.EventID,
+		arg.Trigger,
+		arg.TriggeredBy,
+		arg.SubjectID,
 		arg.Status,
 		arg.ConditionResults,
 		arg.ActionResults,
@@ -419,19 +432,21 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 }
 
 const listRuleRuns = `-- name: ListRuleRuns :many
-SELECT id, rule_id, event_id, status, condition_results, action_results,
-       error_code, started_at, finished_at, causation_depth
+SELECT id, rule_id, event_id, trigger, triggered_by, subject_id, status,
+       condition_results, action_results, error_code, started_at, finished_at, causation_depth
 FROM rule_run
 WHERE ($1::uuid IS NULL OR rule_id = $1::uuid)
   AND ($2::text IS NULL OR status = $2::text)
-  AND ($3::uuid IS NULL OR id < $3::uuid)
+  AND ($3::text IS NULL OR trigger = $3::text)
+  AND ($4::uuid IS NULL OR id < $4::uuid)
 ORDER BY id DESC
-LIMIT $4
+LIMIT $5
 `
 
 type ListRuleRunsParams struct {
 	RuleID   pgtype.UUID
 	Status   *string
+	Trigger  *string
 	After    pgtype.UUID
 	PageSize int32
 }
@@ -440,6 +455,9 @@ type ListRuleRunsRow struct {
 	ID               pgtype.UUID
 	RuleID           pgtype.UUID
 	EventID          pgtype.UUID
+	Trigger          string
+	TriggeredBy      pgtype.UUID
+	SubjectID        pgtype.UUID
 	Status           string
 	ConditionResults []byte
 	ActionResults    []byte
@@ -450,12 +468,13 @@ type ListRuleRunsRow struct {
 }
 
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the order runs happened
-// in. The two filters are nullable arguments rather than four statements, because a second statement
-// differing in one predicate is a second place for a predicate to be forgotten.
+// in. The three filters are nullable arguments rather than eight statements, because a second
+// statement differing in one predicate is a second place for a predicate to be forgotten.
 func (q *Queries) ListRuleRuns(ctx context.Context, arg ListRuleRunsParams) ([]ListRuleRunsRow, error) {
 	rows, err := q.db.Query(ctx, listRuleRuns,
 		arg.RuleID,
 		arg.Status,
+		arg.Trigger,
 		arg.After,
 		arg.PageSize,
 	)
@@ -470,6 +489,9 @@ func (q *Queries) ListRuleRuns(ctx context.Context, arg ListRuleRunsParams) ([]L
 			&i.ID,
 			&i.RuleID,
 			&i.EventID,
+			&i.Trigger,
+			&i.TriggeredBy,
+			&i.SubjectID,
 			&i.Status,
 			&i.ConditionResults,
 			&i.ActionResults,

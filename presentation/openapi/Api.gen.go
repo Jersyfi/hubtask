@@ -1899,6 +1899,36 @@ func (e RuleActionResultStatus) Valid() bool {
 	}
 }
 
+// Defines values for RuleRunTrigger.
+const (
+	RuleRunTriggerEVENT          RuleRunTrigger = "EVENT"
+	RuleRunTriggerINBOUNDWEBHOOK RuleRunTrigger = "INBOUND_WEBHOOK"
+	RuleRunTriggerJUMBLEENTRY    RuleRunTrigger = "JUMBLE_ENTRY"
+	RuleRunTriggerMANUAL         RuleRunTrigger = "MANUAL"
+	RuleRunTriggerRELATIVEDATE   RuleRunTrigger = "RELATIVE_DATE"
+	RuleRunTriggerSCHEDULE       RuleRunTrigger = "SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the RuleRunTrigger enum.
+func (e RuleRunTrigger) Valid() bool {
+	switch e {
+	case RuleRunTriggerEVENT:
+		return true
+	case RuleRunTriggerINBOUNDWEBHOOK:
+		return true
+	case RuleRunTriggerJUMBLEENTRY:
+		return true
+	case RuleRunTriggerMANUAL:
+		return true
+	case RuleRunTriggerRELATIVEDATE:
+		return true
+	case RuleRunTriggerSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuleRunStatus.
 const (
 	RuleRunStatusABORTEDLOOP RuleRunStatus = "ABORTED_LOOP"
@@ -2424,6 +2454,36 @@ func (e ListRuleRunsParamsStatus) Valid() bool {
 	case ListRuleRunsParamsStatusSUCCEEDED:
 		return true
 	case ListRuleRunsParamsStatusTHROTTLED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListRuleRunsParamsTrigger.
+const (
+	ListRuleRunsParamsTriggerEVENT          ListRuleRunsParamsTrigger = "EVENT"
+	ListRuleRunsParamsTriggerINBOUNDWEBHOOK ListRuleRunsParamsTrigger = "INBOUND_WEBHOOK"
+	ListRuleRunsParamsTriggerJUMBLEENTRY    ListRuleRunsParamsTrigger = "JUMBLE_ENTRY"
+	ListRuleRunsParamsTriggerMANUAL         ListRuleRunsParamsTrigger = "MANUAL"
+	ListRuleRunsParamsTriggerRELATIVEDATE   ListRuleRunsParamsTrigger = "RELATIVE_DATE"
+	ListRuleRunsParamsTriggerSCHEDULE       ListRuleRunsParamsTrigger = "SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the ListRuleRunsParamsTrigger enum.
+func (e ListRuleRunsParamsTrigger) Valid() bool {
+	switch e {
+	case ListRuleRunsParamsTriggerEVENT:
+		return true
+	case ListRuleRunsParamsTriggerINBOUNDWEBHOOK:
+		return true
+	case ListRuleRunsParamsTriggerJUMBLEENTRY:
+		return true
+	case ListRuleRunsParamsTriggerMANUAL:
+		return true
+	case ListRuleRunsParamsTriggerRELATIVEDATE:
+		return true
+	case ListRuleRunsParamsTriggerSCHEDULE:
 		return true
 	default:
 		return false
@@ -4395,7 +4455,19 @@ type RuleRun struct {
 
 	// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately.
 	Status RuleRunStatus `json:"status"`
+
+	// SubjectId The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from one entry's due date. Absent where the event carries the subject, which is where a reader should look for it.
+	SubjectId *openapi_types.UUID `json:"subject_id,omitempty"`
+
+	// Trigger Which of the rule's six ways of starting produced this run (automation.md §1.1). On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+	Trigger RuleRunTrigger `json:"trigger"`
+
+	// TriggeredBy Who pulled the trigger, for the one kind a person pulls: `MANUAL`. Absent for every other kind - a schedule, a due date and an inbound delivery have no actor, and naming one would be inventing an author for something nobody did.
+	TriggeredBy *openapi_types.UUID `json:"triggered_by,omitempty"`
 }
+
+// RuleRunTrigger Which of the rule's six ways of starting produced this run (automation.md §1.1). On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+type RuleRunTrigger string
 
 // RuleRunPage defines model for RuleRunPage.
 type RuleRunPage struct {
@@ -5214,10 +5286,16 @@ type ListRuleRunsParams struct {
 
 	// Status Narrow to one outcome. `FAILED` and `ABORTED_LOOP` are the two an operator usually wants; `THROTTLED` and `SKIPPED` are the ordinary answers of a rule that is working.
 	Status *ListRuleRunsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Trigger Narrow to one way of starting. "Did the schedule fire last night" and "did anybody press the button" are two questions about the same rule.
+	Trigger *ListRuleRunsParamsTrigger `form:"trigger,omitempty" json:"trigger,omitempty"`
 }
 
 // ListRuleRunsParamsStatus defines parameters for ListRuleRuns.
 type ListRuleRunsParamsStatus string
+
+// ListRuleRunsParamsTrigger defines parameters for ListRuleRuns.
+type ListRuleRunsParamsTrigger string
 
 // ListBackupsAtTargetParams defines parameters for ListBackupsAtTarget.
 type ListBackupsAtTargetParams struct {
@@ -7264,6 +7342,19 @@ func (siw *ServerInterfaceWrapper) ListRuleRuns(w http.ResponseWriter, r *http.R
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "trigger" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "trigger", r.URL.Query(), &params.Trigger, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "trigger"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trigger", Err: err})
 		}
 		return
 	}

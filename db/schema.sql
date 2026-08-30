@@ -700,6 +700,16 @@ CREATE TABLE rule_run (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   rule_id      uuid NOT NULL,
   event_id     uuid,
+  -- What started the run (G-08, migration 0054). On the run rather than read back from the rule,
+  -- because a rule can be edited from one kind into another and a log that resolved the kind at
+  -- read time would rewrite its own history.
+  trigger      text NOT NULL DEFAULT 'EVENT',
+  -- Who pulled it, for the one kind a person pulls. No foreign key: a run has to outlive the
+  -- account that started it, exactly as it outlives the rule it belongs to.
+  triggered_by uuid,
+  -- The entry the run is about when no event names it - a RELATIVE_DATE run measured from one
+  -- entry's due date.
+  subject_id   uuid,
   status       text NOT NULL CHECK (status IN ('RUNNING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
   condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
   action_results    jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -708,9 +718,13 @@ CREATE TABLE rule_run (
   finished_at  timestamptz,
   causation_depth integer NOT NULL DEFAULT 0,
   CONSTRAINT rule_run_rule_id_fkey
-    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE
+    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT rule_run_trigger_check
+    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY'))
 );
 CREATE INDEX rule_run_idx ON rule_run (tenant_id, rule_id, started_at DESC);
+-- What the run listing's trigger filter asks: this tenant's runs of one kind, newest first.
+CREATE INDEX rule_run_trigger_idx ON rule_run (tenant_id, trigger, id DESC);
 
 -- ============================== Integration ================================
 

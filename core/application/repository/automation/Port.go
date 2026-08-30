@@ -69,11 +69,12 @@ type Rules interface {
 
 // RunQuery narrows a listing of runs.
 type RunQuery struct {
-	// RuleID and Status are zero for "any", which is what an absent query parameter means.
-	RuleID shared.ID
-	Status domain.RunStatus
-	Cursor string
-	Size   int
+	// RuleID, Status and Trigger are zero for "any", which is what an absent query parameter means.
+	RuleID  shared.ID
+	Status  domain.RunStatus
+	Trigger domain.TriggerKind
+	Cursor  string
+	Size    int
 }
 
 // RunPage is one page of runs and where the walk stands.

@@ -172,10 +172,10 @@ func runRequest(scope domain.Scope, action audit.Action, target shared.ID) acces
 func (h ListRuleRuns) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ListRuleRunsName,
-		Summary: "What the rules have done, newest first: which rule, which event started it, " +
-			"how its conditions answered and what each action did. Only the runs of rules the " +
-			"caller may manage. A run outlives the rule that produced it, which is why deleting " +
-			"a rule is soft.",
+		Summary: "What the rules have done, newest first: which rule, what started it, how its " +
+			"conditions answered and what each action did. Only the runs of rules the caller may " +
+			"manage. A run outlives the rule that produced it, which is why deleting a rule is " +
+			"soft.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  automationScope,
 		ReadOnly:    true,
@@ -186,6 +186,14 @@ func (h ListRuleRuns) Descriptor() usecase.Descriptor {
 				Enum: []string{"RUNNING", "SUCCEEDED", "SKIPPED", "FAILED", "ABORTED_LOOP", "THROTTLED"},
 				Description: "Narrow to one outcome. FAILED and ABORTED_LOOP are the two an " +
 					"operator usually wants.",
+			},
+			{
+				Name: "trigger", Kind: usecase.KindString,
+				Enum: []string{
+					"EVENT", "SCHEDULE", "RELATIVE_DATE", "INBOUND_WEBHOOK", "MANUAL", "JUMBLE_ENTRY",
+				},
+				Description: "Narrow to one way of starting. \"Did the schedule fire last night\" " +
+					"and \"did anybody press the button\" are two questions about the same rule.",
 			},
 			{Name: "cursor", Kind: usecase.KindString, Description: "Where the last page stopped."},
 			{Name: "size", Kind: usecase.KindInt, Description: "How many at most. Fifty by default, two hundred at most."},
@@ -221,8 +229,9 @@ func (h ListRuleRuns) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	query := repository.RunQuery{
-		Status: domain.RunStatus(in.String("status")),
-		Cursor: in.String("cursor"), Size: in.Int("size"),
+		Status:  domain.RunStatus(in.String("status")),
+		Trigger: domain.TriggerKind(in.String("trigger")),
+		Cursor:  in.String("cursor"), Size: in.Int("size"),
 	}
 	if in.Present("rule_id") {
 		ruleID, err := in.ID("rule_id")
@@ -236,6 +245,12 @@ func (h ListRuleRuns) invoke(
 			WithDetail("automation.run_status_unknown").
 			WithParams(map[string]string{"status": string(query.Status)}).
 			WithFields(shared.FieldError{Path: "/status", Code: "automation.run_status_unknown"})
+	}
+	if query.Trigger != "" && !query.Trigger.Valid() {
+		return nil, shared.ErrValidation.
+			WithDetail("automation.trigger_kind_unknown").
+			WithParams(map[string]string{"kind": query.Trigger.String()}).
+			WithFields(shared.FieldError{Path: "/trigger", Code: "automation.trigger_kind_unknown"})
 	}
 
 	page, err := h.Execute(ctx, actor, query)
@@ -295,6 +310,9 @@ func runOutput(run domain.Run) usecase.Output {
 	out := usecase.Output{
 		"id":                run.ID.String(),
 		"rule_id":           run.RuleID.String(),
+		"trigger":           run.Trigger.String(),
+		"triggered_by":      nil,
+		"subject_id":        nil,
 		"event_id":          nil,
 		"status":            string(run.Status),
 		"condition_results": conditions,
@@ -305,6 +323,12 @@ func runOutput(run domain.Run) usecase.Output {
 	}
 	if !run.EventID.IsZero() {
 		out["event_id"] = run.EventID.String()
+	}
+	if !run.TriggeredBy.IsZero() {
+		out["triggered_by"] = run.TriggeredBy.String()
+	}
+	if !run.SubjectID.IsZero() {
+		out["subject_id"] = run.SubjectID.String()
 	}
 	if run.FinishedAt != nil {
 		out["finished_at"] = *run.FinishedAt

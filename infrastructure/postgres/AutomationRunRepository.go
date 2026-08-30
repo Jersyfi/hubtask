@@ -57,6 +57,14 @@ func (r AutomationRunRepository) Start(ctx context.Context, run domain.Run) erro
 	if err != nil {
 		return err
 	}
+	triggeredBy, err := optionalUUID(run.TriggeredBy)
+	if err != nil {
+		return err
+	}
+	subjectID, err := optionalUUID(run.SubjectID)
+	if err != nil {
+		return err
+	}
 	conditions, actions, err := runDocuments(run)
 	if err != nil {
 		return err
@@ -64,6 +72,7 @@ func (r AutomationRunRepository) Start(ctx context.Context, run domain.Run) erro
 
 	if err := queries.InsertRuleRun(ctx, sqlc.InsertRuleRunParams{
 		ID: id, RuleID: ruleID, EventID: eventID,
+		Trigger: string(run.Trigger), TriggeredBy: triggeredBy, SubjectID: subjectID,
 		Status:           string(run.Status),
 		ConditionResults: conditions,
 		ActionResults:    actions,
@@ -157,9 +166,10 @@ func (r AutomationRunRepository) List(
 	// count over the same predicate.
 	size := boundedRulePage(query.Size)
 	rows, err := queries.ListRuleRuns(ctx, sqlc.ListRuleRunsParams{
-		RuleID: ruleID,
-		Status: optionalText(string(query.Status)),
-		After:  after,
+		RuleID:  ruleID,
+		Status:  optionalText(string(query.Status)),
+		Trigger: optionalText(string(query.Trigger)),
+		After:   after,
 		//nolint:gosec // G115: boundedRulePage returns at most maxRulePage, which is 200
 		PageSize: int32(size + 1),
 	})
@@ -389,6 +399,14 @@ func runFrom(row sqlc.ListRuleRunsRow) (domain.Run, error) {
 	if err != nil {
 		return domain.Run{}, err
 	}
+	triggeredBy, err := optionalID(row.TriggeredBy)
+	if err != nil {
+		return domain.Run{}, err
+	}
+	subjectID, err := optionalID(row.SubjectID)
+	if err != nil {
+		return domain.Run{}, err
+	}
 
 	var conditionRows []conditionResultDocument
 	var actionRows []actionResultDocument
@@ -412,6 +430,7 @@ func runFrom(row sqlc.ListRuleRunsRow) (domain.Run, error) {
 
 	run := domain.Run{
 		ID: id, RuleID: ruleID, EventID: eventID,
+		Trigger: domain.TriggerKind(row.Trigger), TriggeredBy: triggeredBy, SubjectID: subjectID,
 		Status:           domain.RunStatus(row.Status),
 		ConditionResults: make([]domain.ConditionResult, 0, len(conditionRows)),
 		ActionResults:    make([]domain.ActionResult, 0, len(actionRows)),

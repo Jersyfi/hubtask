@@ -1014,6 +1014,9 @@ type RuleRun struct {
 	StartedAt        pgtype.Timestamptz
 	FinishedAt       pgtype.Timestamptz
 	CausationDepth   int32
+	Trigger          string
+	TriggeredBy      pgtype.UUID
+	SubjectID        pgtype.UUID
 }
 
 type SavedView struct {

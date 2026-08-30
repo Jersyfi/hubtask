@@ -99,7 +99,9 @@ func (a AutomationRun) next(
 // commandOf reads the job's payload.
 //
 // Data rather than a domain object, because the row outlives the process that wrote it - a type that
-// changed shape in between would take the job with it.
+// changed shape in between would take the job with it. That is also why an absent `trigger` reads as
+// `EVENT`: a job queued before G-08 named no kind because there was only one, and a rolling update
+// has both shapes in the table at once.
 func commandOf(job queue.Job) (automation.Command, error) {
 	ruleID, err := idPayload(job, "rule_id")
 	if err != nil {
@@ -109,6 +111,27 @@ func commandOf(job queue.Job) (automation.Command, error) {
 	if err != nil {
 		return automation.Command{}, err
 	}
+	triggeredBy, err := idPayload(job, "triggered_by")
+	if err != nil {
+		return automation.Command{}, err
+	}
+	subjectID, err := idPayload(job, "subject_id")
+	if err != nil {
+		return automation.Command{}, err
+	}
+
+	trigger := domain.TriggerEvent
+	if named, _ := job.Payload["trigger"].(string); named != "" {
+		trigger = domain.TriggerKind(named)
+		if !trigger.Valid() {
+			return automation.Command{}, shared.ErrInternal.
+				WithDetail("automation.run_trigger_unknown").
+				WithParams(map[string]string{"trigger": named})
+		}
+	}
+
+	occasion, _ := job.Payload["occasion"].(string)
+	payload, _ := job.Payload["payload"].(map[string]any)
 
 	depth := 0
 	switch value := job.Payload["causation_depth"].(type) {
@@ -122,19 +145,25 @@ func commandOf(job queue.Job) (automation.Command, error) {
 	if depth < 0 {
 		depth = 0
 	}
-	return automation.Command{RuleID: ruleID, EventID: eventID, CausationDepth: depth}, nil
+	return automation.Command{
+		RuleID: ruleID, Trigger: trigger, EventID: eventID,
+		TriggeredBy: triggeredBy, SubjectID: subjectID,
+		Occasion: occasion, Payload: payload, CausationDepth: depth,
+	}, nil
 }
 
+// idPayload reads one identifier. Only the rule is required: every other identifier belongs to
+// some of the six triggers and to none of the others, so an absent one is the ordinary shape of a
+// run that has no event, no actor, or no entry.
 func idPayload(job queue.Job, key string) (shared.ID, error) {
 	text, _ := job.Payload[key].(string)
 	if text == "" {
-		if key == "event_id" {
-			// A run nothing published started - which is what the other four triggers will be.
-			return "", nil
+		if key == "rule_id" {
+			return "", shared.ErrInternal.
+				WithDetail("automation.run_payload_incomplete").
+				WithParams(map[string]string{"field": key})
 		}
-		return "", shared.ErrInternal.
-			WithDetail("automation.run_payload_incomplete").
-			WithParams(map[string]string{"field": key})
+		return "", nil
 	}
 	return shared.ParseID(text)
 }

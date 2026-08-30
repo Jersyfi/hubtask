@@ -111,6 +111,22 @@ const (
 	TriggerJumbleEntry TriggerKind = "JUMBLE_ENTRY"
 )
 
+// Valid reports whether the kind is one of the six. Asked where a kind arrives from outside the
+// aggregate - a stored run, a job payload - rather than in ValidTrigger, which needs the switch
+// anyway to check the fields each kind carries.
+func (k TriggerKind) Valid() bool {
+	switch k {
+	case TriggerEvent, TriggerSchedule, TriggerRelativeDate,
+		TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry:
+		return true
+	default:
+		return false
+	}
+}
+
+// String is the stored value, which is also the contract's.
+func (k TriggerKind) String() string { return string(k) }
+
 // DateAnchor is the instant a RELATIVE_DATE trigger measures from.
 type DateAnchor string
 

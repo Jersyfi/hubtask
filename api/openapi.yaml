@@ -610,6 +610,15 @@ paths:
           schema:
             type: string
             enum: [RUNNING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+        - name: trigger
+          in: query
+          required: false
+          description: >
+            Narrow to one way of starting. "Did the schedule fire last night" and "did anybody
+            press the button" are two questions about the same rule.
+          schema:
+            type: string
+            enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
       responses:
         "200":
           description: The runs
@@ -5339,10 +5348,33 @@ components:
 
     RuleRun:
       type: object
-      required: [id, rule_id, status, condition_results, action_results, started_at, causation_depth]
+      required:
+        [id, rule_id, trigger, status, condition_results, action_results, started_at,
+         causation_depth]
       properties:
         id: { type: string, format: uuid }
         rule_id: { type: string, format: uuid }
+        trigger:
+          type: string
+          enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
+          description: >
+            Which of the rule's six ways of starting produced this run (automation.md §1.1). On the
+            run rather than read from the rule, because a rule can be edited from one kind into
+            another and the log has to keep saying what actually happened.
+        triggered_by:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Who pulled the trigger, for the one kind a person pulls: `MANUAL`. Absent for every
+            other kind - a schedule, a due date and an inbound delivery have no actor, and naming
+            one would be inventing an author for something nobody did.
+        subject_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from
+            one entry's due date. Absent where the event carries the subject, which is where a
+            reader should look for it.
         event_id:
           type: [string, "null"]
           format: uuid

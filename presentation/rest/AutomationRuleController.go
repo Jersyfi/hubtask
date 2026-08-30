@@ -391,6 +391,9 @@ func (c *RestController) ListRuleRuns(
 		if params.Status != nil {
 			input["status"] = string(*params.Status)
 		}
+		if params.Trigger != nil {
+			input["trigger"] = string(*params.Trigger)
+		}
 		if params.Cursor != nil {
 			input["cursor"] = *params.Cursor
 		}
@@ -424,6 +427,7 @@ func runResponse(out usecase.Output) openapi.RuleRun {
 	run := openapi.RuleRun{
 		Id:               uuidValue(out.String("id")),
 		RuleId:           uuidValue(out.String("rule_id")),
+		Trigger:          openapi.RuleRunTrigger(out.String("trigger")),
 		Status:           openapi.RuleRunStatus(out.String("status")),
 		ConditionResults: conditionResultsResponse(out["condition_results"]),
 		ActionResults:    actionResultsResponse(out["action_results"]),
@@ -433,6 +437,14 @@ func runResponse(out usecase.Output) openapi.RuleRun {
 	if id := out.String("event_id"); id != "" {
 		event := uuidValue(id)
 		run.EventId = &event
+	}
+	if id := out.String("triggered_by"); id != "" {
+		actor := uuidValue(id)
+		run.TriggeredBy = &actor
+	}
+	if id := out.String("subject_id"); id != "" {
+		subject := uuidValue(id)
+		run.SubjectId = &subject
 	}
 	if finished, present := out["finished_at"].(time.Time); present {
 		run.FinishedAt = &finished
