@@ -188,6 +188,9 @@ SESSION_SCOPES="$SESSION_SCOPES,comments:write,containers:read,containers:write,
 SESSION_SCOPES="$SESSION_SCOPES,jobs:cancel,jobs:read,media:read,media:write,members:write"
 SESSION_SCOPES="$SESSION_SCOPES,privacy:manage,privacy:read,recurrence:write,reminders:write"
 SESSION_SCOPES="$SESSION_SCOPES,retention:manage,retention:read,templates:read,templates:write,trash:read"
+# The automation surface, which the mail demo below needs: minting the jumble's intake address is
+# the same power as pointing an inbound webhook at the workspace, and it asks for the same scope.
+SESSION_SCOPES="$SESSION_SCOPES,automation:manage,automation:read"
 minted="$(hubctl --json token create --name 'the end-to-end session' --days 1 --scope "$SESSION_SCOPES")"
 TOKEN="$(printf '%s\n' "$minted" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')"
 [ -n "$TOKEN" ] || { echo "FAILED: the mint answered no credential"; echo "$minted"; exit 1; }
@@ -701,6 +704,101 @@ expect_contains "token create --account" "$machine_token" '"account_id": "'"$MAC
 hubctl token revoke "$TOKEN_ROW_ID"
 refused="$(HUBTASK_TOKEN="$BOOTSTRAP_TOKEN" hubctl container ls 2>&1 || true)"
 expect_contains "a revoked token" "$refused" "revoked"
+
+echo "--- a mail becomes a task ---"
+# The milestone's demo (G-11), and the one thing no unit test can show: a message arrives from
+# outside over a credential the workspace minted, and a rule turns it into work without anybody
+# touching it. Through curl rather than hubctl, because the intake is a public route with no client
+# behind it - what a bridge does here is exactly this.
+api() {
+	local method="$1" path="$2" body="${3-}" type="${4:-application/json}"
+	if [ -z "$body" ]; then
+		curl -fsS -X "$method" -H "Authorization: Bearer $TOKEN" "$INSTALLATION/api/v1$path"
+	else
+		curl -fsS -X "$method" -H "Authorization: Bearer $TOKEN" -H "Content-Type: $type" \
+			--data-binary "$body" "$INSTALLATION/api/v1$path"
+	fi
+}
+
+json_field() { sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" <<< "$2" | head -1; }
+
+# The address, shown once. Rotating is how one is revoked, so minting and rotating are one call.
+intake="$(api POST '/jumble/intake:rotate-token')"
+INTAKE_TOKEN="$(json_field token "$intake")"
+[ -n "$INTAKE_TOKEN" ] || { fail "the intake was minted without a token: $intake"; }
+
+# The rule: every arrival in the jumble becomes a task in the collection this session built. Written
+# switched off, as every rule is, and enabled by its own call - which is the point of that split.
+rule="$(api POST '/automation/rules' "{
+  \"name\": \"mail becomes a task\",
+  \"scope\": {\"type\": \"TENANT\"},
+  \"run_as\": \"$ACCOUNT_ID\",
+  \"trigger\": {\"kind\": \"JUMBLE_ENTRY\"},
+  \"actions\": [{\"kind\": \"CONVERT_JUMBLE_ENTRY\",
+    \"params\": {\"collection_id\": \"$COLLECTION_ID\"}}]
+}")"
+RULE_ID="$(json_field id "$rule")"
+[ -n "$RULE_ID" ] || { fail "writing the rule produced no identifier: $rule"; }
+api POST "/automation/rules/$RULE_ID:enable" >/dev/null
+
+# And the mail itself: RFC 5322 bytes, the shape any bridge can forward. Multipart, because the
+# ordinary mail is - a plain part, an HTML alternative, and a file.
+MAIL_SUBJECT="Order #42 needs a call back"
+mail_file="$WORK_DIR/message.eml"
+{
+	printf 'From: Orders <orders@example.org>\r\n'
+	printf 'Subject: %s\r\n' "$MAIL_SUBJECT"
+	printf 'Content-Type: multipart/mixed; boundary="outer"\r\n\r\n'
+	printf -- '--outer\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n'
+	printf 'The customer asked for a call back.\r\n'
+	printf -- '--outer\r\nContent-Type: text/html; charset=utf-8\r\n\r\n'
+	printf '<p>The customer asked for a call back.</p>\r\n'
+	printf -- '--outer\r\nContent-Type: application/pdf\r\n'
+	printf 'Content-Disposition: attachment; filename="invoice.pdf"\r\n\r\n'
+	printf '%%PDF-1.4 invoice\r\n'
+	printf -- '--outer--\r\n'
+} > "$mail_file"
+
+delivered="$(curl -fsS -X POST -H 'Content-Type: message/rfc822' \
+	--data-binary "@$mail_file" "$INSTALLATION/api/v1/jumble/mail/$INTAKE_TOKEN")"
+ENTRY_ID="$(json_field entry_id "$delivered")"
+[ -n "$ENTRY_ID" ] || { fail "the mail was accepted without an entry: $delivered"; }
+
+# A wrong token is the same 404 as everything else the intake refuses, and it stores nothing.
+refused_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: message/rfc822' \
+	--data-binary "@$mail_file" "$INSTALLATION/api/v1/jumble/mail/$TENANT_ID.wrongsecret")"
+if [ "$refused_code" != "404" ]; then
+	fail "a wrong intake token answered $refused_code, want 404"
+fi
+
+# The rule runs on the worker, so this is the one place the session waits. Sixty seconds is far
+# past what an idle stack needs and short enough that a broken engine fails the job rather than
+# hanging it.
+converted=""
+for _ in $(seq 1 60); do
+	entry="$(api GET "/jumble/entries?status=PROCESSED")"
+	if grep -qF "$ENTRY_ID" <<< "$entry"; then
+		converted="$entry"
+		break
+	fi
+	sleep 1
+done
+if [ -z "$converted" ]; then
+	fail "the arriving mail was never converted: $(api GET '/jumble/entries')"
+else
+	# The provenance pair: the entry names the item it became, and the item is in the collection
+	# the rule named, titled from the subject the mail carried.
+	ITEM_ID="$(json_field target_item_id "$converted")"
+	if [ -z "$ITEM_ID" ]; then
+		fail "the converted entry names no item: $converted"
+	else
+		item="$(api GET "/items/$ITEM_ID")"
+		expect_contains "the mail's task" "$item" "$MAIL_SUBJECT"
+		expect_contains "the mail's task" "$item" "$COLLECTION_ID"
+		# The provenance, from the item's side: the pair points both ways.
+		expect_contains "the item's origin" "$item" "$ENTRY_ID"
+	fi
+fi
 
 echo "--- what a refusal looks like ---"
 # A collection that does not exist, so the answer is a problem document - and what a person sees

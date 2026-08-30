@@ -197,7 +197,7 @@ graph LR
 | AI agents | Bidirectional | The MCP server (tools = use cases), alternatively REST with a service account |
 | Identity provider | Outbound | OIDC discovery, authorization code + PKCE; local users as a fallback |
 | Object storage | Outbound | The S3 API (presigned URLs); self-hosting fallback: a local volume |
-| Email | Inbound and outbound | SMTP for sending; intake by IMAP poll or an inbound webhook |
+| Email | Inbound and outbound | SMTP for sending; intake **webhook-first** since G-11 — a bridge, an MTA or a provider's push posts the message to a token-protected URL per tenant, and the parser is transport-independent, so IMAP polling is a producer of bytes rather than a second intake (open point AM-1 in `automation.md` §5) |
 | Calendar | Outbound | An ICS feed per view/user, CalDAV later |
 | LLM provider | Outbound | The `core/port/ai` port; adapters for OpenAI-compatible APIs and local Ollama; disabled by default |
 
