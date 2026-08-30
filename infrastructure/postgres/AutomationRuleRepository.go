@@ -582,3 +582,141 @@ func boundedRulePage(size int) int {
 		return size
 	}
 }
+
+// The RELATIVE_DATE occurrences (G-08). On the rule repository rather than a type of their own,
+// because they are the same aggregate's bookkeeping: what a rule owes is decided from the rule.
+
+var _ repository.Occurrences = AutomationRuleRepository{}
+
+func (r AutomationRuleRepository) Upsert(
+	ctx context.Context, occurrence domain.Occurrence,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	id, err := uuidOf(occurrence.ID)
+	if err != nil {
+		return err
+	}
+	ruleID, err := uuidOf(occurrence.RuleID)
+	if err != nil {
+		return err
+	}
+	itemID, err := uuidOf(occurrence.ItemID)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.UpsertRuleOccurrence(ctx, sqlc.UpsertRuleOccurrenceParams{
+		ID: id, RuleID: ruleID, ItemID: itemID, FireAt: timestampOf(occurrence.FireAt),
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the occurrence of rule %s: %w", occurrence.RuleID, err))
+	}
+	return nil
+}
+
+func (r AutomationRuleRepository) Forget(ctx context.Context, ruleID, itemID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	rule, err := uuidOf(ruleID)
+	if err != nil {
+		return err
+	}
+	item, err := uuidOf(itemID)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.ForgetRuleOccurrence(ctx, sqlc.ForgetRuleOccurrenceParams{
+		RuleID: rule, ItemID: item,
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("forgetting the occurrence of rule %s: %w", ruleID, err))
+	}
+	return nil
+}
+
+func (r AutomationRuleRepository) ForgetItem(ctx context.Context, itemID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+
+	item, err := uuidOf(itemID)
+	if err != nil {
+		return err
+	}
+
+	if err := queries.ForgetRuleOccurrencesOfItem(ctx, item); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("forgetting the occurrences of entry %s: %w", itemID, err))
+	}
+	return nil
+}
+
+func (r AutomationRuleRepository) ClaimDue(
+	ctx context.Context, at time.Time, limit int,
+) ([]domain.Occurrence, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ClaimDueRuleOccurrences(ctx, sqlc.ClaimDueRuleOccurrencesParams{
+		Due: timestampOf(at),
+		//nolint:gosec // G115: the caller's batch, bounded by the pass's own constant
+		PageSize: int32(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("claiming the due occurrences: %w", err))
+	}
+
+	occurrences := make([]domain.Occurrence, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		ruleID, err := idFrom(row.RuleID)
+		if err != nil {
+			return nil, err
+		}
+		itemID, err := idFrom(row.ItemID)
+		if err != nil {
+			return nil, err
+		}
+		occurrences = append(occurrences, domain.Occurrence{
+			ID: id, RuleID: ruleID, ItemID: itemID, FireAt: timeFrom(row.FireAt),
+		})
+	}
+	return occurrences, nil
+}
+
+func (r AutomationRuleRepository) NextOccurrence(ctx context.Context) (time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	next, err := queries.NextDueRuleOccurrence(ctx)
+	if err != nil {
+		if IsNoRows(err) {
+			return time.Time{}, nil
+		}
+		return time.Time{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the next due occurrence: %w", err))
+	}
+	return timeFrom(next), nil
+}

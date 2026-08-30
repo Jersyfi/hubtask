@@ -33,6 +33,18 @@ func (m matching) ForEventType(context.Context, event.Type) ([]domain.Rule, erro
 	return m.rules, nil
 }
 
+func (m matching) ByTriggerKind(
+	_ context.Context, kind domain.TriggerKind,
+) ([]domain.Rule, error) {
+	var of []domain.Rule
+	for _, rule := range m.rules {
+		if rule.Trigger.Kind == kind {
+			of = append(of, rule)
+		}
+	}
+	return of, nil
+}
+
 // jobs records what was queued, which is the whole of what this subscriber does.
 type jobs struct{ queued []queue.Request }
 

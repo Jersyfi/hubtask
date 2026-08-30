@@ -41,12 +41,16 @@ const scheduleBatch = 50
 // It fires rules into the engine G-07 built. It evaluates no condition and performs no action: a
 // schedule is a *producer*, and the run that follows is the same run an event's would have been.
 type SchedulePass struct {
-	Schedules  repository.Schedules
-	Jobs       queue.Queue
-	Expander   recurrence.Expander
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
-	IDs        clock.IDGenerator
+	Schedules repository.Schedules
+	// Occurrences is the RELATIVE_DATE half. One pass rather than two pollers, because the question
+	// both answer is "what does this tenant owe now" and there is one answer to it - two jobs per
+	// tenant would be two rows, two leases and two wake-ups for one question.
+	Occurrences repository.Occurrences
+	Jobs        queue.Queue
+	Expander    recurrence.Expander
+	UnitOfWork  persistence.UnitOfWork
+	Clock       clock.Clock
+	IDs         clock.IDGenerator
 }
 
 // PassResult is what one round did, and when the next is owed.
@@ -88,13 +92,85 @@ func (p SchedulePass) Run(ctx context.Context, scope persistence.Scope) (PassRes
 			}
 		}
 
-		result.NextDue, err = p.Schedules.NextDue(ctx)
+		occurrences, err := p.occurrences(ctx, now, scope.TenantID)
+		if err != nil {
+			return err
+		}
+		result.Started += occurrences
+
+		result.NextDue, err = p.nextDue(ctx)
 		return err
 	})
 	if err != nil {
 		return PassResult{}, err
 	}
 	return result, nil
+}
+
+// nextDue is the earlier of the two moments this tenant owes: its next schedule and its next
+// relative-date occurrence. The poller sleeps until whichever comes first, and finishes only when
+// there is neither.
+func (p SchedulePass) nextDue(ctx context.Context) (time.Time, error) {
+	next, err := p.Schedules.NextDue(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if p.Occurrences == nil {
+		return next, nil
+	}
+
+	occurrence, err := p.Occurrences.NextOccurrence(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if next.IsZero() || (!occurrence.IsZero() && occurrence.Before(next)) {
+		return occurrence, nil
+	}
+	return next, nil
+}
+
+// occurrences fires what the RELATIVE_DATE rules owe, and answers how many runs that was.
+//
+// The claim removes the rows in the same statement that reads them: the row *is* the debt, and once
+// the run is queued the tenant no longer owes it. Both commit inside the runner's transaction, so a
+// process that dies halfway leaves the debt and no job rather than the other way round.
+func (p SchedulePass) occurrences(
+	ctx context.Context, now time.Time, tenantID shared.ID,
+) (int, error) {
+	if p.Occurrences == nil {
+		return 0, nil
+	}
+
+	due, err := p.Occurrences.ClaimDue(ctx, now, scheduleBatch)
+	if err != nil {
+		return 0, err
+	}
+
+	started := 0
+	for _, occurrence := range due {
+		runID := p.IDs.NewID()
+		// The occurrence's own identifier, which is unique per (rule, entry, moment) because the
+		// row was: a due date that moves and comes back around is a new row and therefore a new
+		// occasion, and the run really acts rather than finding a stored answer.
+		occasion := "relative:" + occurrence.ID.String()
+
+		if _, err := p.Jobs.Enqueue(ctx, queue.Request{
+			Kind:     queue.KindAutomationRun,
+			TenantID: tenantID,
+			Payload: map[string]any{
+				"rule_id":    occurrence.RuleID.String(),
+				"trigger":    string(domain.TriggerRelativeDate),
+				"run_id":     runID.String(),
+				"subject_id": occurrence.ItemID.String(),
+				"occasion":   occasion,
+			},
+			DedupeKey: ConsumerName + ":" + occasion,
+		}); err != nil {
+			return 0, err
+		}
+		started++
+	}
+	return started, nil
 }
 
 // fire queues one rule's run and moves the rule on to its next moment.

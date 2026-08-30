@@ -37,6 +37,60 @@ func (q *Queries) BumpRuleFailure(ctx context.Context, arg BumpRuleFailureParams
 	return failure_count, err
 }
 
+const claimDueRuleOccurrences = `-- name: ClaimDueRuleOccurrences :many
+DELETE FROM rule_occurrence o
+WHERE o.id IN (
+  SELECT due.id FROM rule_occurrence due
+  WHERE due.fire_at <= $1
+  ORDER BY due.fire_at
+  LIMIT $2
+)
+RETURNING o.id, o.rule_id, o.item_id, o.fire_at
+`
+
+type ClaimDueRuleOccurrencesParams struct {
+	Due      pgtype.Timestamptz
+	PageSize int32
+}
+
+type ClaimDueRuleOccurrencesRow struct {
+	ID     pgtype.UUID
+	RuleID pgtype.UUID
+	ItemID pgtype.UUID
+	FireAt pgtype.Timestamptz
+}
+
+// Takes the moments that have come and removes them in the same statement.
+//
+// Deleted rather than marked, because the row *is* the debt: once the run is queued the tenant no
+// longer owes it, and a status column would be a second place for "already fired" to be recorded.
+// The delete and the run's job commit together in the runner's transaction, so a process that dies
+// halfway leaves both.
+func (q *Queries) ClaimDueRuleOccurrences(ctx context.Context, arg ClaimDueRuleOccurrencesParams) ([]ClaimDueRuleOccurrencesRow, error) {
+	rows, err := q.db.Query(ctx, claimDueRuleOccurrences, arg.Due, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimDueRuleOccurrencesRow{}
+	for rows.Next() {
+		var i ClaimDueRuleOccurrencesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RuleID,
+			&i.ItemID,
+			&i.FireAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const clearRuleFailure = `-- name: ClearRuleFailure :exec
 UPDATE automation_rule
 SET failure_count = 0, updated_at = $1
@@ -325,6 +379,33 @@ func (q *Queries) FinishRuleRun(ctx context.Context, arg FinishRuleRunParams) er
 		arg.FinishedAt,
 		arg.ID,
 	)
+	return err
+}
+
+const forgetRuleOccurrence = `-- name: ForgetRuleOccurrence :exec
+DELETE FROM rule_occurrence
+WHERE rule_id = $1 AND item_id = $2
+`
+
+type ForgetRuleOccurrenceParams struct {
+	RuleID pgtype.UUID
+	ItemID pgtype.UUID
+}
+
+// The anchor was cleared: this rule owes this entry nothing.
+func (q *Queries) ForgetRuleOccurrence(ctx context.Context, arg ForgetRuleOccurrenceParams) error {
+	_, err := q.db.Exec(ctx, forgetRuleOccurrence, arg.RuleID, arg.ItemID)
+	return err
+}
+
+const forgetRuleOccurrencesOfItem = `-- name: ForgetRuleOccurrencesOfItem :exec
+DELETE FROM rule_occurrence WHERE item_id = $1
+`
+
+// The entry went. Every rule's moment for it goes with it - the foreign key would do this on a
+// purge, and this is the same statement for the softer endings a purge never reaches.
+func (q *Queries) ForgetRuleOccurrencesOfItem(ctx context.Context, itemID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, forgetRuleOccurrencesOfItem, itemID)
 	return err
 }
 
@@ -622,6 +703,92 @@ func (q *Queries) NextDueAutomationRule(ctx context.Context) (pgtype.Timestamptz
 	return next_run_at, err
 }
 
+const nextDueRuleOccurrence = `-- name: NextDueRuleOccurrence :one
+SELECT min(fire_at)::timestamptz AS fire_at FROM rule_occurrence
+`
+
+// The earliest moment this tenant owes an occurrence, and NULL when it owes none.
+func (q *Queries) NextDueRuleOccurrence(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, nextDueRuleOccurrence)
+	var fire_at pgtype.Timestamptz
+	err := row.Scan(&fire_at)
+	return fire_at, err
+}
+
+const rulesByTriggerKind = `-- name: RulesByTriggerKind :many
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at
+FROM automation_rule
+WHERE deleted_at IS NULL
+  AND enabled = true
+  AND trigger ->> 'kind' = $1::text
+ORDER BY id
+`
+
+type RulesByTriggerKindRow struct {
+	ID           pgtype.UUID
+	ScopeType    string
+	ScopeID      pgtype.UUID
+	Name         string
+	Enabled      bool
+	RunAs        pgtype.UUID
+	Trigger      []byte
+	Conditions   []byte
+	Actions      []byte
+	Throttle     []byte
+	OnError      string
+	FailureCount int32
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	Version      int32
+	NextRunAt    pgtype.Timestamptz
+}
+
+// The enabled rules of one trigger kind, which is what a producer that is not the event dispatcher
+// asks. The scope is not in the predicate, for RulesForEventType's reason: the narrowing is the
+// producer's, against what it can resolve.
+func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesByTriggerKindRow, error) {
+	rows, err := q.db.Query(ctx, rulesByTriggerKind, kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RulesByTriggerKindRow{}
+	for rows.Next() {
+		var i RulesByTriggerKindRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.Name,
+			&i.Enabled,
+			&i.RunAs,
+			&i.Trigger,
+			&i.Conditions,
+			&i.Actions,
+			&i.Throttle,
+			&i.OnError,
+			&i.FailureCount,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.Version,
+			&i.NextRunAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rulesForEventType = `-- name: RulesForEventType :many
 SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
@@ -849,4 +1016,39 @@ func (q *Queries) UpdateAutomationRule(ctx context.Context, arg UpdateAutomation
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const upsertRuleOccurrence = `-- name: UpsertRuleOccurrence :exec
+
+INSERT INTO rule_occurrence (id, tenant_id, rule_id, item_id, fire_at)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4
+)
+ON CONFLICT (tenant_id, rule_id, item_id) DO UPDATE SET fire_at = EXCLUDED.fire_at
+`
+
+type UpsertRuleOccurrenceParams struct {
+	ID     pgtype.UUID
+	RuleID pgtype.UUID
+	ItemID pgtype.UUID
+	FireAt pgtype.Timestamptz
+}
+
+// The RELATIVE_DATE trigger's occurrences (G-08, automation.md §1.1). D-02's shape: a row per
+// (rule, entry) saying when this rule owes that entry a run, moved when the anchor moves and gone
+// when the anchor is cleared.
+// Writes or moves the moment one rule owes for one entry.
+//
+// An upsert rather than a delete-then-insert, because "the due date moved" is one fact: two
+// statements would leave a window in which the tenant owed nothing, and a pass committing in that
+// window would answer the wrong next moment.
+func (q *Queries) UpsertRuleOccurrence(ctx context.Context, arg UpsertRuleOccurrenceParams) error {
+	_, err := q.db.Exec(ctx, upsertRuleOccurrence,
+		arg.ID,
+		arg.RuleID,
+		arg.ItemID,
+		arg.FireAt,
+	)
+	return err
 }

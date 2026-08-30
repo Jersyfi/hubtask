@@ -255,3 +255,63 @@ WHERE deleted_at IS NULL AND enabled = true AND next_run_at IS NOT NULL;
 UPDATE automation_rule
 SET next_run_at = sqlc.narg('next_run_at')
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
+
+-- The RELATIVE_DATE trigger's occurrences (G-08, automation.md §1.1). D-02's shape: a row per
+-- (rule, entry) saying when this rule owes that entry a run, moved when the anchor moves and gone
+-- when the anchor is cleared.
+
+-- name: UpsertRuleOccurrence :exec
+-- Writes or moves the moment one rule owes for one entry.
+--
+-- An upsert rather than a delete-then-insert, because "the due date moved" is one fact: two
+-- statements would leave a window in which the tenant owed nothing, and a pass committing in that
+-- window would answer the wrong next moment.
+INSERT INTO rule_occurrence (id, tenant_id, rule_id, item_id, fire_at)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('rule_id'), sqlc.arg('item_id'),
+  sqlc.arg('fire_at')
+)
+ON CONFLICT (tenant_id, rule_id, item_id) DO UPDATE SET fire_at = EXCLUDED.fire_at;
+
+-- name: ForgetRuleOccurrence :exec
+-- The anchor was cleared: this rule owes this entry nothing.
+DELETE FROM rule_occurrence
+WHERE rule_id = sqlc.arg('rule_id') AND item_id = sqlc.arg('item_id');
+
+-- name: ForgetRuleOccurrencesOfItem :exec
+-- The entry went. Every rule's moment for it goes with it - the foreign key would do this on a
+-- purge, and this is the same statement for the softer endings a purge never reaches.
+DELETE FROM rule_occurrence WHERE item_id = sqlc.arg('item_id');
+
+-- name: ClaimDueRuleOccurrences :many
+-- Takes the moments that have come and removes them in the same statement.
+--
+-- Deleted rather than marked, because the row *is* the debt: once the run is queued the tenant no
+-- longer owes it, and a status column would be a second place for "already fired" to be recorded.
+-- The delete and the run's job commit together in the runner's transaction, so a process that dies
+-- halfway leaves both.
+DELETE FROM rule_occurrence o
+WHERE o.id IN (
+  SELECT due.id FROM rule_occurrence due
+  WHERE due.fire_at <= sqlc.arg('due')
+  ORDER BY due.fire_at
+  LIMIT sqlc.arg('page_size')
+)
+RETURNING o.id, o.rule_id, o.item_id, o.fire_at;
+
+-- name: NextDueRuleOccurrence :one
+-- The earliest moment this tenant owes an occurrence, and NULL when it owes none.
+SELECT min(fire_at)::timestamptz AS fire_at FROM rule_occurrence;
+
+-- name: RulesByTriggerKind :many
+-- The enabled rules of one trigger kind, which is what a producer that is not the event dispatcher
+-- asks. The scope is not in the predicate, for RulesForEventType's reason: the narrowing is the
+-- producer's, against what it can resolve.
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at
+FROM automation_rule
+WHERE deleted_at IS NULL
+  AND enabled = true
+  AND trigger ->> 'kind' = sqlc.arg('kind')::text
+ORDER BY id;

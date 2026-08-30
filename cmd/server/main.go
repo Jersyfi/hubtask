@@ -1337,6 +1337,15 @@ func run() error {
 		Conditions: celexpression.New(), Clock: clockadapter.System{},
 	}
 
+	// The relative-date producer (G-08). A second subscriber rather than a branch inside the first,
+	// because it answers a different question: MatchRules asks which rules *want* this event, and
+	// this one asks what the entry's deadline now means for the rules that measure from it.
+	relativeDates := automationservice.RelativeDates{
+		Rules: automationRuns, Occurrences: postgres.NewAutomationRuleRepository(cursors),
+		Entries: items, Containers: containers, Jobs: jobs,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	webhookFanOut := integrationservice.FanOut{
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
@@ -1351,7 +1360,7 @@ func run() error {
 		// restore reaches no external system (backup-restore.md §8.4).
 		// The automation engine beside them, and it deliberately does not implement TakesReplays
 		// either: no rule fires for a restore's events (backup-restore.md §8.4, BK-5).
-		Subscribers: []eventbusport.Subscriber{notify, webhookFanOut, matchRules},
+		Subscribers: []eventbusport.Subscriber{notify, webhookFanOut, matchRules, relativeDates},
 		Clock:       clockadapter.System{},
 		Batch:       cfg.Queue.OutboxBatch,
 		MinInterval: cfg.Queue.OutboxMinInterval,
@@ -1626,8 +1635,9 @@ func run() error {
 		},
 		queueport.KindAutomationSchedule: worker.AutomationScheduling{
 			Pass: automationservice.SchedulePass{
-				Schedules: postgres.NewAutomationRuleRepository(cursors),
-				Jobs:      jobs, Expander: recurrenceadapter.New(),
+				Schedules:   postgres.NewAutomationRuleRepository(cursors),
+				Occurrences: postgres.NewAutomationRuleRepository(cursors),
+				Jobs:        jobs, Expander: recurrenceadapter.New(),
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			},
 			Fallback: cfg.Retention.Interval,

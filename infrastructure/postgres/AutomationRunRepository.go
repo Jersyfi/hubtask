@@ -301,6 +301,34 @@ func (r AutomationRunRepository) Disable(
 	return changed > 0, nil
 }
 
+// ByTriggerKind answers this tenant's enabled rules of one kind, which is what a producer that is
+// not the event dispatcher asks - the relative-date producer does (G-08).
+func (r AutomationRunRepository) ByTriggerKind(
+	ctx context.Context, kind domain.TriggerKind,
+) ([]domain.Rule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.RulesByTriggerKind(ctx, kind.String())
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the %s rules: %w", kind, err))
+	}
+
+	rules := make([]domain.Rule, 0, len(rows))
+	for _, row := range rows {
+		rule, err := automationRuleFrom(sqlc.ListAutomationRulesRow(row))
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
 func (r AutomationRunRepository) ForEventType(
 	ctx context.Context, eventType event.Type,
 ) ([]domain.Rule, error) {

@@ -156,10 +156,42 @@ type Schedules interface {
 	SetNextRun(ctx context.Context, id shared.ID, at time.Time) error
 }
 
+// Occurrences is what a RELATIVE_DATE rule owes its entries (G-08, automation.md §1.1).
+//
+// The tenant is the transaction's throughout, like every other repository here.
+type Occurrences interface {
+	// Upsert writes or moves the moment one rule owes for one entry. One statement rather than a
+	// delete and an insert, because "the due date moved" is one fact: two statements would leave a
+	// window in which the tenant owed nothing.
+	Upsert(ctx context.Context, occurrence domain.Occurrence) error
+
+	// Forget is the anchor being cleared: this rule owes this entry nothing.
+	Forget(ctx context.Context, ruleID, itemID shared.ID) error
+
+	// ForgetItem is the entry going. Every rule's moment for it goes with it.
+	ForgetItem(ctx context.Context, itemID shared.ID) error
+
+	// ClaimDue takes the moments that have come and removes them in the same statement. The row
+	// *is* the debt: once the run is queued the tenant no longer owes it, and a status column
+	// would be a second place for "already fired" to be recorded.
+	ClaimDue(ctx context.Context, at time.Time, limit int) ([]domain.Occurrence, error)
+
+	// NextOccurrence is the earliest moment this tenant owes an occurrence, and the zero time for
+	// none. Its own name rather than NextDue, because one repository answers both this and the
+	// schedules' - and two methods called the same thing on one type would be one of them.
+	NextOccurrence(ctx context.Context) (time.Time, error)
+}
+
 // Matching is what the dispatcher asks per event: the enabled rules whose trigger is this type.
 //
 // Narrow rather than part of Rules, for Failures' reason: a subscriber running inside the
 // dispatcher's transaction has no business being able to write one.
 type Matching interface {
 	ForEventType(ctx context.Context, eventType event.Type) ([]domain.Rule, error)
+
+	// ByTriggerKind is what a producer that is not the event dispatcher asks: this tenant's
+	// enabled rules of one kind. The relative-date producer asks it, and it is on this interface
+	// rather than on Rules for the same reason - a subscriber running inside the dispatcher's
+	// transaction has no business being able to write one.
+	ByTriggerKind(ctx context.Context, kind domain.TriggerKind) ([]domain.Rule, error)
 }

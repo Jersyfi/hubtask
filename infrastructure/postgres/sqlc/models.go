@@ -1003,6 +1003,15 @@ type RetentionRun struct {
 	Status         string
 }
 
+type RuleOccurrence struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	RuleID    pgtype.UUID
+	ItemID    pgtype.UUID
+	FireAt    pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
 type RuleRun struct {
 	ID               pgtype.UUID
 	TenantID         pgtype.UUID

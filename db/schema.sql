@@ -733,6 +733,26 @@ CREATE INDEX rule_run_idx ON rule_run (tenant_id, rule_id, started_at DESC);
 -- What the run listing's trigger filter asks: this tenant's runs of one kind, newest first.
 CREATE INDEX rule_run_trigger_idx ON rule_run (tenant_id, trigger, id DESC);
 
+-- What a RELATIVE_DATE rule owes for one entry, and when (G-08, migration 0056). D-02's shape
+-- rather than a new one: `reminder` has carried "this entry, this moment" since phase 0, and a
+-- relative-date rule is the same fact with a rule in place of a person.
+CREATE TABLE rule_occurrence (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  rule_id    uuid NOT NULL,
+  item_id    uuid NOT NULL,
+  fire_at    timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT rule_occurrence_rule_id_fkey
+    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT rule_occurrence_item_id_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+-- One moment per rule per entry: a rule that owed two would fire twice for one deadline, and the
+-- upsert that keeps the moment in step with the anchor conflicts on this.
+CREATE UNIQUE INDEX rule_occurrence_uq ON rule_occurrence (tenant_id, rule_id, item_id);
+CREATE INDEX rule_occurrence_due_idx ON rule_occurrence (tenant_id, fire_at);
+
 -- ============================== Integration ================================
 
 CREATE TABLE webhook_subscription (
@@ -1427,7 +1447,8 @@ BEGIN
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
-    'automation_rule','rule_run','webhook_subscription','webhook_delivery','calendar_feed',
+    'automation_rule','rule_run','rule_occurrence',
+    'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
