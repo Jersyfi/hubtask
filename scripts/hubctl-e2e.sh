@@ -190,7 +190,9 @@ SESSION_SCOPES="$SESSION_SCOPES,privacy:manage,privacy:read,recurrence:write,rem
 SESSION_SCOPES="$SESSION_SCOPES,retention:manage,retention:read,templates:read,templates:write,trash:read"
 # The automation surface, which the mail demo below needs: minting the jumble's intake address is
 # the same power as pointing an inbound webhook at the workspace, and it asks for the same scope.
-SESSION_SCOPES="$SESSION_SCOPES,automation:manage,automation:read"
+# One scope rather than a pair: automation has no read of its own, because reading a rule is
+# reading what it may do (core/domain/event/ReadScope.go).
+SESSION_SCOPES="$SESSION_SCOPES,automation:manage"
 minted="$(hubctl --json token create --name 'the end-to-end session' --days 1 --scope "$SESSION_SCOPES")"
 TOKEN="$(printf '%s\n' "$minted" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')"
 [ -n "$TOKEN" ] || { echo "FAILED: the mint answered no credential"; echo "$minted"; exit 1; }
@@ -725,7 +727,7 @@ json_field() { sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" <<< "$2" | head -1; }
 # The address, shown once. Rotating is how one is revoked, so minting and rotating are one call.
 intake="$(api POST '/jumble/intake:rotate-token')"
 INTAKE_TOKEN="$(json_field token "$intake")"
-[ -n "$INTAKE_TOKEN" ] || { fail "the intake was minted without a token: $intake"; }
+[ -n "$INTAKE_TOKEN" ] || { echo "FAILED: the intake was minted without a token: $intake"; exit 1; }
 
 # The rule: every arrival in the jumble becomes a task in the collection this session built. Written
 # switched off, as every rule is, and enabled by its own call - which is the point of that split.
@@ -738,7 +740,7 @@ rule="$(api POST '/automation/rules' "{
     \"params\": {\"collection_id\": \"$COLLECTION_ID\"}}]
 }")"
 RULE_ID="$(json_field id "$rule")"
-[ -n "$RULE_ID" ] || { fail "writing the rule produced no identifier: $rule"; }
+[ -n "$RULE_ID" ] || { echo "FAILED: writing the rule produced no identifier: $rule"; exit 1; }
 api POST "/automation/rules/$RULE_ID:enable" >/dev/null
 
 # And the mail itself: RFC 5322 bytes, the shape any bridge can forward. Multipart, because the
@@ -762,7 +764,7 @@ mail_file="$WORK_DIR/message.eml"
 delivered="$(curl -fsS -X POST -H 'Content-Type: message/rfc822' \
 	--data-binary "@$mail_file" "$INSTALLATION/api/v1/jumble/mail/$INTAKE_TOKEN")"
 ENTRY_ID="$(json_field entry_id "$delivered")"
-[ -n "$ENTRY_ID" ] || { fail "the mail was accepted without an entry: $delivered"; }
+[ -n "$ENTRY_ID" ] || { echo "FAILED: the mail was accepted without an entry: $delivered"; exit 1; }
 
 # A wrong token is the same 404 as everything else the intake refuses, and it stores nothing.
 refused_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: message/rfc822' \
@@ -776,7 +778,9 @@ fi
 # hanging it.
 converted=""
 for _ in $(seq 1 60); do
-	entry="$(api GET "/jumble/entries?status=PROCESSED")"
+	# Tolerant of a call that does not answer: what is being waited for is the engine, and a
+	# hiccup on the way to it is not the failure this loop is looking for.
+	entry="$(api GET "/jumble/entries?status=PROCESSED" || true)"
 	if grep -qF "$ENTRY_ID" <<< "$entry"; then
 		converted="$entry"
 		break
