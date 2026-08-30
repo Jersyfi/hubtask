@@ -511,7 +511,10 @@ CREATE TABLE media_object (
   checksum    text,
   usage       text NOT NULL CHECK (usage IN ('COVER','ATTACHMENT','IMPORT','EXPORT')),
   ref_count   integer NOT NULL DEFAULT 0,
-  created_by  uuid NOT NULL,
+  -- NULL where nobody uploaded it: a mail attachment arrives over an intake that authenticates the
+  -- tenant and no person, and an account here would be an uploader this system invented
+  -- (migration 0061, G-11).
+  created_by  uuid,
   created_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
   -- The upload life (C-06, migration 0013): PENDING between staging and confirmation, READY once

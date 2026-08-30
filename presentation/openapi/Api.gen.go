@@ -6944,6 +6944,9 @@ type ServerInterface interface {
 	// RotateJumbleIntake Mint the address the jumble accepts webhooks on
 	// (POST /jumble/intake:rotate-token)
 	RotateJumbleIntake(w http.ResponseWriter, r *http.Request, params RotateJumbleIntakeParams)
+	// DeliverMail Deliver a mail into the jumble
+	// (POST /jumble/mail/{token})
+	DeliverMail(w http.ResponseWriter, r *http.Request, token string)
 	// ListLegalHolds The legal holds in force
 	// (GET /legal-holds)
 	ListLegalHolds(w http.ResponseWriter, r *http.Request, params ListLegalHoldsParams)
@@ -12489,6 +12492,32 @@ func (siw *ServerInterfaceWrapper) RotateJumbleIntake(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// DeliverMail operation middleware
+func (siw *ServerInterfaceWrapper) DeliverMail(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeliverMail(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListLegalHolds operation middleware
 func (siw *ServerInterfaceWrapper) ListLegalHolds(w http.ResponseWriter, r *http.Request) {
 
@@ -14117,6 +14146,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/intake:rotate-token", wrapper.RotateJumbleIntake)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/inbound/{token}", wrapper.StartJumbleIntake)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/mail/{token}", wrapper.DeliverMail)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/inbound/{token}", wrapper.StartInboundRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs", wrapper.ListRuleRuns)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs/{runId}", wrapper.GetRuleRun)

@@ -43,7 +43,9 @@ func (r MediaRepository) Insert(ctx context.Context, object media.Object) error 
 	if err != nil {
 		return err
 	}
-	createdBy, err := uuidOf(object.CreatedBy)
+	// Optional since migration 0061: an attachment that arrived over the mail intake has no
+	// uploader, and NULL says nobody where a nil UUID would name an account that does not exist.
+	createdBy, err := optionalUUID(object.CreatedBy)
 	if err != nil {
 		return err
 	}
@@ -536,7 +538,7 @@ func mediaObjectFrom(
 	if err != nil {
 		return media.Object{}, err
 	}
-	creator, err := idFrom(createdBy)
+	creator, err := optionalID(createdBy)
 	if err != nil {
 		return media.Object{}, err
 	}

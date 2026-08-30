@@ -206,6 +206,7 @@ Everything else has a self-hosting default:
 | `HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE` | `10` | Login, password reset, invitation |
 | `HUBTASK_RATE_LIMIT_BURST` | `20` | How much of a budget may be spent at once |
 | `HUBTASK_MAX_BODY_BYTES` / `HUBTASK_MAX_UPLOAD_BYTES` | `1 MiB` / `64 MiB` | Request and upload limit (T-17) |
+| `HUBTASK_MAX_MAIL_BYTES` | `25 MiB` | The mail intake's own bound (G-11). Its own because a message is not a document: bounding it by the request limit would make the route useless, and by the upload limit would make it a way to store files. 25 MiB is what the mail providers people actually use accept — a message bigger than that is one their sender could not have delivered either |
 | `HUBTASK_REQUEST_TIMEOUT` | `30s` | Server-side deadline every handler inherits |
 | `HUBTASK_CORS_ALLOWED_ORIGINS` | — | Complete origins (`https://app.example.com`), comma-separated. Empty closes the browser side entirely; a bare host name or a trailing slash fails startup rather than silently matching nothing. `*` is allowed on its own and stays safe because credentials are never sent (security.md §9) |
 | `HUBTASK_CORS_MAX_AGE` | `10m` | How long a browser may cache the preflight answer |

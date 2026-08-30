@@ -880,6 +880,58 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /jumble/mail/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: >
+          The tenant's intake token, exactly as `/jumble/inbound/{token}` carries one: the URL is
+          the whole credential, this route carries no bearer authentication, and the token names
+          the tenant in clear inside itself because the lookup needs one before it can happen
+          (multi-tenancy.md §2.2).
+        schema: { type: string }
+    post:
+      tags: [jumble]
+      operationId: deliverMail
+      security: []
+      summary: Deliver a mail into the jumble
+      description: >
+        The `EMAIL` channel (G-11). The body is the message as it arrived - RFC 5322 bytes,
+        headers included - and what arrives in 0.5.0 is the **webhook-first** transport: an
+        operator points a mail-to-webhook bridge, their MTA or their provider's push at this
+        address, and the bytes are what any of them can forward without agreeing on a shape.
+
+        The parser is transport-independent and defensive. MIME is walked with bounds on parts,
+        depth, attachment count and attachment size, checked before anything is allocated;
+        attachments go through the media pipeline with its size and type discipline, never a
+        second storage path; and the HTML alternative of a message that also had a plain part is
+        kept as text beside it. **No HTML is ever rendered server-side.**
+
+        The sender is data, never an identity: a `From` header authenticates nothing, and what
+        authenticates is the token. A message the parser cannot read still lands, as an entry
+        carrying the raw payload - a jumble exists to catch, and "unparseable" is a thing to
+        catch. A message that breaks one of the bounds is refused with the code that says which,
+        because "raise the bound" and "look at the entry" are different answers.
+
+        Every reason not to serve answers the same `404`, as the webhook intake's does (T-21).
+      requestBody:
+        required: true
+        content:
+          message/rfc822:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Caught, with the entry it became
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleIntakeAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /automation/inbound/{token}:
     parameters:
       - name: token

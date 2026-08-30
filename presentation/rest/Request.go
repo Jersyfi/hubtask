@@ -30,9 +30,18 @@ type Bounded struct {
 	// such an installation impossible; bounding everything else by this one would hand every JSON
 	// endpoint a sixty-four megabyte budget for a body that is never that big.
 	MaxUploadBytes int64
+	// MaxMailBytes is the limit for the mail intake, whose body is a whole message (G-11). A third
+	// bound rather than a reuse of either: a mail is far past what a JSON document here ever is,
+	// and far below what an upload may be.
+	MaxMailBytes int64
 	// Timeout is the deadline every handler inherits through the request context.
 	Timeout time.Duration
 }
+
+// mailIntakePath is the mail door, recognised the way the byte route is: by shape rather than by a
+// list somewhere else, so the bound cannot drift from the contract. The token follows it in the
+// path, which is why this is a contains rather than a suffix (G-11).
+const mailIntakePath = "/jumble/mail/"
 
 // streamSuffix is the one route with no end of its own: a stream is held open until the client
 // leaves or the process drains, which is the opposite of what a request timeout is for (C-10).
@@ -63,6 +72,13 @@ func (b Bounded) deadlineFor(r *http.Request) time.Duration {
 func (b Bounded) limitFor(r *http.Request) int64 {
 	if r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, mediaContentSuffix) {
 		return b.MaxUploadBytes
+	}
+	if r.Method == http.MethodPost && strings.Contains(r.URL.Path, mailIntakePath) &&
+		b.MaxMailBytes > 0 {
+		// Only where one is configured. A zero here falls through to the document bound rather
+		// than to no bound at all: a route that reads a whole request into memory is the last
+		// place a missing configuration value should mean "unbounded" (T-17).
+		return b.MaxMailBytes
 	}
 	return b.MaxBodyBytes
 }

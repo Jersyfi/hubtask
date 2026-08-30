@@ -5,6 +5,7 @@ package rest
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	jumbledomain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -67,6 +69,40 @@ func (c *RestController) DismissJumbleEntry(
 			usecase.Input{"entry_id": entryID.String()})
 	}, func(out usecase.Output) {
 		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
+	})
+}
+
+// DeliverMail answers POST /jumble/mail/{token}.
+//
+// The body is read whole rather than streamed, and that is what the bound is for: the request
+// middleware refuses a payload over the mail limit before a byte of it is read, so what reaches
+// this is a message of a size this installation agreed to take (T-17). Reading it whole is what
+// the parser needs - MIME is walked, not consumed - and it is the same shape a mail spool has.
+func (c *RestController) DeliverMail(w http.ResponseWriter, r *http.Request, presented string) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.MailIntake == nil {
+		// The pending 404, for the webhook door's reason: an installation that does not serve this
+		// tells the internet nothing about why.
+		c.pending.DeliverMail(w, r, presented)
+		return
+	}
+
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		// A body that stopped short or ran past the bound. Malformed rather than internal: what
+		// went wrong is the request, and the sender is the one who can do something about it.
+		WriteProblem(w, shared.ErrMalformedRequest.
+			WithDetail("request.body_unreadable").WithCause(err), requestID)
+		return
+	}
+
+	entry, err := c.MailIntake.Deliver(r.Context(), presented, raw)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, openapi.JumbleIntakeAccepted{
+		EntryId: uuidValue(entry.ID.String()),
 	})
 }
 
@@ -177,6 +213,13 @@ func jumbleEntryResponse(out usecase.Output) openapi.JumbleEntry {
 // a credential nobody in this system holds (G-10). Nil leaves the route answering the pending 404.
 type JumbleIntakeDeliverer interface {
 	Deliver(ctx context.Context, presented, sender, subject, body string) (jumbledomain.Entry, error)
+}
+
+// MailDeliverer serves the mail route: the message as it arrived, and the entry it became. Not a
+// catalogue entry either, for the webhook door's reason - it answers a credential nobody in this
+// system holds (G-11). Nil leaves the route answering the pending 404.
+type MailDeliverer interface {
+	Deliver(ctx context.Context, presented string, raw []byte) (jumbledomain.Entry, error)
 }
 
 const rotateJumbleIntakeUseCase = "RotateJumbleIntake"

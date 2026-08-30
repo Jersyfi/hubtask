@@ -194,6 +194,12 @@ func (pending) StartJumbleIntake(w http.ResponseWriter, r *http.Request, _ strin
 	notAvailable(w, r)
 }
 
+// The mail door beside it (G-11), and pending for the same reason: an installation that does not
+// serve it tells the internet nothing about why.
+func (pending) DeliverMail(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
 func (pending) TriggerRuleManually(
 	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
 ) {
