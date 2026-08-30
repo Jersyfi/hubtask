@@ -939,6 +939,39 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /integrations/webhooks/{webhookId}:send:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    post:
+      tags: [webhooks]
+      operationId: sendWebhook
+      summary: Deliver one event to this subscription
+      description: >
+        One event, delivered to one named subscription through the same pipeline every delivery
+        takes: the same delivery table, the same signature, the same retry ladder and the same
+        dead letter. The subscription's own event-type filter is deliberately not consulted -
+        naming the subscription is the point of the call - but a paused or disabled subscription
+        is refused, and an event a restore replayed is never delivered
+        (backup-restore.md §8.4).
+
+        This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the
+        subscription, and the run supplies the event it is about.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookSend"
+      responses:
+        "202":
+          description: Queued for delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDelivery"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /integrations/webhooks/{webhookId}:rotate-secret:
     parameters:
       - $ref: "#/components/parameters/WebhookId"
@@ -5174,6 +5207,18 @@ components:
               description: >
                 The signing secret, in clear, for the only time. Store it or rotate it: what is
                 kept is sealed under the installation's key, and no read answers it again.
+
+    WebhookSend:
+      type: object
+      description: What a deliberate delivery names - the event; the path names the subscription.
+      required: [event_id]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: >
+            The event to deliver, as `X-Hubtask-Event-Id` will carry it. It has to still be inside
+            the outbox's retention window - an event the sweep has taken cannot be rendered.
 
     WebhookSecretRotation:
       type: object

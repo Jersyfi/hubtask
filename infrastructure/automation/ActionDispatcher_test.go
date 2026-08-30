@@ -77,7 +77,7 @@ func TestAnActionRunsTheUseCaseAsTheRulesAccount(t *testing.T) {
 	catalogue := store()
 
 	out, err := NewActionDispatcher(catalogue).Dispatch(context.Background(), serviceAccount(),
-		Action{Kind: "CREATE_CONTAINER", Params: map[string]any{"type": "COLLECTION", "name": "Escalations"}})
+		Action{Kind: "CREATE_CONTAINER", Params: map[string]any{"type": "COLLECTION", "name": "Escalations"}}, nil)
 	if err != nil {
 		t.Fatalf("the action failed: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestAnActionRunsTheUseCaseAsTheRulesAccount(t *testing.T) {
 // the server.
 func TestAnUnknownActionIsAValidationError(t *testing.T) {
 	_, err := NewActionDispatcher(store()).Dispatch(context.Background(), serviceAccount(),
-		Action{Kind: "DELETE_EVERYTHING"})
+		Action{Kind: "DELETE_EVERYTHING"}, nil)
 
 	if !errors.Is(err, shared.ErrValidation) {
 		t.Fatalf("error %v, want a validation error", err)
@@ -115,7 +115,7 @@ func TestARuleWithoutAUsableAccountIsRefused(t *testing.T) {
 	catalogue := store()
 
 	_, err := NewActionDispatcher(catalogue).Dispatch(context.Background(),
-		appshared.Anonymous("en", "UTC"), Action{Kind: "CREATE_CONTAINER"})
+		appshared.Anonymous("en", "UTC"), Action{Kind: "CREATE_CONTAINER"}, nil)
 
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("error %v, want forbidden", err)
@@ -132,12 +132,66 @@ func TestARefusalReachesTheRule(t *testing.T) {
 	catalogue.err = shared.ErrForbidden.WithDetail("access.not_permitted")
 
 	_, err := NewActionDispatcher(catalogue).Dispatch(context.Background(), serviceAccount(),
-		Action{Kind: "CREATE_CONTAINER", Params: map[string]any{"type": "HUB", "name": "Private"}})
+		Action{Kind: "CREATE_CONTAINER", Params: map[string]any{"type": "HUB", "name": "Private"}}, nil)
 
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("error %v, want the refusal to reach the caller", err)
 	}
 	if code := shared.AsError(err).DetailCode; code != "access.not_permitted" {
 		t.Errorf("detail code %s - the dispatcher rewrote the refusal", code)
+	}
+}
+
+// The run supplies what the rule cannot carry (automation.md §2.2): a supplied value lands only
+// where the use case declares the field and the rule left it unset.
+func TestTheRunsContributionIsMergedWhereItIsDeclared(t *testing.T) {
+	catalogue := &catalogue{
+		descriptors: []usecase.Descriptor{{
+			Name: "SendWebhook",
+			Input: []usecase.Field{
+				{Name: "subscription_id", Kind: usecase.KindID, Required: true},
+				{Name: "event_id", Kind: usecase.KindID, Required: true},
+			},
+		}},
+		out: usecase.Output{},
+	}
+
+	params := map[string]any{"subscription_id": "0192f000-0000-7000-8000-00000000000e"}
+	_, err := NewActionDispatcher(catalogue).Dispatch(context.Background(), serviceAccount(),
+		Action{Kind: "SEND_WEBHOOK", Params: params},
+		map[string]any{"event_id": "0192f000-0000-7000-8000-00000000000f", "item_id": "x"})
+	if err != nil {
+		t.Fatalf("the action failed: %v", err)
+	}
+
+	if catalogue.invokedIn["event_id"] != "0192f000-0000-7000-8000-00000000000f" {
+		t.Errorf("the run's event did not arrive: %v", catalogue.invokedIn)
+	}
+	if _, leaked := catalogue.invokedIn["item_id"]; leaked {
+		t.Error("a supplied value the use case never declared reached it")
+	}
+	if _, mutated := params["event_id"]; mutated {
+		t.Error("the merge wrote into the rule's own stored parameters")
+	}
+}
+
+// The rule's explicit choice wins over what the run would supply.
+func TestTheRulesOwnValueWinsOverTheRuns(t *testing.T) {
+	catalogue := &catalogue{
+		descriptors: []usecase.Descriptor{{
+			Name:  "SendWebhook",
+			Input: []usecase.Field{{Name: "event_id", Kind: usecase.KindID, Required: true}},
+		}},
+		out: usecase.Output{},
+	}
+
+	_, err := NewActionDispatcher(catalogue).Dispatch(context.Background(), serviceAccount(),
+		Action{Kind: "SEND_WEBHOOK", Params: map[string]any{"event_id": "pinned"}},
+		map[string]any{"event_id": "supplied"})
+	if err != nil {
+		t.Fatalf("the action failed: %v", err)
+	}
+	if catalogue.invokedIn["event_id"] != "pinned" {
+		t.Errorf("the rule's own value was overwritten: %v", catalogue.invokedIn)
 	}
 }

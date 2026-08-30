@@ -173,6 +173,7 @@ func Descriptors() []usecase.Descriptor {
 		integration.DeleteWebhookSubscription{}.Descriptor(),
 		integration.ListWebhookDeliveries{}.Descriptor(),
 		integration.ReplayWebhookDelivery{}.Descriptor(),
+		integration.SendWebhook{}.Descriptor(),
 		integration.RotateWebhookSecret{}.Descriptor(),
 		integration.PollTriggerEvents{}.Descriptor(),
 		automationservice.CreateRule{}.Descriptor(),

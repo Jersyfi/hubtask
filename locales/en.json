@@ -812,6 +812,8 @@
   "webhooks.delivery_not_found": "There is no such delivery.",
   "webhooks.delivery_not_retryable": "That delivery is {status} and has no further attempt due.",
   "webhooks.delivery_not_replayable": "Only a delivery in the dead letter can be replayed. That one is {status}.",
+  "webhooks.subscription_not_active": "That subscription is {state}. Only an active subscription can be sent to.",
+  "webhooks.replay_not_deliverable": "That event was produced by a restore, and a replayed event is never delivered to an external system.",
   "webhooks.delivery_status_unknown": "There is no delivery status called {status}.",
   "webhooks.delivery_incomplete": "This installation could not record that delivery.",
   "webhooks.delivery_attempt_invalid": "This installation could not record that delivery.",

@@ -119,6 +119,10 @@ func (pending) RotateWebhookSecret(w http.ResponseWriter, r *http.Request, _ ope
 	notAvailable(w, r)
 }
 
+func (pending) SendWebhook(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId) {
+	notAvailable(w, r)
+}
+
 // The automation rules. RestController overrides every one of them; they are here because pending
 // implements the whole interface, which is what lets the contract test compare the router against
 // the specification as a whole.

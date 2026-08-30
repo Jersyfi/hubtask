@@ -102,9 +102,10 @@ type dispatched struct {
 }
 
 type dispatchCall struct {
-	kind   string
-	actor  appshared.ActorContext
-	params map[string]any
+	kind     string
+	actor    appshared.ActorContext
+	params   map[string]any
+	supplied map[string]any
 }
 
 func newDispatched() *dispatched {
@@ -115,9 +116,10 @@ func newDispatched() *dispatched {
 }
 
 func (d *dispatched) Dispatch(
-	_ context.Context, runAs appshared.ActorContext, kind string, params map[string]any,
+	_ context.Context, runAs appshared.ActorContext, kind string,
+	params map[string]any, supplied map[string]any,
 ) (usecase.Output, error) {
-	d.calls = append(d.calls, dispatchCall{kind: kind, actor: runAs, params: params})
+	d.calls = append(d.calls, dispatchCall{kind: kind, actor: runAs, params: params, supplied: supplied})
 	if err, refused := d.refuse[kind]; refused {
 		return nil, err
 	}
@@ -1316,5 +1318,32 @@ func TestARuleEditedMidWaitDoesNotResume(t *testing.T) {
 	}
 	if len(h.dispatcher.calls) != 1 {
 		t.Errorf("%d dispatches - an edited rule's resume acted", len(h.dispatcher.calls))
+	}
+}
+
+// SEND_WEBHOOK's event is not a value a rule can carry - it happens after the rule is written - so
+// the run supplies it to the dispatcher beside the rule's own parameters (automation.md §2.2).
+func TestTheRunSuppliesTheEventBesideTheRulesParameters(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{{
+		Kind:   "SEND_WEBHOOK",
+		Params: map[string]any{"subscription_id": "01936f2a-7c1e-7000-8000-0000000000f7"},
+	}}
+	h := newEngine(t, rule)
+	h.dispatcher.scopes["SEND_WEBHOOK"] = "automation:manage"
+
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Fatalf("%d dispatches", len(h.dispatcher.calls))
+	}
+
+	call := h.dispatcher.calls[0]
+	if call.supplied["event_id"] != itemEvent().ID.String() {
+		t.Errorf("the run supplied %v, want its event", call.supplied)
+	}
+	if _, carried := call.params["event_id"]; carried {
+		t.Error("the event leaked into the rule's own parameters")
 	}
 }

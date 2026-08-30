@@ -793,6 +793,7 @@ func run() error {
 		integrationservice.DeleteWebhookSubscription{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ListWebhookDeliveries{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ReplayWebhookDelivery{Writer: webhookWriter, Jobs: jobs}.Descriptor(),
+		integrationservice.SendWebhook{Writer: webhookWriter, Jobs: jobs, Events: outbox}.Descriptor(),
 		integrationservice.RotateWebhookSecret{Writer: webhookWriter}.Descriptor(),
 		automationservice.CreateRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.GetRule{Writer: ruleWriter}.Descriptor(),
@@ -1989,10 +1990,11 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 type dispatchActions struct{ catalogue *deferredCatalogue }
 
 func (d dispatchActions) Dispatch(
-	ctx context.Context, runAs appshared.ActorContext, kind string, params map[string]any,
+	ctx context.Context, runAs appshared.ActorContext, kind string,
+	params map[string]any, supplied map[string]any,
 ) (usecase.Output, error) {
 	return automation.NewActionDispatcher(d.catalogue).
-		Dispatch(ctx, runAs, automation.Action{Kind: kind, Params: params})
+		Dispatch(ctx, runAs, automation.Action{Kind: kind, Params: params}, supplied)
 }
 
 // actionScopes answers which token scope an action's use case declares, which is the one the engine

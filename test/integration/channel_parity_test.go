@@ -126,7 +126,7 @@ func throughAutomation(ctx context.Context, t *testing.T, registry *usecase.Regi
 	out, err := automation.NewActionDispatcher(registry).Dispatch(ctx, rule, automation.Action{
 		Kind:   "CREATE_CONTAINER",
 		Params: map[string]any{"type": "HUB", "name": name},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("the automation channel failed: %v", err)
 	}

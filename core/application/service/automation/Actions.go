@@ -41,9 +41,10 @@ type Catalogue interface {
 // TestNoDeferredActionIsAlreadyServed fails the build if a kind is left here after the catalogue
 // grew one, so removing the entry is not something anybody has to remember.
 var deferredActions = []string{
-	// Outbound (automation.md §1.3): both call somebody else's server, which is the guarded
-	// client's business and lands later in this same task.
-	"SEND_WEBHOOK", "HTTP_REQUEST",
+	// Outbound (automation.md §1.3): it calls somebody else's server, which is the guarded
+	// client's business and lands later in this same task. SEND_WEBHOOK left the list with the
+	// step that built it through G-03's delivery pipeline.
+	"HTTP_REQUEST",
 	// AI, optional and configured explicitly. The AI port arrives at 0.7.0, and a rule naming one
 	// of these is refused the way a retention rule naming a missing notification category was.
 	"AI_SUGGEST_FIELDS", "AI_SUMMARIZE", "AI_CLASSIFY",

@@ -4957,6 +4957,12 @@ type WebhookSecretRotation struct {
 	GraceSeconds *int `json:"grace_seconds,omitempty"`
 }
 
+// WebhookSend What a deliberate delivery names - the event; the path names the subscription.
+type WebhookSend struct {
+	// EventId The event to deliver, as `X-Hubtask-Event-Id` will carry it. It has to still be inside the outbox's retention window - an event the sweep has taken cannot be rendered.
+	EventId openapi_types.UUID `json:"event_id"`
+}
+
 // WebhookSubscription One external system's standing request to be told what happens here. The signing secret is not a member: it is answered once, at creation and at each rotation, and stored sealed.
 type WebhookSubscription struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -6059,6 +6065,9 @@ type UpdateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionUpdate
 // RotateWebhookSecretJSONRequestBody defines body for RotateWebhookSecret for application/json ContentType.
 type RotateWebhookSecretJSONRequestBody = WebhookSecretRotation
 
+// SendWebhookJSONRequestBody defines body for SendWebhook for application/json ContentType.
+type SendWebhookJSONRequestBody = WebhookSend
+
 // CreateWorkItemJSONRequestBody defines body for CreateWorkItem for application/json ContentType.
 type CreateWorkItemJSONRequestBody = WorkItemCreate
 
@@ -6379,6 +6388,9 @@ type ServerInterface interface {
 	// RotateWebhookSecret Issue a new signing secret
 	// (POST /integrations/webhooks/{webhookId}:rotate-secret)
 	RotateWebhookSecret(w http.ResponseWriter, r *http.Request, webhookId WebhookId, params RotateWebhookSecretParams)
+	// SendWebhook Deliver one event to this subscription
+	// (POST /integrations/webhooks/{webhookId}:send)
+	SendWebhook(w http.ResponseWriter, r *http.Request, webhookId WebhookId)
 
 	// (GET /items)
 	ListWorkItems(w http.ResponseWriter, r *http.Request, params ListWorkItemsParams)
@@ -9429,6 +9441,32 @@ func (siw *ServerInterfaceWrapper) RotateWebhookSecret(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RotateWebhookSecret(w, r, webhookId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SendWebhook operation middleware
+func (siw *ServerInterfaceWrapper) SendWebhook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SendWebhook(w, r, webhookId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13312,6 +13350,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.UpdateWebhookSubscription)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries", wrapper.ListWebhookDeliveries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay", wrapper.ReplayWebhookDelivery)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:send", wrapper.SendWebhook)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:rotate-secret", wrapper.RotateWebhookSecret)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/triggers/{eventType}", wrapper.PollTriggerEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.ListCalendarFeeds)

@@ -36,9 +36,16 @@ const MaxConsecutiveFailures = 5
 // Primitives rather than a shared struct, because the dispatcher lives in an adapter and the
 // application layer may not name its types (ADR-0001). What crosses is a kind and a document, which
 // is what the rule stored.
+//
+// supplied is what the run knows and the rule cannot carry - the event a SEND_WEBHOOK delivers is
+// not a value anybody could write into a rule, because it happens later (automation.md §2.2's
+// fourth row: "the run is where the whole input exists"). The dispatcher merges a supplied value
+// only where the action's use case declares the field and the rule's own parameters left it unset,
+// so a rule's explicit choice always wins and no use case sees a key it never asked for (C-07).
 type Actions interface {
 	Dispatch(
-		ctx context.Context, runAs appshared.ActorContext, kind string, params map[string]any,
+		ctx context.Context, runAs appshared.ActorContext, kind string,
+		params map[string]any, supplied map[string]any,
 	) (usecase.Output, error)
 }
 
@@ -557,10 +564,21 @@ func (h RunRule) act(
 ) ([]domain.ActionResult, bool, *suspension) {
 	w := &walk{
 		engine: h, actor: actor, rule: rule, occasion: cmd.occasion(), values: values,
-		replay: prior,
+		replay: prior, supplied: cmd.supplied(),
 	}
 	w.list(ctx, rule.Actions, "")
 	return w.results, w.halted, w.pending
+}
+
+// supplied is what the run knows and a rule cannot carry (automation.md §2.2): today, the event
+// the run is about. The dispatcher merges these only into fields the action's use case declares
+// and the rule left unset.
+func (c Command) supplied() map[string]any {
+	values := map[string]any{}
+	if !c.EventID.IsZero() {
+		values["event_id"] = c.EventID.String()
+	}
+	return values
 }
 
 // replay is what a resumed run already knows: the results its row recorded, and the WAIT it
@@ -593,6 +611,7 @@ type walk struct {
 	occasion string
 	values   eventValues
 	replay   replay
+	supplied map[string]any
 	results  []domain.ActionResult
 	// pending is a WAIT that parks the run: the walk stops where it stands, and what is left is
 	// neither skipped nor recorded - it is yet to run, when the resume comes back for it.
@@ -645,7 +664,7 @@ func (w *walk) list(ctx context.Context, actions []domain.Action, parent string)
 		default:
 			result.IdempotencyKey = idempotencyKey(w.rule.ID, w.occasion, path)
 			w.record(result,
-				w.engine.dispatch(ctx, w.actor, w.rule, action, result.IdempotencyKey))
+				w.engine.dispatch(ctx, w.actor, w.rule, action, result.IdempotencyKey, w.supplied))
 		}
 	}
 }
@@ -753,7 +772,7 @@ func (w *walk) record(result domain.ActionResult, err error) {
 // dispatch performs one action as the rule's account.
 func (h RunRule) dispatch(
 	ctx context.Context, actor appshared.ActorContext,
-	rule domain.Rule, action domain.Action, key string,
+	rule domain.Rule, action domain.Action, key string, supplied map[string]any,
 ) error {
 	if h.Guard != nil {
 		first, err := h.Guard.Claim(ctx, actor, key)
@@ -772,7 +791,7 @@ func (h RunRule) dispatch(
 	if err != nil {
 		return err
 	}
-	_, err = h.Dispatcher.Dispatch(ctx, runAs, action.Kind, action.Params)
+	_, err = h.Dispatcher.Dispatch(ctx, runAs, action.Kind, action.Params, supplied)
 	return err
 }
 
