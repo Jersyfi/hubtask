@@ -322,3 +322,10 @@ WHERE id IN (
 -- The tenant's own row, reachable under its own policy: the enforcement switch lives in the
 -- settings document (multi-tenancy.md §4's home for per-tenant knobs).
 SELECT settings FROM tenant WHERE id = current_tenant_id();
+
+-- name: FindPasswordHash :one
+-- For the operations that demand the password afresh of somebody already signed in (H-02):
+-- disabling the second factor is the attack a stolen session would try, and a live session is
+-- deliberately not enough there.
+SELECT password_hash FROM account
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;

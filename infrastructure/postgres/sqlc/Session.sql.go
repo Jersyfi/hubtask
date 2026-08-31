@@ -354,6 +354,21 @@ func (q *Queries) FindMfaEnrollment(ctx context.Context, accountID pgtype.UUID) 
 	return i, err
 }
 
+const findPasswordHash = `-- name: FindPasswordHash :one
+SELECT password_hash FROM account
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+// For the operations that demand the password afresh of somebody already signed in (H-02):
+// disabling the second factor is the attack a stolen session would try, and a live session is
+// deliberately not enough there.
+func (q *Queries) FindPasswordHash(ctx context.Context, id pgtype.UUID) (*string, error) {
+	row := q.db.QueryRow(ctx, findPasswordHash, id)
+	var password_hash *string
+	err := row.Scan(&password_hash)
+	return password_hash, err
+}
+
 const findPendingByHash = `-- name: FindPendingByHash :one
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at,

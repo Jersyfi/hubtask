@@ -647,3 +647,28 @@ func (r SessionRepository) CountExpired(ctx context.Context, cutoff time.Time, c
 	}
 	return int(due), nil
 }
+
+// PasswordHashOf answers one account's stored hash, wrapped so no way of printing it yields
+// anything (rule 10).
+func (r SignInRepository) PasswordHashOf(
+	ctx context.Context, accountID shared.ID,
+) (secret.Secret, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return secret.Secret{}, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return secret.Secret{}, err
+	}
+	hash, err := queries.FindPasswordHash(ctx, id)
+	if err != nil {
+		if IsNoRows(err) {
+			return secret.Secret{}, shared.ErrNotFound.WithDetail("accounts.not_found")
+		}
+		return secret.Secret{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the stored hash: %w", err))
+	}
+	return secret.New(stringFrom(hash)), nil
+}

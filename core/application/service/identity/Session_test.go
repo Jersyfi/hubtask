@@ -167,6 +167,15 @@ func (s *signInAccounts) FindByRedemptionToken(_ context.Context, token domain.T
 	return found, nil
 }
 
+func (s *signInAccounts) PasswordHashOf(_ context.Context, accountID shared.ID) (secret.Secret, error) {
+	for _, found := range s.byEmail {
+		if found.Account.ID == accountID {
+			return found.PasswordHash, nil
+		}
+	}
+	return secret.Secret{}, shared.ErrNotFound.WithDetail("accounts.not_found")
+}
+
 func (s *signInAccounts) Redeem(_ context.Context, _ shared.ID, passwordHash string, _ time.Time) (bool, error) {
 	if !s.redeemChanged {
 		return false, nil
