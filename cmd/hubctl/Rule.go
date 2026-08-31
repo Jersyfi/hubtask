@@ -50,7 +50,7 @@ func ruleGroup() group {
 			{name: "disable", usage: "<id>", summary: "switch it off", run: ruleDisable},
 			{
 				name:    "test",
-				usage:   "<id> [--subject <item id>]",
+				usage:   "<id> --event <type> [--subject <id>] [--payload <json>]",
 				summary: "the dry run: what it would do, without doing any of it",
 				run:     ruleTest,
 			},
@@ -245,25 +245,43 @@ func ruleSwitch(ctx context.Context, cli *CLI, args []string, verb string) error
 }
 
 // ruleTest is the dry run: what the rule would do, with nothing done.
+//
+// The sample event is named rather than inferred from the rule. A rule's conditions read the event
+// (`event.type`, `event.subject`), so a dry run without one would be evaluating them against
+// nothing and answering "would run" for a rule that never fires - which is worse than no dry run
+// (automation.md §2).
 func ruleTest(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "rule test <id> [--subject <item id>]"
+	const usage = "rule test <id> --event <type> [--subject <id>] [--payload <json>]"
 	ruleID, rest, err := cli.takeID(args, usage)
 	if err != nil {
 		return err
 	}
-	flags := commandFlags(cli, "rule", "test", "<id> [--subject <item id>]")
-	subject := flags.String("subject", "", "the entry to try it against")
+	flags := commandFlags(cli, "rule", "test", "<id> --event <type> [--subject <id>]")
+	eventType := flags.String("event", "", "the sample event's type, e.g. de.hubtask.work.item.overdue.v1")
+	subject := flags.String("subject", "", "what the sample event is about")
+	payload := flags.String("payload", "", "the body an inbound delivery would have carried, as JSON")
 	if err := parseOnlyFlags(flags, rest, usage); err != nil {
 		return err
 	}
+	if *eventType == "" {
+		return usagef("rule test needs --event: a rule's conditions read the event, so a dry run without one measures nothing")
+	}
 
-	body := map[string]any{"rule_id": ruleID.String()}
+	sample := map[string]any{"type": *eventType}
 	if *subject != "" {
 		parsed, err := cli.parseID("--subject", *subject)
 		if err != nil {
 			return err
 		}
-		body["subject_id"] = parsed.String()
+		sample["subject"] = parsed.String()
+	}
+	body := map[string]any{"rule_id": ruleID.String(), "sample_event": sample}
+	if *payload != "" {
+		decoded := map[string]any{}
+		if err := json.Unmarshal([]byte(*payload), &decoded); err != nil {
+			return usagef("--payload is not a JSON object")
+		}
+		body["payload"] = decoded
 	}
 
 	client, err := cli.client()

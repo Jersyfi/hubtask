@@ -747,7 +747,8 @@ RULE_ID="$(json_field id "$rule")"
 expect_contains "rule ls" "$(hubctl rule ls --disabled)" "$RULE_ID"
 # The dry run first: what it would do, with nothing done. That is the whole of E-06's discipline
 # from a terminal.
-expect_contains "rule test" "$(hubctl rule test "$RULE_ID")" "conditions"
+expect_contains "rule test" \
+	"$(hubctl rule test "$RULE_ID" --event de.hubtask.jumble.entry.received.v1)" "conditions"
 hubctl rule enable "$RULE_ID" >/dev/null
 expect_contains "rule ls --enabled" "$(hubctl rule ls --enabled)" "$RULE_ID"
 

@@ -122,9 +122,18 @@ func TestTheDryRunSaysNothingWasDone(t *testing.T) {
 		`{"matched":true,"condition_results":[],
 		  "actions":[{"kind":"ADD_LABEL","path":"1","would_run":true}]}`)
 
-	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "rule", "test", ruleID)
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"rule", "test", ruleID, "--event", "de.hubtask.work.item.overdue.v1")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	sample, _ := sent["sample_event"].(map[string]any)
+	if sample["type"] != "de.hubtask.work.item.overdue.v1" {
+		t.Errorf("the sample event reached the server as %v", sent["sample_event"])
 	}
 	if !strings.Contains(out, "would run") {
 		t.Errorf("the table is %q", out)
@@ -202,6 +211,20 @@ func TestARuleWithoutAnAccountToActAsIsRefusedHere(t *testing.T) {
 		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
 	}
 	if !strings.Contains(errOut, "--run-as") {
+		t.Errorf("the complaint does not name what is missing: %q", errOut)
+	}
+}
+
+// A dry run without a sample event measures nothing: a rule's conditions read the event, so
+// answering "would run" against no event would be worse than not answering at all.
+func TestADryRunWithoutASampleEventIsRefusedHere(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"matched":true,"condition_results":[],"actions":[]}`)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "rule", "test", ruleID)
+	if code != exitUsage {
+		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
+	}
+	if !strings.Contains(errOut, "--event") {
 		t.Errorf("the complaint does not name what is missing: %q", errOut)
 	}
 }
