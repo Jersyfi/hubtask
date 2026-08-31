@@ -46,6 +46,10 @@ type RunRetention struct {
 	// being swept is personal data kept past its period (risk R-09) in the one place nobody
 	// looks at afterwards.
 	Inbox JumbleInbox
+	// Sessions is the sign-in rows' remover (H-01). Optional for the outbox's reason: an
+	// installation wired without it sweeps exactly what it did before, and the rows it would
+	// have removed are already unusable - the sweep forgets, revocation ends.
+	Sessions ExpiredSessions
 	Clock clock.Clock
 	IDs   clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
@@ -94,6 +98,19 @@ type DispatchedEvents interface {
 	// twin table, swept at the same period and by the same pass: a record whose event has been
 	// swept can say nothing about an event nobody can deliver again (ADR-0007).
 	DeleteExpiredConsumption(ctx context.Context, cutoff time.Time, batch int) (int, error)
+}
+
+// ExpiredSessions is the slice of the session repository this run removes through (H-01). The
+// same two methods as the notification history, and deliberately the same shape: the engine
+// treats a fifth kind exactly as it treats the second.
+//
+// Which sessions are due is the query's business rather than a parameter, for the reason the
+// outbox's dispatched guard is: only a session that is already over - run out or revoked - is
+// ever removed, whatever the period says, because ending sign-ins is revocation's job and the
+// engine's job is forgetting.
+type ExpiredSessions interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
 // JumbleInbox is the slice of the jumble repository this run removes through (G-10).
@@ -192,6 +209,11 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	sessions, err := h.sweepSessions(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	rules, err := h.sweepRules(ctx, actor, started)
 	if err != nil {
 		return outcome, err
@@ -209,6 +231,56 @@ func (h RunRetention) Execute(
 	// reporting nothing removed and no reason why.
 	outcome.add(inbox)
 	outcome.add(rules)
+	outcome.Matched += sessions.Matched
+	outcome.Removed += sessions.Removed
+	return outcome, nil
+}
+
+// sweepSessions removes one batch of sessions that are over (H-01, data-retention.md §3).
+//
+// The refresh family goes with each row by cascade. No tombstone window, no legal hold and no
+// audit entry, on sweepEvents' reasoning: a session is not an object a device holds, a hold is
+// placed on tenants, containers and items, and the security event - the revocation - was audited
+// when it happened. What ages out here is only bookkeeping about sign-ins that are already over.
+func (h RunRetention) sweepSessions(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.Sessions == nil {
+		return Outcome{}, nil
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindSession)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindSession, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	matched, err := h.Sessions.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+	removed, sweepErr := h.Sessions.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindSession, outcome, finished.Sub(started))
 	return outcome, nil
 }
 

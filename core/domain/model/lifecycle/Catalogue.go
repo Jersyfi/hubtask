@@ -205,7 +205,14 @@ var catalogue = []Kind{
 		Name: KindOutboxEvent, Anchor: AnchorOccurredAt, DefaultDays: 7,
 		Actions: []Action{ActionHardDelete},
 	},
-	{Name: KindSession, Anchor: AnchorLastSeenAt, DefaultDays: 30},
+	{
+		// Sessions (H-01): the rows sign-in opens, aged out once they are over - run out or
+		// revoked - rather than a second sweeper beside the engine, exactly as the schema
+		// comment promised in 0001_init. No marking phase, the trash's reason turned around:
+		// nobody can take an expired session back out, so there is nothing to announce into.
+		Name: KindSession, Anchor: AnchorLastSeenAt, DefaultDays: 30,
+		Actions: []Action{ActionHardDelete},
+	},
 	{Name: KindAudit, Anchor: AnchorOccurredAt, DefaultDays: 400},
 	{Name: KindMediaOrphan, Anchor: AnchorCreatedAt, DefaultDays: 7},
 	{Name: KindDeletedAccountResidue, Anchor: AnchorDeletedAt, DefaultDays: 30},

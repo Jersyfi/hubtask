@@ -1680,6 +1680,9 @@ func run() error {
 			// is the kind D-06 predicted and the one place raw inbound text would otherwise sit
 			// for ever.
 			Inbox: postgres.NewJumbleRepository(cursors),
+			// The SESSION kind (H-01): expired and revoked sessions age out through the engine,
+			// not a second sweeper.
+			Sessions: postgres.NewSessionRepository(),
 			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per

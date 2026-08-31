@@ -363,11 +363,12 @@ func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
 		if kind.Anchor == "" {
 			t.Errorf("%s says nothing about what its period runs from", kind.Name)
 		}
-		// The two kinds nothing can block are the two that are not somebody's work: a record that
-		// they were told, and a dispatched event. A legal hold is placed on tenants, containers
-		// and items, and neither of these is one.
+		// The kinds nothing can block are the ones that are not somebody's work: a record that
+		// they were told, a dispatched event, and a sign-in that is already over. A legal hold is
+		// placed on tenants, containers and items, and none of these is one.
 		if kind.Swept() && len(kind.Blockable) == 0 &&
-			kind.Name != domain.KindNotification && kind.Name != domain.KindOutboxEvent {
+			kind.Name != domain.KindNotification && kind.Name != domain.KindOutboxEvent &&
+			kind.Name != domain.KindSession {
 			t.Errorf("%s is swept and nothing can block it", kind.Name)
 		}
 		for _, action := range kind.Actions {

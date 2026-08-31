@@ -66,6 +66,12 @@ func DefaultPolicies() []Policy {
 		// the notification history's reason: no document sets one, and a tenant asking for a
 		// shorter inbox is asking for less of the least trusted text in the system to be kept.
 		{DataKind: KindJumbleEntry, RetainDays: 90},
+		// Sessions (H-01). Thirty days from the last use, the period the schema comment promised
+		// in 0001_init and security.md §5's refresh lifetime made natural: a session idle that
+		// long has run out with the token that could have renewed it. No lower bound, for the
+		// notification history's reason - the sweep's own guard only ever removes what is already
+		// over, so a shorter period keeps less client-hint data and ends nothing.
+		{DataKind: KindSession, RetainDays: 30},
 	}
 }
 

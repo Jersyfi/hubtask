@@ -609,3 +609,41 @@ func nullableString(value string) *string {
 	}
 	return &value
 }
+
+// DeleteExpired removes one batch of sessions that are over (H-01, the SESSION data kind). The
+// query's own guard only ever matches a session that has run out or was revoked - ending
+// sign-ins is revocation's job, and the sweep only forgets.
+func (r SessionRepository) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	removed, err := queries.DeleteExpiredSessions(ctx, sqlc.DeleteExpiredSessionsParams{
+		Cutoff: pgtype.Timestamptz{Time: cutoff, Valid: true},
+		Batch:  int32(batch), //nolint:gosec // G115: the batch size is a small configuration value
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the sessions: %w", err))
+	}
+	return int(removed), nil
+}
+
+// CountExpired reports what is due, bounded by the ceiling.
+func (r SessionRepository) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	due, err := queries.CountExpiredSessions(ctx, sqlc.CountExpiredSessionsParams{
+		Cutoff:  pgtype.Timestamptz{Time: cutoff, Valid: true},
+		Ceiling: int32(ceiling), //nolint:gosec // G115: the ceiling is a small configuration value
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the due sessions: %w", err))
+	}
+	return int(due), nil
+}
