@@ -77,7 +77,6 @@ import (
 	recurrenceadapter "github.com/Jersyfi/hubtask/infrastructure/recurrence"
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
-	"github.com/Jersyfi/hubtask/infrastructure/stepup"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
 	"github.com/Jersyfi/hubtask/presentation/intake"
@@ -349,15 +348,49 @@ func run() error {
 	// And the restore side (E-06). It gets the same cipher the run job uses, because listing an
 	// archive and restoring one have to agree about how a member was closed - two ciphers here
 	// would look exactly like a wrong key.
+	// The sign-in flow (H-01). One dependency set for AccessTokenWriter's reason: the rules
+	// about one credential pair belong in one place. Argon2id lives behind the port; its
+	// construction draws the decoy, and a process that cannot draw randomness must not start.
+	passwords, err := crypto.NewPasswords(clockadapter.CryptoRandom{})
+	if err != nil {
+		return fmt.Errorf("password hasher: %w", err)
+	}
+	sessionSigner := security.NewSessionTokenIssuer(cfg.SecretKey)
+	mfaStore := postgres.NewMfaRepository(
+		security.NewPendingTokenHasher(cfg.SecretKey),
+		security.NewRecoveryCodeHasher(cfg.SecretKey))
+	sessions := postgres.NewSessionRepository()
+	signInStore := postgres.NewSignInRepository(
+		security.NewRedemptionTokenHasher(cfg.SecretKey),
+		security.NewAuthAttemptHasher(cfg.SecretKey))
+	sessionWriter := identity.SessionWriter{
+		Accounts: signInStore,
+		Sessions: sessions,
+		Refresh:  postgres.NewRefreshTokenRepository(security.NewSessionRefreshHasher(cfg.SecretKey)),
+		Attempts: signInStore, Tenants: signInStore,
+		Passwords: passwords, Signer: sessionSigner,
+		Audit: auditSink, Signals: metrics,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{},
+		Multi:   cfg.Tenancy == envport.TenancyMulti,
+		// The second factor (H-02): the sealed enrolment, the codes, the pending credential,
+		// and the tenant's enforcement switch.
+		Enrollments: mfaStore, Recovery: mfaStore, Pending: mfaStore, Policy: mfaStore,
+		StepUps:      postgres.NewStepUpRepository(security.NewStepUpTokenHasher(cfg.SecretKey)),
+		StepUpWindow: cfg.StepUpWindow,
+		Encryptor:    encryptor,
+		Memberships:  postgres.NewMembershipRepository(),
+		People:       postgres.NewAccountRepository(),
+		Issuer:       "Hubtask",
+	}
+
 	backupRestores := postgres.NewRestoreRunRepository()
 	backupRestorer := backupservice.Restorer{
 		Targets: backupTargets, Restores: backupRestores,
 		Workspace: postgres.NewWorkspaceRepository(), Jobs: jobs,
-		// The step-up nothing can satisfy yet, as a type rather than a nil: a missing verifier
-		// would make "this installation has no step-up" indistinguishable from "somebody forgot to
-		// wire one up", and the second is how a destructive restore ends up permitted by omission
-		// (E-06, backup-restore.md §8.3).
-		StepUp:    stepup.Unavailable{},
+		// The verifier H-03 built into the seam E-06 cut: a fresh re-authentication on the
+		// current session, consumed by the one privileged action it is presented to.
+		StepUp:    identity.StepUpVerifier{Writer: sessionWriter},
 		Encryptor: encryptor, Opener: backupAdapters,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -391,6 +424,7 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy:     clockadapter.CryptoRandom{},
 		KnownScopes: catalogue.Scopes(),
+		StepUp:      identity.StepUpVerifier{Writer: sessionWriter},
 	}
 
 	// The service accounts share theirs for the same reason: creating one and listing them are
@@ -770,40 +804,6 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
-	// The sign-in flow (H-01). One dependency set for AccessTokenWriter's reason: the rules
-	// about one credential pair belong in one place. Argon2id lives behind the port; its
-	// construction draws the decoy, and a process that cannot draw randomness must not start.
-	passwords, err := crypto.NewPasswords(clockadapter.CryptoRandom{})
-	if err != nil {
-		return fmt.Errorf("password hasher: %w", err)
-	}
-	sessionSigner := security.NewSessionTokenIssuer(cfg.SecretKey)
-	mfaStore := postgres.NewMfaRepository(
-		security.NewPendingTokenHasher(cfg.SecretKey),
-		security.NewRecoveryCodeHasher(cfg.SecretKey))
-	sessions := postgres.NewSessionRepository()
-	signInStore := postgres.NewSignInRepository(
-		security.NewRedemptionTokenHasher(cfg.SecretKey),
-		security.NewAuthAttemptHasher(cfg.SecretKey))
-	sessionWriter := identity.SessionWriter{
-		Accounts: signInStore,
-		Sessions: sessions,
-		Refresh:  postgres.NewRefreshTokenRepository(security.NewSessionRefreshHasher(cfg.SecretKey)),
-		Attempts: signInStore, Tenants: signInStore,
-		Passwords: passwords, Signer: sessionSigner,
-		Audit: auditSink, Signals: metrics,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-		Entropy: clockadapter.CryptoRandom{},
-		Multi:   cfg.Tenancy == envport.TenancyMulti,
-		// The second factor (H-02): the sealed enrolment, the codes, the pending credential,
-		// and the tenant's enforcement switch.
-		Enrollments: mfaStore, Recovery: mfaStore, Pending: mfaStore, Policy: mfaStore,
-		Encryptor:   encryptor,
-		Memberships: postgres.NewMembershipRepository(),
-		People:      accounts,
-		Issuer:      "Hubtask",
-	}
-
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -817,10 +817,12 @@ func run() error {
 		identity.GrantMembership{
 			Grants: grants, Accounts: accounts, Groups: groups, Authorizer: authorizer,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.RevokeMembership{
 			Grants: grants, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.CreateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
@@ -844,6 +846,7 @@ func run() error {
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
 		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),
 		identity.DisableTotp{Writer: sessionWriter}.Descriptor(),
+		identity.StepUp{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),

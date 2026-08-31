@@ -172,6 +172,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.EnrollTotp{}.Descriptor(),
 		identity.ConfirmTotp{}.Descriptor(),
 		identity.DisableTotp{}.Descriptor(),
+		identity.StepUp{}.Descriptor(),
 		identity.CreateAccessToken{}.Descriptor(),
 		identity.ListAccessTokens{}.Descriptor(),
 		identity.RevokeAccessToken{}.Descriptor(),

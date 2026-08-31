@@ -461,18 +461,9 @@ func (h StartRestore) confirm(
 			})
 	}
 
-	if h.Restorer.StepUp == nil || !h.Restorer.StepUp.Available() {
-		return shared.ErrConflict.WithDetail(domain.CodeStepUpUnavailable)
-	}
-	satisfied, err := h.Restorer.StepUp.Satisfied(ctx, actor.AccountID, request.StepUpToken)
-	if err != nil {
-		return err
-	}
-	if !satisfied {
-		return shared.ErrValidation.WithDetail(domain.CodeStepUpRequired).
-			WithFields(shared.FieldError{Path: "/step_up_token", Code: domain.CodeStepUpRequired})
-	}
-	return nil
+	// The demand H-03 finally made satisfiable: a fresh proof, consumed by this one restore.
+	// E-06's "nothing here can prove it" refusal died with the verifier that proves it.
+	return stepup.Demand(ctx, h.Restorer.StepUp, actor.AccountID, request.StepUpToken)
 }
 
 // Execute answers one restore.
@@ -592,10 +583,11 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 			{
 				Name: "step_up_token", Kind: usecase.KindString,
 				Description: "For a destructive mode, the proof of a fresh, stronger " +
-					"authentication. No installation can issue one yet, so a destructive mode is " +
-					"refused rather than silently permitted.",
+					"authentication: the token POST /auth/step-up answered, consumed by this " +
+					"one restore (H-03).",
 			},
 		},
+		StepUp: "the destructive modes (REPLACE_TENANT, INSTANCE)",
 		Audit: usecase.AuditDeclaration{
 			Action: StartedRestoreAction, TargetType: restoreType,
 			Severity: audit.SeverityWarning, Required: true,

@@ -198,3 +198,18 @@ func NewRecoveryCodeHasher(installationSecret secret.Secret) RecoveryCodeHasher 
 }
 
 func (h RecoveryCodeHasher) Hash(normalised string) []byte { return hashUnder(h.pepper, normalised) }
+
+// stepUpTokenInfo separates the step-up proof from every other derivation (H-03).
+//
+//nolint:gosec // G101: a public derivation label, not a credential
+const stepUpTokenInfo = "hubtask/step-up/v1"
+
+// StepUpTokenHasher turns a presented step-up token into the value stored in
+// session.step_up_token_hash.
+type StepUpTokenHasher struct{ pepper []byte }
+
+func NewStepUpTokenHasher(installationSecret secret.Secret) StepUpTokenHasher {
+	return StepUpTokenHasher{pepper: derivePepper(installationSecret, stepUpTokenInfo)}
+}
+
+func (h StepUpTokenHasher) Hash(presented string) []byte { return hashUnder(h.pepper, presented) }

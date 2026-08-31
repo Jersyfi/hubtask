@@ -90,6 +90,10 @@ type SessionWriter struct {
 	// People reads the account an MFA operation acts for - the provisioning URI labels it by
 	// its address, which the actor deliberately does not carry.
 	People repository.Accounts
+	// StepUps and StepUpWindow are H-03's: the proof on the session, and how long it covers the
+	// one privileged action it is presented to.
+	StepUps      repository.StepUps
+	StepUpWindow time.Duration
 	// Issuer is the label an authenticator shows beside the code.
 	Issuer string
 }

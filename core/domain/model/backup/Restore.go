@@ -148,8 +148,8 @@ type RestoreRequest struct {
 	// Confirmation is the tenant name, typed. Compared against the name of the tenant being
 	// replaced, exactly.
 	Confirmation string
-	// StepUpToken is the proof of a fresh, stronger authentication. Nothing can issue one yet;
-	// see CodeStepUpUnavailable.
+	// StepUpToken is the proof of a fresh, stronger authentication: the token
+	// POST /auth/step-up answered (H-03), consumed by this one restore.
 	StepUpToken string
 }
 
@@ -403,13 +403,10 @@ const (
 	// CodeRestoreConfirmationRequired is a destructive mode without the tenant's name typed into
 	// it, or with somebody else's name typed into it.
 	CodeRestoreConfirmationRequired = "backup.restore_confirmation_required"
-	// CodeStepUpRequired is a destructive mode without the stronger authentication §8.3 asks for.
-	CodeStepUpRequired = "backup.restore_step_up_required"
-	// CodeStepUpUnavailable is the honest answer of an installation that cannot satisfy a step-up
-	// at all, because sessions and MFA arrive in 0.6.0. The destructive mode is refused rather
-	// than permitted, and the code says which of the two refusals it is - "you did not prove it"
-	// and "nothing here can prove it" are different problems with different fixes.
-	CodeStepUpUnavailable = "backup.restore_step_up_unavailable"
+	// The step-up refusals moved with H-03: a destructive mode without the proof now answers
+	// `auth.step_up_required` from the port, minted in one place for every privileged operation,
+	// and `backup.restore_step_up_unavailable` died with the verifier that made a step-up
+	// satisfiable - see the tombstone in the restore tests.
 	// CodeRestoreArchiveScopeMismatch is an archive of one tenant being restored into another,
 	// which is BK-10's refusal. It is the one every mode is checked for, at the listing, at the
 	// dry run and at the execution.

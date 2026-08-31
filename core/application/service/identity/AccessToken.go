@@ -21,6 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -65,7 +66,13 @@ type AccessTokenWriter struct {
 	// It is passed in rather than read, because the catalogue is assembled from these very use
 	// cases and a package that imported it would close the circle (ADR-0001).
 	KnownScopes []string
+	// StepUp judges the fresh proof an admin-scoped mint demands (H-03, security.md §5).
+	StepUp stepup.Verifier
 }
+
+// adminScopes are the scopes whose minting is a privileged action (security.md §5): the control
+// plane's. A set here rather than a naming convention, so a future scope joins it deliberately.
+var adminScopes = map[string]bool{"admin:tenants": true}
 
 // CreateAccessTokenCommand is the input, typed.
 type CreateAccessTokenCommand struct {
@@ -74,6 +81,8 @@ type CreateAccessTokenCommand struct {
 	Name      string
 	Scopes    []string
 	ExpiresAt time.Time
+	// StepUpToken is the fresh proof an admin-scoped mint demands (H-03).
+	StepUpToken string
 }
 
 // MintedToken is what a mint answers: the row as it will be listed, and the credential that will
@@ -107,6 +116,16 @@ func (h CreateAccessToken) Execute(
 	}
 	if err := w.checkScopes(cmd.Scopes); err != nil {
 		return MintedToken{}, err
+	}
+	for _, scope := range cmd.Scopes {
+		if adminScopes[scope] {
+			// A token that could reach the control plane is minted behind a fresh proof
+			// (security.md §5), consumed by this one mint.
+			if err := stepup.Demand(ctx, w.StepUp, actor.AccountID, cmd.StepUpToken); err != nil {
+				return MintedToken{}, err
+			}
+			break
+		}
 	}
 
 	material, err := w.Entropy.Bytes(domain.TokenSecretBytes)
@@ -450,7 +469,12 @@ func (h CreateAccessToken) Descriptor() usecase.Descriptor {
 				Description: "Whose token. Omitted means the caller's own. A service account's " +
 					"needs the member management permission; another person's is refused.",
 			},
+			{
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The fresh proof an admin-scoped mint demands (security.md §5).",
+			},
 		},
+		StepUp: "asking for an admin scope",
 		Audit: usecase.AuditDeclaration{
 			Action: TokenCreatedAction, TargetType: tokenTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -479,10 +503,11 @@ func (h CreateAccessToken) invoke(
 	}
 
 	minted, err := h.Execute(ctx, actor, CreateAccessTokenCommand{
-		AccountID: accountID,
-		Name:      in.String("name"),
-		Scopes:    scopes,
-		ExpiresAt: expiresAt,
+		AccountID:   accountID,
+		Name:        in.String("name"),
+		Scopes:      scopes,
+		ExpiresAt:   expiresAt,
+		StepUpToken: in.String("step_up_token"),
 	})
 	if err != nil {
 		return nil, err

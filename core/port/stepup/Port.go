@@ -14,6 +14,11 @@
 // A confirmation that is structurally impossible to give is a stronger position than one that is
 // skipped: the refusal is visible, it names its own reason, and the day an installation can issue
 // a step-up the mode starts working without anything here changing shape.
+//
+// That day was H-03: the verifier exists - a fresh re-authentication on the current session,
+// consumed by the one privileged action it is presented to - and the refusal every demanding
+// operation answers without one lives here, so that two operations cannot describe the same
+// demand differently.
 package stepup
 
 import (
@@ -21,6 +26,36 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
+
+// CodeRequired is the demand every privileged operation surfaces without a satisfied step-up:
+// 403, naming the accepted methods, so a client knows to ask the person rather than to retry
+// (H-03).
+const CodeRequired = "auth.step_up_required"
+
+// Required is the demand itself, minted in exactly one place.
+func Required() error {
+	return shared.ErrForbidden.
+		WithDetail(CodeRequired).
+		WithParams(map[string]string{"methods": "PASSWORD TOTP"})
+}
+
+// Demand is the check every privileged operation runs: a wired verifier, a presented token, a
+// satisfied proof - or the one refusal. A nil or unavailable verifier refuses rather than
+// permits, because a destructive mode permitted by omission is the failure E-06 built this seam
+// against.
+func Demand(ctx context.Context, verifier Verifier, accountID shared.ID, token string) error {
+	if verifier == nil || !verifier.Available() || token == "" {
+		return Required()
+	}
+	satisfied, err := verifier.Satisfied(ctx, accountID, token)
+	if err != nil {
+		return err
+	}
+	if !satisfied {
+		return Required()
+	}
+	return nil
+}
 
 // Verifier judges the proof.
 type Verifier interface {
