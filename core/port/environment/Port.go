@@ -67,6 +67,12 @@ type Config struct {
 
 	Tenancy TenancyMode
 
+	// StepUpWindow is how long a fresh re-authentication covers the one privileged action it is
+	// presented to (H-03, security.md §5). Minutes, deliberately: long enough to type the typed
+	// tenant name after proving oneself, short enough that a walked-away terminal is not a
+	// standing authorisation.
+	StepUpWindow time.Duration
+
 	Database   DatabaseConfig
 	Storage    StorageConfig
 	Mail       MailConfig

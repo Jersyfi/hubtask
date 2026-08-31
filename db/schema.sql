@@ -216,10 +216,18 @@ CREATE TABLE session (
   ip_class     text,
   expires_at   timestamptz NOT NULL,
   revoked_at   timestamptz,
+  -- The step-up (H-03): a fresh re-authentication recorded on the session, one live proof at a
+  -- time, consumed by the one privileged action it is presented to.
+  step_up_token_hash  bytea,
+  step_up_at          timestamptz,
+  step_up_method      text,
+  step_up_consumed_at timestamptz,
   CONSTRAINT session_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX session_tenant_id_uq ON session (tenant_id, id);
+CREATE UNIQUE INDEX session_step_up_token_uq ON session (step_up_token_hash)
+  WHERE step_up_token_hash IS NOT NULL;
 CREATE INDEX session_account_idx ON session (account_id, created_at DESC);
 
 -- One refresh token of a session's family. Rotation retires a row and inserts the next; retired

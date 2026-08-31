@@ -113,6 +113,9 @@
   "auth.mfa_required_by_tenant": "This workspace requires a second factor for your role. It cannot be disabled here.",
   "auth.mfa_credential_required": "This operation needs a signed-in session or the pending credential of a sign-in.",
   "auth.mfa_enrollment_pending": "The enrolment is not confirmed yet. Confirm it with a code from your authenticator.",
+  "auth.step_up_required": "This action needs you to prove who you are again. Call POST /auth/step-up with your {methods}, then repeat this call with the X-Hubtask-Step-Up header.",
+  "auth.step_up_method_required": "Send password, or code where a second factor is armed - one of the two, never both.",
+  "config.step_up_window_invalid": "HUBTASK_STEP_UP_WINDOW has to be a positive duration, such as 5m.",
 
   "idempotency.key_malformed": "The Idempotency-Key header has to be a UUID.",
   "idempotency.key_reused": "This Idempotency-Key was already used for a different request. Use a new one.",

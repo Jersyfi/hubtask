@@ -329,3 +329,34 @@ SELECT settings FROM tenant WHERE id = current_tenant_id();
 -- deliberately not enough there.
 SELECT password_hash FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
+
+-- ============================ The step-up (H-03) ============================
+
+-- name: RecordStepUp :execrows
+-- The proof lands on the caller's own session, replacing whatever stood: a fresh proof is the
+-- newest answer to "is this still you", and two live proofs would be two coverings.
+UPDATE session SET
+  step_up_token_hash  = sqlc.arg('token_hash'),
+  step_up_at          = sqlc.arg('now'),
+  step_up_method      = sqlc.arg('method'),
+  step_up_consumed_at = NULL
+WHERE id = sqlc.arg('id')
+  AND account_id = sqlc.arg('account_id')
+  AND revoked_at IS NULL;
+
+-- name: ConsumeStepUp :execrows
+-- The one statement the whole feature turns on: the proof is judged and burned atomically -
+-- fresh, unconsumed, on a live session of this account - so two privileged actions racing for
+-- one proof settle in the database, not in Go. Zero rows is "not proved", whatever the reason.
+UPDATE session SET step_up_consumed_at = sqlc.arg('now')
+WHERE step_up_token_hash = sqlc.arg('token_hash')
+  AND account_id = sqlc.arg('account_id')
+  AND step_up_consumed_at IS NULL
+  AND step_up_at >= sqlc.arg('cutoff')
+  AND revoked_at IS NULL
+  AND expires_at > sqlc.arg('now');
+
+-- name: FindStepUpMethod :one
+-- What proved it, for the audit entry - never the credential.
+SELECT step_up_method FROM session
+WHERE step_up_token_hash = sqlc.arg('token_hash') AND account_id = sqlc.arg('account_id');
