@@ -139,6 +139,37 @@ func (c *RestController) RevokeAllSessions(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RedeemInvitation answers POST /auth/invitations:redeem.
+//
+// Written out for SignIn's reason: the route is public, and the token in the body is the whole
+// of what authenticates the call.
+func (c *RestController) RedeemInvitation(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.InvitationRedemption
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), redeemInvitationUseCase, actorOf(r), usecase.Input{
+		"token":         body.Token,
+		"password":      body.Password,
+		"user_agent":    r.UserAgent(),
+		"remote_addr":   r.RemoteAddr,
+		"tenant_header": r.Header.Get(TenantHeader),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
+}
+
 // tenantSlug reads the subdomain off the request's host, when this installation knows its own.
 // One label and no more: a nested subdomain names nothing here.
 func (c *RestController) tenantSlug(r *http.Request) string {

@@ -137,6 +137,11 @@ func (s *refreshStore) Rotate(_ context.Context, id shared.ID, _ time.Time) (boo
 
 type signInAccounts struct {
 	byEmail map[string]repository.SignInAccount
+
+	redemption    map[string]repository.RedemptionAccount
+	minted        []domain.Token
+	redeemChanged bool
+	redeemedHash  string
 }
 
 func (s *signInAccounts) FindForSignIn(_ context.Context, email string) (repository.SignInAccount, error) {
@@ -148,16 +153,25 @@ func (s *signInAccounts) FindForSignIn(_ context.Context, email string) (reposit
 }
 
 func (s *signInAccounts) SetRedemptionToken(
-	context.Context, shared.ID, domain.Token, time.Time, time.Time,
+	_ context.Context, _ shared.ID, presented domain.Token, _, _ time.Time,
 ) (bool, error) {
-	return true, nil
+	s.minted = append(s.minted, presented)
+	return s.redeemChanged, nil
 }
 
-func (s *signInAccounts) FindByRedemptionToken(context.Context, domain.Token) (repository.RedemptionAccount, error) {
-	return repository.RedemptionAccount{}, shared.ErrNotFound.WithDetail("auth.redemption_failed")
+func (s *signInAccounts) FindByRedemptionToken(_ context.Context, token domain.Token) (repository.RedemptionAccount, error) {
+	found, ok := s.redemption[token.Secret()]
+	if !ok {
+		return repository.RedemptionAccount{}, shared.ErrNotFound.WithDetail("auth.redemption_failed")
+	}
+	return found, nil
 }
 
-func (s *signInAccounts) Redeem(context.Context, shared.ID, string, time.Time) (bool, error) {
+func (s *signInAccounts) Redeem(_ context.Context, _ shared.ID, passwordHash string, _ time.Time) (bool, error) {
+	if !s.redeemChanged {
+		return false, nil
+	}
+	s.redeemedHash = passwordHash
 	return true, nil
 }
 
@@ -243,10 +257,14 @@ func newSessionFixture(at time.Time) *sessionFixture {
 		sessions: newSessionsStore(),
 		refresh:  newRefreshStore(),
 		attempts: newAttemptsStore(),
-		accounts: &signInAccounts{byEmail: map[string]repository.SignInAccount{}},
-		signals:  &signalsFake{},
-		audit:    &auditSink{},
-		work:     &unitOfWork{},
+		accounts: &signInAccounts{
+			byEmail:       map[string]repository.SignInAccount{},
+			redemption:    map[string]repository.RedemptionAccount{},
+			redeemChanged: true,
+		},
+		signals: &signalsFake{},
+		audit:   &auditSink{},
+		work:    &unitOfWork{},
 	}
 	f.writer = SessionWriter{
 		Accounts: f.accounts, Sessions: f.sessions, Refresh: f.refresh,
@@ -721,5 +739,134 @@ func TestRevokeAllSessionsAuditsTheCount(t *testing.T) {
 	}
 	if len(quiet.audit.entries) != 0 {
 		t.Error("an empty revocation wrote an entry")
+	}
+}
+
+func redemptionToken(t *testing.T) domain.Token {
+	t.Helper()
+	token, err := domain.NewRedemptionToken(tenant, []byte(strings.Repeat("c", domain.TokenSecretBytes)))
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	return token
+}
+
+func waitingRedemption() repository.RedemptionAccount {
+	return repository.RedemptionAccount{
+		Account: domain.Account{
+			ID: account, TenantID: tenant, Kind: domain.AccountUser,
+			Email: "bert@example.org", DisplayName: "Bert", Status: domain.AccountInvited,
+		},
+		ExpiresAt: now.Add(7 * 24 * time.Hour),
+	}
+}
+
+func TestARedemptionActivatesAndSignsIn(t *testing.T) {
+	fixture := newSessionFixture(now)
+	token := redemptionToken(t)
+	fixture.accounts.redemption[token.Secret()] = waitingRedemption()
+
+	pair, err := RedeemInvitation{Writer: fixture.writer}.Execute(t.Context(), RedeemInvitationCommand{
+		Token: secret.New(token.Secret()), Password: secret.New("a long first password"),
+		RemoteAddr: "203.0.113.9:2",
+	})
+	if err != nil {
+		t.Fatalf("redeeming: %v", err)
+	}
+
+	if fixture.accounts.redeemedHash != "hash:a long first password" {
+		t.Errorf("stored %q, want the hashed password", fixture.accounts.redeemedHash)
+	}
+	if len(fixture.sessions.inserted) != 1 {
+		t.Fatalf("%d sessions, want the redemption signed in", len(fixture.sessions.inserted))
+	}
+	if pair.RefreshToken.IsEmpty() {
+		t.Error("no pair answered")
+	}
+	redeemed, signedIn := false, false
+	for _, entry := range fixture.audit.entries {
+		if entry.Action == InvitationRedeemedAction {
+			redeemed = true
+		}
+		if entry.Action == SignedInAction {
+			signedIn = true
+		}
+	}
+	if !redeemed || !signedIn {
+		t.Errorf("audit %v, want the redemption and the sign-in", fixture.audit.entries)
+	}
+}
+
+// A short password is a policy refusal - the one distinguishable answer, made before the token
+// is looked up so it discloses nothing about the token.
+func TestARedemptionEnforcesThePasswordPolicy(t *testing.T) {
+	fixture := newSessionFixture(now)
+	token := redemptionToken(t)
+	fixture.accounts.redemption[token.Secret()] = waitingRedemption()
+
+	_, err := RedeemInvitation{Writer: fixture.writer}.Execute(t.Context(), RedeemInvitationCommand{
+		Token: secret.New(token.Secret()), Password: secret.New("short"),
+	})
+	if !errors.Is(err, shared.ErrValidation) || !strings.Contains(err.Error(), "auth.password_too_short") {
+		t.Fatalf("a short password answered %v", err)
+	}
+}
+
+// Unknown, expired and already-redeemed are one indistinguishable refusal.
+func TestRedemptionRefusalsAreOneAnswer(t *testing.T) {
+	token := redemptionToken(t)
+	password := secret.New("a long first password")
+
+	unknown := newSessionFixture(now)
+	_, unknownErr := RedeemInvitation{Writer: unknown.writer}.Execute(t.Context(),
+		RedeemInvitationCommand{Token: secret.New(token.Secret()), Password: password})
+
+	expired := newSessionFixture(now)
+	waiting := waitingRedemption()
+	waiting.ExpiresAt = now.Add(-time.Hour)
+	expired.accounts.redemption[token.Secret()] = waiting
+	_, expiredErr := RedeemInvitation{Writer: expired.writer}.Execute(t.Context(),
+		RedeemInvitationCommand{Token: secret.New(token.Secret()), Password: password})
+
+	second := newSessionFixture(now)
+	second.accounts.redemption[token.Secret()] = waitingRedemption()
+	second.accounts.redeemChanged = false
+	_, secondErr := RedeemInvitation{Writer: second.writer}.Execute(t.Context(),
+		RedeemInvitationCommand{Token: secret.New(token.Secret()), Password: password})
+
+	if unknownErr == nil || expiredErr == nil || secondErr == nil {
+		t.Fatal("a refusal is missing")
+	}
+	if unknownErr.Error() != expiredErr.Error() || expiredErr.Error() != secondErr.Error() {
+		t.Errorf("the refusals differ: %q / %q / %q", unknownErr, expiredErr, secondErr)
+	}
+	if len(second.sessions.inserted) != 0 {
+		t.Error("a refused redemption opened a session")
+	}
+}
+
+func TestMintRedemptionTokenAnswersOnceAndStoresAHash(t *testing.T) {
+	accounts := &signInAccounts{redeemChanged: true}
+	minter := MintRedemptionToken{
+		Accounts: accounts, UnitOfWork: &unitOfWork{},
+		Clock: clock.Fixed(now), Entropy: clock.FixedEntropy{},
+	}
+
+	token, err := minter.MintRedemptionToken(t.Context(), tenant, account)
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	if !strings.HasPrefix(token.Reveal(), domain.RedemptionTokenPrefix) {
+		t.Errorf("minted %q, want the redemption prefix", token.Reveal())
+	}
+	if len(accounts.minted) != 1 || accounts.minted[0].Secret() != token.Reveal() {
+		t.Errorf("stored %v, want the presented token handed to the adapter", accounts.minted)
+	}
+
+	// An account no longer waiting answers the empty secret, and the mail composes the plain link.
+	accounts.redeemChanged = false
+	token, err = minter.MintRedemptionToken(t.Context(), tenant, account)
+	if err != nil || !token.IsEmpty() {
+		t.Errorf("a settled account answered (%q, %v), want the empty secret", token.Reveal(), err)
 	}
 }

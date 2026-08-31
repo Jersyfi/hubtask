@@ -829,6 +829,7 @@ func run() error {
 		identity.ListSessions{Writer: sessionWriter}.Descriptor(),
 		identity.RevokeSession{Writer: sessionWriter}.Descriptor(),
 		identity.RevokeAllSessions{Writer: sessionWriter}.Descriptor(),
+		identity.RedeemInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
@@ -1550,6 +1551,15 @@ func run() error {
 			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
 			UnitOfWork: backgroundWork, Clock: clockadapter.System{}, BaseURL: cfg.BaseURL,
 			Signals: metrics,
+			// The invitation mail's link is the redemption token (H-01), minted at delivery so
+			// the plaintext exists exactly once, in the message on its way out.
+			Redemptions: identity.MintRedemptionToken{
+				Accounts: postgres.NewSignInRepository(
+					security.NewRedemptionTokenHasher(cfg.SecretKey),
+					security.NewAuthAttemptHasher(cfg.SecretKey)),
+				UnitOfWork: backgroundWork, Clock: clockadapter.System{},
+				Entropy: clockadapter.CryptoRandom{},
+			},
 		},
 	}
 
