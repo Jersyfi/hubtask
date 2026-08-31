@@ -778,6 +778,9 @@ func run() error {
 		return fmt.Errorf("password hasher: %w", err)
 	}
 	sessionSigner := security.NewSessionTokenIssuer(cfg.SecretKey)
+	mfaStore := postgres.NewMfaRepository(
+		security.NewPendingTokenHasher(cfg.SecretKey),
+		security.NewRecoveryCodeHasher(cfg.SecretKey))
 	sessions := postgres.NewSessionRepository()
 	signInStore := postgres.NewSignInRepository(
 		security.NewRedemptionTokenHasher(cfg.SecretKey),
@@ -792,6 +795,13 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy: clockadapter.CryptoRandom{},
 		Multi:   cfg.Tenancy == envport.TenancyMulti,
+		// The second factor (H-02): the sealed enrolment, the codes, the pending credential,
+		// and the tenant's enforcement switch.
+		Enrollments: mfaStore, Recovery: mfaStore, Pending: mfaStore, Policy: mfaStore,
+		Encryptor:   encryptor,
+		Memberships: postgres.NewMembershipRepository(),
+		People:      accounts,
+		Issuer:      "Hubtask",
 	}
 
 	useCases, err := usecase.NewRegistry(
@@ -830,6 +840,10 @@ func run() error {
 		identity.RevokeSession{Writer: sessionWriter}.Descriptor(),
 		identity.RevokeAllSessions{Writer: sessionWriter}.Descriptor(),
 		identity.RedeemInvitation{Writer: sessionWriter}.Descriptor(),
+		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
+		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
+		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),
+		identity.DisableTotp{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
