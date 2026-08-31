@@ -120,6 +120,7 @@ func groups() []group {
 		authGroup(), tokenGroup(), serviceAccountGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
 		templateGroup(), viewGroup(), calendarGroup(), commentGroup(), fieldGroup(), mediaGroup(),
 		trashGroup(), searchGroup(), watchGroup(), jobGroup(), backupGroup(), restoreGroup(), retentionGroup(), holdGroup(), auditGroup(), dsrGroup(),
+		ruleGroup(), webhookGroup(), jumbleGroup(), eventsGroup(),
 	}
 }
 

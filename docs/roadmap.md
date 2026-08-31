@@ -104,6 +104,13 @@ with scopes, and the jumble (email intake, webhook intake, quick capture, conver
 on a dependency decision recorded as open point AM-1 — and lands `SCHEDULE` triggers as RRULE
 through the one schedule engine, with cron notation deferred as sugar.
 
+The milestone also closes what earlier ones parked with a date on it: the retention advance warning
+(R-1), the referential safeguard's direction (R-2), the `AUDITOR`'s configuration reads (A-4, a
+read-only permission split out of `STRUCTURE`), and where the chaos tests run (O-4, decided by
+measuring what they cost). And `hubctl` grows with it — `rule`, `webhook`, `jumble` and
+`events poll` — so that the milestone's verbs are typed against a real stack in the scripted
+session rather than described.
+
 ### `0.6.0` Multi-tenancy and operations
 Multi mode, tenant provisioning/suspension/deletion, export (GDPR), quotas and fairness, the OIDC
 connection, an OAuth2 provider for third-party apps, TOTP MFA with enforcement per tenant, session
