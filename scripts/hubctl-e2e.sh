@@ -729,24 +729,26 @@ api() {
 
 json_field() { sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" <<< "$2" | head -1; }
 
-# The address, shown once. Rotating is how one is revoked, so minting and rotating are one call.
-intake="$(api POST '/jumble/intake:rotate-token')"
+# The address, shown once - through the client now that it has the verb (G-13). Rotating is how one
+# is revoked, so minting and rotating are one call.
+intake="$(hubctl --json jumble intake rotate-token)"
 INTAKE_TOKEN="$(json_field token "$intake")"
 [ -n "$INTAKE_TOKEN" ] || { echo "FAILED: the intake was minted without a token: $intake"; exit 1; }
 
 # The rule: every arrival in the jumble becomes a task in the collection this session built. Written
-# switched off, as every rule is, and enabled by its own call - which is the point of that split.
-rule="$(api POST '/automation/rules' "{
-  \"name\": \"mail becomes a task\",
-  \"scope\": {\"type\": \"TENANT\"},
-  \"run_as\": \"$ACCOUNT_ID\",
-  \"trigger\": {\"kind\": \"JUMBLE_ENTRY\"},
-  \"actions\": [{\"kind\": \"CONVERT_JUMBLE_ENTRY\",
-    \"params\": {\"collection_id\": \"$COLLECTION_ID\"}}]
-}")"
+# switched off, as every rule is, and enabled by its own call - which is the point of that split,
+# and which the client refuses to smooth over.
+rule="$(hubctl --json rule add --name 'mail becomes a task' --trigger JUMBLE_ENTRY \
+	--action "CONVERT_JUMBLE_ENTRY:{\"collection_id\":\"$COLLECTION_ID\"}")"
 RULE_ID="$(json_field id "$rule")"
 [ -n "$RULE_ID" ] || { echo "FAILED: writing the rule produced no identifier: $rule"; exit 1; }
-api POST "/automation/rules/$RULE_ID:enable" >/dev/null
+# A rule nobody switched on does nothing, and the listing says so before it is switched on.
+expect_contains "rule ls" "$(hubctl rule ls --disabled)" "$RULE_ID"
+# The dry run first: what it would do, with nothing done. That is the whole of E-06's discipline
+# from a terminal.
+expect_contains "rule test" "$(hubctl rule test "$RULE_ID")" "conditions"
+hubctl rule enable "$RULE_ID" >/dev/null
+expect_contains "rule ls --enabled" "$(hubctl rule ls --enabled)" "$RULE_ID"
 
 # And the mail itself: RFC 5322 bytes, the shape any bridge can forward. Multipart, because the
 # ordinary mail is - a plain part, an HTML alternative, and a file.
@@ -793,7 +795,7 @@ converted=""
 for _ in $(seq 1 60); do
 	# Tolerant of a call that does not answer: what is being waited for is the engine, and a
 	# hiccup on the way to it is not the failure this loop is looking for.
-	entry="$(api GET "/jumble/entries?status=PROCESSED" || true)"
+	entry="$(hubctl --json jumble ls --status PROCESSED 2>/dev/null || true)"
 	if grep -qF "$ENTRY_ID" <<< "$entry"; then
 		converted="$entry"
 		break
@@ -801,7 +803,7 @@ for _ in $(seq 1 60); do
 	sleep 1
 done
 if [ -z "$converted" ]; then
-	fail "the arriving mail was never converted: $(api GET '/jumble/entries')"
+	fail "the arriving mail was never converted: $(hubctl jumble ls || true)"
 else
 	# The provenance pair: the entry names the item it became, and the item is in the collection
 	# the rule named, titled from the subject the mail carried.
@@ -816,6 +818,90 @@ else
 		expect_contains "the item's origin" "$item" "$ENTRY_ID"
 	fi
 fi
+
+# And the run log, which is the other half of "it happened": a person who was not watching reads
+# what the engine did, step by step, rather than a log line the server happened to print.
+runs="$(hubctl rule runs --rule "$RULE_ID")"
+expect_contains "rule runs" "$runs" "$RULE_ID"
+expect_contains "rule runs" "$runs" "JUMBLE_ENTRY"
+RUN_ID="$(printf '%s\n' "$runs" | first_id)"
+if [ -n "$RUN_ID" ]; then
+	run="$(hubctl rule run show "$RUN_ID")"
+	expect_contains "rule run show" "$run" "CONVERT_JUMBLE_ENTRY"
+fi
+
+# A beat, for the reason the watch above has one: the session compresses a first hour into
+# seconds, and the sections below are at the end of the rate limiter's budget.
+sleep 2
+
+echo "--- the inbox's own verbs ---"
+# The near channel, and the decision that is not a deletion. Both through the client, because an
+# inbox somebody cannot empty from a terminal is an inbox they will empty in the database.
+captured="$(hubctl jumble submit --subject 'Call the printer' --channel QUICK_CAPTURE 2>/dev/null)"
+CAPTURED_ID="$(printf '%s\n' "$captured" | first_id)"
+[ -n "$CAPTURED_ID" ] || fail "the quick capture produced no entry: $captured"
+expect_contains "jumble ls" "$(hubctl jumble ls --status NEW)" "Call the printer"
+if [ -n "$CAPTURED_ID" ]; then
+	dismissed="$(hubctl jumble dismiss "$CAPTURED_ID" 2>&1)"
+	expect_contains "jumble dismiss" "$dismissed" "DISMISSED"
+	# A state rather than a deletion: the entry is still there, in the state that says so.
+	expect_contains "jumble ls --status DISMISSED" \
+		"$(hubctl jumble ls --status DISMISSED)" "$CAPTURED_ID"
+fi
+
+sleep 2
+
+echo "--- who else is told, and what reached them ---"
+# The outbound half. The target is a host nothing answers on purpose: what this section proves is
+# the delivery *record* - that a subscription produces one, that a failure is written with its
+# code, and that a replay carries the event the first attempt carried. The signature itself is
+# proved where a real one exists, against a real receiver, in
+# infrastructure/webhook's TestASubscriberReceivesASignedCloudEventThatVerifies - a host listener
+# is not something this stack's outbound guard may call (T-07).
+# Standard error is kept apart from the answer, because the identifier is read out of the table's
+# second line and a note printed beside it would be the line that is read.
+subscribed="$(hubctl webhook add --url https://webhook.invalid/hooks \
+	--event de.hubtask.work.item.completed.v1 2> "$WORK_DIR/webhook.err")"
+WEBHOOK_ID="$(printf '%s\n' "$subscribed" | first_id)"
+[ -n "$WEBHOOK_ID" ] || fail "the subscription produced no identifier: $subscribed"
+# The secret is answered once, and the client says so where somebody can read it.
+expect_contains "webhook add" "$(cat "$WORK_DIR/webhook.err")" "shown once"
+expect_contains "webhook ls" "$(hubctl webhook ls)" "webhook.invalid"
+
+# Something to deliver, and then the record of the attempt. An entry of its own, so that the event
+# is certain rather than dependent on what the sections above left behind. The delivery fails -
+# nothing answers at that address - and a failure that is written down is the point: an integration
+# that stops working silently is the one automation.md §3.1 exists to prevent.
+NOTIFIED_ID="$(hubctl item create --collection "$COLLECTION_ID" --type TASK \
+	--title 'Tell the subscriber' | first_id)"
+[ -n "$NOTIFIED_ID" ] && hubctl item complete "$NOTIFIED_ID" >/dev/null
+deliveries=""
+for _ in $(seq 1 30); do
+	deliveries="$(hubctl webhook deliveries "$WEBHOOK_ID" 2>/dev/null || true)"
+	printf '%s\n' "$deliveries" | grep -qE 'FAILED|PENDING|DEAD_LETTER|SUCCEEDED' && break
+	sleep 1
+done
+if printf '%s\n' "$deliveries" | grep -qE 'FAILED|DEAD_LETTER'; then
+	DELIVERY_ID="$(printf '%s\n' "$deliveries" | first_id)"
+	replayed="$(hubctl webhook replay "$WEBHOOK_ID" "$DELIVERY_ID" 2>&1)"
+	# A replay carries the event the first attempt carried, so a subscriber deduplicating on it
+	# recognises the repeat rather than acting twice.
+	expect_contains "webhook replay" "$replayed" "carrying the event"
+else
+	echo "no delivery had been attempted yet; the replay is left to the nightly"
+fi
+
+# And the secret rotates, with the grace period a deployment needs - or without one, which is what
+# a leak calls for.
+rotated="$(hubctl webhook rotate-secret "$WEBHOOK_ID" --grace 0 2>&1)"
+expect_contains "webhook rotate-secret" "$rotated" "shown once"
+hubctl webhook rm "$WEBHOOK_ID" >/dev/null 2>&1
+
+echo "--- the platforms that cannot receive a call ---"
+# G-04's cursor from a terminal: a poll without one asks the unbounded question, so the client
+# prints the next one after every call. The type is one this workspace has certainly produced.
+polled="$(hubctl events poll de.hubtask.work.item.completed.v1 --limit 5 2>&1)"
+expect_contains "events poll" "$polled" "de.hubtask.work.item.completed.v1"
 
 echo "--- what a refusal looks like ---"
 # A collection that does not exist, so the answer is a problem document - and what a person sees
