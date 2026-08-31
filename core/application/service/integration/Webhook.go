@@ -180,7 +180,7 @@ func (h GetWebhookSubscription) Execute(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID,
 ) (domain.WebhookSubscription, error) {
 	w := h.Writer
-	if err := w.authorize(ctx, actor, WebhookReadAction, id); err != nil {
+	if err := w.authorizeRead(ctx, actor, WebhookReadAction, id); err != nil {
 		return domain.WebhookSubscription{}, err
 	}
 
@@ -203,7 +203,7 @@ func (h ListWebhookSubscriptions) Execute(
 	ctx context.Context, actor appshared.ActorContext,
 ) ([]domain.WebhookSubscription, error) {
 	w := h.Writer
-	if err := w.authorize(ctx, actor, WebhookReadAction, shared.ID("")); err != nil {
+	if err := w.authorizeRead(ctx, actor, WebhookReadAction, shared.ID("")); err != nil {
 		return nil, err
 	}
 
@@ -381,6 +381,23 @@ func (w Writer) authorize(
 		TokenScope: automationScope,
 		TargetType: webhookTarget,
 		TargetID:   target,
+	})
+}
+
+// authorizeRead is the same question with the auditor's answer added (A-4, G-12): where a
+// workspace's events are being sent is configuration, and reading it is what an auditor does with
+// the trail beside it. It reaches no secret - the signing key is never in a read (§ below).
+func (w Writer) authorizeRead(
+	ctx context.Context, actor appshared.ActorContext, action audit.Action, target shared.ID,
+) error {
+	return w.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission:  service.PermissionAutomation,
+		Alternative: service.PermissionReadConfiguration,
+		Path:        []identity.Scope{identity.TenantScope()},
+		Action:      action,
+		TokenScope:  automationScope,
+		TargetType:  webhookTarget,
+		TargetID:    target,
 	})
 }
 

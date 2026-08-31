@@ -28,16 +28,20 @@ import (
 // print `{title}` at somebody. The withheld variant is a different sentence, and a translator
 // needs to see it as one.
 const (
-	subjectAssignment = "email.assignment.subject"
-	subjectMembership = "email.membership.subject"
-	subjectComment    = "email.comment.subject"
-	subjectInvitation = "email.invitation.subject"
-	subjectReminder   = "email.reminder.subject"
-	bodyAssignment    = "email.assignment.body"
-	bodyMembership    = "email.membership.body"
-	bodyComment       = "email.comment.body"
-	bodyInvitation    = "email.invitation.body"
-	bodyReminder      = "email.reminder.body"
+	subjectAssignment  = "email.assignment.subject"
+	subjectMembership  = "email.membership.subject"
+	subjectComment     = "email.comment.subject"
+	subjectInvitation  = "email.invitation.subject"
+	subjectReminder    = "email.reminder.subject"
+	subjectIntegration = "email.integration.subject"
+	subjectRetention   = "email.retention.subject"
+	bodyAssignment     = "email.assignment.body"
+	bodyMembership     = "email.membership.body"
+	bodyComment        = "email.comment.body"
+	bodyInvitation     = "email.invitation.body"
+	bodyReminder       = "email.reminder.body"
+	bodyIntegration    = "email.integration.body"
+	bodyRetention      = "email.retention.body"
 	// withheldSuffix names the variant of a message that has no title to put in it - because the
 	// recipient asked for none, or because the entry is gone.
 	withheldSuffix = ".withheld"
@@ -271,9 +275,18 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 	case domain.CategoryInvitation:
 		return subjectInvitation, bodyInvitation
 	case domain.CategoryReminder:
-		// The one pair with no {actor} in it: nobody caused a reminder, the clock did, and a
-		// message naming an actor that is not there would print the placeholder at somebody.
+		// The pairs with no {actor} in them: nobody caused a reminder, a disabled integration or a
+		// retention warning - the clock and this system did - and a message naming an actor that
+		// is not there would print the placeholder at somebody.
 		return subjectReminder, bodyReminder
+	case domain.CategoryIntegration:
+		// Missing until G-12, which is why this switch now has every category rather than most of
+		// them: an INTEGRATION record fell through to the assignment pair, so "we stopped calling
+		// your server" arrived as "somebody gave you something" (G-03's category, C-09's renderer,
+		// and nothing between them saying so).
+		return subjectIntegration, bodyIntegration
+	case domain.CategoryRetention:
+		return subjectRetention, bodyRetention
 	}
 	// Not reachable through New, which refuses an unknown category. Answered rather than panicked:
 	// a message with the wrong words is better than a worker that dies on a row.

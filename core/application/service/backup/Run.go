@@ -198,11 +198,14 @@ func (h GetBackupRun) Execute(
 ) (domain.Run, error) {
 	if err := h.Runner.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     StartedAction,
-		TokenScope: backupRead,
-		TargetType: runType,
-		TargetID:   id,
+		// Reading whether the backups are running is a configuration read (A-4, G-12). Starting
+		// one and verifying one are not, and both stay where they were.
+		Alternative: service.PermissionReadConfiguration,
+		Path:        []identity.Scope{identity.TenantScope()},
+		Action:      StartedAction,
+		TokenScope:  backupRead,
+		TargetType:  runType,
+		TargetID:    id,
 	}); err != nil {
 		return domain.Run{}, err
 	}

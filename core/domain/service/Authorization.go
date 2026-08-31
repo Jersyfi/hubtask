@@ -35,6 +35,21 @@ const (
 	// PermissionDeleteContainer is deleting a hub or a collection - the one thing an
 	// administrator cannot do, because it takes a subtree with it.
 	PermissionDeleteContainer Permission = "DELETE_CONTAINER"
+	// PermissionReadConfiguration is reading how the workspace is set up without being able to
+	// change any of it: the backup targets and schedules, the retention rules, the legal holds,
+	// the automation rules and the webhook subscriptions - never a secret any of them holds
+	// (audit.md §9, A-4, decided in G-12).
+	//
+	// Split out of STRUCTURE rather than granted through it, because STRUCTURE is a *writing*
+	// permission: it is what somebody who shapes the workspace holds, and an auditor's question -
+	// "what is this workspace configured to do to its data" - is a reading one that must not carry
+	// the right to change the answer.
+	//
+	// It widens nobody. Every configuration read still names the permission it always named and
+	// accepts this one *as well* (access.Request.Alternative), so a role that could read one
+	// before still can and a role that could not still cannot; what changed is that AUDITOR now
+	// can, which is the whole of A-4.
+	PermissionReadConfiguration Permission = "READ_CONFIGURATION"
 	// PermissionAuditRead is reading the whole of the tenant's audit trail (audit.md §5).
 	//
 	// It is not implied by any of the others, which is the point of it. Reading the trail is
@@ -52,20 +67,27 @@ var rolePermissions = map[identity.Role][]Permission{
 	identity.RoleOwner: {
 		PermissionRead, PermissionWriteItems, PermissionStructure,
 		PermissionManageMembers, PermissionAutomation, PermissionDeleteContainer,
-		PermissionAuditRead,
+		PermissionReadConfiguration, PermissionAuditRead,
 	},
 	identity.RoleAdmin: {
 		PermissionRead, PermissionWriteItems, PermissionStructure,
-		PermissionManageMembers, PermissionAutomation, PermissionAuditRead,
+		PermissionManageMembers, PermissionAutomation, PermissionReadConfiguration,
+		PermissionAuditRead,
 	},
 	identity.RoleMember:      {PermissionRead, PermissionWriteItems, PermissionAutomation},
 	identity.RoleContributor: {PermissionRead, PermissionWriteItems},
 	identity.RoleViewer:      {PermissionRead},
 	identity.RoleGuest:       {PermissionRead},
-	// The row that is a single cell. An auditor reads the trail and nothing else - no READ, so
-	// every use case over containers, entries and comments refuses them by the ordinary rule
-	// rather than by a special case somebody has to remember (audit.md §5).
-	identity.RoleAuditor: {PermissionAuditRead},
+	// The row that is two cells since G-12. An auditor reads the trail and reads how the workspace
+	// is configured, and nothing else - no READ, so every use case over containers, entries and
+	// comments refuses them by the ordinary rule rather than by a special case somebody has to
+	// remember (audit.md §5).
+	//
+	// The second cell is what makes the first one usable: an entry saying a retention rule deleted
+	// four hundred objects is a fact an auditor cannot judge without being able to read the rule
+	// (audit.md §9, A-4). It carries no write anywhere - the rule, the hold and the target are
+	// changed behind STRUCTURE and DELETE_CONTAINER as they always were.
+	identity.RoleAuditor: {PermissionReadConfiguration, PermissionAuditRead},
 }
 
 // PermissionsOf returns the permissions the role carries, in the order the matrix's columns are

@@ -255,7 +255,7 @@ func (h GetRule) Execute(
 
 	// The permission is asked at the rule's own scope, after it is read: which scope decides is a
 	// property of the rule, and a caller naming an identifier has not told us where it lives.
-	if err := w.authorize(ctx, actor, rule.Scope, RuleReadAction, rule.ID); err != nil {
+	if err := w.authorizeRead(ctx, actor, rule.Scope, RuleReadAction, rule.ID); err != nil {
 		return domain.Rule{}, err
 	}
 	return rule, nil
@@ -499,14 +499,34 @@ func (w Writer) authorize(
 	})
 }
 
+// authorizeRead is the same question with the auditor's answer added (A-4, G-12): a rule is
+// configuration, and reading how the workspace is configured to act on its own data is what an
+// auditor is for. It carries nothing else - every write above still asks the automation
+// permission on its own.
+func (w Writer) authorizeRead(
+	ctx context.Context, actor appshared.ActorContext, scope domain.Scope,
+	action audit.Action, target shared.ID,
+) error {
+	return w.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission:  service.PermissionAutomation,
+		Alternative: service.PermissionReadConfiguration,
+		Path:        scope.Path(),
+		Action:      action,
+		TokenScope:  automationScope,
+		TargetType:  ruleTarget,
+		TargetID:    target,
+	})
+}
+
 // permits is the same question without an audit entry, for the listing.
 func (w Writer) permits(
 	ctx context.Context, actor appshared.ActorContext, scope domain.Scope,
 ) (bool, error) {
 	return w.Authorizer.Permits(ctx, actor, access.Request{
-		Permission: service.PermissionAutomation,
-		Path:       scope.Path(),
-		TokenScope: automationScope,
+		Permission:  service.PermissionAutomation,
+		Alternative: service.PermissionReadConfiguration,
+		Path:        scope.Path(),
+		TokenScope:  automationScope,
 	})
 }
 

@@ -11,7 +11,9 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	syncrepo "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	notification "github.com/Jersyfi/hubtask/core/application/service/notification"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -35,6 +37,16 @@ type ExportBeforeDelete interface {
 	Export(ctx context.Context, targetID shared.ID) (shared.ID, error)
 }
 
+// RetentionWarner is the slice of the notification context the sweep needs (R-1, G-12): tell the
+// people a rule's audience names that this entry is about to be acted on.
+//
+// Declared here rather than imported, so that what the retention engine can do to somebody's inbox
+// is visible in one place: it can warn about a marked entry, and it cannot read a notification,
+// send one, or write one about anything else.
+type RetentionWarner interface {
+	Warn(ctx context.Context, warning notification.RetentionWarning) error
+}
+
 // Sweeper is the engine data-retention.md §5 describes: two phases, in batches, per tenant.
 //
 // It is the rule-driven half. The trash and the notification history keep their own sweeps, and
@@ -49,6 +61,11 @@ type Sweeper struct {
 	// Purger is the one engine behind every removal, which is what keeps a retention hard delete
 	// owing exactly what a person's purge owes: a journal entry, a tombstone, and an event per row.
 	Purger Purger
+	// Warnings sends the advance warning of data-retention.md §6 (R-1, G-12). Optional: a build
+	// without it marks and acts exactly as before, which is what an installation that has switched
+	// its notifications off already looks like - and the marking is the visibility §6 asks for
+	// first, so silence here loses the message rather than the warning.
+	Warnings RetentionWarner
 	// Conditions compiles a rule's expression, and it is the same port and the same language the
 	// automation rules use (G-06, ADR-0009). Optional: a build with none refuses to act on a
 	// conditioned rule rather than acting on all of it, which is the safe direction for a pass
@@ -90,7 +107,7 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 			// phase on top would be a second grace period on a grace period.
 			continue
 		}
-		marked, err := s.announce(ctx, rules, holds, kind, now)
+		marked, err := s.announce(ctx, actor, rules, holds, kind, now)
 		if err != nil {
 			return outcome, err
 		}
@@ -113,7 +130,7 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 
 // announce is phase one: what is due, what may not go, and what is now on notice.
 func (s Sweeper) announce(
-	ctx context.Context, rules []domain.Rule, holds domain.Holds,
+	ctx context.Context, actor appshared.ActorContext, rules []domain.Rule, holds domain.Holds,
 	kind domain.Kind, now time.Time,
 ) (Outcome, error) {
 	applicable := rulesFor(rules, kind.Name)
@@ -202,9 +219,43 @@ func (s Sweeper) announce(
 			if err := s.announceStage(ctx, candidate, rule, rule.Action, now); err != nil {
 				return outcome, err
 			}
+			// And the people who can answer it (§6, R-1). At the marking rather than some days
+			// later: this is the first moment there is anything true to say, and `notify.
+			// before_days` bounds how *late* a warning may be - a rule asking for seven days'
+			// notice gets the grace period's fourteen, which is not less than it asked for.
+			if err := s.warn(ctx, actor, rule, candidate); err != nil {
+				return outcome, err
+			}
 		}
 	}
 	return outcome, nil
+}
+
+// warn tells the rule's audience about one marked entry, and does nothing for a rule that names
+// nobody or a build wired without the notification path.
+func (s Sweeper) warn(
+	ctx context.Context, actor appshared.ActorContext, rule domain.Rule,
+	candidate repository.Candidate,
+) error {
+	if s.Warnings == nil || rule.Notify.Silent() {
+		return nil
+	}
+	return s.Warnings.Warn(ctx, notification.RetentionWarning{
+		// The pass's tenant rather than the rule's. A rule read back from the repository carries
+		// no tenant - it does not need one, because row level security bounds the read to the
+		// transaction's (ADR-0010) - and the one thing a notification cannot be written without is
+		// exactly that.
+		TenantID: actor.TenantID,
+		ItemID:   candidate.ID,
+		// The entry's chain, which is what the administrators are resolved along: a role held on
+		// the hub administers the collection under it.
+		Path: []identity.Scope{
+			identity.TenantScope(),
+			identity.HubScope(candidate.HubID),
+			identity.CollectionScope(candidate.CollectionID),
+		},
+		Recipients: rule.Notify.Recipients,
+	})
 }
 
 // announceChains is phase one for a chain's second stage.

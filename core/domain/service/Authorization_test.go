@@ -45,12 +45,16 @@ func TestTheRoleMatrix(t *testing.T) {
 		{identity.RoleViewer, service.PermissionRead, true},
 		{identity.RoleGuest, service.PermissionWriteItems, false},
 		{identity.RoleGuest, service.PermissionRead, true},
-		// The auditor's row is the one that is not a rung on the ladder: the whole trail, and
-		// nothing that anybody wrote (audit.md §5).
+		// The auditor's row is the one that is not a rung on the ladder: the whole trail, how the
+		// workspace is configured, and nothing that anybody wrote (audit.md §5, §9).
 		{identity.RoleAuditor, service.PermissionAuditRead, true},
+		{identity.RoleAuditor, service.PermissionReadConfiguration, true},
 		{identity.RoleAuditor, service.PermissionRead, false},
 		{identity.RoleAuditor, service.PermissionWriteItems, false},
 		{identity.RoleAuditor, service.PermissionStructure, false},
+		{identity.RoleAuditor, service.PermissionAutomation, false},
+		{identity.RoleAuditor, service.PermissionManageMembers, false},
+		{identity.RoleAuditor, service.PermissionDeleteContainer, false},
 		{identity.RoleOwner, service.PermissionAuditRead, true},
 		{identity.RoleAdmin, service.PermissionAuditRead, true},
 		// A member reads their own events instead, which is the absence of this permission
@@ -76,8 +80,9 @@ func TestTheRoleMatrix(t *testing.T) {
 			t.Errorf("%s cannot read anything", role)
 		}
 	}
-	if len(service.PermissionsOf(identity.RoleAuditor)) != 1 {
-		t.Error("the auditor carries something besides reading the trail")
+	if len(service.PermissionsOf(identity.RoleAuditor)) != 2 {
+		t.Errorf("the auditor carries %v, want the trail and the configuration",
+			service.PermissionsOf(identity.RoleAuditor))
 	}
 	if service.RoleAllows("SUPERUSER", service.PermissionRead) {
 		t.Error("a role that does not exist was granted a permission")
@@ -188,4 +193,64 @@ func TestRolesRankFromOwnerDownwards(t *testing.T) {
 	if identity.Role("SUPERUSER").AtLeast(identity.RoleGuest) {
 		t.Error("a role that does not exist outranks one that does")
 	}
+}
+
+// A-4's other half, and the half that could go wrong silently: splitting a read-only configuration
+// permission out of STRUCTURE must leave every pre-existing role with exactly the rights it had.
+//
+// Written as the matrix before the split, so that the test fails whichever way somebody moves a
+// cell - a role that gained one and a role that lost one are the same defect here, and neither is
+// visible in a diff that only adds a column.
+func TestTheSplitWidenedAndNarrowedNoExistingRole(t *testing.T) {
+	before := map[identity.Role][]service.Permission{
+		identity.RoleOwner: {
+			service.PermissionRead, service.PermissionWriteItems, service.PermissionStructure,
+			service.PermissionManageMembers, service.PermissionAutomation,
+			service.PermissionDeleteContainer, service.PermissionAuditRead,
+		},
+		identity.RoleAdmin: {
+			service.PermissionRead, service.PermissionWriteItems, service.PermissionStructure,
+			service.PermissionManageMembers, service.PermissionAutomation,
+			service.PermissionAuditRead,
+		},
+		identity.RoleMember: {
+			service.PermissionRead, service.PermissionWriteItems, service.PermissionAutomation,
+		},
+		identity.RoleContributor: {service.PermissionRead, service.PermissionWriteItems},
+		identity.RoleViewer:      {service.PermissionRead},
+		identity.RoleGuest:       {service.PermissionRead},
+		identity.RoleAuditor:     {service.PermissionAuditRead},
+	}
+
+	for role, had := range before {
+		for _, permission := range had {
+			if !service.RoleAllows(role, permission) {
+				t.Errorf("%s lost %s", role, permission)
+			}
+		}
+		now := service.PermissionsOf(role)
+		for _, permission := range now {
+			// The new one is the only permission a role may have gained, and only where the role
+			// already held the writing permission it was split out of - or where it is the auditor,
+			// which is what A-4 is for.
+			if permission == service.PermissionReadConfiguration {
+				if role != identity.RoleAuditor && !service.RoleAllows(role, service.PermissionStructure) {
+					t.Errorf("%s gained %s without holding what it was split out of", role, permission)
+				}
+				continue
+			}
+			if !contains(had, permission) {
+				t.Errorf("%s gained %s", role, permission)
+			}
+		}
+	}
+}
+
+func contains(permissions []service.Permission, wanted service.Permission) bool {
+	for _, permission := range permissions {
+		if permission == wanted {
+			return true
+		}
+	}
+	return false
 }

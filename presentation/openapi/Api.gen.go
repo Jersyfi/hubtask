@@ -1961,17 +1961,21 @@ func (e RetentionStateBlockedBy) Valid() bool {
 
 // Defines values for RoleDescriptionPermissions.
 const (
-	RoleDescriptionPermissionsAUTOMATION      RoleDescriptionPermissions = "AUTOMATION"
-	RoleDescriptionPermissionsDELETECONTAINER RoleDescriptionPermissions = "DELETE_CONTAINER"
-	RoleDescriptionPermissionsMANAGEMEMBERS   RoleDescriptionPermissions = "MANAGE_MEMBERS"
-	RoleDescriptionPermissionsREAD            RoleDescriptionPermissions = "READ"
-	RoleDescriptionPermissionsSTRUCTURE       RoleDescriptionPermissions = "STRUCTURE"
-	RoleDescriptionPermissionsWRITEITEMS      RoleDescriptionPermissions = "WRITE_ITEMS"
+	RoleDescriptionPermissionsAUDITREAD         RoleDescriptionPermissions = "AUDIT_READ"
+	RoleDescriptionPermissionsAUTOMATION        RoleDescriptionPermissions = "AUTOMATION"
+	RoleDescriptionPermissionsDELETECONTAINER   RoleDescriptionPermissions = "DELETE_CONTAINER"
+	RoleDescriptionPermissionsMANAGEMEMBERS     RoleDescriptionPermissions = "MANAGE_MEMBERS"
+	RoleDescriptionPermissionsREAD              RoleDescriptionPermissions = "READ"
+	RoleDescriptionPermissionsREADCONFIGURATION RoleDescriptionPermissions = "READ_CONFIGURATION"
+	RoleDescriptionPermissionsSTRUCTURE         RoleDescriptionPermissions = "STRUCTURE"
+	RoleDescriptionPermissionsWRITEITEMS        RoleDescriptionPermissions = "WRITE_ITEMS"
 )
 
 // Valid indicates whether the value is a known member of the RoleDescriptionPermissions enum.
 func (e RoleDescriptionPermissions) Valid() bool {
 	switch e {
+	case RoleDescriptionPermissionsAUDITREAD:
+		return true
 	case RoleDescriptionPermissionsAUTOMATION:
 		return true
 	case RoleDescriptionPermissionsDELETECONTAINER:
@@ -1979,6 +1983,8 @@ func (e RoleDescriptionPermissions) Valid() bool {
 	case RoleDescriptionPermissionsMANAGEMEMBERS:
 		return true
 	case RoleDescriptionPermissionsREAD:
+		return true
+	case RoleDescriptionPermissionsREADCONFIGURATION:
 		return true
 	case RoleDescriptionPermissionsSTRUCTURE:
 		return true
@@ -4657,6 +4663,7 @@ type RoleDescription struct {
 	ItemAccess *RoleItemAccess `json:"item_access,omitempty"`
 
 	// Permissions The columns of the matrix this role carries unqualified.
+	// `AUDIT_READ` is the whole of the tenant's trail, and it is implied by nothing: an auditor holds it without holding `READ`, and a member holds `READ` without holding it. `READ_CONFIGURATION` is reading how the workspace is set up - the backup targets, the retention rules, the holds, the automation rules, the webhook subscriptions, never a secret any of them holds - and it was split out of `STRUCTURE` so that an auditor can read what a workspace does to its data without gaining the right to change it (G-12).
 	Permissions *[]RoleDescriptionPermissions `json:"permissions,omitempty"`
 
 	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and

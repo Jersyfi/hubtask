@@ -319,22 +319,18 @@ func graceOf(in NewRuleInput, kind Kind) (int, error) {
 	return *in.GraceDays, nil
 }
 
-// notifyOf is the advance warning, and today it is always silence.
+// notifyOf is the advance warning (§6), stored since R-1 was answered in G-12.
 //
 // §6 asks for two kinds of visibility: the object carries what is coming, and those affected get a
-// message. The first is built (the marking, and `retention` on the entry through the API); the
-// second needs a notification category the schema does not have, a template the message catalogue
-// does not have, and a way to resolve "the collection's administrators" that nothing asks for yet -
-// which is the notification context's work rather than the retention engine's.
+// message. Both exist now - the marking and `retention` on the entry for the first, the RETENTION
+// notification category and the resolution of COLLECTION_ADMINS and TENANT_ADMINS for the second -
+// so a rule that asks to warn somebody is stored and honoured rather than refused.
 //
-// So a rule that asks to warn somebody is refused rather than stored, and a rule that asks for
-// nothing gets nothing. That is the same standard `lifecycle.history_not_wired` sets for a data
-// kind nothing sweeps: a configuration nothing enforces is worse than an absent one, because it
-// looks like a working installation until the day somebody is waiting for the warning.
-//
-// The bound is checked all the same, so that the rule the day this becomes possible is the rule
-// that is already written down: a warning before the marking would be about something not yet
-// decided, and one after the act would be a condolence.
+// BeforeDays is bounded by the grace period, and the bound is the promise the engine keeps: the
+// warning goes out when the entry is marked, which is the earliest moment there is anything true
+// to say and therefore at least this many days ahead. The field says how *late* a warning may be,
+// and this build is never later than the marking - one before it would be about something nobody
+// has decided yet, and one after the act would be a condolence.
 func notifyOf(in NewRuleInput, grace int) (Notify, error) {
 	if in.Notify == nil || in.Notify.Silent() {
 		return Notify{}, nil
@@ -351,8 +347,12 @@ func notifyOf(in NewRuleInput, grace int) (Notify, error) {
 			WithParams(map[string]string{"grace_days": strconv.Itoa(grace)}).
 			WithFields(shared.FieldError{Path: "/notify/before_days", Code: CodeNotifyBeyondGrace})
 	}
-	return Notify{}, shared.ErrConflict.WithDetail(CodeNotifyNotAvailable).
-		WithFields(shared.FieldError{Path: "/notify/recipients", Code: CodeNotifyNotAvailable})
+	if notify.BeforeDays == 0 {
+		// The documented default rather than "immediately". A rule that names recipients and no
+		// number is asking to warn them, and §6's seven days is what it is asking for.
+		notify.BeforeDays = DefaultNotifyBeforeDays
+	}
+	return notify, nil
 }
 
 // Applies reports whether a rule covers an object in this hub and this collection.
@@ -456,7 +456,6 @@ const (
 	CodeGraceInvalid          = "lifecycle.grace_invalid"
 	CodeRecipientInvalid      = "lifecycle.recipient_invalid"
 	CodeNotifyBeyondGrace     = "lifecycle.notify_beyond_grace"
-	CodeNotifyNotAvailable    = "lifecycle.notify_not_available"
 	CodeExportTargetRequired  = "lifecycle.export_target_required"
 	CodeExportUnavailable     = "lifecycle.export_unavailable"
 	CodeRuleNotFound          = "lifecycle.rule_not_found"

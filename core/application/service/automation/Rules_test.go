@@ -154,6 +154,10 @@ func (m memberships) SharedItemsIn(
 	return nil, nil
 }
 
+func (m memberships) Administrators(context.Context, []identity.Scope) ([]shared.ID, error) {
+	return nil, nil
+}
+
 // authorizer answers the permission question, and records what it was asked.
 type authorizer struct {
 	refuse   bool

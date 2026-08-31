@@ -247,3 +247,89 @@ func sharedItemsIn(
 	}
 	return shares
 }
+
+// administratorsAlong is the reverse question against a real database (R-1, G-12).
+func administratorsAlong(
+	ctx context.Context, t *testing.T, tenant shared.ID, path []identity.Scope,
+) []shared.ID {
+	t.Helper()
+
+	var administrators []shared.ID
+	if err := read(ctx, t, tenant, func(ctx context.Context) error {
+		var err error
+		administrators, err = postgres.NewMembershipRepository().Administrators(ctx, path)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the administrators: %v", err)
+	}
+	return administrators
+}
+
+// Who administers, directly and through a group: the retention warning's audience, resolved the
+// way a permission check resolves what one account holds.
+func TestTheAdministratorsOfAPathAreFound(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+
+	// Anna holds ADMIN at the tenant directly, and OWNER on the hub through the group she is in.
+	// Both are administrators, and she is one person.
+	administrators := administratorsAlong(ctx, t, tenantA,
+		[]identity.Scope{identity.TenantScope(), identity.HubScope(membershipHub)})
+
+	found := 0
+	for _, id := range administrators {
+		if id == authorA {
+			found++
+		}
+	}
+	if found != 1 {
+		t.Errorf("Anna appears %d times in %v, want once", found, administrators)
+	}
+}
+
+// The cross-tenant negative test for Administrators (gate SG-3): one tenant's administrators are
+// not another tenant's, and the answer is empty rather than somebody else's.
+func TestTheAdministratorsOfAnotherTenantAreInvisible(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+
+	// Tenant B has one owner of its own and must see no more than that.
+	administrators := administratorsAlong(ctx, t, tenantB,
+		[]identity.Scope{identity.TenantScope(), identity.HubScope(membershipHub)})
+
+	for _, id := range administrators {
+		if id == authorA {
+			t.Errorf("tenant B read tenant A's administrator: %v", administrators)
+		}
+	}
+	if len(administrators) != 1 || administrators[0] != authorB {
+		t.Errorf("tenant B's administrators are %v, want its own owner", administrators)
+	}
+}
+
+// A role that is not an administrator is not in the answer. Who may stop a retention rule is the
+// role matrix's decision, and a resolution that returned viewers would be warning everybody.
+func TestOnlyAdministeringRolesAreInTheAnswer(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+
+	viewer := freshID(t)
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Vera Viewer')
+		 ON CONFLICT (id) DO NOTHING`, viewer.String(), tenantA.String()); err != nil {
+		t.Fatalf("seeding the viewer: %v", err)
+	}
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		 VALUES ($1, $2, $3, 'TENANT', 'VIEWER')`,
+		freshID(t).String(), tenantA.String(), viewer.String()); err != nil {
+		t.Fatalf("granting the viewer role: %v", err)
+	}
+
+	for _, id := range administratorsAlong(ctx, t, tenantA, []identity.Scope{identity.TenantScope()}) {
+		if id == viewer {
+			t.Error("a VIEWER was named as an administrator")
+		}
+	}
+}

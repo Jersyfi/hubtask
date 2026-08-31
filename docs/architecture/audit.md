@@ -144,8 +144,22 @@ The `AUDITOR` role exists because the alternative, in practice, is giving the au
 rights — a permissions problem that arises precisely where evidence is being demanded. It is not a
 rung on the same ladder as the other six: it carries the right to read the trail and none of the
 rights every other role has, so somebody who needs both holds two memberships and the rights add up
-rather than the stronger one winning (`core/domain/service.Allows`). What it grants today is the
-trail; the configuration half of the row above is open point A-4.
+rather than the stronger one winning (`core/domain/service.Allows`).
+
+Both halves of the row above exist since G-12. The trail is `AUDIT_READ`; the configuration is
+`READ_CONFIGURATION`, split out of `STRUCTURE` because that one is a *writing* permission
+(`domain-model.md` §3.2). What the second half reaches: the backup targets and runs, the retention
+rules and what a rule would do, the legal holds, the automation rules and their runs, the webhook
+subscriptions. What it never reaches is a secret — a signing secret is answered once where it is
+created and appears in no projection, and a backup target's credentials are sealed rather than
+listed — and it reaches no content at all, because the role holds no `READ`.
+
+**Why the second half is not a convenience.** An entry saying a retention rule removed four hundred
+objects is not a fact anybody can judge without being able to read the rule: which scope it covered,
+what period it counted, whether it was switched on that week. An auditor who could see the entry and
+not the rule would have to ask an administrator what the workspace was configured to do — which is
+asking the audited party to describe their own configuration, and is the arrangement this role
+exists to avoid.
 
 Access: `GET /audit` with the shared query DSL (filters on period, `action`, `actor`, `target`,
 `outcome`), `POST /audit:export` as a signed JSON Lines or CSV archive with a checksum manifest and
@@ -266,4 +280,4 @@ that defines the tests and rewrote the rest. The identifiers that were in circul
 | A-1 | Agree the default audit trail retention period legally (evidentiary interest vs. storage limitation) | `0.6.0` |
 | A-2 | The format and target of the external chain anchoring (WORM bucket, transparency log) | `0.9.0` |
 | A-3 | Establish the need for a SIEM connection (syslog/CEF export or pull through the API) | After `1.0.0` |
-| A-4 | The `AUDITOR`'s second half: reading the configuration. The reads it would need sit behind `STRUCTURE`, which is a *writing* permission, so granting them means splitting a read-only configuration permission out of it — a change to the role matrix in `domain-model.md` §3.2 rather than to the audit surface | `0.5.0` |
+| A-4 | ~~The `AUDITOR`'s second half: reading the configuration~~ — done in G-12. `READ_CONFIGURATION` is split out of `STRUCTURE` in the role matrix (`domain-model.md` §3.2), the `AUDITOR` holds it, and the configuration reads — backup targets and runs, retention rules and previews, legal holds, automation rules and their runs, webhook subscriptions — accept it beside the permission they always named. No secret is in any of them, and no pre-existing role gained or lost a right: the matrix test asserts that in both directions | Closed (G-12) |

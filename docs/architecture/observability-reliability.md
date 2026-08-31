@@ -348,4 +348,4 @@ self-diagnosis works in both cases.
 | O-1 | Choose the alerting backend for our own operation | `0.6.0` |
 | O-2 | A capacity model (items per tenant → resources) from real load data | `0.9.0` |
 | O-3 | Derive a public status page from `/meta/health` | After `1.0.0` |
-| O-4 | Decide: chaos tests permanently in CI, or nightly only | `0.5.0` |
+| O-4 | ~~Decide: chaos tests permanently in CI, or nightly only~~ — answered in G-12 and written into [`ci-cd.md`](./ci-cd.md) §3.2 with the measurement behind it: the chaos-shaped RT tests stay a pull request gate, because they cost four and a half minutes beside jobs that take eight and therefore no wall clock at all, and because a defect they find has to reach the run that reviews the diff that caused it. RT-6, RT-8 and RT-11 stay nightly, because an hour of sustained load is not something a shared runner has | Closed (G-12) |

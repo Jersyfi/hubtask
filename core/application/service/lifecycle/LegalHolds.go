@@ -176,11 +176,14 @@ func (h ListLegalHolds) Execute(
 ) ([]domain.LegalHold, error) {
 	if err := h.Holds.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     HoldPlacedAction,
-		TokenScope: retentionRead,
-		TargetType: holdTarget,
-		TargetID:   actor.TenantID,
+		// What is frozen and why is configuration, and reading it is an auditor's question -
+		// placing and lifting stay behind STRUCTURE alone (A-4, G-12).
+		Alternative: service.PermissionReadConfiguration,
+		Path:        []identity.Scope{identity.TenantScope()},
+		Action:      HoldPlacedAction,
+		TokenScope:  retentionRead,
+		TargetType:  holdTarget,
+		TargetID:    actor.TenantID,
 	}); err != nil {
 		return nil, err
 	}

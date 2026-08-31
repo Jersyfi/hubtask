@@ -269,11 +269,16 @@ func (h ListRetentionPolicies) Execute(
 ) ([]EffectiveRule, error) {
 	if err := h.Rules.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     RuleChangedAction,
-		TokenScope: retentionRead,
-		TargetType: policyTarget,
-		TargetID:   actor.TenantID,
+		// What this workspace deletes and when is the configuration read an auditor most needs:
+		// an entry saying a rule removed four hundred objects cannot be judged without it
+		// (A-4, G-12). Writing a rule stays where it was - it is a standing instruction to
+		// destroy work, and it asks the owner's line.
+		Alternative: service.PermissionReadConfiguration,
+		Path:        []identity.Scope{identity.TenantScope()},
+		Action:      RuleChangedAction,
+		TokenScope:  retentionRead,
+		TargetType:  policyTarget,
+		TargetID:    actor.TenantID,
 	}); err != nil {
 		return nil, err
 	}
@@ -318,12 +323,13 @@ func (h PreviewRetentionPolicy) Execute(
 			WithFields(shared.FieldError{Path: "/policy_id", Code: domain.CodeRuleNotFound})
 	}
 	if err := h.Rules.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionStructure,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     RuleChangedAction,
-		TokenScope: retentionRead,
-		TargetType: policyTarget,
-		TargetID:   id,
+		Permission:  service.PermissionStructure,
+		Alternative: service.PermissionReadConfiguration,
+		Path:        []identity.Scope{identity.TenantScope()},
+		Action:      RuleChangedAction,
+		TokenScope:  retentionRead,
+		TargetType:  policyTarget,
+		TargetID:    id,
 	}); err != nil {
 		return Preview{}, err
 	}

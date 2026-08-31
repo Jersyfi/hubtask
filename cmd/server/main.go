@@ -1626,6 +1626,14 @@ func run() error {
 				Rules:   postgres.NewRetentionRuleRepository(),
 				Marking: postgres.NewRetentionMarkingRepository(),
 				Holds:   lifecycleStore, Items: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
+				// The advance warning of data-retention.md §6 (R-1), through the path C-09 built:
+				// the preference is honoured, the record is deduplicated, and the send is a job.
+				Warnings: notification.RecordRetentionWarning{
+					Notifications: notifications, Accounts: accounts,
+					Memberships: postgres.NewMembershipRepository(), Members: itemMembers,
+					Preferences: notificationPreferences, Jobs: jobs,
+					Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+				},
 				Export: backupservice.RetentionExport{
 					Performer: backupPerformer, IDs: ids,
 				},

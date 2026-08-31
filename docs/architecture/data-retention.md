@@ -104,6 +104,10 @@ Evaluated in this order; the first matching rule wins:
 5. **The minimum tombstone period** → an object may only disappear for good once every known offline device has had the chance to learn about the deletion ([offline-sync.md](./offline-sync.md) §7). Otherwise it comes back on the next sync.
 6. **Referential safeguards** → a work package is not deleted while activities hang off it that have their own, longer period; the chain is worked from the bottom up.
 
+   **A parent is kept back for *any* descendant that is not going in the same pass, whatever its period** (R-2, decided in G-12). The sentence above names the longer-lived case because it is the obvious one, and the shorter-lived case is not its opposite: a child with a shorter period that is still here is a child something is holding — a legal hold, a `:retain`, a restriction of processing, or a rule that has simply not reached it yet. Deleting its parent would take away the context of an object somebody deliberately kept, which is precisely what this safeguard exists to prevent.
+
+   What the engine observes is therefore "not going in this pass" rather than a comparison of periods, and that is deliberate. The two cases it would have to tell apart — a child that will go on the next pass, and a child that will never go while its hold stands — look identical to a query about periods, and guessing wrong in the permissive direction leaves an orphan by policy rather than by accident. The price is a parent that waits: it goes on the pass after the last of its children, which is bounded by construction and costs a delay rather than data.
+
 ---
 
 ## 5. Execution
@@ -126,14 +130,32 @@ Retention nobody can see will eventually surprise somebody. So:
 * `GET /retention-policies?container_id=…&effective=true` answers the question "which rules actually apply here?", including where each came from (inherited from the hub or the tenant). This document named a `:effective` sub-resource and `openapi.yaml` implemented the same question as query parameters; the two said the same thing, and E-07 made the specification's wording the wording. Each rule in the answer carries `in_force`, so a caller can see both what exists and which of it applies - and a rule switched off in a collection lets the wider one through rather than stopping it, because "off here" means "the wider rule applies" rather than "nothing does".
 * An automatic export before deletion is possible (`EXPORT_THEN_DELETE`) — the archive lands at the configured backup target, written as an ordinary backup run under the trigger `PRE_DELETE`. One archive per target per pass: the archive format's scope is a tenant or a container ([backup-restore.md](./backup-restore.md) §3), so forty entries going in one pass are one export of the tenant they were in. A rule that cannot write its archive **stops** rather than proceeding - "export then delete" with the export missing is just a deletion.
 
-**The advance warning is not sent yet.** The first bullet of this section is built and the second is
-not: an object in its grace period carries `retention` and every client can see it, and nobody is
-messaged about it. Sending one needs a notification category the schema does not have, a template the
-message catalogue does not have, and a way to resolve "the collection's administrators" that nothing
-asks for yet - the notification context's work rather than the retention engine's. So a rule that
-asks to warn somebody is **refused** rather than stored, which is the standard
-`lifecycle.history_not_wired` already sets: a configuration nothing enforces looks like a working
-installation until the day somebody is waiting for it. Open point R-1.
+**The advance warning is sent since G-12** (R-1). Both bullets of this section are built: an object in
+its grace period carries `retention` and every client can see it, and the people the rule names are
+messaged about it through the notification path C-09 built - preference honoured, record written
+whether or not it is sent, delivery a job like every other.
+
+Three things about it are decisions rather than details:
+
+* **It goes out when the entry is marked**, not `notify.before_days` later. The marking is the first
+  moment there is anything true to say - before it, nothing has been decided about the entry - and
+  `before_days` bounds how *late* a warning may be, which the marking satisfies by construction: a
+  rule asking for seven days' notice inside a fourteen-day grace period gets fourteen, and fourteen
+  is not less than seven. What the field still does is refuse a rule whose warning would arrive
+  after the act.
+* **An entry something is holding back is not warned about.** It is not going, and a message saying
+  it is would be a false alarm; what it carries instead is `blocked_by`, which is the first bullet
+  doing its job.
+* **`RETENTION` is its own notification category** (migration 0062) rather than a shade of
+  `REMINDER`. It is the only message in this system whose subject is work that is about to stop
+  existing, and the window in which somebody can answer it is the grace period - so a preference
+  nobody set for this purpose must not be able to silence it.
+
+Who is told is the rule's vocabulary resolved through the thing that knows it: the entry's own
+member list, and - for `COLLECTION_ADMINS` and `TENANT_ADMINS` - the roles the matrix calls
+administrators, read along the entry's path. A role held on the hub administers the collections under
+it, so the collection's administrators are resolved along the whole path rather than at the
+collection alone. Somebody who qualifies twice is told once.
 
 ---
 
@@ -190,6 +212,5 @@ Five things the rule model needed settled, recorded here so that nobody re-deriv
 
 | # | Point | Needed by |
 |---|---|---|
-| R-1 | The advance warning of §6: a notification category, a template, and the resolution of `COLLECTION_ADMINS` and `TENANT_ADMINS`. Until it exists a rule that asks to warn somebody is refused | `0.5.0` |
-| R-2 | Whether the referential safeguard of §4.6 should keep a parent back for a *shorter*-lived child as well, or only for a longer-lived one. Today anything below an entry that is not going in the same pass keeps it back, which is the conservative reading | `0.5.0` |
+| R-1 | ~~The advance warning of §6~~ — done in G-12. A `RETENTION` notification category (migration 0062), its templates in `locales/en.json`, and the resolution of `COLLECTION_ADMINS` and `TENANT_ADMINS` through the role matrix. A rule that asks to warn somebody is stored and honoured rather than refused; the warning goes out when the entry is marked, which is the earliest moment there is anything true to say and therefore at least the notice the rule asked for | Closed (G-12) |
 | R-3 | What an `ACCOUNT` legal hold should stop. §4.1 names the tenant, the container and the item; the schema also allows an account, and until E-10 answers one it is refused rather than stored (E-08) | `0.4.5`, with E-10 |

@@ -132,14 +132,6 @@ func TestWhatARuleCannotMean(t *testing.T) {
 			},
 			domain.CodeNotifyBeyondGrace,
 		},
-		"a warning at all, until something sends one": {
-			func(in *domain.NewRuleInput) {
-				in.Notify = &domain.Notify{
-					BeforeDays: 7, Recipients: []domain.Recipient{domain.RecipientItemMembers},
-				}
-			},
-			domain.CodeNotifyNotAvailable,
-		},
 		"an export with nowhere to write it": {
 			func(in *domain.NewRuleInput) { in.Action = domain.ActionExportThenDelete },
 			domain.CodeExportTargetRequired,
@@ -386,5 +378,47 @@ func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
 	}
 	if len(domain.SweptKinds()) == 0 {
 		t.Fatal("nothing is swept at all")
+	}
+}
+
+// The refusal that flipped (R-1, G-12): a rule that asks to warn somebody is stored and honoured
+// rather than refused, now that there is a category to write the warning under and a way to
+// resolve who "the collection's administrators" are.
+//
+// The bound it was refused *with* stays: a warning after the act is still a condolence, and the
+// case above proves it.
+func TestARuleThatWarnsSomebodyIsStored(t *testing.T) {
+	rule, err := domain.NewRule(ruleInput(func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{
+			BeforeDays: 7,
+			Recipients: []domain.Recipient{
+				domain.RecipientItemMembers, domain.RecipientCollectionAdmins,
+				domain.RecipientTenantAdmins,
+			},
+		}
+	}))
+	if err != nil {
+		t.Fatalf("a rule that warns somebody was refused: %v", err)
+	}
+	if rule.Notify.Silent() {
+		t.Fatal("the warning was stored as silence")
+	}
+	if rule.Notify.BeforeDays != 7 || len(rule.Notify.Recipients) != 3 {
+		t.Errorf("the rule warns %+v", rule.Notify)
+	}
+}
+
+// A rule that names recipients and no number is asking for the documented notice rather than for
+// none: §6's seven days is what "warn them" means when nobody said otherwise.
+func TestAWarningWithNoNumberTakesTheDocumentedDefault(t *testing.T) {
+	rule, err := domain.NewRule(ruleInput(func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{Recipients: []domain.Recipient{domain.RecipientTenantAdmins}}
+	}))
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if rule.Notify.BeforeDays != domain.DefaultNotifyBeforeDays {
+		t.Errorf("the warning goes out %d days ahead, want the documented %d",
+			rule.Notify.BeforeDays, domain.DefaultNotifyBeforeDays)
 	}
 }

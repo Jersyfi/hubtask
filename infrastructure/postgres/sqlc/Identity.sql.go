@@ -131,6 +131,62 @@ func (q *Queries) AddGroupMember(ctx context.Context, arg AddGroupMemberParams) 
 	return err
 }
 
+const administratorsAlongPath = `-- name: AdministratorsAlongPath :many
+SELECT DISTINCT account_id FROM (
+  SELECT m.account_id
+  FROM membership m
+  WHERE m.account_id IS NOT NULL
+    -- Cast, because ` + "`" + `role` + "`" + ` is the enum ` + "`" + `membership_role` + "`" + ` and the argument is text: comparing the
+    -- two directly is an operator PostgreSQL does not have, and the enum is what the column has
+    -- been since the first migration.
+    AND m.role::text = ANY($1::text[])
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY($2::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM membership m
+  JOIN account_group_member g ON g.group_id = m.group_id
+  WHERE m.group_id IS NOT NULL
+    AND m.role::text = ANY($1::text[])
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY($2::uuid[]))
+) AS holders
+`
+
+type AdministratorsAlongPathParams struct {
+	Roles    []string
+	ScopeIds []pgtype.UUID
+}
+
+// Who administers anywhere on this path, for the retention advance warning (R-1, G-12).
+//
+// The mirror image of MembershipsAlongPath: that one asks what one account holds, this one asks
+// who holds something. The roles are named here rather than passed in, because "the people who can
+// answer a warning about work that is about to be deleted" is a property of the role matrix and
+// not a parameter a caller gets to choose - a caller that could name VIEWER would be a caller
+// warning everybody.
+//
+// Through a group as well as directly, on MembershipsAlongPath's reasoning: a right held through a
+// group is not a lesser right, and an administrator who administers through one still administers.
+// Distinct, because somebody who holds the role at two levels is one person.
+func (q *Queries) AdministratorsAlongPath(ctx context.Context, arg AdministratorsAlongPathParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, administratorsAlongPath, arg.Roles, arg.ScopeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteGroup = `-- name: DeleteGroup :execrows
 DELETE FROM account_group WHERE id = $1
 `
