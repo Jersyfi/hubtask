@@ -85,6 +85,25 @@ expect_missing() {
 	fi
 }
 
+# run_hubctl runs a command, prints what it said whichever way it went, and records a failure
+# rather than ending the session.
+#
+# `set -e` inside a command substitution is the right default for the sections that build on each
+# other - a hub that was not created makes everything below it meaningless - and the wrong one for
+# a section that checks several independent verbs: the first failure would hide the rest, one CI
+# run at a time.
+run_hubctl() {
+	local output status
+	set +e
+	output="$("$WORK_DIR/hubctl" "$@" 2>&1)"
+	status=$?
+	set -e
+	if [ "$status" -ne 0 ]; then
+		fail "hubctl $* exited $status: $output"
+	fi
+	printf '%s\n' "$output"
+}
+
 # first_id reads the identifier out of a hubctl table: a header, then one row per entry, the
 # identifier in the first column. That layout is a contract of the CLI, so reading it here is a
 # check of it as much as a convenience.
@@ -729,24 +748,28 @@ api() {
 
 json_field() { sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" <<< "$2" | head -1; }
 
-# The address, shown once. Rotating is how one is revoked, so minting and rotating are one call.
-intake="$(api POST '/jumble/intake:rotate-token')"
+# The address, shown once - through the client now that it has the verb (G-13). Rotating is how one
+# is revoked, so minting and rotating are one call.
+intake="$(hubctl --json jumble intake rotate-token)"
 INTAKE_TOKEN="$(json_field token "$intake")"
 [ -n "$INTAKE_TOKEN" ] || { echo "FAILED: the intake was minted without a token: $intake"; exit 1; }
 
 # The rule: every arrival in the jumble becomes a task in the collection this session built. Written
-# switched off, as every rule is, and enabled by its own call - which is the point of that split.
-rule="$(api POST '/automation/rules' "{
-  \"name\": \"mail becomes a task\",
-  \"scope\": {\"type\": \"TENANT\"},
-  \"run_as\": \"$ACCOUNT_ID\",
-  \"trigger\": {\"kind\": \"JUMBLE_ENTRY\"},
-  \"actions\": [{\"kind\": \"CONVERT_JUMBLE_ENTRY\",
-    \"params\": {\"collection_id\": \"$COLLECTION_ID\"}}]
-}")"
+# switched off, as every rule is, and enabled by its own call - which is the point of that split,
+# and which the client refuses to smooth over.
+rule="$(hubctl --json rule add --name 'mail becomes a task' --trigger JUMBLE_ENTRY \
+	--run-as "$ACCOUNT_ID" \
+	--action "CONVERT_JUMBLE_ENTRY:{\"collection_id\":\"$COLLECTION_ID\"}")"
 RULE_ID="$(json_field id "$rule")"
 [ -n "$RULE_ID" ] || { echo "FAILED: writing the rule produced no identifier: $rule"; exit 1; }
-api POST "/automation/rules/$RULE_ID:enable" >/dev/null
+# A rule nobody switched on does nothing, and the listing says so before it is switched on.
+expect_contains "rule ls" "$(hubctl rule ls --disabled)" "$RULE_ID"
+# The dry run first: what it would do, with nothing done. That is the whole of E-06's discipline
+# from a terminal.
+expect_contains "rule test" \
+	"$(hubctl rule test "$RULE_ID" --event de.hubtask.jumble.entry.received.v1)" "conditions"
+hubctl rule enable "$RULE_ID" >/dev/null
+expect_contains "rule ls --enabled" "$(hubctl rule ls --enabled)" "$RULE_ID"
 
 # And the mail itself: RFC 5322 bytes, the shape any bridge can forward. Multipart, because the
 # ordinary mail is - a plain part, an HTML alternative, and a file.
@@ -793,7 +816,7 @@ converted=""
 for _ in $(seq 1 60); do
 	# Tolerant of a call that does not answer: what is being waited for is the engine, and a
 	# hiccup on the way to it is not the failure this loop is looking for.
-	entry="$(api GET "/jumble/entries?status=PROCESSED" || true)"
+	entry="$(hubctl --json jumble ls --status PROCESSED 2>/dev/null || true)"
 	if grep -qF "$ENTRY_ID" <<< "$entry"; then
 		converted="$entry"
 		break
@@ -801,7 +824,7 @@ for _ in $(seq 1 60); do
 	sleep 1
 done
 if [ -z "$converted" ]; then
-	fail "the arriving mail was never converted: $(api GET '/jumble/entries')"
+	fail "the arriving mail was never converted: $(hubctl jumble ls || true)"
 else
 	# The provenance pair: the entry names the item it became, and the item is in the collection
 	# the rule named, titled from the subject the mail carried.
@@ -816,6 +839,74 @@ else
 		expect_contains "the item's origin" "$item" "$ENTRY_ID"
 	fi
 fi
+
+# And the run log, which is the other half of "it happened": a person who was not watching reads
+# what the engine did, step by step, rather than a log line the server happened to print.
+runs="$(run_hubctl rule runs --rule "$RULE_ID")"
+expect_contains "rule runs" "$runs" "$RULE_ID"
+expect_contains "rule runs" "$runs" "JUMBLE_ENTRY"
+RUN_ID="$(printf '%s\n' "$runs" | first_id)"
+if [ -n "$RUN_ID" ]; then
+	run="$(run_hubctl rule run show "$RUN_ID")"
+	expect_contains "rule run show" "$run" "CONVERT_JUMBLE_ENTRY"
+fi
+
+# A beat, for the reason the watch above has one: the session compresses a first hour into
+# seconds, and the sections below are at the end of the rate limiter's budget.
+sleep 2
+
+echo "--- the inbox's own verbs ---"
+# The near channel, and the decision that is not a deletion. Both through the client, because an
+# inbox somebody cannot empty from a terminal is an inbox they will empty in the database.
+captured="$(run_hubctl jumble submit --subject 'Call the printer' --channel QUICK_CAPTURE)"
+CAPTURED_ID="$(printf '%s\n' "$captured" | first_id)"
+[ -n "$CAPTURED_ID" ] || fail "the quick capture produced no entry: $captured"
+expect_contains "jumble ls" "$(run_hubctl jumble ls --status NEW)" "Call the printer"
+if [ -n "$CAPTURED_ID" ]; then
+	dismissed="$(run_hubctl jumble dismiss "$CAPTURED_ID")"
+	expect_contains "jumble dismiss" "$dismissed" "DISMISSED"
+	# A state rather than a deletion: the entry is still there, in the state that says so.
+	expect_contains "jumble ls --status DISMISSED" \
+		"$(run_hubctl jumble ls --status DISMISSED)" "$CAPTURED_ID"
+fi
+
+sleep 2
+
+echo "--- who else is told, and what reached them ---"
+# The outbound half, as far as it goes today. The target is a host nothing answers on purpose: what
+# a subscription is for is being written, read back, and told apart from a paused one. The
+# signature is proved where a real one exists, against a real receiver, in infrastructure/webhook's
+# TestASubscriberReceivesASignedCloudEventThatVerifies - a host listener is not something this
+# stack's outbound guard may call (T-07), so a session cannot be the place for it.
+# Standard error is kept apart from the answer, because the identifier is read out of the table's
+# second line and a note printed beside it would be the line that is read.
+subscribed="$(hubctl webhook add --url https://webhook.invalid/hooks \
+	--event de.hubtask.work.item.completed.v1 2> "$WORK_DIR/webhook.err" || true)"
+WEBHOOK_ID="$(printf '%s\n' "$subscribed" | first_id)"
+[ -n "$WEBHOOK_ID" ] || fail "the subscription produced no identifier: $subscribed"
+# The secret is answered once, and the client says so where somebody can read it.
+expect_contains "webhook add" "$(cat "$WORK_DIR/webhook.err")" "shown once"
+expect_contains "webhook ls" "$(run_hubctl webhook ls)" "webhook.invalid"
+
+# What this section stops at, and why it is written down rather than left out. Two things in the
+# outbound path are broken in a way only this end-to-end use could show, and both have issues of
+# their own: a `webhook.deliver` job fails with `webhooks.delivery_incomplete` before it writes a
+# delivery row, so there is nothing to read back or replay; and `:rotate-secret` answers 500. Both
+# are G-03's, both are reproduced by exactly the two commands that would go here, and asserting
+# around them would be this session pretending they work.
+#
+# What is proved above is what a person meets first: the subscription is written, its secret is
+# answered once with the sentence that makes "once" true, and the listing reads it back.
+
+echo "--- the platforms that cannot receive a call ---"
+# G-04's cursor from a terminal: a poll without one asks the unbounded question, so the client
+# prints the next one after every call. The type is one this workspace has certainly produced.
+# The assertion is the cursor rather than a particular event: what a poller needs is the answer's
+# shape and somewhere to continue from, and which events are inside the window at this second is
+# the outbox's business rather than this check's.
+polled="$(run_hubctl events poll de.hubtask.work.item.completed.v1 --limit 5)"
+expect_contains "events poll" "$polled" "TYPE"
+expect_contains "events poll" "$polled" "--since"
 
 echo "--- what a refusal looks like ---"
 # A collection that does not exist, so the answer is a problem document - and what a person sees
