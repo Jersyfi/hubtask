@@ -118,6 +118,10 @@ CREATE TABLE account (
   week_start        text,
   status            account_status NOT NULL DEFAULT 'ACTIVE',
   ai_consent        boolean NOT NULL DEFAULT false,
+  -- The redemption token the invitation mints (H-01): hashed under its own purpose label, shown
+  -- once, dead on redemption. One open invitation per invited account, so it lives on the row.
+  redemption_token_hash bytea,
+  redemption_expires_at timestamptz,
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
@@ -128,6 +132,10 @@ CREATE UNIQUE INDEX account_email_uq ON account (tenant_id, lower(email))
   WHERE email IS NOT NULL AND deleted_at IS NULL;
 CREATE UNIQUE INDEX account_subject_uq ON account (tenant_id, external_subject)
   WHERE external_subject IS NOT NULL;
+-- The lookup the public redemption route makes: the hash covers the whole presented string,
+-- tenant half included, and is unique across the installation.
+CREATE UNIQUE INDEX account_redemption_token_uq ON account (redemption_token_hash)
+  WHERE redemption_token_hash IS NOT NULL;
 
 CREATE TABLE account_group (
   id           uuid PRIMARY KEY,
@@ -193,6 +201,55 @@ CREATE TABLE access_token (
 );
 CREATE UNIQUE INDEX access_token_hash_uq ON access_token (token_hash);
 CREATE INDEX access_token_account_idx ON access_token (tenant_id, account_id, created_at DESC);
+
+-- A sign-in (H-01, security.md §5): the row /auth/sessions lists and revocation stamps. Both
+-- tokens of the pair point at it, so ending it ends them together. `last_seen_at` is the
+-- retention anchor of the SESSION data kind; `user_agent` and `ip_class` are the client-binding
+-- hint T-01 asks to log - the network coarsened at recording time, never the full address.
+CREATE TABLE session (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id   uuid NOT NULL,
+  created_at   timestamptz NOT NULL,
+  last_seen_at timestamptz,
+  user_agent   text,
+  ip_class     text,
+  expires_at   timestamptz NOT NULL,
+  revoked_at   timestamptz,
+  CONSTRAINT session_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX session_tenant_id_uq ON session (tenant_id, id);
+CREATE INDEX session_account_idx ON session (account_id, created_at DESC);
+
+-- One refresh token of a session's family. Rotation retires a row and inserts the next; retired
+-- rows stay until the session goes, because a retired hash presented again is the reuse signal
+-- T-01 exists for.
+CREATE TABLE session_refresh_token (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  session_id  uuid NOT NULL,
+  token_hash  bytea NOT NULL,
+  created_at  timestamptz NOT NULL,
+  expires_at  timestamptz NOT NULL,
+  rotated_at  timestamptz,
+  CONSTRAINT session_refresh_token_session_fkey FOREIGN KEY (tenant_id, session_id)
+    REFERENCES session (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX session_refresh_token_hash_uq ON session_refresh_token (token_hash);
+CREATE INDEX session_refresh_token_session_idx ON session_refresh_token (session_id);
+
+-- The sign-in attempt ledger (T-02): failures per account and per source network, the subject
+-- only ever a hash under its own purpose label - the ledger counts attempts against addresses
+-- that hold no account without becoming a list of guessed addresses.
+CREATE TABLE auth_attempt (
+  tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  subject_hash    bytea NOT NULL,
+  failures        integer NOT NULL DEFAULT 0,
+  last_failure_at timestamptz,
+  locked_until    timestamptz,
+  PRIMARY KEY (tenant_id, subject_hash)
+);
 
 -- ============================ Work Management ==============================
 
@@ -1473,6 +1530,7 @@ DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
     'account','account_group','account_group_member','membership','access_token',
+    'session','session_refresh_token','auth_attempt',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
@@ -1693,5 +1751,24 @@ $$;
 
 REVOKE ALL ON FUNCTION subject_tenants(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION subject_tenants(text) TO hubtask_app;
+
+-- ============ Tenant resolution before a credential exists (H-01) ==========
+-- Sign-in needs a tenant before it can check a password (0.6.0 decision 3). One identifier or
+-- none, never a listing: a slug names its tenant, NULL answers the single-mode installation's
+-- only row. See db/migrations/0063_auth_sessions.sql for the whole reasoning.
+CREATE OR REPLACE FUNCTION resolve_tenant(tenant_slug text) RETURNS uuid
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT id FROM tenant
+  WHERE deleted_at IS NULL
+    AND (
+      (tenant_slug IS NOT NULL AND slug = lower(tenant_slug))
+      OR (tenant_slug IS NULL
+          AND (SELECT count(*) FROM tenant WHERE deleted_at IS NULL) = 1)
+    )
+  LIMIT 1
+$$;
+
+REVOKE ALL ON FUNCTION resolve_tenant(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resolve_tenant(text) TO hubtask_app;
 
 COMMIT;

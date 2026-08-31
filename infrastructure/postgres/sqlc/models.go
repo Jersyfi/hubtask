@@ -332,22 +332,24 @@ type AccessToken struct {
 }
 
 type Account struct {
-	ID              pgtype.UUID
-	TenantID        pgtype.UUID
-	Kind            AccountKind
-	Email           *string
-	DisplayName     string
-	ExternalSubject *string
-	PasswordHash    *string
-	Locale          *string
-	TimeZone        *string
-	WeekStart       *string
-	Status          AccountStatus
-	AiConsent       bool
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	DeletedAt       pgtype.Timestamptz
-	Version         int32
+	ID                  pgtype.UUID
+	TenantID            pgtype.UUID
+	Kind                AccountKind
+	Email               *string
+	DisplayName         string
+	ExternalSubject     *string
+	PasswordHash        *string
+	Locale              *string
+	TimeZone            *string
+	WeekStart           *string
+	Status              AccountStatus
+	AiConsent           bool
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	DeletedAt           pgtype.Timestamptz
+	Version             int32
+	RedemptionTokenHash []byte
+	RedemptionExpiresAt pgtype.Timestamptz
 }
 
 type AccountGroup struct {
@@ -460,6 +462,14 @@ type AuditPseudonym struct {
 	Pseudonym string
 	Reason    string
 	CreatedAt pgtype.Timestamptz
+}
+
+type AuthAttempt struct {
+	TenantID      pgtype.UUID
+	SubjectHash   []byte
+	Failures      int32
+	LastFailureAt pgtype.Timestamptz
+	LockedUntil   pgtype.Timestamptz
 }
 
 type AutoAssignPolicy struct {
@@ -1052,6 +1062,28 @@ type SavedView struct {
 	Sharing       string
 	CreatedAt     pgtype.Timestamptz
 	Version       int32
+}
+
+type Session struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	AccountID  pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
+	LastSeenAt pgtype.Timestamptz
+	UserAgent  *string
+	IpClass    *string
+	ExpiresAt  pgtype.Timestamptz
+	RevokedAt  pgtype.Timestamptz
+}
+
+type SessionRefreshToken struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	SessionID pgtype.UUID
+	TokenHash []byte
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+	RotatedAt pgtype.Timestamptz
 }
 
 type SetElement struct {
