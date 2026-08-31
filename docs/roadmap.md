@@ -119,6 +119,14 @@ separation in the Kubernetes deployment, HPA, PodDisruptionBudget, NetworkPolicy
 (2 million items, an automation storm), partitioning, PITR backup with a verified restore (RT-9),
 the complete alert catalogue A-01…A-18 with runbooks, SLO dashboards, and the optional NATS adapter.
 
+The backlog (`docs/backlog/milestone-0.6.0.md`) scopes it: the Kubernetes half — role separation,
+HPA, PodDisruptionBudget, NetworkPolicy — was built ahead with the chart and is proved under load
+rather than added; sign-in, sessions, MFA, OIDC, OAuth2 and the admin surface start from an empty
+schema *and* an empty contract, so every task is specification first and migration first; the
+load figures are measured and recorded internally only, publication being a separate decision;
+and the three dependency candidates (the OIDC verification library, the NATS client, the IMAP
+client per open point AM-1) each land through their own ADR rather than in passing.
+
 ---
 
 ## Phase 3 — AI and ecosystem (`0.7.0` – `0.9.0`)
