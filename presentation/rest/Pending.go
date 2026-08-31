@@ -67,6 +67,23 @@ func (pending) DeleteGroup(w http.ResponseWriter, r *http.Request, _ openapi.Gro
 	notAvailable(w, r)
 }
 
+// The session operations of H-01. They land one by one as the use cases register; until then the
+// route exists because the contract declares it, and answers that this installation does not
+// serve it yet.
+func (pending) SignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) RefreshSession(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListSessions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) RevokeSession(w http.ResponseWriter, r *http.Request, _ openapi.SessionId) {
+	notAvailable(w, r)
+}
+
+func (pending) RevokeAllSessions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The five credential operations of G-01. All of them are overridden by RestController; they stay
 // here because the compile-time check above needs every method of the interface.
 func (pending) ListAccessTokens(w http.ResponseWriter, r *http.Request, _ openapi.ListAccessTokensParams) {

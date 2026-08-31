@@ -24,6 +24,13 @@ import (
 // missing from this list is authenticated, never the reverse.
 var PublicRoutes = map[string]bool{
 	http.MethodGet + " " + APIBasePath + "/meta/capabilities": true,
+	// Sign-in, refresh and redemption are how a credential is obtained, so there is none to
+	// demand yet: the password, the refresh token and the redemption token travel in the body and
+	// are the whole of what authenticates the call (H-01, security.md §5). Each route verifies
+	// its own credential; the auth rate-limit bucket stands in front of all three.
+	http.MethodPost + " " + APIBasePath + "/auth/sessions":           true,
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:refresh":   true,
+	http.MethodPost + " " + APIBasePath + "/auth/invitations:redeem": true,
 	// The content routes carry their credential in the URL: a signed, expiring token minted by
 	// requestMediaUpload and getMedia, validated by the route itself - the same trust model as a
 	// presigned object-storage URL, which is what these stand in for on a local-storage

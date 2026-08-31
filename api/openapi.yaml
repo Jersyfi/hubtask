@@ -2255,6 +2255,161 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/sessions:
+    post:
+      tags: [auth]
+      operationId: signIn
+      security: []
+      summary: Sign in with email and password
+      description: >
+        The password sign-in: an email, a password, and the answer is an access/refresh pair plus
+        the session row both hang off. The access token lives fifteen minutes and verifies by its
+        signature; the refresh token lives thirty days, rotates on every use, and a rotated-out
+        token replayed later invalidates the whole family, because a replay means two holders
+        (security.md §5, T-01).
+
+        The tenant is resolved before the credential is checked - from the subdomain or the
+        `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never
+        from the request body (multi-tenancy.md §3). A contradiction between an authenticated
+        caller and the host stays `403 tenant_mismatch`.
+
+        Every failure is one generic refusal, byte for byte the same for a wrong password and an
+        address nobody holds: whether an account exists is exactly what a guessing client is
+        trying to learn (T-02). Behind that one answer sit the progressive delay and the lockout,
+        per account and per IP, and the auth rate-limit bucket in front of everything.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignIn"
+      responses:
+        "201":
+          description: Signed in, with the pair shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTokens"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    get:
+      tags: [auth]
+      operationId: listSessions
+      summary: The caller's active sessions
+      description: >
+        One's own sessions, newest first: where each was opened (the user agent and the IP class
+        recorded at sign-in - a hint for recognising one's own devices, never a precise address),
+        when it was created, when it last acted, and which one is answering this very call.
+        Never anybody else's, whatever the role: a session is the person's, and an administrator
+        who suspects one acts by disabling the account, not by reading its sessions.
+      responses:
+        "200":
+          description: The sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [auth]
+      operationId: revokeAllSessions
+      summary: Sign out everywhere
+      description: >
+        Ends every session of the caller's account, this one included: every refresh family dies,
+        and every access token still in flight refuses on its next request. The answer to "I left
+        myself signed in somewhere" - and the reason the route needs nothing but the will to call
+        it.
+      responses:
+        "204":
+          description: Every session ended
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/sessions:refresh:
+    post:
+      tags: [auth]
+      operationId: refreshSession
+      security: []
+      summary: Exchange a refresh token for the next pair
+      description: >
+        Rotation, not renewal: the presented refresh token is retired in the same moment the new
+        pair is minted, and presenting it again afterwards is treated as theft - two holders of
+        one token - so the whole family is invalidated, the sign-in that opened it is over
+        everywhere, and the reuse raises its own metric reason and A-15 (security.md §5).
+
+        The route is public the way sign-in is: the refresh token in the body is the whole
+        credential, and demanding a bearer header beside it would demand the very thing this call
+        exists to replace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionRefresh"
+      responses:
+        "200":
+          description: The next pair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTokens"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/sessions/{sessionId}:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    delete:
+      tags: [auth]
+      operationId: revokeSession
+      summary: End one session
+      description: >
+        Ends one of the caller's own sessions: its refresh family dies and its access token
+        refuses on its next request, immediately rather than at the end of the token's fifteen
+        minutes. Somebody else's session is not found rather than forbidden - whether a session
+        identifier exists is nobody's business but its holder's. Revoking twice is not an error.
+      responses:
+        "204":
+          description: Ended
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/invitations:redeem:
+    post:
+      tags: [auth]
+      operationId: redeemInvitation
+      security: []
+      summary: Redeem an invitation and set the first password
+      description: >
+        The moment an invited account becomes a person: the redemption token from the invitation
+        mail, a password under the policy (twelve characters at least, security.md §5), and the
+        account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers,
+        because making somebody who just proved control of the mailbox type the password again
+        teaches nothing.
+
+        The token was shown once, in the invitation, and is stored only as a hash under its own
+        purpose label; it dies on redemption, so a second redemption is refused however fresh the
+        token looks. An expired or unknown token is one indistinguishable refusal - which
+        addresses hold unredeemed invitations is not for a probe to enumerate.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationRedemption"
+      responses:
+        "201":
+          description: Redeemed and signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTokens"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/tokens:
     get:
       tags: [auth]
@@ -4705,6 +4860,12 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     ContainerId:
       name: containerId
       in: path
@@ -5088,6 +5249,93 @@ components:
               description: >
                 The credential, in clear, for the only time. Store it or lose it: what is kept is
                 a hash, and nothing can turn that back into this.
+
+    SignIn:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password:
+          type: string
+          maxLength: 1024
+          description: >
+            Checked in constant shape against the stored Argon2id hash. No minimum here: the
+            policy binds where a password is *set*, and refusing a short guess differently from a
+            wrong one would leak which it was.
+
+    SessionRefresh:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          description: The one being exchanged. It is retired by this very call.
+
+    InvitationRedemption:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          description: The redemption token from the invitation, shown once and usable once.
+        password:
+          type: string
+          minLength: 12
+          maxLength: 1024
+          description: The first password, under the policy of security.md §5.
+
+    Session:
+      type: object
+      description: >
+        A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in -
+        a user agent and an IP class, enough to recognise one's own devices and deliberately not
+        a precise address (T-01, data catalogue).
+      required: [id, created_at, current]
+      properties:
+        id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        last_used_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When the session last acted, to the minute rather than to the request - the value
+            exists so a person can spot a session nobody uses.
+        user_agent:
+          type: [string, "null"]
+          maxLength: 400
+          description: The client that signed in, as it introduced itself.
+        ip_class:
+          type: [string, "null"]
+          description: >
+            The network the sign-in came from, coarsened at recording time - an IPv4 /24 or an
+            IPv6 /48, never the full address.
+        current:
+          type: boolean
+          description: Whether this session is the one answering the call.
+
+    SessionTokens:
+      type: object
+      description: >
+        The pair and its session, shown for the only time. What is stored of the refresh token is
+        a hash under its own purpose label; the access token is not stored at all - it verifies
+        by its signature.
+      required: [token_type, access_token, access_token_expires_at, refresh_token, refresh_token_expires_at, session]
+      properties:
+        token_type:
+          type: string
+          enum: [Bearer]
+        access_token:
+          type: string
+          description: Fifteen minutes, presented as the bearer credential on every call.
+        access_token_expires_at: { type: string, format: date-time }
+        refresh_token:
+          type: string
+          description: >
+            Thirty days, single use: the exchange at `/auth/sessions:refresh` retires it and
+            answers the next one. Presenting a retired token invalidates the whole family.
+        refresh_token_expires_at: { type: string, format: date-time }
+        session:
+          $ref: "#/components/schemas/Session"
 
     Group:
       type: object

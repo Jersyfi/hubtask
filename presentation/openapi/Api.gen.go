@@ -2259,6 +2259,21 @@ func (e SavedViewShareSharing) Valid() bool {
 	}
 }
 
+// Defines values for SessionTokensTokenType.
+const (
+	Bearer SessionTokensTokenType = "Bearer"
+)
+
+// Valid indicates whether the value is a known member of the SessionTokensTokenType enum.
+func (e SessionTokensTokenType) Valid() bool {
+	switch e {
+	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SyncChangeOp.
 const (
 	SyncChangeOpACCESSREVOKED SyncChangeOp = "ACCESS_REVOKED"
@@ -3896,6 +3911,15 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InvitationRedemption defines model for InvitationRedemption.
+type InvitationRedemption struct {
+	// Password The first password, under the policy of security.md §5.
+	Password string `json:"password"`
+
+	// Token The redemption token from the invitation, shown once and usable once.
+	Token string `json:"token"`
+}
+
 // ItemAccess How far a role reaches into one entry.
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
 type ItemAccess string
@@ -4960,6 +4984,56 @@ type ServiceAccountCreate struct {
 	DisplayName string `json:"display_name"`
 }
 
+// Session A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in - a user agent and an IP class, enough to recognise one's own devices and deliberately not a precise address (T-01, data catalogue).
+type Session struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// Current Whether this session is the one answering the call.
+	Current bool               `json:"current"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// IpClass The network the sign-in came from, coarsened at recording time - an IPv4 /24 or an IPv6 /48, never the full address.
+	IpClass *string `json:"ip_class,omitempty"`
+
+	// LastUsedAt When the session last acted, to the minute rather than to the request - the value exists so a person can spot a session nobody uses.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+
+	// UserAgent The client that signed in, as it introduced itself.
+	UserAgent *string `json:"user_agent,omitempty"`
+}
+
+// SessionRefresh defines model for SessionRefresh.
+type SessionRefresh struct {
+	// RefreshToken The one being exchanged. It is retired by this very call.
+	RefreshToken string `json:"refresh_token"`
+}
+
+// SessionTokens The pair and its session, shown for the only time. What is stored of the refresh token is a hash under its own purpose label; the access token is not stored at all - it verifies by its signature.
+type SessionTokens struct {
+	// AccessToken Fifteen minutes, presented as the bearer credential on every call.
+	AccessToken          string    `json:"access_token"`
+	AccessTokenExpiresAt time.Time `json:"access_token_expires_at"`
+
+	// RefreshToken Thirty days, single use: the exchange at `/auth/sessions:refresh` retires it and answers the next one. Presenting a retired token invalidates the whole family.
+	RefreshToken          string    `json:"refresh_token"`
+	RefreshTokenExpiresAt time.Time `json:"refresh_token_expires_at"`
+
+	// Session A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in - a user agent and an IP class, enough to recognise one's own devices and deliberately not a precise address (T-01, data catalogue).
+	Session   Session                `json:"session"`
+	TokenType SessionTokensTokenType `json:"token_type"`
+}
+
+// SessionTokensTokenType defines model for SessionTokens.TokenType.
+type SessionTokensTokenType string
+
+// SignIn defines model for SignIn.
+type SignIn struct {
+	Email openapi_types.Email `json:"email"`
+
+	// Password Checked in constant shape against the stored Argon2id hash. No minimum here: the policy binds where a password is *set*, and refusing a short guess differently from a wrong one would leak which it was.
+	Password string `json:"password"`
+}
+
 // SyncChange defines model for SyncChange.
 type SyncChange struct {
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
@@ -5555,6 +5629,9 @@ type ReminderId = openapi_types.UUID
 
 // RuleId defines model for RuleId.
 type RuleId = openapi_types.UUID
+
+// SessionId defines model for SessionId.
+type SessionId = openapi_types.UUID
 
 // TemplateId defines model for TemplateId.
 type TemplateId = openapi_types.UUID
@@ -6367,8 +6444,17 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 
+// RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
+type RedeemInvitationJSONRequestBody = InvitationRedemption
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
+
+// SignInJSONRequestBody defines body for SignIn for application/json ContentType.
+type SignInJSONRequestBody = SignIn
+
+// RefreshSessionJSONRequestBody defines body for RefreshSession for application/json ContentType.
+type RefreshSessionJSONRequestBody = SessionRefresh
 
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = AccessTokenCreate
@@ -6588,12 +6674,30 @@ type ServerInterface interface {
 	// VerifyAuditChain Verify the integrity of the audit chain
 	// (POST /audit:verify)
 	VerifyAuditChain(w http.ResponseWriter, r *http.Request)
+	// RedeemInvitation Redeem an invitation and set the first password
+	// (POST /auth/invitations:redeem)
+	RedeemInvitation(w http.ResponseWriter, r *http.Request)
 	// ListServiceAccounts The workspace's service accounts
 	// (GET /auth/service-accounts)
 	ListServiceAccounts(w http.ResponseWriter, r *http.Request)
 	// CreateServiceAccount Create a service account
 	// (POST /auth/service-accounts)
 	CreateServiceAccount(w http.ResponseWriter, r *http.Request, params CreateServiceAccountParams)
+	// RevokeAllSessions Sign out everywhere
+	// (DELETE /auth/sessions)
+	RevokeAllSessions(w http.ResponseWriter, r *http.Request)
+	// ListSessions The caller's active sessions
+	// (GET /auth/sessions)
+	ListSessions(w http.ResponseWriter, r *http.Request)
+	// SignIn Sign in with email and password
+	// (POST /auth/sessions)
+	SignIn(w http.ResponseWriter, r *http.Request)
+	// RevokeSession End one session
+	// (DELETE /auth/sessions/{sessionId})
+	RevokeSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// RefreshSession Exchange a refresh token for the next pair
+	// (POST /auth/sessions:refresh)
+	RefreshSession(w http.ResponseWriter, r *http.Request)
 	// ListAccessTokens The caller's own personal access tokens
 	// (GET /auth/tokens)
 	ListAccessTokens(w http.ResponseWriter, r *http.Request, params ListAccessTokensParams)
@@ -7349,6 +7453,20 @@ func (siw *ServerInterfaceWrapper) VerifyAuditChain(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// RedeemInvitation operation middleware
+func (siw *ServerInterfaceWrapper) RedeemInvitation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RedeemInvitation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListServiceAccounts operation middleware
 func (siw *ServerInterfaceWrapper) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
 
@@ -7395,6 +7513,88 @@ func (siw *ServerInterfaceWrapper) CreateServiceAccount(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateServiceAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeAllSessions operation middleware
+func (siw *ServerInterfaceWrapper) RevokeAllSessions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeAllSessions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSessions operation middleware
+func (siw *ServerInterfaceWrapper) ListSessions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSessions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SignIn operation middleware
+func (siw *ServerInterfaceWrapper) SignIn(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeSession operation middleware
+func (siw *ServerInterfaceWrapper) RevokeSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sessionId" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sessionId", r.PathValue("sessionId"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sessionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeSession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RefreshSession operation middleware
+func (siw *ServerInterfaceWrapper) RefreshSession(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RefreshSession(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14204,6 +14404,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invite", wrapper.InviteAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions", wrapper.RevokeAllSessions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sessions", wrapper.ListSessions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions", wrapper.SignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:refresh", wrapper.RefreshSession)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/tokens", wrapper.ListAccessTokens)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/tokens", wrapper.CreateAccessToken)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/tokens/{tokenId}", wrapper.RevokeAccessToken)
