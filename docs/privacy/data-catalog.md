@@ -4,7 +4,7 @@ A record of every data category the system processes, with its purpose, classifi
 locations, retention, and deletion path. The basis for the record of processing activities
 (GDPR Art. 30) that every operator keeps for themselves.
 
-* **Version:** 0.4.0 · **As of:** 2026-08-26 · **Maintenance:** by pull request, so changes are traceable
+* **Version:** 0.5.0 · **As of:** 2026-08-31 · **Maintenance:** by pull request, so changes are traceable
 * **Concept:** [../architecture/data-protection.md](../architecture/data-protection.md)
 * **Consistency check:** gate PG-7 (`test/privacy/PG7_catalogue_test.go`, run by `make gate-privacy-full` in the nightly) compares this record against a migrated database schema; a table with personal content that is missing here fails the build. It runs since E-11 — before that the sentence was a promise.
 
@@ -101,6 +101,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Content transmitted to AI | **not stored** (transmitted to the provider) | `PERSONAL_CONTENT` | AI suggestions | Not stored in the system; at the provider per their agreement | — |
 | Embedding vectors (optional) | `item_embedding` | `PERSONAL_CONTENT` (derived) | Semantic search | With the source row | `CASCADE` |
 | Email intake (sender, subject, body) | `jumble_entry` | `PERSONAL_CONTENT` | Quick capture | See §3 | `RETENTION` / `CASCADE` with the sender's erasure — matched by address, which is all an inbound mail carries |
+| The jumble's intake credential (the token's hash, when it was last minted) | `jumble_intake` | `SECRET` (the hash) + `NON_PERSONAL` — one row per workspace, not per person, so the credential names nobody | Receiving mail and webhook entries at an address the workspace can hand out (G-10) | Until it is rotated; a rotation replaces the hash in place, so the old address and the new one are never both open | `HASH_ONLY`, `CASCADE` with the workspace |
 | What a subscriber has already consumed (consumer, event, time) | `event_consumption` | `NON_PERSONAL` | At-least-once delivery without a repeated effect (ADR-0007) | With the event, 7 days after delivery | `RETENTION` |
 | Notifications (recipient, category, channel, state, reason, references) | `notification` | `PERSONAL_TECHNICAL` (references only — no title, no note, no comment text) | Telling somebody that work concerns them | 90 days (`NOTIFICATION`, data-retention.md §3) | `RETENTION`, and `CASCADE` with the account or the entry |
 | Notification preferences (category, channel, switched on, title in the message) | `notification_preference` | `PERSONAL_BASIC` | Honouring what somebody said about being told | The lifetime of the account | `CASCADE` |
