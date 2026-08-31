@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/mail"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // The message codes an email is built from. Under `email.*`, as i18n-l10n.md §3 prescribes, and
@@ -75,8 +76,19 @@ type DeliverNotification struct {
 	// BaseURL is where this installation lives, so an email can carry a link somebody can click. A
 	// relative path in an email is a dead link.
 	BaseURL string
+	// Redemptions mints the credential an invitation mail carries (H-01): minted here, at
+	// delivery, so the queue's payload stays identifiers-only and the plaintext exists exactly
+	// once, in the message on its way out. Nil composes the plain link, which is what an
+	// installation without the sign-in flow sent before the flow existed.
+	Redemptions RedemptionMinter
 	// Signals is the observability slice. Optional, like everywhere else in this package.
 	Signals Signals
+}
+
+// RedemptionMinter is the identity service's seam. The empty secret means the account is no
+// longer waiting, and the mail carries the plain link.
+type RedemptionMinter interface {
+	MintRedemptionToken(ctx context.Context, tenantID, accountID shared.ID) (secret.Secret, error)
 }
 
 // subject is what a message needs before it can be rendered: the record, who is receiving it, and
@@ -224,6 +236,21 @@ func (d DeliverNotification) load(
 // send renders the message and hands it to the channel.
 func (d DeliverNotification) send(ctx context.Context, loaded subject) error {
 	message := d.compose(loaded)
+
+	// The invitation's link is the redemption token (H-01): minted now, shown in this one
+	// message, stored only as a hash. In the fragment rather than the query, so a proxy or a
+	// server log between the mail client and the interface never sees it.
+	if loaded.record.Category == domain.CategoryInvitation && d.Redemptions != nil {
+		token, err := d.Redemptions.MintRedemptionToken(
+			ctx, loaded.record.TenantID, loaded.record.RecipientID)
+		if err != nil {
+			return err
+		}
+		if !token.IsEmpty() {
+			base := strings.TrimSuffix(d.BaseURL, "/")
+			message.Link = base + "/redeem#token=" + url.PathEscape(token.Reveal())
+		}
+	}
 
 	locale := loaded.recipient.locale
 	return d.Mail.Send(ctx, mail.Message{

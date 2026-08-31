@@ -265,6 +265,91 @@ func newRunHarness() *runHarness {
 	return h
 }
 
+// sessionStore is ExpiredSessions as an in-memory table, eventStore's shape: the guard the real
+// query carries lives in due(), so the tests prove the engine against the same rule.
+type sessionStore struct {
+	rows    []sessionRow
+	askedAt time.Time
+}
+
+type sessionRow struct {
+	lastSeen time.Time
+	// over is "run out or revoked": the only rows the sweep may ever take.
+	over bool
+}
+
+func (s *sessionStore) due(cutoff time.Time, limit int) []int {
+	var due []int
+	for index, row := range s.rows {
+		if row.over && row.lastSeen.Before(cutoff) {
+			due = append(due, index)
+		}
+		if len(due) >= limit {
+			break
+		}
+	}
+	return due
+}
+
+func (s *sessionStore) CountExpired(_ context.Context, cutoff time.Time, ceiling int) (int, error) {
+	s.askedAt = cutoff
+	return len(s.due(cutoff, ceiling)), nil
+}
+
+func (s *sessionStore) DeleteExpired(_ context.Context, cutoff time.Time, batch int) (int, error) {
+	removed := s.due(cutoff, batch)
+	kept := make([]sessionRow, 0, len(s.rows))
+	for index, row := range s.rows {
+		if !slices.Contains(removed, index) {
+			kept = append(kept, row)
+		}
+	}
+	s.rows = kept
+	return len(removed), nil
+}
+
+// The SESSION kind (H-01): expired sessions age out through the engine under the new data kind,
+// thirty days from the last use - and only the ones that are already over, because ending
+// sign-ins is revocation's job and the engine's job is forgetting.
+func TestAPassSweepsExpiredSessionsAtTheirOwnPeriod(t *testing.T) {
+	h := newRunHarness()
+	sessions := &sessionStore{rows: []sessionRow{
+		{lastSeen: now.Add(-60 * 24 * time.Hour), over: true},
+		{lastSeen: now.Add(-60 * 24 * time.Hour), over: false},
+		{lastSeen: now.Add(-time.Hour), over: true},
+	}}
+	h.run.Sessions = sessions
+
+	outcome, err := h.run.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("the run failed: %v", err)
+	}
+
+	if want := now.AddDate(0, 0, -30); !sessions.askedAt.Equal(want) {
+		t.Errorf("cut off at %v, want thirty days back", sessions.askedAt)
+	}
+	if len(sessions.rows) != 2 {
+		t.Errorf("%d rows left, want the recent one and the one still live", len(sessions.rows))
+	}
+	if outcome.Removed < 1 {
+		t.Errorf("the pass reported %d removed, and a session went", outcome.Removed)
+	}
+	if !slices.Contains(h.runs.kinds, domain.KindSession) {
+		t.Errorf("the log names %v and not the sessions", h.runs.kinds)
+	}
+}
+
+// Without the wiring the pass does what it did before, the outbox's reasoning: the rows it
+// would have removed are already unusable, so nothing but bookkeeping waits.
+func TestAPassWithoutTheSessionSweepStillRuns(t *testing.T) {
+	h := newRunHarness()
+	h.run.Sessions = nil
+
+	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+		t.Fatalf("a pass without the session sweep failed: %v", err)
+	}
+}
+
 // A pass seeds what the tenant has not decided, reads what it has, and cuts off at the period it
 // found: the whole of "periods are data, not code" in one call (ADR-0020).
 func TestAPassReadsThePeriodAndCutsOffAtIt(t *testing.T) {

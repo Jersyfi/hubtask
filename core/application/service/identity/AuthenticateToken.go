@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -15,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -23,7 +25,9 @@ import (
 // would turn a read path into a write path.
 const LastUsedInterval = 5 * time.Minute
 
-// AuthenticateToken turns a presented personal access token into the actor of the request.
+// AuthenticateToken turns a presented credential into the actor of the request - a personal
+// access token, or since H-01 a session access token, told apart by their public prefixes before
+// either is verified.
 //
 // It authenticates and nothing more. Whether the actor may perform the operation is a separate
 // question, answered by the use case that performs it (ADR-0005) - which is why this returns an
@@ -32,6 +36,17 @@ type AuthenticateToken struct {
 	Tokens     repository.AccessTokens
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Sessions and Signer serve the session path. The signature refuses forgeries before any
+	// database work; the row is read all the same, because "may this account still act" and
+	// "was this session revoked a second ago" are the row's answers - which is what makes
+	// revoking one refuse its pair immediately (H-01's acceptance) while the token stays
+	// verifiable without a lookup wherever only integrity matters.
+	Sessions repository.Sessions
+	Signer   cryptoport.SessionTokenSigner
+	// SessionScopes is what a session-authenticated person may exercise: every scope this build
+	// declares, because a session is the person themselves rather than a bounded credential.
+	// Passed in from the catalogue for AccessTokenWriter.KnownScopes' reason.
+	SessionScopes []string
 }
 
 // AuthenticateTokenCommand carries the presented credential and the preferences resolved from the
@@ -57,6 +72,10 @@ func (a AuthenticateToken) Execute(
 	ctx context.Context,
 	cmd AuthenticateTokenCommand,
 ) (appshared.ActorContext, error) {
+	if strings.HasPrefix(cmd.Credential, identity.SessionAccessTokenPrefix) {
+		return a.executeSession(ctx, cmd)
+	}
+
 	token, err := identity.ParseToken(cmd.Credential)
 	if err != nil {
 		return appshared.ActorContext{}, err
@@ -105,6 +124,78 @@ func (a AuthenticateToken) Execute(
 			AccountName: credential.Account.DisplayName,
 			TokenID:     credential.Token.ID,
 			Scopes:      credential.Token.Scopes,
+			Locale: firstNonEmpty(
+				cmd.RequestedLocale, credential.Account.Locale,
+				credential.TenantLocale, cmd.FallbackLocale),
+			TimeZone: firstNonEmpty(
+				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
+		}
+		return nil
+	})
+	if err != nil {
+		return appshared.ActorContext{}, err
+	}
+	return actor, nil
+}
+
+// executeSession is the session half (H-01). The signature is verified first - a forgery costs
+// no database work - and the row is read second, inside the tenant the signed claims name, which
+// is the only honest source of that context for a bearer credential.
+func (a AuthenticateToken) executeSession(
+	ctx context.Context,
+	cmd AuthenticateTokenCommand,
+) (appshared.ActorContext, error) {
+	claims, err := a.Signer.Validate(cmd.Credential, a.Clock.Now())
+	if err != nil {
+		return appshared.ActorContext{}, err
+	}
+
+	var actor appshared.ActorContext
+	scope := persistence.Scope{TenantID: claims.TenantID}
+
+	// Read-write for AuthenticateToken's reason: the last-seen write rides along.
+	err = a.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		credential, err := a.Sessions.FindForAuth(ctx, claims.SessionID)
+		if err != nil {
+			if errors.Is(err, shared.ErrNotFound) {
+				// The same shape as an unknown PAT: whether a session row exists is exactly what
+				// a probe holding a forged-looking token is trying to learn.
+				return shared.ErrUnauthenticated.WithDetail("access.token_unknown")
+			}
+			return err
+		}
+		if credential.Session.AccountID != claims.AccountID {
+			// The claims were signed, so this cannot happen without a defect - but an
+			// authentication path fails closed rather than trusting its own machinery.
+			return shared.ErrUnauthenticated.WithDetail("access.token_unknown")
+		}
+
+		now := a.Clock.Now()
+		if err := credential.Session.Verify(now); err != nil {
+			return err
+		}
+		if err := credential.Account.Verify(); err != nil {
+			return err
+		}
+
+		if credential.Session.NeedsTouch(now, LastUsedInterval) {
+			if err := a.Sessions.TouchLastSeen(ctx, credential.Session.ID, now); err != nil {
+				// Authenticated either way, AuthenticateToken's reasoning: a bookkeeping column
+				// must not turn into an outage.
+				slog.WarnContext(ctx, "recording the last use of a session failed",
+					slog.String("error", err.Error()))
+			}
+		}
+
+		actor = appshared.ActorContext{
+			Kind:        actorKind(credential.Account.Kind),
+			TenantID:    claims.TenantID,
+			AccountID:   credential.Account.ID,
+			AccountName: credential.Account.DisplayName,
+			// The session stands where a token identifier would: it is the credential of the
+			// request, and the session listing uses it to mark the row that is answering.
+			TokenID: credential.Session.ID,
+			Scopes:  a.SessionScopes,
 			Locale: firstNonEmpty(
 				cmd.RequestedLocale, credential.Account.Locale,
 				credential.TenantLocale, cmd.FallbackLocale),

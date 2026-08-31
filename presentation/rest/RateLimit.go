@@ -244,6 +244,35 @@ func feedTokenInPath(path string) string {
 	return strings.TrimSuffix(strings.TrimPrefix(path, prefix), icsExtension)
 }
 
+// AuthBucket counts per client address, and applies only to the routes where a credential is
+// guessed rather than presented: sign-in, refresh, and the invitation redeemed (T-02,
+// HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE). It stands in front of the attempt ledger, not instead of
+// it - the ledger slows a patient guesser across days, this sheds a fast one before the Argon2id
+// work is even reached.
+func AuthBucket(perMinute, burst int) func(*http.Request) Bucket {
+	return func(r *http.Request) Bucket {
+		if !isAuthRoute(r) {
+			return Bucket{}
+		}
+		return Bucket{Key: ClientAddress(r), Limit: perMinute, Burst: burst}
+	}
+}
+
+// isAuthRoute matches the three public credential routes by their literal paths. A string
+// operation on paths this layer owns, feedTokenInPath's reasoning.
+func isAuthRoute(r *http.Request) bool {
+	if r.Method != http.MethodPost {
+		return false
+	}
+	switch r.URL.Path {
+	case APIBasePath + "/auth/sessions",
+		APIBasePath + "/auth/sessions:refresh",
+		APIBasePath + "/auth/invitations:redeem":
+		return true
+	}
+	return false
+}
+
 // TenantBucket counts per tenant, so that one busy token cannot spend a whole tenant's budget and
 // one busy tenant cannot spend the installation's. It applies only once authentication has run.
 func TenantBucket(perMinute, burst int) func(*http.Request) Bucket {
