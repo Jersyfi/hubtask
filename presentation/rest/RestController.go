@@ -59,6 +59,11 @@ type RestController struct {
 	// relative address, which is what a client that just called this server can still use.
 	BaseURL string
 
+	// BaseHost is the installation's own host name, for reading a tenant subdomain off a
+	// multi-mode sign-in request (H-01, multi-tenancy.md §3). Empty means no subdomain is ever
+	// read, which is single mode's and localhost's answer.
+	BaseHost string
+
 	// CalendarFeeds serves the public .ics route, which is not a catalogue entry either: it
 	// answers a credential nobody in this system holds, and there is nothing for MCP or an
 	// automation rule to call (D-08). Nil leaves the route answering the pending 404.

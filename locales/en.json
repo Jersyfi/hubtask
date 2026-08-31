@@ -1013,6 +1013,7 @@
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",
   "config.backup_single_target": "There is only one backup target. Two, in different places, is the point of the 3-2-1 rule.",
 
+  "crypto.password_hash_unreadable": "The stored password hash could not be read. This is a defect in the installation, not in the request.",
   "crypto.no_encryption_key": "This installation has no encryption key configured, so it cannot store that securely. Set HUBTASK_ENCRYPTION_KEYS.",
   "crypto.unknown_key": "This installation no longer holds the key {key_id} that value was encrypted with.",
   "crypto.not_authentic": "That value could not be decrypted. Either the key is not the one it was encrypted with, or the value has been altered.",

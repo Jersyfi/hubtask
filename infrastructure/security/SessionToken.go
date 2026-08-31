@@ -14,6 +14,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	port "github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
@@ -30,16 +31,6 @@ const sessionTokenTagLength = 16
 // uuidLength is the canonical 8-4-4-4-12 form the three identifiers travel in.
 const uuidLength = 36
 
-// SessionTokenClaims is what a verified access token says: which session is speaking, for which
-// account, in which tenant. The values are only ever returned after the tag has been verified,
-// so a caller cannot be handed a tenant nobody signed for.
-type SessionTokenClaims struct {
-	TenantID  shared.ID
-	SessionID shared.ID
-	AccountID shared.ID
-	ExpiresAt time.Time
-}
-
 // SessionTokenIssuer signs the access half of the pair (H-01, security.md §5): fifteen minutes,
 // verified by its signature without a database read - the same discipline every cursor and feed
 // token already follows. What the signature does not answer - is the session still alive, may the
@@ -47,6 +38,8 @@ type SessionTokenClaims struct {
 type SessionTokenIssuer struct {
 	key []byte
 }
+
+var _ port.SessionTokenSigner = SessionTokenIssuer{}
 
 // NewSessionTokenIssuer derives the signing key from the installation secret, under this token's
 // own label.
@@ -62,7 +55,7 @@ func NewSessionTokenIssuer(installationSecret secret.Secret) SessionTokenIssuer 
 // bearer route has nothing else that could say which tenant to open the transaction as, and a
 // value read from a header would be a way around row level security. Swapping any of it
 // invalidates the tag.
-func (i SessionTokenIssuer) Issue(claims SessionTokenClaims) string {
+func (i SessionTokenIssuer) Issue(claims port.SessionClaims) string {
 	payload := i.payload(claims)
 
 	mac := hmac.New(sha256.New, i.key)
@@ -81,19 +74,19 @@ func (i SessionTokenIssuer) Issue(claims SessionTokenClaims) string {
 // Validate judges a presented token. A forgery of any kind is one indistinguishable answer, for
 // the reason a page cursor's is; expiry is the one distinguished refusal, because an expired
 // token is one this server really minted and "refresh" is actionable where "invalid" is not.
-func (i SessionTokenIssuer) Validate(presented string, now time.Time) (SessionTokenClaims, error) {
+func (i SessionTokenIssuer) Validate(presented string, now time.Time) (port.SessionClaims, error) {
 	body, found := strings.CutPrefix(presented, identity.SessionAccessTokenPrefix)
 	if !found {
-		return SessionTokenClaims{}, errSessionTokenInvalid()
+		return port.SessionClaims{}, errSessionTokenInvalid()
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(body)
 	if err != nil || len(raw) != sessionTokenTagLength+8+3*uuidLength {
-		return SessionTokenClaims{}, errSessionTokenInvalid()
+		return port.SessionClaims{}, errSessionTokenInvalid()
 	}
 
 	expiry := int64(binary.BigEndian.Uint64(raw[sessionTokenTagLength : sessionTokenTagLength+8])) //nolint:gosec // G115: the value was written by Issue
 	ids := raw[sessionTokenTagLength+8:]
-	claims := SessionTokenClaims{
+	claims := port.SessionClaims{
 		TenantID:  shared.ID(ids[:uuidLength]),
 		SessionID: shared.ID(ids[uuidLength : 2*uuidLength]),
 		AccountID: shared.ID(ids[2*uuidLength:]),
@@ -103,15 +96,15 @@ func (i SessionTokenIssuer) Validate(presented string, now time.Time) (SessionTo
 	mac := hmac.New(sha256.New, i.key)
 	mac.Write(i.payload(claims))
 	if !hmac.Equal(raw[:sessionTokenTagLength], mac.Sum(nil)[:sessionTokenTagLength]) {
-		return SessionTokenClaims{}, errSessionTokenInvalid()
+		return port.SessionClaims{}, errSessionTokenInvalid()
 	}
 	if now.Unix() > expiry {
-		return SessionTokenClaims{}, shared.ErrUnauthenticated.WithDetail("access.token_expired")
+		return port.SessionClaims{}, shared.ErrUnauthenticated.WithDetail("access.token_expired")
 	}
 	return claims, nil
 }
 
-func (i SessionTokenIssuer) payload(claims SessionTokenClaims) []byte {
+func (i SessionTokenIssuer) payload(claims port.SessionClaims) []byte {
 	return []byte(claims.TenantID.String() + "\x00" + claims.SessionID.String() + "\x00" +
 		claims.AccountID.String() + "\x00" + strconv.FormatInt(claims.ExpiresAt.Unix(), 10))
 }

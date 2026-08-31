@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -769,6 +770,30 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
+	// The sign-in flow (H-01). One dependency set for AccessTokenWriter's reason: the rules
+	// about one credential pair belong in one place. Argon2id lives behind the port; its
+	// construction draws the decoy, and a process that cannot draw randomness must not start.
+	passwords, err := crypto.NewPasswords(clockadapter.CryptoRandom{})
+	if err != nil {
+		return fmt.Errorf("password hasher: %w", err)
+	}
+	sessionSigner := security.NewSessionTokenIssuer(cfg.SecretKey)
+	sessions := postgres.NewSessionRepository()
+	signInStore := postgres.NewSignInRepository(
+		security.NewRedemptionTokenHasher(cfg.SecretKey),
+		security.NewAuthAttemptHasher(cfg.SecretKey))
+	sessionWriter := identity.SessionWriter{
+		Accounts: signInStore,
+		Sessions: sessions,
+		Refresh:  postgres.NewRefreshTokenRepository(security.NewSessionRefreshHasher(cfg.SecretKey)),
+		Attempts: signInStore, Tenants: signInStore,
+		Passwords: passwords, Signer: sessionSigner,
+		Audit: auditSink, Signals: metrics,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{},
+		Multi:   cfg.Tenancy == envport.TenancyMulti,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -799,6 +824,8 @@ func run() error {
 			Groups: groups, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.SignIn{Writer: sessionWriter}.Descriptor(),
+		identity.RefreshSession{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
@@ -1213,6 +1240,12 @@ func run() error {
 		// The address a calendar client is handed. Configured rather than taken from the
 		// request's Host, so that one caller cannot decide what the next person's client stores.
 		controller.BaseURL = cfg.BaseURL
+		// The host alone, for reading a tenant subdomain off a multi-mode sign-in (H-01,
+		// multi-tenancy.md §3). An unreadable base URL means no subdomain is ever read, which
+		// fails closed into "no workspace answers here" rather than into a guess.
+		if parsed, urlErr := url.Parse(cfg.BaseURL); urlErr == nil {
+			controller.BaseHost = strings.ToLower(parsed.Hostname())
+		}
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
 		// system holds, and every question it asks is asked inwards of the controller (D-08).
 		controller.CalendarFeeds = work.ReadCalendarFeed{
@@ -1299,6 +1332,12 @@ func run() error {
 			Tokens:     postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
 			UnitOfWork: unitOfWork,
 			Clock:      clockadapter.System{},
+			// The session half (H-01): the signature refuses forgeries before any lookup, the
+			// row answers whether the session is still alive. A session carries every declared
+			// scope, because it is the person rather than a bounded credential.
+			Sessions:      sessions,
+			Signer:        sessionSigner,
+			SessionScopes: catalogue.Scopes(),
 		}
 
 		// One limiter, two levels: per credential or client address before authentication, per
@@ -1358,30 +1397,41 @@ func run() error {
 								cfg.RateLimit.AnonymousPerMinute,
 								cfg.RateLimit.TokenPerMinute,
 								cfg.RateLimit.Burst),
-							// The feed's own bucket, in front of the lookup rather than behind it:
-							// a subscription polls, and one client polling hard must not shed the
-							// calendar of somebody else behind the same address (D-08, T-21). It
-							// applies to that one route and passes everything else through.
+							// The auth bucket (T-02): stricter than the anonymous budget, on the
+							// three routes where a credential is guessed rather than presented.
+							// In front of the ledger and the Argon2id work, so a fast guesser is
+							// shed before either is reached. It applies to those routes and
+							// passes everything else through.
 							Next: rest.Limited{
 								Limiter: limiter,
-								Level:   "feed",
-								Bucket: rest.FeedBucket(
-									cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
-								Next: rest.Localised{
-									Locale: cfg.Locale,
-									Next: rest.Authenticated{
-										Routes:        apiRoutes,
-										Authenticator: authenticate,
-										Locale:        cfg.Locale,
-										Next: rest.Limited{
-											Limiter: limiter,
-											Level:   "tenant",
-											Bucket: rest.TenantBucket(
-												cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-											Next: rest.Idempotent{
-												Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-												Routes: apiRoutes,
-												Next:   apiRoutes,
+								Level:   "auth",
+								Bucket: rest.AuthBucket(
+									cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
+								// The feed's own bucket, in front of the lookup rather than
+								// behind it: a subscription polls, and one client polling hard
+								// must not shed the calendar of somebody else behind the same
+								// address (D-08, T-21).
+								Next: rest.Limited{
+									Limiter: limiter,
+									Level:   "feed",
+									Bucket: rest.FeedBucket(
+										cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
+									Next: rest.Localised{
+										Locale: cfg.Locale,
+										Next: rest.Authenticated{
+											Routes:        apiRoutes,
+											Authenticator: authenticate,
+											Locale:        cfg.Locale,
+											Next: rest.Limited{
+												Limiter: limiter,
+												Level:   "tenant",
+												Bucket: rest.TenantBucket(
+													cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+												Next: rest.Idempotent{
+													Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+													Routes: apiRoutes,
+													Next:   apiRoutes,
+												},
 											},
 										},
 									},

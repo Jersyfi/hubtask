@@ -10,12 +10,13 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	port "github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 var (
 	sessionTokenNow = time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
-	sessionClaims   = SessionTokenClaims{
+	sessionClaims   = port.SessionClaims{
 		TenantID:  shared.ID("0192f000-0000-7000-8000-000000000001"),
 		SessionID: shared.ID("0192f000-0000-7000-8000-000000000002"),
 		AccountID: shared.ID("0192f000-0000-7000-8000-000000000003"),

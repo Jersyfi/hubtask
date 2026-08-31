@@ -64,6 +64,7 @@ type Metrics struct {
 	streamDuration    metric.Float64Histogram
 	streamRefused     metric.Int64Counter
 	streamRecords     metric.Int64Counter
+	authFailures      metric.Int64Counter
 	tenantLabelActive bool
 }
 
@@ -250,6 +251,12 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"Data subject requests reported at each pass of the deadline watch, by stage."),
 	); err != nil {
 		return fmt.Errorf("data subject deadline counter: %w", err)
+	}
+	if m.authFailures, err = meter.Int64Counter(
+		namespace+"_auth_failures_total",
+		metric.WithDescription("Refused sign-in and refresh attempts, by reason. refresh_reused is A-15's second half: a rotated refresh token presented again means two holders of one credential."),
+	); err != nil {
+		return fmt.Errorf("auth failure counter: %w", err)
 	}
 	if err := m.retentionInstruments(meter); err != nil {
 		return err
@@ -508,6 +515,12 @@ func (m *Metrics) retentionInstruments(meter metric.Meter) error {
 		return fmt.Errorf("retention run histogram: %w", err)
 	}
 	return nil
+}
+
+// AuthFailure counts one refused sign-in or refresh attempt, by reason. The reasons are the
+// closed set the identity service declares - never a subject, never an address (§3.2, rule 10).
+func (m *Metrics) AuthFailure(ctx context.Context, reason string) {
+	m.authFailures.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
 }
 
 // RetentionDeleted counts what a pass removed. Written even when it is zero: a counter that has
