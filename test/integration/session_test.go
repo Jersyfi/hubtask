@@ -605,3 +605,109 @@ func TestTheSessionSweepStaysInsideTheTenantAndTakesOnlyTheOver(t *testing.T) {
 		t.Errorf("%d survivors, want B's row and the still-live one untouched", left)
 	}
 }
+
+// ====================== The step-up (repository.StepUps, H-03) ======================
+
+// Gate SG-3: Record and Consume - the proof is bound to its tenant, burns once, and expires by
+// the clock, all decided in the one UPDATE.
+func TestAStepUpProofBurnsOnceAndOnlyInItsTenant(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	stepUps := postgres.NewStepUpRepository(
+		security.NewStepUpTokenHasher(secret.New(installationSecret)))
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	now := time.Now().UTC()
+
+	// Sessions of this test's own, because the suite's shared rows are revoked by other tests
+	// and a step-up only ever lands on a live session.
+	stepUpSessionA := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000e7")
+	stepUpSessionB := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000e8")
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO session (id, tenant_id, account_id, created_at, expires_at)
+		VALUES
+			($1, $3, $5, now(), now() + interval '30 days'),
+			($2, $4, $6, now(), now() + interval '30 days')
+		ON CONFLICT (id) DO NOTHING`,
+		stepUpSessionA.String(), stepUpSessionB.String(),
+		tenantA.String(), tenantB.String(),
+		sessionAccountA.String(), sessionAccountB.String()); err != nil {
+		t.Fatalf("seeding sessions: %v", err)
+	}
+
+	presented, err := identity.NewStepUpToken(tenantA, sessionSecretOf(0xE5))
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		landed, err := stepUps.Record(ctx, stepUpSessionA, sessionAccountA, presented,
+			identity.StepUpPassword, now)
+		if err != nil || !landed {
+			t.Fatalf("recording (%v, %v)", landed, err)
+		}
+		// Somebody else's session refuses the landing.
+		landed, err = stepUps.Record(ctx, stepUpSessionB, sessionAccountB, presented,
+			identity.StepUpPassword, now)
+		if err != nil || landed {
+			t.Fatalf("another tenant's session took a proof (%v, %v)", landed, err)
+		}
+		return nil
+	})
+
+	// The rewritten-tenant probe: the same secret quoting tenant B matches nothing.
+	rewritten, err := identity.NewStepUpToken(tenantB, sessionSecretOf(0xE5))
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	inTenant(t, uow, tenantB, func(ctx context.Context) error {
+		_, consumed, err := stepUps.Consume(ctx, rewritten, sessionAccountA,
+			now.Add(-time.Minute), now)
+		if err != nil || consumed {
+			t.Errorf("a rewritten proof consumed (%v, %v)", consumed, err)
+		}
+		return nil
+	})
+
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		// The wrong account is nobody.
+		_, consumed, err := stepUps.Consume(ctx, presented, sessionAccountB,
+			now.Add(-time.Minute), now)
+		if err != nil || consumed {
+			t.Fatalf("another account consumed the proof (%v, %v)", consumed, err)
+		}
+		// The holder's, once, with the method for the trail.
+		method, consumed, err := stepUps.Consume(ctx, presented, sessionAccountA,
+			now.Add(-time.Minute), now)
+		if err != nil || !consumed {
+			t.Fatalf("the first consumption answered (%v, %v)", consumed, err)
+		}
+		if method != identity.StepUpPassword {
+			t.Errorf("method %q, want PASSWORD", method)
+		}
+		// Never twice: a consumed step-up does not cover a second privileged action.
+		_, consumed, err = stepUps.Consume(ctx, presented, sessionAccountA,
+			now.Add(-time.Minute), now)
+		if err != nil || consumed {
+			t.Fatalf("the second consumption answered (%v, %v)", consumed, err)
+		}
+		return nil
+	})
+
+	// A fresh proof presented after the window is stale by the clock.
+	fresh, err := identity.NewStepUpToken(tenantA, sessionSecretOf(0xE6))
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		if _, err := stepUps.Record(ctx, stepUpSessionA, sessionAccountA, fresh,
+			identity.StepUpTotp, now.Add(-10*time.Minute)); err != nil {
+			t.Fatalf("recording: %v", err)
+		}
+		_, consumed, err := stepUps.Consume(ctx, fresh, sessionAccountA,
+			now.Add(-5*time.Minute), now)
+		if err != nil || consumed {
+			t.Errorf("a stale proof consumed (%v, %v)", consumed, err)
+		}
+		return nil
+	})
+}

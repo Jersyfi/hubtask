@@ -312,12 +312,13 @@ Four things E-06 had to decide about the table above:
 
 Three of those steps are worth pinning down as E-06 implemented them:
 
-* **Step 3's step-up has no implementation and is refused rather than skipped.** Sessions and
-  multi-factor authentication are `0.6.0` ([security.md](./security.md) §5). The seam is defined —
-  `core/port/stepup` — and the shipped verifier answers "this installation cannot ask anybody", so
-  every destructive restore is refused with a code that says which of the two refusals it is. A
-  confirmation that is structurally impossible to give is a stronger position than one that is
-  skipped, and the code tells an operator to import the archive as a new workspace instead.
+* **Step 3's step-up is implemented since H-03** ([security.md](./security.md) §5). The seam E-06
+  cut — `core/port/stepup` — is filled by a verifier that judges a fresh re-authentication on the
+  current session, recorded there, valid for `HUBTASK_STEP_UP_WINDOW` and consumed by the one
+  restore it is presented to. A destructive mode without the proof answers `403` with
+  `auth.step_up_required` and the accepted methods; the "nothing here can prove it" refusal of
+  E-06 died with the verifier that made a step-up satisfiable, and the fail-closed rule survives
+  it — an unwired verifier still refuses rather than permits, kept by the tombstone test.
 * **Step 4 is a refusal when there is nowhere to write the copy.** The step's own parenthesis is
   "if there is room at the target"; a destructive restore with no way back is the situation it
   exists to prevent, so "there was nowhere to write it" stops the restore rather than waiving the
