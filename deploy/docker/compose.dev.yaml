@@ -16,7 +16,9 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hubtask -d hubtask"]
+      # -h for the reason compose.yaml gives: without it the probe answers from the socket
+      # that initdb's temporary server listens on, before anything answers over the network.
+      test: ["CMD-SHELL", "pg_isready -U hubtask -d hubtask -h 127.0.0.1"]
       interval: 5s
       timeout: 5s
       retries: 10

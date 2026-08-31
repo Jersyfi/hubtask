@@ -63,7 +63,10 @@ spec:
               value: /var/lib/postgresql/data/pgdata
           ports: [{ containerPort: 5432 }]
           readinessProbe:
-            exec: { command: ["pg_isready", "-U", "hubtask"] }
+            # Over TCP, for the reason deploy/docker/compose.yaml gives: a probe on the unix
+            # socket turns green while initdb's temporary server is up and nothing answers
+            # on 5432 yet.
+            exec: { command: ["pg_isready", "-U", "hubtask", "-d", "hubtask", "-h", "127.0.0.1"] }
             initialDelaySeconds: 5
             periodSeconds: 5
           volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]

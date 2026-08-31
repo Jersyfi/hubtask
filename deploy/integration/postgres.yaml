@@ -79,8 +79,12 @@ spec:
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           readinessProbe:
+            # Over TCP: readiness is the promise that a client on the network can connect, and
+            # during initdb the socket answers while port 5432 does not (#119). Liveness below
+            # stays on the socket deliberately - it asks whether the process is alive, and a
+            # momentary network answer is not a reason to restart a database.
             exec:
-              command: ["pg_isready", "-U", "hubtask", "-d", "hubtask"]
+              command: ["pg_isready", "-U", "hubtask", "-d", "hubtask", "-h", "127.0.0.1"]
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5

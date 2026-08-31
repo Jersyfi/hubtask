@@ -13,7 +13,13 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hubtask}"]
+      # Over TCP (-h), which is the whole point rather than a detail. While initdb runs, the
+      # entrypoint starts a temporary server that listens on the unix socket alone; a probe
+      # without -h reaches that one, reports ready, and `migrate` - which connects over the
+      # network - gets "connection refused" from a port nothing is listening on yet. The
+      # migration then never grants hubtask_app its login and the app fails authenticating,
+      # which is how one race arrives looking like a credential defect (#119).
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hubtask} -d ${POSTGRES_DB:-hubtask} -h 127.0.0.1"]
       interval: 10s
       timeout: 5s
       retries: 10
