@@ -82,7 +82,10 @@ func startMinIO(t *testing.T) string {
 			},
 			Cmd:          []string{"server", "/data"},
 			ExposedPorts: []string{"9000/tcp"},
-			WaitingFor: wait.ForHTTP("/minio/health/ready").
+			// `cluster` rather than `ready`, for the reason spelled out in
+			// test/integration/storage_conformance_test.go: `ready` promises an initialized
+			// node, `cluster` promises write quorum, and `mc mb` below is a write.
+			WaitingFor: wait.ForHTTP("/minio/health/cluster").
 				WithPort("9000/tcp").WithStartupTimeout(2 * time.Minute),
 		},
 		Started: true,
