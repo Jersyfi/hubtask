@@ -141,7 +141,7 @@ func TestNewSessionRefusesAnIncompleteIdentity(t *testing.T) {
 
 func TestSessionVerify(t *testing.T) {
 	live := Session{
-		ID: shared.ID("0192f000-0000-7000-8000-00000000000a"),
+		ID:        shared.ID("0192f000-0000-7000-8000-00000000000a"),
 		CreatedAt: sessionNow, ExpiresAt: sessionNow.Add(time.Hour),
 	}
 
@@ -237,10 +237,11 @@ func TestLockoutDelayCurve(t *testing.T) {
 
 // T-02: the generic refusal is one answer byte for byte, however the sign-in failed.
 func TestTheGenericRefusalIsOneAnswer(t *testing.T) {
-	if ErrSignInFailed().Error() != ErrSignInFailed().Error() {
+	first, second := ErrSignInFailed(), ErrSignInFailed()
+	if first.Error() != second.Error() {
 		t.Error("two generic refusals differ")
 	}
-	if !errors.Is(ErrSignInFailed(), shared.ErrUnauthenticated) {
+	if !errors.Is(first, shared.ErrUnauthenticated) {
 		t.Error("the refusal is not an authentication refusal")
 	}
 }

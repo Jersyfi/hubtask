@@ -32,16 +32,26 @@ const (
 // RefreshTokenPrefix and RedemptionTokenPrefix mark the two stored credentials of the sign-in
 // flow, with TokenPrefix's reasoning: fixed and public so secret scanning finds a pasted one, and
 // carrying the tenant because the lookup needs a context before it can happen.
+//
+//nolint:gosec // G101: public format markers, not credentials - the secret is what follows them
 const (
 	RefreshTokenPrefix    = "hbt_srt_"
 	RedemptionTokenPrefix = "hbt_inv_"
 )
 
+// SessionAccessTokenPrefix marks the signed access half of the pair. Public for the scanning
+// reason the others are; unlike them it is never stored - the token verifies by its signature,
+// and the prefix is how the bearer middleware tells it from a personal access token before
+// either is verified.
+const SessionAccessTokenPrefix = "hbt_sat_" //nolint:gosec // G101: a public format marker, not a credential
+
 // ParseRefreshToken and ParseRedemptionToken read a presented credential of their shape. Shape
 // only, ParseToken's discipline: every failure is one indistinguishable error, because the format
 // is the one part an attacker does not have to guess at.
-func ParseRefreshToken(raw string) (Token, error)    { return parsePrefixed(raw, RefreshTokenPrefix) }
-func ParseRedemptionToken(raw string) (Token, error) { return parsePrefixed(raw, RedemptionTokenPrefix) }
+func ParseRefreshToken(raw string) (Token, error) { return parsePrefixed(raw, RefreshTokenPrefix) }
+func ParseRedemptionToken(raw string) (Token, error) {
+	return parsePrefixed(raw, RedemptionTokenPrefix)
+}
 
 // NewRefreshToken and NewRedemptionToken build a credential from freshly drawn randomness. The
 // bytes come from the caller, because the domain draws nothing itself (rule 4).
