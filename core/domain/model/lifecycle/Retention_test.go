@@ -56,14 +56,15 @@ func TestTheDefaultsAreOnePerKindTheEngineSweeps(t *testing.T) {
 		seen[policy.DataKind] = true
 	}
 	for _, swept := range []lifecycle.DataKind{
-		lifecycle.KindTrash, lifecycle.KindNotification,
+		lifecycle.KindTrash, lifecycle.KindNotification, lifecycle.KindOutboxEvent,
+		lifecycle.KindJumbleEntry,
 	} {
 		if !seen[swept] {
 			t.Errorf("%s is swept and has no default period", swept)
 		}
 	}
-	if len(seen) != 2 {
-		t.Errorf("%d kinds have defaults, want the two the engine sweeps", len(seen))
+	if len(seen) != 4 {
+		t.Errorf("%d kinds have defaults, want the four the engine sweeps", len(seen))
 	}
 }
 

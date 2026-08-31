@@ -54,6 +54,34 @@ func Invite(id shared.ID, tenantID shared.ID, email string, displayName string) 
 	}, nil
 }
 
+// NewServiceAccount produces an account that exists only to be acted through: an integration, a
+// script, a rule that has to keep running after the person who wrote it has left.
+//
+// Three things are deliberately different from an invitation. There is no address, because there
+// is nobody to write to and no mailbox to prove control of. There is no INVITED step, for the
+// same reason - nothing is waiting to be accepted, so the account is active from the moment it
+// exists. And the display name is required rather than derived: an invitation can fall back on
+// the local part of an address, and this has none, so a service account with no name would appear
+// nameless beside every action it takes in the audit trail.
+func NewServiceAccount(id shared.ID, tenantID shared.ID, displayName string) (Account, error) {
+	if id.IsZero() || tenantID.IsZero() {
+		return Account{}, shared.ErrInternal.WithDetail("accounts.identity_incomplete")
+	}
+
+	name, err := accountDisplayName(displayName, "")
+	if err != nil {
+		return Account{}, err
+	}
+
+	return Account{
+		ID:          id,
+		TenantID:    tenantID,
+		Kind:        AccountServiceAccount,
+		DisplayName: name,
+		Status:      AccountActive,
+	}, nil
+}
+
 // emailAddress normalises and checks an address.
 //
 // The check is deliberately structural rather than a full RFC 5322 parse: the only proof that an

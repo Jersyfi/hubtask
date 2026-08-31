@@ -116,8 +116,10 @@ func (o *objects) MarkDeleted(_ context.Context, id shared.ID, at time.Time) (bo
 	o.marked = append(o.marked, id)
 	return true, nil
 }
-func (o *objects) Recount(context.Context) error { return nil }
-func (o *objects) MarkOrphans(context.Context, time.Time, time.Time) (int, error) {
+func (o *objects) Recount(context.Context, time.Time) error { return nil }
+func (o *objects) MarkOrphans(
+	context.Context, time.Time, repository.Thresholds,
+) (int, error) {
 	return 0, nil
 }
 func (o *objects) TakeOrphans(context.Context, time.Time, int) ([]repository.Orphan, error) {

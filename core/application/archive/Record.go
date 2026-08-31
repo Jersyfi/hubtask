@@ -498,11 +498,17 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// §8.4, in as many words: no tokens or sessions are restored. Making credentials from an
 	// archive valid again is a security risk, and the archive is the easier of the two places to
 	// steal them from.
-	"access_token": "§8.4 - a restore does not make old credentials valid again",
-	"sync_device":  "a device registration carries a push token, and §8.4's reasoning covers it",
+	"access_token":  "§8.4 - a restore does not make old credentials valid again",
+	"sync_device":   "a device registration carries a push token, and §8.4's reasoning covers it",
+	"jumble_intake": "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being
 	// replayed without firing anything, which is a record of things that did not happen.
-	"rule_run":          "§8.4 - no automation fires during a restore, so its run log would be fiction",
+	"rule_run": "§8.4 - no automation fires during a restore, so its run log would be fiction",
+	// The moments the relative-date rules owe (G-08). Derived from the entries and the rules, both
+	// of which the archive carries, and every one of them is a moment in the *source* system's
+	// future - a restore months later would owe a night that has long passed. The rules themselves
+	// are restored; what they owe is worked out again from the anchors, as it always is.
+	"rule_occurrence":   "§8.4 - a debt owed at a moment in the source system's future; the rules are restored, what they owe is recomputed",
 	"webhook_delivery":  "§8.4 - nothing is re-delivered",
 	"outbox_event":      "§8.4 - the archive's outbox is not imported",
 	"event_consumption": "the outbox's companion; without the outbox it says nothing",

@@ -192,6 +192,7 @@ CREATE TABLE access_token (
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX access_token_hash_uq ON access_token (token_hash);
+CREATE INDEX access_token_account_idx ON access_token (tenant_id, account_id, created_at DESC);
 
 -- ============================ Work Management ==============================
 
@@ -510,13 +511,21 @@ CREATE TABLE media_object (
   checksum    text,
   usage       text NOT NULL CHECK (usage IN ('COVER','ATTACHMENT','IMPORT','EXPORT')),
   ref_count   integer NOT NULL DEFAULT 0,
-  created_by  uuid NOT NULL,
+  -- NULL where nobody uploaded it: a mail attachment arrives over an intake that authenticates the
+  -- tenant and no person, and an account here would be an uploader this system invented
+  -- (migration 0061, G-11).
+  created_by  uuid,
   created_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
   -- The upload life (C-06, migration 0013): PENDING between staging and confirmation, READY once
   -- the bytes were read back, judged and sealed. Fail-closed default.
   status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY')),
-  file_name   text
+  file_name   text,
+  -- Since when nothing has pointed at this object, NULL while something does (migration 0051).
+  -- The recount maintains it, and the sweep waits it out before marking: an object is at
+  -- ref_count = 0 between its confirmation and the first thing that uses it, and that window is
+  -- not evidence of anything.
+  unreferenced_since timestamptz
 );
 CREATE UNIQUE INDEX media_object_tenant_id_uq ON media_object (tenant_id, id);
 CREATE INDEX media_object_reconcile_idx ON media_object (tenant_id, status, ref_count, created_at);
@@ -640,6 +649,15 @@ CREATE TABLE jumble_entry (
 );
 CREATE INDEX jumble_status_idx ON jumble_entry (tenant_id, status, received_at DESC);
 
+-- The jumble's webhook intake (G-10, migration 0060): one token-protected address per tenant,
+-- stored as a hash under the intake's own purpose label. Rotating replaces it in one statement.
+CREATE TABLE jumble_intake (
+  tenant_id  uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  token_hash bytea NOT NULL,
+  rotated_at timestamptz NOT NULL
+);
+CREATE UNIQUE INDEX jumble_intake_token_uq ON jumble_intake (token_hash);
+
 CREATE TABLE auto_assign_policy (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -676,29 +694,92 @@ CREATE TABLE automation_rule (
   updated_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
   version     integer NOT NULL DEFAULT 1,
+  -- When a SCHEDULE rule next fires (G-08, migration 0055). NULL for the five triggers that are
+  -- not a schedule, and for a schedule whose rule is exhausted.
+  next_run_at timestamptz,
+  -- The address an INBOUND_WEBHOOK rule answers on (G-08, migration 0057). D-08's discipline: the
+  -- token is hashed, answered once, and revoked by rotating; the moment is the only thing about
+  -- it a listing may show.
+  inbound_token_hash bytea,
+  inbound_rotated_at timestamptz,
   CONSTRAINT automation_rule_run_as_fkey
     FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
 );
 CREATE UNIQUE INDEX automation_rule_tenant_id_uq ON automation_rule (tenant_id, id);
 CREATE INDEX rule_trigger_idx ON automation_rule (tenant_id, enabled)
   WHERE deleted_at IS NULL;
+-- What the dispatcher asks per event (G-07, migration 0053): the enabled rules whose trigger is
+-- this event type. An expression index, because the trigger is a document - which is the right
+-- shape, and this is what the shape costs.
+CREATE INDEX rule_event_trigger_idx
+  ON automation_rule (tenant_id, (trigger ->> 'kind'), (trigger ->> 'event_type'))
+  WHERE deleted_at IS NULL AND enabled = true;
+-- What the schedule pass asks: which of this tenant's rules are due. `backup_schedule_due_idx`'s
+-- shape, because it is the same question - the tenant predicate is row level security's.
+CREATE INDEX automation_rule_due_idx ON automation_rule (next_run_at)
+  WHERE enabled AND deleted_at IS NULL AND next_run_at IS NOT NULL;
+-- The lookup the unauthenticated inbound route makes. Unique across the installation, so a token
+-- rewritten to quote another tenant matches nothing at all.
+CREATE UNIQUE INDEX automation_rule_inbound_token_uq ON automation_rule (inbound_token_hash)
+  WHERE inbound_token_hash IS NOT NULL;
 
 CREATE TABLE rule_run (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   rule_id      uuid NOT NULL,
   event_id     uuid,
-  status       text NOT NULL CHECK (status IN ('RUNNING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
+  -- What started the run (G-08, migration 0054). On the run rather than read back from the rule,
+  -- because a rule can be edited from one kind into another and a log that resolved the kind at
+  -- read time would rewrite its own history.
+  trigger      text NOT NULL DEFAULT 'EVENT',
+  -- Who pulled it, for the one kind a person pulls. No foreign key: a run has to outlive the
+  -- account that started it, exactly as it outlives the rule it belongs to.
+  triggered_by uuid,
+  -- The entry the run is about when no event names it - a RELATIVE_DATE run measured from one
+  -- entry's due date.
+  subject_id   uuid,
+  -- 'WAITING' is a run parked on a WAIT action (G-09, migration 0058): its results so far are
+  -- written and a scheduled job holds the resume point. Its own status, because a row left in
+  -- RUNNING is how a crash is recognised.
+  status       text NOT NULL CHECK (status IN ('RUNNING','WAITING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
   condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
   action_results    jsonb NOT NULL DEFAULT '[]'::jsonb,
+  -- What made this run one occurrence (G-09, migration 0059): the idempotency key's middle third,
+  -- kept so a replay can complete a half-finished run around the keys its actions claimed. NULL
+  -- on rows written before the column existed.
+  occasion     text,
   error_code   text,
   started_at   timestamptz NOT NULL DEFAULT now(),
   finished_at  timestamptz,
   causation_depth integer NOT NULL DEFAULT 0,
   CONSTRAINT rule_run_rule_id_fkey
-    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE
+    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT rule_run_trigger_check
+    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY'))
 );
 CREATE INDEX rule_run_idx ON rule_run (tenant_id, rule_id, started_at DESC);
+-- What the run listing's trigger filter asks: this tenant's runs of one kind, newest first.
+CREATE INDEX rule_run_trigger_idx ON rule_run (tenant_id, trigger, id DESC);
+
+-- What a RELATIVE_DATE rule owes for one entry, and when (G-08, migration 0056). D-02's shape
+-- rather than a new one: `reminder` has carried "this entry, this moment" since phase 0, and a
+-- relative-date rule is the same fact with a rule in place of a person.
+CREATE TABLE rule_occurrence (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  rule_id    uuid NOT NULL,
+  item_id    uuid NOT NULL,
+  fire_at    timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT rule_occurrence_rule_id_fkey
+    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT rule_occurrence_item_id_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+-- One moment per rule per entry: a rule that owed two would fire twice for one deadline, and the
+-- upsert that keeps the moment in step with the anchor conflicts on this.
+CREATE UNIQUE INDEX rule_occurrence_uq ON rule_occurrence (tenant_id, rule_id, item_id);
+CREATE INDEX rule_occurrence_due_idx ON rule_occurrence (tenant_id, fire_at);
 
 -- ============================== Integration ================================
 
@@ -711,6 +792,20 @@ CREATE TABLE webhook_subscription (
   secret_enc    bytea NOT NULL,
   state         text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE','PAUSED','DISABLED')),
   failure_count integer NOT NULL DEFAULT 0,
+  -- The key a sealed value opens under. An installation that has rotated its keyring holds
+  -- several, so the ciphertext alone is not enough (E-02).
+  secret_key_id         text,
+  -- The rotation grace (G-03): one previous secret, verifying until this moment. A pair rather
+  -- than a table, because a history of retired secrets is a history of values that must not be
+  -- readable.
+  previous_secret_enc    bytea,
+  previous_secret_key_id text,
+  previous_secret_until  timestamptz,
+  -- The message code of the last failure, never a response body from the target (rule 10).
+  last_error    text,
+  -- When unreachability disabled it. Separate from the state, which goes back to ACTIVE on a
+  -- re-enable and then cannot say when the trouble was.
+  disabled_at   timestamptz,
   created_by    uuid NOT NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
   version       integer NOT NULL DEFAULT 1
@@ -732,6 +827,7 @@ CREATE TABLE webhook_delivery (
     FOREIGN KEY (tenant_id, subscription_id) REFERENCES webhook_subscription (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX delivery_retry_idx ON webhook_delivery (tenant_id, status, next_attempt_at);
+CREATE INDEX webhook_delivery_subscription_idx ON webhook_delivery (tenant_id, subscription_id, created_at DESC, id DESC);
 
 CREATE TABLE calendar_feed (
   id          uuid PRIMARY KEY,
@@ -757,7 +853,8 @@ CREATE TABLE notification (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   recipient_id uuid NOT NULL,
-  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER')),
+  -- RETENTION since migration 0062: the advance warning of data-retention.md §6 (R-1).
+  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION')),
   channel      text NOT NULL CHECK (channel IN ('EMAIL')),
   state        text NOT NULL CHECK (state IN ('PENDING','SENT','SUPPRESSED','FAILED')),
   reason       text,                             -- a detail code, never a sentence (rule 8)
@@ -788,7 +885,7 @@ CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
 CREATE TABLE notification_preference (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id    uuid NOT NULL,
-  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER')),
+  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION')),
   channel       text NOT NULL CHECK (channel IN ('EMAIL')),
   enabled       boolean NOT NULL DEFAULT true,
   include_title boolean NOT NULL DEFAULT true,   -- data-protection.md §9: the minimum is switchable
@@ -823,6 +920,12 @@ CREATE TABLE outbox_event (
 );
 CREATE INDEX outbox_pending_idx ON outbox_event (occurred_at)
   WHERE dispatched_at IS NULL;
+-- The polling trigger's walk (G-04, migration 0052): one type, in the outbox's own order. The
+-- tenant leads because row level security puts it in front of every predicate; the ordering pair
+-- comes last so a page is a range read rather than a sort. Partial, because a poll never answers a
+-- replayed event.
+CREATE INDEX outbox_poll_idx ON outbox_event (tenant_id, event_type, occurred_at, id)
+  WHERE replay = false;
 
 CREATE TABLE job (
   id           uuid PRIMARY KEY,
@@ -1290,6 +1393,22 @@ END $$;
 CREATE TRIGGER change_log_notify
   AFTER INSERT ON change_log
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
+
+-- The wake-up for the dispatcher (G-02, ADR-0007). The queue rather than outbox_event: an event is
+-- written together with its dispatch job in one transaction, so the row the worker waits for is the
+-- job. No payload - `job` has no tenant column and none is needed, and an empty payload is what
+-- lets PostgreSQL collapse a transaction that enqueued five jobs into one ring of the bell.
+CREATE OR REPLACE FUNCTION hubtask_notify_job() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_job', '');
+  RETURN NULL;
+END $$;
+
+CREATE TRIGGER job_notify
+  AFTER INSERT ON job
+  FOR EACH ROW EXECUTE FUNCTION hubtask_notify_job();
 CREATE INDEX change_log_container_idx ON change_log (tenant_id, container_id, seq);
 
 -- Deletion markers with a minimum lifetime: a hard delete is only allowed after it elapses,
@@ -1357,7 +1476,8 @@ BEGIN
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
-    'automation_rule','rule_run','webhook_subscription','webhook_delivery','calendar_feed',
+    'automation_rule','rule_run','rule_occurrence','jumble_intake',
+    'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',

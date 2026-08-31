@@ -297,6 +297,69 @@ func (e AutoAssignStrategy) Valid() bool {
 	}
 }
 
+// Defines values for AutomationRuleOnError.
+const (
+	AutomationRuleOnErrorCONTINUE AutomationRuleOnError = "CONTINUE"
+	AutomationRuleOnErrorRETRY    AutomationRuleOnError = "RETRY"
+	AutomationRuleOnErrorSTOP     AutomationRuleOnError = "STOP"
+)
+
+// Valid indicates whether the value is a known member of the AutomationRuleOnError enum.
+func (e AutomationRuleOnError) Valid() bool {
+	switch e {
+	case AutomationRuleOnErrorCONTINUE:
+		return true
+	case AutomationRuleOnErrorRETRY:
+		return true
+	case AutomationRuleOnErrorSTOP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AutomationRuleCreateOnError.
+const (
+	AutomationRuleCreateOnErrorCONTINUE AutomationRuleCreateOnError = "CONTINUE"
+	AutomationRuleCreateOnErrorRETRY    AutomationRuleCreateOnError = "RETRY"
+	AutomationRuleCreateOnErrorSTOP     AutomationRuleCreateOnError = "STOP"
+)
+
+// Valid indicates whether the value is a known member of the AutomationRuleCreateOnError enum.
+func (e AutomationRuleCreateOnError) Valid() bool {
+	switch e {
+	case AutomationRuleCreateOnErrorCONTINUE:
+		return true
+	case AutomationRuleCreateOnErrorRETRY:
+		return true
+	case AutomationRuleCreateOnErrorSTOP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AutomationRuleUpdateOnError.
+const (
+	AutomationRuleUpdateOnErrorCONTINUE AutomationRuleUpdateOnError = "CONTINUE"
+	AutomationRuleUpdateOnErrorRETRY    AutomationRuleUpdateOnError = "RETRY"
+	AutomationRuleUpdateOnErrorSTOP     AutomationRuleUpdateOnError = "STOP"
+)
+
+// Valid indicates whether the value is a known member of the AutomationRuleUpdateOnError enum.
+func (e AutomationRuleUpdateOnError) Valid() bool {
+	switch e {
+	case AutomationRuleUpdateOnErrorCONTINUE:
+		return true
+	case AutomationRuleUpdateOnErrorRETRY:
+		return true
+	case AutomationRuleUpdateOnErrorSTOP:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BackupArchiveChecksumStatus.
 const (
 	MISMATCH   BackupArchiveChecksumStatus = "MISMATCH"
@@ -1119,6 +1182,33 @@ func (e HealthWarningSeverity) Valid() bool {
 	}
 }
 
+// Defines values for HttpRequestCallMethod.
+const (
+	HttpRequestCallMethodDELETE HttpRequestCallMethod = "DELETE"
+	HttpRequestCallMethodGET    HttpRequestCallMethod = "GET"
+	HttpRequestCallMethodPATCH  HttpRequestCallMethod = "PATCH"
+	HttpRequestCallMethodPOST   HttpRequestCallMethod = "POST"
+	HttpRequestCallMethodPUT    HttpRequestCallMethod = "PUT"
+)
+
+// Valid indicates whether the value is a known member of the HttpRequestCallMethod enum.
+func (e HttpRequestCallMethod) Valid() bool {
+	switch e {
+	case HttpRequestCallMethodDELETE:
+		return true
+	case HttpRequestCallMethodGET:
+		return true
+	case HttpRequestCallMethodPATCH:
+		return true
+	case HttpRequestCallMethodPOST:
+		return true
+	case HttpRequestCallMethodPUT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemAccess.
 const (
 	ItemAccessALL      ItemAccess = "ALL"
@@ -1199,19 +1289,19 @@ func (e ItemQuerySortNulls) Valid() bool {
 
 // Defines values for ItemType.
 const (
-	ACTIVITY    ItemType = "ACTIVITY"
-	TASK        ItemType = "TASK"
-	WORKPACKAGE ItemType = "WORK_PACKAGE"
+	ItemTypeACTIVITY    ItemType = "ACTIVITY"
+	ItemTypeTASK        ItemType = "TASK"
+	ItemTypeWORKPACKAGE ItemType = "WORK_PACKAGE"
 )
 
 // Valid indicates whether the value is a known member of the ItemType enum.
 func (e ItemType) Valid() bool {
 	switch e {
-	case ACTIVITY:
+	case ItemTypeACTIVITY:
 		return true
-	case TASK:
+	case ItemTypeTASK:
 		return true
-	case WORKPACKAGE:
+	case ItemTypeWORKPACKAGE:
 		return true
 	default:
 		return false
@@ -1239,6 +1329,90 @@ func (e JobStatus) Valid() bool {
 	case JobStatusRUNNING:
 		return true
 	case JobStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JumbleEntryChannel.
+const (
+	JumbleEntryChannelAPI          JumbleEntryChannel = "API"
+	JumbleEntryChannelEMAIL        JumbleEntryChannel = "EMAIL"
+	JumbleEntryChannelQUICKCAPTURE JumbleEntryChannel = "QUICK_CAPTURE"
+	JumbleEntryChannelWEBHOOK      JumbleEntryChannel = "WEBHOOK"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntryChannel enum.
+func (e JumbleEntryChannel) Valid() bool {
+	switch e {
+	case JumbleEntryChannelAPI:
+		return true
+	case JumbleEntryChannelEMAIL:
+		return true
+	case JumbleEntryChannelQUICKCAPTURE:
+		return true
+	case JumbleEntryChannelWEBHOOK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JumbleEntryStatus.
+const (
+	JumbleEntryStatusDISMISSED JumbleEntryStatus = "DISMISSED"
+	JumbleEntryStatusNEW       JumbleEntryStatus = "NEW"
+	JumbleEntryStatusPROCESSED JumbleEntryStatus = "PROCESSED"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntryStatus enum.
+func (e JumbleEntryStatus) Valid() bool {
+	switch e {
+	case JumbleEntryStatusDISMISSED:
+		return true
+	case JumbleEntryStatusNEW:
+		return true
+	case JumbleEntryStatusPROCESSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JumbleEntryConvertType.
+const (
+	JumbleEntryConvertTypeACTIVITY    JumbleEntryConvertType = "ACTIVITY"
+	JumbleEntryConvertTypeTASK        JumbleEntryConvertType = "TASK"
+	JumbleEntryConvertTypeWORKPACKAGE JumbleEntryConvertType = "WORK_PACKAGE"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntryConvertType enum.
+func (e JumbleEntryConvertType) Valid() bool {
+	switch e {
+	case JumbleEntryConvertTypeACTIVITY:
+		return true
+	case JumbleEntryConvertTypeTASK:
+		return true
+	case JumbleEntryConvertTypeWORKPACKAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JumbleEntrySubmitChannel.
+const (
+	JumbleEntrySubmitChannelAPI          JumbleEntrySubmitChannel = "API"
+	JumbleEntrySubmitChannelQUICKCAPTURE JumbleEntrySubmitChannel = "QUICK_CAPTURE"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntrySubmitChannel enum.
+func (e JumbleEntrySubmitChannel) Valid() bool {
+	switch e {
+	case JumbleEntrySubmitChannelAPI:
+		return true
+	case JumbleEntrySubmitChannelQUICKCAPTURE:
 		return true
 	default:
 		return false
@@ -1331,16 +1505,16 @@ func (e MediaObjectUsage) Valid() bool {
 
 // Defines values for MediaTransferMethod.
 const (
-	GET MediaTransferMethod = "GET"
-	PUT MediaTransferMethod = "PUT"
+	MediaTransferMethodGET MediaTransferMethod = "GET"
+	MediaTransferMethodPUT MediaTransferMethod = "PUT"
 )
 
 // Valid indicates whether the value is a known member of the MediaTransferMethod enum.
 func (e MediaTransferMethod) Valid() bool {
 	switch e {
-	case GET:
+	case MediaTransferMethodGET:
 		return true
-	case PUT:
+	case MediaTransferMethodPUT:
 		return true
 	default:
 		return false
@@ -1496,13 +1670,13 @@ func (e RecurrenceMode) Valid() bool {
 
 // Defines values for ReminderChannel.
 const (
-	EMAIL ReminderChannel = "EMAIL"
+	ReminderChannelEMAIL ReminderChannel = "EMAIL"
 )
 
 // Valid indicates whether the value is a known member of the ReminderChannel enum.
 func (e ReminderChannel) Valid() bool {
 	switch e {
-	case EMAIL:
+	case ReminderChannelEMAIL:
 		return true
 	default:
 		return false
@@ -1787,17 +1961,21 @@ func (e RetentionStateBlockedBy) Valid() bool {
 
 // Defines values for RoleDescriptionPermissions.
 const (
-	RoleDescriptionPermissionsAUTOMATION      RoleDescriptionPermissions = "AUTOMATION"
-	RoleDescriptionPermissionsDELETECONTAINER RoleDescriptionPermissions = "DELETE_CONTAINER"
-	RoleDescriptionPermissionsMANAGEMEMBERS   RoleDescriptionPermissions = "MANAGE_MEMBERS"
-	RoleDescriptionPermissionsREAD            RoleDescriptionPermissions = "READ"
-	RoleDescriptionPermissionsSTRUCTURE       RoleDescriptionPermissions = "STRUCTURE"
-	RoleDescriptionPermissionsWRITEITEMS      RoleDescriptionPermissions = "WRITE_ITEMS"
+	RoleDescriptionPermissionsAUDITREAD         RoleDescriptionPermissions = "AUDIT_READ"
+	RoleDescriptionPermissionsAUTOMATION        RoleDescriptionPermissions = "AUTOMATION"
+	RoleDescriptionPermissionsDELETECONTAINER   RoleDescriptionPermissions = "DELETE_CONTAINER"
+	RoleDescriptionPermissionsMANAGEMEMBERS     RoleDescriptionPermissions = "MANAGE_MEMBERS"
+	RoleDescriptionPermissionsREAD              RoleDescriptionPermissions = "READ"
+	RoleDescriptionPermissionsREADCONFIGURATION RoleDescriptionPermissions = "READ_CONFIGURATION"
+	RoleDescriptionPermissionsSTRUCTURE         RoleDescriptionPermissions = "STRUCTURE"
+	RoleDescriptionPermissionsWRITEITEMS        RoleDescriptionPermissions = "WRITE_ITEMS"
 )
 
 // Valid indicates whether the value is a known member of the RoleDescriptionPermissions enum.
 func (e RoleDescriptionPermissions) Valid() bool {
 	switch e {
+	case RoleDescriptionPermissionsAUDITREAD:
+		return true
 	case RoleDescriptionPermissionsAUTOMATION:
 		return true
 	case RoleDescriptionPermissionsDELETECONTAINER:
@@ -1806,9 +1984,164 @@ func (e RoleDescriptionPermissions) Valid() bool {
 		return true
 	case RoleDescriptionPermissionsREAD:
 		return true
+	case RoleDescriptionPermissionsREADCONFIGURATION:
+		return true
 	case RoleDescriptionPermissionsSTRUCTURE:
 		return true
 	case RoleDescriptionPermissionsWRITEITEMS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleActionResultStatus.
+const (
+	RuleActionResultStatusFAILED    RuleActionResultStatus = "FAILED"
+	RuleActionResultStatusSKIPPED   RuleActionResultStatus = "SKIPPED"
+	RuleActionResultStatusSUCCEEDED RuleActionResultStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the RuleActionResultStatus enum.
+func (e RuleActionResultStatus) Valid() bool {
+	switch e {
+	case RuleActionResultStatusFAILED:
+		return true
+	case RuleActionResultStatusSKIPPED:
+		return true
+	case RuleActionResultStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleRunTrigger.
+const (
+	RuleRunTriggerEVENT          RuleRunTrigger = "EVENT"
+	RuleRunTriggerINBOUNDWEBHOOK RuleRunTrigger = "INBOUND_WEBHOOK"
+	RuleRunTriggerJUMBLEENTRY    RuleRunTrigger = "JUMBLE_ENTRY"
+	RuleRunTriggerMANUAL         RuleRunTrigger = "MANUAL"
+	RuleRunTriggerRELATIVEDATE   RuleRunTrigger = "RELATIVE_DATE"
+	RuleRunTriggerSCHEDULE       RuleRunTrigger = "SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the RuleRunTrigger enum.
+func (e RuleRunTrigger) Valid() bool {
+	switch e {
+	case RuleRunTriggerEVENT:
+		return true
+	case RuleRunTriggerINBOUNDWEBHOOK:
+		return true
+	case RuleRunTriggerJUMBLEENTRY:
+		return true
+	case RuleRunTriggerMANUAL:
+		return true
+	case RuleRunTriggerRELATIVEDATE:
+		return true
+	case RuleRunTriggerSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleRunStatus.
+const (
+	RuleRunStatusABORTEDLOOP RuleRunStatus = "ABORTED_LOOP"
+	RuleRunStatusFAILED      RuleRunStatus = "FAILED"
+	RuleRunStatusRUNNING     RuleRunStatus = "RUNNING"
+	RuleRunStatusSKIPPED     RuleRunStatus = "SKIPPED"
+	RuleRunStatusSUCCEEDED   RuleRunStatus = "SUCCEEDED"
+	RuleRunStatusTHROTTLED   RuleRunStatus = "THROTTLED"
+	RuleRunStatusWAITING     RuleRunStatus = "WAITING"
+)
+
+// Valid indicates whether the value is a known member of the RuleRunStatus enum.
+func (e RuleRunStatus) Valid() bool {
+	switch e {
+	case RuleRunStatusABORTEDLOOP:
+		return true
+	case RuleRunStatusFAILED:
+		return true
+	case RuleRunStatusRUNNING:
+		return true
+	case RuleRunStatusSKIPPED:
+		return true
+	case RuleRunStatusSUCCEEDED:
+		return true
+	case RuleRunStatusTHROTTLED:
+		return true
+	case RuleRunStatusWAITING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleScopeType.
+const (
+	RuleScopeTypeCOLLECTION RuleScopeType = "COLLECTION"
+	RuleScopeTypeHUB        RuleScopeType = "HUB"
+	RuleScopeTypeTENANT     RuleScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the RuleScopeType enum.
+func (e RuleScopeType) Valid() bool {
+	switch e {
+	case RuleScopeTypeCOLLECTION:
+		return true
+	case RuleScopeTypeHUB:
+		return true
+	case RuleScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleTriggerAnchor.
+const (
+	CREATEDAT RuleTriggerAnchor = "CREATED_AT"
+	DUEDATE   RuleTriggerAnchor = "DUE_DATE"
+)
+
+// Valid indicates whether the value is a known member of the RuleTriggerAnchor enum.
+func (e RuleTriggerAnchor) Valid() bool {
+	switch e {
+	case CREATEDAT:
+		return true
+	case DUEDATE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleTriggerKind.
+const (
+	RuleTriggerKindEVENT          RuleTriggerKind = "EVENT"
+	RuleTriggerKindINBOUNDWEBHOOK RuleTriggerKind = "INBOUND_WEBHOOK"
+	RuleTriggerKindJUMBLEENTRY    RuleTriggerKind = "JUMBLE_ENTRY"
+	RuleTriggerKindMANUAL         RuleTriggerKind = "MANUAL"
+	RuleTriggerKindRELATIVEDATE   RuleTriggerKind = "RELATIVE_DATE"
+	RuleTriggerKindSCHEDULE       RuleTriggerKind = "SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the RuleTriggerKind enum.
+func (e RuleTriggerKind) Valid() bool {
+	switch e {
+	case RuleTriggerKindEVENT:
+		return true
+	case RuleTriggerKindINBOUNDWEBHOOK:
+		return true
+	case RuleTriggerKindJUMBLEENTRY:
+		return true
+	case RuleTriggerKindMANUAL:
+		return true
+	case RuleTriggerKindRELATIVEDATE:
+		return true
+	case RuleTriggerKindSCHEDULE:
 		return true
 	default:
 		return false
@@ -1928,19 +2261,19 @@ func (e SavedViewShareSharing) Valid() bool {
 
 // Defines values for SyncChangeOp.
 const (
-	ACCESSREVOKED SyncChangeOp = "ACCESS_REVOKED"
-	DELETE        SyncChangeOp = "DELETE"
-	UPSERT        SyncChangeOp = "UPSERT"
+	SyncChangeOpACCESSREVOKED SyncChangeOp = "ACCESS_REVOKED"
+	SyncChangeOpDELETE        SyncChangeOp = "DELETE"
+	SyncChangeOpUPSERT        SyncChangeOp = "UPSERT"
 )
 
 // Valid indicates whether the value is a known member of the SyncChangeOp enum.
 func (e SyncChangeOp) Valid() bool {
 	switch e {
-	case ACCESSREVOKED:
+	case SyncChangeOpACCESSREVOKED:
 		return true
-	case DELETE:
+	case SyncChangeOpDELETE:
 		return true
-	case UPSERT:
+	case SyncChangeOpUPSERT:
 		return true
 	default:
 		return false
@@ -2109,6 +2442,93 @@ func (e ViewExportFormat) Valid() bool {
 	}
 }
 
+// Defines values for WebhookDeliveryStatus.
+const (
+	WebhookDeliveryStatusDEADLETTER WebhookDeliveryStatus = "DEAD_LETTER"
+	WebhookDeliveryStatusFAILED     WebhookDeliveryStatus = "FAILED"
+	WebhookDeliveryStatusPENDING    WebhookDeliveryStatus = "PENDING"
+	WebhookDeliveryStatusSUCCEEDED  WebhookDeliveryStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the WebhookDeliveryStatus enum.
+func (e WebhookDeliveryStatus) Valid() bool {
+	switch e {
+	case WebhookDeliveryStatusDEADLETTER:
+		return true
+	case WebhookDeliveryStatusFAILED:
+		return true
+	case WebhookDeliveryStatusPENDING:
+		return true
+	case WebhookDeliveryStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookSubscriptionState.
+const (
+	WebhookSubscriptionStateACTIVE   WebhookSubscriptionState = "ACTIVE"
+	WebhookSubscriptionStateDISABLED WebhookSubscriptionState = "DISABLED"
+	WebhookSubscriptionStatePAUSED   WebhookSubscriptionState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the WebhookSubscriptionState enum.
+func (e WebhookSubscriptionState) Valid() bool {
+	switch e {
+	case WebhookSubscriptionStateACTIVE:
+		return true
+	case WebhookSubscriptionStateDISABLED:
+		return true
+	case WebhookSubscriptionStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookSubscriptionSecretState.
+const (
+	WebhookSubscriptionSecretStateACTIVE   WebhookSubscriptionSecretState = "ACTIVE"
+	WebhookSubscriptionSecretStateDISABLED WebhookSubscriptionSecretState = "DISABLED"
+	WebhookSubscriptionSecretStatePAUSED   WebhookSubscriptionSecretState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the WebhookSubscriptionSecretState enum.
+func (e WebhookSubscriptionSecretState) Valid() bool {
+	switch e {
+	case WebhookSubscriptionSecretStateACTIVE:
+		return true
+	case WebhookSubscriptionSecretStateDISABLED:
+		return true
+	case WebhookSubscriptionSecretStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookSubscriptionUpdateState.
+const (
+	WebhookSubscriptionUpdateStateACTIVE      WebhookSubscriptionUpdateState = "ACTIVE"
+	WebhookSubscriptionUpdateStateLessThannil WebhookSubscriptionUpdateState = "<nil>"
+	WebhookSubscriptionUpdateStatePAUSED      WebhookSubscriptionUpdateState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the WebhookSubscriptionUpdateState enum.
+func (e WebhookSubscriptionUpdateState) Valid() bool {
+	switch e {
+	case WebhookSubscriptionUpdateStateACTIVE:
+		return true
+	case WebhookSubscriptionUpdateStateLessThannil:
+		return true
+	case WebhookSubscriptionUpdateStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -2128,6 +2548,194 @@ func (e ListAuditEntriesParamsOutcome) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// Defines values for ListRuleRunsParamsStatus.
+const (
+	ListRuleRunsParamsStatusABORTEDLOOP ListRuleRunsParamsStatus = "ABORTED_LOOP"
+	ListRuleRunsParamsStatusFAILED      ListRuleRunsParamsStatus = "FAILED"
+	ListRuleRunsParamsStatusRUNNING     ListRuleRunsParamsStatus = "RUNNING"
+	ListRuleRunsParamsStatusSKIPPED     ListRuleRunsParamsStatus = "SKIPPED"
+	ListRuleRunsParamsStatusSUCCEEDED   ListRuleRunsParamsStatus = "SUCCEEDED"
+	ListRuleRunsParamsStatusTHROTTLED   ListRuleRunsParamsStatus = "THROTTLED"
+	ListRuleRunsParamsStatusWAITING     ListRuleRunsParamsStatus = "WAITING"
+)
+
+// Valid indicates whether the value is a known member of the ListRuleRunsParamsStatus enum.
+func (e ListRuleRunsParamsStatus) Valid() bool {
+	switch e {
+	case ListRuleRunsParamsStatusABORTEDLOOP:
+		return true
+	case ListRuleRunsParamsStatusFAILED:
+		return true
+	case ListRuleRunsParamsStatusRUNNING:
+		return true
+	case ListRuleRunsParamsStatusSKIPPED:
+		return true
+	case ListRuleRunsParamsStatusSUCCEEDED:
+		return true
+	case ListRuleRunsParamsStatusTHROTTLED:
+		return true
+	case ListRuleRunsParamsStatusWAITING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListRuleRunsParamsTrigger.
+const (
+	ListRuleRunsParamsTriggerEVENT          ListRuleRunsParamsTrigger = "EVENT"
+	ListRuleRunsParamsTriggerINBOUNDWEBHOOK ListRuleRunsParamsTrigger = "INBOUND_WEBHOOK"
+	ListRuleRunsParamsTriggerJUMBLEENTRY    ListRuleRunsParamsTrigger = "JUMBLE_ENTRY"
+	ListRuleRunsParamsTriggerMANUAL         ListRuleRunsParamsTrigger = "MANUAL"
+	ListRuleRunsParamsTriggerRELATIVEDATE   ListRuleRunsParamsTrigger = "RELATIVE_DATE"
+	ListRuleRunsParamsTriggerSCHEDULE       ListRuleRunsParamsTrigger = "SCHEDULE"
+)
+
+// Valid indicates whether the value is a known member of the ListRuleRunsParamsTrigger enum.
+func (e ListRuleRunsParamsTrigger) Valid() bool {
+	switch e {
+	case ListRuleRunsParamsTriggerEVENT:
+		return true
+	case ListRuleRunsParamsTriggerINBOUNDWEBHOOK:
+		return true
+	case ListRuleRunsParamsTriggerJUMBLEENTRY:
+		return true
+	case ListRuleRunsParamsTriggerMANUAL:
+		return true
+	case ListRuleRunsParamsTriggerRELATIVEDATE:
+		return true
+	case ListRuleRunsParamsTriggerSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListWebhookDeliveriesParamsStatus.
+const (
+	ListWebhookDeliveriesParamsStatusDEADLETTER ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
+	ListWebhookDeliveriesParamsStatusFAILED     ListWebhookDeliveriesParamsStatus = "FAILED"
+	ListWebhookDeliveriesParamsStatusPENDING    ListWebhookDeliveriesParamsStatus = "PENDING"
+	ListWebhookDeliveriesParamsStatusSUCCEEDED  ListWebhookDeliveriesParamsStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the ListWebhookDeliveriesParamsStatus enum.
+func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
+	switch e {
+	case ListWebhookDeliveriesParamsStatusDEADLETTER:
+		return true
+	case ListWebhookDeliveriesParamsStatusFAILED:
+		return true
+	case ListWebhookDeliveriesParamsStatusPENDING:
+		return true
+	case ListWebhookDeliveriesParamsStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListJumbleEntriesParamsStatus.
+const (
+	ListJumbleEntriesParamsStatusDISMISSED ListJumbleEntriesParamsStatus = "DISMISSED"
+	ListJumbleEntriesParamsStatusNEW       ListJumbleEntriesParamsStatus = "NEW"
+	ListJumbleEntriesParamsStatusPROCESSED ListJumbleEntriesParamsStatus = "PROCESSED"
+)
+
+// Valid indicates whether the value is a known member of the ListJumbleEntriesParamsStatus enum.
+func (e ListJumbleEntriesParamsStatus) Valid() bool {
+	switch e {
+	case ListJumbleEntriesParamsStatusDISMISSED:
+		return true
+	case ListJumbleEntriesParamsStatusNEW:
+		return true
+	case ListJumbleEntriesParamsStatusPROCESSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListJumbleEntriesParamsChannel.
+const (
+	ListJumbleEntriesParamsChannelAPI          ListJumbleEntriesParamsChannel = "API"
+	ListJumbleEntriesParamsChannelEMAIL        ListJumbleEntriesParamsChannel = "EMAIL"
+	ListJumbleEntriesParamsChannelQUICKCAPTURE ListJumbleEntriesParamsChannel = "QUICK_CAPTURE"
+	ListJumbleEntriesParamsChannelWEBHOOK      ListJumbleEntriesParamsChannel = "WEBHOOK"
+)
+
+// Valid indicates whether the value is a known member of the ListJumbleEntriesParamsChannel enum.
+func (e ListJumbleEntriesParamsChannel) Valid() bool {
+	switch e {
+	case ListJumbleEntriesParamsChannelAPI:
+		return true
+	case ListJumbleEntriesParamsChannelEMAIL:
+		return true
+	case ListJumbleEntriesParamsChannelQUICKCAPTURE:
+		return true
+	case ListJumbleEntriesParamsChannelWEBHOOK:
+		return true
+	default:
+		return false
+	}
+}
+
+// AccessToken A minted credential as it is listed afterwards. The token itself is not a member: it exists in the answer to the call that minted it and nowhere else.
+type AccessToken struct {
+	// AccountId Whose credential it is, and therefore whose rights bound it.
+	AccountId openapi_types.UUID `json:"account_id"`
+	CreatedAt time.Time          `json:"created_at"`
+	ExpiresAt time.Time          `json:"expires_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When a request last presented it, to the minute rather than to the request - the value exists so an owner can spot a credential nobody uses, and writing it on every call would be a write per request.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	Name       string     `json:"name"`
+
+	// RevokedAt When it was withdrawn. Separate from the expiry on purpose: "it ran out" and "somebody pulled it" are different answers.
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+
+	// Scopes The second bound on what the token may do, on top of the role its holder carries. Both have to allow an operation.
+	Scopes []string `json:"scopes"`
+}
+
+// AccessTokenCreate defines model for AccessTokenCreate.
+type AccessTokenCreate struct {
+	// AccountId Whose token. Omitted means the caller's own. A service account's needs the member management permission; another person's is refused, whatever the role.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// ExpiresAt Mandatory, in the future, and at most a year out. There is no default - a caller has to choose.
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Name What this token is for, in the owner's own words. It is what they will read in a year when deciding whether it is still needed.
+	Name string `json:"name"`
+
+	// Scopes Requested explicitly, never defaulted to everything. Each has to be one the installation declares; one it does not is refused as a field error naming it.
+	Scopes []string `json:"scopes"`
+}
+
+// AccessTokenSecret defines model for AccessTokenSecret.
+type AccessTokenSecret struct {
+	// AccountId Whose credential it is, and therefore whose rights bound it.
+	AccountId openapi_types.UUID `json:"account_id"`
+	CreatedAt time.Time          `json:"created_at"`
+	ExpiresAt time.Time          `json:"expires_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When a request last presented it, to the minute rather than to the request - the value exists so an owner can spot a credential nobody uses, and writing it on every call would be a write per request.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	Name       string     `json:"name"`
+
+	// RevokedAt When it was withdrawn. Separate from the expiry on purpose: "it ran out" and "somebody pulled it" are different answers.
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+
+	// Scopes The second bound on what the token may do, on top of the role its holder carries. Both have to allow an operation.
+	Scopes []string `json:"scopes"`
+
+	// Token The credential, in clear, for the only time. Store it or lose it: what is kept is a hash, and nothing can turn that back into this.
+	Token string `json:"token"`
 }
 
 // Account defines model for Account.
@@ -2351,6 +2959,99 @@ type AutoAssignPolicy struct {
 
 // AutoAssignStrategy How a candidate is picked. FIXED always assigns the one configured account. RANDOM_MEMBER draws uniformly from the candidate accounts. RANDOM_GROUP_MEMBER draws a group first and one of its members second, so each group carries an equal share of the work regardless of its size. ROUND_ROBIN walks the candidate list in order. LEAST_LOADED picks the candidate with the fewest open entries. /meta/capabilities returns the valid values.
 type AutoAssignStrategy string
+
+// AutomationRule defines model for AutomationRule.
+type AutomationRule struct {
+	Actions []RuleAction `json:"actions"`
+
+	// Conditions Empty in this release. A non-empty condition is refused until the expression language that evaluates it arrives - stored and ignored is the one thing it must not be.
+	Conditions []RuleCondition    `json:"conditions"`
+	CreatedAt  time.Time          `json:"created_at"`
+	CreatedBy  openapi_types.UUID `json:"created_by"`
+
+	// Enabled Switched off when the rule is written. `:enable` and `:disable` are what move it, so that the trail says which of the two somebody did.
+	Enabled bool `json:"enabled"`
+
+	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
+	FailureCount int                `json:"failure_count"`
+	Id           openapi_types.UUID `json:"id"`
+
+	// InboundRotatedAt When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.
+	InboundRotatedAt *time.Time `json:"inbound_rotated_at,omitempty"`
+	Name             string     `json:"name"`
+
+	// NextRunAt When a `SCHEDULE` rule next fires. Absent for every other kind, and for a schedule whose recurrence is exhausted - such a rule stays, visible and editable, and fires no more.
+	NextRunAt *time.Time            `json:"next_run_at,omitempty"`
+	OnError   AutomationRuleOnError `json:"on_error"`
+
+	// RunAs The account the rule acts as. It can never do more than that account may (automation.md §2), which is why the writer has to hold those rights too.
+	RunAs openapi_types.UUID `json:"run_as"`
+
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+	Scope RuleScope `json:"scope"`
+
+	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+	Throttle *RuleThrottle `json:"throttle,omitempty"`
+
+	// Trigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	Trigger   RuleTrigger `json:"trigger"`
+	UpdatedAt time.Time   `json:"updated_at"`
+	Version   int         `json:"version"`
+}
+
+// AutomationRuleOnError defines model for AutomationRule.OnError.
+type AutomationRuleOnError string
+
+// AutomationRuleCreate defines model for AutomationRuleCreate.
+type AutomationRuleCreate struct {
+	Actions    []RuleAction                 `json:"actions"`
+	Conditions *[]RuleCondition             `json:"conditions,omitempty"`
+	Name       string                       `json:"name"`
+	OnError    *AutomationRuleCreateOnError `json:"on_error,omitempty"`
+	RunAs      openapi_types.UUID           `json:"run_as"`
+
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+	Scope RuleScope `json:"scope"`
+
+	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+	Throttle *RuleThrottle `json:"throttle,omitempty"`
+
+	// Trigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	Trigger RuleTrigger `json:"trigger"`
+}
+
+// AutomationRuleCreateOnError defines model for AutomationRuleCreate.OnError.
+type AutomationRuleCreateOnError string
+
+// AutomationRulePage defines model for AutomationRulePage.
+type AutomationRulePage struct {
+	Data []AutomationRule `json:"data"`
+	Page PageInfo         `json:"page"`
+}
+
+// AutomationRuleUpdate An omitted field is left alone. `enabled` is deliberately absent: it moves through `:enable` and `:disable`, which are audited as the decisions they are.
+type AutomationRuleUpdate struct {
+	Actions    *[]RuleAction    `json:"actions,omitempty"`
+	Conditions *[]RuleCondition `json:"conditions,omitempty"`
+
+	// ExpectedVersion The version last read. A mismatch is a conflict rather than an overwrite.
+	ExpectedVersion *int                         `json:"expected_version,omitempty"`
+	Name            *string                      `json:"name,omitempty"`
+	OnError         *AutomationRuleUpdateOnError `json:"on_error,omitempty"`
+	RunAs           *openapi_types.UUID          `json:"run_as,omitempty"`
+
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+	Scope *RuleScope `json:"scope,omitempty"`
+
+	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+	Throttle *RuleThrottle `json:"throttle,omitempty"`
+
+	// Trigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	Trigger *RuleTrigger `json:"trigger,omitempty"`
+}
+
+// AutomationRuleUpdateOnError defines model for AutomationRuleUpdate.OnError.
+type AutomationRuleUpdateOnError string
 
 // BackupArchive Read from the manifest at the target, not from the database.
 type BackupArchive struct {
@@ -3158,6 +3859,43 @@ type HealthWarning struct {
 // HealthWarningSeverity defines model for HealthWarning.Severity.
 type HealthWarningSeverity string
 
+// HttpRequestCall One outbound HTTP call, as a rule's `HTTP_REQUEST` action carries it. The secret header is the one place a credential belongs - never the URL, never the plain headers - and it is sealed at rest and masked as `***` everywhere after creation; sending `***` back on a rule edit keeps the stored secret.
+type HttpRequestCall struct {
+	// BodyTemplate A CEL expression producing the body, rendered against the run's event when the call is made. A static body is a string literal.
+	BodyTemplate *string `json:"body_template,omitempty"`
+
+	// EventId The event the body template reads. A rule leaves this out and the run supplies the event it is about.
+	EventId *openapi_types.UUID `json:"event_id,omitempty"`
+
+	// Headers Plain headers - a content type, an API version. Never a credential.
+	Headers *map[string]string    `json:"headers,omitempty"`
+	Method  HttpRequestCallMethod `json:"method"`
+
+	// SecretHeaderName The header the secret travels in, e.g. `Authorization`.
+	SecretHeaderName *string `json:"secret_header_name,omitempty"`
+
+	// SecretHeaderValue The secret itself. Answered as `***` ever after.
+	SecretHeaderValue *string `json:"secret_header_value,omitempty"`
+
+	// SignatureHeader When set, this header carries an HMAC-SHA256 over the body computed with the secret - the same `t=<ts>,v1=<hex>` shape a webhook signature has.
+	SignatureHeader *string `json:"signature_header,omitempty"`
+
+	// Url The address, http or https. Whether this installation is willing to dial it is the guard's decision at the call.
+	Url string `json:"url"`
+}
+
+// HttpRequestCallMethod defines model for HttpRequestCall.Method.
+type HttpRequestCallMethod string
+
+// InboundTriggerToken A freshly minted inbound address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read of the rule shows only when it was minted.
+type InboundTriggerToken struct {
+	RotatedAt time.Time          `json:"rotated_at"`
+	RuleId    openapi_types.UUID `json:"rule_id"`
+
+	// Token The credential, prefixed `hbt_hook_`. The prefix is public by design, so that secret scanning finds a leaked URL before somebody else does.
+	Token string `json:"token"`
+}
+
 // ItemAccess How far a role reaches into one entry.
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
 type ItemAccess string
@@ -3314,6 +4052,95 @@ type JobRef struct {
 
 // JobStatus What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
 type JobStatus string
+
+// JumbleEntry One arrival, as it came in. The raw content is data that arrived from outside: it is shown to a person and matched by rules as data, and it travels in no event, no log and no audit entry.
+type JumbleEntry struct {
+	// Attachments Media objects, stored through the media pipeline.
+	Attachments []openapi_types.UUID `json:"attachments"`
+	Channel     JumbleEntryChannel   `json:"channel"`
+	Id          openapi_types.UUID   `json:"id"`
+	RawBody     *string              `json:"raw_body,omitempty"`
+	RawSubject  *string              `json:"raw_subject,omitempty"`
+	ReceivedAt  time.Time            `json:"received_at"`
+
+	// Sender Who the transport says it came from. Data, never an identity: a From header authenticates nothing - the intake token does.
+	Sender *string `json:"sender,omitempty"`
+
+	// SettledAt When the entry stopped being NEW - a conversion or a dismissal.
+	SettledAt *time.Time `json:"settled_at,omitempty"`
+
+	// Status An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the entry stays readable and ages out by retention rule.
+	Status JumbleEntryStatus `json:"status"`
+
+	// TargetItemId The item a conversion produced. The other half of the provenance pair.
+	TargetItemId *openapi_types.UUID `json:"target_item_id,omitempty"`
+}
+
+// JumbleEntryChannel defines model for JumbleEntry.Channel.
+type JumbleEntryChannel string
+
+// JumbleEntryStatus An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the entry stays readable and ages out by retention rule.
+type JumbleEntryStatus string
+
+// JumbleEntryConvert Where the entry becomes work, and what the item is called.
+type JumbleEntryConvert struct {
+	// BucketId The board column, when the destination has a board.
+	BucketId *openapi_types.UUID `json:"bucket_id,omitempty"`
+
+	// CollectionId The destination. The caller's rights there are checked by the item create.
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Title The item's title. Defaults to the entry's subject, then to the first line of its body; required for an entry with no text.
+	Title *string                 `json:"title,omitempty"`
+	Type  *JumbleEntryConvertType `json:"type,omitempty"`
+}
+
+// JumbleEntryConvertType defines model for JumbleEntryConvert.Type.
+type JumbleEntryConvertType string
+
+// JumbleEntryPage defines model for JumbleEntryPage.
+type JumbleEntryPage struct {
+	Data []JumbleEntry `json:"data"`
+	Page PageInfo      `json:"page"`
+}
+
+// JumbleEntrySubmit A near-channel arrival. At least one of the three contents; `channel` defaults to `API`, and only the near channels may be claimed.
+type JumbleEntrySubmit struct {
+	// Attachments Sealed media objects to carry.
+	Attachments *[]openapi_types.UUID     `json:"attachments,omitempty"`
+	Channel     *JumbleEntrySubmitChannel `json:"channel,omitempty"`
+	RawBody     *string                   `json:"raw_body,omitempty"`
+	RawSubject  *string                   `json:"raw_subject,omitempty"`
+
+	// Sender Optional provenance text, e.g. the capturing surface's own name.
+	Sender *string `json:"sender,omitempty"`
+}
+
+// JumbleEntrySubmitChannel defines model for JumbleEntrySubmit.Channel.
+type JumbleEntrySubmitChannel string
+
+// JumbleIntakeAccepted defines model for JumbleIntakeAccepted.
+type JumbleIntakeAccepted struct {
+	// EntryId The entry the delivery became.
+	EntryId openapi_types.UUID `json:"entry_id"`
+}
+
+// JumbleIntakeDelivery The small shape the intake accepts. All fields optional, but not all empty.
+type JumbleIntakeDelivery struct {
+	Body *string `json:"body,omitempty"`
+
+	// Sender Who the bridge says it came from. Data, never an identity.
+	Sender  *string `json:"sender,omitempty"`
+	Subject *string `json:"subject,omitempty"`
+}
+
+// JumbleIntakeToken A freshly minted intake address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read shows only when it was minted.
+type JumbleIntakeToken struct {
+	RotatedAt time.Time `json:"rotated_at"`
+
+	// Token The whole credential. Post to `/jumble/inbound/{token}`.
+	Token string `json:"token"`
+}
 
 // Label A tag a collection defines and its entries carry. Defined on the collection rather than on the workspace: a label is a vocabulary the people working in one collection agree on, and a workspace-wide list would make every collection pay for every other's.
 type Label struct {
@@ -3836,6 +4663,7 @@ type RoleDescription struct {
 	ItemAccess *RoleItemAccess `json:"item_access,omitempty"`
 
 	// Permissions The columns of the matrix this role carries unqualified.
+	// `AUDIT_READ` is the whole of the tenant's trail, and it is implied by nothing: an auditor holds it without holding `READ`, and a member holds `READ` without holding it. `READ_CONFIGURATION` is reading how the workspace is set up - the backup targets, the retention rules, the holds, the automation rules, the webhook subscriptions, never a secret any of them holds - and it was split out of `STRUCTURE` so that an auditor can read what a workspace does to its data without gaining the right to change it (G-12).
 	Permissions *[]RoleDescriptionPermissions `json:"permissions,omitempty"`
 
 	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
@@ -3867,6 +4695,195 @@ type RoleItemAccess struct {
 	// `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
 	Read *ItemAccess `json:"read,omitempty"`
 }
+
+// RuleAction One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a new use case becomes an action without anybody editing anything.
+// Three kinds are the exception, and they are one on purpose: `WAIT`, `BRANCH` and `STOP` are not use cases at all but the engine's own control structures, so they are in no catalogue and there is nothing for MCP or a person to call. Their parameters are therefore checked where every other shape question about a rule is answered - by the rule itself, when it is written.
+type RuleAction struct {
+	// Kind `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind automation.md §1.3 documents and no release serves yet is refused by name rather than stored to be ignored.
+	// `WAIT` takes `duration`, an unsigned ISO 8601 duration of at most a year: the run suspends and a job resumes it, so a rule that waits a day holds no worker and survives a restart. `BRANCH` takes `condition` and the nested lists `then` (required) and `else` (optional) - a nested list rather than a jump target, because "skip the next two" is a rule whose meaning changes when somebody inserts an action above it. `STOP` takes nothing and ends the run where it stands, with the actions after it `SKIPPED` and the run `SUCCEEDED`: stopping early is what the rule said to do.
+	// **A branch's arms are checked exactly as the top level is**, and both of them: the composition rule is about what a rule *may* do, so a rule whose `else` performs something its writer may not do is laundering the same rights the day the condition turns false.
+	Kind string `json:"kind"`
+
+	// Params The action's parameters. A key the use case behind the kind does not declare is refused, exactly as it would be on the call itself.
+	Params *map[string]interface{} `json:"params,omitempty"`
+}
+
+// RuleActionResult One action's outcome, in the order the run reached them.
+type RuleActionResult struct {
+	// ErrorCode The code the use case refused with, unchanged. A `run_as` account that may not do what the action asks shows the authoriser's own refusal here, which is what makes the run log answer "why did this not happen".
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// IdempotencyKey Derived from the rule, the occasion and the action's path (automation.md §2), so a redelivered event re-runs into the stored result rather than acting twice. Absent on flow actions, which perform nothing there is to repeat.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	Index          int     `json:"index"`
+	Kind           string  `json:"kind"`
+
+	// Matched How a `BRANCH`'s condition answered, present only on a `BRANCH` result. `true` means the `then` arm ran; `false` the `else` arm, which may be empty.
+	Matched *bool `json:"matched,omitempty"`
+
+	// Path Where the action sits in the rule: `"2"` is the third action, `"2/then/0"` the first action of that branch's `then` arm. The path is what shows which way a `BRANCH` went - the nested results carry the arm they belong to in their own name.
+	Path *string `json:"path,omitempty"`
+
+	// Status `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure, or a `STOP` action ended it deliberately. It is not the same as an action that ran and did nothing.
+	Status RuleActionResultStatus `json:"status"`
+}
+
+// RuleActionResultStatus `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an earlier failure, or a `STOP` action ended it deliberately. It is not the same as an action that ran and did nothing.
+type RuleActionResultStatus string
+
+// RuleCondition defines model for RuleCondition.
+type RuleCondition struct {
+	// Expr A CEL expression (ADR-0009). Refused while it is non-empty in this release.
+	Expr string `json:"expr"`
+}
+
+// RuleConditionResult How one condition answered, in the order the rule declares them. A run that was skipped shows which condition stopped it, which is the question somebody asks first.
+type RuleConditionResult struct {
+	// ErrorCode Present when the condition could not be evaluated at all - a timeout, or a value the engine could not read. Distinct from `matched: false`, which is the condition working.
+	ErrorCode *string `json:"error_code,omitempty"`
+	Index     int     `json:"index"`
+	Matched   bool    `json:"matched"`
+}
+
+// RuleRun defines model for RuleRun.
+type RuleRun struct {
+	ActionResults []RuleActionResult `json:"action_results"`
+
+	// CausationDepth How far this run is from the act a person performed. A run at the limit is `ABORTED_LOOP` and did nothing, which is the loop protection automation.md §2 names.
+	CausationDepth   int                   `json:"causation_depth"`
+	ConditionResults []RuleConditionResult `json:"condition_results"`
+
+	// ErrorCode Why the run as a whole ended badly, when it did.
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// EventId The event that started the run. Absent for a run nothing published started.
+	EventId    *openapi_types.UUID `json:"event_id,omitempty"`
+	FinishedAt *time.Time          `json:"finished_at,omitempty"`
+	Id         openapi_types.UUID  `json:"id"`
+	RuleId     openapi_types.UUID  `json:"rule_id"`
+	StartedAt  time.Time           `json:"started_at"`
+
+	// Status How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
+	Status RuleRunStatus `json:"status"`
+
+	// SubjectId The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from one entry's due date. Absent where the event carries the subject, which is where a reader should look for it.
+	SubjectId *openapi_types.UUID `json:"subject_id,omitempty"`
+
+	// Trigger Which of the rule's six ways of starting produced this run (automation.md §1.1). On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+	Trigger RuleRunTrigger `json:"trigger"`
+
+	// TriggeredBy Who pulled the trigger, for the one kind a person pulls: `MANUAL`. Absent for every other kind - a schedule, a due date and an inbound delivery have no actor, and naming one would be inventing an author for something nobody did.
+	TriggeredBy *openapi_types.UUID `json:"triggered_by,omitempty"`
+}
+
+// RuleRunTrigger Which of the rule's six ways of starting produced this run (automation.md §1.1). On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+type RuleRunTrigger string
+
+// RuleRunAccepted A run that has been queued and has not started. The identifier is the one the run will carry, so a caller can watch for it - `GET /automation/runs/{runId}` answers `404` until a worker claims the job.
+type RuleRunAccepted struct {
+	RuleId openapi_types.UUID `json:"rule_id"`
+	RunId  openapi_types.UUID `json:"run_id"`
+}
+
+// RuleRunPage defines model for RuleRunPage.
+type RuleRunPage struct {
+	Data []RuleRun `json:"data"`
+	Page PageInfo  `json:"page"`
+}
+
+// RuleRunStatus How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes it when the run starts, so a row left in it is a crash rather than a state anything reaches deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written, a scheduled job holds the resume point, and no worker is held while the delay passes.
+type RuleRunStatus string
+
+// RuleScope Where the rule applies: the whole workspace, one hub, or one collection - the three levels `automation_rule.scope_type` has carried since the first migration. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+type RuleScope struct {
+	// Id The hub or the collection. Absent for `TENANT`, and required for the others.
+	Id   *openapi_types.UUID `json:"id,omitempty"`
+	Type RuleScopeType       `json:"type"`
+}
+
+// RuleScopeType defines model for RuleScope.Type.
+type RuleScopeType string
+
+// RuleTest A dry run's input: exactly one of `rule_id` (a stored rule) and `rule` (a definition you are about to save), plus the sample event to evaluate it against.
+type RuleTest struct {
+	// Payload The body an inbound delivery would have carried, as the CEL `payload` variable reads it. For testing an `INBOUND_WEBHOOK` rule's conditions.
+	Payload *map[string]interface{} `json:"payload,omitempty"`
+	Rule    *AutomationRuleCreate   `json:"rule,omitempty"`
+
+	// RuleId A stored rule to test.
+	RuleId *openapi_types.UUID `json:"rule_id,omitempty"`
+
+	// SampleEvent The sample event, as the CEL `event` variable will read it.
+	SampleEvent *RuleTestEvent `json:"sample_event,omitempty"`
+}
+
+// RuleTestAction One action of the rule, with whether it would have run. Unlike a real run's log, both arms of every branch appear - the dry run answers "and what if it had not" as well.
+type RuleTestAction struct {
+	// ErrorCode Present when a branch's condition could not be evaluated for the sample.
+	ErrorCode *string `json:"error_code,omitempty"`
+	Kind      string  `json:"kind"`
+
+	// Matched How a `BRANCH`'s condition answered the sample, present only on a branch.
+	Matched  *bool  `json:"matched,omitempty"`
+	Path     string `json:"path"`
+	WouldRun bool   `json:"would_run"`
+}
+
+// RuleTestEvent The sample event, as the CEL `event` variable will read it.
+type RuleTestEvent struct {
+	// Payload The event's payload document.
+	Payload *map[string]interface{} `json:"payload,omitempty"`
+
+	// Subject What the event is about, e.g. `item/018f...`. Naming a real entry lets a condition that reads `item` resolve it - a read, never a write.
+	Subject *string `json:"subject,omitempty"`
+
+	// Type The event type, e.g. `de.hubtask.work.item.updated.v1`.
+	Type string `json:"type"`
+}
+
+// RuleTestResult defines model for RuleTestResult.
+type RuleTestResult struct {
+	Actions          []RuleTestAction      `json:"actions"`
+	ConditionResults []RuleConditionResult `json:"condition_results"`
+
+	// Matched Whether every condition held - whether a real run would have acted at all.
+	Matched bool `json:"matched"`
+}
+
+// RuleThrottle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them (automation.md §2).
+type RuleThrottle struct {
+	// DedupeKeyExpr An expression whose value collapses runs that mean the same thing. Refused while it is non-empty, with the conditions and for their reason: the language arrives with the engine that evaluates it.
+	DedupeKeyExpr  *string `json:"dedupe_key_expr,omitempty"`
+	MaxRunsPerHour *int    `json:"max_runs_per_hour,omitempty"`
+}
+
+// RuleTrigger What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+type RuleTrigger struct {
+	// Anchor `RELATIVE_DATE` only, and required there: which instant the offset is from.
+	Anchor *RuleTriggerAnchor `json:"anchor,omitempty"`
+
+	// ChangedFields `EVENT` only, optional. Narrows an `item.updated` trigger to the fields that moved, so that a rule about deadlines does not fire on a rename.
+	ChangedFields *[]string `json:"changed_fields,omitempty"`
+
+	// EventType `EVENT` only, and required there: the full type, `de.hubtask.work.item.overdue.v1`. One this build does not publish is refused by name.
+	EventType *string         `json:"event_type,omitempty"`
+	Kind      RuleTriggerKind `json:"kind"`
+
+	// Offset `RELATIVE_DATE` only, and required there: a signed ISO 8601 duration, `-PT24H` for "24 hours before".
+	Offset *string `json:"offset,omitempty"`
+
+	// Rrule `SCHEDULE` only, and required there: an RFC 5545 RRULE.
+	Rrule *string `json:"rrule,omitempty"`
+
+	// Timezone `SCHEDULE` only, and required there: an IANA zone. A schedule without one is a schedule that means something different in summer.
+	Timezone *string `json:"timezone,omitempty"`
+}
+
+// RuleTriggerAnchor `RELATIVE_DATE` only, and required there: which instant the offset is from.
+type RuleTriggerAnchor string
+
+// RuleTriggerKind defines model for RuleTrigger.Kind.
+type RuleTriggerKind string
 
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
 type SavedView struct {
@@ -3935,6 +4952,12 @@ type SavedViewUpdate struct {
 	Name          *string                 `json:"name,omitempty"`
 	Query         *map[string]interface{} `json:"query,omitempty"`
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
+}
+
+// ServiceAccountCreate defines model for ServiceAccountCreate.
+type ServiceAccountCreate struct {
+	// DisplayName What the audit trail records next to the identifier. Name it after what it does - "the nightly export", not "svc1" - because it is what a reader of the trail sees.
+	DisplayName string `json:"display_name"`
 }
 
 // SyncChange defines model for SyncChange.
@@ -4188,6 +5211,17 @@ type TrashPage struct {
 	Page PageInfo     `json:"page"`
 }
 
+// TriggerEvent One event as a subscriber receives it: the CloudEvents 1.0 structured-JSON document itself, unwrapped - `specversion`, `id`, `source`, `type`, `time`, `data`, and the extension attributes that carry the tenant, the actor and the causal chain.
+// The same bytes a webhook delivery would have POSTed, which is what makes the two transports one contract. `id` is the value `X-Hubtask-Event-Id` names on the push side, so a consumer deduplicates on it either way.
+// Free-form here on purpose. The document's shape is owned by the schemas under `api/events/` and by the CloudEvents specification, and a second list of its properties in this file would be a copy that drifts - and one that silently drops an extension attribute the day one is added.
+type TriggerEvent map[string]interface{}
+
+// TriggerEventPage defines model for TriggerEventPage.
+type TriggerEventPage struct {
+	Data []TriggerEvent `json:"data"`
+	Page PageInfo       `json:"page"`
+}
+
 // ViewExport What to render and how. The view decides which rows; the format decides what they become.
 type ViewExport struct {
 	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
@@ -4211,6 +5245,130 @@ type ViewExportDocument struct {
 	Truncated bool               `json:"truncated"`
 	ViewId    openapi_types.UUID `json:"view_id"`
 }
+
+// WebhookDelivery One attempt at one event against one subscription.
+type WebhookDelivery struct {
+	// Attempt Which attempt this is, from one. It carries on across a replay rather than resetting.
+	Attempt   int       `json:"attempt"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// ErrorCode A message code, never the target's response body.
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// EventId The event's own identifier, which travels as `X-Hubtask-Event-Id`. A replay carries the same one, so a subscriber that deduplicates on it recognises the repeat.
+	EventId openapi_types.UUID `json:"event_id"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// NextAttemptAt When the next attempt is due; null once there will not be one.
+	NextAttemptAt *time.Time `json:"next_attempt_at,omitempty"`
+
+	// ResponseStatus What the target answered, where it answered at all.
+	ResponseStatus *int                  `json:"response_status,omitempty"`
+	Status         WebhookDeliveryStatus `json:"status"`
+	SubscriptionId openapi_types.UUID    `json:"subscription_id"`
+}
+
+// WebhookDeliveryStatus defines model for WebhookDelivery.Status.
+type WebhookDeliveryStatus string
+
+// WebhookDeliveryPage defines model for WebhookDeliveryPage.
+type WebhookDeliveryPage struct {
+	Data []WebhookDelivery `json:"data"`
+	Page PageInfo          `json:"page"`
+}
+
+// WebhookSecretRotation defines model for WebhookSecretRotation.
+type WebhookSecretRotation struct {
+	// GraceSeconds How long the previous secret keeps verifying, so a subscriber can deploy the new one without dropping what arrives in between. Zero retires the old secret at once, which is what a leak calls for. At most seven days.
+	GraceSeconds *int `json:"grace_seconds,omitempty"`
+}
+
+// WebhookSend What a deliberate delivery names - the event; the path names the subscription.
+type WebhookSend struct {
+	// EventId The event to deliver, as `X-Hubtask-Event-Id` will carry it. It has to still be inside the outbox's retention window - an event the sweep has taken cannot be rendered.
+	EventId openapi_types.UUID `json:"event_id"`
+}
+
+// WebhookSubscription One external system's standing request to be told what happens here. The signing secret is not a member: it is answered once, at creation and at each rotation, and stored sealed.
+type WebhookSubscription struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// EventTypes The types this subscription wants, as `/meta/capabilities` lists them. A type this build does not emit is refused rather than stored, so a subscription cannot quietly wait for something that will never arrive.
+	EventTypes []string `json:"event_types"`
+
+	// FailureCount Consecutive failed deliveries. Reset by the first success, and what the auto-disable counts against.
+	FailureCount int `json:"failure_count"`
+
+	// Filter A CEL expression narrowing the subscription further. Refused until the expression engine lands, and refused rather than stored and ignored: a filter that is accepted and does nothing is a subscriber receiving events they asked not to receive.
+	Filter *string            `json:"filter,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
+
+	// LastError A message code for the last failure, never a response body from the target.
+	LastError *string `json:"last_error,omitempty"`
+
+	// State `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
+	State WebhookSubscriptionState `json:"state"`
+
+	// TargetUrl Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded client: a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	TargetUrl string `json:"target_url"`
+	Version   int    `json:"version"`
+}
+
+// WebhookSubscriptionState `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
+type WebhookSubscriptionState string
+
+// WebhookSubscriptionCreate defines model for WebhookSubscriptionCreate.
+type WebhookSubscriptionCreate struct {
+	EventTypes []string `json:"event_types"`
+
+	// Filter Refused until the expression engine lands.
+	Filter    *string `json:"filter,omitempty"`
+	TargetUrl string  `json:"target_url"`
+}
+
+// WebhookSubscriptionSecret defines model for WebhookSubscriptionSecret.
+type WebhookSubscriptionSecret struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// EventTypes The types this subscription wants, as `/meta/capabilities` lists them. A type this build does not emit is refused rather than stored, so a subscription cannot quietly wait for something that will never arrive.
+	EventTypes []string `json:"event_types"`
+
+	// FailureCount Consecutive failed deliveries. Reset by the first success, and what the auto-disable counts against.
+	FailureCount int `json:"failure_count"`
+
+	// Filter A CEL expression narrowing the subscription further. Refused until the expression engine lands, and refused rather than stored and ignored: a filter that is accepted and does nothing is a subscriber receiving events they asked not to receive.
+	Filter *string            `json:"filter,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
+
+	// LastError A message code for the last failure, never a response body from the target.
+	LastError *string `json:"last_error,omitempty"`
+
+	// Secret The signing secret, in clear, for the only time. Store it or rotate it: what is kept is sealed under the installation's key, and no read answers it again.
+	Secret string `json:"secret"`
+
+	// State `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
+	State WebhookSubscriptionSecretState `json:"state"`
+
+	// TargetUrl Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded client: a private range or the cloud metadata address is refused unless the installation has deliberately released private networks (T-07).
+	TargetUrl string `json:"target_url"`
+	Version   int    `json:"version"`
+}
+
+// WebhookSubscriptionSecretState `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
+type WebhookSubscriptionSecretState string
+
+// WebhookSubscriptionUpdate Every field optional; an omitted one is left alone.
+type WebhookSubscriptionUpdate struct {
+	EventTypes *[]string `json:"event_types,omitempty"`
+	Filter     *string   `json:"filter,omitempty"`
+
+	// State `DISABLED` is not settable by hand: it is what the system concludes from a run of failures. Pausing is how somebody stops deliveries deliberately, and the two say different things to whoever reads the list.
+	State     *WebhookSubscriptionUpdateState `json:"state,omitempty"`
+	TargetUrl *string                         `json:"target_url,omitempty"`
+}
+
+// WebhookSubscriptionUpdateState `DISABLED` is not settable by hand: it is what the system concludes from a run of failures. Pausing is how somebody stops deliveries deliberately, and the two say different things to whoever reads the list.
+type WebhookSubscriptionUpdateState string
 
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
@@ -4241,15 +5399,18 @@ type WorkItem struct {
 	DueTimeZone *string `json:"due_time_zone,omitempty"`
 
 	// Hlc The hybrid logical clock of the last change; the basis of offline merging.
-	Hlc              *string               `json:"hlc,omitempty"`
-	Id               openapi_types.UUID    `json:"id"`
-	LabelIds         *[]openapi_types.UUID `json:"label_ids,omitempty"`
-	MemberIds        *[]openapi_types.UUID `json:"member_ids,omitempty"`
-	Notes            *string               `json:"notes,omitempty"`
-	OrderKey         *string               `json:"order_key,omitempty"`
-	ParentId         *openapi_types.UUID   `json:"parent_id,omitempty"`
-	Path             *string               `json:"path,omitempty"`
-	RecurrenceRuleId *openapi_types.UUID   `json:"recurrence_rule_id,omitempty"`
+	Hlc       *string               `json:"hlc,omitempty"`
+	Id        openapi_types.UUID    `json:"id"`
+	LabelIds  *[]openapi_types.UUID `json:"label_ids,omitempty"`
+	MemberIds *[]openapi_types.UUID `json:"member_ids,omitempty"`
+	Notes     *string               `json:"notes,omitempty"`
+	OrderKey  *string               `json:"order_key,omitempty"`
+
+	// OriginJumbleId The jumble entry this item was converted out of (G-10). Provenance, set once at the conversion and never cleared; absent for an item that was never in the jumble.
+	OriginJumbleId   *openapi_types.UUID `json:"origin_jumble_id,omitempty"`
+	ParentId         *openapi_types.UUID `json:"parent_id,omitempty"`
+	Path             *string             `json:"path,omitempty"`
+	RecurrenceRuleId *openapi_types.UUID `json:"recurrence_rule_id,omitempty"`
 
 	// Retention Set for as long as a retention rule applies to this object.
 	Retention *RetentionState `json:"retention,omitempty"`
@@ -4344,6 +5505,12 @@ type CustomFieldId = openapi_types.UUID
 // CustomFieldKey defines model for CustomFieldKey.
 type CustomFieldKey = string
 
+// DeliveryId defines model for DeliveryId.
+type DeliveryId = openapi_types.UUID
+
+// EventType defines model for EventType.
+type EventType = string
+
 // Expand defines model for Expand.
 type Expand = []string
 
@@ -4386,11 +5553,20 @@ type ParentId = openapi_types.UUID
 // ReminderId defines model for ReminderId.
 type ReminderId = openapi_types.UUID
 
+// RuleId defines model for RuleId.
+type RuleId = openapi_types.UUID
+
 // TemplateId defines model for TemplateId.
 type TemplateId = openapi_types.UUID
 
+// TokenId defines model for TokenId.
+type TokenId = openapi_types.UUID
+
 // ViewId defines model for ViewId.
 type ViewId = openapi_types.UUID
+
+// WebhookId defines model for WebhookId.
+type WebhookId = openapi_types.UUID
 
 // InviteAccountParams defines parameters for InviteAccount.
 type InviteAccountParams struct {
@@ -4424,6 +5600,93 @@ type ListAuditEntriesParamsOutcome string
 type VerifyAuditChainJSONBody struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
+}
+
+// CreateServiceAccountParams defines parameters for CreateServiceAccount.
+type CreateServiceAccountParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ListAccessTokensParams defines parameters for ListAccessTokens.
+type ListAccessTokensParams struct {
+	// AccountId Whose tokens. Omitted means the caller's own. Naming a service account answers its tokens and needs the member management permission; naming another person is refused, whatever the role.
+	AccountId *openapi_types.UUID `form:"account_id,omitempty" json:"account_id,omitempty"`
+}
+
+// CreateAccessTokenParams defines parameters for CreateAccessToken.
+type CreateAccessTokenParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// StartInboundRunJSONBody defines parameters for StartInboundRun.
+type StartInboundRunJSONBody map[string]interface{}
+
+// ListRulesParams defines parameters for ListRules.
+type ListRulesParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Enabled Narrow to the rules that are switched on, or to the ones that are not.
+	Enabled *bool `form:"enabled,omitempty" json:"enabled,omitempty"`
+}
+
+// CreateRuleParams defines parameters for CreateRule.
+type CreateRuleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DisableRuleParams defines parameters for DisableRule.
+type DisableRuleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// EnableRuleParams defines parameters for EnableRule.
+type EnableRuleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// RotateInboundTriggerParams defines parameters for RotateInboundTrigger.
+type RotateInboundTriggerParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// TriggerRuleManuallyParams defines parameters for TriggerRuleManually.
+type TriggerRuleManuallyParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ListRuleRunsParams defines parameters for ListRuleRuns.
+type ListRuleRunsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// RuleId Narrow to one rule.
+	RuleId *openapi_types.UUID `form:"rule_id,omitempty" json:"rule_id,omitempty"`
+
+	// Status Narrow to one outcome. `FAILED` and `ABORTED_LOOP` are the two an operator usually wants; `THROTTLED` and `SKIPPED` are the ordinary answers of a rule that is working.
+	Status *ListRuleRunsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Trigger Narrow to one way of starting. "Did the schedule fire last night" and "did anybody press the button" are two questions about the same rule.
+	Trigger *ListRuleRunsParamsTrigger `form:"trigger,omitempty" json:"trigger,omitempty"`
+}
+
+// ListRuleRunsParamsStatus defines parameters for ListRuleRuns.
+type ListRuleRunsParamsStatus string
+
+// ListRuleRunsParamsTrigger defines parameters for ListRuleRuns.
+type ListRuleRunsParamsTrigger string
+
+// ReplayRuleRunParams defines parameters for ReplayRuleRun.
+type ReplayRuleRunParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ListBackupsAtTargetParams defines parameters for ListBackupsAtTarget.
@@ -4574,6 +5837,43 @@ type UpdateGroupParams struct {
 
 // CreateCalendarFeedParams defines parameters for CreateCalendarFeed.
 type CreateCalendarFeedParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// PollTriggerEventsParams defines parameters for PollTriggerEvents.
+type PollTriggerEventsParams struct {
+	// Since Where the last poll stopped. Absent starts at the oldest event still inside the retention window, which is what lets a poller that has never called before catch up rather than begin with a gap it cannot see.
+	Since *string `form:"since,omitempty" json:"since,omitempty"`
+	Limit *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// CreateWebhookSubscriptionParams defines parameters for CreateWebhookSubscription.
+type CreateWebhookSubscriptionParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UpdateWebhookSubscriptionParams defines parameters for UpdateWebhookSubscription.
+type UpdateWebhookSubscriptionParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListWebhookDeliveriesParams defines parameters for ListWebhookDeliveries.
+type ListWebhookDeliveriesParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Status Narrow to one outcome - `DEAD_LETTER` is the one an operator usually wants.
+	Status *ListWebhookDeliveriesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListWebhookDeliveriesParamsStatus defines parameters for ListWebhookDeliveries.
+type ListWebhookDeliveriesParamsStatus string
+
+// RotateWebhookSecretParams defines parameters for RotateWebhookSecret.
+type RotateWebhookSecretParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -4860,6 +6160,48 @@ type CancelJobParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListJumbleEntriesParams defines parameters for ListJumbleEntries.
+type ListJumbleEntriesParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Status Narrow to one state. `NEW` is the inbox; `DISMISSED` ages out by rule.
+	Status *ListJumbleEntriesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Channel Narrow to one way of arriving.
+	Channel *ListJumbleEntriesParamsChannel `form:"channel,omitempty" json:"channel,omitempty"`
+}
+
+// ListJumbleEntriesParamsStatus defines parameters for ListJumbleEntries.
+type ListJumbleEntriesParamsStatus string
+
+// ListJumbleEntriesParamsChannel defines parameters for ListJumbleEntries.
+type ListJumbleEntriesParamsChannel string
+
+// SubmitJumbleEntryParams defines parameters for SubmitJumbleEntry.
+type SubmitJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ConvertJumbleEntryParams defines parameters for ConvertJumbleEntry.
+type ConvertJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DismissJumbleEntryParams defines parameters for DismissJumbleEntry.
+type DismissJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// RotateJumbleIntakeParams defines parameters for RotateJumbleIntake.
+type RotateJumbleIntakeParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListLegalHoldsParams defines parameters for ListLegalHolds.
 type ListLegalHoldsParams struct {
 	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
@@ -5025,6 +6367,24 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 
+// CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
+type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
+
+// CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
+type CreateAccessTokenJSONRequestBody = AccessTokenCreate
+
+// StartInboundRunJSONRequestBody defines body for StartInboundRun for application/json ContentType.
+type StartInboundRunJSONRequestBody StartInboundRunJSONBody
+
+// CreateRuleJSONRequestBody defines body for CreateRule for application/json ContentType.
+type CreateRuleJSONRequestBody = AutomationRuleCreate
+
+// UpdateRuleJSONRequestBody defines body for UpdateRule for application/json ContentType.
+type UpdateRuleJSONRequestBody = AutomationRuleUpdate
+
+// TestRuleJSONRequestBody defines body for TestRule for application/json ContentType.
+type TestRuleJSONRequestBody = RuleTest
+
 // CreateBackupScheduleJSONRequestBody defines body for CreateBackupSchedule for application/json ContentType.
 type CreateBackupScheduleJSONRequestBody = BackupSchedule
 
@@ -5076,6 +6436,21 @@ type UpdateGroupJSONRequestBody = GroupUpdate
 // CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
 type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
 
+// HttpRequestJSONRequestBody defines body for HttpRequest for application/json ContentType.
+type HttpRequestJSONRequestBody = HttpRequestCall
+
+// CreateWebhookSubscriptionJSONRequestBody defines body for CreateWebhookSubscription for application/json ContentType.
+type CreateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionCreate
+
+// UpdateWebhookSubscriptionJSONRequestBody defines body for UpdateWebhookSubscription for application/json ContentType.
+type UpdateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionUpdate
+
+// RotateWebhookSecretJSONRequestBody defines body for RotateWebhookSecret for application/json ContentType.
+type RotateWebhookSecretJSONRequestBody = WebhookSecretRotation
+
+// SendWebhookJSONRequestBody defines body for SendWebhook for application/json ContentType.
+type SendWebhookJSONRequestBody = WebhookSend
+
 // CreateWorkItemJSONRequestBody defines body for CreateWorkItem for application/json ContentType.
 type CreateWorkItemJSONRequestBody = WorkItemCreate
 
@@ -5126,6 +6501,15 @@ type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
+
+// SubmitJumbleEntryJSONRequestBody defines body for SubmitJumbleEntry for application/json ContentType.
+type SubmitJumbleEntryJSONRequestBody = JumbleEntrySubmit
+
+// ConvertJumbleEntryJSONRequestBody defines body for ConvertJumbleEntry for application/json ContentType.
+type ConvertJumbleEntryJSONRequestBody = JumbleEntryConvert
+
+// StartJumbleIntakeJSONRequestBody defines body for StartJumbleIntake for application/json ContentType.
+type StartJumbleIntakeJSONRequestBody = JumbleIntakeDelivery
 
 // PlaceLegalHoldJSONRequestBody defines body for PlaceLegalHold for application/json ContentType.
 type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
@@ -5204,6 +6588,63 @@ type ServerInterface interface {
 	// VerifyAuditChain Verify the integrity of the audit chain
 	// (POST /audit:verify)
 	VerifyAuditChain(w http.ResponseWriter, r *http.Request)
+	// ListServiceAccounts The workspace's service accounts
+	// (GET /auth/service-accounts)
+	ListServiceAccounts(w http.ResponseWriter, r *http.Request)
+	// CreateServiceAccount Create a service account
+	// (POST /auth/service-accounts)
+	CreateServiceAccount(w http.ResponseWriter, r *http.Request, params CreateServiceAccountParams)
+	// ListAccessTokens The caller's own personal access tokens
+	// (GET /auth/tokens)
+	ListAccessTokens(w http.ResponseWriter, r *http.Request, params ListAccessTokensParams)
+	// CreateAccessToken Mint a personal access token
+	// (POST /auth/tokens)
+	CreateAccessToken(w http.ResponseWriter, r *http.Request, params CreateAccessTokenParams)
+	// RevokeAccessToken Revoke a personal access token
+	// (DELETE /auth/tokens/{tokenId})
+	RevokeAccessToken(w http.ResponseWriter, r *http.Request, tokenId TokenId)
+	// StartInboundRun Start a rule from outside
+	// (POST /automation/inbound/{token})
+	StartInboundRun(w http.ResponseWriter, r *http.Request, token string)
+	// ListRules The workspace's automation rules
+	// (GET /automation/rules)
+	ListRules(w http.ResponseWriter, r *http.Request, params ListRulesParams)
+	// CreateRule Write a rule
+	// (POST /automation/rules)
+	CreateRule(w http.ResponseWriter, r *http.Request, params CreateRuleParams)
+	// DeleteRule Remove a rule
+	// (DELETE /automation/rules/{ruleId})
+	DeleteRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
+	// GetRule One rule, as it stands
+	// (GET /automation/rules/{ruleId})
+	GetRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
+	// UpdateRule Change what a rule does
+	// (PATCH /automation/rules/{ruleId})
+	UpdateRule(w http.ResponseWriter, r *http.Request, ruleId RuleId)
+	// DisableRule Switch a rule off
+	// (POST /automation/rules/{ruleId}:disable)
+	DisableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params DisableRuleParams)
+	// EnableRule Switch a rule on
+	// (POST /automation/rules/{ruleId}:enable)
+	EnableRule(w http.ResponseWriter, r *http.Request, ruleId RuleId, params EnableRuleParams)
+	// RotateInboundTrigger Mint the address an inbound-webhook rule answers on
+	// (POST /automation/rules/{ruleId}:rotate-inbound-token)
+	RotateInboundTrigger(w http.ResponseWriter, r *http.Request, ruleId RuleId, params RotateInboundTriggerParams)
+	// TriggerRuleManually Run a rule now
+	// (POST /automation/rules/{ruleId}:trigger)
+	TriggerRuleManually(w http.ResponseWriter, r *http.Request, ruleId RuleId, params TriggerRuleManuallyParams)
+	// TestRule Dry-run a rule against a sample event
+	// (POST /automation/rules:test)
+	TestRule(w http.ResponseWriter, r *http.Request)
+	// ListRuleRuns What the rules have done
+	// (GET /automation/runs)
+	ListRuleRuns(w http.ResponseWriter, r *http.Request, params ListRuleRunsParams)
+	// GetRuleRun One run, with every condition and every action
+	// (GET /automation/runs/{runId})
+	GetRuleRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID)
+	// ReplayRuleRun Complete a failed run
+	// (POST /automation/runs/{runId}:replay)
+	ReplayRuleRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID, params ReplayRuleRunParams)
 	// CreateBackupSchedule Create a backup schedule
 	// (POST /backup-schedules)
 	CreateBackupSchedule(w http.ResponseWriter, r *http.Request)
@@ -5318,6 +6759,39 @@ type ServerInterface interface {
 
 	// (DELETE /integrations/calendar-feeds/{feedId})
 	RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
+	// HttpRequest Call an external HTTP address
+	// (POST /integrations/http-requests)
+	HttpRequest(w http.ResponseWriter, r *http.Request)
+	// PollTriggerEvents The pull half of the event stream
+	// (GET /integrations/triggers/{eventType})
+	PollTriggerEvents(w http.ResponseWriter, r *http.Request, eventType EventType, params PollTriggerEventsParams)
+	// ListWebhookSubscriptions The workspace's webhook subscriptions
+	// (GET /integrations/webhooks)
+	ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request)
+	// CreateWebhookSubscription Subscribe an external system to the event stream
+	// (POST /integrations/webhooks)
+	CreateWebhookSubscription(w http.ResponseWriter, r *http.Request, params CreateWebhookSubscriptionParams)
+	// DeleteWebhookSubscription Unsubscribe
+	// (DELETE /integrations/webhooks/{webhookId})
+	DeleteWebhookSubscription(w http.ResponseWriter, r *http.Request, webhookId WebhookId)
+	// GetWebhookSubscription One webhook subscription
+	// (GET /integrations/webhooks/{webhookId})
+	GetWebhookSubscription(w http.ResponseWriter, r *http.Request, webhookId WebhookId)
+	// UpdateWebhookSubscription Change a subscription
+	// (PATCH /integrations/webhooks/{webhookId})
+	UpdateWebhookSubscription(w http.ResponseWriter, r *http.Request, webhookId WebhookId, params UpdateWebhookSubscriptionParams)
+	// ListWebhookDeliveries What was delivered, and what happened to it
+	// (GET /integrations/webhooks/{webhookId}/deliveries)
+	ListWebhookDeliveries(w http.ResponseWriter, r *http.Request, webhookId WebhookId, params ListWebhookDeliveriesParams)
+	// ReplayWebhookDelivery Send a dead-lettered delivery again
+	// (POST /integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay)
+	ReplayWebhookDelivery(w http.ResponseWriter, r *http.Request, webhookId WebhookId, deliveryId DeliveryId)
+	// RotateWebhookSecret Issue a new signing secret
+	// (POST /integrations/webhooks/{webhookId}:rotate-secret)
+	RotateWebhookSecret(w http.ResponseWriter, r *http.Request, webhookId WebhookId, params RotateWebhookSecretParams)
+	// SendWebhook Deliver one event to this subscription
+	// (POST /integrations/webhooks/{webhookId}:send)
+	SendWebhook(w http.ResponseWriter, r *http.Request, webhookId WebhookId)
 
 	// (GET /items)
 	ListWorkItems(w http.ResponseWriter, r *http.Request, params ListWorkItemsParams)
@@ -5459,6 +6933,27 @@ type ServerInterface interface {
 	// CancelJob Stop a piece of background work
 	// (POST /jobs/{jobId}:cancel)
 	CancelJob(w http.ResponseWriter, r *http.Request, jobId JobId, params CancelJobParams)
+	// ListJumbleEntries The jumble, newest first
+	// (GET /jumble/entries)
+	ListJumbleEntries(w http.ResponseWriter, r *http.Request, params ListJumbleEntriesParams)
+	// SubmitJumbleEntry Put something in the jumble
+	// (POST /jumble/entries)
+	SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, params SubmitJumbleEntryParams)
+	// ConvertJumbleEntry Turn an entry into work
+	// (POST /jumble/entries/{entryId}:convert)
+	ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params ConvertJumbleEntryParams)
+	// DismissJumbleEntry Decide against an entry
+	// (POST /jumble/entries/{entryId}:dismiss)
+	DismissJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params DismissJumbleEntryParams)
+	// StartJumbleIntake Deliver something into the jumble from outside
+	// (POST /jumble/inbound/{token})
+	StartJumbleIntake(w http.ResponseWriter, r *http.Request, token string)
+	// RotateJumbleIntake Mint the address the jumble accepts webhooks on
+	// (POST /jumble/intake:rotate-token)
+	RotateJumbleIntake(w http.ResponseWriter, r *http.Request, params RotateJumbleIntakeParams)
+	// DeliverMail Deliver a mail into the jumble
+	// (POST /jumble/mail/{token})
+	DeliverMail(w http.ResponseWriter, r *http.Request, token string)
 	// ListLegalHolds The legal holds in force
 	// (GET /legal-holds)
 	ListLegalHolds(w http.ResponseWriter, r *http.Request, params ListLegalHoldsParams)
@@ -5845,6 +7340,740 @@ func (siw *ServerInterfaceWrapper) VerifyAuditChain(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyAuditChain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListServiceAccounts operation middleware
+func (siw *ServerInterfaceWrapper) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListServiceAccounts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateServiceAccount operation middleware
+func (siw *ServerInterfaceWrapper) CreateServiceAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateServiceAccountParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateServiceAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAccessTokens operation middleware
+func (siw *ServerInterfaceWrapper) ListAccessTokens(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAccessTokensParams
+
+	// ------------- Optional query parameter "account_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "account_id", r.URL.Query(), &params.AccountId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "account_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "account_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAccessTokens(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAccessToken operation middleware
+func (siw *ServerInterfaceWrapper) CreateAccessToken(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateAccessTokenParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAccessToken(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeAccessToken operation middleware
+func (siw *ServerInterfaceWrapper) RevokeAccessToken(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tokenId" -------------
+	var tokenId TokenId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tokenId", r.PathValue("tokenId"), &tokenId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tokenId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeAccessToken(w, r, tokenId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartInboundRun operation middleware
+func (siw *ServerInterfaceWrapper) StartInboundRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartInboundRun(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRules operation middleware
+func (siw *ServerInterfaceWrapper) ListRules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRulesParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "enabled" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "enabled", r.URL.Query(), &params.Enabled, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "enabled"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "enabled", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRules(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateRule operation middleware
+func (siw *ServerInterfaceWrapper) CreateRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateRule(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteRule operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRule(w, r, ruleId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRule operation middleware
+func (siw *ServerInterfaceWrapper) GetRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRule(w, r, ruleId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateRule operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateRule(w, r, ruleId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisableRule operation middleware
+func (siw *ServerInterfaceWrapper) DisableRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DisableRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisableRule(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnableRule operation middleware
+func (siw *ServerInterfaceWrapper) EnableRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params EnableRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnableRule(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateInboundTrigger operation middleware
+func (siw *ServerInterfaceWrapper) RotateInboundTrigger(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateInboundTriggerParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateInboundTrigger(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TriggerRuleManually operation middleware
+func (siw *ServerInterfaceWrapper) TriggerRuleManually(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ruleId" -------------
+	var ruleId RuleId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ruleId", r.PathValue("ruleId"), &ruleId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ruleId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TriggerRuleManuallyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TriggerRuleManually(w, r, ruleId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestRule operation middleware
+func (siw *ServerInterfaceWrapper) TestRule(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestRule(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRuleRuns operation middleware
+func (siw *ServerInterfaceWrapper) ListRuleRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRuleRunsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "rule_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "rule_id", r.URL.Query(), &params.RuleId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "rule_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rule_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "trigger" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "trigger", r.URL.Query(), &params.Trigger, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "trigger"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trigger", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRuleRuns(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRuleRun operation middleware
+func (siw *ServerInterfaceWrapper) GetRuleRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", r.PathValue("runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRuleRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplayRuleRun operation middleware
+func (siw *ServerInterfaceWrapper) ReplayRuleRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", r.PathValue("runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReplayRuleRunParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplayRuleRun(w, r, runId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7333,6 +9562,411 @@ func (siw *ServerInterfaceWrapper) RevokeCalendarFeed(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeCalendarFeed(w, r, feedId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// HttpRequest operation middleware
+func (siw *ServerInterfaceWrapper) HttpRequest(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.HttpRequest(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PollTriggerEvents operation middleware
+func (siw *ServerInterfaceWrapper) PollTriggerEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "eventType" -------------
+	var eventType EventType
+
+	err = runtime.BindStyledParameterWithOptions("simple", "eventType", r.PathValue("eventType"), &eventType, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "eventType", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PollTriggerEventsParams
+
+	// ------------- Optional query parameter "since" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "since", r.URL.Query(), &params.Since, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "since"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "since", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PollTriggerEvents(w, r, eventType, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWebhookSubscriptions operation middleware
+func (siw *ServerInterfaceWrapper) ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWebhookSubscriptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateWebhookSubscription operation middleware
+func (siw *ServerInterfaceWrapper) CreateWebhookSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateWebhookSubscriptionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateWebhookSubscription(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteWebhookSubscription operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWebhookSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteWebhookSubscription(w, r, webhookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetWebhookSubscription operation middleware
+func (siw *ServerInterfaceWrapper) GetWebhookSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetWebhookSubscription(w, r, webhookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateWebhookSubscription operation middleware
+func (siw *ServerInterfaceWrapper) UpdateWebhookSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateWebhookSubscriptionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateWebhookSubscription(w, r, webhookId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWebhookDeliveries operation middleware
+func (siw *ServerInterfaceWrapper) ListWebhookDeliveries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListWebhookDeliveriesParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWebhookDeliveries(w, r, webhookId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplayWebhookDelivery operation middleware
+func (siw *ServerInterfaceWrapper) ReplayWebhookDelivery(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "deliveryId" -------------
+	var deliveryId DeliveryId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "deliveryId", r.PathValue("deliveryId"), &deliveryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "deliveryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplayWebhookDelivery(w, r, webhookId, deliveryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateWebhookSecret operation middleware
+func (siw *ServerInterfaceWrapper) RotateWebhookSecret(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateWebhookSecretParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateWebhookSecret(w, r, webhookId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SendWebhook operation middleware
+func (siw *ServerInterfaceWrapper) SendWebhook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId WebhookId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SendWebhook(w, r, webhookId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9585,6 +12219,312 @@ func (siw *ServerInterfaceWrapper) CancelJob(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// ListJumbleEntries operation middleware
+func (siw *ServerInterfaceWrapper) ListJumbleEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListJumbleEntriesParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "channel" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "channel", r.URL.Query(), &params.Channel, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "channel"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channel", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJumbleEntries(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SubmitJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) SubmitJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SubmitJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubmitJumbleEntry(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConvertJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) ConvertJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConvertJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConvertJumbleEntry(w, r, entryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DismissJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) DismissJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DismissJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DismissJumbleEntry(w, r, entryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartJumbleIntake operation middleware
+func (siw *ServerInterfaceWrapper) StartJumbleIntake(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartJumbleIntake(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateJumbleIntake operation middleware
+func (siw *ServerInterfaceWrapper) RotateJumbleIntake(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateJumbleIntakeParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateJumbleIntake(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeliverMail operation middleware
+func (siw *ServerInterfaceWrapper) DeliverMail(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeliverMail(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListLegalHolds operation middleware
 func (siw *ServerInterfaceWrapper) ListLegalHolds(w http.ResponseWriter, r *http.Request) {
 
@@ -11197,6 +14137,38 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/views/{viewId}", wrapper.UpdateSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:share", wrapper.ShareSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries", wrapper.ListJumbleEntries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries", wrapper.SubmitJumbleEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:convert", wrapper.ConvertJumbleEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:dismiss", wrapper.DismissJumbleEntry)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules", wrapper.ListRules)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules", wrapper.CreateRule)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.DeleteRule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.GetRule)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.UpdateRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:test", wrapper.TestRule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/intake:rotate-token", wrapper.RotateJumbleIntake)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/inbound/{token}", wrapper.StartJumbleIntake)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/mail/{token}", wrapper.DeliverMail)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/inbound/{token}", wrapper.StartInboundRun)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs", wrapper.ListRuleRuns)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/runs/{runId}", wrapper.GetRuleRun)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/runs/{runId}:replay", wrapper.ReplayRuleRun)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks", wrapper.ListWebhookSubscriptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks", wrapper.CreateWebhookSubscription)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.DeleteWebhookSubscription)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.GetWebhookSubscription)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/integrations/webhooks/{webhookId}", wrapper.UpdateWebhookSubscription)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries", wrapper.ListWebhookDeliveries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay", wrapper.ReplayWebhookDelivery)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:send", wrapper.SendWebhook)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/webhooks/{webhookId}:rotate-secret", wrapper.RotateWebhookSecret)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/http-requests", wrapper.HttpRequest)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/triggers/{eventType}", wrapper.PollTriggerEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.ListCalendarFeeds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.CreateCalendarFeed)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/calendar-feeds/{feedId}", wrapper.RevokeCalendarFeed)
@@ -11232,6 +14204,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invite", wrapper.InviteAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/tokens", wrapper.ListAccessTokens)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/tokens", wrapper.CreateAccessToken)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/tokens/{tokenId}", wrapper.RevokeAccessToken)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/service-accounts", wrapper.ListServiceAccounts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/service-accounts", wrapper.CreateServiceAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests", wrapper.ListDataSubjectRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests", wrapper.CreateDataSubjectRequest)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/privacy/requests/{requestId}", wrapper.UpdateDataSubjectRequest)

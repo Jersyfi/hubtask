@@ -56,6 +56,16 @@ func DefaultPolicies() []Policy {
 		// tenant that wants a shorter notification history is asking for less data to be kept, and
 		// refusing them would be arguing against Art. 25(2) on their behalf.
 		{DataKind: KindNotification, RetainDays: 90},
+		// Seven days, and no lower bound for the notification history's reason: nothing in the
+		// documents bounds it, and a tenant asking for a shorter one is asking for less data to
+		// be kept. What is not configurable is the guard - a row nobody has consumed yet is never
+		// due, whatever the period says - because that is a correctness rule rather than a
+		// retention one.
+		{DataKind: KindOutboxEvent, RetainDays: 7},
+		// The jumble (G-10). Ninety days, as data-retention.md §3 gives it, and no lower bound for
+		// the notification history's reason: no document sets one, and a tenant asking for a
+		// shorter inbox is asking for less of the least trusted text in the system to be kept.
+		{DataKind: KindJumbleEntry, RetainDays: 90},
 	}
 }
 

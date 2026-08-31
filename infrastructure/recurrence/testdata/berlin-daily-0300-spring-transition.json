@@ -1,0 +1,15 @@
+{
+  "name": "berlin-daily-0300-spring-transition",
+  "description": "An automation rule firing at 03:00 in Berlin across the spring transition (29 March 2026), which is G-08's acceptance case. 03:00 is the first reading that exists on the morning the clocks jump from 02:00 to 03:00, so the rule fires at the same local hour every night while the instant moves by one hour. A schedule tested only at 09:00 would never touch the edge this case sits on.",
+  "rrule": "FREQ=DAILY",
+  "time_zone": "Europe/Berlin",
+  "start": "2026-03-27T03:00:00",
+  "window_days": 4,
+  "occurrences": [
+    { "local": "2026-03-27T03:00:00+01:00", "utc": "2026-03-27T02:00:00Z" },
+    { "local": "2026-03-28T03:00:00+01:00", "utc": "2026-03-28T02:00:00Z" },
+    { "local": "2026-03-29T03:00:00+02:00", "utc": "2026-03-29T01:00:00Z" },
+    { "local": "2026-03-30T03:00:00+02:00", "utc": "2026-03-30T01:00:00Z" },
+    { "local": "2026-03-31T03:00:00+02:00", "utc": "2026-03-31T01:00:00Z" }
+  ]
+}

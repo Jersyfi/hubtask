@@ -48,6 +48,23 @@ type AccessTokens interface {
 	// TouchLastUsed records that the token was used. Called at most once per interval, so an
 	// owner can see a token nobody uses without every request costing a write.
 	TouchLastUsed(ctx context.Context, tokenID shared.ID, at time.Time) error
+
+	// Insert writes a minted token together with the credential that was drawn beside it. The
+	// presented token is passed whole for the reason the interface is: the hash is the adapter's
+	// to compute, and the application layer must never hold a value it could store by mistake.
+	Insert(ctx context.Context, token identity.AccessToken, presented identity.Token) error
+
+	// Find returns one token by its identifier, revoked or not, or an error wrapping
+	// shared.ErrNotFound. A token of another tenant is not found rather than forbidden.
+	Find(ctx context.Context, tokenID shared.ID) (identity.AccessToken, error)
+
+	// ListForAccount returns one account's own tokens, newest first. Not paged: a person holds a
+	// handful of credentials, and a cursor over a handful is machinery nobody reads.
+	ListForAccount(ctx context.Context, accountID shared.ID) ([]identity.AccessToken, error)
+
+	// Revoke stamps the token and reports whether it changed anything. False means it was already
+	// revoked, which is not an error - the second call is somebody making sure.
+	Revoke(ctx context.Context, tokenID shared.ID, at time.Time) (bool, error)
 }
 
 // Memberships answers what an account holds.
@@ -76,6 +93,16 @@ type Memberships interface {
 	// level. Trashed and archived entries are in the answer as they are stored: which of them the
 	// level shows is the item query's rule, and applying it twice is how the two come to disagree.
 	SharedItemsIn(ctx context.Context, accountID, collectionID shared.ID) ([]shared.ID, error)
+
+	// Administrators answers who administers anywhere on this path: the accounts holding a role
+	// that carries the workspace's structure, directly or through a group (R-1, G-12).
+	//
+	// The mirror image of Along - that one asks what one account holds, this one asks who holds
+	// something - and it exists for the retention advance warning, which has to reach "the
+	// collection's administrators" and "the tenant's administrators" without anybody being able to
+	// name a wider audience. Which roles those are is the role matrix's answer and not a
+	// parameter: a caller that could name VIEWER would be a caller warning everybody.
+	Administrators(ctx context.Context, path []identity.Scope) ([]shared.ID, error)
 }
 
 // Accounts is the store of people and service accounts.
@@ -96,6 +123,11 @@ type Accounts interface {
 	// Insert writes a new account. It fails with a conflict when the address is taken, because
 	// the uniqueness is the database's to enforce and racing callers must not both win.
 	Insert(ctx context.Context, account identity.Account) error
+
+	// ListOfKind returns the tenant's accounts of one kind, newest first. It exists for the
+	// service accounts, which are the one kind somebody administers as a set: a person is found
+	// by name or address, and a machine is found in the list of machines.
+	ListOfKind(ctx context.Context, kind identity.AccountKind) ([]identity.Account, error)
 
 	// UpdatePreferences writes the three preference columns and nothing else. A method per
 	// concern rather than a general update: an update that can write any column is one that can

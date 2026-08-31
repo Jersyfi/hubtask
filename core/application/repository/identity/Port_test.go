@@ -24,6 +24,18 @@ func (double) FindByToken(context.Context, identity.Token) (Credential, error) {
 
 func (double) TouchLastUsed(context.Context, shared.ID, time.Time) error { return nil }
 
+func (double) Insert(context.Context, identity.AccessToken, identity.Token) error { return nil }
+
+func (double) Find(context.Context, shared.ID) (identity.AccessToken, error) {
+	return identity.AccessToken{}, shared.ErrNotFound
+}
+
+func (double) ListForAccount(context.Context, shared.ID) ([]identity.AccessToken, error) {
+	return nil, nil
+}
+
+func (double) Revoke(context.Context, shared.ID, time.Time) (bool, error) { return false, nil }
+
 var _ AccessTokens = double{}
 
 func TestTheCredentialCarriesTheTenantDefaults(t *testing.T) {

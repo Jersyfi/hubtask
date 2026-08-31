@@ -35,6 +35,18 @@ var PublicRoutes = map[string]bool{
 	// bearer header. The token is the whole of the authorisation, and the route validates it
 	// itself (D-08, security.md §4 T-21).
 	http.MethodGet + " " + APIBasePath + "/calendar/{token}.ics": true,
+	// The inbound webhook carries its credential in the URL for the same reasons, and it
+	// authenticates the *rule* rather than a person: there is no account behind the token, so
+	// there is nothing for this middleware to resolve. The route validates it itself, and what
+	// the run may then do is its `run_as` account's business (G-08, automation.md §1.1).
+	http.MethodPost + " " + APIBasePath + "/automation/inbound/{token}": true,
+	// The jumble's intake carries its credential in the URL with the same trust model, and it
+	// authenticates the *tenant* rather than a person: there is no account behind the token, and
+	// the entry it stores records no actor (G-10).
+	http.MethodPost + " " + APIBasePath + "/jumble/inbound/{token}": true,
+	// The mail door, on the same credential and the same trust model (G-11). What arrives here is
+	// a message somebody else's bridge forwarded, and the token is the whole of what says it may.
+	http.MethodPost + " " + APIBasePath + "/jumble/mail/{token}": true,
 }
 
 // bearerScheme is compared case-insensitively, as RFC 9110 §11.1 requires of an auth scheme.

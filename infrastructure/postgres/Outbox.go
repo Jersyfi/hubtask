@@ -40,8 +40,9 @@ type Outbox struct {
 func NewOutbox(jobs queue.Queue) Outbox { return Outbox{jobs: jobs} }
 
 var (
-	_ outbox.Events  = Outbox{}
-	_ outbox.Pending = Outbox{}
+	_ outbox.Events   = Outbox{}
+	_ outbox.Pending  = Outbox{}
+	_ outbox.Pollable = Outbox{}
 )
 
 // Append writes the event.
@@ -200,6 +201,86 @@ func (o Outbox) CountPending(ctx context.Context) (int, error) {
 // way out it would mean that during a rolling update the old pod dead-letters the events the new
 // pod writes (ADR-0003, expand/contract). What is in the table was validated when it was written;
 // reading it back is not the place to have second thoughts.
+// FindEvent reads one event as it was written (G-03). The webhook deliverer renders its body from
+// this rather than from a copy in the job payload, so a retry two days later sends what the first
+// attempt would have.
+func (o Outbox) FindEvent(ctx context.Context, eventID shared.ID) (event.Envelope, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return event.Envelope{}, err
+	}
+	id, err := uuidOf(eventID)
+	if err != nil {
+		return event.Envelope{}, err
+	}
+
+	row, err := queries.FindOutboxEvent(ctx, id)
+	if err != nil {
+		if IsNoRows(err) {
+			return event.Envelope{}, shared.ErrNotFound.
+				WithDetail("events.event_not_found").
+				WithParams(map[string]string{"event_id": eventID.String()})
+		}
+		return event.Envelope{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading event %s: %w", eventID, err))
+	}
+	return envelopeFrom(sqlc.ClaimPendingEventsRow(row))
+}
+
+// Poll answers one type's events after a position, for an external trigger (G-04).
+//
+// No tenant parameter and no tenant predicate, like every other read here: row level security has
+// already narrowed the table to the transaction's tenant, and a poller reading another workspace's
+// stream is therefore not a thing this method could be asked to do.
+//
+// The batch is bounded here as well as by the caller. The limit arrives from a query parameter, and
+// a value the specification happens to allow today is not a value this adapter wants to learn from
+// a request tomorrow.
+func (o Outbox) Poll(
+	ctx context.Context, eventType event.Type, after outbox.Position, horizon time.Time, limit int,
+) ([]event.Envelope, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// A position with no identifier is the start of the window: nothing has been read yet, and the
+	// keyset compares against the lowest uuid there is. uuidOf refuses the zero value rather than
+	// rendering it, which is right everywhere else - an entity with no identifier is a bug - so the
+	// one place where "before every row" is a real answer says so here.
+	afterID := pgtype.UUID{Valid: true}
+	if !after.ID.IsZero() {
+		var err error
+		if afterID, err = uuidOf(after.ID); err != nil {
+			return nil, err
+		}
+	}
+
+	rows, err := queries.PollOutboxEvents(ctx, sqlc.PollOutboxEventsParams{
+		EventType:       eventType.String(),
+		Horizon:         timestampOf(horizon),
+		AfterOccurredAt: timestampOf(after.OccurredAt),
+		AfterID:         afterID,
+		Batch:           boundedBatch(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("polling events of type %s: %w", eventType, err))
+	}
+
+	envelopes := make([]event.Envelope, 0, len(rows))
+	for _, row := range rows {
+		envelope, err := envelopeFrom(sqlc.ClaimPendingEventsRow(row))
+		if err != nil {
+			return nil, err
+		}
+		envelopes = append(envelopes, envelope)
+	}
+	return envelopes, nil
+}
+
 func envelopeFrom(row sqlc.ClaimPendingEventsRow) (event.Envelope, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
@@ -255,6 +336,81 @@ func envelopeFrom(row sqlc.ClaimPendingEventsRow) (event.Envelope, error) {
 // the record exists to prevent.
 type Consumption struct {
 	now clock.Clock
+}
+
+// DispatchedEvents is the outbox as the retention engine sees it: what is due, and one batch of
+// it removed (G-02, ADR-0007's second countermeasure).
+//
+// A type of its own rather than two more methods on Outbox, because the two have nothing to do
+// with each other beyond the table. Outbox is the write path and the dispatcher; this is the
+// sweep, and a retention engine that could reach Claim or Append would be an engine that could
+// publish an event.
+type DispatchedEvents struct{}
+
+func NewDispatchedEvents() DispatchedEvents { return DispatchedEvents{} }
+
+// No compile-time assertion against the application's interface, and that is the layer rule
+// rather than an oversight: an adapter that imported core/application/service would be an adapter
+// that can call a use case (project-structure.md §2, and the gate that says so). The two meet in
+// the composition root, which is the one place allowed to know both.
+
+// DeleteExpired removes one batch. The guard that a row nobody has consumed is never due lives in
+// the query, not here - see db/queries/Outbox.sql.
+func (DispatchedEvents) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	removed, err := queries.DeleteDispatchedEvents(ctx, sqlc.DeleteDispatchedEventsParams{
+		Cutoff: timestampOf(cutoff),
+		Batch:  int32(batch), //nolint:gosec // G115: a batch size from the configuration, bounded there.
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the outbox: %w", err))
+	}
+	return int(removed), nil
+}
+
+// DeleteExpiredConsumption removes one batch of consumption records. Called by the same sweep and
+// bounded by the same period as the events themselves - see db/queries/Outbox.sql.
+func (DispatchedEvents) DeleteExpiredConsumption(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	removed, err := queries.DeleteExpiredConsumption(ctx, sqlc.DeleteExpiredConsumptionParams{
+		Cutoff: timestampOf(cutoff),
+		Batch:  int32(batch), //nolint:gosec // G115: a batch size from the configuration.
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the consumption records: %w", err))
+	}
+	return int(removed), nil
+}
+
+// CountExpired reports how many rows are due, counted no higher than the ceiling.
+func (DispatchedEvents) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	due, err := queries.CountDispatchedEvents(ctx, sqlc.CountDispatchedEventsParams{
+		Cutoff:  timestampOf(cutoff),
+		Ceiling: int32(ceiling), //nolint:gosec // G115: a batch size from the configuration.
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the outbox's due rows: %w", err))
+	}
+	return int(due), nil
 }
 
 func NewConsumption(now clock.Clock) Consumption { return Consumption{now: now} }

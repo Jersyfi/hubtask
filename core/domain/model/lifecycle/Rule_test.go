@@ -5,6 +5,7 @@ package lifecycle_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -89,9 +90,11 @@ func TestWhatARuleCannotMean(t *testing.T) {
 			func(in *domain.NewRuleInput) { in.Action = domain.ActionAnonymize },
 			domain.CodeActionNotPerformed,
 		},
-		"a condition, until the language exists": {
-			func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" },
-			domain.CodeConditionNotAvailable,
+		"a condition longer than the engine will compile": {
+			func(in *domain.NewRuleInput) {
+				in.Condition = strings.Repeat("a", domain.MaxConditionLength+1)
+			},
+			domain.CodeConditionTooLong,
 		},
 		"half a chain": {
 			func(in *domain.NewRuleInput) { in.ThenAfterDays = 730 },
@@ -129,14 +132,6 @@ func TestWhatARuleCannotMean(t *testing.T) {
 			},
 			domain.CodeNotifyBeyondGrace,
 		},
-		"a warning at all, until something sends one": {
-			func(in *domain.NewRuleInput) {
-				in.Notify = &domain.Notify{
-					BeforeDays: 7, Recipients: []domain.Recipient{domain.RecipientItemMembers},
-				}
-			},
-			domain.CodeNotifyNotAvailable,
-		},
 		"an export with nowhere to write it": {
 			func(in *domain.NewRuleInput) { in.Action = domain.ActionExportThenDelete },
 			domain.CodeExportTargetRequired,
@@ -160,6 +155,34 @@ func TestWhatARuleCannotMean(t *testing.T) {
 // audit. The trash is the one kind with a bound today.
 // §4.4 makes the upper bound the operator's - "where the operator has set a maximum period" - so it
 // is handed in rather than read off the kind, and no kind carries one by default.
+// The E-07 refusal, flipped rather than deleted. It refused a condition outright because nothing
+// could evaluate one; with G-06 the aggregate keeps it, and whether the text is an expression is
+// asked by the compiler in the application layer - core/domain may not hold an evaluator.
+func TestAConditionIsKeptForTheCompiler(t *testing.T) {
+	in := ruleInput(func(*domain.NewRuleInput) {})
+	in.Condition = "  item.completed_at != null  "
+
+	rule, err := domain.NewRule(in)
+	if err != nil {
+		t.Fatalf("a condition was refused by the aggregate: %v", err)
+	}
+	// Trimmed, so that what the sweep compiles is what somebody wrote.
+	if rule.Condition != "item.completed_at != null" {
+		t.Errorf("kept %q", rule.Condition)
+	}
+}
+
+// A rule with no condition is the ordinary case and stays empty.
+func TestARuleWithoutAConditionCarriesNone(t *testing.T) {
+	rule, err := domain.NewRule(ruleInput(func(*domain.NewRuleInput) {}))
+	if err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+	if rule.Condition != "" {
+		t.Errorf("condition %q, want none", rule.Condition)
+	}
+}
+
 func TestTheUpperBoundIsAJustificationRatherThanARefusal(t *testing.T) {
 	const ceiling = 400
 
@@ -331,7 +354,7 @@ func TestTheFirstBlockingReasonWins(t *testing.T) {
 // The catalogue is the document's, and every kind it names is here - with the ones nothing sweeps
 // marked rather than absent.
 func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
-	const documented = 15
+	const documented = 16
 	if len(domain.Catalogue()) != documented {
 		t.Fatalf("the catalogue has %d kinds, and data-retention.md §3 lists %d",
 			len(domain.Catalogue()), documented)
@@ -340,7 +363,11 @@ func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
 		if kind.Anchor == "" {
 			t.Errorf("%s says nothing about what its period runs from", kind.Name)
 		}
-		if kind.Swept() && len(kind.Blockable) == 0 && kind.Name != domain.KindNotification {
+		// The two kinds nothing can block are the two that are not somebody's work: a record that
+		// they were told, and a dispatched event. A legal hold is placed on tenants, containers
+		// and items, and neither of these is one.
+		if kind.Swept() && len(kind.Blockable) == 0 &&
+			kind.Name != domain.KindNotification && kind.Name != domain.KindOutboxEvent {
 			t.Errorf("%s is swept and nothing can block it", kind.Name)
 		}
 		for _, action := range kind.Actions {
@@ -351,5 +378,47 @@ func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
 	}
 	if len(domain.SweptKinds()) == 0 {
 		t.Fatal("nothing is swept at all")
+	}
+}
+
+// The refusal that flipped (R-1, G-12): a rule that asks to warn somebody is stored and honoured
+// rather than refused, now that there is a category to write the warning under and a way to
+// resolve who "the collection's administrators" are.
+//
+// The bound it was refused *with* stays: a warning after the act is still a condolence, and the
+// case above proves it.
+func TestARuleThatWarnsSomebodyIsStored(t *testing.T) {
+	rule, err := domain.NewRule(ruleInput(func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{
+			BeforeDays: 7,
+			Recipients: []domain.Recipient{
+				domain.RecipientItemMembers, domain.RecipientCollectionAdmins,
+				domain.RecipientTenantAdmins,
+			},
+		}
+	}))
+	if err != nil {
+		t.Fatalf("a rule that warns somebody was refused: %v", err)
+	}
+	if rule.Notify.Silent() {
+		t.Fatal("the warning was stored as silence")
+	}
+	if rule.Notify.BeforeDays != 7 || len(rule.Notify.Recipients) != 3 {
+		t.Errorf("the rule warns %+v", rule.Notify)
+	}
+}
+
+// A rule that names recipients and no number is asking for the documented notice rather than for
+// none: §6's seven days is what "warn them" means when nobody said otherwise.
+func TestAWarningWithNoNumberTakesTheDocumentedDefault(t *testing.T) {
+	rule, err := domain.NewRule(ruleInput(func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{Recipients: []domain.Recipient{domain.RecipientTenantAdmins}}
+	}))
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if rule.Notify.BeforeDays != domain.DefaultNotifyBeforeDays {
+		t.Errorf("the warning goes out %d days ahead, want the documented %d",
+			rule.Notify.BeforeDays, domain.DefaultNotifyBeforeDays)
 	}
 }

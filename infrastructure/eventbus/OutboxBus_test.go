@@ -324,3 +324,62 @@ func TestTheCloudEventNamesAReplayAndSaysNothingOtherwise(t *testing.T) {
 		t.Errorf("a replayed event does not say so")
 	}
 }
+
+// A stalled consumer is exactly the state alert A-05 describes - "the dispatcher is behind or not
+// running" - and until G-02 it was the one state the metric could not report: a subscriber that
+// fails every time delivers nothing, marks nothing, and the histogram the alert reads stayed
+// empty. A percentile over no observations has nothing to exceed.
+func TestAStalledConsumerStillReportsItsLag(t *testing.T) {
+	stale := now.Add(-5 * time.Minute)
+	pending := &pendingDouble{events: []event.Envelope{
+		envelopeAt("0192f000-0000-7000-8000-0000000000f1", stale),
+		envelopeAt("0192f000-0000-7000-8000-0000000000f2", stale),
+	}}
+
+	stalled := &subscriberDouble{
+		name: "the-stalled-consumer", wants: event.ContainerCreated,
+		err: errors.New("the consumer is not answering"),
+	}
+
+	var reported []float64
+	d := dispatcher(pending, newConsumption(), stalled)
+	d.Lag = func(_ context.Context, seconds float64) { reported = append(reported, seconds) }
+
+	if _, err := d.Run(t.Context(), dispatchJob()); err == nil {
+		t.Fatal("a round whose consumer failed reported success")
+	}
+
+	if len(pending.dispatched) != 0 {
+		t.Errorf("%d events were marked dispatched by a failed round", len(pending.dispatched))
+	}
+	if len(reported) != 2 {
+		t.Fatalf("%d lag measurements, want one per event the round had in hand", len(reported))
+	}
+	// Above the sixty seconds alert A-05 fires at, which is the property that makes the alert
+	// able to see this at all (deploy/observability/alerts/prometheus-rules.yaml).
+	for _, seconds := range reported {
+		if seconds < 60 {
+			t.Errorf("the reported lag is %.0fs; the alert fires above 60s", seconds)
+		}
+	}
+}
+
+// And the ordinary case still measures what it always did: the age of the event when the
+// dispatcher reached it, not the time the round took.
+func TestASucceedingRoundReportsTheAgeOfEachEvent(t *testing.T) {
+	pending := &pendingDouble{events: []event.Envelope{
+		envelopeAt("0192f000-0000-7000-8000-0000000000f3", now.Add(-90*time.Second)),
+	}}
+	subscriber := &subscriberDouble{name: "the-consumer", wants: event.ContainerCreated}
+
+	var reported []float64
+	d := dispatcher(pending, newConsumption(), subscriber)
+	d.Lag = func(_ context.Context, seconds float64) { reported = append(reported, seconds) }
+
+	if _, err := d.Run(t.Context(), dispatchJob()); err != nil {
+		t.Fatalf("the round failed: %v", err)
+	}
+	if len(reported) != 1 || reported[0] != 90 {
+		t.Errorf("reported %v, want one measurement of 90 seconds", reported)
+	}
+}

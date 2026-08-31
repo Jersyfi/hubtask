@@ -25,14 +25,19 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/catalogue"
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
+	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
+	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
+	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
@@ -42,6 +47,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
+	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
@@ -53,11 +60,13 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	dbfiles "github.com/Jersyfi/hubtask/db"
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
+	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
+	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
@@ -69,6 +78,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	"github.com/Jersyfi/hubtask/infrastructure/stepup"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
+	"github.com/Jersyfi/hubtask/infrastructure/webhook"
+	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 	"github.com/Jersyfi/hubtask/presentation/webui"
@@ -355,6 +366,39 @@ func run() error {
 	groups := postgres.NewGroupRepository()
 	grants := postgres.NewMembershipGrantRepository()
 
+	// The webhook subscriptions (G-03). One dependency set for the same reason the credentials
+	// have one: the rule that decides who may touch a subscription is a single rule.
+	//
+	// The encryptor is the one E-02 built. A signing secret is sealed exactly as a backup
+	// target's credential is, under a purpose that names the row - so a ciphertext lifted out of
+	// one subscription and dropped into another no longer opens.
+	webhookWriter := integrationservice.Writer{
+		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+		Deliveries:    postgres.NewWebhookDeliveryRepository(),
+		Authorizer:    authorizer, Encryptor: encryptor, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{},
+	}
+
+	// The three credential use cases share one dependency set, because the rule about whose
+	// tokens somebody may touch is one rule (G-01). The known scopes come from the catalogue
+	// rather than a list: a use case cannot read the catalogue it is part of, and a list beside
+	// the descriptors is one that grows a scope no operation checks.
+	accessTokenWriter := identity.AccessTokenWriter{
+		Tokens:   postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
+		Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy:     clockadapter.CryptoRandom{},
+		KnownScopes: catalogue.Scopes(),
+	}
+
+	// The service accounts share theirs for the same reason: creating one and listing them are
+	// the same permission over the same store.
+	serviceAccounts := identity.ServiceAccounts{
+		Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	// The work management use cases share theirs the same way. The capability profiles in
 	// particular: /meta/capabilities answers from the same reader that decides whether a
 	// placement is permitted, so what an installation advertises and what it accepts cannot
@@ -364,6 +408,48 @@ func run() error {
 	// on the installation secret, and one derivation means one place where that key comes from
 	// (api-guidelines.md §4).
 	cursors := security.NewCursorCodec(cfg.SecretKey)
+	// The automation rules (G-05). One dependency set for the webhook writer's reason: the six use
+	// cases are one aggregate's writers, and the rule that decides who may write one is a single
+	// rule - including the composition half of it, which reads accounts and memberships to answer
+	// whether a writer may delegate to the account a rule would run as.
+	//
+	// The catalogue is deferred for BulkUpdateWorkItems' reason and it is the same circle: a rule's
+	// actions are use cases, so writing one has to consult the registry - and these seven are
+	// entries of the registry, so it cannot exist yet.
+	// The address an INBOUND_WEBHOOK rule answers on (G-08). Its own hasher, derived from the
+	// installation secret under the inbound trigger's purpose label, so a value from this column
+	// can never be replayed as a calendar feed token, a personal access token or a page cursor
+	// (security.md §5).
+	automationInbound := postgres.NewAutomationInboundRepository(
+		security.NewInboundTokenHasher(cfg.SecretKey))
+
+	ruleCatalogue := &deferredCatalogue{}
+	ruleReader := automationservice.Reader{
+		Runs:       postgres.NewAutomationRunRepository(cursors),
+		Rules:      postgres.NewAutomationRuleRepository(cursors),
+		Authorizer: authorizer, UnitOfWork: unitOfWork,
+	}
+	ruleWriter := automationservice.Writer{
+		Rules:       postgres.NewAutomationRuleRepository(cursors),
+		Schedules:   postgres.NewAutomationRuleRepository(cursors),
+		Accounts:    accounts,
+		Memberships: postgres.NewMembershipRepository(),
+		Catalogue:   ruleCatalogue,
+		// The one place the expression engine is constructed. A rule's conditions are compiled
+		// when it is written, so a mistake reaches its author rather than a log (G-06, ADR-0009).
+		Conditions: celexpression.New(),
+		// The one schedule engine this installation has (ADR-0008, decision 5 of the 0.5.0
+		// backlog). A SCHEDULE rule's next moment is worked out here, so a recurrence this build
+		// cannot read is refused to its author rather than failing on a worker (G-08).
+		Expander: recurrenceadapter.New(),
+		Jobs:     jobs,
+		// Seals an HTTP_REQUEST's header secret at the write (E-02, T-21): the rule stores
+		// ciphertext or nothing, and the outbound sender opens it for the length of one call.
+		Encryptor: encryptor,
+
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
 	containers := postgres.NewContainerRepository(cursors)
 	items := postgres.NewItemRepository(cursors)
 	trash := postgres.NewTrashRepository(cursors)
@@ -406,6 +492,19 @@ func run() error {
 	notifications := postgres.NewNotificationRepository()
 	notificationPreferences := postgres.NewNotificationPreferenceRepository()
 	outbox := postgres.NewOutbox(jobs)
+	// The jumble (G-10). The writer is shared by every jumble use case; the media half is the
+	// same repository the attachments use, so an entry's reference counts with theirs. The intake
+	// hashes its tokens under the intake's own purpose label, so a rule's inbound token presented
+	// at the jumble door matches nothing.
+	jumbleIntake := postgres.NewJumbleIntakeRepository(
+		security.NewJumbleIntakeHasher(cfg.SecretKey))
+	jumbleWriter := jumbleservice.Writer{
+		Entries:    postgres.NewJumbleRepository(cursors),
+		Media:      mediaObjects,
+		Events:     outbox,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
 	changes := postgres.NewChangeLog()
 
 	// What every writer of an entry needs in order to leave a step in its history. Held as one
@@ -444,6 +543,7 @@ func run() error {
 	// share a newly created rule reports and the share its preview reports come from the same
 	// reading - RE-7 is exactly that they agree.
 	retentionRules := lifecycle.Rules{
+		Conditions: celexpression.New(),
 		Rules:      postgres.NewRetentionRuleRepository(),
 		Policies:   lifecycleStore,
 		Marking:    postgres.NewRetentionMarkingRepository(),
@@ -698,6 +798,78 @@ func run() error {
 		identity.DeleteGroup{
 			Groups: groups, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
+		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
+		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
+		identity.CreateServiceAccount{Accounts: serviceAccounts}.Descriptor(),
+		identity.ListServiceAccounts{Accounts: serviceAccounts}.Descriptor(),
+		integrationservice.CreateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.GetWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.ListWebhookSubscriptions{Writer: webhookWriter}.Descriptor(),
+		integrationservice.UpdateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.DeleteWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.ListWebhookDeliveries{Writer: webhookWriter}.Descriptor(),
+		integrationservice.ReplayWebhookDelivery{Writer: webhookWriter, Jobs: jobs}.Descriptor(),
+		integrationservice.SendWebhook{Writer: webhookWriter, Jobs: jobs, Events: outbox}.Descriptor(),
+		integrationservice.RotateWebhookSecret{Writer: webhookWriter}.Descriptor(),
+		automationservice.CreateRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.GetRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.ListRules{Writer: ruleWriter}.Descriptor(),
+		automationservice.UpdateRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.EnableRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.DisableRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.DeleteRule{Writer: ruleWriter}.Descriptor(),
+		automationservice.TriggerRuleManually{
+			Rules: postgres.NewAutomationRuleRepository(cursors),
+			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		automationservice.RotateInboundTrigger{
+			Rules:      postgres.NewAutomationRuleRepository(cursors),
+			Inbound:    automationInbound,
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
+		}.Descriptor(),
+		automationservice.ListRuleRuns{Reader: ruleReader}.Descriptor(),
+		automationservice.GetRuleRun{Reader: ruleReader}.Descriptor(),
+		automationservice.HttpRequest{
+			Jobs: jobs, Authorizer: authorizer, Encryptor: encryptor,
+			Conditions: celexpression.New(), Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		automationservice.TestRule{
+			Rules:     postgres.NewAutomationRuleRepository(cursors),
+			Catalogue: ruleCatalogue, Conditions: celexpression.New(),
+			Entries: items, Containers: containers,
+			Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		automationservice.ReplayRuleRun{
+			Runs:  postgres.NewAutomationRunRepository(cursors),
+			Rules: postgres.NewAutomationRuleRepository(cursors),
+			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		jumbleservice.SubmitJumbleEntry{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.ListJumbleEntries{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.ConvertJumbleEntry{
+			Writer: jumbleWriter, Catalogue: ruleCatalogue, Origins: items,
+		}.Descriptor(),
+		jumbleservice.DismissJumbleEntry{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.RotateJumbleIntake{
+			Intake:     jumbleIntake,
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
+		}.Descriptor(),
+		integrationservice.PollTriggerEvents{
+			Events: outbox, Policies: lifecycleStore,
+			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
+			Rendering: cloudEventRendering{source: cfg.BaseURL},
+			// The pull half renders through the very function the push half delivers, so that one
+			// schema really is two transports rather than two renderings that agree for now.
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Lag: cfg.Queue.TriggerPollLag,
 		}.Descriptor(),
 		work.CreateContainer{
 			Containers: containers,
@@ -1019,6 +1191,7 @@ func run() error {
 	// goes through the same registry a REST call or an MCP tool call goes through, with the same
 	// input check, the same permission check and the same metric (C-11).
 	bulkCatalogue.catalogue = useCases
+	ruleCatalogue.catalogue = useCases
 
 	var api *http.Server
 	if cfg.HasRole(envport.RoleAPI) {
@@ -1054,6 +1227,35 @@ func run() error {
 				Clock: clockadapter.System{},
 			},
 			UnitOfWork: unitOfWork,
+		}
+		// The public inbound-webhook route, for the same reason and with the same discipline: it
+		// answers a credential nobody in this system holds, it can do exactly one thing - start
+		// that one rule's run - and every question it asks is asked inwards of the controller
+		// (G-08, automation.md §1.1).
+		controller.InboundRuns = automationservice.StartInboundRun{
+			Inbound: automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids,
+		}
+		// The jumble's public door (G-10): a delivery on the tenant's address becomes an entry.
+		controller.JumbleIntake = intake.WebhookIntake{
+			Deliveries: jumbleservice.IntakeJumbleEntry{
+				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
+				Events: outbox, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{}, IDs: ids,
+			},
+		}
+		// The mail door beside it (G-11): the message is parsed here, its files go through the
+		// media pipeline's server-side end, and what lands is an EMAIL entry.
+		controller.MailIntake = intake.MailIntake{
+			Deliveries: jumbleservice.IntakeMail{
+				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
+				Media: mediaservice.IngestMedia{
+					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
+					UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+				},
+				Events: outbox, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{}, IDs: ids,
+			},
 		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
@@ -1145,6 +1347,9 @@ func run() error {
 					UI:       ui,
 					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Bounded{
 						MaxBodyBytes: cfg.Request.MaxBodyBytes,
+						// The mail door's own bound (G-11): a message is not a document, and the
+						// route reads one whole.
+						MaxMailBytes: cfg.Request.MaxMailBytes,
 						Timeout:      cfg.Request.Timeout,
 						Next: rest.Limited{
 							Limiter: limiter,
@@ -1216,10 +1421,41 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 	}
 
+	// The automation engine (G-07). The subscriber turns one event into one job per matching rule;
+	// the engine that runs a job is the handler below, and the two are separate because a
+	// subscriber runs inside the dispatcher's transaction and may not reach the use case registry.
+	automationRuns := postgres.NewAutomationRunRepository(cursors)
+	matchRules := automationservice.MatchRules{
+		Rules: automationRuns, Containers: containers, Jobs: jobs,
+		Conditions: celexpression.New(),
+		Jumble:     postgres.NewJumbleRepository(cursors),
+		Clock:      clockadapter.System{},
+	}
+
+	// The relative-date producer (G-08). A second subscriber rather than a branch inside the first,
+	// because it answers a different question: MatchRules asks which rules *want* this event, and
+	// this one asks what the entry's deadline now means for the rules that measure from it.
+	relativeDates := automationservice.RelativeDates{
+		Rules: automationRuns, Occurrences: postgres.NewAutomationRuleRepository(cursors),
+		Entries: items, Containers: containers, Jobs: jobs,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+
+	webhookFanOut := integrationservice.FanOut{
+		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+		Deliveries:    postgres.NewWebhookDeliveryRepository(),
+		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	dispatcher := eventbus.Dispatcher{
-		Events:      postgres.NewOutbox(jobs),
-		Consumed:    postgres.NewConsumption(clockadapter.System{}),
-		Subscribers: []eventbusport.Subscriber{notify},
+		Events:   postgres.NewOutbox(jobs),
+		Consumed: postgres.NewConsumption(clockadapter.System{}),
+		// The webhook fan-out is a subscriber like the notifications: one event in, a delivery job
+		// per interested subscription out. It deliberately does not implement TakesReplays, so a
+		// restore reaches no external system (backup-restore.md §8.4).
+		// The automation engine beside them, and it deliberately does not implement TakesReplays
+		// either: no rule fires for a restore's events (backup-restore.md §8.4, BK-5).
+		Subscribers: []eventbusport.Subscriber{notify, webhookFanOut, matchRules, relativeDates},
 		Clock:       clockadapter.System{},
 		Batch:       cfg.Queue.OutboxBatch,
 		MinInterval: cfg.Queue.OutboxMinInterval,
@@ -1374,7 +1610,14 @@ func run() error {
 		Retention: lifecycle.RunRetention{
 			Policies: lifecycleStore, Runs: lifecycleStore, Purger: purger,
 			History: notifications,
-			Clock:   clockadapter.System{}, IDs: ids, Signals: metrics,
+			// The outbox's own rows (G-02). ADR-0007's second countermeasure, and until now the
+			// one table in this schema that only ever grew.
+			Events: postgres.NewDispatchedEvents(),
+			// The jumble (G-10). Ninety days from the arrival for what was never converted, which
+			// is the kind D-06 predicted and the one place raw inbound text would otherwise sit
+			// for ever.
+			Inbox: postgres.NewJumbleRepository(cursors),
+			Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			// The rule-driven half (E-07). It shares the purger, so a retention hard delete owes
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
 			// row that goes.
@@ -1382,7 +1625,15 @@ func run() error {
 			Sweeper: lifecycle.Sweeper{
 				Rules:   postgres.NewRetentionRuleRepository(),
 				Marking: postgres.NewRetentionMarkingRepository(),
-				Holds:   lifecycleStore, Items: items, Purger: purger, Changes: changes,
+				Holds:   lifecycleStore, Items: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
+				// The advance warning of data-retention.md §6 (R-1), through the path C-09 built:
+				// the preference is honoured, the record is deduplicated, and the send is a job.
+				Warnings: notification.RecordRetentionWarning{
+					Notifications: notifications, Accounts: accounts,
+					Memberships: postgres.NewMembershipRepository(), Members: itemMembers,
+					Preferences: notificationPreferences, Jobs: jobs,
+					Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+				},
 				Export: backupservice.RetentionExport{
 					Performer: backupPerformer, IDs: ids,
 				},
@@ -1408,6 +1659,87 @@ func run() error {
 		},
 	}
 
+	// The webhook deliverer (G-03). Detached, because the call to somebody else's server happens
+	// between two short transactions rather than inside one long one - holding a database
+	// connection for as long as a subscriber's server feels like taking is what
+	// observability-reliability.md §8 forbids.
+	//
+	// Through the guarded client, always: a webhook target is an egress channel exactly as a
+	// backup target is, so a private range or the cloud metadata address is refused unless the
+	// installation has deliberately released private networks (rule 6, T-07).
+	webhookDelivery := webhook.Deliverer{
+		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+		Deliveries:    postgres.NewWebhookDeliveryRepository(),
+		Events:        postgres.NewOutbox(jobs),
+		Outcomes: integrationservice.Outcomes{
+			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+			Audit:         auditSink, Clock: clockadapter.System{},
+			// The owner is told through the path C-09 built rather than a new channel: the
+			// preference is honoured and the send is a job like every other.
+			Notifier: notification.RecordWebhookDisabled{
+				Notifications: notifications, Accounts: accounts,
+				Preferences: notificationPreferences, Jobs: jobs,
+				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
+		},
+		Encryptor: encryptor, Signer: security.NewWebhookSigner(),
+		Client:     outboundClient,
+		UnitOfWork: backgroundWork, Jobs: jobs,
+		Clock: clockadapter.System{}, IDs: ids,
+		Source: cfg.BaseURL,
+		NextAttempt: resilience.Backoff{
+			// automation.md §3.1's ladder: eight attempts with the backoff reaching a day, which
+			// comes to a little over two days of trying before the dead letter.
+			Attempts: integrationmodel.MaxDeliveryAttempts,
+			Base:     30 * time.Second,
+			Max:      24 * time.Hour,
+		}.Delay,
+	}
+
+	// The outbound call (G-09): an HTTP_REQUEST action's HTTP, detached from every transaction and
+	// through the guarded client, with the sealed header secret opened for the length of one call.
+	outboundCall := automation.OutboundCall{
+		Events:     postgres.NewOutbox(jobs),
+		Encryptor:  encryptor,
+		Compiler:   celexpression.New(),
+		Signer:     security.NewWebhookSigner(),
+		Client:     outboundClient,
+		UnitOfWork: backgroundWork,
+		Clock:      clockadapter.System{},
+		Entries:    items,
+		Containers: containers,
+	}
+
+	// The engine (G-07). It reaches the use case registry as the rule's own account, which is why
+	// it is a queue handler rather than a subscriber: a subscriber runs inside the dispatcher's
+	// transaction, and an action is a use case.
+	automationRun := worker.AutomationRun{
+		Engine: automationservice.RunRule{
+			Rules:      postgres.NewAutomationRuleRepository(cursors),
+			Runs:       automationRuns,
+			Failures:   automationRuns,
+			Events:     outbox,
+			Source:     outbox,
+			Dispatcher: dispatchActions{catalogue: ruleCatalogue},
+			Scopes:     actionScopes{catalogue: ruleCatalogue},
+			Conditions: celexpression.New(),
+			Entries:    items,
+			Containers: containers,
+			Jumble:     postgres.NewJumbleRepository(cursors),
+			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
+			Owners: notification.RecordRuleDisabled{
+				Notifications: notifications, Accounts: accounts,
+				Preferences: notificationPreferences, Jobs: jobs,
+				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
+			// Where a WAIT parks its resume (G-09): the suspended run and the job that brings it
+			// back commit together with the runner's transaction.
+			Jobs:       jobs,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		},
+		Rules: postgres.NewAutomationRuleRepository(cursors),
+	}
+
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire:          reminderFiring,
 		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
@@ -1416,6 +1748,9 @@ func run() error {
 		queueport.KindMediaReconcile:        mediaReconciliation,
 		queueport.KindInvitationEmail:       invitationMessage,
 		queueport.KindNotificationDeliver:   notificationDelivery,
+		queueport.KindWebhookDeliver:        webhookDelivery,
+		queueport.KindAutomationRun:         automationRun,
+		queueport.KindAutomationHTTP:        outboundCall,
 		queueport.KindBackupRun:             backupRun,
 		queueport.KindBackupVerify:          worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
@@ -1423,6 +1758,15 @@ func run() error {
 		},
 		queueport.KindBackupSchedule: worker.BackupScheduling{
 			Pass: backupPass, Fallback: cfg.Retention.Interval,
+		},
+		queueport.KindAutomationSchedule: worker.AutomationScheduling{
+			Pass: automationservice.SchedulePass{
+				Schedules:   postgres.NewAutomationRuleRepository(cursors),
+				Occurrences: postgres.NewAutomationRuleRepository(cursors),
+				Jobs:        jobs, Expander: recurrenceadapter.New(),
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			},
+			Fallback: cfg.Retention.Interval,
 		},
 		queueport.KindAuditExport:    worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
@@ -1446,6 +1790,16 @@ func run() error {
 	}
 
 	if cfg.HasRole(envport.RoleWorker) {
+		// The dispatcher's wake-up, and only where jobs are run: an API process holding a LISTEN
+		// for a queue it does not drain would be a connection occupied for notifications nobody
+		// in it is waiting for - the mirror of the change listener above.
+		//
+		// On the background pool rather than the request pool. A held connection out of the pool
+		// that serves requests is one fewer for them, and the background pool is where every
+		// other long-lived hold already lives (the leader's).
+		jobListener := postgres.NewJobListener(backgroundPool)
+		background = append(background, start(ctx, "worker.job_listener", jobListener.Run))
+
 		// The backoff policy is the resilience adapter's, handed to the runner as a function: the
 		// presentation layer decides when to retry, not how far apart (project-structure.md §2).
 		backoff := resilience.Backoff{
@@ -1465,6 +1819,9 @@ func run() error {
 			Lease:        cfg.Queue.Lease(),
 			NextAttempt:  backoff.Delay,
 			Observe:      observer.Job,
+			// The poll interval stays what it was. This shortens the wait when the notification
+			// arrives and changes nothing when it does not (ADR-0007).
+			Woken: jobListener.Woken(),
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
 	}
@@ -1726,6 +2083,72 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 	return syncservice.Position{Seq: decoded.Seq, IssuedAt: decoded.IssuedAt}, nil
 }
 
+// dispatchActions and actionScopes bridge the engine to the use case registry (G-07).
+//
+// Two small translations rather than the engine naming the adapter's types: the dispatcher lives in
+// infrastructure and the application layer may not import one (ADR-0001). What crosses is a kind and
+// a document, which is what the rule stored.
+type dispatchActions struct{ catalogue *deferredCatalogue }
+
+func (d dispatchActions) Dispatch(
+	ctx context.Context, runAs appshared.ActorContext, kind string,
+	params map[string]any, supplied map[string]any,
+) (usecase.Output, error) {
+	return automation.NewActionDispatcher(d.catalogue).
+		Dispatch(ctx, runAs, automation.Action{Kind: kind, Params: params}, supplied)
+}
+
+// actionScopes answers which token scope an action's use case declares, which is the one the engine
+// grants a run. See automationservice.Scopes for why a rule is granted a scope rather than narrowed
+// by one.
+type actionScopes struct{ catalogue *deferredCatalogue }
+
+func (a actionScopes) ForAction(kind string) (string, bool) {
+	descriptor, found := a.catalogue.ByAutomationAction(kind)
+	if !found {
+		return "", false
+	}
+	return descriptor.TokenScope, true
+}
+
+// runClaims is the engine's half of the idempotency store: reserve a key, and say whether this
+// attempt is the first.
+//
+// It uses the store directly rather than the Guard, because the Guard's shape is the REST path's -
+// a request hash to compare and an answer to replay. An action has neither: what it needs is the
+// reservation, and the answer it would replay is the effect the first attempt already had.
+type runClaims struct{ store postgres.IdempotencyStore }
+
+func (c runClaims) Claim(
+	ctx context.Context, _ appshared.ActorContext, key string,
+) (bool, error) {
+	_, reserved, err := c.store.Reserve(ctx,
+		// A colon rather than a dot: the endpoint is a scope for the key, not a message code, and
+		// the message-code gate reads anything shaped like one as a promise to translate.
+		idempotencyrepo.Key{Key: key, Endpoint: "automation:run"}, []byte(key))
+	return reserved, err
+}
+
+// Release lets a failed action's claim go, so a replay can perform what the first run never did
+// (G-09). See the engine's Idempotency port for why a failed claim must not outlive its failure.
+func (c runClaims) Release(ctx context.Context, _ appshared.ActorContext, key string) error {
+	return c.store.Release(ctx, idempotencyrepo.Key{Key: key, Endpoint: "automation:run"})
+}
+
+// cloudEventRendering bridges the polling trigger's rendering port to the CloudEvents mapping the
+// webhook deliverer already sends (G-04).
+//
+// The point is that there is one function. The pull half and the push half are two transports over
+// one contract, and the way to keep that true is for both to call ToCloudEvent rather than for each
+// to build a document that happens to match. The source is the installation's own identifier, the
+// same value a delivery carries, so a consumer receiving from two installations tells them apart
+// whichever way the event reached it.
+type cloudEventRendering struct{ source string }
+
+func (r cloudEventRendering) Render(envelope event.Envelope) map[string]any {
+	return eventbus.ToCloudEvent(envelope, r.source)
+}
+
 // deferredCatalogue hands the bulk use case the catalogue it is itself an entry of.
 //
 // The circle is real rather than accidental: `BulkUpdateWorkItems` performs the other use cases, so
@@ -1748,6 +2171,29 @@ func (d *deferredCatalogue) Invoke(
 		return nil, shared.ErrInternal.WithDetail("usecase.catalogue_unavailable")
 	}
 	return d.catalogue.Invoke(ctx, name, actor, in)
+}
+
+// ByAutomationAction is the same circle from the other side: the rule writer validates an action
+// against the catalogue, and is itself an entry of it (G-05).
+//
+// A rule with no catalogue answers "no such action" for every kind, which is the fail-closed
+// direction: unreachable, because the holder is filled before the server accepts a request, and if
+// it ever were reached it would refuse rules rather than accept unvalidated ones.
+// All is the third face of the same holder, and the last one the dispatcher needs. Empty before the
+// registry exists, which is the fail-closed direction: an engine that ran then would find no action
+// rather than an unvalidated one.
+func (d *deferredCatalogue) All() []usecase.Descriptor {
+	if d.catalogue == nil {
+		return nil
+	}
+	return d.catalogue.All()
+}
+
+func (d *deferredCatalogue) ByAutomationAction(kind string) (usecase.Descriptor, bool) {
+	if d.catalogue == nil {
+		return usecase.Descriptor{}, false
+	}
+	return d.catalogue.ByAutomationAction(kind)
 }
 
 // masterKeys is the configured keyring as the envelope adapter takes it. A translation of two

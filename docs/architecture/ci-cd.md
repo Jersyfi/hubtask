@@ -50,6 +50,35 @@ Staggered by runtime: whatever fails fastest runs first.
 
 `integration`, `security`, and `data` run in parallel; `quick` is a prerequisite for all of them.
 
+### 3.2 Where the resilience tests run, and why (O-4)
+
+**The chaos-shaped RT tests are a pull request gate; the load-shaped ones are nightly.** That is
+what the pipeline does, and G-12 is where it stops being an accident and becomes a decision — made
+by measuring what the job costs on the shared runners rather than by preference.
+
+| Measured on the shared runner | Time |
+|---|---|
+| `resilience` on a pull request (RT-1…RT-5, RT-7, RT-10, RT-12) | 4m22s, 4m29s (PRs #243, #242) |
+| The longest job in the same run (`selftest`) | 7m55s, 7m57s |
+| `integration` beside it | 6m39s, 5m11s |
+| The nightly `Fuzzing, load, resilience` job whole | 4m33s |
+
+The resilience job takes about four and a half minutes and runs in parallel with jobs that take
+six and eight, so it costs **no wall clock at all**: the pull request is not waiting for it, and
+moving it to the nightly would save nothing a contributor would notice. What it buys is the thing
+that decides the question — a dependency failure, a database outage, a process killed mid-job or a
+rule looping is a defect that reaches `main` in the diff that caused it, and the run that finds it
+has to be the run that reviews it. A nightly failure two days later is a bisect.
+
+The three that stay nightly — **RT-6** (overload), **RT-8** (rolling update under load) and
+**RT-11** (memory leak over an hour) — are nightly for a reason no measurement changes: they need
+sustained load for an hour or more, and a shared runner cannot give it. Their home is
+`nightly.yml`, and CI-1 (a self-hosted runner for load tests) is what would let them come closer.
+
+The rule this states, for a resilience test written later: **a test that can run in minutes on a
+shared runner is a pull request gate; a test that needs an hour of load is nightly.** Nothing in
+between is a judgement call.
+
 ### 3.1 Where a job runs, and where it does not
 
 One repository holds the Go core, two clients and the design system ([ADR-0027](../adr/ADR-0027-monorepo-structure.md)),

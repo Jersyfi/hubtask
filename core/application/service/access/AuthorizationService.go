@@ -35,6 +35,18 @@ import (
 type Request struct {
 	// Permission is what is being asked for.
 	Permission service.Permission
+	// Alternative is a second permission that satisfies the request on its own, and empty where
+	// there is none (A-4, G-12).
+	//
+	// It exists for the configuration *reads* and for nothing else. Their first permission is the
+	// writing one somebody who administers the workspace holds; the second is the read-only one an
+	// auditor holds, and answering the request by either is what lets the auditor read what the
+	// workspace is configured to do without gaining the right to change it.
+	//
+	// The refusal names the permission that was *asked for* rather than the pair. A caller told
+	// "you need READ_CONFIGURATION" for a call every administrator makes through STRUCTURE would
+	// be sent to fix the wrong thing.
+	Alternative service.Permission
 	// Path runs from the tenant downwards. It decides which memberships count.
 	Path []identity.Scope
 	// Action is the audit code of the operation being attempted, e.g. `container.created`. A
@@ -130,11 +142,20 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 		return s.decideAboutTheEntry(ctx, actor, request, memberships, path)
 	}
 
-	if !service.Allows(memberships, path, request.Permission) {
+	if !request.satisfiedBy(memberships, path) {
 		s.recordRefusal(ctx, actor, request, "permission")
 		return notPermitted(request)
 	}
 	return nil
+}
+
+// satisfiedBy is the permission half of the decision: the one asked for, or the alternative where
+// the request names one (A-4).
+func (r Request) satisfiedBy(memberships []identity.Membership, path []identity.Scope) bool {
+	if service.Allows(memberships, path, r.Permission) {
+		return true
+	}
+	return r.Alternative != "" && service.Allows(memberships, path, r.Alternative)
 }
 
 // resolve reads what the account holds along the path, in a transaction of its own.
@@ -178,7 +199,7 @@ func (s Service) Permits(
 		// that read this as a refusal would silently shorten a stream on a database blip.
 		return false, err
 	}
-	return service.Allows(memberships, request.scopePath(), request.Permission), nil
+	return request.satisfiedBy(memberships, request.scopePath()), nil
 }
 
 // Reach is how much of a container's entries an actor may see.
@@ -222,7 +243,7 @@ func (s Service) ReachInto(
 	if err != nil {
 		return Reach{}, err
 	}
-	if service.Allows(memberships, request.Path, request.Permission) {
+	if request.satisfiedBy(memberships, request.Path) {
 		return Reach{All: true}, nil
 	}
 
@@ -337,7 +358,7 @@ func (s Service) Permitted(
 
 	allowed := make([]bool, len(paths))
 	for i, path := range paths {
-		allowed[i] = service.Allows(memberships, path, request.Permission)
+		allowed[i] = request.satisfiedBy(memberships, path)
 	}
 	return allowed, nil
 }

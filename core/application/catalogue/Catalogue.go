@@ -19,10 +19,15 @@
 package catalogue
 
 import (
+	"slices"
+
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
+	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
+	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
@@ -157,5 +162,60 @@ func Descriptors() []usecase.Descriptor {
 		identity.CreateGroup{}.Descriptor(),
 		identity.UpdateGroup{}.Descriptor(),
 		identity.DeleteGroup{}.Descriptor(),
+		identity.CreateAccessToken{}.Descriptor(),
+		identity.ListAccessTokens{}.Descriptor(),
+		identity.RevokeAccessToken{}.Descriptor(),
+		identity.CreateServiceAccount{}.Descriptor(),
+		identity.ListServiceAccounts{}.Descriptor(),
+		integration.CreateWebhookSubscription{}.Descriptor(),
+		integration.GetWebhookSubscription{}.Descriptor(),
+		integration.ListWebhookSubscriptions{}.Descriptor(),
+		integration.UpdateWebhookSubscription{}.Descriptor(),
+		integration.DeleteWebhookSubscription{}.Descriptor(),
+		integration.ListWebhookDeliveries{}.Descriptor(),
+		integration.ReplayWebhookDelivery{}.Descriptor(),
+		integration.SendWebhook{}.Descriptor(),
+		integration.RotateWebhookSecret{}.Descriptor(),
+		integration.PollTriggerEvents{}.Descriptor(),
+		automationservice.CreateRule{}.Descriptor(),
+		automationservice.GetRule{}.Descriptor(),
+		automationservice.ListRules{}.Descriptor(),
+		automationservice.UpdateRule{}.Descriptor(),
+		automationservice.EnableRule{}.Descriptor(),
+		automationservice.DisableRule{}.Descriptor(),
+		automationservice.DeleteRule{}.Descriptor(),
+		automationservice.TriggerRuleManually{}.Descriptor(),
+		automationservice.RotateInboundTrigger{}.Descriptor(),
+		automationservice.ListRuleRuns{}.Descriptor(),
+		automationservice.GetRuleRun{}.Descriptor(),
+		automationservice.HttpRequest{}.Descriptor(),
+		automationservice.TestRule{}.Descriptor(),
+		automationservice.ReplayRuleRun{}.Descriptor(),
+		jumbleservice.SubmitJumbleEntry{}.Descriptor(),
+		jumbleservice.ListJumbleEntries{}.Descriptor(),
+		jumbleservice.ConvertJumbleEntry{}.Descriptor(),
+		jumbleservice.DismissJumbleEntry{}.Descriptor(),
+		jumbleservice.RotateJumbleIntake{}.Descriptor(),
 	}
+}
+
+// Scopes is every token scope this build declares, sorted and without repeats.
+//
+// Derived from the descriptors rather than written down, because a list somebody maintains beside
+// them is a list that grows a scope no operation checks - and a scope no operation checks is a
+// bound a token's holder believes in and nothing applies. It is what CreateAccessToken validates
+// a request against, handed to it by the composition root: a use case cannot read the catalogue
+// it is itself part of (ADR-0001).
+func Scopes() []string {
+	seen := make(map[string]bool)
+	scopes := make([]string, 0, len(Descriptors()))
+	for _, descriptor := range Descriptors() {
+		if descriptor.TokenScope == "" || seen[descriptor.TokenScope] {
+			continue
+		}
+		seen[descriptor.TokenScope] = true
+		scopes = append(scopes, descriptor.TokenScope)
+	}
+	slices.Sort(scopes)
+	return scopes
 }

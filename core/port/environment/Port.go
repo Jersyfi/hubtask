@@ -204,10 +204,16 @@ type MediaConfig struct {
 	// its target and is still pushing 64 MiB up a slow line has not abandoned anything - and the
 	// only cost of it being generous is a row and its bytes sitting unreferenced for that long.
 	StagingGrace time.Duration
+	// UnreferencedGrace is how long a confirmed object may point at nothing before the
+	// reconciliation calls it an orphan. Never zero: an object is unreferenced between its
+	// confirmation and the first thing that uses it, and again between a detachment and the next
+	// attachment, and a pass landing in either window would mark a file somebody is in the middle
+	// of using. Marking is where the loss begins rather than where it is decided - every read path
+	// refuses a marked object, so nothing can attach it back.
+	UnreferencedGrace time.Duration
 	// OrphanGrace is how long a marked object waits before its bytes go. The window in which a
-	// mistake is still a mistake rather than a loss: an object marked because its last reference
-	// went, and then attached again before the grace ends, is recounted and unmarked by the next
-	// pass rather than removed.
+	// mistaken removal is still recoverable by hand: the row says what it was and the bytes are
+	// still in the bucket.
 	OrphanGrace time.Duration
 	// BatchSize is how many orphans one pass reclaims. Batched for the reason a retention pass is:
 	// each object costs a call to a bucket, and a pass that took them all would be a pass nobody
@@ -248,6 +254,22 @@ type QueueConfig struct {
 	// maximum is the worst case for SLO-4, so it stays well under thirty seconds.
 	OutboxMinInterval time.Duration
 	OutboxMaxInterval time.Duration
+	// TriggerPollLag is how far behind the present the polling trigger reads (G-04,
+	// automation.md §3.2).
+	//
+	// The endpoint pages the outbox in `(occurred_at, id)` order, and `occurred_at` is stamped by
+	// the writing transaction rather than by its commit. A transaction that began before one
+	// already answered can therefore still commit a row sorting behind the cursor - and a poller
+	// that had moved past it would step over the event and have no way to know. Rows younger than
+	// this are withheld from the page and from the cursor together, so that by the time an event
+	// is answered, nothing can still arrive in front of it.
+	//
+	// It has to exceed the longest transaction that appends an event. This installation bounds a
+	// statement rather than a transaction, so the closest documented bound is the worker's
+	// statement timeout, and the default is that. An operator who knows their writes are short can
+	// lower it and get a fresher trigger; one who has raised the worker's budget should raise this
+	// with it.
+	TriggerPollLag time.Duration
 }
 
 // LeaseMargin is how much longer a claim holds than the job it covers.
@@ -303,6 +325,11 @@ type RateLimitConfig struct {
 type RequestConfig struct {
 	MaxBodyBytes   int64
 	MaxUploadBytes int64
+	// MaxMailBytes is the limit for the mail intake, whose body is a whole message rather than a
+	// document (G-11). Its own bound because it is its own shape: a mail with two attachments is
+	// far past what any JSON endpoint here ever carries, and far below what an upload may be -
+	// bounding it by either would make the route useless or make it a way to store files.
+	MaxMailBytes int64
 	// Timeout is the server-side deadline every handler inherits. No call without a deadline
 	// (ADR-0016).
 	Timeout time.Duration

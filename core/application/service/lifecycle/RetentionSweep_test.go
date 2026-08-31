@@ -6,14 +6,17 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
+	notification "github.com/Jersyfi/hubtask/core/application/service/notification"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	expression "github.com/Jersyfi/hubtask/core/port/expression"
 )
 
 // The engine of data-retention.md §5 (E-07): two phases, the safeguards in their order, and the
@@ -35,10 +38,25 @@ func (s *exportSpy) Export(_ context.Context, targetID shared.ID) (shared.ID, er
 
 type sweepHarness struct {
 	*purgeHarness
-	rules   *ruleStore
-	marking *markedItems
-	changes *changeLog
-	export  *exportSpy
+	rules    *ruleStore
+	marking  *markedItems
+	changes  *changeLog
+	export   *exportSpy
+	warnings *warningSpy
+}
+
+// warningSpy is the notification path, as the sweep sees it (R-1).
+type warningSpy struct {
+	sent []notification.RetentionWarning
+	err  error
+}
+
+func (w *warningSpy) Warn(_ context.Context, warning notification.RetentionWarning) error {
+	if w.err != nil {
+		return w.err
+	}
+	w.sent = append(w.sent, warning)
+	return nil
 }
 
 func newSweepHarness() *sweepHarness {
@@ -50,15 +68,16 @@ func newSweepHarness() *sweepHarness {
 			markingStore: &markingStore{},
 			pending:      map[shared.ID]repository.Candidate{},
 		},
-		changes: &changeLog{},
-		export:  &exportSpy{},
+		changes:  &changeLog{},
+		export:   &exportSpy{},
+		warnings: &warningSpy{},
 	}
 }
 
 func (h *sweepHarness) sweeper() Sweeper {
 	return Sweeper{
 		Rules: h.rules, Marking: h.marking, Holds: h.holds, Items: h.items,
-		Purger: h.purger, Changes: h.changes, Export: h.export,
+		Purger: h.purger, Changes: h.changes, Export: h.export, Warnings: h.warnings,
 		Clock: clock.Fixed(now), IDs: &idSource{}, HLC: &hlcSource{}, Batch: 100,
 	}
 }
@@ -226,6 +245,12 @@ func TestAnAnnouncementNeverActs(t *testing.T) {
 
 // §4.6: a parent whose children are staying is kept back and goes on the pass after the last of
 // them.
+//
+// Whatever their period, which is what R-2 decided (G-12): the question asked of the repository is
+// "how many below this one are not going in this pass", not "which of them outlive it". A child
+// with a shorter period that is still here is a child something is holding - a hold, a `:retain`,
+// a restriction - and taking its parent would leave it an orphan by policy rather than by
+// accident.
 func TestAParentIsKeptBackWhileSomethingBelowItIsRetained(t *testing.T) {
 	h := newSweepHarness()
 	rule := h.ruleIn(t, func(*domain.NewRuleInput) {})
@@ -407,5 +432,318 @@ func TestAKindWithNoRuleIsNotRead(t *testing.T) {
 	}
 	if outcome.Matched != 0 {
 		t.Errorf("the pass matched %d with nothing configured", outcome.Matched)
+	}
+}
+
+// The second consumer of the expression port, and the reason it is a port (G-06): the retention
+// sweep reads the same language the automation rules do, through the same interface, with the same
+// limits. E-07 refused a condition outright because nothing could evaluate one; these are what
+// replaced that refusal.
+
+// conditions is the expression port as this package sees it. A fake rather than the CEL adapter,
+// because core/application may not import one (ADR-0001) - what these tests are about is that the
+// sweep asks, honours the answer, and reads the entry only when the expression names it.
+type conditions struct {
+	// answer decides per candidate, by identifier, so a test can make one entry match and another
+	// not without writing an expression.
+	answer   map[shared.ID]bool
+	compiles bool
+	// touched records which names each evaluation resolved, which is how the laziness is proved.
+	touched  []string
+	compiled int
+}
+
+func newConditions() *conditions {
+	return &conditions{answer: map[shared.ID]bool{}, compiles: true}
+}
+
+func (c *conditions) Compile(
+	text string, _ expression.Environment, _ expression.Result,
+) (expression.Program, error) {
+	c.compiled++
+	if !c.compiles {
+		return nil, expression.Refusal{Code: expression.CodeSyntax}.Error()
+	}
+	// The fake honours one expression shape: naming `item` means the entry is read, and naming
+	// only `now` means it is not.
+	return &program{owner: c, readsItem: strings.Contains(text, "item")}, nil
+}
+
+type program struct {
+	owner     *conditions
+	readsItem bool
+}
+
+func (p *program) Evaluate(ctx context.Context, in expression.Activation) (expression.Value, error) {
+	if _, _, err := in.Resolve(ctx, "now"); err != nil {
+		return expression.Value{}, err
+	}
+	p.owner.touched = append(p.owner.touched, "now")
+
+	if !p.readsItem {
+		return expression.Value{Bool: true}, nil
+	}
+
+	value, found, err := in.Resolve(ctx, "item")
+	if err != nil {
+		return expression.Value{}, err
+	}
+	p.owner.touched = append(p.owner.touched, "item")
+	if !found {
+		return expression.Value{}, nil
+	}
+
+	document, _ := value.(map[string]any)
+	id, _ := document["id"].(string)
+	return expression.Value{Bool: p.owner.answer[shared.ID(id)]}, nil
+}
+
+// A rule with a condition sweeps only what matches, and the entry it does not match is not blocked
+// either - nothing is keeping it, its rule was never about it.
+func TestAConditionedRuleSweepsOnlyWhatMatches(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.Condition = "item.completed_at != null"
+	})
+
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000f9")
+	h.items.stored[taskID] = work.WorkItem{ID: taskID, Type: work.ItemTask}
+	h.items.stored[other] = work.WorkItem{ID: other, Type: work.ItemTask}
+	h.marking.due = []repository.Candidate{
+		candidate(taskID, now.AddDate(0, 0, -400)),
+		candidate(other, now.AddDate(0, 0, -400)),
+	}
+
+	engine := newConditions()
+	engine.answer[taskID] = true
+	engine.answer[other] = false
+
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	outcome, err := sweeper.Pass(context.Background(), actor())
+	if err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if len(h.marking.marked) != 1 || h.marking.marked[0] != taskID {
+		t.Fatalf("announced %+v, want only the entry the condition matches", h.marking.marked)
+	}
+	if outcome.Matched != 1 {
+		t.Errorf("matched %d, want 1", outcome.Matched)
+	}
+	// Not a block: the entry the condition excluded is not being held back by anything.
+	if len(outcome.Blocked) != 0 {
+		t.Errorf("the excluded entry was reported as blocked: %v", outcome.Blocked)
+	}
+}
+
+// A rule with no condition costs nothing: the expression is never compiled, and the entry is never
+// read for a question nobody asked.
+func TestARuleWithoutAConditionNeverReachesTheEngine(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(*domain.NewRuleInput) {})
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	engine := newConditions()
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if engine.compiled != 0 {
+		t.Errorf("the engine compiled %d expressions for a rule with none", engine.compiled)
+	}
+	if len(h.marking.marked) != 1 {
+		t.Errorf("the unconditioned rule announced %d entries, want one", len(h.marking.marked))
+	}
+}
+
+// One compilation per rule per pass rather than one per candidate: a pass judges a thousand entries
+// against a handful of rules, and compiling is the expensive half.
+func TestAConditionIsCompiledOncePerPass(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
+
+	var due []repository.Candidate
+	engine := newConditions()
+	for i := range 5 {
+		id := shared.MustParseID("0192f000-0000-7000-8000-00000000010" + string(rune('0'+i)))
+		h.items.stored[id] = work.WorkItem{ID: id, Type: work.ItemTask}
+		due = append(due, candidate(id, now.AddDate(0, 0, -400)))
+		engine.answer[id] = true
+	}
+	h.marking.due = due
+
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if engine.compiled != 1 {
+		t.Errorf("the engine compiled %d times for one rule over five candidates", engine.compiled)
+	}
+}
+
+// The whole point of the lazy activation: `item` is a query, and a pass over a thousand candidates
+// must not make a thousand of them for a condition that only asks about the clock.
+func TestTheEntryIsReadOnlyWhenTheConditionNamesIt(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "now.getHours() < 23" })
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	engine := newConditions()
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	for _, name := range engine.touched {
+		if name == "item" {
+			t.Error("the entry was read for a condition that only names the clock")
+		}
+	}
+}
+
+// Neither direction is an answer. Defaulting to true would delete what the condition was written to
+// protect; defaulting to false would quietly retain everything and look like a working rule.
+func TestAConditionThatCannotBeCompiledStopsThePass(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	engine := newConditions()
+	engine.compiles = false
+
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	if _, err := sweeper.Pass(context.Background(), actor()); err == nil {
+		t.Fatal("a rule whose condition cannot be compiled was acted on")
+	}
+	if len(h.marking.marked) != 0 {
+		t.Errorf("%d entries were announced anyway", len(h.marking.marked))
+	}
+}
+
+// Fail closed: a build with no evaluator refuses to act on a conditioned rule rather than acting on
+// all of it, which is the safe direction for a pass whose job is deleting.
+func TestAConditionedRuleIsRefusedWhenNoEngineIsWired(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); !errors.Is(err, shared.ErrInternal) {
+		t.Fatalf("error %v, want ErrInternal", err)
+	}
+	if len(h.marking.marked) != 0 {
+		t.Errorf("%d entries were announced anyway", len(h.marking.marked))
+	}
+}
+
+// §6's advance warning, which R-1 left refused until G-12: the people the rule names are told when
+// the entry is marked, and the message is about the entry that was marked.
+func TestTheAdvanceWarningGoesOutWithTheMarking(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{
+			BeforeDays: 7,
+			Recipients: []domain.Recipient{
+				domain.RecipientItemMembers, domain.RecipientCollectionAdmins,
+			},
+		}
+	})
+	h.marking.due = []repository.Candidate{{
+		ID: taskID, Type: work.ItemTask, Path: work.RootPath(taskID),
+		CollectionID: collectionID, HubID: hubID, AnchoredAt: now.Add(-400 * 24 * time.Hour),
+	}}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if len(h.warnings.sent) != 1 {
+		t.Fatalf("%d warnings, want the one marked entry's", len(h.warnings.sent))
+	}
+	warning := h.warnings.sent[0]
+	// The pass's tenant rather than the rule's: a rule read back from the repository carries no
+	// tenant, because row level security bounds the read to the transaction's - and a notification
+	// cannot be written without one.
+	if warning.ItemID != taskID || warning.TenantID != actor().TenantID {
+		t.Errorf("the warning is about %+v", warning)
+	}
+	if len(warning.Recipients) != 2 {
+		t.Errorf("the warning names %v", warning.Recipients)
+	}
+	// The entry's chain, because an administrator of the hub administers the collection under it.
+	if len(warning.Path) != 3 {
+		t.Errorf("the warning resolves along %+v", warning.Path)
+	}
+}
+
+// A rule that names nobody warns nobody, and that is the ordinary case: `notify` is off by default
+// and a rule with no recipients is not a rule with a silent one.
+func TestARuleThatNamesNobodyWarnsNobody(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(*domain.NewRuleInput) {})
+	h.marking.due = []repository.Candidate{{
+		ID: taskID, Type: work.ItemTask, Path: work.RootPath(taskID),
+		CollectionID: collectionID, HubID: hubID, AnchoredAt: now.Add(-400 * 24 * time.Hour),
+	}}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if len(h.warnings.sent) != 0 {
+		t.Errorf("%d warnings from a rule that asked for none", len(h.warnings.sent))
+	}
+}
+
+// An entry a hold keeps back is not warned about. It is not going, so a message saying it is would
+// be a false alarm - and the marking says `blocked_by` instead, which is what §6 asks for.
+func TestAHeldEntryIsNotWarnedAbout(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{
+			BeforeDays: 7, Recipients: []domain.Recipient{domain.RecipientTenantAdmins},
+		}
+	})
+	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}
+	h.marking.due = []repository.Candidate{{
+		ID: taskID, Type: work.ItemTask, Path: work.RootPath(taskID),
+		CollectionID: collectionID, HubID: hubID, AnchoredAt: now.Add(-400 * 24 * time.Hour),
+	}}
+
+	if _, err := h.sweeper().Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if len(h.warnings.sent) != 0 {
+		t.Errorf("%d warnings about an entry nothing is going to touch", len(h.warnings.sent))
+	}
+}
+
+// A build wired without the notification path marks and acts exactly as before. The marking is the
+// visibility §6 asks for first; the message is the second half, and losing it must not lose the
+// pass.
+func TestASweepWithoutTheNotificationPathStillMarks(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.Notify = &domain.Notify{
+			BeforeDays: 7, Recipients: []domain.Recipient{domain.RecipientTenantAdmins},
+		}
+	})
+	h.marking.due = []repository.Candidate{{
+		ID: taskID, Type: work.ItemTask, Path: work.RootPath(taskID),
+		CollectionID: collectionID, HubID: hubID, AnchoredAt: now.Add(-400 * 24 * time.Hour),
+	}}
+
+	sweeper := h.sweeper()
+	sweeper.Warnings = nil
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if len(h.marking.marked) == 0 {
+		t.Error("a build with no notification path stopped marking")
 	}
 }

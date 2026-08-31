@@ -137,7 +137,10 @@ storage location is recorded in the data catalogue with a deletion path, and a t
 | Search index (`tsvector`, optionally pgvector/external) | With the row, or via a reindex request |
 | `outbox_event` | Short period (7 days after delivery); event payloads limited to references and `NON_PERSONAL` fields |
 | `webhook_delivery` | 30 days; request bodies stored truncated |
+| `automation_rule` | With the tenant. A rule's `name` is a title somebody wrote and is the only free text on the row - the trigger, the actions and their parameters are identifiers and settings. Deleting a rule is soft, so that the runs it produced stay accountable; the row goes with the workspace, and the `rule_run` row below bounds how long what it did is kept |
 | `rule_run` | 30 days; input data only as a reference |
+| `job` (an inbound webhook's payload) | With the job. The body an `INBOUND_WEBHOOK` delivery carried travels in the queue row so that the run can read it as `payload`, and it is bounded well below the request limit (G-08). It never reaches a log, a metric, a trace or an audit entry (rule 10), the API's job resource deliberately does not answer the payload at all, and the row goes when the queue's own retention takes it |
+| `rule_occurrence` | With the rule or with the entry, whichever goes first - both cascades are on the row (G-08). It holds no content and no person: a rule, an entry and a moment. It is not restored from an archive either, because every row in one is a debt owed at a moment in the source system's future |
 | `activity_entry` | With the item |
 | `audit_log` | **Not** individually deletable; therefore contains no content, only metadata and masked diffs (see [audit.md](./audit.md) §4). An erasure records a pseudonym in `audit_pseudonym` instead, and every read and every export answers the erased actor's label with it - the row is untouched, the chain still verifies, and what leaves carries no name (§6, E-10) |
 | Operational logs | 7–30 days, without content and without clear-text identifiers |
@@ -156,11 +159,18 @@ writes the deletion journal entry and the tombstone and drops the row, all three
 transaction, so that a restore from backup can never bring back a file this installation decided
 was gone ([ADR-0020](../adr/ADR-0020-retention-policies.md) §6).
 
-Two graces bound it. A staged upload nobody confirmed is abandoned only after
-`HUBTASK_MEDIA_STAGING_GRACE` (a day by default), so a large file still travelling up a slow line is
-not mistaken for one; a marked object waits out `HUBTASK_MEDIA_ORPHAN_GRACE` (an hour) before its
-bytes go, which is the window in which an object that lost its last reference and gained a new one
-is recounted and unmarked rather than removed. An object whose bytes storage will not release keeps
+Three graces bound it, and the first of them is the one that matters most, because marking is not a
+reversible step: every read path refuses a marked object, so nothing can attach it, so no recount
+will ever see a reference on it again. A confirmed object that points at nothing is therefore an
+orphan only once it has pointed at nothing for `HUBTASK_MEDIA_UNREFERENCED_GRACE` (an hour by
+default) — never merely because a pass caught it between its confirmation and the first thing that
+uses it, which is a window every upload passes through and every detachment opens again. The
+recount is what records when a row reached zero, keeping the first such moment and clearing it when
+a reference appears. A staged upload nobody confirmed is abandoned after
+`HUBTASK_MEDIA_STAGING_GRACE` (a day), so a large file still travelling up a slow line is not
+mistaken for one. A marked object then waits out `HUBTASK_MEDIA_ORPHAN_GRACE` (an hour) before its
+bytes go, which is the window in which an operator who notices a mistaken removal still finds them
+where they were. An object whose bytes storage will not release keeps
 its row and is tried again next pass — the other order would leave a file in the bucket that nothing
 in this system knows about any more. Metrics: `hubtask_media_reclaimed_total`,
 `hubtask_media_reclaim_failed_total`.

@@ -75,6 +75,16 @@ func (d Dispatcher) Run(ctx context.Context, job queue.Job) (queue.Result, error
 		return queue.Result{}, err
 	}
 
+	// The age of what this round had in hand is reported whatever becomes of it, and that is the
+	// point of putting it here rather than after the delivery (G-02).
+	//
+	// It used to be reported only for a round that succeeded, which left alert A-05 unable to
+	// fire in the case its own description names: "the dispatcher is behind or not running". A
+	// consumer that fails every time delivers nothing, marks nothing, and emitted no measurement
+	// at all - so the histogram stayed empty and the percentile over it had nothing to exceed.
+	// The one state where events are certainly late was the one state nothing reported.
+	defer d.reportLag(ctx, envelopes, d.Clock.Now())
+
 	delivered := make([]shared.ID, 0, len(envelopes))
 	for _, envelope := range envelopes {
 		if err := d.deliver(ctx, envelope); err != nil {
@@ -90,7 +100,6 @@ func (d Dispatcher) Run(ctx context.Context, job queue.Job) (queue.Result, error
 	if err := d.Events.MarkDispatched(ctx, delivered, now); err != nil {
 		return queue.Result{}, err
 	}
-	d.reportLag(ctx, envelopes, now)
 
 	remaining, err := d.Events.CountPending(ctx)
 	if err != nil {
@@ -114,27 +123,25 @@ func (d Dispatcher) deliver(ctx context.Context, envelope event.Envelope) error 
 			continue
 		}
 
-		// The claim comes first, and it is a write rather than a question: two dispatchers asking
-		// "has this been consumed" would both be told no. A repeat is not an error - it is the
-		// at-least-once guarantee doing what it says (ADR-0007).
-		first, err := d.Consumed.Claim(ctx, subscriber.Name(), envelope.ID)
-		if err != nil {
-			return err
-		}
-		if !first {
-			continue
-		}
-
-		if err := subscriber.Deliver(ctx, envelope); err != nil {
+		// Through the library function rather than the claim directly (ADR-0007's third
+		// countermeasure). The order of the claim and the work is the part that is easy to get
+		// wrong, and getting it wrong is invisible until an event is acted on twice - so it lives
+		// in one place that G-03's webhook delivery and G-07's rule engine call as well.
+		if _, err := eventbusport.Once(ctx, d.Consumed, subscriber.Name(), envelope,
+			func(ctx context.Context) error { return subscriber.Deliver(ctx, envelope) },
+		); err != nil {
 			return fmt.Errorf("subscriber %s: %w", subscriber.Name(), err)
 		}
 	}
 	return nil
 }
 
-// reportLag records how old each delivered event was. The measure is the age at delivery rather
-// than the time the round took: what SLO-4 promises is that a change reaches its consumers within
-// thirty seconds, and a fast round on a long backlog is not that.
+// reportLag records how old each event of the round was when the dispatcher reached it.
+//
+// The measure is the age of the event rather than the time the round took: what SLO-4 promises is
+// that a change reaches its consumers within thirty seconds, and a fast round on a long backlog is
+// not that. It covers the whole claimed batch rather than only what was delivered, so that a
+// stalled consumer is visible - see the note in Run.
 func (d Dispatcher) reportLag(ctx context.Context, envelopes []event.Envelope, at time.Time) {
 	if d.Lag == nil {
 		return

@@ -7,8 +7,10 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -20,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	expression "github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -61,6 +64,10 @@ type Rules struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Conditions compiles a rule's expression when it is written (G-06). A port, so this layer
+	// never learns which engine evaluates one - and the same port the automation rules use, which is
+	// what makes "the same expression language" one statement rather than two.
+	Conditions expression.Compiler
 }
 
 // CreateRetentionPolicy writes down what this workspace deletes and when.
@@ -148,6 +155,10 @@ func (h CreateRetentionPolicy) Execute(
 		return domain.Rule{}, Preview{}, err
 	}
 
+	if err := h.Rules.checkCondition(cmd.Condition); err != nil {
+		return domain.Rule{}, Preview{}, err
+	}
+
 	rule, err := domain.NewRule(domain.NewRuleInput{
 		ID: h.Rules.IDs.NewID(), TenantID: actor.TenantID, Scope: cmd.Scope,
 		DataKind: cmd.DataKind, Condition: cmd.Condition, RetainDays: cmd.RetainDays,
@@ -213,6 +224,36 @@ func (r Rules) ceilingFor(
 	return ceiling, err
 }
 
+// checkCondition compiles a retention rule's expression, or refuses it with the position.
+//
+// The second consumer of the expression port, and the reason it is a port rather than a helper
+// private to the rule engine: two engines read one language, and a check written twice would be two
+// dialects. E-07 refused a condition outright because there was nothing that could evaluate one -
+// this is what replaced the refusal, and RE's tests flip rather than disappear.
+func (r Rules) checkCondition(text string) error {
+	if strings.TrimSpace(text) == "" {
+		return nil
+	}
+	if r.Conditions == nil {
+		// Fail closed, for the reason the rule engine's writer does: a build that cannot check a
+		// condition cannot promise it means what it says, and a retention rule that matched more
+		// than it says deletes more than it says.
+		return shared.ErrInternal.WithDetail("lifecycle.expression_engine_unavailable")
+	}
+
+	if _, err := r.Conditions.Compile(text, condition.RetentionEnvironment(), expression.Boolean); err != nil {
+		finding := shared.FieldError{Path: "/condition", Code: expression.CodeSyntax}
+		var coded *shared.Error
+		if errors.As(err, &coded) {
+			finding.Code, finding.Params = coded.DetailCode, coded.Params
+		}
+		return shared.ErrValidation.
+			WithDetail("lifecycle.condition_invalid").
+			WithFields(finding)
+	}
+	return nil
+}
+
 // EffectiveRule is one rule and where it came from, which is what §6's question needs: "which rules
 // actually apply here?", including where each came from.
 type EffectiveRule struct {
@@ -228,11 +269,16 @@ func (h ListRetentionPolicies) Execute(
 ) ([]EffectiveRule, error) {
 	if err := h.Rules.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionStructure,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     RuleChangedAction,
-		TokenScope: retentionRead,
-		TargetType: policyTarget,
-		TargetID:   actor.TenantID,
+		// What this workspace deletes and when is the configuration read an auditor most needs:
+		// an entry saying a rule removed four hundred objects cannot be judged without it
+		// (A-4, G-12). Writing a rule stays where it was - it is a standing instruction to
+		// destroy work, and it asks the owner's line.
+		Alternative: service.PermissionReadConfiguration,
+		Path:        []identity.Scope{identity.TenantScope()},
+		Action:      RuleChangedAction,
+		TokenScope:  retentionRead,
+		TargetType:  policyTarget,
+		TargetID:    actor.TenantID,
 	}); err != nil {
 		return nil, err
 	}
@@ -277,12 +323,13 @@ func (h PreviewRetentionPolicy) Execute(
 			WithFields(shared.FieldError{Path: "/policy_id", Code: domain.CodeRuleNotFound})
 	}
 	if err := h.Rules.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionStructure,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     RuleChangedAction,
-		TokenScope: retentionRead,
-		TargetType: policyTarget,
-		TargetID:   id,
+		Permission:  service.PermissionStructure,
+		Alternative: service.PermissionReadConfiguration,
+		Path:        []identity.Scope{identity.TenantScope()},
+		Action:      RuleChangedAction,
+		TokenScope:  retentionRead,
+		TargetType:  policyTarget,
+		TargetID:    id,
 	}); err != nil {
 		return Preview{}, err
 	}

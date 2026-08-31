@@ -60,12 +60,18 @@ func (d ActionDispatcher) Actions() []string {
 
 // Dispatch runs one action as the given actor.
 //
-// What it deliberately does not do yet: derive the idempotency key from
-// (rule_id, event_id, action_index), count the causal depth, and record the result in the run
-// log. Those belong to the engine that owns a rule run, and inventing half of them here would
-// mean two places deciding what "the same action twice" means (automation.md §2).
+// supplied is what the run knows and the rule cannot carry - the event a SEND_WEBHOOK delivers
+// happens after the rule is written (automation.md §2.2). A supplied value is merged only where
+// the use case declares the field and the rule's own parameters left it unset: the rule's explicit
+// choice always wins, and a use case that never asked for a name never sees it, because the
+// registry refuses undeclared input keys (C-07) and an unconditional merge would fail every action
+// on exactly the runs that carry an event.
+//
+// What it deliberately does not do: derive the idempotency key, count the causal depth, and record
+// the result in the run log. Those belong to the engine that owns a rule run, and inventing half
+// of them here would mean two places deciding what "the same action twice" means (automation.md §2).
 func (d ActionDispatcher) Dispatch(
-	ctx context.Context, runAs appshared.ActorContext, action Action,
+	ctx context.Context, runAs appshared.ActorContext, action Action, supplied map[string]any,
 ) (usecase.Output, error) {
 	if !runAs.IsAuthenticated() {
 		// Fail closed. A rule without a usable `run_as` account is a misconfigured rule, and
@@ -84,5 +90,32 @@ func (d ActionDispatcher) Dispatch(
 			WithParams(map[string]string{"action": action.Kind})
 	}
 
-	return d.Catalogue.Invoke(ctx, descriptor.Name, runAs, usecase.Input(action.Params))
+	return d.Catalogue.Invoke(ctx, descriptor.Name, runAs, input(descriptor, action, supplied))
+}
+
+// input is the action's parameters with the run's contribution merged in - a copy, never the
+// rule's own stored document.
+func input(
+	descriptor usecase.Descriptor, action Action, supplied map[string]any,
+) usecase.Input {
+	if len(supplied) == 0 {
+		return usecase.Input(action.Params)
+	}
+
+	declared := map[string]bool{}
+	for _, field := range descriptor.Input {
+		declared[field.Name] = true
+	}
+
+	merged := make(map[string]any, len(action.Params)+len(supplied))
+	for name, value := range action.Params {
+		merged[name] = value
+	}
+	for name, value := range supplied {
+		if _, set := merged[name]; set || !declared[name] {
+			continue
+		}
+		merged[name] = value
+	}
+	return usecase.Input(merged)
 }

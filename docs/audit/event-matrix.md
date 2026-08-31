@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**124 use cases, 108 distinct action codes, 92 of them recorded on every call.** A use case that
+**158 use cases, 138 distinct action codes, 114 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -21,12 +21,22 @@ comments and attachments; passwords, tokens and secrets in any form; full IP add
 prompts and responses. The `changes` of an entry are masked per field classification, so a
 `SENSITIVE` value travels as a fingerprint and a `SECRET` one not at all.
 
+## Access
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `access.token_created` | CreateAccessToken | `access_token` | NOTICE | Every time |
+| `access.token_read` | ListAccessTokens | `access_token` | INFO | When refused |
+| `access.token_revoked` | RevokeAccessToken | `access_token` | NOTICE | Every time |
+
 ## Accounts
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
 | `account.preferences_changed` | UpdateAccountPreferences | `account` | INFO | Every time |
+| `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
+| `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
 
 ## Audit of the audit
 
@@ -35,6 +45,25 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `audit.chain_broken` | VerifyAuditChain | `audit_trail` | CRITICAL | When refused |
 | `audit.exported` | ExportAuditTrail | `audit_trail` | WARNING | Every time |
 | `audit.read` | ListAuditEntries | `audit_trail` | INFO | When refused |
+
+## Automation
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `automation.http_requested` | HttpRequest | `http_request` | NOTICE | Every time |
+| `automation.inbound_rotated` | RotateInboundTrigger | `automation_rule` | WARNING | Every time |
+| `automation.rule_created` | CreateRule | `automation_rule` | NOTICE | Every time |
+| `automation.rule_deleted` | DeleteRule | `automation_rule` | NOTICE | Every time |
+| `automation.rule_disabled` | DisableRule | `automation_rule` | NOTICE | Every time |
+| `automation.rule_enabled` | EnableRule | `automation_rule` | NOTICE | Every time |
+| `automation.rule_read` | GetRule | `automation_rule` | INFO | When refused |
+| `automation.rule_read` | ListRules | `automation_rule` | INFO | When refused |
+| `automation.rule_tested` | TestRule | `automation_rule` | INFO | When refused |
+| `automation.rule_triggered` | TriggerRuleManually | `automation_rule` | NOTICE | Every time |
+| `automation.rule_updated` | UpdateRule | `automation_rule` | NOTICE | Every time |
+| `automation.run_read` | GetRuleRun | `automation_run` | INFO | When refused |
+| `automation.run_read` | ListRuleRuns | `automation_run` | INFO | When refused |
+| `automation.run_replayed` | ReplayRuleRun | `automation_run` | NOTICE | Every time |
 
 ## Background work
 
@@ -146,6 +175,16 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `dsr.recorded` | ListDataSubjectRequests | `data_subject_request` | INFO | When refused |
 | `dsr.started` | UpdateDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
 
+## Jumble
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `jumble.entry_converted` | ConvertJumbleEntry | `jumble_entry` | INFO | Every time |
+| `jumble.entry_dismissed` | DismissJumbleEntry | `jumble_entry` | INFO | Every time |
+| `jumble.entry_read` | ListJumbleEntries | `jumble_entry` | INFO | When refused |
+| `jumble.entry_submitted` | SubmitJumbleEntry | `jumble_entry` | INFO | Every time |
+| `jumble.intake_rotated` | RotateJumbleIntake | `jumble_entry` | WARNING | Every time |
+
 ## Permissions
 
 | Action | Use case | Target | Severity | Recorded |
@@ -215,6 +254,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `template.read` | ListTemplates | `template` | INFO | When refused |
 | `template.updated` | UpdateTemplate | `template` | INFO | Every time |
 
+## Triggers
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `triggers.polled` | PollTriggerEvents | `trigger` | INFO | When refused |
+
 ## Views, exports and feeds
 
 | Action | Use case | Target | Severity | Recorded |
@@ -229,3 +274,17 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `view.read` | ListSavedViews | `saved_view` | INFO | When refused |
 | `view.shared` | ShareSavedView | `saved_view` | INFO | Every time |
 | `view.updated` | UpdateSavedView | `saved_view` | INFO | Every time |
+
+## Webhooks
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `webhooks.delivery_replayed` | ReplayWebhookDelivery | `webhook_delivery` | INFO | Every time |
+| `webhooks.delivery_sent` | SendWebhook | `webhook_delivery` | INFO | Every time |
+| `webhooks.secret_rotated` | RotateWebhookSecret | `webhook_subscription` | NOTICE | Every time |
+| `webhooks.subscription_created` | CreateWebhookSubscription | `webhook_subscription` | NOTICE | Every time |
+| `webhooks.subscription_deleted` | DeleteWebhookSubscription | `webhook_subscription` | NOTICE | Every time |
+| `webhooks.subscription_read` | GetWebhookSubscription | `webhook_subscription` | INFO | When refused |
+| `webhooks.subscription_read` | ListWebhookDeliveries | `webhook_subscription` | INFO | When refused |
+| `webhooks.subscription_read` | ListWebhookSubscriptions | `webhook_subscription` | INFO | When refused |
+| `webhooks.subscription_updated` | UpdateWebhookSubscription | `webhook_subscription` | NOTICE | Every time |

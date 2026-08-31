@@ -320,6 +320,10 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		assigneeID := uuidValue(assignee)
 		item.AssigneeId = &assigneeID
 	}
+	if origin := out.String("origin_jumble_id"); origin != "" {
+		originID := uuidValue(origin)
+		item.OriginJumbleId = &originID
+	}
 	// Present exactly when automatic assignment ran (C-02): the outcome of an :auto-assign call,
 	// or of a create a policy applied to. Absent means it did not run, which is a different
 	// answer from "it ran and assigned nobody".

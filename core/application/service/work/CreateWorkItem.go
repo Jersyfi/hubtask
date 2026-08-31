@@ -710,6 +710,11 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 	if item.Notes != "" {
 		out["notes"] = item.Notes
 	}
+	if !item.OriginJumbleID.IsZero() {
+		// Provenance (G-10): which jumble entry this item came from. Present only where it is
+		// true, because most items were never in the jumble at all.
+		out["origin_jumble_id"] = item.OriginJumbleID.String()
+	}
 	if item.Retention != nil {
 		// §6: an entry in a running retention period says what is coming, when, and under which
 		// rule - and whether it can be taken out, which is what a client puts a button behind.

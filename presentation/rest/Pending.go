@@ -67,6 +67,181 @@ func (pending) DeleteGroup(w http.ResponseWriter, r *http.Request, _ openapi.Gro
 	notAvailable(w, r)
 }
 
+// The five credential operations of G-01. All of them are overridden by RestController; they stay
+// here because the compile-time check above needs every method of the interface.
+func (pending) ListAccessTokens(w http.ResponseWriter, r *http.Request, _ openapi.ListAccessTokensParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateAccessToken(w http.ResponseWriter, r *http.Request, _ openapi.CreateAccessTokenParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RevokeAccessToken(w http.ResponseWriter, r *http.Request, _ openapi.TokenId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+// The webhook subscriptions of G-03. All eight are overridden by RestController; they stay here
+// because the compile-time check above needs every method of the interface.
+func (pending) ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateWebhookSubscription(w http.ResponseWriter, r *http.Request, _ openapi.CreateWebhookSubscriptionParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetWebhookSubscription(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateWebhookSubscription(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId, _ openapi.UpdateWebhookSubscriptionParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteWebhookSubscription(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListWebhookDeliveries(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId, _ openapi.ListWebhookDeliveriesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplayWebhookDelivery(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId, _ openapi.DeliveryId) {
+	notAvailable(w, r)
+}
+
+func (pending) RotateWebhookSecret(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId, _ openapi.RotateWebhookSecretParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SendWebhook(w http.ResponseWriter, r *http.Request, _ openapi.WebhookId) {
+	notAvailable(w, r)
+}
+
+//nolint:revive // the method name is oapi-codegen's, derived from the operationId.
+func (pending) HttpRequest(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+// The automation rules. RestController overrides every one of them; they are here because pending
+// implements the whole interface, which is what lets the contract test compare the router against
+// the specification as a whole.
+func (pending) ListRules(w http.ResponseWriter, r *http.Request, _ openapi.ListRulesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateRule(w http.ResponseWriter, r *http.Request, _ openapi.CreateRuleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId) {
+	notAvailable(w, r)
+}
+
+func (pending) EnableRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.EnableRuleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DisableRule(w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.DisableRuleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) TestRule(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+// The jumble (G-10). RestController overrides them as the steps land.
+func (pending) ListJumbleEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListJumbleEntriesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, _ openapi.SubmitJumbleEntryParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ConvertJumbleEntry(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ConvertJumbleEntryParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) DismissJumbleEntry(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.DismissJumbleEntryParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) RotateJumbleIntake(w http.ResponseWriter, r *http.Request, _ openapi.RotateJumbleIntakeParams) {
+	notAvailable(w, r)
+}
+
+// The jumble's public door, overridden only when the composition root wires the intake - exactly
+// as the inbound trigger's is.
+func (pending) StartJumbleIntake(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+// The mail door beside it (G-11), and pending for the same reason: an installation that does not
+// serve it tells the internet nothing about why.
+func (pending) DeliverMail(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+func (pending) TriggerRuleManually(
+	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) RotateInboundTrigger(
+	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.RotateInboundTriggerParams,
+) {
+	notAvailable(w, r)
+}
+
+// The public inbound route, which RestController overrides only when the composition root wires
+// the starter - exactly as the calendar feed's is.
+func (pending) StartInboundRun(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+// The run log. RestController overrides both; they are here because pending implements the whole
+// interface, which is what lets the contract test compare the router against the specification.
+func (pending) ListRuleRuns(w http.ResponseWriter, r *http.Request, _ openapi.ListRuleRunsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetRuleRun(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplayRuleRun(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ReplayRuleRunParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) PollTriggerEvents(w http.ResponseWriter, r *http.Request, _ openapi.EventType, _ openapi.PollTriggerEventsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateServiceAccount(w http.ResponseWriter, r *http.Request, _ openapi.CreateServiceAccountParams) {
+	notAvailable(w, r)
+}
+
 // ListAuditEntries is overridden by RestController; it stays here because the compile-time
 // assertion is on `pending` itself.
 func (pending) ListAuditEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListAuditEntriesParams) {

@@ -17,6 +17,7 @@ package eventbus
 
 import (
 	"context"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -80,4 +81,59 @@ type Consumption interface {
 	// dispatchers would both be told "not seen" before either wrote anything. The insert is the
 	// question.
 	Claim(ctx context.Context, consumer string, eventID shared.ID) (bool, error)
+}
+
+// RetentionWindow is how long a consumption record is kept: long enough that no redelivery this
+// system can produce outlives it, short enough that the table does not become the outbox's
+// unbounded twin.
+//
+// Seven days, the same period the dispatched events themselves get. That is the bound that makes
+// it safe: a record whose event has been swept can say nothing about an event nobody can deliver
+// again, so the two periods are one decision rather than two that could drift apart
+// (data-retention.md §3, ADR-0007).
+const RetentionWindow = 7 * 24 * time.Hour
+
+// Once runs work for one event and one consumer, exactly once, and reports whether it ran.
+//
+// This is the library function ADR-0007's third countermeasure names, and the whole of it. Every
+// consumer of the stream calls this rather than reimplementing it - the dispatcher today, the
+// webhook delivery of G-03 and the rule engine of G-07 next - because the order of the two
+// operations is the part that is easy to get wrong, and getting it wrong is invisible until an
+// event is acted on twice.
+//
+// A free function beside the interface, like WantsReplay above and for the same reason: an adapter
+// may import a port and may not import a use case (project-structure.md §2), so a helper that
+// lived in the application layer would be a helper no consumer could reach.
+//
+// # Why the claim comes first
+//
+// It is a write rather than a question. Two dispatchers asking "has this been consumed" would both
+// be told no and both proceed; an insert that changed nothing is the answer and the record in one
+// statement. That is why the port is called Claim and not Seen.
+//
+// # Why there is no in-memory cache in front of it
+//
+// It would be unsafe, and the reason is written down here so that the next person to notice the
+// round trip does not add one. The claim lives in the caller's transaction: if that transaction
+// rolls back, the claim is undone and the event is correctly redelivered. A process-local memory
+// of "I have already done this" would survive the rollback that the claim does not, and would then
+// skip the redelivery - losing the event silently, which is the one failure an outbox exists to
+// rule out. The round trip is what makes the record and the work commit or fail together.
+func Once(
+	ctx context.Context, consumed Consumption,
+	consumer string, envelope event.Envelope,
+	work func(context.Context) error,
+) (bool, error) {
+	first, err := consumed.Claim(ctx, consumer, envelope.ID)
+	if err != nil {
+		return false, err
+	}
+	if !first {
+		// Not an error. A repeat is the at-least-once guarantee doing exactly what it says.
+		return false, nil
+	}
+	if err := work(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }

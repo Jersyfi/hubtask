@@ -28,8 +28,8 @@ func (objectDouble) AdjustRefCount(context.Context, shared.ID, int) error { retu
 func (objectDouble) MarkDeleted(context.Context, shared.ID, time.Time) (bool, error) {
 	return false, nil
 }
-func (objectDouble) Recount(context.Context) error { return nil }
-func (objectDouble) MarkOrphans(context.Context, time.Time, time.Time) (int, error) {
+func (objectDouble) Recount(context.Context, time.Time) error { return nil }
+func (objectDouble) MarkOrphans(context.Context, time.Time, Thresholds) (int, error) {
 	return 0, nil
 }
 func (objectDouble) TakeOrphans(context.Context, time.Time, int) ([]Orphan, error) {

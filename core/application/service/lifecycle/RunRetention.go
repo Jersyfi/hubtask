@@ -36,8 +36,18 @@ type RunRetention struct {
 	// because a tenant's periods are one thing to evaluate: two schedules would mean two leases,
 	// two logs and two ways for one of them to quietly stop running.
 	History NotificationHistory
-	Clock   clock.Clock
-	IDs     clock.IDGenerator
+	// Events is the outbox's own remover. Optional, like Rules and Sweeper below: an installation
+	// wired without it sweeps exactly what it did before, which is what lets the two land in
+	// separate releases.
+	Events DispatchedEvents
+	// Inbox is the jumble's remover (G-10). Required, not optional, on the notification history's
+	// reasoning exactly: an inbox holds the least trusted text in the system - raw subject, raw
+	// body and the sender's address, all of it PERSONAL_CONTENT - and one that silently stops
+	// being swept is personal data kept past its period (risk R-09) in the one place nobody
+	// looks at afterwards.
+	Inbox JumbleInbox
+	Clock clock.Clock
+	IDs   clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals
@@ -65,6 +75,39 @@ type RetentionSignals interface {
 // visible in one place: it can count what is due and remove a batch of it, and it cannot read one,
 // write one or send one.
 type NotificationHistory interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+}
+
+// DispatchedEvents is the slice of the outbox this run removes through (G-02, ADR-0007's second
+// countermeasure). The same two methods as the notification history, and deliberately the same
+// shape: the engine treats a third kind exactly as it treats the second.
+//
+// What the interface does not offer is a way to remove an *undispatched* event. That guard lives
+// in the query rather than in a parameter, because it is not a policy an engine could get wrong
+// once and a tenant could configure away - a row nobody has consumed is never due.
+type DispatchedEvents interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+
+	// DeleteExpiredConsumption removes the record of who has already consumed what. The outbox's
+	// twin table, swept at the same period and by the same pass: a record whose event has been
+	// swept can say nothing about an event nobody can deliver again (ADR-0007).
+	DeleteExpiredConsumption(ctx context.Context, cutoff time.Time, batch int) (int, error)
+}
+
+// JumbleInbox is the slice of the jumble repository this run removes through (G-10).
+//
+// The same two methods as the notification history and the outbox, and deliberately the same
+// shape: the engine treats a fourth kind exactly as it treats the second. Declared here rather
+// than imported, so that what the retention engine can do to the jumble is visible in one place -
+// it can count what is due and remove a batch of it, and it cannot read an entry, write one or
+// convert one.
+//
+// Which entries are due is the query's business rather than a parameter, for the reason the
+// outbox's dispatched guard is: an entry that became a work item is that item's provenance, and
+// "never converted" is a correctness rule rather than a period a tenant could configure away.
+type JumbleInbox interface {
 	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
@@ -139,6 +182,16 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	events, err := h.sweepEvents(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
+	inbox, err := h.sweepInbox(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	rules, err := h.sweepRules(ctx, actor, started)
 	if err != nil {
 		return outcome, err
@@ -149,7 +202,76 @@ func (h RunRetention) Execute(
 	// finished, and a job that stopped there would leave them until the next long interval.
 	outcome.Matched += history.Matched
 	outcome.Removed += history.Removed
+	outcome.Matched += events.Matched
+	outcome.Removed += events.Removed
+	// add rather than the two additions the kinds above it get: the jumble is the one of the three
+	// that a legal hold can stop, and a blocked count that did not reach the pass would be a run
+	// reporting nothing removed and no reason why.
+	outcome.add(inbox)
 	outcome.add(rules)
+	return outcome, nil
+}
+
+// sweepEvents removes one batch of dispatched outbox rows (G-02, data-retention.md §3).
+//
+// The table the outbox pattern leaves behind: an event's job is done the moment every consumer has
+// had it, and until ADR-0007's second countermeasure existed nothing ever removed the row. Seven
+// days by default, the shortest period in the catalogue, because this is a debugging aid rather
+// than a record - the audit trail is the record.
+//
+// No tombstone window, no legal hold and no audit entry, on sweepHistory's reasoning exactly: an
+// event is not an object a device holds, a hold is placed on tenants, containers and items, and an
+// entry per pass per tenant per hour would bury the entries that matter.
+//
+// A missing wiring is skipped rather than refused, which is the one place this differs from the
+// notification history - and the difference is which risk each carries. A notification history
+// that silently stops being swept is personal data kept past its period (risk R-09); an outbox
+// that silently stops being swept is a table that grows, which the backlog alert already reports.
+func (h RunRetention) sweepEvents(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.Events == nil {
+		return Outcome{}, nil
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindOutboxEvent)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindOutboxEvent, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	matched, err := h.Events.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+	removed, sweepErr := h.Events.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+	if sweepErr == nil {
+		// The twin table, in the same pass and at the same cutoff. Not counted into the outcome:
+		// what the outcome decides is whether the job comes back straight away, and that question
+		// is about events rather than about the bookkeeping beside them.
+		_, sweepErr = h.Events.DeleteExpiredConsumption(ctx, cutoff, h.Purger.BatchSize)
+	}
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindOutboxEvent, outcome, finished.Sub(started))
 	return outcome, nil
 }
 
@@ -210,6 +332,98 @@ func (h RunRetention) sweepHistory(ctx context.Context, started time.Time) (Outc
 	// auditor looks for (audit.md §2); the expiry of the record that somebody was emailed ninety
 	// days ago is the machinery doing exactly what the period says, and an entry per pass per
 	// tenant per hour would bury the entries that matter.
+	return outcome, nil
+}
+
+// sweepInbox removes one batch of expired jumble entries (G-10, data-retention.md §3).
+//
+// The kind D-06 predicted, arriving one milestone later with the feature it is about. Ninety days
+// from the arrival, and what is due is what was never converted: an entry that became a work item
+// is that item's provenance and stays, which is why no status reaches this method as a parameter.
+//
+// No marking phase, no tombstone window and no audit entry, on sweepHistory's reasoning. Nobody
+// can take an entry back out of a running period the way `:retain` takes an item out, so an
+// announcement would be one with no action behind it; and the jumble does not synchronise offline
+// at all, so no device holds an entry that a removal would have to reach (offline-sync.md §4).
+//
+// A legal hold it does observe, and that is where this kind parts company with the history and the
+// outbox: an entry is somebody's work that nobody has filed yet, and a tenant-wide hold covers it.
+//
+// The attachments an entry carried are left to the media reconciliation. Removing the row drops
+// the last reference to them, and MEDIA_ORPHAN is the kind that then sweeps the bytes - which is
+// what keeps one removal from having to know about two stores.
+func (h RunRetention) sweepInbox(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.Inbox == nil {
+		// Refused rather than skipped, for the notification history's reason and one more of its
+		// own: an unswept inbox keeps raw subject, raw body and sender for ever, and it would look
+		// like a working installation for ninety days before anybody could notice.
+		return Outcome{}, shared.ErrInternal.WithDetail("lifecycle.inbox_not_wired")
+	}
+
+	policy, err := h.Policies.Find(ctx, domain.KindJumbleEntry)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	runID := h.IDs.NewID()
+	if err := h.Runs.Start(ctx, runID, domain.KindJumbleEntry, started); err != nil {
+		return Outcome{}, err
+	}
+
+	cutoff := policy.Cutoff(started)
+	matched, err := h.Inbox.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	if err != nil {
+		return Outcome{}, err
+	}
+
+	// A tenant-wide hold stops the whole sweep, which is the one thing that separates this kind
+	// from the notification history and the outbox: an entry is somebody's work before anybody
+	// has filed it, and "freeze this tenant" reaches it (data-retention.md §4.1). Nothing narrower
+	// can - an empty target matches a tenant hold and no other scope, which is exactly the
+	// question being asked. The entries are counted as blocked rather than passed over in
+	// silence, so a run that removed nothing says why.
+	holds, err := h.Purger.Holds.Active(ctx)
+	if err != nil {
+		return Outcome{}, err
+	}
+	if _, held := holds.Blocking(domain.Target{}); held {
+		blocked := map[string]int{domain.BlockedByLegalHold: matched}
+		if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+			Matched: matched, Blocked: blocked,
+			Status: repository.RunSucceeded, FinishedAt: h.Clock.Now(),
+		}); err != nil {
+			return Outcome{Blocked: blocked}, err
+		}
+		// The log row carries what was due; the outcome carries none of it. Matched is the one
+		// number that decides whether the job comes straight back (Exhausted), and under a hold
+		// there is nothing to come back for: the trash's blocked rows may go one at a time as
+		// holds are lifted from them, but a tenant-wide hold blocks every entry until somebody
+		// lifts it, and a pass reporting a full batch would spin at the continuation interval for
+		// as long as the hold stands.
+		outcome := Outcome{Blocked: blocked}
+		h.report(ctx, domain.KindJumbleEntry, outcome, h.Clock.Now().Sub(started))
+		return outcome, nil
+	}
+
+	removed, sweepErr := h.Inbox.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+
+	finished := h.Clock.Now()
+	status := repository.RunSucceeded
+	if sweepErr != nil {
+		status = repository.RunFailed
+	}
+	outcome := Outcome{Matched: matched, Removed: removed}
+	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
+		Matched: outcome.Matched, Removed: outcome.Removed,
+		Status: status, FinishedAt: finished,
+	}); err != nil {
+		return outcome, err
+	}
+	if sweepErr != nil {
+		return outcome, sweepErr
+	}
+
+	h.report(ctx, domain.KindJumbleEntry, outcome, finished.Sub(started))
 	return outcome, nil
 }
 

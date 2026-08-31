@@ -30,8 +30,11 @@ import (
 // ObjectStore reads and writes objects. Implementations: LocalStorage (a directory, the
 // self-hosting default) and S3Storage (S3 and S3-compatible services - MinIO, Garage).
 //
-// The error contract is the shared one: a missing object is ErrNotFound, an unreachable backend
-// is ErrUnavailable with a `dependency.` detail - never a raw driver message (T-18). No call
+// The error contract is the shared one: a missing object is ErrNotFound with the detail
+// `media.object_missing` and the key as its parameter, an unreachable backend is ErrUnavailable
+// with a `dependency.` detail - never a raw driver message (T-18). The detail is on the adapter's
+// answer rather than only on the caller's translation of it, so that a store answering "no bytes
+// here" is distinguishable from a record that was never there, wherever the error is read. No call
 // runs inside a database transaction (observability-reliability.md §8): storage is an external
 // dependency, and a transaction waiting on a bucket holds a connection for as long as somebody
 // else's server feels like taking.

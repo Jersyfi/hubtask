@@ -162,6 +162,46 @@ const (
 	// records a case seeds it, each pass reschedules itself while the tenant has an open case, and
 	// a tenant that owes nothing costs a row that is not there.
 	KindPrivacyDeadlines Kind = "privacy.deadlines"
+
+	// KindWebhookDeliver sends one event to one subscription (G-03, automation.md §3.1).
+	//
+	// One job per delivery rather than one per event, and that is the whole retry discipline: a
+	// target that is down must not hold up the events of every other subscriber, and eight
+	// attempts with a backoff reaching a day is a schedule the queue already knows how to keep.
+	// The job carries the subscription and the event; the body is rendered at each attempt from
+	// the event as it was, so a retry sends what the first attempt would have.
+	KindWebhookDeliver Kind = "webhook.deliver"
+
+	// KindAutomationRun is one rule's reaction to one event (G-07, automation.md §2).
+	//
+	// One job per matching rule rather than one per event: failure isolation per rule, the queue's
+	// backoff per rule, and a dead letter naming which rule rather than which batch. An event
+	// matching six rules that cost one job would make one rule's misconfiguration everybody else's
+	// outage.
+	//
+	// The dedupe key is what collapses a storm. Without a rule's own expression it names the rule
+	// and the event, so nothing collapses; with one it names the rule and the expression's value,
+	// and the queue's existing uniqueness does the rest.
+	KindAutomationRun Kind = "automation.run"
+
+	// KindAutomationHTTP performs one HTTP_REQUEST action's call (G-09, automation.md §1.3).
+	//
+	// A job rather than a call inside the engine's transaction, for the webhook deliverer's
+	// reason: an external call from inside one holds a database connection for as long as
+	// somebody else's server feels like taking (observability-reliability.md §8). The job
+	// carries the request - method, address, sealed secret, body template - and the sender
+	// renders the body from the event at each attempt, so a retry sends what the first attempt
+	// would have.
+	KindAutomationHTTP Kind = "automation.http"
+
+	// KindAutomationSchedule is one tenant's wake-up for its SCHEDULE rules (G-08).
+	//
+	// The same shape as the reminders', the recurrence materialisation's and the backup schedules':
+	// one job per tenant, rescheduling itself to the moment the tenant next owes something, seeded
+	// by the write that made something owed. Nothing in this system may enumerate tenants
+	// (multi-tenancy.md §2.1), so a scheduler cannot create one job per tenant even if it wanted
+	// to - and a tenant with no scheduled rule has no row at all.
+	KindAutomationSchedule Kind = "automation.schedule"
 )
 
 func (k Kind) String() string { return string(k) }

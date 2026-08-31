@@ -7,3 +7,7 @@
 // it on every build.
 export const prerender = true;
 export const csr = false;
+// Directory-per-page output (`impressum/index.html` rather than `impressum.html`): the webspace
+// is a plain Apache with no content negotiation to rely on, and a directory with an index is the
+// one shape every static server serves at `/impressum/`.
+export const trailingSlash = 'always';

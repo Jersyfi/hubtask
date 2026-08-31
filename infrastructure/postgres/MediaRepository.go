@@ -43,7 +43,9 @@ func (r MediaRepository) Insert(ctx context.Context, object media.Object) error 
 	if err != nil {
 		return err
 	}
-	createdBy, err := uuidOf(object.CreatedBy)
+	// Optional since migration 0061: an attachment that arrived over the mail intake has no
+	// uploader, and NULL says nobody where a nil UUID would name an account that does not exist.
+	createdBy, err := optionalUUID(object.CreatedBy)
 	if err != nil {
 		return err
 	}
@@ -165,13 +167,13 @@ func (r MediaRepository) MarkDeleted(ctx context.Context, id shared.ID, at time.
 	return affected != 0, nil
 }
 
-// Recount makes every live counter what the references say.
-func (r MediaRepository) Recount(ctx context.Context) error {
+// Recount makes every live counter what the references say, and stamps what has reached zero.
+func (r MediaRepository) Recount(ctx context.Context, now time.Time) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
 	}
-	if err := queries.RecountMediaReferences(ctx); err != nil {
+	if err := queries.RecountMediaReferences(ctx, timestampOf(now)); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("recounting the media references: %w", err))
@@ -179,15 +181,19 @@ func (r MediaRepository) Recount(ctx context.Context) error {
 	return nil
 }
 
-// MarkOrphans marks what nothing references.
-func (r MediaRepository) MarkOrphans(ctx context.Context, now, pendingBefore time.Time) (int, error) {
+// MarkOrphans marks what nothing references and has not for long enough.
+func (r MediaRepository) MarkOrphans(
+	ctx context.Context, now time.Time, before mediarepo.Thresholds,
+) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return 0, err
 	}
 
 	marked, err := queries.MarkMediaOrphans(ctx, sqlc.MarkMediaOrphansParams{
-		Now: timestampOf(now), PendingBefore: timestampOf(pendingBefore),
+		Now:                timestampOf(now),
+		UnreferencedBefore: timestampOf(before.Unreferenced),
+		PendingBefore:      timestampOf(before.Pending),
 	})
 	if err != nil {
 		return 0, shared.ErrUnavailable.
@@ -532,7 +538,7 @@ func mediaObjectFrom(
 	if err != nil {
 		return media.Object{}, err
 	}
-	creator, err := idFrom(createdBy)
+	creator, err := optionalID(createdBy)
 	if err != nil {
 		return media.Object{}, err
 	}

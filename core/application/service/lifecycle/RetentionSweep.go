@@ -7,14 +7,18 @@ import (
 	"context"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	syncrepo "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	notification "github.com/Jersyfi/hubtask/core/application/service/notification"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	expression "github.com/Jersyfi/hubtask/core/port/expression"
 )
 
 // ExportBeforeDelete writes an archive to a backup target before a rule removes anything
@@ -33,6 +37,16 @@ type ExportBeforeDelete interface {
 	Export(ctx context.Context, targetID shared.ID) (shared.ID, error)
 }
 
+// RetentionWarner is the slice of the notification context the sweep needs (R-1, G-12): tell the
+// people a rule's audience names that this entry is about to be acted on.
+//
+// Declared here rather than imported, so that what the retention engine can do to somebody's inbox
+// is visible in one place: it can warn about a marked entry, and it cannot read a notification,
+// send one, or write one about anything else.
+type RetentionWarner interface {
+	Warn(ctx context.Context, warning notification.RetentionWarning) error
+}
+
 // Sweeper is the engine data-retention.md §5 describes: two phases, in batches, per tenant.
 //
 // It is the rule-driven half. The trash and the notification history keep their own sweeps, and
@@ -46,8 +60,18 @@ type Sweeper struct {
 	Items   workrepo.Items
 	// Purger is the one engine behind every removal, which is what keeps a retention hard delete
 	// owing exactly what a person's purge owes: a journal entry, a tombstone, and an event per row.
-	Purger  Purger
-	Changes syncrepo.ChangeLog
+	Purger Purger
+	// Warnings sends the advance warning of data-retention.md §6 (R-1, G-12). Optional: a build
+	// without it marks and acts exactly as before, which is what an installation that has switched
+	// its notifications off already looks like - and the marking is the visibility §6 asks for
+	// first, so silence here loses the message rather than the warning.
+	Warnings RetentionWarner
+	// Conditions compiles a rule's expression, and it is the same port and the same language the
+	// automation rules use (G-06, ADR-0009). Optional: a build with none refuses to act on a
+	// conditioned rule rather than acting on all of it, which is the safe direction for a pass
+	// whose job is deleting.
+	Conditions expression.Compiler
+	Changes    syncrepo.ChangeLog
 	// Export is optional. A rule that asks for one when there is nothing to write it with is
 	// refused at the act rather than silently downgraded to a deletion.
 	Export ExportBeforeDelete
@@ -83,7 +107,7 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 			// phase on top would be a second grace period on a grace period.
 			continue
 		}
-		marked, err := s.announce(ctx, rules, holds, kind, now)
+		marked, err := s.announce(ctx, actor, rules, holds, kind, now)
 		if err != nil {
 			return outcome, err
 		}
@@ -106,7 +130,7 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 
 // announce is phase one: what is due, what may not go, and what is now on notice.
 func (s Sweeper) announce(
-	ctx context.Context, rules []domain.Rule, holds domain.Holds,
+	ctx context.Context, actor appshared.ActorContext, rules []domain.Rule, holds domain.Holds,
 	kind domain.Kind, now time.Time,
 ) (Outcome, error) {
 	applicable := rulesFor(rules, kind.Name)
@@ -131,6 +155,9 @@ func (s Sweeper) announce(
 	}
 
 	outcome := Outcome{Matched: len(candidates), Blocked: map[string]int{}}
+	// One compilation per rule per pass rather than one per candidate. A pass judges a thousand
+	// entries against a handful of rules, and compiling is the expensive half.
+	programs := map[shared.ID]expression.Program{}
 	byRule := map[shared.ID][]repository.Candidate{}
 	var order []shared.ID
 
@@ -139,6 +166,17 @@ func (s Sweeper) announce(
 		if !found || !candidate.AnchoredAt.Before(rule.Cutoff(now)) {
 			// Caught by the loosest cutoff and not by its own rule's. Not a block - nothing is
 			// keeping it, its period simply has not run out.
+			outcome.Matched--
+			continue
+		}
+		matches, err := s.matchesCondition(ctx, rule, candidate, now, programs)
+		if err != nil {
+			return Outcome{}, err
+		}
+		if !matches {
+			// Not a block and not a hold: the rule simply does not apply to this entry. Counted the
+			// way the cutoff case above is counted, because it is the same kind of answer - nothing
+			// is keeping the entry, its rule was never about it.
 			outcome.Matched--
 			continue
 		}
@@ -181,9 +219,43 @@ func (s Sweeper) announce(
 			if err := s.announceStage(ctx, candidate, rule, rule.Action, now); err != nil {
 				return outcome, err
 			}
+			// And the people who can answer it (§6, R-1). At the marking rather than some days
+			// later: this is the first moment there is anything true to say, and `notify.
+			// before_days` bounds how *late* a warning may be - a rule asking for seven days'
+			// notice gets the grace period's fourteen, which is not less than it asked for.
+			if err := s.warn(ctx, actor, rule, candidate); err != nil {
+				return outcome, err
+			}
 		}
 	}
 	return outcome, nil
+}
+
+// warn tells the rule's audience about one marked entry, and does nothing for a rule that names
+// nobody or a build wired without the notification path.
+func (s Sweeper) warn(
+	ctx context.Context, actor appshared.ActorContext, rule domain.Rule,
+	candidate repository.Candidate,
+) error {
+	if s.Warnings == nil || rule.Notify.Silent() {
+		return nil
+	}
+	return s.Warnings.Warn(ctx, notification.RetentionWarning{
+		// The pass's tenant rather than the rule's. A rule read back from the repository carries
+		// no tenant - it does not need one, because row level security bounds the read to the
+		// transaction's (ADR-0010) - and the one thing a notification cannot be written without is
+		// exactly that.
+		TenantID: actor.TenantID,
+		ItemID:   candidate.ID,
+		// The entry's chain, which is what the administrators are resolved along: a role held on
+		// the hub administers the collection under it.
+		Path: []identity.Scope{
+			identity.TenantScope(),
+			identity.HubScope(candidate.HubID),
+			identity.CollectionScope(candidate.CollectionID),
+		},
+		Recipients: rule.Notify.Recipients,
+	})
 }
 
 // announceChains is phase one for a chain's second stage.
@@ -412,6 +484,82 @@ func (s Sweeper) remove(
 //
 // The restriction of §4.2 has no source yet - E-10 builds the data subject request - and its place
 // in the order is here so that the task which fills it does not also have to decide where it sits.
+
+// matchesCondition answers whether this rule's condition holds for this entry.
+//
+// A rule with no condition matches everything its scope and period already selected, which is what a
+// retention rule has always meant - and costs nothing, because the expression is never compiled.
+//
+// The entry is read only for a rule that has one, and only for the candidates that got this far.
+// That is the whole point of the port's lazy activation: `item` is a query, and a pass over a
+// thousand candidates must not make a thousand of them for rules that never ask.
+//
+// A condition that cannot be evaluated stops the pass rather than defaulting either way. Defaulting
+// to true would delete what the condition was written to protect; defaulting to false would quietly
+// retain everything and look like a working rule. Neither is an answer, so the failure is reported
+// and the run's own error handling decides.
+func (s Sweeper) matchesCondition(
+	ctx context.Context, rule domain.Rule, candidate repository.Candidate, now time.Time,
+	programs map[shared.ID]expression.Program,
+) (bool, error) {
+	if rule.Condition == "" {
+		return true, nil
+	}
+	if s.Conditions == nil {
+		return false, shared.ErrInternal.WithDetail("lifecycle.expression_engine_unavailable")
+	}
+
+	program, compiled := programs[rule.ID]
+	if !compiled {
+		var err error
+		if program, err = s.Conditions.Compile(
+			rule.Condition, condition.RetentionEnvironment(), expression.Boolean); err != nil {
+			// The rule was compiled when it was written, so this is a rule stored by a build whose
+			// environment differed - a name since withdrawn, say. Refused rather than ignored:
+			// acting on a rule whose condition this build cannot read is acting on a rule nobody
+			// wrote.
+			return false, err
+		}
+		programs[rule.ID] = program
+	}
+
+	out, err := program.Evaluate(ctx, &candidateValues{sweeper: s, candidate: candidate, now: now})
+	if err != nil {
+		return false, err
+	}
+	return out.Bool, nil
+}
+
+// candidateValues resolves what a retention condition may name, and reads the entry only if the
+// expression asks for it.
+type candidateValues struct {
+	sweeper   Sweeper
+	candidate repository.Candidate
+	now       time.Time
+}
+
+func (v *candidateValues) Resolve(ctx context.Context, name string) (any, bool, error) {
+	switch name {
+	case condition.VarNow:
+		// The pass's instant rather than a fresh reading: an expression evaluated twice in one pass
+		// sees one moment (automation.md §1.2).
+		return v.now, true, nil
+	case condition.VarItem:
+		item, err := v.sweeper.Items.Find(ctx, v.candidate.ID)
+		if err != nil {
+			return nil, false, err
+		}
+		return condition.ItemDocument(item), true, nil
+	case condition.VarTenant:
+		// Declared and empty. The workspace's settings are not something this pass reads, and an
+		// empty document is the honest shape: a condition asking for a setting gets absent rather
+		// than a failure.
+		return map[string]any{"settings": map[string]any{}}, true, nil
+	default:
+		return nil, false, nil
+	}
+}
+
 // Until then nothing sets it, which is the honest state rather than a silent gap.
 func (s Sweeper) blocked(holds domain.Holds, candidate repository.Candidate) (string, bool) {
 	found := map[string]bool{}

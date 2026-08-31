@@ -168,14 +168,17 @@ func TestAPurgedItemLosesItsReferencesAndTheJobReclaimsTheObject(t *testing.T) {
 		t.Fatalf("ref_count %d after the purge, want the stale 1 the recount corrects", stored.RefCount)
 	}
 
-	// The first pass recounts to zero and marks. Nothing is reclaimed yet: the grace has not run.
+	// The first pass recounts to zero and stamps, and marks nothing at all. This is the pass that
+	// used to take the object away: at the moment it runs, the row has just lost its last
+	// reference, and that is indistinguishable from an upload waiting for its first one.
 	reconcile := mediaservice.ReconcileMedia{
 		Objects: mediaRepo(), Store: store,
 		Removals:   postgres.NewLifecycleRepository(),
 		UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
 		Clock:      clock.Fixed(created.Add(time.Hour)),
 		Config: env.MediaConfig{
-			StagingGrace: 24 * time.Hour, OrphanGrace: time.Hour, BatchSize: 10,
+			StagingGrace: 24 * time.Hour, UnreferencedGrace: time.Hour,
+			OrphanGrace: time.Hour, BatchSize: 10,
 		},
 		Retention: env.RetentionConfig{TombstoneWindow: 90 * 24 * time.Hour},
 	}
@@ -184,17 +187,28 @@ func TestAPurgedItemLosesItsReferencesAndTheJobReclaimsTheObject(t *testing.T) {
 	if _, err := reconcile.Execute(ctx, actor); err != nil {
 		t.Fatalf("the first pass failed: %v", err)
 	}
-	marked := findMedia(ctx, t, tenantA, object.ID)
-	if marked.RefCount != 0 || marked.DeletedAt == nil {
-		t.Fatalf("after the recount the object is %+v", marked)
+	counted := findMedia(ctx, t, tenantA, object.ID)
+	if counted.RefCount != 0 || counted.DeletedAt != nil {
+		t.Fatalf("after the recount the object is %+v", counted)
 	}
 
-	// The second pass, once the grace has run: the bytes go, then the row, and the journal entry is
-	// written in the same transaction as the removal.
+	// The second pass, once nothing has pointed at it for the grace: now it is marked. Still
+	// nothing is reclaimed - the bytes wait out their own window after the marking.
 	reconcile.Clock = clock.Fixed(created.Add(4 * time.Hour))
+	if _, err := reconcile.Execute(ctx, actor); err != nil {
+		t.Fatalf("the second pass failed: %v", err)
+	}
+	marked := findMedia(ctx, t, tenantA, object.ID)
+	if marked.DeletedAt == nil {
+		t.Fatalf("after the grace the object is %+v", marked)
+	}
+
+	// The third pass: the bytes go, then the row, and the journal entry is written in the same
+	// transaction as the removal.
+	reconcile.Clock = clock.Fixed(created.Add(7 * time.Hour))
 	outcome, err := reconcile.Execute(ctx, actor)
 	if err != nil {
-		t.Fatalf("the second pass failed: %v", err)
+		t.Fatalf("the third pass failed: %v", err)
 	}
 	// At least this one. The pass is tenant-wide and the package shares one database, so an
 	// unreferenced object another test finished with is reclaimed by the same pass - which is the

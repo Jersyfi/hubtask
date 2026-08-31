@@ -88,7 +88,10 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		Request: env.RequestConfig{
 			MaxBodyBytes:   int64(getInt("HUBTASK_MAX_BODY_BYTES", 1<<20)),   // 1 MiB
 			MaxUploadBytes: int64(getInt("HUBTASK_MAX_UPLOAD_BYTES", 1<<26)), // 64 MiB
-			Timeout:        getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
+			// 25 MiB, which is what the mail providers people actually use accept: a message
+			// bigger than that is one their sender could not have delivered either.
+			MaxMailBytes: int64(getInt("HUBTASK_MAX_MAIL_BYTES", 25<<20)),
+			Timeout:      getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
 		},
 		CORS: env.CORSConfig{
 			AllowedOrigins: getList("HUBTASK_CORS_ALLOWED_ORIGINS"),
@@ -113,6 +116,9 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			OutboxBatch:       getInt("HUBTASK_OUTBOX_BATCH_SIZE", 100),
 			OutboxMinInterval: getDuration("HUBTASK_OUTBOX_MIN_INTERVAL", time.Second),
 			OutboxMaxInterval: getDuration("HUBTASK_OUTBOX_MAX_INTERVAL", 15*time.Second),
+			// The worker's statement timeout, because that is the longest write this
+			// installation documents a bound for and the lag has to outlast it (G-04).
+			TriggerPollLag: getDuration("HUBTASK_TRIGGER_POLL_LAG", 60*time.Second),
 		},
 		Retention: env.RetentionConfig{
 			// 90 days: the maximum offline window offline-sync.md §7 documents, and therefore the
@@ -124,12 +130,14 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		Media: env.MediaConfig{
 			// A day for an abandoned staging: long enough that no upload over any line anybody
 			// still uses is mistaken for one, short enough that a bucket does not fill with them.
-			// An hour of grace before the bytes go, which is the window in which an object that
-			// lost its last reference and gained a new one is recounted rather than removed.
-			StagingGrace: getDuration("HUBTASK_MEDIA_STAGING_GRACE", 24*time.Hour),
-			OrphanGrace:  getDuration("HUBTASK_MEDIA_ORPHAN_GRACE", time.Hour),
-			BatchSize:    getInt("HUBTASK_MEDIA_RECONCILE_BATCH_SIZE", 100),
-			Interval:     getDuration("HUBTASK_MEDIA_RECONCILE_INTERVAL", 6*time.Hour),
+			// An hour before a confirmed object that points at nothing counts as an orphan, which
+			// is the window a person needs between uploading a file and attaching it - and another
+			// hour after the marking, in which a mistaken removal is still recoverable by hand.
+			StagingGrace:      getDuration("HUBTASK_MEDIA_STAGING_GRACE", 24*time.Hour),
+			UnreferencedGrace: getDuration("HUBTASK_MEDIA_UNREFERENCED_GRACE", time.Hour),
+			OrphanGrace:       getDuration("HUBTASK_MEDIA_ORPHAN_GRACE", time.Hour),
+			BatchSize:         getInt("HUBTASK_MEDIA_RECONCILE_BATCH_SIZE", 100),
+			Interval:          getDuration("HUBTASK_MEDIA_RECONCILE_INTERVAL", 6*time.Hour),
 		},
 		Metrics: env.MetricsConfig{
 			TenantLabel: getBool("HUBTASK_METRICS_TENANT_LABEL", false),
@@ -361,6 +369,7 @@ func validateQueue(q env.QueueConfig) []error {
 		"HUBTASK_SCHEDULER_TICK_INTERVAL": q.SchedulerTick,
 		"HUBTASK_OUTBOX_MIN_INTERVAL":     q.OutboxMinInterval,
 		"HUBTASK_OUTBOX_MAX_INTERVAL":     q.OutboxMaxInterval,
+		"HUBTASK_TRIGGER_POLL_LAG":        q.TriggerPollLag,
 	} {
 		if d <= 0 {
 			errs = append(errs, configError("config.duration_invalid", variable))
@@ -450,6 +459,9 @@ func validateRequest(r env.RequestConfig) []error {
 	}
 	if r.MaxUploadBytes < 1 {
 		errs = append(errs, configError("config.limit_invalid", "HUBTASK_MAX_UPLOAD_BYTES"))
+	}
+	if r.MaxMailBytes < 1 {
+		errs = append(errs, configError("config.limit_invalid", "HUBTASK_MAX_MAIL_BYTES"))
 	}
 	if r.Timeout <= 0 {
 		errs = append(errs, configError("config.duration_invalid", "HUBTASK_REQUEST_TIMEOUT"))

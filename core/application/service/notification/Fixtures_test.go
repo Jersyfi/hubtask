@@ -206,6 +206,12 @@ func (s *accountStore) FindByEmail(context.Context, string) (identity.Account, e
 	return identity.Account{}, shared.ErrNotFound
 }
 func (s *accountStore) Insert(context.Context, identity.Account) error { return nil }
+
+// Nothing here lists accounts by kind; the method exists so the port is implemented.
+func (s *accountStore) ListOfKind(context.Context, identity.AccountKind) ([]identity.Account, error) {
+	return nil, nil
+}
+
 func (s *accountStore) UpdatePreferences(context.Context, identity.Account, time.Time) error {
 	return nil
 }

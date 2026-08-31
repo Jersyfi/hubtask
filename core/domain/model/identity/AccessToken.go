@@ -4,6 +4,8 @@
 package identity
 
 import (
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -53,6 +55,14 @@ func (s AccountStatus) ProcessingAllowed() bool {
 	return s != AccountRestricted && s != AccountAnonymized
 }
 
+// MaxTokenLifetime is how far into the future an expiry may be set (security.md §5). A year is
+// long enough that nobody works around it and short enough that a forgotten credential stops
+// working while the person who made it is still around to be asked about it.
+const MaxTokenLifetime = 365 * 24 * time.Hour
+
+// MaxTokenNameLength matches the column and the contract.
+const MaxTokenNameLength = 200
+
 // AccessToken is the stored half of a personal access token. The secret itself is not here and
 // never was: only its hash is stored, and the hash never leaves the persistence adapter
 // (security.md §8).
@@ -60,6 +70,10 @@ type AccessToken struct {
 	ID        shared.ID
 	TenantID  shared.ID
 	AccountID shared.ID
+	// Name is what the credential is for, in its owner's words. It is what they read in a year
+	// when deciding whether it is still needed, which is the only thing that makes an old token
+	// revocable rather than merely revoked-by-guessing.
+	Name string
 	// Scopes bound what the token may do, independently of the role its owner holds.
 	Scopes []string
 	// ExpiresAt is mandatory. A token without an end is a credential nobody ever revokes, so the
@@ -70,6 +84,117 @@ type AccessToken struct {
 	// LastUsedAt is what makes an unused token visible to its owner. It is written back at most
 	// once per interval, because the alternative is a write on every request.
 	LastUsedAt time.Time
+	// CreatedAt is when it was minted, and the order a listing reads in.
+	CreatedAt time.Time
+}
+
+// NewAccessTokenInput is what minting one needs. The secret is not among the fields: the domain
+// draws no randomness (rule 4), and the plaintext never belongs to the stored half at all.
+type NewAccessTokenInput struct {
+	ID        shared.ID
+	TenantID  shared.ID
+	AccountID shared.ID
+	Name      string
+	Scopes    []string
+	ExpiresAt time.Time
+	Now       time.Time
+}
+
+// NewAccessToken builds the row a mint will store, and refuses anything security.md §5 forbids.
+//
+// Whether the scopes exist is deliberately not asked here. The set of scopes an installation
+// declares is the use case catalogue's, and the domain does not know there is a catalogue - the
+// application layer checks the names against it and this checks their shape (ADR-0001).
+func NewAccessToken(in NewAccessTokenInput) (AccessToken, error) {
+	name := strings.TrimSpace(in.Name)
+	switch {
+	case in.ID.IsZero() || in.TenantID.IsZero() || in.AccountID.IsZero():
+		return AccessToken{}, shared.ErrInternal.WithDetail("access.token_incomplete")
+	case name == "":
+		return AccessToken{}, fieldError("/name", "access.token_name_required")
+	case len(name) > MaxTokenNameLength:
+		return AccessToken{}, fieldError("/name", "access.token_name_too_long")
+	}
+
+	scopes, err := normaliseScopes(in.Scopes)
+	if err != nil {
+		return AccessToken{}, err
+	}
+	if err := checkExpiry(in.ExpiresAt, in.Now); err != nil {
+		return AccessToken{}, err
+	}
+
+	return AccessToken{
+		ID: in.ID, TenantID: in.TenantID, AccountID: in.AccountID,
+		Name: name, Scopes: scopes,
+		ExpiresAt: in.ExpiresAt.UTC(), CreatedAt: in.Now.UTC(),
+	}, nil
+}
+
+// Revoked stamps the token. Idempotent in the caller's sense: a token already revoked keeps the
+// moment it was, because the first withdrawal is the one that mattered.
+func (t AccessToken) Revoked(at time.Time) AccessToken {
+	if !t.RevokedAt.IsZero() {
+		return t
+	}
+	t.RevokedAt = at.UTC()
+	return t
+}
+
+// IsRevoked reports whether somebody pulled it, which is a different question from whether it ran
+// out - and the reason the two are separate columns.
+func (t AccessToken) IsRevoked() bool { return !t.RevokedAt.IsZero() }
+
+// checkExpiry holds the two halves of "mandatory, and at most a year".
+//
+// There is no default. A caller has to choose, because every default that could be written here
+// is either so short that people work around it or so long that it is the eternal credential the
+// rule exists to prevent.
+func checkExpiry(expiresAt, now time.Time) error {
+	if expiresAt.IsZero() {
+		return fieldError("/expires_at", "access.token_expiry_required")
+	}
+	if !expiresAt.After(now) {
+		return fieldError("/expires_at", "access.token_expiry_past")
+	}
+	if expiresAt.After(now.Add(MaxTokenLifetime)) {
+		return shared.ErrValidation.
+			WithDetail("access.token_expiry_too_far").
+			WithParams(map[string]string{"max_days": "365"}).
+			WithFields(shared.FieldError{Path: "/expires_at", Code: "access.token_expiry_too_far"})
+	}
+	return nil
+}
+
+// normaliseScopes refuses an empty request and collapses repeats.
+//
+// Empty is refused rather than read as "everything": a token that asks for nothing and receives
+// everything is the failure mode the explicit request exists to rule out, and a caller that meant
+// to ask for nothing has nothing to use the token for.
+func normaliseScopes(requested []string) ([]string, error) {
+	scopes := make([]string, 0, len(requested))
+	seen := make(map[string]bool, len(requested))
+	for _, scope := range requested {
+		scope = strings.TrimSpace(scope)
+		if scope == "" || seen[scope] {
+			continue
+		}
+		seen[scope] = true
+		scopes = append(scopes, scope)
+	}
+	if len(scopes) == 0 {
+		return nil, fieldError("/scopes", "access.token_scopes_required")
+	}
+	// Sorted, so that two tokens asking for the same rights are stored identically and a listing
+	// reads the same way twice.
+	slices.Sort(scopes)
+	return scopes, nil
+}
+
+func fieldError(path, code string) error {
+	return shared.ErrValidation.
+		WithDetail(code).
+		WithFields(shared.FieldError{Path: path, Code: code})
 }
 
 // Verify decides whether the token may still be used at this moment.

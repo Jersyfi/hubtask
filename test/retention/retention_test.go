@@ -23,6 +23,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
+	notificationservice "github.com/Jersyfi/hubtask/core/application/service/notification"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	lifecycleDomain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -32,6 +33,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	"github.com/Jersyfi/hubtask/test/dbtest"
@@ -121,6 +123,9 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 	}
 	return lifecycle.RunRetention{
 		Policies: store, Runs: store, History: postgres.NewNotificationRepository(),
+		// The jumble, as the server wires it (G-10): the engine refuses to run with a kind
+		// unwired, and RE-8's cross-tenant question is asked of this kind too.
+		Inbox:  postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
 		Purger: purger,
 		Clock:  clock.Fixed(at),
 		IDs:    ids,
@@ -132,7 +137,21 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 			Items:   postgres.NewItemRepository(security.NewCursorCodec(installationSecret)),
 			Purger:  purger,
 			Changes: postgres.NewChangeLog(),
-			Clock:   clock.Fixed(at), IDs: ids, HLC: hybridAt(at), Batch: 100,
+			// The expression engine, so that a conditioned rule is evaluated here as it is in
+			// production rather than skipped by a nil (G-06).
+			Conditions: celexpression.New(),
+			// The advance warning of §6, as the server wires it (R-1, G-12): the marking and the
+			// messages to the people who can stop it commit together.
+			Warnings: notificationservice.RecordRetentionWarning{
+				Notifications: postgres.NewNotificationRepository(),
+				Accounts:      postgres.NewAccountRepository(),
+				Memberships:   postgres.NewMembershipRepository(),
+				Members:       postgres.NewItemMemberRepository(),
+				Preferences:   postgres.NewNotificationPreferenceRepository(),
+				Jobs:          noJobs{},
+				Clock:         clock.Fixed(at), IDs: ids,
+			},
+			Clock: clock.Fixed(at), IDs: ids, HLC: hybridAt(at), Batch: 100,
 		},
 	}
 }
@@ -565,6 +584,7 @@ func (s *suite) completedItem(t *testing.T, collectionID shared.ID, daysAgo int)
 // says yes: what is under test here is the engine, and who may configure it is proved a layer down.
 func (s *suite) rules() lifecycle.Rules {
 	return lifecycle.Rules{
+		Conditions: celexpression.New(),
 		Rules:      postgres.NewRetentionRuleRepository(),
 		Policies:   s.store,
 		Marking:    postgres.NewRetentionMarkingRepository(),
@@ -731,6 +751,71 @@ func TestRE4AnObjectTakenOutIsNotDeleted(t *testing.T) {
 	if s.exists(t, going) {
 		t.Error("the entry nobody took out survived phase two")
 	}
+}
+
+// RE-4's other half since G-12 (R-1): the object is not only marked, the people who can take it out
+// are told - and what proves it is a notification row rather than the refusal that used to stand
+// where the message is.
+//
+// The administrator is seeded as a membership rather than assumed, because who is warned is the role
+// matrix's answer: a workspace whose only administrator holds the role at the tenant is the ordinary
+// self-hosted one, and it is exactly the case a resolution that looked only at the collection would
+// have got wrong.
+func TestRE4AWarningReachesTheAdministratorsBeforeTheAct(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	collectionID := s.collection(t)
+	going := s.completedItem(t, collectionID, 400)
+
+	if _, err := s.admin.Exec(s.ctx,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		 VALUES ($1, $2, $3, 'TENANT', 'ADMIN')`,
+		freshID(t).String(), s.tenant.String(), s.author.String()); err != nil {
+		t.Fatalf("granting the administrator role: %v", err)
+	}
+
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionHardDelete, GraceDays: graceOf(14),
+		Notify: &lifecycleDomain.Notify{
+			BeforeDays: 7,
+			Recipients: []lifecycleDomain.Recipient{lifecycleDomain.RecipientTenantAdmins},
+		},
+	})
+
+	// Phase one: the entry is marked and the warning is written in the same transaction.
+	s.sweep(t)
+
+	if at, _ := s.marking(t, going); at.IsZero() {
+		t.Fatal("the entry was not announced")
+	}
+	warned := countIn(t, s,
+		`SELECT count(*) FROM notification
+		 WHERE tenant_id = $1 AND recipient_id = $2 AND category = 'RETENTION' AND item_id = $3`,
+		s.tenant.String(), s.author.String(), going.String())
+	if warned != 1 {
+		t.Fatalf("%d warnings reached the administrator, want one", warned)
+	}
+
+	// And the second pass does not warn again: the entry is marked once, and the phase that marks
+	// it does not see it a second time. A warning per hour for a fortnight is not a warning.
+	s.sweep(t)
+	if again := countIn(t, s,
+		`SELECT count(*) FROM notification
+		 WHERE tenant_id = $1 AND category = 'RETENTION' AND item_id = $2`,
+		s.tenant.String(), going.String()); again != 1 {
+		t.Errorf("%d warnings after a second pass, want the one", again)
+	}
+}
+
+// countIn answers one count against the suite's own tenant.
+func countIn(t *testing.T, s *suite, query string, args ...any) int {
+	t.Helper()
+	var count int
+	if err := s.admin.QueryRow(s.ctx, query, args...).Scan(&count); err != nil {
+		t.Fatalf("counting: %v", err)
+	}
+	return count
 }
 
 // RE-7: the first activation of a broadly matching rule warns instead of deleting, and the share it
@@ -961,5 +1046,78 @@ func TestQS23AHoldPlacedThroughTheAPIStopsEveryDeletion(t *testing.T) {
 	s.sweepAt(t, now.Add(time.Minute))
 	if s.exists(t, held) {
 		t.Error("the entry survived after the hold was lifted")
+	}
+}
+
+// RE-10: a rule with a CEL condition sweeps only what the condition matches.
+//
+// The extension G-06 owes RE. E-07 refused a condition outright because there was nothing that
+// could evaluate one, and every RE test until now described a rule decided by its scope and its
+// period alone. This is the same path with the expression engine in it, end to end and against the
+// database: the entry the condition excludes is not announced, is not blocked, and is still there.
+func TestRE10AConditionedRuleSweepsOnlyWhatMatches(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	collectionID := s.collection(t)
+
+	// Both are past the period. One carries the label the condition protects.
+	protected := s.completedItem(t, collectionID, 400)
+	going := s.completedItem(t, collectionID, 400)
+	if _, err := s.admin.Exec(s.ctx,
+		`UPDATE work_item SET title = 'no-archive' WHERE id = $1`, protected.String()); err != nil {
+		t.Fatalf("marking the protected entry: %v", err)
+	}
+
+	// A workspace with work in it, so the rule is not the broad one §5 turns into an announcement.
+	for range 60 {
+		s.completedItem(t, collectionID, 1)
+	}
+
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionArchive,
+		// The condition data-retention.md §2 documents, in the shape the projection answers.
+		Condition: "item.title != 'no-archive'",
+	})
+
+	s.sweep(t)
+
+	if at, _ := s.marking(t, going); at.IsZero() {
+		t.Error("the entry the condition matches was not announced")
+	}
+	if at, _ := s.marking(t, protected); !at.IsZero() {
+		t.Errorf("the entry the condition excludes was announced at %s", at)
+	}
+}
+
+// A condition the engine cannot compile stops the pass rather than defaulting either way: acting on
+// a rule whose condition this build cannot read is acting on a rule nobody wrote.
+func TestRE10AnUncompilableConditionIsRefusedWhenTheRuleIsWritten(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+
+	_, _, err := (lifecycle.CreateRetentionPolicy{Rules: s.rules()}).
+		Execute(s.ctx, s.actor(), lifecycle.CreateRetentionPolicyCommand{
+			Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+			DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+			Action: lifecycleDomain.ActionArchive, Condition: "item.title == ",
+		})
+	if err == nil {
+		t.Fatal("a rule with an unparseable condition was stored")
+	}
+}
+
+// The environment is the retention one rather than the rule engine's: a condition naming the actor
+// is refused when it is written, because a retention pass has no actor to name.
+func TestRE10AConditionNamingTheActorIsRefused(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+
+	_, _, err := (lifecycle.CreateRetentionPolicy{Rules: s.rules()}).
+		Execute(s.ctx, s.actor(), lifecycle.CreateRetentionPolicyCommand{
+			Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+			DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+			Action: lifecycleDomain.ActionArchive, Condition: "actor.id != ''",
+		})
+	if err == nil {
+		t.Fatal("a retention condition named the actor and was stored")
 	}
 }

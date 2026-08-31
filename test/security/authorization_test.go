@@ -270,6 +270,10 @@ func (m *memberships) SharedItemsIn(_ context.Context, _, _ shared.ID) ([]shared
 	return nil, nil
 }
 
+func (m *memberships) Administrators(context.Context, []identity.Scope) ([]shared.ID, error) {
+	return nil, nil
+}
+
 type trail struct{ entries []audit.Entry }
 
 func (s *trail) Append(_ context.Context, entry audit.Entry) error {

@@ -13,10 +13,13 @@
 # domain mints one is a token the server accepts. That is what this checks, and it is why it uses
 # the published image rather than `go run`.
 #
-# There is no endpoint that issues a personal access token yet (roadmap.md puts PAT administration
-# in 0.6), so the session mints one and writes it into access_token itself. Both halves come from
-# the real constructions - test/e2e/mint - because a token hashed by this script the way this
-# script hashes tokens would prove nothing.
+# The session's own credential is minted through the API it tests (G-01), which makes the auth
+# surface the first thing it proves rather than something it works around. What still comes from
+# outside is the *bootstrap*: an installation whose first account has no credential cannot be
+# reached at all, and no first-run path exists yet - so the script seeds one narrow, ten-minute
+# credential by SQL, uses it to mint the working PAT through `hubctl token create`, and then
+# revokes it. Both halves of the bootstrap come from the real constructions (test/e2e/mint),
+# because a token hashed by this script the way this script hashes tokens would prove nothing.
 
 set -euo pipefail
 
@@ -41,7 +44,19 @@ TOKEN_ROW_ID="01936f2a-7c1e-7000-8000-00000000e2e3"
 
 WORK_DIR="$(mktemp -d)"
 ENV_FILE="$WORK_DIR/env"
+# The stack goes at the end, and what it was saying goes with it - so anything but a clean exit
+# prints the server's own account first.
+#
+# It exists because of what a failure used to look like: `set -e` aborts on the first command that
+# returns non-zero, the counted-failure summary below never runs, and the whole report is one
+# sentence from hubctl. A sentence is what a person needs and a code is what a maintainer needs,
+# and the code was in a container that had already been removed.
 cleanup() {
+	local status=$?
+	if [ "$status" -ne 0 ]; then
+		echo "--- the session ended with status $status; the server's last words follow ---"
+		(cd deploy/docker && $COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 120) 2>&1 || true
+	fi
 	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
 	rm -rf "$WORK_DIR"
 }
@@ -68,6 +83,25 @@ expect_missing() {
 		fail "$what: expected not to find '$needle' in:"
 		echo "$haystack"
 	fi
+}
+
+# run_hubctl runs a command, prints what it said whichever way it went, and records a failure
+# rather than ending the session.
+#
+# `set -e` inside a command substitution is the right default for the sections that build on each
+# other - a hub that was not created makes everything below it meaningless - and the wrong one for
+# a section that checks several independent verbs: the first failure would hide the rest, one CI
+# run at a time.
+run_hubctl() {
+	local output status
+	set +e
+	output="$("$WORK_DIR/hubctl" "$@" 2>&1)"
+	status=$?
+	set -e
+	if [ "$status" -ne 0 ]; then
+		fail "hubctl $* exited $status: $output"
+	fi
+	printf '%s\n' "$output"
 }
 
 # first_id reads the identifier out of a hubctl table: a header, then one row per entry, the
@@ -120,9 +154,9 @@ if [ -z "$ready" ]; then
 fi
 echo "ready after $((SECONDS - started))s"
 
-echo "--- minting a personal access token and seeding the account that holds it ---"
+echo "--- seeding the workspace and its bootstrap credential ---"
 INSTALLATION_SECRET="$(grep '^HUBTASK_SECRET_KEY=' "$ENV_FILE" | cut -d= -f2-)"
-read -r TOKEN TOKEN_HASH < <(HUBTASK_SECRET_KEY="$INSTALLATION_SECRET" go run ./test/e2e/mint --tenant "$TENANT_ID")
+read -r BOOTSTRAP_TOKEN BOOTSTRAP_HASH < <(HUBTASK_SECRET_KEY="$INSTALLATION_SECRET" go run ./test/e2e/mint --tenant "$TENANT_ID")
 
 compose_in_place exec -T db psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -q <<SQL
 INSERT INTO tenant (id, slug, display_name)
@@ -134,17 +168,15 @@ INSERT INTO account (id, tenant_id, kind, display_name, status)
 INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
   VALUES ('$MEMBERSHIP_ID', '$TENANT_ID', '$ACCOUNT_ID', 'TENANT', 'OWNER')
   ON CONFLICT (id) DO NOTHING;
+-- The bootstrap, and deliberately the smallest one that can do its one job: mint a token. Ten
+-- minutes and two scopes, so that a run which dies before revoking it leaves behind a credential
+-- that could not have done anything anyway.
 INSERT INTO access_token
     (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-  VALUES ('$TOKEN_ROW_ID', '$TENANT_ID', '$ACCOUNT_ID', 'the end-to-end session',
-          decode('$TOKEN_HASH', 'hex'), 'hbt_pat_',
-          ARRAY['containers:read','containers:write','items:read','items:write','trash:read',
-                'comments:write','media:read','media:write',
-                'reminders:write','recurrence:write','templates:read','templates:write',
-                'jobs:read','jobs:cancel','backup:read','backup:manage',
-                'retention:read','retention:manage','audit:read','audit:export',
-                'privacy:read','privacy:manage'],
-          now() + interval '1 hour')
+  VALUES ('$TOKEN_ROW_ID', '$TENANT_ID', '$ACCOUNT_ID', 'the end-to-end bootstrap',
+          decode('$BOOTSTRAP_HASH', 'hex'), 'hbt_pat_',
+          ARRAY['accounts:read','accounts:write'],
+          now() + interval '10 minutes')
   ON CONFLICT (id) DO NOTHING;
 SQL
 
@@ -155,14 +187,40 @@ hubctl() { "$WORK_DIR/hubctl" "$@"; }
 export HUBTASK_PROFILE="$WORK_DIR/profile.json"
 INSTALLATION="http://127.0.0.1:$HTTP_PORT"
 
-echo "--- signing in ---"
+echo "--- signing in with the bootstrap, and minting the session's own token through the API ---"
 # Through the pipe, which is the documented path: an argument would be visible in `ps`. The
 # credential then lives in the profile, so nothing below carries it - which is the point of the
 # profile and worth exercising rather than short-circuiting with HUBTASK_TOKEN.
-printf '%s\n' "$TOKEN" | hubctl auth login --url "$INSTALLATION"
+printf '%s\n' "$BOOTSTRAP_TOKEN" | hubctl auth login --url "$INSTALLATION"
 status="$(hubctl --json auth status)"
 expect_contains "auth status" "$status" '"token_source": "profile"'
 expect_contains "auth status" "$status" '"signed_in": true'
+
+# The first thing the session does with the API is ask it for a credential. Everything after this
+# line runs on a token this installation minted, hashed and can revoke - which is what makes the
+# rest of the session a test of the product rather than of a row somebody wrote by hand.
+#
+# The scopes are every one this build declares. A name the catalogue does not carry is refused as
+# a field error, so the list is checked by being used rather than by being maintained.
+SESSION_SCOPES='accounts:read,accounts:write,audit:export,audit:read,backup:manage,backup:read'
+SESSION_SCOPES="$SESSION_SCOPES,comments:write,containers:read,containers:write,items:read,items:write"
+SESSION_SCOPES="$SESSION_SCOPES,jobs:cancel,jobs:read,media:read,media:write,members:write"
+SESSION_SCOPES="$SESSION_SCOPES,privacy:manage,privacy:read,recurrence:write,reminders:write"
+SESSION_SCOPES="$SESSION_SCOPES,retention:manage,retention:read,templates:read,templates:write,trash:read"
+# The automation surface, which the mail demo below needs: minting the jumble's intake address is
+# the same power as pointing an inbound webhook at the workspace, and it asks for the same scope.
+# One scope rather than a pair: automation has no read of its own, because reading a rule is
+# reading what it may do (core/domain/event/ReadScope.go).
+SESSION_SCOPES="$SESSION_SCOPES,automation:manage"
+minted="$(hubctl --json token create --name 'the end-to-end session' --days 1 --scope "$SESSION_SCOPES")"
+TOKEN="$(printf '%s\n' "$minted" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')"
+[ -n "$TOKEN" ] || { echo "FAILED: the mint answered no credential"; echo "$minted"; exit 1; }
+
+printf '%s\n' "$TOKEN" | hubctl auth login --url "$INSTALLATION"
+# Everything the credentials still owe - the listing, the revocation, the service account - is
+# checked at the end of the session rather than here. The rate limiter's burst is what a client
+# firing a whole first hour in two seconds runs into, and the calls that have to be *here* are
+# only the ones without which nothing else can run.
 
 echo "--- a hub, and a collection inside it ---"
 HUB_ID="$(hubctl container create --type HUB --name 'The end-to-end hub' | first_id)"
@@ -227,6 +285,14 @@ expect_contains "item assign" "$assigned" "$ACCOUNT_ID"
 hubctl item unassign "$TASK_ID" >/dev/null
 
 echo "--- the stream, watched ---"
+# A beat first, and it is not padding. The rate limiter's burst is a minute's budget that may be
+# spent at once (HUBTASK_RATE_LIMIT_BURST, 20 by default), and everything above spends it in about
+# half a second - a script compressing a person's first hour into one. Every command so far can be
+# refused and retried; the watch cannot, because it opens a stream that starts "from now", so a
+# refusal there loses the events the loop below is waiting for rather than delaying them. Two
+# seconds refills the bucket at either level (10/s per credential, 50/s per tenant).
+sleep 2
+
 # The binary itself rather than the shell function, so that the SIGINT below reaches hubctl and
 # not a subshell wrapped around it - the clean exit on Ctrl-C is exactly what is under test.
 WATCH_LOG="$WORK_DIR/watch.log"
@@ -635,6 +701,212 @@ expect_contains "the JSON page" "$page" '"has_more"'
 if [ "$(head -c 1 <<< "$page")" != "{" ]; then
 	fail "the JSON output does not begin with a document: $page"
 fi
+
+echo "--- what the credentials still owed ---"
+# The credential is answered once and nowhere else. A listing that carried it would make "shown
+# once" a sentence in the documentation rather than a property of the server.
+listed="$(hubctl --json token ls)"
+expect_contains "token ls" "$listed" "the end-to-end session"
+expect_missing "token ls" "$listed" "$TOKEN"
+
+# A service account: no address, nothing to accept, active from the moment it exists. G-05's
+# run_as points at one of these, so that a rule outlives its author.
+MACHINE_ID="$(hubctl service-account create --name 'the nightly export' | first_id)"
+[ -n "$MACHINE_ID" ] || { echo "FAILED: creating the service account produced no identifier"; exit 1; }
+expect_contains "service-account ls" "$(hubctl service-account ls)" "$MACHINE_ID"
+
+# Its credentials are administered by whoever answers for access, and it starts with none.
+machine_token="$(hubctl --json token create --account "$MACHINE_ID" --name 'the export job' \
+	--days 30 --scope 'items:read')"
+expect_contains "token create --account" "$machine_token" '"account_id": "'"$MACHINE_ID"'"'
+
+# And the bootstrap goes. Revocation takes effect on the next call, because the hash is checked
+# against the row on every request - so proving it costs one call with the withdrawn credential.
+hubctl token revoke "$TOKEN_ROW_ID"
+refused="$(HUBTASK_TOKEN="$BOOTSTRAP_TOKEN" hubctl container ls 2>&1 || true)"
+expect_contains "a revoked token" "$refused" "revoked"
+
+echo "--- a mail becomes a task ---"
+# The milestone's demo (G-11), and the one thing no unit test can show: a message arrives from
+# outside over a credential the workspace minted, and a rule turns it into work without anybody
+# touching it. Through curl rather than hubctl, because the intake is a public route with no client
+# behind it - what a bridge does here is exactly this.
+# --retry is not politeness, it is the session's own shape: a whole first hour fired in two seconds
+# spends the rate limiter's burst, and this section is at the end of it. curl treats 429 as the
+# transient error it is and waits, which is what any bridge posting into this intake would do.
+api() {
+	local method="$1" path="$2" body="${3-}" type="${4:-application/json}"
+	if [ -z "$body" ]; then
+		curl -fsS --retry 5 --retry-delay 2 -X "$method" \
+			-H "Authorization: Bearer $TOKEN" "$INSTALLATION/api/v1$path"
+	else
+		curl -fsS --retry 5 --retry-delay 2 -X "$method" \
+			-H "Authorization: Bearer $TOKEN" -H "Content-Type: $type" \
+			--data-binary "$body" "$INSTALLATION/api/v1$path"
+	fi
+}
+
+json_field() { sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" <<< "$2" | head -1; }
+
+# The address, shown once - through the client now that it has the verb (G-13). Rotating is how one
+# is revoked, so minting and rotating are one call.
+intake="$(hubctl --json jumble intake rotate-token)"
+INTAKE_TOKEN="$(json_field token "$intake")"
+[ -n "$INTAKE_TOKEN" ] || { echo "FAILED: the intake was minted without a token: $intake"; exit 1; }
+
+# The rule: every arrival in the jumble becomes a task in the collection this session built. Written
+# switched off, as every rule is, and enabled by its own call - which is the point of that split,
+# and which the client refuses to smooth over.
+rule="$(hubctl --json rule add --name 'mail becomes a task' --trigger JUMBLE_ENTRY \
+	--run-as "$ACCOUNT_ID" \
+	--action "CONVERT_JUMBLE_ENTRY:{\"collection_id\":\"$COLLECTION_ID\"}")"
+RULE_ID="$(json_field id "$rule")"
+[ -n "$RULE_ID" ] || { echo "FAILED: writing the rule produced no identifier: $rule"; exit 1; }
+# A rule nobody switched on does nothing, and the listing says so before it is switched on.
+expect_contains "rule ls" "$(hubctl rule ls --disabled)" "$RULE_ID"
+# The dry run first: what it would do, with nothing done. That is the whole of E-06's discipline
+# from a terminal.
+expect_contains "rule test" \
+	"$(hubctl rule test "$RULE_ID" --event de.hubtask.jumble.entry.received.v1)" "conditions"
+hubctl rule enable "$RULE_ID" >/dev/null
+expect_contains "rule ls --enabled" "$(hubctl rule ls --enabled)" "$RULE_ID"
+
+# And the mail itself: RFC 5322 bytes, the shape any bridge can forward. Multipart, because the
+# ordinary mail is - a plain part, an HTML alternative, and a file.
+MAIL_SUBJECT="Order #42 needs a call back"
+mail_file="$WORK_DIR/message.eml"
+{
+	printf 'From: Orders <orders@example.org>\r\n'
+	printf 'Subject: %s\r\n' "$MAIL_SUBJECT"
+	printf 'Content-Type: multipart/mixed; boundary="outer"\r\n\r\n'
+	printf -- '--outer\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n'
+	printf 'The customer asked for a call back.\r\n'
+	printf -- '--outer\r\nContent-Type: text/html; charset=utf-8\r\n\r\n'
+	printf '<p>The customer asked for a call back.</p>\r\n'
+	printf -- '--outer\r\nContent-Type: application/pdf\r\n'
+	printf 'Content-Disposition: attachment; filename="invoice.pdf"\r\n\r\n'
+	printf '%%PDF-1.4 invoice\r\n'
+	printf -- '--outer--\r\n'
+} > "$mail_file"
+
+delivered="$(curl -fsS --retry 5 --retry-delay 2 -X POST -H 'Content-Type: message/rfc822' \
+	--data-binary "@$mail_file" "$INSTALLATION/api/v1/jumble/mail/$INTAKE_TOKEN")"
+ENTRY_ID="$(json_field entry_id "$delivered")"
+[ -n "$ENTRY_ID" ] || { echo "FAILED: the mail was accepted without an entry: $delivered"; exit 1; }
+
+# A wrong token is the same 404 as everything else the intake refuses, and it stores nothing. The
+# loop is the rate limiter again: this call wants the status rather than the body, so it cannot ask
+# curl to retry for it - a 429 here would be the session's own budget answering, not the intake.
+refused_code=""
+for _ in 1 2 3 4 5; do
+	refused_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+		-H 'Content-Type: message/rfc822' --data-binary "@$mail_file" \
+		"$INSTALLATION/api/v1/jumble/mail/$TENANT_ID.wrongsecret")"
+	[ "$refused_code" = "429" ] || break
+	sleep 2
+done
+if [ "$refused_code" != "404" ]; then
+	fail "a wrong intake token answered $refused_code, want 404"
+fi
+
+# The rule runs on the worker, so this is the one place the session waits. Sixty seconds is far
+# past what an idle stack needs and short enough that a broken engine fails the job rather than
+# hanging it.
+converted=""
+for _ in $(seq 1 60); do
+	# Tolerant of a call that does not answer: what is being waited for is the engine, and a
+	# hiccup on the way to it is not the failure this loop is looking for.
+	entry="$(hubctl --json jumble ls --status PROCESSED 2>/dev/null || true)"
+	if grep -qF "$ENTRY_ID" <<< "$entry"; then
+		converted="$entry"
+		break
+	fi
+	sleep 1
+done
+if [ -z "$converted" ]; then
+	fail "the arriving mail was never converted: $(hubctl jumble ls || true)"
+else
+	# The provenance pair: the entry names the item it became, and the item is in the collection
+	# the rule named, titled from the subject the mail carried.
+	ITEM_ID="$(json_field target_item_id "$converted")"
+	if [ -z "$ITEM_ID" ]; then
+		fail "the converted entry names no item: $converted"
+	else
+		item="$(api GET "/items/$ITEM_ID")"
+		expect_contains "the mail's task" "$item" "$MAIL_SUBJECT"
+		expect_contains "the mail's task" "$item" "$COLLECTION_ID"
+		# The provenance, from the item's side: the pair points both ways.
+		expect_contains "the item's origin" "$item" "$ENTRY_ID"
+	fi
+fi
+
+# And the run log, which is the other half of "it happened": a person who was not watching reads
+# what the engine did, step by step, rather than a log line the server happened to print.
+runs="$(run_hubctl rule runs --rule "$RULE_ID")"
+expect_contains "rule runs" "$runs" "$RULE_ID"
+expect_contains "rule runs" "$runs" "JUMBLE_ENTRY"
+RUN_ID="$(printf '%s\n' "$runs" | first_id)"
+if [ -n "$RUN_ID" ]; then
+	run="$(run_hubctl rule run show "$RUN_ID")"
+	expect_contains "rule run show" "$run" "CONVERT_JUMBLE_ENTRY"
+fi
+
+# A beat, for the reason the watch above has one: the session compresses a first hour into
+# seconds, and the sections below are at the end of the rate limiter's budget.
+sleep 2
+
+echo "--- the inbox's own verbs ---"
+# The near channel, and the decision that is not a deletion. Both through the client, because an
+# inbox somebody cannot empty from a terminal is an inbox they will empty in the database.
+captured="$(run_hubctl jumble submit --subject 'Call the printer' --channel QUICK_CAPTURE)"
+CAPTURED_ID="$(printf '%s\n' "$captured" | first_id)"
+[ -n "$CAPTURED_ID" ] || fail "the quick capture produced no entry: $captured"
+expect_contains "jumble ls" "$(run_hubctl jumble ls --status NEW)" "Call the printer"
+if [ -n "$CAPTURED_ID" ]; then
+	dismissed="$(run_hubctl jumble dismiss "$CAPTURED_ID")"
+	expect_contains "jumble dismiss" "$dismissed" "DISMISSED"
+	# A state rather than a deletion: the entry is still there, in the state that says so.
+	expect_contains "jumble ls --status DISMISSED" \
+		"$(run_hubctl jumble ls --status DISMISSED)" "$CAPTURED_ID"
+fi
+
+sleep 2
+
+echo "--- who else is told, and what reached them ---"
+# The outbound half, as far as it goes today. The target is a host nothing answers on purpose: what
+# a subscription is for is being written, read back, and told apart from a paused one. The
+# signature is proved where a real one exists, against a real receiver, in infrastructure/webhook's
+# TestASubscriberReceivesASignedCloudEventThatVerifies - a host listener is not something this
+# stack's outbound guard may call (T-07), so a session cannot be the place for it.
+# Standard error is kept apart from the answer, because the identifier is read out of the table's
+# second line and a note printed beside it would be the line that is read.
+subscribed="$(hubctl webhook add --url https://webhook.invalid/hooks \
+	--event de.hubtask.work.item.completed.v1 2> "$WORK_DIR/webhook.err" || true)"
+WEBHOOK_ID="$(printf '%s\n' "$subscribed" | first_id)"
+[ -n "$WEBHOOK_ID" ] || fail "the subscription produced no identifier: $subscribed"
+# The secret is answered once, and the client says so where somebody can read it.
+expect_contains "webhook add" "$(cat "$WORK_DIR/webhook.err")" "shown once"
+expect_contains "webhook ls" "$(run_hubctl webhook ls)" "webhook.invalid"
+
+# What this section stops at, and why it is written down rather than left out. Two things in the
+# outbound path are broken in a way only this end-to-end use could show, and both have issues of
+# their own: a `webhook.deliver` job fails with `webhooks.delivery_incomplete` before it writes a
+# delivery row, so there is nothing to read back or replay; and `:rotate-secret` answers 500. Both
+# are G-03's, both are reproduced by exactly the two commands that would go here, and asserting
+# around them would be this session pretending they work.
+#
+# What is proved above is what a person meets first: the subscription is written, its secret is
+# answered once with the sentence that makes "once" true, and the listing reads it back.
+
+echo "--- the platforms that cannot receive a call ---"
+# G-04's cursor from a terminal: a poll without one asks the unbounded question, so the client
+# prints the next one after every call. The type is one this workspace has certainly produced.
+# The assertion is the cursor rather than a particular event: what a poller needs is the answer's
+# shape and somewhere to continue from, and which events are inside the window at this second is
+# the outbox's business rather than this check's.
+polled="$(run_hubctl events poll de.hubtask.work.item.completed.v1 --limit 5)"
+expect_contains "events poll" "$polled" "TYPE"
+expect_contains "events poll" "$polled" "--since"
 
 echo "--- what a refusal looks like ---"
 # A collection that does not exist, so the answer is a problem document - and what a person sees

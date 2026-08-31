@@ -30,6 +30,7 @@ security:
 tags:
   - name: meta
   - name: identity
+  - name: auth
   - name: containers
   - name: items
   - name: structure
@@ -45,6 +46,8 @@ tags:
   - name: sync
   - name: views
   - name: calendar
+  - name: webhooks
+  - name: jumble
   - name: jobs
 
 paths:
@@ -409,6 +412,995 @@ paths:
                 $ref: "#/components/schemas/ViewExportDocument"
             text/calendar:
               schema: { type: string }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/entries:
+    get:
+      tags: [jumble]
+      operationId: listJumbleEntries
+      summary: The jumble, newest first
+      description: >
+        Everything that arrived and what became of it. The raw content is answered here - to a
+        credential that may read the workspace's entries - and nowhere that travels: it appears
+        in no event payload, no log and no audit entry.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          required: false
+          description: Narrow to one state. `NEW` is the inbox; `DISMISSED` ages out by rule.
+          schema:
+            type: string
+            enum: [NEW, PROCESSED, DISMISSED]
+        - name: channel
+          in: query
+          required: false
+          description: Narrow to one way of arriving.
+          schema:
+            type: string
+            enum: [EMAIL, WEBHOOK, QUICK_CAPTURE, API]
+      responses:
+        "200":
+          description: One page of the jumble
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntryPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [jumble]
+      operationId: submitJumbleEntry
+      summary: Put something in the jumble
+      description: >
+        The near channels: a quick capture or a plain API call, stored as an entry and announced
+        as `jumble.entry_received` - which is what fires a `JUMBLE_ENTRY` automation rule. The
+        two far channels are not a caller's to claim: `EMAIL` and `WEBHOOK` name the intakes that
+        authenticate their own way, and an entry claiming one through this route would be forging
+        its provenance.
+
+        Attachments name media objects already uploaded through the media pipeline - never a
+        second storage path - and each has to be sealed before it can be referenced here.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JumbleEntrySubmit"
+      responses:
+        "201":
+          description: Caught
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/entries/{entryId}:convert:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [jumble]
+      operationId: convertJumbleEntry
+      summary: Turn an entry into work
+      description: >
+        Creates a work item at the named destination - through the same use case a plain create
+        goes through, with the same rights checked there - records the provenance on both sides
+        (`origin_jumble_id` on the item, `target_item_id` on the entry), settles the entry as
+        `PROCESSED` and announces `jumble.entry_converted`. Exactly once: a second conversion of
+        the same entry is refused, and two racing produce one item and one refusal.
+
+        The title defaults to the entry's subject, then to the first line of its body. An entry
+        with no text - an attachment alone - needs a title in the request.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JumbleEntryConvert"
+      responses:
+        "200":
+          description: Converted, with the target item on the entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/entries/{entryId}:dismiss:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [jumble]
+      operationId: dismissJumbleEntry
+      summary: Decide against an entry
+      description: >
+        A state, not a deletion: the entry stays readable, and the retention engine ages it out
+        by rule rather than by hand. Only a `NEW` entry can be dismissed - an entry is decided
+        about exactly once.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Dismissed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules:
+    get:
+      tags: [automation]
+      operationId: listRules
+      summary: The workspace's automation rules
+      description: >
+        Newest first, and only the rules the caller may see: a member manages their own rules, and
+        an administrator the scope's (domain-model.md §3.2). Deleted rules are not among them - the
+        deletion is soft so that the runs a rule produced stay readable, not so that the rule stays
+        listed.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: enabled
+          in: query
+          required: false
+          description: Narrow to the rules that are switched on, or to the ones that are not.
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: The rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRulePage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [automation]
+      operationId: createRule
+      summary: Write a rule
+      description: >
+        A rule is created **switched off**. Enabling it is its own call and its own audit entry:
+        writing what a rule would do and letting it loose on the workspace are two decisions, and
+        a rule that ran the moment it was saved would give nobody the chance to read it back first.
+
+        Writing a rule needs the automation permission at its scope **and** the rights its own
+        actions need. Without the second half a member with automation rights and nothing else
+        would write a rule that runs as a generously-scoped service account and does what they may
+        not (automation.md §2).
+
+        What this build refuses, and says so by code rather than by silence: a non-empty condition,
+        until the expression language arrives with it; an action naming a kind automation.md §1.3
+        documents and no release serves yet; a parameter the action's use case does not declare.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationRuleCreate"
+      responses:
+        "201":
+          description: Written, and switched off
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules/{ruleId}:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    get:
+      tags: [automation]
+      operationId: getRule
+      summary: One rule, as it stands
+      responses:
+        "200":
+          description: The rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [automation]
+      operationId: updateRule
+      summary: Change what a rule does
+      description: >
+        An omitted field is left alone. `enabled` is not among the fields: switching a rule on or
+        off is its own call, so that the audit trail says which of the two somebody did rather than
+        leaving it to be inferred from a change set.
+
+        The same two-sided permission check as creating one, against the rule as it would be
+        afterwards - a rule may not be edited into doing something its writer may not do.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationRuleUpdate"
+      responses:
+        "200":
+          description: The rule as it now stands
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [automation]
+      operationId: deleteRule
+      summary: Remove a rule
+      description: >
+        A soft delete. The rule stops matching anything at once and disappears from the listing,
+        and the runs it produced stay readable: a run log whose rule vanished would be a record of
+        actions nobody can account for.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules/{ruleId}:enable:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    post:
+      tags: [automation]
+      operationId: enableRule
+      summary: Switch a rule on
+      description: >
+        Its own call and its own audit entry, on both sides. Letting a rule act on the workspace is
+        the decision worth recording, and the permission is re-checked here rather than trusted
+        from whenever the rule was written: the writer's rights may have narrowed since.
+
+        Enabling also clears the failure counter, because a rule somebody has looked at and turned
+        back on is a rule whose run of failures has been dealt with.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: On
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules/{ruleId}:disable:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    post:
+      tags: [automation]
+      operationId: disableRule
+      summary: Switch a rule off
+      description: >
+        The rule stays, and stops acting. What a run of failures does automatically, a person can
+        do deliberately - and the trail says which of the two it was.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Off
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules:test:
+    post:
+      tags: [automation]
+      operationId: testRule
+      summary: Dry-run a rule against a sample event
+      description: >
+        The dry run automation.md §2 promises: a sample event in, which conditions matched and
+        which actions *would* run out - and no side effects, with the restore's dry-run
+        discipline behind the promise: nothing below this route opens a writing transaction. No
+        action dispatches, nothing is queued, and the run log records nothing.
+
+        Test either a stored rule by its identifier or a definition you are about to save - the
+        same document `POST /automation/rules` takes, checked by the same validation, so a rule
+        the dry run accepts is a rule the create will accept. Both arms of every branch are
+        reported with whether they would run, which is more than a real run's log shows: the run
+        records the path it took, and the dry run answers the question "and what if it had not".
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleTest"
+      responses:
+        "200":
+          description: What the rule would have done
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleTestResult"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules/{ruleId}:trigger:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    post:
+      tags: [automation]
+      operationId: triggerRuleManually
+      summary: Run a rule now
+      description: >
+        The `MANUAL` trigger (automation.md §1.1): the one of the six a person pulls. It queues a
+        run into the same engine every other trigger produces into - the conditions are evaluated,
+        the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle
+        apply exactly as they do to an event's run.
+
+        The run **records who pulled it**, which is the whole reason this is its own call rather
+        than a flag on something else: a rule that acted because somebody asked and a rule that
+        acted because a deadline passed are two different entries in the log.
+
+        Only a rule whose trigger is `MANUAL` can be started this way, and only an enabled one.
+        Both refusals name themselves rather than answering an empty success - a call that appears
+        to work and does nothing is the failure `automation.md` §2.2 exists to avoid.
+
+        The answer carries the identifier the run will have. It is a `202`: the run happens on a
+        worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log
+        afterwards.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Queued, with the identifier the run will carry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/rules/{ruleId}:rotate-inbound-token:
+    parameters:
+      - $ref: "#/components/parameters/RuleId"
+    post:
+      tags: [automation]
+      operationId: rotateInboundTrigger
+      summary: Mint the address an inbound-webhook rule answers on
+      description: >
+        The `INBOUND_WEBHOOK` trigger's credential (automation.md §1.1): a token-protected URL per
+        rule, minted here and answered **once**. It is stored hashed under its own purpose label,
+        so no later read can produce it.
+
+        Rotating is how one is revoked. There is exactly one address per rule and the replacement
+        happens in a single statement, so the old token and the new one never both open the rule -
+        which is what "revocable by rotating" has to mean. Somebody who wants to revoke without a
+        replacement switches the rule off.
+
+        Only a rule whose trigger is `INBOUND_WEBHOOK`. An address on any other rule would be a
+        credential that opens nothing, handed out as though it worked.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Minted, with the token shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundTriggerToken"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/intake:rotate-token:
+    post:
+      tags: [jumble]
+      operationId: rotateJumbleIntake
+      summary: Mint the address the jumble accepts webhooks on
+      description: >
+        The tenant's one intake credential (G-10), the inbound trigger's discipline applied to
+        the inbox: 32 bytes of entropy, the tenant named in clear inside the token, hashed over
+        the whole presented string under the intake's own purpose label, and answered **once** -
+        no later read can produce it.
+
+        Rotating is how one is revoked: there is exactly one address per tenant and the
+        replacement happens in a single statement, so the old token and the new one never both
+        open the intake.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Minted, with the token shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleIntakeToken"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/inbound/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: >
+          The tenant's intake token, which is the whole credential: this route carries no bearer
+          authentication, and the URL is what the bridge stores. It names the tenant in clear
+          inside itself because the lookup needs one before it can happen (multi-tenancy.md
+          §2.2).
+        schema: { type: string }
+    post:
+      tags: [jumble]
+      operationId: startJumbleIntake
+      security: []
+      summary: Deliver something into the jumble from outside
+      description: >
+        The `WEBHOOK` channel (G-10): an external system posts a small JSON shape - `sender`,
+        `subject`, `body`, all optional but not all empty - and it lands as an entry, fires
+        `jumble.entry_received`, and waits for a person or a rule to decide about it.
+
+        The token authenticates the tenant, never a person: the entry records no actor, and the
+        body is data end to end - bounded twice (the transfer by the request middleware, the
+        entry by its own field bounds), matched by rules as data, and rendered as instructions
+        to nothing.
+
+        Every reason not to serve answers the same `404` with the same body - an unknown token, a
+        rotated one, a tenant that never minted one. Distinguishing them would answer questions
+        for whoever is trying tokens (T-21).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JumbleIntakeDelivery"
+      responses:
+        "201":
+          description: Caught, with the entry it became
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleIntakeAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/mail/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: >
+          The tenant's intake token, exactly as `/jumble/inbound/{token}` carries one: the URL is
+          the whole credential, this route carries no bearer authentication, and the token names
+          the tenant in clear inside itself because the lookup needs one before it can happen
+          (multi-tenancy.md §2.2).
+        schema: { type: string }
+    post:
+      tags: [jumble]
+      operationId: deliverMail
+      security: []
+      summary: Deliver a mail into the jumble
+      description: >
+        The `EMAIL` channel (G-11). The body is the message as it arrived - RFC 5322 bytes,
+        headers included - and what arrives in 0.5.0 is the **webhook-first** transport: an
+        operator points a mail-to-webhook bridge, their MTA or their provider's push at this
+        address, and the bytes are what any of them can forward without agreeing on a shape.
+
+        The parser is transport-independent and defensive. MIME is walked with bounds on parts,
+        depth, attachment count and attachment size, checked before anything is allocated;
+        attachments go through the media pipeline with its size and type discipline, never a
+        second storage path; and the HTML alternative of a message that also had a plain part is
+        kept as text beside it. **No HTML is ever rendered server-side.**
+
+        The sender is data, never an identity: a `From` header authenticates nothing, and what
+        authenticates is the token. A message the parser cannot read still lands, as an entry
+        carrying the raw payload - a jumble exists to catch, and "unparseable" is a thing to
+        catch. A message that breaks one of the bounds is refused with the code that says which,
+        because "raise the bound" and "look at the entry" are different answers.
+
+        Every reason not to serve answers the same `404`, as the webhook intake's does (T-21).
+      requestBody:
+        required: true
+        content:
+          message/rfc822:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Caught, with the entry it became
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleIntakeAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/inbound/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: >
+          The rule's inbound token, which is the whole credential: this route carries no bearer
+          authentication, and the URL is what the calling system stores. It names the tenant in
+          clear inside itself because the lookup needs one before it can happen - the table is
+          behind row level security like every other, and a tenant taken from a header or a query
+          would be a way around it (multi-tenancy.md §2.2).
+        schema: { type: string }
+    post:
+      tags: [automation]
+      operationId: startInboundRun
+      security: []
+      summary: Start a rule from outside
+      description: >
+        The other half of the `INBOUND_WEBHOOK` trigger: an external system posts here and the
+        rule's run begins, in the same engine every other trigger produces into.
+
+        **This authenticates the rule, never a person.** There is no account behind the token and
+        it grants nothing beyond starting that one rule - the run carries no actor, because naming
+        one would invent an author for something nobody did. What the run may then do is its
+        `run_as` account's business, checked per action exactly as it is for every other trigger.
+
+        The body is a JSON object and enters the condition language as `payload`, as **data**: it is
+        never rendered as an instruction to anything. It is bounded well below the request limit,
+        because what bounds a transfer and what bounds an evaluation are two different numbers -
+        anything larger is refused rather than truncated.
+
+        An unknown token, a rotated one, a rule that has been deleted, a rule that is switched off
+        and a rule whose trigger is no longer an inbound webhook all answer the same `404` with the
+        same body. Distinguishing them would answer questions to whoever is trying tokens.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: >
+                Whatever the calling system sends, as an object. Free-form on purpose: this is the
+                other system's vocabulary, and a schema here would be this system claiming to know
+                it.
+      responses:
+        "202":
+          description: Queued, with the identifier the run will carry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/runs:
+    get:
+      tags: [automation]
+      operationId: listRuleRuns
+      summary: What the rules have done
+      description: >
+        Every run, newest first: which rule, which event started it, how its conditions answered,
+        what each action did, and what went wrong if anything did. This is the log
+        `automation.md` §2 promises - retrievable, filterable, and the only place a person can find
+        out why a rule did or did not act.
+
+        A run outlives the rule that produced it. Deleting a rule is soft for exactly this reason:
+        a record of actions nobody can account for would be worse than the rule staying visible.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: rule_id
+          in: query
+          required: false
+          description: Narrow to one rule.
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          description: >
+            Narrow to one outcome. `FAILED` and `ABORTED_LOOP` are the two an operator usually
+            wants; `THROTTLED` and `SKIPPED` are the ordinary answers of a rule that is working.
+          schema:
+            type: string
+            enum: [RUNNING, WAITING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+        - name: trigger
+          in: query
+          required: false
+          description: >
+            Narrow to one way of starting. "Did the schedule fire last night" and "did anybody
+            press the button" are two questions about the same rule.
+          schema:
+            type: string
+            enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
+      responses:
+        "200":
+          description: The runs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/runs/{runId}:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [automation]
+      operationId: getRuleRun
+      summary: One run, with every condition and every action
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRun"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /automation/runs/{runId}:replay:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [automation]
+      operationId: replayRuleRun
+      summary: Complete a failed run
+      description: >
+        Re-executes a failed run's remaining actions under the same idempotency keys - which is
+        what makes this a completion rather than a duplication: an action the original run
+        finished finds its key already claimed and does nothing again, and only what never
+        happened happens now.
+
+        Only a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run
+        resumes by itself, a skipped or throttled one did what its rule says, and a disabled
+        rule must not act. The conditions are evaluated again against the world as it stands -
+        the answer that decides an action is the answer of the day it runs (automation.md §2.1) -
+        and the replay is audited with the replayer, because somebody looked at a failure and
+        decided the world is ready for the rest.
+
+        The answer carries the identifier the replay's run will have, exactly as `:trigger` does.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Queued, with the identifier the replay's run will carry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleRunAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks:
+    get:
+      tags: [webhooks]
+      operationId: listWebhookSubscriptions
+      summary: The workspace's webhook subscriptions
+      description: >
+        Every subscription in the workspace, newest first, with its state and how many consecutive
+        failures it has seen. The secret is not among the fields: it is answered once, at creation
+        and at each rotation, and stored sealed - there is no read that can produce it again.
+      responses:
+        "200":
+          description: The subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WebhookSubscription"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [webhooks]
+      operationId: createWebhookSubscription
+      summary: Subscribe an external system to the event stream
+      description: >
+        The `subscribe` half of the REST hooks pattern: an integration platform creates its own
+        subscription through this route and deletes it again when the user turns the automation
+        off.
+
+        What arrives at the target is the CloudEvent, identical to the one this system uses
+        internally - there is no feature available only internally or only externally - signed
+        with a secret generated here, answered once in this response, and never readable
+        afterwards.
+
+        The target is an egress channel and is treated as one: it goes through the guarded client,
+        so a private range or the cloud metadata address is refused unless the installation has
+        deliberately released private networks (T-07).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookSubscriptionCreate"
+      responses:
+        "201":
+          description: Subscribed, with the signing secret shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookSubscriptionSecret"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks/{webhookId}:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    get:
+      tags: [webhooks]
+      operationId: getWebhookSubscription
+      summary: One webhook subscription
+      responses:
+        "200":
+          description: The subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookSubscription"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [webhooks]
+      operationId: updateWebhookSubscription
+      summary: Change a subscription
+      description: >
+        The target, the event types, the filter and the state. Re-enabling a subscription that was
+        disabled for sustained unreachability is a write like any other and is audited as one -
+        somebody decided the target is reachable again, and the trail says who.
+
+        An omitted field is left alone. The secret is not changeable here; rotation has its own
+        route, because handing a new secret to a subscriber is a different act from editing one.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookSubscriptionUpdate"
+      responses:
+        "200":
+          description: The subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookSubscription"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [webhooks]
+      operationId: deleteWebhookSubscription
+      summary: Unsubscribe
+      description: >
+        The `unsubscribe` half of the REST hooks pattern. The deliveries go with the subscription:
+        a delivery log for a subscription nobody can reach any more is a record of attempts against
+        an address the workspace no longer knows.
+      responses:
+        "204":
+          description: Unsubscribed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks/{webhookId}/deliveries:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    get:
+      tags: [webhooks]
+      operationId: listWebhookDeliveries
+      summary: What was delivered, and what happened to it
+      description: >
+        Every attempt with its status, the response the target gave and when the next attempt is
+        due. A run of eight failures ends in `DEAD_LETTER`, which is where an operator looks and
+        what a replay acts on.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          required: false
+          description: Narrow to one outcome - `DEAD_LETTER` is the one an operator usually wants.
+          schema:
+            type: string
+            enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER]
+      responses:
+        "200":
+          description: The deliveries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDeliveryPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+      - $ref: "#/components/parameters/DeliveryId"
+    post:
+      tags: [webhooks]
+      operationId: replayWebhookDelivery
+      summary: Send a dead-lettered delivery again
+      description: >
+        The same event, sent again by hand after whatever made it fail has been fixed. The event
+        identifier is the one it always had, so a subscriber that deduplicates on
+        `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather
+        than resetting, so the delivery log stays a true account of how many times this event was
+        sent.
+      responses:
+        "202":
+          description: Queued for delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDelivery"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks/{webhookId}:send:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    post:
+      tags: [webhooks]
+      operationId: sendWebhook
+      summary: Deliver one event to this subscription
+      description: >
+        One event, delivered to one named subscription through the same pipeline every delivery
+        takes: the same delivery table, the same signature, the same retry ladder and the same
+        dead letter. The subscription's own event-type filter is deliberately not consulted -
+        naming the subscription is the point of the call - but a paused or disabled subscription
+        is refused, and an event a restore replayed is never delivered
+        (backup-restore.md §8.4).
+
+        This is also what a rule's `SEND_WEBHOOK` action performs: the rule names the
+        subscription, and the run supplies the event it is about.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookSend"
+      responses:
+        "202":
+          description: Queued for delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDelivery"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/webhooks/{webhookId}:rotate-secret:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    post:
+      tags: [webhooks]
+      operationId: rotateWebhookSecret
+      summary: Issue a new signing secret
+      description: >
+        Answers the new secret once, and keeps the old one verifying for a grace period. That
+        overlap is the whole point of the route: a subscriber cannot deploy atomically, and a
+        rotation that took effect instantly would drop every event arriving between the call and
+        the deployment.
+
+        Signatures are computed with the current secret from this moment on. What the grace period
+        buys is the subscriber's side of the check, not ours.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookSecretRotation"
+      responses:
+        "200":
+          description: Rotated, with the new secret shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookSubscriptionSecret"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/http-requests:
+    post:
+      tags: [automation]
+      operationId: httpRequest
+      summary: Call an external HTTP address
+      description: >
+        One outbound call, through the guarded client: private and link-local ranges are refused
+        unless the installation released them, redirects are limited, the call has a deadline and
+        the response a size cap - and the response is then discarded, because a rule cannot read
+        an answer (ADR-0009). The header secret is sealed at rest and masked everywhere after
+        creation.
+
+        This is also what a rule's `HTTP_REQUEST` action performs: the rule carries the request,
+        and the run supplies the event its body template is rendered from. The call happens on a
+        job with the webhook ladder's retries; the answer is a `JobRef` to poll.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HttpRequestCall"
+      responses:
+        "202":
+          description: The call was accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRef"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /integrations/triggers/{eventType}:
+    parameters:
+      - $ref: "#/components/parameters/EventType"
+    get:
+      tags: [webhooks]
+      operationId: pollTriggerEvents
+      summary: The pull half of the event stream
+      description: >
+        Events of one type, oldest first, for a platform that has no address a webhook could
+        reach - an n8n instance behind NAT, a Zapier polling trigger (automation.md §3.2). The
+        body of each entry is the same CloudEvent a webhook subscription would have been POSTed:
+        one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a
+        consumer that already deduplicates on it needs to learn nothing new.
+
+        The cursor is opaque, signed and derived from the outbox's own ordering, so it survives a
+        restart and a failover. Two polls with it neither repeat an event nor step over one.
+
+        The window is the outbox's retention period, and a cursor older than it is refused with
+        `410 gone` rather than silently answered from the beginning. A poller that missed more
+        than the window has to be told that it missed - one that was quietly restarted would go
+        on reporting a consistency it does not have.
+
+        A replayed event - one a restore wrote rather than one somebody did - is not answered
+        here, exactly as it is not delivered to a webhook.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: >
+            Where the last poll stopped. Absent starts at the oldest event still inside the
+            retention window, which is what lets a poller that has never called before catch up
+            rather than begin with a gap it cannot see.
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+      responses:
+        "200":
+          description: The events, oldest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriggerEventPage"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -1256,6 +2248,149 @@ paths:
       responses:
         "200":
           description: The account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/tokens:
+    get:
+      tags: [auth]
+      operationId: listAccessTokens
+      summary: The caller's own personal access tokens
+      description: >
+        One's own tokens, newest first, with the scopes each carries, when it expires, when it was
+        last used and whether it was revoked. Never anybody else's: a token is a credential its
+        holder holds, and an administrator who could list one could not use it but could learn
+        exactly which of somebody's automations to attack.
+
+        The token itself is not among the fields. It is answered once, at creation, and stored
+        only as a hash keyed on the installation secret; a token that was lost is revoked and
+        minted again.
+
+        A service account's tokens are listed here too, by naming it - which is the one exception,
+        and needs the permission that manages members, because a service account is nothing but
+        access and somebody has to answer for it.
+      parameters:
+        - name: account_id
+          in: query
+          required: false
+          description: >
+            Whose tokens. Omitted means the caller's own. Naming a service account answers its
+            tokens and needs the member management permission; naming another person is refused,
+            whatever the role.
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccessToken"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [auth]
+      operationId: createAccessToken
+      summary: Mint a personal access token
+      description: >
+        Answers the credential, in clear, for the only time. What is stored is its hash keyed on
+        the installation secret under its own purpose label, so a hash from here can never be
+        replayed as a signed cursor or a calendar feed token, and nothing can turn the stored
+        value back into the token.
+
+        The expiry is mandatory and at most a year out. There is no default: a caller has to say
+        how long the credential should live, because the alternative is a credential nobody ever
+        revokes.
+
+        The scopes are requested explicitly and are never defaulted to everything. Each has to be
+        one the installation declares - the manifest at `/meta/capabilities` lists them - and a
+        token can never do more than its holder may, whatever it asks for: the scope is a second
+        bound on top of the role, not a grant.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessTokenCreate"
+      responses:
+        "201":
+          description: Minted, with the credential shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessTokenSecret"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/tokens/{tokenId}:
+    parameters:
+      - $ref: "#/components/parameters/TokenId"
+    delete:
+      tags: [auth]
+      operationId: revokeAccessToken
+      summary: Revoke a personal access token
+      description: >
+        Takes effect on the next call: the hash is checked against the row on every request, so a
+        revoked token refuses immediately rather than at the end of some cache's life.
+
+        The row stays, stamped with the moment it was withdrawn, and that stamp is separate from
+        the expiry - "it ran out" and "somebody pulled it" are different answers to "why did this
+        stop working", and a reader of the trail is owed both.
+
+        Revoking twice is not an error; somebody else's token is not found rather than forbidden.
+      responses:
+        "204":
+          description: Revoked
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/service-accounts:
+    get:
+      tags: [auth]
+      operationId: listServiceAccounts
+      summary: The workspace's service accounts
+      description: >
+        The accounts that exist only to be acted through: an integration, a script, a rule that
+        has to keep running after the person who wrote it has left. Needs the permission that
+        manages members, because that is the person who answers for who holds access.
+      responses:
+        "200":
+          description: The service accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [auth]
+      operationId: createServiceAccount
+      summary: Create a service account
+      description: >
+        Creates an account of kind `SERVICE_ACCOUNT`: no mail address, no sign-in anywhere, and
+        tokens as its only credential. It holds rights the way a person does - through
+        memberships granted to it - and it is what an automation rule runs as, so that a rule
+        does not die with its author's departure.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceAccountCreate"
+      responses:
+        "201":
+          description: Created
           content:
             application/json:
               schema:
@@ -3564,6 +4699,12 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    TokenId:
+      name: tokenId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     ContainerId:
       name: containerId
       in: path
@@ -3581,6 +4722,21 @@ components:
       schema: { type: string, format: uuid }
     FeedId:
       name: feedId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RuleId:
+      name: ruleId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WebhookId:
+      name: webhookId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DeliveryId:
+      name: deliveryId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -3647,6 +4803,15 @@ components:
     Cursor:
       name: cursor
       in: query
+      schema: { type: string }
+    EventType:
+      name: eventType
+      in: path
+      required: true
+      description: >
+        The type to poll, in full - `de.hubtask.work.item.created.v1`. A type this build does not
+        declare is refused by name rather than answered with an empty page: a trigger configured
+        against a typo would otherwise poll forever and report nothing wrong.
       schema: { type: string }
     PageSize:
       name: size
@@ -3833,6 +4998,96 @@ components:
         locale: { type: [string, "null"] }
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+
+    ServiceAccountCreate:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: >
+            What the audit trail records next to the identifier. Name it after what it does -
+            "the nightly export", not "svc1" - because it is what a reader of the trail sees.
+
+    AccessToken:
+      type: object
+      description: >
+        A minted credential as it is listed afterwards. The token itself is not a member: it
+        exists in the answer to the call that minted it and nowhere else.
+      required: [id, account_id, name, scopes, expires_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        account_id:
+          type: string
+          format: uuid
+          description: Whose credential it is, and therefore whose rights bound it.
+        name: { type: string, minLength: 1, maxLength: 200 }
+        scopes:
+          type: array
+          items: { type: string }
+          description: >
+            The second bound on what the token may do, on top of the role its holder carries.
+            Both have to allow an operation.
+        expires_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        last_used_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When a request last presented it, to the minute rather than to the request - the
+            value exists so an owner can spot a credential nobody uses, and writing it on every
+            call would be a write per request.
+        revoked_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When it was withdrawn. Separate from the expiry on purpose: "it ran out" and
+            "somebody pulled it" are different answers.
+
+    AccessTokenCreate:
+      type: object
+      required: [name, scopes, expires_at]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: >
+            What this token is for, in the owner's own words. It is what they will read in a year
+            when deciding whether it is still needed.
+        scopes:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: >
+            Requested explicitly, never defaulted to everything. Each has to be one the
+            installation declares; one it does not is refused as a field error naming it.
+        expires_at:
+          type: string
+          format: date-time
+          description: >
+            Mandatory, in the future, and at most a year out. There is no default - a caller has
+            to choose.
+        account_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Whose token. Omitted means the caller's own. A service account's needs the member
+            management permission; another person's is refused, whatever the role.
+
+    AccessTokenSecret:
+      allOf:
+        - $ref: "#/components/schemas/AccessToken"
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: >
+                The credential, in clear, for the only time. Store it or lose it: what is kept is
+                a hash, and nothing can turn that back into this.
 
     Group:
       type: object
@@ -4216,6 +5471,802 @@ components:
           items:
             $ref: "#/components/schemas/WorkItem"
 
+    WebhookSubscription:
+      type: object
+      description: >
+        One external system's standing request to be told what happens here. The signing secret is
+        not a member: it is answered once, at creation and at each rotation, and stored sealed.
+      required: [id, target_url, event_types, state, failure_count, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        target_url:
+          type: string
+          format: uri
+          description: >
+            Where the CloudEvent is POSTed. An egress channel, so it goes through the guarded
+            client: a private range or the cloud metadata address is refused unless the
+            installation has deliberately released private networks (T-07).
+        event_types:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: >
+            The types this subscription wants, as `/meta/capabilities` lists them. A type this
+            build does not emit is refused rather than stored, so a subscription cannot quietly
+            wait for something that will never arrive.
+        filter:
+          type: [string, "null"]
+          description: >
+            A CEL expression narrowing the subscription further. Refused until the expression
+            engine lands, and refused rather than stored and ignored: a filter that is accepted
+            and does nothing is a subscriber receiving events they asked not to receive.
+        state:
+          type: string
+          enum: [ACTIVE, PAUSED, DISABLED]
+          description: >
+            `DISABLED` is what sustained unreachability produces, with a notification to the owner.
+            Re-enabling is an ordinary write and is audited as one.
+        failure_count:
+          type: integer
+          description: >
+            Consecutive failed deliveries. Reset by the first success, and what the auto-disable
+            counts against.
+        last_error:
+          type: [string, "null"]
+          description: A message code for the last failure, never a response body from the target.
+        created_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    WebhookSubscriptionCreate:
+      type: object
+      required: [target_url, event_types]
+      properties:
+        target_url: { type: string, format: uri, maxLength: 2000 }
+        event_types:
+          type: array
+          minItems: 1
+          items: { type: string }
+        filter:
+          type: [string, "null"]
+          description: Refused until the expression engine lands.
+
+    WebhookSubscriptionUpdate:
+      type: object
+      description: Every field optional; an omitted one is left alone.
+      properties:
+        target_url: { type: [string, "null"], format: uri, maxLength: 2000 }
+        event_types:
+          type: [array, "null"]
+          minItems: 1
+          items: { type: string }
+        filter: { type: [string, "null"] }
+        state:
+          type: [string, "null"]
+          enum: [ACTIVE, PAUSED, null]
+          description: >
+            `DISABLED` is not settable by hand: it is what the system concludes from a run of
+            failures. Pausing is how somebody stops deliveries deliberately, and the two say
+            different things to whoever reads the list.
+
+    WebhookSubscriptionSecret:
+      allOf:
+        - $ref: "#/components/schemas/WebhookSubscription"
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: string
+              description: >
+                The signing secret, in clear, for the only time. Store it or rotate it: what is
+                kept is sealed under the installation's key, and no read answers it again.
+
+    HttpRequestCall:
+      type: object
+      description: >
+        One outbound HTTP call, as a rule's `HTTP_REQUEST` action carries it. The secret header is
+        the one place a credential belongs - never the URL, never the plain headers - and it is
+        sealed at rest and masked as `***` everywhere after creation; sending `***` back on a rule
+        edit keeps the stored secret.
+      required: [method, url]
+      properties:
+        method:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+        url:
+          type: string
+          description: The address, http or https. Whether this installation is willing to dial
+            it is the guard's decision at the call.
+        headers:
+          type: object
+          additionalProperties: { type: string }
+          description: Plain headers - a content type, an API version. Never a credential.
+        secret_header_name:
+          type: string
+          description: The header the secret travels in, e.g. `Authorization`.
+        secret_header_value:
+          type: string
+          description: The secret itself. Answered as `***` ever after.
+        signature_header:
+          type: string
+          description: >
+            When set, this header carries an HMAC-SHA256 over the body computed with the secret -
+            the same `t=<ts>,v1=<hex>` shape a webhook signature has.
+        body_template:
+          type: string
+          description: >
+            A CEL expression producing the body, rendered against the run's event when the call
+            is made. A static body is a string literal.
+        event_id:
+          type: string
+          format: uuid
+          description: >
+            The event the body template reads. A rule leaves this out and the run supplies the
+            event it is about.
+
+    WebhookSend:
+      type: object
+      description: What a deliberate delivery names - the event; the path names the subscription.
+      required: [event_id]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: >
+            The event to deliver, as `X-Hubtask-Event-Id` will carry it. It has to still be inside
+            the outbox's retention window - an event the sweep has taken cannot be rendered.
+
+    WebhookSecretRotation:
+      type: object
+      properties:
+        grace_seconds:
+          type: [integer, "null"]
+          minimum: 0
+          maximum: 604800
+          description: >
+            How long the previous secret keeps verifying, so a subscriber can deploy the new one
+            without dropping what arrives in between. Zero retires the old secret at once, which is
+            what a leak calls for. At most seven days.
+
+    WebhookDelivery:
+      type: object
+      description: One attempt at one event against one subscription.
+      required: [id, subscription_id, event_id, attempt, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        subscription_id: { type: string, format: uuid }
+        event_id:
+          type: string
+          format: uuid
+          description: >
+            The event's own identifier, which travels as `X-Hubtask-Event-Id`. A replay carries the
+            same one, so a subscriber that deduplicates on it recognises the repeat.
+        attempt:
+          type: integer
+          description: Which attempt this is, from one. It carries on across a replay rather than resetting.
+        status:
+          type: string
+          enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER]
+        response_status:
+          type: [integer, "null"]
+          description: What the target answered, where it answered at all.
+        error_code:
+          type: [string, "null"]
+          description: A message code, never the target's response body.
+        next_attempt_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the next attempt is due; null once there will not be one.
+        created_at: { type: string, format: date-time }
+
+    RuleScope:
+      type: object
+      description: >
+        Where the rule applies: the whole workspace, one hub, or one collection - the three levels
+        `automation_rule.scope_type` has carried since the first migration. Descendants are included
+        by the ordinary rule rather than by a flag: a permission held at a hub applies downwards
+        (domain-model.md §3.2), and a rule scoped to a hub sees what happens in its collections.
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [TENANT, HUB, COLLECTION]
+        id:
+          type: string
+          format: uuid
+          description: The hub or the collection. Absent for `TENANT`, and required for the others.
+
+    RuleTrigger:
+      type: object
+      description: >
+        What starts a run (automation.md §1.1). Six kinds, each with the fields its kind needs and
+        no others - a trigger carrying a cron expression and an event type would be a rule nobody
+        can read.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
+        event_type:
+          type: string
+          description: >
+            `EVENT` only, and required there: the full type, `de.hubtask.work.item.overdue.v1`. One
+            this build does not publish is refused by name.
+        changed_fields:
+          type: array
+          description: >
+            `EVENT` only, optional. Narrows an `item.updated` trigger to the fields that moved, so
+            that a rule about deadlines does not fire on a rename.
+          items: { type: string }
+        rrule:
+          type: string
+          description: "`SCHEDULE` only, and required there: an RFC 5545 RRULE."
+        timezone:
+          type: string
+          description: >
+            `SCHEDULE` only, and required there: an IANA zone. A schedule without one is a schedule
+            that means something different in summer.
+        anchor:
+          type: string
+          enum: [DUE_DATE, CREATED_AT]
+          description: "`RELATIVE_DATE` only, and required there: which instant the offset is from."
+        offset:
+          type: string
+          description: >
+            `RELATIVE_DATE` only, and required there: a signed ISO 8601 duration, `-PT24H` for
+            "24 hours before".
+
+    RuleAction:
+      type: object
+      description: >
+        One step of a run. The kind is a use case name in SCREAMING_SNAKE_CASE and the list grows
+        with the catalogue rather than with a table somebody maintains (automation.md §1.3), so a
+        new use case becomes an action without anybody editing anything.
+
+        Three kinds are the exception, and they are one on purpose: `WAIT`, `BRANCH` and `STOP` are
+        not use cases at all but the engine's own control structures, so they are in no catalogue
+        and there is nothing for MCP or a person to call. Their parameters are therefore checked
+        where every other shape question about a rule is answered - by the rule itself, when it is
+        written.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          description: >
+            `ADD_LABEL`, `ASSIGN`, `CREATE_ITEM`, … A kind automation.md §1.3 documents and no
+            release serves yet is refused by name rather than stored to be ignored.
+
+            `WAIT` takes `duration`, an unsigned ISO 8601 duration of at most a year: the run
+            suspends and a job resumes it, so a rule that waits a day holds no worker and survives
+            a restart. `BRANCH` takes `condition` and the nested lists `then` (required) and `else`
+            (optional) - a nested list rather than a jump target, because "skip the next two" is a
+            rule whose meaning changes when somebody inserts an action above it. `STOP` takes
+            nothing and ends the run where it stands, with the actions after it `SKIPPED` and the
+            run `SUCCEEDED`: stopping early is what the rule said to do.
+
+            **A branch's arms are checked exactly as the top level is**, and both of them: the
+            composition rule is about what a rule *may* do, so a rule whose `else` performs
+            something its writer may not do is laundering the same rights the day the condition
+            turns false.
+        params:
+          type: object
+          additionalProperties: true
+          description: >
+            The action's parameters. A key the use case behind the kind does not declare is
+            refused, exactly as it would be on the call itself.
+
+    RuleThrottle:
+      type: object
+      description: >
+        What bounds a storm. Both are optional, and both are stored rather than enforced here: the
+        engine that runs a rule is what observes them (automation.md §2).
+      properties:
+        max_runs_per_hour:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        dedupe_key_expr:
+          type: string
+          description: >
+            An expression whose value collapses runs that mean the same thing. Refused while it is
+            non-empty, with the conditions and for their reason: the language arrives with the
+            engine that evaluates it.
+
+    AutomationRule:
+      type: object
+      required:
+        [id, name, scope, enabled, run_as, trigger, conditions, actions, on_error,
+         failure_count, created_by, created_at, updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        scope: { $ref: "#/components/schemas/RuleScope" }
+        enabled:
+          type: boolean
+          description: >
+            Switched off when the rule is written. `:enable` and `:disable` are what move it, so
+            that the trail says which of the two somebody did.
+        run_as:
+          type: string
+          format: uuid
+          description: >
+            The account the rule acts as. It can never do more than that account may
+            (automation.md §2), which is why the writer has to hold those rights too.
+        trigger: { $ref: "#/components/schemas/RuleTrigger" }
+        conditions:
+          type: array
+          description: >
+            Empty in this release. A non-empty condition is refused until the expression language
+            that evaluates it arrives - stored and ignored is the one thing it must not be.
+          items: { $ref: "#/components/schemas/RuleCondition" }
+        actions:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/RuleAction" }
+        throttle: { $ref: "#/components/schemas/RuleThrottle" }
+        on_error:
+          type: string
+          enum: [STOP, CONTINUE, RETRY]
+        failure_count:
+          type: integer
+          description: >
+            Consecutive failed runs. A run of them disables the rule by itself, and enabling it by
+            hand clears the count.
+        next_run_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When a `SCHEDULE` rule next fires. Absent for every other kind, and for a schedule whose
+            recurrence is exhausted - such a rule stays, visible and editable, and fires no more.
+        inbound_rotated_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has
+            none. The moment and nothing else: a prefix or a masked value beside it would be a
+            credential whose guessing space has been narrowed for whoever reads the listing.
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    RuleCondition:
+      type: object
+      required: [expr]
+      properties:
+        expr:
+          type: string
+          description: A CEL expression (ADR-0009). Refused while it is non-empty in this release.
+
+    AutomationRuleCreate:
+      type: object
+      required: [name, scope, run_as, trigger, actions]
+      properties:
+        name: { type: string, maxLength: 200 }
+        scope: { $ref: "#/components/schemas/RuleScope" }
+        run_as: { type: string, format: uuid }
+        trigger: { $ref: "#/components/schemas/RuleTrigger" }
+        conditions:
+          type: array
+          items: { $ref: "#/components/schemas/RuleCondition" }
+        actions:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/RuleAction" }
+        throttle: { $ref: "#/components/schemas/RuleThrottle" }
+        on_error:
+          type: string
+          enum: [STOP, CONTINUE, RETRY]
+          default: STOP
+
+    JumbleEntry:
+      type: object
+      description: >
+        One arrival, as it came in. The raw content is data that arrived from outside: it is
+        shown to a person and matched by rules as data, and it travels in no event, no log and no
+        audit entry.
+      required: [id, channel, attachments, status, received_at]
+      properties:
+        id: { type: string, format: uuid }
+        channel:
+          type: string
+          enum: [EMAIL, WEBHOOK, QUICK_CAPTURE, API]
+        sender:
+          type: string
+          description: >
+            Who the transport says it came from. Data, never an identity: a From header
+            authenticates nothing - the intake token does.
+        raw_subject: { type: string }
+        raw_body: { type: string }
+        attachments:
+          type: array
+          items: { type: string, format: uuid }
+          description: Media objects, stored through the media pipeline.
+        status:
+          type: string
+          enum: [NEW, PROCESSED, DISMISSED]
+          description: >
+            An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the
+            entry stays readable and ages out by retention rule.
+        target_item_id:
+          type: [string, "null"]
+          format: uuid
+          description: The item a conversion produced. The other half of the provenance pair.
+        received_at: { type: string, format: date-time }
+        settled_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the entry stopped being NEW - a conversion or a dismissal.
+
+    JumbleEntrySubmit:
+      type: object
+      description: >
+        A near-channel arrival. At least one of the three contents; `channel` defaults to `API`,
+        and only the near channels may be claimed.
+      properties:
+        channel:
+          type: string
+          enum: [QUICK_CAPTURE, API]
+          default: API
+        sender:
+          type: string
+          description: Optional provenance text, e.g. the capturing surface's own name.
+        raw_subject: { type: string, maxLength: 500 }
+        raw_body: { type: string }
+        attachments:
+          type: array
+          items: { type: string, format: uuid }
+          description: Sealed media objects to carry.
+
+    JumbleIntakeToken:
+      type: object
+      description: >
+        A freshly minted intake address. The token exists in this answer and nowhere else
+        afterwards: it is stored hashed, and every later read shows only when it was minted.
+      required: [token, rotated_at]
+      properties:
+        token:
+          type: string
+          description: The whole credential. Post to `/jumble/inbound/{token}`.
+        rotated_at: { type: string, format: date-time }
+
+    JumbleIntakeDelivery:
+      type: object
+      description: The small shape the intake accepts. All fields optional, but not all empty.
+      properties:
+        sender:
+          type: string
+          description: Who the bridge says it came from. Data, never an identity.
+        subject: { type: string }
+        body: { type: string }
+
+    JumbleIntakeAccepted:
+      type: object
+      required: [entry_id]
+      properties:
+        entry_id:
+          type: string
+          format: uuid
+          description: The entry the delivery became.
+
+    JumbleEntryConvert:
+      type: object
+      description: Where the entry becomes work, and what the item is called.
+      required: [collection_id]
+      properties:
+        collection_id:
+          type: string
+          format: uuid
+          description: The destination. The caller's rights there are checked by the item create.
+        bucket_id:
+          type: string
+          format: uuid
+          description: The board column, when the destination has a board.
+        title:
+          type: string
+          maxLength: 500
+          description: >
+            The item's title. Defaults to the entry's subject, then to the first line of its
+            body; required for an entry with no text.
+        type:
+          type: string
+          enum: [TASK, WORK_PACKAGE, ACTIVITY]
+          default: TASK
+
+    JumbleEntryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/JumbleEntry" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    RuleTest:
+      type: object
+      description: >
+        A dry run's input: exactly one of `rule_id` (a stored rule) and `rule` (a definition you
+        are about to save), plus the sample event to evaluate it against.
+      properties:
+        rule_id:
+          type: string
+          format: uuid
+          description: A stored rule to test.
+        rule:
+          $ref: "#/components/schemas/AutomationRuleCreate"
+        sample_event:
+          $ref: "#/components/schemas/RuleTestEvent"
+        payload:
+          type: object
+          description: >
+            The body an inbound delivery would have carried, as the CEL `payload` variable reads
+            it. For testing an `INBOUND_WEBHOOK` rule's conditions.
+
+    RuleTestEvent:
+      type: object
+      description: The sample event, as the CEL `event` variable will read it.
+      required: [type]
+      properties:
+        type:
+          type: string
+          description: The event type, e.g. `de.hubtask.work.item.updated.v1`.
+        subject:
+          type: string
+          description: >
+            What the event is about, e.g. `item/018f...`. Naming a real entry lets a condition
+            that reads `item` resolve it - a read, never a write.
+        payload:
+          type: object
+          description: The event's payload document.
+
+    RuleTestResult:
+      type: object
+      required: [matched, condition_results, actions]
+      properties:
+        matched:
+          type: boolean
+          description: Whether every condition held - whether a real run would have acted at all.
+        condition_results:
+          type: array
+          items: { $ref: "#/components/schemas/RuleConditionResult" }
+        actions:
+          type: array
+          items: { $ref: "#/components/schemas/RuleTestAction" }
+
+    RuleTestAction:
+      type: object
+      description: >
+        One action of the rule, with whether it would have run. Unlike a real run's log, both arms
+        of every branch appear - the dry run answers "and what if it had not" as well.
+      required: [path, kind, would_run]
+      properties:
+        path: { type: string }
+        kind: { type: string }
+        would_run: { type: boolean }
+        matched:
+          type: boolean
+          description: How a `BRANCH`'s condition answered the sample, present only on a branch.
+        error_code:
+          type: string
+          description: Present when a branch's condition could not be evaluated for the sample.
+
+    AutomationRuleUpdate:
+      type: object
+      description: >
+        An omitted field is left alone. `enabled` is deliberately absent: it moves through `:enable`
+        and `:disable`, which are audited as the decisions they are.
+      properties:
+        name: { type: string, maxLength: 200 }
+        scope: { $ref: "#/components/schemas/RuleScope" }
+        run_as: { type: string, format: uuid }
+        trigger: { $ref: "#/components/schemas/RuleTrigger" }
+        conditions:
+          type: array
+          items: { $ref: "#/components/schemas/RuleCondition" }
+        actions:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/RuleAction" }
+        throttle: { $ref: "#/components/schemas/RuleThrottle" }
+        on_error:
+          type: string
+          enum: [STOP, CONTINUE, RETRY]
+        expected_version:
+          type: integer
+          description: The version last read. A mismatch is a conflict rather than an overwrite.
+
+    AutomationRulePage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/AutomationRule" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    RuleRunStatus:
+      type: string
+      description: >
+        How a run ended. `RUNNING` is a run in flight or one whose process died - the engine writes
+        it when the run starts, so a row left in it is a crash rather than a state anything reaches
+        deliberately. `WAITING` is a run parked on a `WAIT` action: its results so far are written,
+        a scheduled job holds the resume point, and no worker is held while the delay passes.
+      enum: [RUNNING, WAITING, SUCCEEDED, SKIPPED, FAILED, ABORTED_LOOP, THROTTLED]
+
+    RuleConditionResult:
+      type: object
+      description: >
+        How one condition answered, in the order the rule declares them. A run that was skipped
+        shows which condition stopped it, which is the question somebody asks first.
+      required: [index, matched]
+      properties:
+        index: { type: integer }
+        matched: { type: boolean }
+        error_code:
+          type: string
+          description: >
+            Present when the condition could not be evaluated at all - a timeout, or a value the
+            engine could not read. Distinct from `matched: false`, which is the condition working.
+
+    RuleActionResult:
+      type: object
+      description: One action's outcome, in the order the run reached them.
+      required: [index, kind, status]
+      properties:
+        index: { type: integer }
+        kind: { type: string }
+        path:
+          type: string
+          description: >
+            Where the action sits in the rule: `"2"` is the third action, `"2/then/0"` the first
+            action of that branch's `then` arm. The path is what shows which way a `BRANCH` went -
+            the nested results carry the arm they belong to in their own name.
+        matched:
+          type: boolean
+          description: >
+            How a `BRANCH`'s condition answered, present only on a `BRANCH` result. `true` means
+            the `then` arm ran; `false` the `else` arm, which may be empty.
+        status:
+          type: string
+          enum: [SUCCEEDED, FAILED, SKIPPED]
+          description: >
+            `SKIPPED` is an action the run never reached - `on_error: STOP` ended the run at an
+            earlier failure, or a `STOP` action ended it deliberately. It is not the same as an
+            action that ran and did nothing.
+        error_code:
+          type: string
+          description: >
+            The code the use case refused with, unchanged. A `run_as` account that may not do what
+            the action asks shows the authoriser's own refusal here, which is what makes the run
+            log answer "why did this not happen".
+        idempotency_key:
+          type: string
+          description: >
+            Derived from the rule, the occasion and the action's path (automation.md §2), so a
+            redelivered event re-runs into the stored result rather than acting twice. Absent on
+            flow actions, which perform nothing there is to repeat.
+
+    RuleRun:
+      type: object
+      required:
+        [id, rule_id, trigger, status, condition_results, action_results, started_at,
+         causation_depth]
+      properties:
+        id: { type: string, format: uuid }
+        rule_id: { type: string, format: uuid }
+        trigger:
+          type: string
+          enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
+          description: >
+            Which of the rule's six ways of starting produced this run (automation.md §1.1). On the
+            run rather than read from the rule, because a rule can be edited from one kind into
+            another and the log has to keep saying what actually happened.
+        triggered_by:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Who pulled the trigger, for the one kind a person pulls: `MANUAL`. Absent for every
+            other kind - a schedule, a due date and an inbound delivery have no actor, and naming
+            one would be inventing an author for something nobody did.
+        subject_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from
+            one entry's due date. Absent where the event carries the subject, which is where a
+            reader should look for it.
+        event_id:
+          type: [string, "null"]
+          format: uuid
+          description: The event that started the run. Absent for a run nothing published started.
+        status: { $ref: "#/components/schemas/RuleRunStatus" }
+        condition_results:
+          type: array
+          items: { $ref: "#/components/schemas/RuleConditionResult" }
+        action_results:
+          type: array
+          items: { $ref: "#/components/schemas/RuleActionResult" }
+        error_code:
+          type: string
+          description: Why the run as a whole ended badly, when it did.
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        causation_depth:
+          type: integer
+          description: >
+            How far this run is from the act a person performed. A run at the limit is
+            `ABORTED_LOOP` and did nothing, which is the loop protection automation.md §2 names.
+
+    InboundTriggerToken:
+      type: object
+      description: >
+        A freshly minted inbound address. The token exists in this answer and nowhere else
+        afterwards: it is stored hashed, and every later read of the rule shows only when it was
+        minted.
+      required: [rule_id, token, rotated_at]
+      properties:
+        rule_id: { type: string, format: uuid }
+        token:
+          type: string
+          description: >
+            The credential, prefixed `hbt_hook_`. The prefix is public by design, so that secret
+            scanning finds a leaked URL before somebody else does.
+        rotated_at: { type: string, format: date-time }
+
+    RuleRunAccepted:
+      type: object
+      description: >
+        A run that has been queued and has not started. The identifier is the one the run will
+        carry, so a caller can watch for it - `GET /automation/runs/{runId}` answers `404` until a
+        worker claims the job.
+      required: [run_id, rule_id]
+      properties:
+        run_id: { type: string, format: uuid }
+        rule_id: { type: string, format: uuid }
+
+    RuleRunPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/RuleRun" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    WebhookDeliveryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/WebhookDelivery" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    TriggerEvent:
+      type: object
+      description: >
+        One event as a subscriber receives it: the CloudEvents 1.0 structured-JSON document itself,
+        unwrapped - `specversion`, `id`, `source`, `type`, `time`, `data`, and the extension
+        attributes that carry the tenant, the actor and the causal chain.
+
+        The same bytes a webhook delivery would have POSTed, which is what makes the two transports
+        one contract. `id` is the value `X-Hubtask-Event-Id` names on the push side, so a consumer
+        deduplicates on it either way.
+
+        Free-form here on purpose. The document's shape is owned by the schemas under `api/events/`
+        and by the CloudEvents specification, and a second list of its properties in this file would
+        be a copy that drifts - and one that silently drops an extension attribute the day one is
+        added.
+      additionalProperties: true
+
+    TriggerEventPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/TriggerEvent" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
     CalendarFeed:
       type: object
       description: >
@@ -4517,6 +6568,12 @@ components:
           type: object
           additionalProperties: true
         recurrence_rule_id: { type: [string, "null"], format: uuid }
+        origin_jumble_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The jumble entry this item was converted out of (G-10). Provenance, set once at the
+            conversion and never cleared; absent for an item that was never in the jumble.
         content_language:
           type: [string, "null"]
           description: >
@@ -6492,10 +8549,20 @@ components:
         role: { $ref: "#/components/schemas/MembershipRole" }
         permissions:
           type: array
-          description: The columns of the matrix this role carries unqualified.
+          description: >
+            The columns of the matrix this role carries unqualified.
+
+            `AUDIT_READ` is the whole of the tenant's trail, and it is implied by nothing:
+            an auditor holds it without holding `READ`, and a member holds `READ` without holding
+            it. `READ_CONFIGURATION` is reading how the workspace is set up - the backup targets,
+            the retention rules, the holds, the automation rules, the webhook subscriptions, never
+            a secret any of them holds - and it was split out of `STRUCTURE` so that an auditor can
+            read what a workspace does to its data without gaining the right to change it (G-12).
           items:
             type: string
-            enum: [READ, WRITE_ITEMS, STRUCTURE, MANAGE_MEMBERS, AUTOMATION, DELETE_CONTAINER]
+            enum:
+              [READ, WRITE_ITEMS, STRUCTURE, MANAGE_MEMBERS, AUTOMATION, DELETE_CONTAINER,
+               READ_CONFIGURATION, AUDIT_READ]
         item_access: { $ref: "#/components/schemas/RoleItemAccess" }
 
     RoleItemAccess:

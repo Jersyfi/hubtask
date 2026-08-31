@@ -1121,7 +1121,11 @@ INSERT INTO automation_rule (
   created_at,
   updated_at,
   deleted_at,
-  version
+  version,
+  -- Restored with the rule, so that a rule that comes back is the rule that went in. It fires
+  -- nothing by itself: a restore seeds no poller, because nothing enumerates tenants, and
+  -- backup-restore.md §8.4 is unambiguous that no rule acts because of a restore.
+  next_run_at
 )
 SELECT
   r.id,
@@ -1141,7 +1145,8 @@ SELECT
   r.created_at,
   r.updated_at,
   r.deleted_at,
-  r.version
+  r.version,
+  r.next_run_at
 FROM jsonb_populate_record(
   NULL::automation_rule,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1163,7 +1168,8 @@ ON CONFLICT (id) DO UPDATE SET
   created_at = EXCLUDED.created_at,
   updated_at = EXCLUDED.updated_at,
   deleted_at = EXCLUDED.deleted_at,
-  version = EXCLUDED.version
+  version = EXCLUDED.version,
+  next_run_at = EXCLUDED.next_run_at
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsAutomationRule :one

@@ -117,6 +117,7 @@ minutes by default); values beyond that are set to server time and the event is 
 | Series definitions | The recurrence rule | The rule is one document and merges **LWW per field** via the HLC: one change log entry per field that moved, so two devices changing the rule and the horizon converge to both (D-04). It travels whole when it is created and as a `DELETE` with no payload when it goes. `last_materialized_at` is the materialisation's own bookkeeping and never merges, and the occurrences the rule produces are not merged at all - they are the server's decision, which is what §4.3 already says about follow-up instances |
 | Definitions carrying a tree | The template's `nodes` | The definition travels **whole**: one `UPSERT` carrying the document on every change, and a `DELETE` with no payload when it goes (D-06). Not per field, and deliberately so - a tree is one shape, and merging two devices' edits node by node would produce a shape neither person designed. Two devices editing one template resolve as last writer wins over the whole document, which is the honest answer for a thing that is edited in one sitting rather than accumulated. What a template *stamps out* does not merge at all: applying one needs the server (§ 1), and the entries it produces arrive as ordinary creations |
 | Counters | Progress, derived values | Computed server-side, never set by a client |
+| Provenance | `origin_jumble_id` on an entry (G-10) | Server-side, set exactly once by the conversion and never merged: where an item came from does not stop being true, and a client that sent one would be rewriting history. It reaches a device inside the item's `UPSERT` like any read-only field. The jumble itself does not synchronise offline at all - entries arrive over server-side intakes, and a device reads the inbox online |
 | Free text edited concurrently | Long notes | LWW plus preservation of the displaced version as a comment attachment (§5). Character-level merging (CRDT text) is deliberately **not** part of 1.0 — see the ADR |
 | Retention announcements | `retention` on an entry | Server-side, and never merged: `retention_pending_until`, `retention_rule_id` and `retention_action` are written by the engine and by nothing else, and they reach a device as an `UPSERT` carrying the announcement as one object (E-07). One object rather than three fields, because the three are meaningless apart - a date with no action is something a client cannot render. A client that sent one would be claiming the workspace's own rule had decided something. Clearing it - `:retain`, or the stage having acted - travels the same way with a null |
 | Lifecycle stamps | `archived_at`, `deleted_at`, `trash_batch_id` | Server-side, and not a field merge at all. A deletion reaches a client as a `DELETE` op with no payload and a restore as an `UPSERT`, so a client applies a state rather than merging a timestamp — and a subtree deletion is announced by its root alone, which the client applies to the subtree it holds by path prefix. The batch identifier is the server's: it names one deletion, and a client that invented one would be claiming two deletions were the same act |
@@ -148,6 +149,17 @@ pulled one would be reading a second description of a change it is being sent an
 shape and with its own merge question. The history is read through `ListActivity`
 (`GET /items/{id}/activity`), which is an ordinary page request and is available offline only as far
 as a client cached it.
+
+**An automation rule does not travel either, and for the same class of reason.** It is workspace
+configuration that is executed by the server, not work that two people edit from two devices: it is
+not in the change log, it is not merged, and a device holds nothing about one beyond what it last
+read over the API. §1 puts the credential-shaped and server-decided operations in the right-hand
+column, and writing a rule joins them - what a rule may say depends on the writer's rights, on the
+`run_as` account's rights, and on the use case catalogue this build serves (§2.1 of
+[automation.md](./automation.md)), none of which a device can evaluate. A client that guessed would
+be predicting a permission decision, and the one prediction that matters is the one it gets wrong.
+The same goes for its two switches: enabling a rule is a decision recorded in the audit trail, and a
+device cannot record one.
 
 **A calendar feed does not travel at all.** It is a credential over a view rather than a piece of
 work: it is not in the change log, it is not merged, and a device holds nothing about it beyond

@@ -32,6 +32,9 @@ it does not touch the conversion the paragraph above is about.
 
 | Dependency | Licence |
 |---|---|
+| [cel.dev/cel-go](https://github.com/cel-expr/cel-go/blob/v0.32.0/LICENSE) | Apache-2.0 |
+| [cel.dev/expr](https://github.com/cel-expr/cel-spec/blob/v0.25.2/LICENSE) | Apache-2.0 |
+| [github.com/antlr4-go/antlr/v4](https://github.com/antlr4-go/antlr/blob/v4.13.1/LICENSE) | BSD-3-Clause |
 | [github.com/apapsch/go-jsonmerge/v2](https://github.com/apapsch/go-jsonmerge/blob/v2.0.0/LICENSE) | MIT |
 | [github.com/beorn7/perks/quantile](https://github.com/beorn7/perks/blob/v1.0.1/LICENSE) | MIT |
 | [github.com/cenkalti/backoff/v5](https://github.com/cenkalti/backoff/blob/v5.0.3/LICENSE) | MIT |
@@ -67,12 +70,14 @@ it does not touch the conversion the paragraph above is about.
 | [go.opentelemetry.io/otel/trace](https://github.com/open-telemetry/opentelemetry-go/blob/trace/v1.45.0/trace/LICENSE) | Apache-2.0 |
 | [go.opentelemetry.io/proto/otlp](https://github.com/open-telemetry/opentelemetry-proto-go/blob/otlp/v1.11.0/otlp/LICENSE) | Apache-2.0 |
 | [go.uber.org/multierr](https://github.com/uber-go/multierr/blob/v1.11.0/LICENSE.txt) | MIT |
+| [go.yaml.in/yaml/v3](https://github.com/yaml/go-yaml/blob/v3.0.4/LICENSE) | MIT |
 | [golang.org/x/crypto](https://cs.opensource.google/go/x/crypto/+/v0.54.0:LICENSE) | BSD-3-Clause |
+| [golang.org/x/exp/slices](https://cs.opensource.google/go/x/exp/+/764159d7:LICENSE) | BSD-3-Clause |
 | [golang.org/x/net](https://cs.opensource.google/go/x/net/+/v0.57.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/sync](https://cs.opensource.google/go/x/sync/+/v0.22.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/sys](https://cs.opensource.google/go/x/sys/+/v0.47.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/text](https://cs.opensource.google/go/x/text/+/v0.40.0:LICENSE) | BSD-3-Clause |
-| [google.golang.org/genproto/googleapis/api/httpbody](https://github.com/googleapis/go-genproto/blob/6ac0973c030d/googleapis/api/LICENSE) | Apache-2.0 |
+| [google.golang.org/genproto/googleapis/api](https://github.com/googleapis/go-genproto/blob/6ac0973c030d/googleapis/api/LICENSE) | Apache-2.0 |
 | [google.golang.org/genproto/googleapis/rpc/status](https://github.com/googleapis/go-genproto/blob/6ac0973c030d/googleapis/rpc/LICENSE) | Apache-2.0 |
 | [google.golang.org/grpc](https://github.com/grpc/grpc-go/blob/v1.83.0/LICENSE) | Apache-2.0 |
 | [google.golang.org/protobuf](https://github.com/protocolbuffers/protobuf-go/blob/v1.36.11/LICENSE) | BSD-3-Clause |

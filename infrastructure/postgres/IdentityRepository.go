@@ -81,6 +81,36 @@ func (r AccountRepository) FindByEmail(ctx context.Context, email string) (ident
 		row.Locale, row.TimeZone, row.WeekStart)
 }
 
+// ListOfKind answers the tenant's accounts of one kind, newest first. Its one caller is the
+// service account listing: a person is found by name or address, and a machine is found in the
+// list of machines.
+func (r AccountRepository) ListOfKind(
+	ctx context.Context, kind identity.AccountKind,
+) ([]identity.Account, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.AccountsOfKind(ctx, sqlc.AccountKind(kind))
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the accounts of kind %s: %w", kind, err))
+	}
+
+	accounts := make([]identity.Account, 0, len(rows))
+	for _, row := range rows {
+		account, err := accountFrom(row.ID, row.Kind, row.Email, row.DisplayName, row.Status,
+			row.Locale, row.TimeZone, row.WeekStart)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+	return accounts, nil
+}
+
 func (r AccountRepository) Insert(ctx context.Context, account identity.Account) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

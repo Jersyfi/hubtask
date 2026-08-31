@@ -1,0 +1,11 @@
+# Hubtask website - served from the IONOS webspace, mirrored by .github/workflows/website.yml.
+
+AddDefaultCharset UTF-8
+
+# The HTTPS redirect. Switched on on 2026-08-27, after the certificate was assigned to the
+# domain and a check showed IONOS adds no redirect of its own - two redirects on one hop is a
+# loop. With no certificate this rule would break the site instead of securing it, which is why
+# it shipped commented out until the lock next to hubtask.eu was green.
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]

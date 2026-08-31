@@ -1092,6 +1092,11 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		return work.WorkItem{}, err
 	}
 
+	originJumbleID, err := optionalID(row.OriginJumbleID)
+	if err != nil {
+		return work.WorkItem{}, err
+	}
+
 	return work.WorkItem{
 		ID:           id,
 		TenantID:     tenantID,
@@ -1116,6 +1121,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		CustomFields:     customFields,
 		ContentLanguage:  stringFrom(row.ContentLanguage),
 		RecurrenceRuleID: recurrenceRuleID,
+		OriginJumbleID:   originJumbleID,
 		Retention:        retentionFrom(row),
 		ArchivedAt:       optionalTime(row.ArchivedAt),
 		DeletedAt:        optionalTime(row.DeletedAt),
@@ -1274,4 +1280,33 @@ func announcementFrom(
 	return repository.DueAnnouncement{
 		ItemID: itemID, TenantID: tenant, CollectionID: collection, Due: *due,
 	}, nil
+}
+
+// RecordOrigin writes the provenance a conversion records (G-10): which jumble entry the item
+// came from. Set exactly once - the guard is in the statement - and false reports that another
+// conversion, or nothing, already owns the row.
+func (r ItemRepository) RecordOrigin(ctx context.Context, itemID, entryID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	id, err := uuidOf(itemID)
+	if err != nil {
+		return false, err
+	}
+	origin, err := uuidOf(entryID)
+	if err != nil {
+		return false, err
+	}
+
+	changed, err := queries.SetWorkItemOrigin(ctx, sqlc.SetWorkItemOriginParams{
+		ID: id, OriginJumbleID: origin,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording the origin of item %s: %w", itemID, err))
+	}
+	return changed == 1, nil
 }

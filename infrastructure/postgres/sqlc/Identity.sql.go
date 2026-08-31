@@ -11,6 +11,110 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const accessTokensForAccount = `-- name: AccessTokensForAccount :many
+SELECT id, tenant_id, account_id, name, scopes, expires_at, last_used_at, revoked_at, created_at
+FROM access_token
+WHERE account_id = $1
+ORDER BY created_at DESC, id DESC
+`
+
+type AccessTokensForAccountRow struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	AccountID  pgtype.UUID
+	Name       string
+	Scopes     []string
+	ExpiresAt  pgtype.Timestamptz
+	LastUsedAt pgtype.Timestamptz
+	RevokedAt  pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+}
+
+// Newest first, which is the order somebody reads their own credentials in. Bounded by the
+// account rather than by a page: a person holds a handful, and the index answers both the filter
+// and the sort (access_token_account_idx).
+func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.UUID) ([]AccessTokensForAccountRow, error) {
+	rows, err := q.db.Query(ctx, accessTokensForAccount, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AccessTokensForAccountRow{}
+	for rows.Next() {
+		var i AccessTokensForAccountRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.AccountID,
+			&i.Name,
+			&i.Scopes,
+			&i.ExpiresAt,
+			&i.LastUsedAt,
+			&i.RevokedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const accountsOfKind = `-- name: AccountsOfKind :many
+SELECT id, kind, email, display_name, status, locale, time_zone, week_start
+FROM account
+WHERE kind = $1 AND deleted_at IS NULL
+ORDER BY id DESC
+`
+
+type AccountsOfKindRow struct {
+	ID          pgtype.UUID
+	Kind        AccountKind
+	Email       *string
+	DisplayName string
+	Status      AccountStatus
+	Locale      *string
+	TimeZone    *string
+	WeekStart   *string
+}
+
+// The workspace's service accounts, newest first by identifier - UUIDv7 is time-ordered, so the
+// primary key is the creation order and needs no second column to sort on.
+//
+// Bounded by the kind rather than by a page: an installation has a handful of integrations, and a
+// cursor over a handful is machinery nobody reads.
+func (q *Queries) AccountsOfKind(ctx context.Context, kind AccountKind) ([]AccountsOfKindRow, error) {
+	rows, err := q.db.Query(ctx, accountsOfKind, kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AccountsOfKindRow{}
+	for rows.Next() {
+		var i AccountsOfKindRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Email,
+			&i.DisplayName,
+			&i.Status,
+			&i.Locale,
+			&i.TimeZone,
+			&i.WeekStart,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const addGroupMember = `-- name: AddGroupMember :exec
 INSERT INTO account_group_member (tenant_id, group_id, account_id)
 VALUES (current_tenant_id(), $1, $2)
@@ -27,6 +131,62 @@ func (q *Queries) AddGroupMember(ctx context.Context, arg AddGroupMemberParams) 
 	return err
 }
 
+const administratorsAlongPath = `-- name: AdministratorsAlongPath :many
+SELECT DISTINCT account_id FROM (
+  SELECT m.account_id
+  FROM membership m
+  WHERE m.account_id IS NOT NULL
+    -- Cast, because ` + "`" + `role` + "`" + ` is the enum ` + "`" + `membership_role` + "`" + ` and the argument is text: comparing the
+    -- two directly is an operator PostgreSQL does not have, and the enum is what the column has
+    -- been since the first migration.
+    AND m.role::text = ANY($1::text[])
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY($2::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM membership m
+  JOIN account_group_member g ON g.group_id = m.group_id
+  WHERE m.group_id IS NOT NULL
+    AND m.role::text = ANY($1::text[])
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY($2::uuid[]))
+) AS holders
+`
+
+type AdministratorsAlongPathParams struct {
+	Roles    []string
+	ScopeIds []pgtype.UUID
+}
+
+// Who administers anywhere on this path, for the retention advance warning (R-1, G-12).
+//
+// The mirror image of MembershipsAlongPath: that one asks what one account holds, this one asks
+// who holds something. The roles are named here rather than passed in, because "the people who can
+// answer a warning about work that is about to be deleted" is a property of the role matrix and
+// not a parameter a caller gets to choose - a caller that could name VIEWER would be a caller
+// warning everybody.
+//
+// Through a group as well as directly, on MembershipsAlongPath's reasoning: a right held through a
+// group is not a lesser right, and an administrator who administers through one still administers.
+// Distinct, because somebody who holds the role at two levels is one person.
+func (q *Queries) AdministratorsAlongPath(ctx context.Context, arg AdministratorsAlongPathParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, administratorsAlongPath, arg.Roles, arg.ScopeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteGroup = `-- name: DeleteGroup :execrows
 DELETE FROM account_group WHERE id = $1
 `
@@ -40,6 +200,41 @@ func (q *Queries) DeleteGroup(ctx context.Context, id pgtype.UUID) (int64, error
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const findAccessToken = `-- name: FindAccessToken :one
+SELECT id, tenant_id, account_id, name, scopes, expires_at, last_used_at, revoked_at, created_at
+FROM access_token
+WHERE id = $1
+`
+
+type FindAccessTokenRow struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	AccountID  pgtype.UUID
+	Name       string
+	Scopes     []string
+	ExpiresAt  pgtype.Timestamptz
+	LastUsedAt pgtype.Timestamptz
+	RevokedAt  pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+}
+
+func (q *Queries) FindAccessToken(ctx context.Context, id pgtype.UUID) (FindAccessTokenRow, error) {
+	row := q.db.QueryRow(ctx, findAccessToken, id)
+	var i FindAccessTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.AccountID,
+		&i.Name,
+		&i.Scopes,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const findAccessTokenByHash = `-- name: FindAccessTokenByHash :one
@@ -288,6 +483,48 @@ func (q *Queries) GroupMembers(ctx context.Context, groupID pgtype.UUID) ([]pgty
 	return items, nil
 }
 
+const insertAccessToken = `-- name: InsertAccessToken :exec
+
+INSERT INTO access_token
+    (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at, created_at)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6,
+  $7, $8
+)
+`
+
+type InsertAccessTokenParams struct {
+	ID          pgtype.UUID
+	AccountID   pgtype.UUID
+	Name        string
+	TokenHash   []byte
+	TokenPrefix string
+	Scopes      []string
+	ExpiresAt   pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+}
+
+// ========================== Personal access tokens ==========================
+// The tenant is never a parameter here either: row level security bounds every statement to the
+// tenant of the running transaction, which is what makes a token of another workspace invisible
+// rather than forbidden (ADR-0010).
+// The hash is computed in the adapter, because the pepper is a secret of that layer and the
+// application must never hold a value it could store by mistake (security.md §8).
+func (q *Queries) InsertAccessToken(ctx context.Context, arg InsertAccessTokenParams) error {
+	_, err := q.db.Exec(ctx, insertAccessToken,
+		arg.ID,
+		arg.AccountID,
+		arg.Name,
+		arg.TokenHash,
+		arg.TokenPrefix,
+		arg.Scopes,
+		arg.ExpiresAt,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const insertAccount = `-- name: InsertAccount :exec
 INSERT INTO account (id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start)
 VALUES (
@@ -435,6 +672,27 @@ func (q *Queries) RestrictedAccounts(ctx context.Context, accountIds []pgtype.UU
 		return nil, err
 	}
 	return items, nil
+}
+
+const revokeAccessToken = `-- name: RevokeAccessToken :execrows
+UPDATE access_token SET revoked_at = $1
+WHERE id = $2 AND revoked_at IS NULL
+`
+
+type RevokeAccessTokenParams struct {
+	RevokedAt pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// Only the first withdrawal writes. A second call matches nothing, which is how the use case
+// tells "revoked just now" from "already revoked" without reading the row again - and what keeps
+// the moment it was first pulled from being overwritten.
+func (q *Queries) RevokeAccessToken(ctx context.Context, arg RevokeAccessTokenParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeAccessToken, arg.RevokedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const revokeMembership = `-- name: RevokeMembership :execrows

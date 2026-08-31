@@ -170,7 +170,22 @@ var catalogue = []Kind{
 	},
 	{Name: KindComment, Anchor: AnchorCreatedAt},
 	{Name: KindAttachment, Anchor: AnchorCreatedAt},
-	{Name: KindJumbleEntry, Anchor: AnchorCreatedAt, DefaultDays: 90},
+	{
+		// The jumble (G-10). Ninety days from the arrival, and the closed-set change D-06
+		// predicted: the kind was named here with nothing behind it until the inbox existed.
+		//
+		// No marking phase, for the trash's reason turned around. An entry has no grace period to
+		// announce into - nobody can take one back out of a period the way `:retain` takes an item
+		// out - and what governs it is its period and the decision made about it. What is due is
+		// what was never converted; an entry that became a work item is that item's provenance and
+		// stays.
+		Name: KindJumbleEntry, Anchor: AnchorCreatedAt, DefaultDays: 90,
+		Actions: []Action{ActionHardDelete},
+		// A tenant-wide hold, and nothing narrower. An entry sits in no container and under no
+		// item - it is what arrived before anybody decided where it belongs - so a hold on a hub
+		// has nothing to say about it, and "freeze this tenant" has everything to say about it.
+		Blockable: []string{BlockedByLegalHold},
+	},
 	{
 		Name: KindNotification, Anchor: AnchorCreatedAt, DefaultDays: 90,
 		Actions: []Action{ActionHardDelete},
@@ -178,6 +193,18 @@ var catalogue = []Kind{
 	{Name: KindActivityEntry, Anchor: AnchorOccurredAt},
 	{Name: KindRuleRun, Anchor: AnchorStartedAt, DefaultDays: 30},
 	{Name: KindWebhookDelivery, Anchor: AnchorCreatedAt, DefaultDays: 30},
+	{
+		// The outbox's own rows (G-02). ADR-0007's second countermeasure and, until it existed,
+		// the one table in this schema that only ever grew: an event's job is done the moment
+		// every consumer has had it, and the row lives on afterwards for the day somebody has to
+		// reconstruct what was published.
+		//
+		// Seven days, the shortest default in the catalogue. It is a debugging aid rather than a
+		// record - the audit trail is the record - and a week covers "what happened on Friday"
+		// asked on Monday.
+		Name: KindOutboxEvent, Anchor: AnchorOccurredAt, DefaultDays: 7,
+		Actions: []Action{ActionHardDelete},
+	},
 	{Name: KindSession, Anchor: AnchorLastSeenAt, DefaultDays: 30},
 	{Name: KindAudit, Anchor: AnchorOccurredAt, DefaultDays: 400},
 	{Name: KindMediaOrphan, Anchor: AnchorCreatedAt, DefaultDays: 7},
@@ -187,15 +214,18 @@ var catalogue = []Kind{
 // The classes of data data-retention.md §3 names. Every one of them, including the ones nothing
 // removes yet: the catalogue is the document's, and a subset would be this build's opinion of it.
 const (
-	KindCompletedItem         DataKind = "COMPLETED_ITEM"
-	KindOpenItemStale         DataKind = "OPEN_ITEM_STALE"
-	KindArchivedItem          DataKind = "ARCHIVED_ITEM"
-	KindComment               DataKind = "COMMENT"
-	KindAttachment            DataKind = "ATTACHMENT"
-	KindJumbleEntry           DataKind = "JUMBLE_ENTRY"
-	KindActivityEntry         DataKind = "ACTIVITY_ENTRY"
-	KindRuleRun               DataKind = "RULE_RUN"
-	KindWebhookDelivery       DataKind = "WEBHOOK_DELIVERY"
+	KindCompletedItem   DataKind = "COMPLETED_ITEM"
+	KindOpenItemStale   DataKind = "OPEN_ITEM_STALE"
+	KindArchivedItem    DataKind = "ARCHIVED_ITEM"
+	KindComment         DataKind = "COMMENT"
+	KindAttachment      DataKind = "ATTACHMENT"
+	KindJumbleEntry     DataKind = "JUMBLE_ENTRY"
+	KindActivityEntry   DataKind = "ACTIVITY_ENTRY"
+	KindRuleRun         DataKind = "RULE_RUN"
+	KindWebhookDelivery DataKind = "WEBHOOK_DELIVERY"
+	// KindOutboxEvent is how long a dispatched event stays readable after every consumer has
+	// had it (G-02, ADR-0007's second countermeasure).
+	KindOutboxEvent           DataKind = "OUTBOX_EVENT"
 	KindSession               DataKind = "SESSION"
 	KindAudit                 DataKind = "AUDIT"
 	KindMediaOrphan           DataKind = "MEDIA_ORPHAN"
