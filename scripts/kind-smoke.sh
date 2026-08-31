@@ -109,7 +109,7 @@ echo "--- install ---"
 "$HELM" install "$RELEASE" k8s \
   --namespace "$NAMESPACE" \
   --set image.repository="$IMAGE" \
-  --set image.tag="$TAG" \
+  --set-string image.tag="$TAG" \
   --set image.pullPolicy=Never \
   --set existingSecret=hubtask-secrets \
   --set migration.dsnSecretKey=db-dsn-owner \

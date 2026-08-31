@@ -398,6 +398,18 @@ gate-chart:
 		--set smtp.existingSecretKey=smtp-password \
 		--set storage.existingSecret=hubtask-storage --set storage.bucket=hubtask-media \
 		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} > /dev/null
+	@# And once with a tag of nothing but digits, read rather than discarded. `--set` infers a
+	@# type, so such a tag arrives as a number and a `%s` renders it as `%!s(int64=...)` - a
+	@# reference Kubernetes refuses with InvalidImageName. The two renders above would not have
+	@# noticed: they check that templating succeeds, and templating does succeed (#247).
+	@output="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set image.tag=20260831)"; \
+		if printf '%s' "$$output" | grep -q '%!'; then \
+			echo "chart: a value reached a template verb of the wrong type -"; \
+			printf '%s' "$$output" | grep -n '%!' | head -5; \
+			exit 1; \
+		fi; \
+		echo "chart: a numeric image tag still renders a valid reference"
 	@echo "chart: lint and template green"
 
 ## gate-compose: Start the self-hosting reference stack from a real image and wait for /readyz

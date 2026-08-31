@@ -60,8 +60,17 @@ default
 {{- end -}}
 {{- end -}}
 
+{{/*
+image is the reference every pod and the migration hook is started from.
+
+`toString` is load-bearing, not decoration. `--set` infers a type, so a tag of nothing but digits
+- `20260831`, or a short commit SHA that happens to carry no letter - arrives as an int64, and
+`printf "%s"` renders that as `%!s(int64=20260831)`. Kubernetes then answers `InvalidImageName`
+and the pod never starts. It is a defect that hides: the same chart, the same command, works on
+every tag that contains a letter (#247).
+*/}}
 {{- define "hubtask.image" -}}
-{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) -}}
+{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion | toString) -}}
 {{- end -}}
 
 {{/*
