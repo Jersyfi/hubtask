@@ -85,6 +85,25 @@ expect_missing() {
 	fi
 }
 
+# run_hubctl runs a command, prints what it said whichever way it went, and records a failure
+# rather than ending the session.
+#
+# `set -e` inside a command substitution is the right default for the sections that build on each
+# other - a hub that was not created makes everything below it meaningless - and the wrong one for
+# a section that checks several independent verbs: the first failure would hide the rest, one CI
+# run at a time.
+run_hubctl() {
+	local output status
+	set +e
+	output="$("$WORK_DIR/hubctl" "$@" 2>&1)"
+	status=$?
+	set -e
+	if [ "$status" -ne 0 ]; then
+		fail "hubctl $* exited $status: $output"
+	fi
+	printf '%s\n' "$output"
+}
+
 # first_id reads the identifier out of a hubctl table: a header, then one row per entry, the
 # identifier in the first column. That layout is a contract of the CLI, so reading it here is a
 # check of it as much as a convenience.
@@ -823,12 +842,12 @@ fi
 
 # And the run log, which is the other half of "it happened": a person who was not watching reads
 # what the engine did, step by step, rather than a log line the server happened to print.
-runs="$(hubctl rule runs --rule "$RULE_ID")"
+runs="$(run_hubctl rule runs --rule "$RULE_ID")"
 expect_contains "rule runs" "$runs" "$RULE_ID"
 expect_contains "rule runs" "$runs" "JUMBLE_ENTRY"
 RUN_ID="$(printf '%s\n' "$runs" | first_id)"
 if [ -n "$RUN_ID" ]; then
-	run="$(hubctl rule run show "$RUN_ID")"
+	run="$(run_hubctl rule run show "$RUN_ID")"
 	expect_contains "rule run show" "$run" "CONVERT_JUMBLE_ENTRY"
 fi
 
@@ -839,16 +858,16 @@ sleep 2
 echo "--- the inbox's own verbs ---"
 # The near channel, and the decision that is not a deletion. Both through the client, because an
 # inbox somebody cannot empty from a terminal is an inbox they will empty in the database.
-captured="$(hubctl jumble submit --subject 'Call the printer' --channel QUICK_CAPTURE 2>/dev/null)"
+captured="$(run_hubctl jumble submit --subject 'Call the printer' --channel QUICK_CAPTURE)"
 CAPTURED_ID="$(printf '%s\n' "$captured" | first_id)"
 [ -n "$CAPTURED_ID" ] || fail "the quick capture produced no entry: $captured"
-expect_contains "jumble ls" "$(hubctl jumble ls --status NEW)" "Call the printer"
+expect_contains "jumble ls" "$(run_hubctl jumble ls --status NEW)" "Call the printer"
 if [ -n "$CAPTURED_ID" ]; then
-	dismissed="$(hubctl jumble dismiss "$CAPTURED_ID" 2>&1)"
+	dismissed="$(run_hubctl jumble dismiss "$CAPTURED_ID")"
 	expect_contains "jumble dismiss" "$dismissed" "DISMISSED"
 	# A state rather than a deletion: the entry is still there, in the state that says so.
 	expect_contains "jumble ls --status DISMISSED" \
-		"$(hubctl jumble ls --status DISMISSED)" "$CAPTURED_ID"
+		"$(run_hubctl jumble ls --status DISMISSED)" "$CAPTURED_ID"
 fi
 
 sleep 2
@@ -863,12 +882,12 @@ echo "--- who else is told, and what reached them ---"
 # Standard error is kept apart from the answer, because the identifier is read out of the table's
 # second line and a note printed beside it would be the line that is read.
 subscribed="$(hubctl webhook add --url https://webhook.invalid/hooks \
-	--event de.hubtask.work.item.completed.v1 2> "$WORK_DIR/webhook.err")"
+	--event de.hubtask.work.item.completed.v1 2> "$WORK_DIR/webhook.err" || true)"
 WEBHOOK_ID="$(printf '%s\n' "$subscribed" | first_id)"
 [ -n "$WEBHOOK_ID" ] || fail "the subscription produced no identifier: $subscribed"
 # The secret is answered once, and the client says so where somebody can read it.
 expect_contains "webhook add" "$(cat "$WORK_DIR/webhook.err")" "shown once"
-expect_contains "webhook ls" "$(hubctl webhook ls)" "webhook.invalid"
+expect_contains "webhook ls" "$(run_hubctl webhook ls)" "webhook.invalid"
 
 # Something to deliver, and then the record of the attempt. An entry of its own, so that the event
 # is certain rather than dependent on what the sections above left behind. The delivery fails -
@@ -877,32 +896,34 @@ expect_contains "webhook ls" "$(hubctl webhook ls)" "webhook.invalid"
 NOTIFIED_ID="$(hubctl item create --collection "$COLLECTION_ID" --type TASK \
 	--title 'Tell the subscriber' | first_id)"
 [ -n "$NOTIFIED_ID" ] && hubctl item complete "$NOTIFIED_ID" >/dev/null
+# Waited out to a decided state rather than to the first row: a PENDING delivery is the queue
+# saying "not yet", and replaying one would be asking to repeat something that has not happened.
 deliveries=""
 for _ in $(seq 1 30); do
 	deliveries="$(hubctl webhook deliveries "$WEBHOOK_ID" 2>/dev/null || true)"
-	printf '%s\n' "$deliveries" | grep -qE 'FAILED|PENDING|DEAD_LETTER|SUCCEEDED' && break
+	printf '%s\n' "$deliveries" | grep -qE 'FAILED|DEAD_LETTER|SUCCEEDED' && break
 	sleep 1
 done
 if printf '%s\n' "$deliveries" | grep -qE 'FAILED|DEAD_LETTER'; then
 	DELIVERY_ID="$(printf '%s\n' "$deliveries" | first_id)"
-	replayed="$(hubctl webhook replay "$WEBHOOK_ID" "$DELIVERY_ID" 2>&1)"
 	# A replay carries the event the first attempt carried, so a subscriber deduplicating on it
 	# recognises the repeat rather than acting twice.
+	replayed="$(run_hubctl webhook replay "$WEBHOOK_ID" "$DELIVERY_ID")"
 	expect_contains "webhook replay" "$replayed" "carrying the event"
 else
-	echo "no delivery had been attempted yet; the replay is left to the nightly"
+	echo "no delivery had reached a decided state yet; the replay is left to the nightly"
 fi
 
 # And the secret rotates, with the grace period a deployment needs - or without one, which is what
 # a leak calls for.
-rotated="$(hubctl webhook rotate-secret "$WEBHOOK_ID" --grace 0 2>&1)"
+rotated="$(run_hubctl webhook rotate-secret "$WEBHOOK_ID" --grace 0)"
 expect_contains "webhook rotate-secret" "$rotated" "shown once"
-hubctl webhook rm "$WEBHOOK_ID" >/dev/null 2>&1
+run_hubctl webhook rm "$WEBHOOK_ID" >/dev/null
 
 echo "--- the platforms that cannot receive a call ---"
 # G-04's cursor from a terminal: a poll without one asks the unbounded question, so the client
 # prints the next one after every call. The type is one this workspace has certainly produced.
-polled="$(hubctl events poll de.hubtask.work.item.completed.v1 --limit 5 2>&1)"
+polled="$(run_hubctl events poll de.hubtask.work.item.completed.v1 --limit 5)"
 expect_contains "events poll" "$polled" "de.hubtask.work.item.completed.v1"
 
 echo "--- what a refusal looks like ---"
