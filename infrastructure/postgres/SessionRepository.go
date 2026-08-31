@@ -627,6 +627,17 @@ func (r SessionRepository) DeleteExpired(ctx context.Context, cutoff time.Time, 
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("sweeping the sessions: %w", err))
 	}
+	// The pending credentials ride in the same pass, DeleteExpiredConsumption's shape: a row
+	// that lives minutes needs no data kind of its own, only somebody who remembers it. Cut off
+	// at now rather than the policy's cutoff - an expired pending credential is over, not aging.
+	if _, err := queries.DeleteExpiredPending(ctx, sqlc.DeleteExpiredPendingParams{
+		Cutoff: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		Batch:  int32(batch), //nolint:gosec // G115: the batch size is a small configuration value
+	}); err != nil {
+		return int(removed), shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the pending credentials: %w", err))
+	}
 	return int(removed), nil
 }
 

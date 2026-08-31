@@ -46,7 +46,7 @@ var personalColumns = map[string]bool{
 	"display_name": true, "ip_truncated": true, "external_subject": true,
 	"password_hash": true, "token_hash": true, "recipients": true,
 	"user_agent": true, "ip_class": true, "subject_hash": true,
-	"redemption_token_hash": true,
+	"redemption_token_hash": true, "secret_enc": true, "code_hash": true,
 }
 
 // notADataCategory is what the catalogue deliberately does not have a row for, and why. Rule 6's

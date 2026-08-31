@@ -12,6 +12,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -549,4 +550,73 @@ func recoveryCodesOf(fixture *sessionFixture) []string {
 		}
 	}
 	return codes
+}
+
+// The channel round trip: every H-01/H-02 use case invoked through its descriptor, the way REST,
+// MCP and automation all reach it - which is also what proves the projections each channel reads.
+func TestTheAuthUseCasesRoundTripThroughTheRegistry(t *testing.T) {
+	fixture := mfaFixture(now)
+	fixture.withAccount("bert@example.org", "correct horse battery")
+
+	registry, err := usecase.NewRegistry(nil,
+		SignIn{Writer: fixture.writer}.Descriptor(),
+		RefreshSession{Writer: fixture.writer}.Descriptor(),
+		CompleteSignIn{Writer: fixture.writer}.Descriptor(),
+		EnrollTotp{Writer: fixture.writer}.Descriptor(),
+		ConfirmTotp{Writer: fixture.writer}.Descriptor(),
+		DisableTotp{Writer: fixture.writer}.Descriptor(),
+		RedeemInvitation{Writer: fixture.writer}.Descriptor(),
+	)
+	if err != nil {
+		t.Fatalf("building the registry: %v", err)
+	}
+
+	anonymous := appshared.Anonymous("en", "UTC")
+
+	// Enrol and confirm, signed in.
+	out, err := registry.Invoke(t.Context(), EnrollTotpName, signedInActor(), usecase.Input{})
+	if err != nil {
+		t.Fatalf("enrolling through the registry: %v", err)
+	}
+	if out.String("secret") == "" || out.String("otpauth_uri") == "" {
+		t.Fatalf("the single showing is missing from the output: %v", out)
+	}
+	material := fixture.writer.Encryptor.(*encryptorFake).sealedBy[string(mfaSecretPurpose(account))]
+	if _, err := registry.Invoke(t.Context(), ConfirmTotpName, signedInActor(), usecase.Input{
+		"code": domain.TotpCode([]byte(material), domain.TotpStep(now)),
+	}); err != nil {
+		t.Fatalf("confirming through the registry: %v", err)
+	}
+
+	// The two-step sign-in, both halves through the registry.
+	out, err = registry.Invoke(t.Context(), SignInName, anonymous, usecase.Input{
+		"email": "bert@example.org", "password": "correct horse battery",
+	})
+	if err != nil {
+		t.Fatalf("signing in through the registry: %v", err)
+	}
+	if required, _ := out["mfa_required"].(bool); !required {
+		t.Fatalf("no challenge in the output: %v", out)
+	}
+	later := now.Add(domain.TotpStepSeconds * time.Second)
+	completer := fixture.writer
+	completer.Clock = clock.Fixed(later)
+	completed, err := usecase.HandlerFunc(CompleteSignIn{Writer: completer}.invoke).Invoke(
+		t.Context(), anonymous, usecase.Input{
+			"pending_token": out["pending_token"],
+			"code":          domain.TotpCode([]byte(material), domain.TotpStep(later)),
+		})
+	if err != nil {
+		t.Fatalf("completing through the handler: %v", err)
+	}
+	if completed.String("access_token") == "" || completed.String("refresh_token") == "" {
+		t.Fatalf("the pair is missing from the output: %v", completed)
+	}
+
+	// Disable through the registry, with the fresh password.
+	if _, err := registry.Invoke(t.Context(), DisableTotpName, signedInActor(), usecase.Input{
+		"password": "correct horse battery",
+	}); err != nil {
+		t.Fatalf("disabling through the registry: %v", err)
+	}
 }
