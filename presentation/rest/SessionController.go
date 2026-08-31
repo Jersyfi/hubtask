@@ -57,6 +57,11 @@ func (c *RestController) SignIn(w http.ResponseWriter, r *http.Request) {
 		WriteProblem(w, err, requestID)
 		return
 	}
+	if required, _ := out["mfa_required"].(bool); required {
+		// The password was right and a second step is owed (H-02).
+		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
+		return
+	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
 }
 
@@ -203,7 +208,7 @@ func sessionResponse(row usecase.Output) openapi.Session {
 
 func sessionTokensResponse(out usecase.Output) openapi.SessionTokens {
 	session, _ := out["session"].(usecase.Output)
-	return openapi.SessionTokens{
+	tokens := openapi.SessionTokens{
 		TokenType:             openapi.Bearer,
 		AccessToken:           out.String("access_token"),
 		AccessTokenExpiresAt:  timeValue(out["access_token_expires_at"]),
@@ -211,6 +216,10 @@ func sessionTokensResponse(out usecase.Output) openapi.SessionTokens {
 		RefreshTokenExpiresAt: timeValue(out["refresh_token_expires_at"]),
 		Session:               sessionResponse(session),
 	}
+	if remaining, ok := out["recovery_codes_remaining"].(int); ok {
+		tokens.RecoveryCodesRemaining = &remaining
+	}
+	return tokens
 }
 
 // optionalTextField is optionalTimeField's shape for strings: a projection's nil or empty

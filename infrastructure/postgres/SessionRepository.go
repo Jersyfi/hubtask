@@ -627,6 +627,17 @@ func (r SessionRepository) DeleteExpired(ctx context.Context, cutoff time.Time, 
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("sweeping the sessions: %w", err))
 	}
+	// The pending credentials ride in the same pass, DeleteExpiredConsumption's shape: a row
+	// that lives minutes needs no data kind of its own, only somebody who remembers it. Cut off
+	// at now rather than the policy's cutoff - an expired pending credential is over, not aging.
+	if _, err := queries.DeleteExpiredPending(ctx, sqlc.DeleteExpiredPendingParams{
+		Cutoff: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		Batch:  int32(batch), //nolint:gosec // G115: the batch size is a small configuration value
+	}); err != nil {
+		return int(removed), shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the pending credentials: %w", err))
+	}
 	return int(removed), nil
 }
 
@@ -646,4 +657,29 @@ func (r SessionRepository) CountExpired(ctx context.Context, cutoff time.Time, c
 			WithCause(fmt.Errorf("counting the due sessions: %w", err))
 	}
 	return int(due), nil
+}
+
+// PasswordHashOf answers one account's stored hash, wrapped so no way of printing it yields
+// anything (rule 10).
+func (r SignInRepository) PasswordHashOf(
+	ctx context.Context, accountID shared.ID,
+) (secret.Secret, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return secret.Secret{}, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return secret.Secret{}, err
+	}
+	hash, err := queries.FindPasswordHash(ctx, id)
+	if err != nil {
+		if IsNoRows(err) {
+			return secret.Secret{}, shared.ErrNotFound.WithDetail("accounts.not_found")
+		}
+		return secret.Secret{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the stored hash: %w", err))
+	}
+	return secret.New(stringFrom(hash)), nil
 }

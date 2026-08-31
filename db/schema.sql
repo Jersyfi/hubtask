@@ -239,6 +239,53 @@ CREATE TABLE session_refresh_token (
 CREATE UNIQUE INDEX session_refresh_token_hash_uq ON session_refresh_token (token_hash);
 CREATE INDEX session_refresh_token_session_idx ON session_refresh_token (session_id);
 
+-- One TOTP enrolment per account (H-02, security.md §5): the secret sealed through the envelope
+-- encryption, armed only once `confirmed_at` is set, `last_step` as the replay refusal.
+CREATE TABLE account_mfa (
+  account_id    uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  secret_enc    bytea NOT NULL,
+  secret_key_id text NOT NULL,
+  confirmed_at  timestamptz,
+  last_step     bigint,
+  created_at    timestamptz NOT NULL,
+  updated_at    timestamptz NOT NULL,
+  CONSTRAINT account_mfa_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+
+-- Ten single-use recovery codes per enrolment, stored only as hashes, burned by first use.
+CREATE TABLE account_recovery_code (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  code_hash  bytea NOT NULL,
+  used_at    timestamptz,
+  created_at timestamptz NOT NULL,
+  CONSTRAINT account_recovery_code_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX account_recovery_code_hash_uq ON account_recovery_code (code_hash);
+CREATE INDEX account_recovery_code_account_idx ON account_recovery_code (account_id);
+
+-- The pending credential of a two-step sign-in (H-02): short-lived, single-use, hashed under
+-- its own purpose label - a row with the session machinery's discipline, not a session.
+CREATE TABLE auth_pending (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id  uuid NOT NULL,
+  token_hash  bytea NOT NULL,
+  purpose     text NOT NULL CHECK (purpose IN ('TOTP', 'ENROLL')),
+  user_agent  text,
+  ip_class    text,
+  created_at  timestamptz NOT NULL,
+  expires_at  timestamptz NOT NULL,
+  consumed_at timestamptz,
+  CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX auth_pending_token_uq ON auth_pending (token_hash);
+
 -- The sign-in attempt ledger (T-02): failures per account and per source network, the subject
 -- only ever a hash under its own purpose label - the ledger counts attempts against addresses
 -- that hold no account without becoming a list of guessed addresses.
@@ -1531,6 +1578,7 @@ BEGIN
   FOREACH t IN ARRAY ARRAY[
     'account','account_group','account_group_member','membership','access_token',
     'session','session_refresh_token','auth_attempt',
+    'account_mfa','account_recovery_code','auth_pending',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',

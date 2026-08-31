@@ -40,7 +40,8 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Email address | `account` | `PERSONAL_BASIC` | Sign-in, invitation, notification | Contract | The lifetime of the account | `CASCADE` |
 | Password hash | `account` | `SECRET` | Authentication | Contract | The lifetime of the account | `HASH_ONLY`, `CASCADE` |
 | Locale, time zone, start of week | `account` | `PERSONAL_BASIC` | Localisation | Contract | The lifetime of the account | `CASCADE` |
-| MFA secret, recovery codes | `account_mfa` | `SECRET` | Two-factor authentication | Contract / legal obligation | The lifetime of the account | `CASCADE` |
+| MFA secret (sealed), recovery codes (hashed) | `account_mfa`, `account_recovery_code` | `SECRET` | Two-factor authentication (H-02) | Contract / legal obligation | The lifetime of the enrolment | `CASCADE` |
+| Two-step sign-in pending credential (hash, user agent, IP class) | `auth_pending` | `PERSONAL_TECHNICAL` | Completing a two-step sign-in | Legitimate interest | Minutes; swept with the sessions | `RETENTION`, `CASCADE` |
 | External identity (OIDC `sub`, issuer) | `account_identity` | `PERSONAL_BASIC` | Single sign-on | Contract | The lifetime of the link | `CASCADE` |
 | Membership, role, groups | `membership`, `account_group_member` | `PERSONAL_BASIC` | Permissions | Contract | The lifetime of the membership | `CASCADE` |
 | Token hash, scopes, label | `access_token` | `SECRET` (+ `PERSONAL_BASIC` for the name) | API access | Contract | Until revocation/expiry, max. 1 year | `CASCADE` |

@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**164 use cases, 144 distinct action codes, 119 of them recorded on every call.** A use case that
+**168 use cases, 147 distinct action codes, 123 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -51,10 +51,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `auth.invitation_redeemed` | RedeemInvitation | `account` | NOTICE | Every time |
+| `auth.mfa_disabled` | DisableTotp | `account` | NOTICE | Every time |
+| `auth.mfa_enabled` | ConfirmTotp | `account` | NOTICE | Every time |
+| `auth.mfa_enrollment_started` | EnrollTotp | `account` | INFO | Every time |
 | `auth.session_read` | ListSessions | `session` | INFO | When refused |
 | `auth.session_refreshed` | RefreshSession | `session` | INFO | Every time |
 | `auth.session_revoked` | RevokeSession | `session` | NOTICE | Every time |
 | `auth.sessions_revoked` | RevokeAllSessions | `session` | NOTICE | Every time |
+| `auth.signed_in` | CompleteSignIn | `session` | NOTICE | Every time |
 | `auth.signed_in` | SignIn | `session` | NOTICE | Every time |
 
 ## Automation

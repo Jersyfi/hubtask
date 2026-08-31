@@ -74,6 +74,38 @@ type SessionWriter struct {
 	// the header, in single mode from the installation's only row - one code path, one special
 	// case (multi-tenancy.md §1).
 	Multi bool
+
+	// The second factor's stores (H-02). Nil switches the second step off wholesale - the shape
+	// H-01 shipped - which is what lets the two tasks land in separate releases.
+	Enrollments repository.MfaEnrollments
+	Recovery    repository.RecoveryCodes
+	Pending     repository.PendingCredentials
+	// Encryptor opens and seals the TOTP secret (E-02): verification needs the plaintext for
+	// thirty lines of arithmetic, storage never does.
+	Encryptor cryptoport.Encryptor
+	// Memberships and Policy answer the enforcement question: does this tenant demand a factor
+	// of this account's role (security.md §5).
+	Memberships repository.Memberships
+	Policy      repository.TenantPolicy
+	// People reads the account an MFA operation acts for - the provisioning URI labels it by
+	// its address, which the actor deliberately does not carry.
+	People repository.Accounts
+	// Issuer is the label an authenticator shows beside the code.
+	Issuer string
+}
+
+// SignInChallenge is the second step a two-step sign-in owes (H-02).
+type SignInChallenge struct {
+	Token     secret.Secret
+	ExpiresAt time.Time
+	Methods   []string
+}
+
+// SignInResult is one of two answers: the pair, or the challenge that stands between the
+// password and the pair.
+type SignInResult struct {
+	Pair      *SessionPair
+	Challenge *SignInChallenge
 }
 
 // SessionPair is what a successful sign-in, refresh or redemption answers: the two tokens in
@@ -103,7 +135,7 @@ type SignInCommand struct {
 }
 
 // SignIn is the password sign-in (H-01): email and password in, an access/refresh pair and a
-// session row out.
+// session row out - or, since H-02, the challenge a second factor demands first.
 type SignIn struct{ Writer SessionWriter }
 
 // Execute checks the credential and opens the session.
@@ -111,12 +143,12 @@ type SignIn struct{ Writer SessionWriter }
 // Every credential failure is one generic refusal, byte for byte (T-02): the ledger and the
 // metric learn the difference, the caller never does. The tenant is resolved first, because
 // accounts are per-tenant and the lookup cannot run without a context (decision 3).
-func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SessionPair, error) {
+func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, error) {
 	w := h.Writer
 
 	tenantID, err := w.resolveTenant(ctx, cmd.TenantSlug, cmd.TenantHeader)
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	subjects := attemptSubjects(cmd.Email, cmd.RemoteAddr)
@@ -148,14 +180,14 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SessionPair, er
 		return nil
 	})
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	verified := false
 	if accountOK && !found.PasswordHash.IsEmpty() {
 		ok, err := w.Passwords.Verify(found.PasswordHash.Reveal(), cmd.Password)
 		if err != nil {
-			return SessionPair{}, err
+			return SignInResult{}, err
 		}
 		verified = ok
 	} else {
@@ -166,24 +198,32 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SessionPair, er
 
 	if !verified {
 		if err := w.recordFailure(ctx, scope, subjects); err != nil {
-			return SessionPair{}, err
+			return SignInResult{}, err
 		}
 		w.failure(ctx, FailureWrongCredential)
-		return SessionPair{}, domain.ErrSignInFailed()
+		return SignInResult{}, domain.ErrSignInFailed()
 	}
 
 	// The password was right; from here the answers may talk about the account, because the
 	// caller has proved they are its holder.
 	if err := found.Account.Verify(); err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
+	}
+
+	challenge, err := w.challengeFor(ctx, scope, found.Account, cmd, subjects)
+	if err != nil {
+		return SignInResult{}, err
+	}
+	if challenge != nil {
+		return SignInResult{Challenge: challenge}, nil
 	}
 
 	pair, err := w.openSession(ctx, scope, tenantID, found.Account, cmd.UserAgent, cmd.RemoteAddr,
 		SignedInAction, subjects)
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
-	return pair, nil
+	return SignInResult{Pair: &pair}, nil
 }
 
 // RefreshSessionCommand carries the exchange's input.
@@ -635,7 +675,7 @@ func (h SignIn) Descriptor() usecase.Descriptor {
 func (h SignIn) invoke(
 	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	pair, err := h.Execute(ctx, SignInCommand{
+	result, err := h.Execute(ctx, SignInCommand{
 		Email:        in.String("email"),
 		Password:     secret.New(in.String("password")),
 		UserAgent:    in.String("user_agent"),
@@ -646,7 +686,10 @@ func (h SignIn) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return pairOutput(pair), nil
+	if result.Challenge != nil {
+		return challengeOutput(*result.Challenge), nil
+	}
+	return pairOutput(*result.Pair), nil
 }
 
 // Descriptor is the catalogue entry.

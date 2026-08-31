@@ -84,6 +84,15 @@ func (pending) RevokeAllSessions(w http.ResponseWriter, r *http.Request) { notAv
 
 func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The MFA operations of H-02, pending until each use case lands.
+func (pending) CompleteSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) EnrollTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ConfirmTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) DisableTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The five credential operations of G-01. All of them are overridden by RestController; they stay
 // here because the compile-time check above needs every method of the interface.
 func (pending) ListAccessTokens(w http.ResponseWriter, r *http.Request, _ openapi.ListAccessTokensParams) {

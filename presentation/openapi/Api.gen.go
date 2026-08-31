@@ -1596,6 +1596,27 @@ func (e MembershipScope) Valid() bool {
 	}
 }
 
+// Defines values for MfaChallengeMethods.
+const (
+	ENROLL   MfaChallengeMethods = "ENROLL"
+	RECOVERY MfaChallengeMethods = "RECOVERY"
+	TOTP     MfaChallengeMethods = "TOTP"
+)
+
+// Valid indicates whether the value is a known member of the MfaChallengeMethods enum.
+func (e MfaChallengeMethods) Valid() bool {
+	switch e {
+	case ENROLL:
+		return true
+	case RECOVERY:
+		return true
+	case TOTP:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -4347,6 +4368,26 @@ type MembershipRole string
 // MembershipScope defines model for MembershipScope.
 type MembershipScope string
 
+// MfaChallenge The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in.
+type MfaChallenge struct {
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for an administrator a tenant switch routes into enrolment instead of into a session.
+	Methods []MfaChallengeMethods `json:"methods"`
+
+	// PendingToken Presented at `/auth/sessions:verify` - or, for ENROLL, at the enrolment routes.
+	PendingToken string `json:"pending_token"`
+}
+
+// MfaChallengeMethods defines model for MfaChallenge.Methods.
+type MfaChallengeMethods string
+
+// MfaDisable defines model for MfaDisable.
+type MfaDisable struct {
+	// Password Checked afresh - a live session is deliberately not enough here.
+	Password string `json:"password"`
+}
+
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
 	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
@@ -5014,6 +5055,9 @@ type SessionTokens struct {
 	AccessToken          string    `json:"access_token"`
 	AccessTokenExpiresAt time.Time `json:"access_token_expires_at"`
 
+	// RecoveryCodesRemaining Present exactly when a recovery code completed this sign-in: how many remain. Zero is the number to act on - re-enrol before the authenticator is needed again.
+	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
+
 	// RefreshToken Thirty days, single use: the exchange at `/auth/sessions:refresh` retires it and answers the next one. Presenting a retired token invalidates the whole family.
 	RefreshToken          string    `json:"refresh_token"`
 	RefreshTokenExpiresAt time.Time `json:"refresh_token_expires_at"`
@@ -5032,6 +5076,16 @@ type SignIn struct {
 
 	// Password Checked in constant shape against the stored Argon2id hash. No minimum here: the policy binds where a password is *set*, and refusing a short guess differently from a wrong one would leak which it was.
 	Password string `json:"password"`
+}
+
+// SignInCompletion defines model for SignInCompletion.
+type SignInCompletion struct {
+	// Code The authenticator's current code.
+	Code         *string `json:"code,omitempty"`
+	PendingToken string  `json:"pending_token"`
+
+	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
+	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
 
 // SyncChange defines model for SyncChange.
@@ -5243,6 +5297,40 @@ type TemplateUpdate struct {
 	Description *string         `json:"description,omitempty"`
 	Name        *string         `json:"name,omitempty"`
 	Nodes       *[]TemplateNode `json:"nodes,omitempty"`
+}
+
+// TotpConfirmation defines model for TotpConfirmation.
+type TotpConfirmation struct {
+	Code string `json:"code"`
+
+	// PendingToken The enforcement sign-in's credential; absent for a signed-in caller.
+	PendingToken *string `json:"pending_token,omitempty"`
+}
+
+// TotpConfirmed defines model for TotpConfirmed.
+type TotpConfirmed struct {
+	// Armed Always true on success; the field exists so the answer is a statement, not an empty object.
+	Armed bool `json:"armed"`
+
+	// Tokens The pair, when a pending credential completed a sign-in here. Absent for a signed-in caller, who already holds one.
+	Tokens *SessionTokens `json:"tokens,omitempty"`
+}
+
+// TotpEnrollment The secret's single showing. Store it in an authenticator or lose it.
+type TotpEnrollment struct {
+	// OtpauthUri What a QR image is rendered from - the rendering is the client's job.
+	OtpauthUri string `json:"otpauth_uri"`
+
+	// RecoveryCodes Ten single-use codes, stored only as hashes. Each works once; the sign-in answer counts down what remains.
+	RecoveryCodes []string `json:"recovery_codes"`
+
+	// Secret Base32, for typing by hand where no camera reaches the QR.
+	Secret string `json:"secret"`
+}
+
+// TotpEnrollmentStart Empty for a signed-in caller; the pending credential for an enforcement sign-in. A body because the credential authenticates the call and travels nowhere else.
+type TotpEnrollmentStart struct {
+	PendingToken *string `json:"pending_token,omitempty"`
 }
 
 // TrashEntry One deletion, as the trash lists it. A projection rather than the object: it carries what the view shows and what restoring it needs, and reading the entry back in full is a second request to the object's own endpoint.
@@ -6447,6 +6535,15 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
+// ConfirmTotpJSONRequestBody defines body for ConfirmTotp for application/json ContentType.
+type ConfirmTotpJSONRequestBody = TotpConfirmation
+
+// EnrollTotpJSONRequestBody defines body for EnrollTotp for application/json ContentType.
+type EnrollTotpJSONRequestBody = TotpEnrollmentStart
+
+// DisableTotpJSONRequestBody defines body for DisableTotp for application/json ContentType.
+type DisableTotpJSONRequestBody = MfaDisable
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -6455,6 +6552,9 @@ type SignInJSONRequestBody = SignIn
 
 // RefreshSessionJSONRequestBody defines body for RefreshSession for application/json ContentType.
 type RefreshSessionJSONRequestBody = SessionRefresh
+
+// CompleteSignInJSONRequestBody defines body for CompleteSignIn for application/json ContentType.
+type CompleteSignInJSONRequestBody = SignInCompletion
 
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = AccessTokenCreate
@@ -6677,6 +6777,15 @@ type ServerInterface interface {
 	// RedeemInvitation Redeem an invitation and set the first password
 	// (POST /auth/invitations:redeem)
 	RedeemInvitation(w http.ResponseWriter, r *http.Request)
+	// ConfirmTotp Confirm enrolment with a first valid code
+	// (POST /auth/mfa/totp:confirm)
+	ConfirmTotp(w http.ResponseWriter, r *http.Request)
+	// EnrollTotp Begin TOTP enrolment
+	// (POST /auth/mfa/totp:enroll)
+	EnrollTotp(w http.ResponseWriter, r *http.Request)
+	// DisableTotp Disable the second factor
+	// (POST /auth/mfa:disable)
+	DisableTotp(w http.ResponseWriter, r *http.Request)
 	// ListServiceAccounts The workspace's service accounts
 	// (GET /auth/service-accounts)
 	ListServiceAccounts(w http.ResponseWriter, r *http.Request)
@@ -6698,6 +6807,9 @@ type ServerInterface interface {
 	// RefreshSession Exchange a refresh token for the next pair
 	// (POST /auth/sessions:refresh)
 	RefreshSession(w http.ResponseWriter, r *http.Request)
+	// CompleteSignIn Present the second factor and receive the pair
+	// (POST /auth/sessions:verify)
+	CompleteSignIn(w http.ResponseWriter, r *http.Request)
 	// ListAccessTokens The caller's own personal access tokens
 	// (GET /auth/tokens)
 	ListAccessTokens(w http.ResponseWriter, r *http.Request, params ListAccessTokensParams)
@@ -7467,6 +7579,48 @@ func (siw *ServerInterfaceWrapper) RedeemInvitation(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ConfirmTotp operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmTotp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnrollTotp operation middleware
+func (siw *ServerInterfaceWrapper) EnrollTotp(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnrollTotp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisableTotp operation middleware
+func (siw *ServerInterfaceWrapper) DisableTotp(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisableTotp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListServiceAccounts operation middleware
 func (siw *ServerInterfaceWrapper) ListServiceAccounts(w http.ResponseWriter, r *http.Request) {
 
@@ -7595,6 +7749,20 @@ func (siw *ServerInterfaceWrapper) RefreshSession(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RefreshSession(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteSignIn operation middleware
+func (siw *ServerInterfaceWrapper) CompleteSignIn(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteSignIn(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14410,6 +14578,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:refresh", wrapper.RefreshSession)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa:disable", wrapper.DisableTotp)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/tokens", wrapper.ListAccessTokens)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/tokens", wrapper.CreateAccessToken)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/tokens/{tokenId}", wrapper.RevokeAccessToken)

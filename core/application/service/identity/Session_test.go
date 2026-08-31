@@ -167,6 +167,15 @@ func (s *signInAccounts) FindByRedemptionToken(_ context.Context, token domain.T
 	return found, nil
 }
 
+func (s *signInAccounts) PasswordHashOf(_ context.Context, accountID shared.ID) (secret.Secret, error) {
+	for _, found := range s.byEmail {
+		if found.Account.ID == accountID {
+			return found.PasswordHash, nil
+		}
+	}
+	return secret.Secret{}, shared.ErrNotFound.WithDetail("accounts.not_found")
+}
+
 func (s *signInAccounts) Redeem(_ context.Context, _ shared.ID, passwordHash string, _ time.Time) (bool, error) {
 	if !s.redeemChanged {
 		return false, nil
@@ -294,13 +303,17 @@ func TestASignInOpensASessionAndAnswersThePair(t *testing.T) {
 	fixture := newSessionFixture(now)
 	fixture.withAccount("bert@example.org", "correct horse battery")
 
-	pair, err := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
+	result, err := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
 		Email: "Bert@Example.ORG", Password: secret.New("correct horse battery"),
 		UserAgent: "hubctl/1.0", RemoteAddr: "203.0.113.7:51234",
 	})
 	if err != nil {
 		t.Fatalf("signing in: %v", err)
 	}
+	if result.Pair == nil {
+		t.Fatal("no pair answered - an installation without the second factor challenged")
+	}
+	pair := *result.Pair
 
 	if len(fixture.sessions.inserted) != 1 {
 		t.Fatalf("%d sessions written, want one", len(fixture.sessions.inserted))

@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const burnRecoveryCode = `-- name: BurnRecoveryCode :execrows
+UPDATE account_recovery_code SET used_at = $1
+WHERE account_id = $2
+  AND code_hash = $3
+  AND used_at IS NULL
+`
+
+type BurnRecoveryCodeParams struct {
+	Now       pgtype.Timestamptz
+	AccountID pgtype.UUID
+	CodeHash  []byte
+}
+
+// Only the first use writes; a code presented again matches nothing, which is what single-use
+// means at this layer.
+func (q *Queries) BurnRecoveryCode(ctx context.Context, arg BurnRecoveryCodeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, burnRecoveryCode, arg.Now, arg.AccountID, arg.CodeHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearAuthAttempt = `-- name: ClearAuthAttempt :exec
 DELETE FROM auth_attempt WHERE subject_hash = $1
 `
@@ -19,6 +42,48 @@ DELETE FROM auth_attempt WHERE subject_hash = $1
 func (q *Queries) ClearAuthAttempt(ctx context.Context, subjectHash []byte) error {
 	_, err := q.db.Exec(ctx, clearAuthAttempt, subjectHash)
 	return err
+}
+
+const confirmMfaEnrollment = `-- name: ConfirmMfaEnrollment :execrows
+UPDATE account_mfa SET confirmed_at = $1, last_step = $2,
+  updated_at = $1
+WHERE account_id = $3 AND confirmed_at IS NULL
+`
+
+type ConfirmMfaEnrollmentParams struct {
+	Now       pgtype.Timestamptz
+	Step      *int64
+	AccountID pgtype.UUID
+}
+
+// Arms the enrolment and records the confirming step in one statement, so the code that armed
+// can never verify a second time.
+func (q *Queries) ConfirmMfaEnrollment(ctx context.Context, arg ConfirmMfaEnrollmentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, confirmMfaEnrollment, arg.Now, arg.Step, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const consumePendingCredential = `-- name: ConsumePendingCredential :execrows
+UPDATE auth_pending SET consumed_at = $1
+WHERE id = $2 AND consumed_at IS NULL
+`
+
+type ConsumePendingCredentialParams struct {
+	Now pgtype.Timestamptz
+	ID  pgtype.UUID
+}
+
+// Single use, atomically: only the first completion writes, and a lost race answers exactly as
+// an unknown token does.
+func (q *Queries) ConsumePendingCredential(ctx context.Context, arg ConsumePendingCredentialParams) (int64, error) {
+	result, err := q.db.Exec(ctx, consumePendingCredential, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const countExpiredSessions = `-- name: CountExpiredSessions :one
@@ -43,6 +108,42 @@ func (q *Queries) CountExpiredSessions(ctx context.Context, arg CountExpiredSess
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const countRecoveryCodes = `-- name: CountRecoveryCodes :one
+SELECT count(*) FROM account_recovery_code
+WHERE account_id = $1 AND used_at IS NULL
+`
+
+func (q *Queries) CountRecoveryCodes(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countRecoveryCodes, accountID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteExpiredPending = `-- name: DeleteExpiredPending :execrows
+DELETE FROM auth_pending
+WHERE id IN (
+  SELECT id FROM auth_pending AS expired
+  WHERE expired.expires_at < $1
+  LIMIT $2
+)
+`
+
+type DeleteExpiredPendingParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// Hygiene in the session sweep's pass: a pending row lives minutes, and one that outlived them
+// is bookkeeping about a sign-in nobody finished.
+func (q *Queries) DeleteExpiredPending(ctx context.Context, arg DeleteExpiredPendingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredPending, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
@@ -72,6 +173,32 @@ type DeleteExpiredSessionsParams struct {
 // would be a pass nobody can stop. Oldest first, so a backlog drains in the order it built up.
 func (q *Queries) DeleteExpiredSessions(ctx context.Context, arg DeleteExpiredSessionsParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredSessions, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteRecoveryCodes = `-- name: DeleteRecoveryCodes :execrows
+DELETE FROM account_recovery_code WHERE account_id = $1
+`
+
+func (q *Queries) DeleteRecoveryCodes(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRecoveryCodes, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const disableMfa = `-- name: DisableMfa :execrows
+DELETE FROM account_mfa WHERE account_id = $1
+`
+
+// The enrolment goes whole; the recovery codes go with it by their own statement in the same
+// transaction, because half a disable is worse than none.
+func (q *Queries) DisableMfa(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, disableMfa, accountID)
 	if err != nil {
 		return 0, err
 	}
@@ -197,6 +324,106 @@ func (q *Queries) FindAuthAttempt(ctx context.Context, subjectHash []byte) (Find
 	row := q.db.QueryRow(ctx, findAuthAttempt, subjectHash)
 	var i FindAuthAttemptRow
 	err := row.Scan(&i.Failures, &i.LastFailureAt, &i.LockedUntil)
+	return i, err
+}
+
+const findMfaEnrollment = `-- name: FindMfaEnrollment :one
+SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step
+FROM account_mfa
+WHERE account_id = $1
+`
+
+type FindMfaEnrollmentRow struct {
+	AccountID   pgtype.UUID
+	SecretEnc   []byte
+	SecretKeyID string
+	ConfirmedAt pgtype.Timestamptz
+	LastStep    *int64
+}
+
+func (q *Queries) FindMfaEnrollment(ctx context.Context, accountID pgtype.UUID) (FindMfaEnrollmentRow, error) {
+	row := q.db.QueryRow(ctx, findMfaEnrollment, accountID)
+	var i FindMfaEnrollmentRow
+	err := row.Scan(
+		&i.AccountID,
+		&i.SecretEnc,
+		&i.SecretKeyID,
+		&i.ConfirmedAt,
+		&i.LastStep,
+	)
+	return i, err
+}
+
+const findPasswordHash = `-- name: FindPasswordHash :one
+SELECT password_hash FROM account
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+// For the operations that demand the password afresh of somebody already signed in (H-02):
+// disabling the second factor is the attack a stolen session would try, and a live session is
+// deliberately not enough there.
+func (q *Queries) FindPasswordHash(ctx context.Context, id pgtype.UUID) (*string, error) {
+	row := q.db.QueryRow(ctx, findPasswordHash, id)
+	var password_hash *string
+	err := row.Scan(&password_hash)
+	return password_hash, err
+}
+
+const findPendingByHash = `-- name: FindPendingByHash :one
+SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
+       p.created_at, p.expires_at, p.consumed_at,
+       a.kind     AS account_kind,
+       a.status   AS account_status,
+       a.display_name AS account_display_name,
+       a.locale   AS account_locale,
+       a.time_zone AS account_time_zone,
+       n.default_locale, n.default_time_zone
+FROM auth_pending p
+JOIN account a ON a.id = p.account_id
+JOIN tenant  n ON n.id = p.tenant_id
+WHERE p.token_hash = $1 AND a.deleted_at IS NULL
+`
+
+type FindPendingByHashRow struct {
+	ID                 pgtype.UUID
+	AccountID          pgtype.UUID
+	Purpose            string
+	UserAgent          *string
+	IpClass            *string
+	CreatedAt          pgtype.Timestamptz
+	ExpiresAt          pgtype.Timestamptz
+	ConsumedAt         pgtype.Timestamptz
+	AccountKind        AccountKind
+	AccountStatus      AccountStatus
+	AccountDisplayName string
+	AccountLocale      *string
+	AccountTimeZone    *string
+	DefaultLocale      string
+	DefaultTimeZone    string
+}
+
+// The second step's read: the pending row, its account, and the locale chain in one round trip,
+// FindSessionForAuth's shape.
+func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (FindPendingByHashRow, error) {
+	row := q.db.QueryRow(ctx, findPendingByHash, tokenHash)
+	var i FindPendingByHashRow
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.Purpose,
+		&i.UserAgent,
+		&i.IpClass,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.AccountKind,
+		&i.AccountStatus,
+		&i.AccountDisplayName,
+		&i.AccountLocale,
+		&i.AccountTimeZone,
+		&i.DefaultLocale,
+		&i.DefaultTimeZone,
+	)
 	return i, err
 }
 
@@ -332,6 +559,69 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 	return i, err
 }
 
+const insertPendingCredential = `-- name: InsertPendingCredential :exec
+
+INSERT INTO auth_pending
+  (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6,
+  $7, $8
+)
+`
+
+type InsertPendingCredentialParams struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+	TokenHash []byte
+	Purpose   string
+	UserAgent *string
+	IpClass   *string
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+}
+
+// ====================== The pending credential (H-02) ======================
+func (q *Queries) InsertPendingCredential(ctx context.Context, arg InsertPendingCredentialParams) error {
+	_, err := q.db.Exec(ctx, insertPendingCredential,
+		arg.ID,
+		arg.AccountID,
+		arg.TokenHash,
+		arg.Purpose,
+		arg.UserAgent,
+		arg.IpClass,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const insertRecoveryCode = `-- name: InsertRecoveryCode :exec
+INSERT INTO account_recovery_code (id, tenant_id, account_id, code_hash, created_at)
+VALUES (
+  $1, current_tenant_id(), $2,
+  $3, $4
+)
+`
+
+type InsertRecoveryCodeParams struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+	CodeHash  []byte
+	CreatedAt pgtype.Timestamptz
+}
+
+// The hash is computed in the adapter, the pepper's home (security.md §8).
+func (q *Queries) InsertRecoveryCode(ctx context.Context, arg InsertRecoveryCodeParams) error {
+	_, err := q.db.Exec(ctx, insertRecoveryCode,
+		arg.ID,
+		arg.AccountID,
+		arg.CodeHash,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const insertRefreshToken = `-- name: InsertRefreshToken :exec
 
 INSERT INTO session_refresh_token (id, tenant_id, session_id, token_hash, created_at, expires_at)
@@ -392,6 +682,29 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.ExpiresAt,
 	)
 	return err
+}
+
+const recordMfaStep = `-- name: RecordMfaStep :execrows
+UPDATE account_mfa SET last_step = $1, updated_at = $2
+WHERE account_id = $3
+  AND confirmed_at IS NOT NULL
+  AND (last_step IS NULL OR last_step < $1)
+`
+
+type RecordMfaStepParams struct {
+	Step      *int64
+	Now       pgtype.Timestamptz
+	AccountID pgtype.UUID
+}
+
+// The replay refusal, atomically: only a step past the last accepted one writes, and zero rows
+// means the same or an older code was presented again.
+func (q *Queries) RecordMfaStep(ctx context.Context, arg RecordMfaStepParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordMfaStep, arg.Step, arg.Now, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const redeemInvitation = `-- name: RedeemInvitation :execrows
@@ -593,6 +906,19 @@ func (q *Queries) SetRedemptionToken(ctx context.Context, arg SetRedemptionToken
 	return result.RowsAffected(), nil
 }
 
+const tenantSettings = `-- name: TenantSettings :one
+SELECT settings FROM tenant WHERE id = current_tenant_id()
+`
+
+// The tenant's own row, reachable under its own policy: the enforcement switch lives in the
+// settings document (multi-tenancy.md §4's home for per-tenant knobs).
+func (q *Queries) TenantSettings(ctx context.Context) ([]byte, error) {
+	row := q.db.QueryRow(ctx, tenantSettings)
+	var settings []byte
+	err := row.Scan(&settings)
+	return settings, err
+}
+
 const touchSession = `-- name: TouchSession :exec
 UPDATE session SET last_seen_at = $2 WHERE id = $1
 `
@@ -636,4 +962,45 @@ func (q *Queries) UpsertAuthAttempt(ctx context.Context, arg UpsertAuthAttemptPa
 		arg.LockedUntil,
 	)
 	return err
+}
+
+const upsertMfaEnrollment = `-- name: UpsertMfaEnrollment :execrows
+
+INSERT INTO account_mfa
+  (account_id, tenant_id, secret_enc, secret_key_id, created_at, updated_at)
+VALUES (
+  $1, current_tenant_id(), $2,
+  $3, $4, $4
+)
+ON CONFLICT (account_id) DO UPDATE
+SET secret_enc = EXCLUDED.secret_enc,
+    secret_key_id = EXCLUDED.secret_key_id,
+    confirmed_at = NULL,
+    last_step = NULL,
+    updated_at = EXCLUDED.updated_at
+WHERE account_mfa.confirmed_at IS NULL
+`
+
+type UpsertMfaEnrollmentParams struct {
+	AccountID   pgtype.UUID
+	SecretEnc   []byte
+	SecretKeyID string
+	Now         pgtype.Timestamptz
+}
+
+// ============================ The second factor (H-02) ============================
+// A fresh enrolment, or the replacement of an unconfirmed one. An armed enrolment matches
+// nothing - zero rows is the "disable first, with the password" refusal - so a stolen session
+// cannot quietly swap the secret out from under the real authenticator.
+func (q *Queries) UpsertMfaEnrollment(ctx context.Context, arg UpsertMfaEnrollmentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, upsertMfaEnrollment,
+		arg.AccountID,
+		arg.SecretEnc,
+		arg.SecretKeyID,
+		arg.Now,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

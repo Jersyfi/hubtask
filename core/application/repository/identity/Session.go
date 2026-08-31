@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
@@ -134,6 +135,11 @@ type SignInAccounts interface {
 	// more - a second redemption, refused by the same indistinguishable answer as an unknown
 	// token.
 	Redeem(ctx context.Context, accountID shared.ID, passwordHash string, now time.Time) (bool, error)
+
+	// PasswordHashOf answers one account's stored hash, for the operations that demand the
+	// password afresh of somebody already signed in - disabling the second factor is the first
+	// (H-02, security.md §5). Empty for an account that signs in some other way.
+	PasswordHashOf(ctx context.Context, accountID shared.ID) (secret.Secret, error)
 }
 
 // AuthAttempts is the attempt ledger (T-02). Subjects travel in clear and are stored only as
@@ -157,4 +163,82 @@ type TenantDirectory interface {
 	// Resolve maps a slug to its tenant. The empty slug answers the single-mode installation's
 	// only row. No match is an error wrapping shared.ErrNotFound.
 	Resolve(ctx context.Context, slug string) (shared.ID, error)
+}
+
+// MfaEnrollment is the stored second factor (H-02): the sealed secret and what arms it. The
+// secret travels sealed - opening it is the application layer's act, through the Encryptor,
+// because verification needs the plaintext and storage never does.
+type MfaEnrollment struct {
+	AccountID shared.ID
+	Secret    crypto.Sealed
+	// ConfirmedAt is what arms it; zero means enrolment began and protects nobody yet.
+	ConfirmedAt time.Time
+	// LastStep is the highest accepted RFC 6238 step - the replay refusal's floor.
+	LastStep int64
+}
+
+// MfaEnrollments maintains the one enrolment an account can hold.
+type MfaEnrollments interface {
+	// Upsert writes a fresh enrolment or replaces an unconfirmed one. False means an armed
+	// enrolment stands - "disable first, with the password".
+	Upsert(ctx context.Context, accountID shared.ID, sealed crypto.Sealed, now time.Time) (bool, error)
+
+	// Find answers the enrolment, or an error wrapping shared.ErrNotFound.
+	Find(ctx context.Context, accountID shared.ID) (MfaEnrollment, error)
+
+	// Confirm arms an unconfirmed enrolment and records the confirming step in the same
+	// statement. False means there was nothing unconfirmed to arm.
+	Confirm(ctx context.Context, accountID shared.ID, step int64, now time.Time) (bool, error)
+
+	// RecordStep advances the replay floor, atomically: false means the step was not past it -
+	// the same or an older code presented again.
+	RecordStep(ctx context.Context, accountID shared.ID, step int64, now time.Time) (bool, error)
+
+	// Disable removes the enrolment whole. False means there was none.
+	Disable(ctx context.Context, accountID shared.ID) (bool, error)
+}
+
+// RecoveryCodes maintains the factor's escape hatch. Presented codes travel whole and are hashed
+// in the adapter, the pepper's home.
+type RecoveryCodes interface {
+	// Replace burns whatever stood and stores the new set's hashes.
+	Replace(ctx context.Context, accountID shared.ID, ids []shared.ID, presented []string, now time.Time) error
+
+	// Burn consumes one code. False means it matched nothing live - wrong, already used, or
+	// somebody else's, indistinguishably.
+	Burn(ctx context.Context, accountID shared.ID, presented string, now time.Time) (bool, error)
+
+	// Remaining counts what is left, for the answer that tells a person to re-enrol in time.
+	Remaining(ctx context.Context, accountID shared.ID) (int, error)
+}
+
+// PendingLookup is what presenting a pending credential yields: the row, its account, and the
+// locale chain - one round trip, SessionCredential's reason.
+type PendingLookup struct {
+	Credential identity.PendingCredential
+	Account    identity.Account
+	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
+	TenantLocale   string
+	TenantTimeZone string
+}
+
+// PendingCredentials maintains the two-step sign-in's middle state.
+type PendingCredentials interface {
+	// Insert writes the row the password answered.
+	Insert(ctx context.Context, credential identity.PendingCredential, presented identity.Token) error
+
+	// FindByToken answers what a presented pending token names, or an error wrapping
+	// shared.ErrNotFound.
+	FindByToken(ctx context.Context, token identity.Token) (PendingLookup, error)
+
+	// Consume marks the credential used, atomically: false means somebody was here first.
+	Consume(ctx context.Context, credentialID shared.ID, at time.Time) (bool, error)
+}
+
+// TenantPolicy answers the tenant's security switches (H-02). A narrow reader rather than the
+// settings document, so the application layer never parses a shape the adapter owns.
+type TenantPolicy interface {
+	// RequireAdminTotp reports whether this tenant demands TOTP of OWNER and ADMIN role holders
+	// (security.md §5). An absent switch is false: enforcement is a decision, never a default.
+	RequireAdminTotp(ctx context.Context) (bool, error)
 }

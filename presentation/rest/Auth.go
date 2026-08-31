@@ -31,6 +31,12 @@ var PublicRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions":           true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:refresh":   true,
 	http.MethodPost + " " + APIBasePath + "/auth/invitations:redeem": true,
+	// The second step and the enrolment routes are public for the same reason (H-02): the
+	// pending credential in the body is the whole of what authenticates an enforcement flow,
+	// and a signed-in caller's bearer is verified exactly as on any public route.
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify":  true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":  true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm": true,
 	// The content routes carry their credential in the URL: a signed, expiring token minted by
 	// requestMediaUpload and getMedia, validated by the route itself - the same trust model as a
 	// presigned object-storage URL, which is what these stand in for on a local-storage

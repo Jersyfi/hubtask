@@ -110,6 +110,13 @@ func confidentialValues(t *testing.T) []any {
 			Email:    "somebody@example.org",
 			Password: secret.New(credential),
 		},
+		// And the path H-02 added: the enrolment's single showing - the TOTP secret, the
+		// provisioning URI that embeds it, and the recovery codes - travels as one struct.
+		identity.MintedEnrollment{
+			Secret:        secret.New(masterMaterial),
+			URI:           secret.New(passphrase),
+			RecoveryCodes: []secret.Secret{secret.New(credential)},
+		},
 	}
 }
 

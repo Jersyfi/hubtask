@@ -206,3 +206,126 @@ SELECT count(*) FROM (
     AND (expired.expires_at < sqlc.arg('cutoff') OR expired.revoked_at IS NOT NULL)
   LIMIT sqlc.arg('ceiling')
 ) AS due;
+
+-- ============================ The second factor (H-02) ============================
+
+-- name: UpsertMfaEnrollment :execrows
+-- A fresh enrolment, or the replacement of an unconfirmed one. An armed enrolment matches
+-- nothing - zero rows is the "disable first, with the password" refusal - so a stolen session
+-- cannot quietly swap the secret out from under the real authenticator.
+INSERT INTO account_mfa
+  (account_id, tenant_id, secret_enc, secret_key_id, created_at, updated_at)
+VALUES (
+  sqlc.arg('account_id'), current_tenant_id(), sqlc.arg('secret_enc'),
+  sqlc.arg('secret_key_id'), sqlc.arg('now'), sqlc.arg('now')
+)
+ON CONFLICT (account_id) DO UPDATE
+SET secret_enc = EXCLUDED.secret_enc,
+    secret_key_id = EXCLUDED.secret_key_id,
+    confirmed_at = NULL,
+    last_step = NULL,
+    updated_at = EXCLUDED.updated_at
+WHERE account_mfa.confirmed_at IS NULL;
+
+-- name: FindMfaEnrollment :one
+SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step
+FROM account_mfa
+WHERE account_id = sqlc.arg('account_id');
+
+-- name: ConfirmMfaEnrollment :execrows
+-- Arms the enrolment and records the confirming step in one statement, so the code that armed
+-- can never verify a second time.
+UPDATE account_mfa SET confirmed_at = sqlc.arg('now'), last_step = sqlc.arg('step'),
+  updated_at = sqlc.arg('now')
+WHERE account_id = sqlc.arg('account_id') AND confirmed_at IS NULL;
+
+-- name: RecordMfaStep :execrows
+-- The replay refusal, atomically: only a step past the last accepted one writes, and zero rows
+-- means the same or an older code was presented again.
+UPDATE account_mfa SET last_step = sqlc.arg('step'), updated_at = sqlc.arg('now')
+WHERE account_id = sqlc.arg('account_id')
+  AND confirmed_at IS NOT NULL
+  AND (last_step IS NULL OR last_step < sqlc.arg('step'));
+
+-- name: DisableMfa :execrows
+-- The enrolment goes whole; the recovery codes go with it by their own statement in the same
+-- transaction, because half a disable is worse than none.
+DELETE FROM account_mfa WHERE account_id = sqlc.arg('account_id');
+
+-- name: DeleteRecoveryCodes :execrows
+DELETE FROM account_recovery_code WHERE account_id = sqlc.arg('account_id');
+
+-- name: InsertRecoveryCode :exec
+-- The hash is computed in the adapter, the pepper's home (security.md §8).
+INSERT INTO account_recovery_code (id, tenant_id, account_id, code_hash, created_at)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'),
+  sqlc.arg('code_hash'), sqlc.arg('created_at')
+);
+
+-- name: BurnRecoveryCode :execrows
+-- Only the first use writes; a code presented again matches nothing, which is what single-use
+-- means at this layer.
+UPDATE account_recovery_code SET used_at = sqlc.arg('now')
+WHERE account_id = sqlc.arg('account_id')
+  AND code_hash = sqlc.arg('code_hash')
+  AND used_at IS NULL;
+
+-- name: CountRecoveryCodes :one
+SELECT count(*) FROM account_recovery_code
+WHERE account_id = sqlc.arg('account_id') AND used_at IS NULL;
+
+-- ====================== The pending credential (H-02) ======================
+
+-- name: InsertPendingCredential :exec
+INSERT INTO auth_pending
+  (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('token_hash'),
+  sqlc.arg('purpose'), sqlc.narg('user_agent'), sqlc.narg('ip_class'),
+  sqlc.arg('created_at'), sqlc.arg('expires_at')
+);
+
+-- name: FindPendingByHash :one
+-- The second step's read: the pending row, its account, and the locale chain in one round trip,
+-- FindSessionForAuth's shape.
+SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
+       p.created_at, p.expires_at, p.consumed_at,
+       a.kind     AS account_kind,
+       a.status   AS account_status,
+       a.display_name AS account_display_name,
+       a.locale   AS account_locale,
+       a.time_zone AS account_time_zone,
+       n.default_locale, n.default_time_zone
+FROM auth_pending p
+JOIN account a ON a.id = p.account_id
+JOIN tenant  n ON n.id = p.tenant_id
+WHERE p.token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
+
+-- name: ConsumePendingCredential :execrows
+-- Single use, atomically: only the first completion writes, and a lost race answers exactly as
+-- an unknown token does.
+UPDATE auth_pending SET consumed_at = sqlc.arg('now')
+WHERE id = sqlc.arg('id') AND consumed_at IS NULL;
+
+-- name: DeleteExpiredPending :execrows
+-- Hygiene in the session sweep's pass: a pending row lives minutes, and one that outlived them
+-- is bookkeeping about a sign-in nobody finished.
+DELETE FROM auth_pending
+WHERE id IN (
+  SELECT id FROM auth_pending AS expired
+  WHERE expired.expires_at < sqlc.arg('cutoff')
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: TenantSettings :one
+-- The tenant's own row, reachable under its own policy: the enforcement switch lives in the
+-- settings document (multi-tenancy.md §4's home for per-tenant knobs).
+SELECT settings FROM tenant WHERE id = current_tenant_id();
+
+-- name: FindPasswordHash :one
+-- For the operations that demand the password afresh of somebody already signed in (H-02):
+-- disabling the second factor is the attack a stolen session would try, and a live session is
+-- deliberately not enough there.
+SELECT password_hash FROM account
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;

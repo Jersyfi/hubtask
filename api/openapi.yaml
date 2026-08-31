@@ -2290,6 +2290,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionTokens"
+        "202":
+          description: >
+            The password was right and a second step is owed (H-02): a TOTP code where one is
+            enrolled, or - under tenant enforcement, for an administrator not yet enrolled - the
+            enrolment itself. The pending credential can do nothing but complete this sign-in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaChallenge"
         "4XX":
           $ref: "#/components/responses/Problem"
     get:
@@ -2407,6 +2416,122 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionTokens"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/sessions:verify:
+    post:
+      tags: [auth]
+      operationId: completeSignIn
+      security: []
+      summary: Present the second factor and receive the pair
+      description: >
+        The second step of a two-step sign-in: the pending credential the password answered, plus
+        a TOTP code or one recovery code. The pending credential can do nothing but be presented
+        here - it opens no route, reads nothing, and dies on use or after its few minutes
+        (security.md §5).
+
+        A code verifies within one step of drift either side and never twice: the same step
+        presented again is refused, because a code that worked twice is a code somebody
+        shoulder-read. A recovery code works exactly once, its consumption is audited, and the
+        answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignInCompletion"
+      responses:
+        "201":
+          description: Signed in, with the pair shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTokens"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa/totp:enroll:
+    post:
+      tags: [auth]
+      operationId: enrollTotp
+      security: []
+      summary: Begin TOTP enrolment
+      description: >
+        Mints the TOTP secret, sealed at rest through the envelope encryption every stored
+        credential uses, and answers the provisioning URI and the ten recovery codes for the only
+        time - the QR image is a client's job. The enrolment arms nothing yet: until a valid code
+        confirms it, sign-in is unchanged, because an unconfirmed enrolment protects nobody and
+        locks nobody out.
+
+        Called with a bearer credential by a signed-in person, or with the pending credential a
+        sign-in under tenant enforcement answered - the route an unenrolled administrator is
+        routed into instead of into a session. Enrolling again before confirming replaces the
+        unconfirmed secret; enrolling while armed is refused - disable first, with the password.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TotpEnrollmentStart"
+      responses:
+        "201":
+          description: The secret, the URI and the recovery codes, shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpEnrollment"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa/totp:confirm:
+    post:
+      tags: [auth]
+      operationId: confirmTotp
+      security: []
+      summary: Confirm enrolment with a first valid code
+      description: >
+        Arms the enrolment: the caller proves the authenticator holds the secret by presenting
+        one valid code, and from this moment sign-in is two-step. Called with a bearer
+        credential, or with the pending credential of an enforcement sign-in - in which case a
+        successful confirmation also answers the session pair, because the person has by now
+        proved both factors.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TotpConfirmation"
+      responses:
+        "200":
+          description: Armed. Carries the pair when a pending credential completed a sign-in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpConfirmed"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa:disable:
+    post:
+      tags: [auth]
+      operationId: disableTotp
+      summary: Disable the second factor
+      description: >
+        Removes the TOTP enrolment and burns the remaining recovery codes. It demands the
+        password afresh - the one case where "recently signed in" is not enough, because a stolen
+        session removing the second factor is exactly the attack the factor exists against
+        (security.md §5). Under tenant enforcement an OWNER or ADMIN cannot disable at all; the
+        refusal names the switch.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaDisable"
+      responses:
+        "204":
+          description: Disabled
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -5336,6 +5461,103 @@ components:
         refresh_token_expires_at: { type: string, format: date-time }
         session:
           $ref: "#/components/schemas/Session"
+        recovery_codes_remaining:
+          type: [integer, "null"]
+          description: >
+            Present exactly when a recovery code completed this sign-in: how many remain. Zero is
+            the number to act on - re-enrol before the authenticator is needed again.
+
+    MfaChallenge:
+      type: object
+      description: >
+        The second step a two-step sign-in owes. The pending credential is a row with the session
+        machinery's discipline - short-lived, single-use, revoked by the clock - and it can do
+        nothing but complete this sign-in.
+      required: [pending_token, expires_at, methods]
+      properties:
+        pending_token:
+          type: string
+          description: Presented at `/auth/sessions:verify` - or, for ENROLL, at the enrolment routes.
+        expires_at: { type: string, format: date-time }
+        methods:
+          type: array
+          items: { type: string, enum: [TOTP, RECOVERY, ENROLL] }
+          description: >
+            `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for an administrator a
+            tenant switch routes into enrolment instead of into a session.
+
+    SignInCompletion:
+      type: object
+      required: [pending_token]
+      properties:
+        pending_token: { type: string }
+        code:
+          type: [string, "null"]
+          minLength: 6
+          maxLength: 8
+          description: The authenticator's current code.
+        recovery_code:
+          type: [string, "null"]
+          description: One of the ten shown at enrolment. It works exactly once.
+
+    TotpEnrollmentStart:
+      type: object
+      description: >
+        Empty for a signed-in caller; the pending credential for an enforcement sign-in. A body
+        because the credential authenticates the call and travels nowhere else.
+      properties:
+        pending_token: { type: [string, "null"] }
+
+    TotpEnrollment:
+      type: object
+      description: The secret's single showing. Store it in an authenticator or lose it.
+      required: [secret, otpauth_uri, recovery_codes]
+      properties:
+        secret:
+          type: string
+          description: Base32, for typing by hand where no camera reaches the QR.
+        otpauth_uri:
+          type: string
+          description: What a QR image is rendered from - the rendering is the client's job.
+        recovery_codes:
+          type: array
+          items: { type: string }
+          description: >
+            Ten single-use codes, stored only as hashes. Each works once; the sign-in answer
+            counts down what remains.
+
+    TotpConfirmation:
+      type: object
+      required: [code]
+      properties:
+        pending_token:
+          type: [string, "null"]
+          description: The enforcement sign-in's credential; absent for a signed-in caller.
+        code: { type: string, minLength: 6, maxLength: 8 }
+
+    TotpConfirmed:
+      type: object
+      required: [armed]
+      properties:
+        armed:
+          type: boolean
+          description: Always true on success; the field exists so the answer is a statement, not an empty object.
+        tokens:
+          anyOf:
+            - $ref: "#/components/schemas/SessionTokens"
+            - type: "null"
+          description: >
+            The pair, when a pending credential completed a sign-in here. Absent for a signed-in
+            caller, who already holds one.
+
+    MfaDisable:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          maxLength: 1024
+          description: Checked afresh - a live session is deliberately not enough here.
 
     Group:
       type: object

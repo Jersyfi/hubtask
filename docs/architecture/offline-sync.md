@@ -169,7 +169,10 @@ it stores in its own keychain, outside this protocol. The one answer to every co
 about them is the server's row: a revocation observed by one device is not merged onto another,
 it simply makes the next request refuse. That is written down here rather than implied, because
 the Definition of Done asks for a merge rule per new field and "these fields have no merge,
-by construction" is the rule.
+by construction" is the rule. The second factor's state joins them (H-02): the sealed enrolment,
+the recovery codes and the pending credential of a half-finished sign-in do not travel to
+devices - an authenticator app is its own device, and a synchronised copy of a factor would be
+a factor no longer.
 
 **A calendar feed does not travel at all.** It is a credential over a view rather than a piece of
 work: it is not in the change log, it is not merged, and a device holds nothing about it beyond

@@ -168,3 +168,33 @@ func hashUnder(pepper []byte, value string) []byte {
 	mac.Write([]byte(value))
 	return mac.Sum(nil)
 }
+
+// The second factor's stored credentials (H-02), TokenHasher's construction under their own
+// purpose labels.
+//
+//nolint:gosec // G101: public derivation labels, not credentials
+const (
+	pendingTokenInfo = "hubtask/auth-pending/v1"
+	recoveryCodeInfo = "hubtask/recovery-code/v1"
+)
+
+// PendingTokenHasher turns a presented pending credential into the value stored in
+// auth_pending.token_hash.
+type PendingTokenHasher struct{ pepper []byte }
+
+func NewPendingTokenHasher(installationSecret secret.Secret) PendingTokenHasher {
+	return PendingTokenHasher{pepper: derivePepper(installationSecret, pendingTokenInfo)}
+}
+
+func (h PendingTokenHasher) Hash(presented string) []byte { return hashUnder(h.pepper, presented) }
+
+// RecoveryCodeHasher turns a normalised recovery code into the value stored in
+// account_recovery_code.code_hash. The pepper is what makes eighty bits enough: without the
+// installation secret there is nothing to brute-force a dump against.
+type RecoveryCodeHasher struct{ pepper []byte }
+
+func NewRecoveryCodeHasher(installationSecret secret.Secret) RecoveryCodeHasher {
+	return RecoveryCodeHasher{pepper: derivePepper(installationSecret, recoveryCodeInfo)}
+}
+
+func (h RecoveryCodeHasher) Hash(normalised string) []byte { return hashUnder(h.pepper, normalised) }
