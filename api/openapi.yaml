@@ -2512,6 +2512,39 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/step-up:
+    post:
+      tags: [auth]
+      operationId: stepUp
+      summary: Prove yourself again, for the irreversible
+      description: >
+        A fresh re-authentication on the current session (security.md §5, H-03): the password, or
+        the TOTP code where one is enrolled. The proof is recorded on the session with its
+        moment, answered as a token that is valid for a short window and consumed by the one
+        privileged action that demanded it - deleting a tenant, changing the `OWNER` role,
+        minting a token with an admin scope, a destructive restore. A second privileged action
+        needs a second proof.
+
+        The operation that found the proof missing answered `403` with `auth.step_up_required`
+        and the accepted methods; this is where a client goes with that answer. The token travels
+        back in the `X-Hubtask-Step-Up` header - or, for the restore, in the request field the
+        contract has carried since 0.4.5.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StepUpRequest"
+      responses:
+        "201":
+          description: Proved, with the token shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepUpGrant"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/mfa:disable:
     post:
       tags: [auth]
@@ -2591,8 +2624,12 @@ paths:
         one the installation declares - the manifest at `/meta/capabilities` lists them - and a
         token can never do more than its holder may, whatever it asks for: the scope is a second
         bound on top of the role, not a grant.
+
+        Asking for an admin scope is a privileged action (security.md §5): it demands a fresh
+        step-up, presented in the `X-Hubtask-Step-Up` header.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/StepUpToken"
       requestBody:
         required: true
         content:
@@ -2832,8 +2869,13 @@ paths:
       description: |
         To an account or to a group, never both. The role applies downwards from the scope:
         a role at a hub applies to its collections and their items.
+
+        Granting `OWNER` is a privileged action (security.md §5): it demands a fresh step-up,
+        presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
+        without one.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/StepUpToken"
       requestBody:
         required: true
         content:
@@ -2860,6 +2902,11 @@ paths:
       description: |
         Takes effect on the next request. What the account holds through a group is unaffected —
         that is the group's membership, revoked separately.
+
+        Revoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up
+        in the `X-Hubtask-Step-Up` header (security.md §5).
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       responses:
         "204":
           description: Revoked
@@ -4991,6 +5038,16 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    StepUpToken:
+      name: X-Hubtask-Step-Up
+      in: header
+      required: false
+      description: >
+        The proof a privileged operation demanded (H-03, security.md §5): the token
+        `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that
+        needs one refuses with `auth.step_up_required` and the accepted methods.
+      schema: { type: string }
+
     ContainerId:
       name: containerId
       in: path
@@ -5549,6 +5606,29 @@ components:
           description: >
             The pair, when a pending credential completed a sign-in here. Absent for a signed-in
             caller, who already holds one.
+
+    StepUpRequest:
+      type: object
+      description: >
+        One of the two, never both: the password, or - where a factor is armed - the
+        authenticator's current code. Either proves the person holding the session is still the
+        person who opened it.
+      properties:
+        password: { type: [string, "null"], maxLength: 1024 }
+        code: { type: [string, "null"], minLength: 6, maxLength: 8 }
+
+    StepUpGrant:
+      type: object
+      required: [step_up_token, expires_at, method]
+      properties:
+        step_up_token:
+          type: string
+          description: Consumed by the one privileged action it is presented to.
+        expires_at: { type: string, format: date-time }
+        method:
+          type: string
+          enum: [PASSWORD, TOTP]
+          description: What proved it - recorded in the audit trail, never the credential.
 
     MfaDisable:
       type: object

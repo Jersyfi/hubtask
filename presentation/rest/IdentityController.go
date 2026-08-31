@@ -89,7 +89,7 @@ func (c *RestController) GrantMembership(w http.ResponseWriter, r *http.Request,
 }
 
 // RevokeMembership answers DELETE /memberships/{membershipId}.
-func (c *RestController) RevokeMembership(w http.ResponseWriter, r *http.Request, membershipID openapi.MembershipId) {
+func (c *RestController) RevokeMembership(w http.ResponseWriter, r *http.Request, membershipID openapi.MembershipId, _ openapi.RevokeMembershipParams) {
 	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
 		return c.UseCases.Invoke(r.Context(), revokeMembershipUseCase, actor, usecase.Input{
 			"membership_id": membershipID.String(),
