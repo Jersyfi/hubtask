@@ -4,3 +4,12 @@
 packages:
   - apps/*
   - packages/*
+
+# `cookie` below 0.7.0 accepts out-of-bounds characters in a cookie name, path or domain
+# (GHSA-pxg6-pf52-xh8x). It reaches the tree through @sveltejs/kit, which still asks for ^0.6.0 in
+# its newest release, so there is no version of the direct dependency that carries the fix - the
+# only way to it is from here. The website is prerendered and ships no server runtime, so nothing
+# released was exposed; this closes the advisory rather than the hole. 0.7 keeps 0.6's API, and the
+# bound stops at 1.0, which does not.
+overrides:
+  cookie@<0.7.0: ^0.7.0
