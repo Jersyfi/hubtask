@@ -712,12 +712,17 @@ echo "--- a mail becomes a task ---"
 # outside over a credential the workspace minted, and a rule turns it into work without anybody
 # touching it. Through curl rather than hubctl, because the intake is a public route with no client
 # behind it - what a bridge does here is exactly this.
+# --retry is not politeness, it is the session's own shape: a whole first hour fired in two seconds
+# spends the rate limiter's burst, and this section is at the end of it. curl treats 429 as the
+# transient error it is and waits, which is what any bridge posting into this intake would do.
 api() {
 	local method="$1" path="$2" body="${3-}" type="${4:-application/json}"
 	if [ -z "$body" ]; then
-		curl -fsS -X "$method" -H "Authorization: Bearer $TOKEN" "$INSTALLATION/api/v1$path"
+		curl -fsS --retry 5 --retry-delay 2 -X "$method" \
+			-H "Authorization: Bearer $TOKEN" "$INSTALLATION/api/v1$path"
 	else
-		curl -fsS -X "$method" -H "Authorization: Bearer $TOKEN" -H "Content-Type: $type" \
+		curl -fsS --retry 5 --retry-delay 2 -X "$method" \
+			-H "Authorization: Bearer $TOKEN" -H "Content-Type: $type" \
 			--data-binary "$body" "$INSTALLATION/api/v1$path"
 	fi
 }
@@ -761,14 +766,22 @@ mail_file="$WORK_DIR/message.eml"
 	printf -- '--outer--\r\n'
 } > "$mail_file"
 
-delivered="$(curl -fsS -X POST -H 'Content-Type: message/rfc822' \
+delivered="$(curl -fsS --retry 5 --retry-delay 2 -X POST -H 'Content-Type: message/rfc822' \
 	--data-binary "@$mail_file" "$INSTALLATION/api/v1/jumble/mail/$INTAKE_TOKEN")"
 ENTRY_ID="$(json_field entry_id "$delivered")"
 [ -n "$ENTRY_ID" ] || { echo "FAILED: the mail was accepted without an entry: $delivered"; exit 1; }
 
-# A wrong token is the same 404 as everything else the intake refuses, and it stores nothing.
-refused_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: message/rfc822' \
-	--data-binary "@$mail_file" "$INSTALLATION/api/v1/jumble/mail/$TENANT_ID.wrongsecret")"
+# A wrong token is the same 404 as everything else the intake refuses, and it stores nothing. The
+# loop is the rate limiter again: this call wants the status rather than the body, so it cannot ask
+# curl to retry for it - a 429 here would be the session's own budget answering, not the intake.
+refused_code=""
+for _ in 1 2 3 4 5; do
+	refused_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+		-H 'Content-Type: message/rfc822' --data-binary "@$mail_file" \
+		"$INSTALLATION/api/v1/jumble/mail/$TENANT_ID.wrongsecret")"
+	[ "$refused_code" = "429" ] || break
+	sleep 2
+done
 if [ "$refused_code" != "404" ]; then
 	fail "a wrong intake token answered $refused_code, want 404"
 fi
