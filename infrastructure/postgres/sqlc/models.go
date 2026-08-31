@@ -367,6 +367,26 @@ type AccountGroupMember struct {
 	AccountID pgtype.UUID
 }
 
+type AccountMfa struct {
+	AccountID   pgtype.UUID
+	TenantID    pgtype.UUID
+	SecretEnc   []byte
+	SecretKeyID string
+	ConfirmedAt pgtype.Timestamptz
+	LastStep    *int64
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type AccountRecoveryCode struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	CodeHash  []byte
+	UsedAt    pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
 type ActivityEntry struct {
 	ID            pgtype.UUID
 	TenantID      pgtype.UUID
@@ -470,6 +490,19 @@ type AuthAttempt struct {
 	Failures      int32
 	LastFailureAt pgtype.Timestamptz
 	LockedUntil   pgtype.Timestamptz
+}
+
+type AuthPending struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	AccountID  pgtype.UUID
+	TokenHash  []byte
+	Purpose    string
+	UserAgent  *string
+	IpClass    *string
+	CreatedAt  pgtype.Timestamptz
+	ExpiresAt  pgtype.Timestamptz
+	ConsumedAt pgtype.Timestamptz
 }
 
 type AutoAssignPolicy struct {
