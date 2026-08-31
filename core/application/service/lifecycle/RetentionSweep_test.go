@@ -646,7 +646,7 @@ func TestAConditionedRuleIsRefusedWhenNoEngineIsWired(t *testing.T) {
 // the entry is marked, and the message is about the entry that was marked.
 func TestTheAdvanceWarningGoesOutWithTheMarking(t *testing.T) {
 	h := newSweepHarness()
-	rule := h.ruleIn(t, func(in *domain.NewRuleInput) {
+	h.ruleIn(t, func(in *domain.NewRuleInput) {
 		in.Notify = &domain.Notify{
 			BeforeDays: 7,
 			Recipients: []domain.Recipient{
@@ -667,7 +667,10 @@ func TestTheAdvanceWarningGoesOutWithTheMarking(t *testing.T) {
 		t.Fatalf("%d warnings, want the one marked entry's", len(h.warnings.sent))
 	}
 	warning := h.warnings.sent[0]
-	if warning.ItemID != taskID || warning.TenantID != rule.TenantID {
+	// The pass's tenant rather than the rule's: a rule read back from the repository carries no
+	// tenant, because row level security bounds the read to the transaction's - and a notification
+	// cannot be written without one.
+	if warning.ItemID != taskID || warning.TenantID != actor().TenantID {
 		t.Errorf("the warning is about %+v", warning)
 	}
 	if len(warning.Recipients) != 2 {

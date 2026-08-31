@@ -107,7 +107,7 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 			// phase on top would be a second grace period on a grace period.
 			continue
 		}
-		marked, err := s.announce(ctx, rules, holds, kind, now)
+		marked, err := s.announce(ctx, actor, rules, holds, kind, now)
 		if err != nil {
 			return outcome, err
 		}
@@ -130,7 +130,7 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 
 // announce is phase one: what is due, what may not go, and what is now on notice.
 func (s Sweeper) announce(
-	ctx context.Context, rules []domain.Rule, holds domain.Holds,
+	ctx context.Context, actor appshared.ActorContext, rules []domain.Rule, holds domain.Holds,
 	kind domain.Kind, now time.Time,
 ) (Outcome, error) {
 	applicable := rulesFor(rules, kind.Name)
@@ -223,7 +223,7 @@ func (s Sweeper) announce(
 			// later: this is the first moment there is anything true to say, and `notify.
 			// before_days` bounds how *late* a warning may be - a rule asking for seven days'
 			// notice gets the grace period's fourteen, which is not less than it asked for.
-			if err := s.warn(ctx, rule, candidate); err != nil {
+			if err := s.warn(ctx, actor, rule, candidate); err != nil {
 				return outcome, err
 			}
 		}
@@ -234,13 +234,18 @@ func (s Sweeper) announce(
 // warn tells the rule's audience about one marked entry, and does nothing for a rule that names
 // nobody or a build wired without the notification path.
 func (s Sweeper) warn(
-	ctx context.Context, rule domain.Rule, candidate repository.Candidate,
+	ctx context.Context, actor appshared.ActorContext, rule domain.Rule,
+	candidate repository.Candidate,
 ) error {
 	if s.Warnings == nil || rule.Notify.Silent() {
 		return nil
 	}
 	return s.Warnings.Warn(ctx, notification.RetentionWarning{
-		TenantID: rule.TenantID,
+		// The pass's tenant rather than the rule's. A rule read back from the repository carries
+		// no tenant - it does not need one, because row level security bounds the read to the
+		// transaction's (ADR-0010) - and the one thing a notification cannot be written without is
+		// exactly that.
+		TenantID: actor.TenantID,
 		ItemID:   candidate.ID,
 		// The entry's chain, which is what the administrators are resolved along: a role held on
 		// the hub administers the collection under it.
