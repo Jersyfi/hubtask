@@ -51,6 +51,14 @@ updates:
       # reads. A major stays on its own, because a major is a decision.
       patch-and-minor:
         update-types: ["minor", "patch"]
+    ignore:
+      # `@types/node` describes a runtime, and this runtime is pinned: .nvmrc says 24 and
+      # `engines.node` says >=24. Types ahead of the runtime make `pnpm -r typecheck` green about
+      # APIs the image does not have (#143, #249), which is worse than no typecheck at all. Minor
+      # and patch updates inside 24.x keep arriving; the major follows the Node line itself, and
+      # that line waits for Node 26 to be declared LTS.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "chore(deps)"
 
@@ -61,5 +69,17 @@ updates:
     groups:
       base-images:
         patterns: ["*"]
+    ignore:
+      # The base images follow the toolchain, they do not lead it. The UI stage is pinned to the
+      # line in .nvmrc, and a major arriving here on its own would build the released interface
+      # with a Node that CI never ran. node:26 also drops corepack, which that stage needs, so the
+      # bump arrived broken as well as ahead of its source (#134). Moving the line is its own
+      # change - .nvmrc, `engines`, the Dockerfile and the corepack install together - and it
+      # waits for Node 26 to be declared LTS.
+      #
+      # `golang:` is deliberately not listed. Its line moves are minor updates, they keep arriving,
+      # and each one is merged together with GO_VERSION in ci.yml and the `toolchain` directive.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "build(deps)"

@@ -10,6 +10,10 @@
 # self-hosting stays two containers: this one and PostgreSQL. A UI container plus a proxy would be
 # four, and would make it possible to run an interface against an API of a different version.
 
+# The line here is the line in .nvmrc, and it moves with it, never ahead of it - the interface in
+# the release image is built by the Node that CI verified. Moving it past 24 also costs a line:
+# Node stopped shipping corepack in v25, so `corepack enable` becomes `npm install -g corepack`
+# first. Dependabot is told to leave this major alone (.github/dependabot.yml).
 FROM node:24-alpine AS ui
 WORKDIR /ui
 ENV CI=true
