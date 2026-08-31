@@ -119,6 +119,7 @@ The automation surface, and the inbox it can act on:
 
 ```bash
 RULE=$(bin/hubctl rule add --name "mail becomes a task" --trigger JUMBLE_ENTRY \
+  --run-as "$ACCOUNT" \
   --action 'CONVERT_JUMBLE_ENTRY:{"collection_id":"'"$COLLECTION"'"}' | awk 'NR==2 {print $1}')
 bin/hubctl rule test "$RULE"                 # the dry run: what it would do, with nothing done
 bin/hubctl rule enable "$RULE"               # a rule is written switched off, always

@@ -93,7 +93,7 @@ func ruleAdd(ctx context.Context, cli *CLI, args []string) error {
 	timezone := flags.String("timezone", "", "SCHEDULE only: an IANA zone, because a schedule without one means something different in summer")
 	scope := flags.String("scope", "TENANT", "TENANT, HUB or COLLECTION")
 	scopeID := flags.String("scope-id", "", "the hub or the collection; TENANT names nothing")
-	runAs := flags.String("run-as", "", "the account the rule acts as (defaults to you)")
+	runAs := flags.String("run-as", "", "the account the rule acts as - it can never do more than that account may")
 	onError := flags.String("on-error", "", "STOP, CONTINUE or RETRY")
 	var actions actionList
 	flags.Var(&actions, "action", "a step, as KIND or KIND:{\"json\":\"params\"}; repeat for several")
@@ -103,12 +103,24 @@ func ruleAdd(ctx context.Context, cli *CLI, args []string) error {
 	if *name == "" || *trigger == "" || len(actions) == 0 {
 		return usagef("rule add needs --name, --trigger and at least one --action")
 	}
+	// The account the rule acts as is named rather than guessed. This installation has no "who am
+	// I" route to ask, and defaulting to the caller would be the client deciding whose rights a
+	// standing instruction runs with - which is exactly the composition rule automation.md §2
+	// makes the writer's decision.
+	if *runAs == "" {
+		return usagef("rule add needs --run-as: a rule acts as an account, and which one is not a guess")
+	}
 
 	create := openapi.AutomationRuleCreate{
 		Name:    *name,
 		Actions: actions,
 		Trigger: openapi.RuleTrigger{Kind: openapi.RuleTriggerKind(*trigger)},
 	}
+	runAsID, err := cli.parseID("--run-as", *runAs)
+	if err != nil {
+		return err
+	}
+	create.RunAs = runAsID
 	create.Scope.Type = openapi.RuleScopeType(*scope)
 	if *scopeID != "" {
 		parsed, err := cli.parseID("--scope-id", *scopeID)
@@ -134,21 +146,6 @@ func ruleAdd(ctx context.Context, cli *CLI, args []string) error {
 	client, err := cli.client()
 	if err != nil {
 		return err
-	}
-	// The account the rule acts as. Answered by the profile rather than invented here: a rule that
-	// ran as somebody the caller never named would be a rule laundering rights (automation.md §2).
-	if *runAs != "" {
-		parsed, err := cli.parseID("--run-as", *runAs)
-		if err != nil {
-			return err
-		}
-		create.RunAs = parsed
-	} else {
-		me, err := currentAccount(ctx, client)
-		if err != nil {
-			return err
-		}
-		create.RunAs = me
 	}
 
 	var written openapi.AutomationRule
@@ -538,15 +535,6 @@ func matchedState(matched bool) string {
 		return "would run"
 	}
 	return "would not run"
-}
-
-// currentAccount answers who the caller is, for the rule's `run_as`.
-func currentAccount(ctx context.Context, client *Client) (openapitypes.UUID, error) {
-	var me openapi.Account
-	if err := client.Get(ctx, "/me", nil, &me); err != nil {
-		return openapitypes.UUID{}, err
-	}
-	return me.Id, nil
 }
 
 // onlyID is takeID for a command that takes an identifier and nothing else. It exists so that a

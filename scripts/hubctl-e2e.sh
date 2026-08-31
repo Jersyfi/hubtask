@@ -739,6 +739,7 @@ INTAKE_TOKEN="$(json_field token "$intake")"
 # switched off, as every rule is, and enabled by its own call - which is the point of that split,
 # and which the client refuses to smooth over.
 rule="$(hubctl --json rule add --name 'mail becomes a task' --trigger JUMBLE_ENTRY \
+	--run-as "$ACCOUNT_ID" \
 	--action "CONVERT_JUMBLE_ENTRY:{\"collection_id\":\"$COLLECTION_ID\"}")"
 RULE_ID="$(json_field id "$rule")"
 [ -n "$RULE_ID" ] || { echo "FAILED: writing the rule produced no identifier: $rule"; exit 1; }

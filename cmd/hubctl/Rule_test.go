@@ -28,18 +28,10 @@ const oneRule = `{"id":"` + ruleID + `","name":"Escalate overdue approvals",
 // A rule is written switched off, and the client says so rather than enabling it as a kindness:
 // writing what a rule would do and letting it loose on the workspace are two decisions.
 func TestWritingARuleSendsItsShapeAndSaysItIsOff(t *testing.T) {
-	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if strings.HasSuffix(r.URL.Path, "/me") {
-			_, _ = w.Write([]byte(`{"id":"` + itemID + `","display_name":"Anna","email":"a@example.org"}`))
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(oneRule))
-	})
+	stub := serveJSON(t, http.StatusCreated, oneRule)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"rule", "add", "--name", "Escalate overdue approvals",
+		"rule", "add", "--name", "Escalate overdue approvals", "--run-as", itemID,
 		"--trigger", "EVENT", "--event-type", "de.hubtask.work.item.overdue.v1",
 		"--action", `ADD_LABEL:{"label_id":"`+collectionID+`"}`)
 	if code != exitOK {
@@ -63,7 +55,8 @@ func TestWritingARuleSendsItsShapeAndSaysItIsOff(t *testing.T) {
 	if action["kind"] != "ADD_LABEL" || params["label_id"] != collectionID {
 		t.Errorf("the action reached the server as %v", action)
 	}
-	// The account it acts as is answered by the installation rather than invented here.
+	// The account it acts as is named by whoever writes the rule, because a rule can never do more
+	// than that account may - and a client that guessed would be guessing whose rights.
 	if sent["run_as"] != itemID {
 		t.Errorf("run_as %v", sent["run_as"])
 	}
@@ -80,7 +73,7 @@ func TestAnActionWithoutAKindIsRefusedHere(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneRule)
 
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"rule", "add", "--name", "x", "--trigger", "MANUAL", "--action", ":{}")
+		"rule", "add", "--name", "x", "--trigger", "MANUAL", "--run-as", itemID, "--action", ":{}")
 	if code != exitUsage {
 		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
 	}
@@ -95,7 +88,8 @@ func TestActionParametersThatAreNotJSONAreRefusedHere(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneRule)
 
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"rule", "add", "--name", "x", "--trigger", "MANUAL", "--action", "ADD_LABEL:not json")
+		"rule", "add", "--name", "x", "--trigger", "MANUAL", "--run-as", itemID,
+		"--action", "ADD_LABEL:not json")
 	if code != exitUsage {
 		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
 	}
@@ -193,5 +187,21 @@ func TestTheRuleListingIsPipeable(t *testing.T) {
 	}
 	if errOut != "" {
 		t.Errorf("standard error carried %q, which would break a pipe reading both", errOut)
+	}
+}
+
+// The account a rule acts as is named rather than guessed: this installation has no "who am I"
+// route to ask, and a client that defaulted to the caller would be deciding whose rights a
+// standing instruction runs with (automation.md §2).
+func TestARuleWithoutAnAccountToActAsIsRefusedHere(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneRule)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"rule", "add", "--name", "x", "--trigger", "MANUAL", "--action", "ADD_LABEL")
+	if code != exitUsage {
+		t.Fatalf("exit %d, want %d: %s", code, exitUsage, errOut)
+	}
+	if !strings.Contains(errOut, "--run-as") {
+		t.Errorf("the complaint does not name what is missing: %q", errOut)
 	}
 }
