@@ -161,6 +161,16 @@ be predicting a permission decision, and the one prediction that matters is the 
 The same goes for its two switches: enabling a rule is a decision recorded in the audit trail, and a
 device cannot record one.
 
+**A session does not travel at all, and neither does anything else the sign-in flow stores
+(H-01).** The `session` row, its refresh family, the attempt ledger and the redemption token are
+credentials and bookkeeping about credentials, not work: none of them is in the change log, none
+is merged, and a device holds nothing about them beyond the pair it was handed at sign-in - which
+it stores in its own keychain, outside this protocol. The one answer to every conflict question
+about them is the server's row: a revocation observed by one device is not merged onto another,
+it simply makes the next request refuse. That is written down here rather than implied, because
+the Definition of Done asks for a merge rule per new field and "these fields have no merge,
+by construction" is the rule.
+
 **A calendar feed does not travel at all.** It is a credential over a view rather than a piece of
 work: it is not in the change log, it is not merged, and a device holds nothing about it beyond
 whatever URL its calendar client stored. §1 already puts "applying templates" and the rest of the

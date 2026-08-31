@@ -50,8 +50,8 @@ type RunRetention struct {
 	// installation wired without it sweeps exactly what it did before, and the rows it would
 	// have removed are already unusable - the sweep forgets, revocation ends.
 	Sessions ExpiredSessions
-	Clock clock.Clock
-	IDs   clock.IDGenerator
+	Clock    clock.Clock
+	IDs      clock.IDGenerator
 	// Signals is the observability slice. Optional: a run without it still runs, which is what keeps
 	// a metrics adapter from being a dependency of the deletion path.
 	Signals RetentionSignals

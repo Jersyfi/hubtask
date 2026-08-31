@@ -4,6 +4,7 @@
 package notification
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 const baseURL = "https://hub.example.org"
@@ -351,5 +353,78 @@ func TestTheReadIsReadOnlyAndTheWriteBackIsNot(t *testing.T) {
 	scopes = append(scopes, fixture.work.scopes...)
 	if len(scopes) != 2 {
 		t.Errorf("%d transactions, want the read and the write-back", len(scopes))
+	}
+}
+
+// redemptionMinter is the identity service's seam, as a fake: it answers a fixed token, or the
+// empty secret for an account that is no longer waiting.
+type redemptionMinter struct {
+	token   string
+	minted  []shared.ID
+	settled bool
+}
+
+func (m *redemptionMinter) MintRedemptionToken(
+	_ context.Context, _, accountID shared.ID,
+) (secret.Secret, error) {
+	m.minted = append(m.minted, accountID)
+	if m.settled {
+		return secret.Secret{}, nil
+	}
+	return secret.New(m.token), nil
+}
+
+// The invitation mail carries the redemption token (H-01): minted at delivery, in the URL
+// fragment where no server log sees it, and in no other category's mail.
+func TestAnInvitationMailCarriesTheRedemptionLink(t *testing.T) {
+	fixture := delivery(t, domain.CategoryInvitation, false)
+	minter := &redemptionMinter{token: "hbt_inv_0192f0000000700080000000000000aa_secret"}
+	fixture.delivery.Redemptions = minter
+
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+
+	if len(fixture.mailbox.sent) != 1 {
+		t.Fatalf("%d messages sent, want one", len(fixture.mailbox.sent))
+	}
+	body := fixture.mailbox.sent[0].Body
+	if !strings.Contains(body, baseURL+"/redeem#token=") || !strings.Contains(body, "hbt_inv_") {
+		t.Errorf("body %q, want the redemption link in the fragment", body)
+	}
+	if len(minter.minted) != 1 || minter.minted[0] != bert {
+		t.Errorf("minted for %v, want the recipient", minter.minted)
+	}
+}
+
+// An account no longer waiting gets the plain link: the mail still says somebody invited them,
+// and the door it points at is the ordinary one.
+func TestASettledInvitationMailCarriesThePlainLink(t *testing.T) {
+	fixture := delivery(t, domain.CategoryInvitation, false)
+	fixture.delivery.Redemptions = &redemptionMinter{settled: true}
+
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	body := fixture.mailbox.sent[0].Body
+	if strings.Contains(body, "hbt_inv_") || strings.Contains(body, "#token=") {
+		t.Errorf("body %q carries a token for a settled account", body)
+	}
+}
+
+// Another category's mail never mints and never carries one.
+func TestOnlyTheInvitationMintsARedemptionToken(t *testing.T) {
+	fixture := delivery(t, domain.CategoryAssignment, true)
+	minter := &redemptionMinter{token: "hbt_inv_0192f0000000700080000000000000aa_secret"}
+	fixture.delivery.Redemptions = minter
+
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(minter.minted) != 0 {
+		t.Errorf("an assignment mail minted a redemption token for %v", minter.minted)
+	}
+	if strings.Contains(fixture.mailbox.sent[0].Body, "hbt_inv_") {
+		t.Error("an assignment mail carries a redemption token")
 	}
 }

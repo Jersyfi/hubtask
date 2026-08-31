@@ -98,6 +98,18 @@ func confidentialValues(t *testing.T) []any {
 			},
 			Secret: secret.New(credential),
 		},
+		// And the path H-01 added: the sign-in pair travels from the use case to the response as
+		// one struct holding both credentials, and both have to mask however the struct is
+		// printed - no password, hash or token in any log is the acceptance's own words.
+		identity.SessionPair{
+			AccessToken:  secret.New(masterMaterial),
+			RefreshToken: secret.New(passphrase),
+			Session:      model.Session{ID: "01936f2a-7c1e-7000-8000-0000000000d3"},
+		},
+		identity.SignInCommand{
+			Email:    "somebody@example.org",
+			Password: secret.New(credential),
+		},
 	}
 }
 

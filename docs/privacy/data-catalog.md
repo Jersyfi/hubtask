@@ -45,8 +45,9 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Membership, role, groups | `membership`, `account_group_member` | `PERSONAL_BASIC` | Permissions | Contract | The lifetime of the membership | `CASCADE` |
 | Token hash, scopes, label | `access_token` | `SECRET` (+ `PERSONAL_BASIC` for the name) | API access | Contract | Until revocation/expiry, max. 1 year | `CASCADE` |
 | Last token use (time, truncated IP) | `access_token` | `PERSONAL_TECHNICAL` | Abuse detection | Legitimate interest | 90 days | `RETENTION` |
-| Sessions (refresh family, device characteristics, truncated IP) | `session` | `PERSONAL_TECHNICAL` | Session management, security | Legitimate interest | 30 days after expiry | `RETENTION` |
-| Failed sign-ins, lockout counters | `login_attempt` | `PERSONAL_TECHNICAL` | Brute force protection | Legitimate interest | 30 days | `RETENTION` |
+| Sessions (user agent, IP class - an IPv4 /24 or IPv6 /48, never the full address) | `session`, `session_refresh_token` | `PERSONAL_TECHNICAL` | Session management, security (T-01's client-binding hint) | Legitimate interest | 30 days after the last use, once expired or revoked | `RETENTION` |
+| Failed sign-ins, lockout counters (the subject only ever a keyed hash of the address or network) | `auth_attempt` | `PERSONAL_TECHNICAL` | Brute force protection (T-02) | Legitimate interest | Until the next successful sign-in wipes the slate | `HASH_ONLY`, `CASCADE` |
+| Invitation redemption token (hash) | `account` | `SECRET` | Redeeming an invitation | Contract | 14 days, or until redeemed | `HASH_ONLY`, `CASCADE` |
 | Invitations (address, status) | `account` (status `INVITED`) | `PERSONAL_BASIC` | Onboarding | Contract | With the account; an invitation never accepted is an account never used | `CASCADE` |
 | Who invited whom, and when | `audit_log` | `PERSONAL_TECHNICAL` | Evidence of how somebody got access | Legitimate interest | The audit period | `IMMUTABLE` |
 | Queued invitation message (identifiers only) | `job` | `PERSONAL_TECHNICAL` (references) | Delivering the invitation | Contract | 7 days after completion | `RETENTION` |
@@ -166,9 +167,10 @@ individually switchable, and enumerated here in full:
 4. Gate PG-7 compares the schema and the catalogue automatically; PG-2 verifies the deletion paths in practice.
 5. An invitation is an account, not a separate record. There is no `invitation` table: the account
    exists in `INVITED` status from the moment somebody is invited, so a permission can be granted
-   to it before the person signs in, and nothing they were given works until they do. A row with a
-   redemption token arrives with the sign-in flow (`0.6.0`), because a token nobody can redeem is a
-   credential lying around for months.
+   to it before the person signs in, and nothing they were given works until they do. The
+   redemption token arrived with the sign-in flow (H-01): minted when the invitation mail is
+   delivered, stored only as a hash on the account, redeemable for 14 days, and dead on
+   redemption - a token nobody can redeem is never lying around for months.
 6. A partition is not a data category. `audit_log_2026_08` and the other partitions of `audit_log`
    and `change_log` are recorded through their parent table, and a gate reconciling the schema
    against this document has to resolve them to it rather than demand a row of their own.
