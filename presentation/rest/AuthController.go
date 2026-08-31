@@ -47,7 +47,7 @@ func (c *RestController) ListAccessTokens(
 
 // CreateAccessToken answers POST /auth/tokens.
 func (c *RestController) CreateAccessToken(
-	w http.ResponseWriter, r *http.Request, _ openapi.CreateAccessTokenParams,
+	w http.ResponseWriter, r *http.Request, params openapi.CreateAccessTokenParams,
 ) {
 	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
 		var body openapi.AccessTokenCreate
@@ -65,8 +65,9 @@ func (c *RestController) CreateAccessToken(
 			// RFC 3339 is the one spelling the contract declares, and the generated type has
 			// already parsed it; formatting it back is what keeps the catalogue's input the same
 			// shape whichever channel filled it.
-			"expires_at": body.ExpiresAt.Format(time.RFC3339),
-			"account_id": optionalUUIDField(body.AccountId),
+			"expires_at":    body.ExpiresAt.Format(time.RFC3339),
+			"account_id":    optionalUUIDField(body.AccountId),
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
 		})
 	}, func(out usecase.Output) {
 		minted := openapi.AccessTokenSecret{

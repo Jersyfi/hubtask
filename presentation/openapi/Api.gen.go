@@ -1598,19 +1598,19 @@ func (e MembershipScope) Valid() bool {
 
 // Defines values for MfaChallengeMethods.
 const (
-	ENROLL   MfaChallengeMethods = "ENROLL"
-	RECOVERY MfaChallengeMethods = "RECOVERY"
-	TOTP     MfaChallengeMethods = "TOTP"
+	MfaChallengeMethodsENROLL   MfaChallengeMethods = "ENROLL"
+	MfaChallengeMethodsRECOVERY MfaChallengeMethods = "RECOVERY"
+	MfaChallengeMethodsTOTP     MfaChallengeMethods = "TOTP"
 )
 
 // Valid indicates whether the value is a known member of the MfaChallengeMethods enum.
 func (e MfaChallengeMethods) Valid() bool {
 	switch e {
-	case ENROLL:
+	case MfaChallengeMethodsENROLL:
 		return true
-	case RECOVERY:
+	case MfaChallengeMethodsRECOVERY:
 		return true
-	case TOTP:
+	case MfaChallengeMethodsTOTP:
 		return true
 	default:
 		return false
@@ -2289,6 +2289,24 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StepUpGrantMethod.
+const (
+	StepUpGrantMethodPASSWORD StepUpGrantMethod = "PASSWORD"
+	StepUpGrantMethodTOTP     StepUpGrantMethod = "TOTP"
+)
+
+// Valid indicates whether the value is a known member of the StepUpGrantMethod enum.
+func (e StepUpGrantMethod) Valid() bool {
+	switch e {
+	case StepUpGrantMethodPASSWORD:
+		return true
+	case StepUpGrantMethodTOTP:
 		return true
 	default:
 		return false
@@ -5088,6 +5106,26 @@ type SignInCompletion struct {
 	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
 
+// StepUpGrant defines model for StepUpGrant.
+type StepUpGrant struct {
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Method What proved it - recorded in the audit trail, never the credential.
+	Method StepUpGrantMethod `json:"method"`
+
+	// StepUpToken Consumed by the one privileged action it is presented to.
+	StepUpToken string `json:"step_up_token"`
+}
+
+// StepUpGrantMethod What proved it - recorded in the audit trail, never the credential.
+type StepUpGrantMethod string
+
+// StepUpRequest One of the two, never both: the password, or - where a factor is armed - the authenticator's current code. Either proves the person holding the session is still the person who opened it.
+type StepUpRequest struct {
+	Code     *string `json:"code,omitempty"`
+	Password *string `json:"password,omitempty"`
+}
+
 // SyncChange defines model for SyncChange.
 type SyncChange struct {
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
@@ -5721,6 +5759,9 @@ type RuleId = openapi_types.UUID
 // SessionId defines model for SessionId.
 type SessionId = openapi_types.UUID
 
+// StepUpToken defines model for StepUpToken.
+type StepUpToken = string
+
 // TemplateId defines model for TemplateId.
 type TemplateId = openapi_types.UUID
 
@@ -5783,6 +5824,9 @@ type ListAccessTokensParams struct {
 type CreateAccessTokenParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required` and the accepted methods.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // StartInboundRunJSONBody defines parameters for StartInboundRun.
@@ -6400,6 +6444,15 @@ type UploadMediaContentParams struct {
 type GrantMembershipParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required` and the accepted methods.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// RevokeMembershipParams defines parameters for RevokeMembership.
+type RevokeMembershipParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required` and the accepted methods.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListDataSubjectRequestsParams defines parameters for ListDataSubjectRequests.
@@ -6555,6 +6608,9 @@ type RefreshSessionJSONRequestBody = SessionRefresh
 
 // CompleteSignInJSONRequestBody defines body for CompleteSignIn for application/json ContentType.
 type CompleteSignInJSONRequestBody = SignInCompletion
+
+// StepUpJSONRequestBody defines body for StepUp for application/json ContentType.
+type StepUpJSONRequestBody = StepUpRequest
 
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = AccessTokenCreate
@@ -6810,6 +6866,9 @@ type ServerInterface interface {
 	// CompleteSignIn Present the second factor and receive the pair
 	// (POST /auth/sessions:verify)
 	CompleteSignIn(w http.ResponseWriter, r *http.Request)
+	// StepUp Prove yourself again, for the irreversible
+	// (POST /auth/step-up)
+	StepUp(w http.ResponseWriter, r *http.Request)
 	// ListAccessTokens The caller's own personal access tokens
 	// (GET /auth/tokens)
 	ListAccessTokens(w http.ResponseWriter, r *http.Request, params ListAccessTokensParams)
@@ -7202,7 +7261,7 @@ type ServerInterface interface {
 	GrantMembership(w http.ResponseWriter, r *http.Request, params GrantMembershipParams)
 	// RevokeMembership Take a role away
 	// (DELETE /memberships/{membershipId})
-	RevokeMembership(w http.ResponseWriter, r *http.Request, membershipId MembershipId)
+	RevokeMembership(w http.ResponseWriter, r *http.Request, membershipId MembershipId, params RevokeMembershipParams)
 	// GetCapabilities Self-description of the installation
 	// (GET /meta/capabilities)
 	GetCapabilities(w http.ResponseWriter, r *http.Request)
@@ -7772,6 +7831,20 @@ func (siw *ServerInterfaceWrapper) CompleteSignIn(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// StepUp operation middleware
+func (siw *ServerInterfaceWrapper) StepUp(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StepUp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListAccessTokens operation middleware
 func (siw *ServerInterfaceWrapper) ListAccessTokens(w http.ResponseWriter, r *http.Request) {
 
@@ -7832,6 +7905,25 @@ func (siw *ServerInterfaceWrapper) CreateAccessToken(w http.ResponseWriter, r *h
 		}
 
 		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
 
 	}
 
@@ -13223,6 +13315,25 @@ func (siw *ServerInterfaceWrapper) GrantMembership(w http.ResponseWriter, r *htt
 
 	}
 
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GrantMembership(w, r, params)
 	}))
@@ -13249,8 +13360,32 @@ func (siw *ServerInterfaceWrapper) RevokeMembership(w http.ResponseWriter, r *ht
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RevokeMembershipParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RevokeMembership(w, r, membershipId)
+		siw.Handler.RevokeMembership(w, r, membershipId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14581,6 +14716,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up", wrapper.StepUp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa:disable", wrapper.DisableTotp)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/tokens", wrapper.ListAccessTokens)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/tokens", wrapper.CreateAccessToken)

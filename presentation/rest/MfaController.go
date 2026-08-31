@@ -159,3 +159,43 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 		Methods:      methods,
 	}
 }
+
+const stepUpUseCase = "StepUp"
+
+// StepUp answers POST /auth/step-up. Written out for DisableTotp's reason.
+func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.StepUpRequest
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), stepUpUseCase, actorOf(r), usecase.Input{
+		"password": optionalStringField(body.Password),
+		"code":     optionalStringField(body.Code),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	// The single showing of the proof (T-18's discipline).
+	writeJSON(w, r, http.StatusCreated, openapi.StepUpGrant{
+		StepUpToken: out.String("step_up_token"),
+		ExpiresAt:   timeValue(out["expires_at"]),
+		Method:      openapi.StepUpGrantMethod(out.String("method")),
+	})
+}
+
+// stepUpHeaderField reads the proof off the header a privileged operation accepts it in.
+func stepUpHeaderField(token *openapi.StepUpToken) any {
+	if token == nil || *token == "" {
+		return nil
+	}
+	return string(*token)
+}

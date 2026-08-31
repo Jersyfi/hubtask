@@ -683,3 +683,86 @@ func (r SignInRepository) PasswordHashOf(
 	}
 	return secret.New(stringFrom(hash)), nil
 }
+
+// StepUpRepository maintains the proof of H-03 on the session rows. A type of its own for
+// RefreshTokenRepository's reason: it hashes a different credential under a different label.
+type StepUpRepository struct {
+	hasher security.StepUpTokenHasher
+}
+
+func NewStepUpRepository(hasher security.StepUpTokenHasher) StepUpRepository {
+	return StepUpRepository{hasher: hasher}
+}
+
+var _ repository.StepUps = StepUpRepository{}
+
+func (r StepUpRepository) Record(
+	ctx context.Context, sessionID, accountID shared.ID,
+	presented identity.Token, method identity.StepUpMethod, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(sessionID)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.RecordStepUp(ctx, sqlc.RecordStepUpParams{
+		TokenHash: r.hasher.Hash(presented.Secret()),
+		Now:       pgtype.Timestamptz{Time: at, Valid: true},
+		Method:    nullableString(string(method)),
+		ID:        id,
+		AccountID: account,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording the step-up: %w", err))
+	}
+	return changed > 0, nil
+}
+
+func (r StepUpRepository) Consume(
+	ctx context.Context, presented identity.Token, accountID shared.ID,
+	cutoff, now time.Time,
+) (identity.StepUpMethod, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return "", false, err
+	}
+	hash := r.hasher.Hash(presented.Secret())
+
+	// The method first: the consuming UPDATE cannot answer columns, and the read is bounded by
+	// the same unique hash the write is.
+	method, err := queries.FindStepUpMethod(ctx, sqlc.FindStepUpMethodParams{
+		TokenHash: hash,
+		AccountID: account,
+	})
+	if err != nil && !IsNoRows(err) {
+		return "", false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the step-up method: %w", err))
+	}
+
+	changed, err := queries.ConsumeStepUp(ctx, sqlc.ConsumeStepUpParams{
+		Now:       pgtype.Timestamptz{Time: now, Valid: true},
+		TokenHash: hash,
+		AccountID: account,
+		Cutoff:    pgtype.Timestamptz{Time: cutoff, Valid: true},
+	})
+	if err != nil {
+		return "", false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("consuming the step-up: %w", err))
+	}
+	return identity.StepUpMethod(stringFrom(method)), changed > 0, nil
+}

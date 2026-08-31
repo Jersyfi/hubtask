@@ -51,7 +51,7 @@ func (pending) GrantMembership(w http.ResponseWriter, r *http.Request, _ openapi
 	notAvailable(w, r)
 }
 
-func (pending) RevokeMembership(w http.ResponseWriter, r *http.Request, _ openapi.MembershipId) {
+func (pending) RevokeMembership(w http.ResponseWriter, r *http.Request, _ openapi.MembershipId, _ openapi.RevokeMembershipParams) {
 	notAvailable(w, r)
 }
 
@@ -92,6 +92,8 @@ func (pending) EnrollTotp(w http.ResponseWriter, r *http.Request) { notAvailable
 func (pending) ConfirmTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) DisableTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) StepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // The five credential operations of G-01. All of them are overridden by RestController; they stay
 // here because the compile-time check above needs every method of the interface.

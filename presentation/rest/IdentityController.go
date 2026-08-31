@@ -68,18 +68,19 @@ func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http
 }
 
 // GrantMembership answers POST /memberships.
-func (c *RestController) GrantMembership(w http.ResponseWriter, r *http.Request, _ openapi.GrantMembershipParams) {
+func (c *RestController) GrantMembership(w http.ResponseWriter, r *http.Request, params openapi.GrantMembershipParams) {
 	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
 		var body openapi.MembershipGrant
 		if err := decodeJSON(r, &body); err != nil {
 			return nil, err
 		}
 		return c.UseCases.Invoke(r.Context(), grantMembershipUseCase, actor, usecase.Input{
-			"scope_type": string(body.ScopeType),
-			"role":       string(body.Role),
-			"account_id": optionalUUIDField(body.AccountId),
-			"group_id":   optionalUUIDField(body.GroupId),
-			"scope_id":   optionalUUIDField(body.ScopeId),
+			"scope_type":    string(body.ScopeType),
+			"role":          string(body.Role),
+			"account_id":    optionalUUIDField(body.AccountId),
+			"group_id":      optionalUUIDField(body.GroupId),
+			"scope_id":      optionalUUIDField(body.ScopeId),
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
 		})
 	}, func(out usecase.Output) {
 		membership := membershipResponse(out)
@@ -89,10 +90,11 @@ func (c *RestController) GrantMembership(w http.ResponseWriter, r *http.Request,
 }
 
 // RevokeMembership answers DELETE /memberships/{membershipId}.
-func (c *RestController) RevokeMembership(w http.ResponseWriter, r *http.Request, membershipID openapi.MembershipId) {
+func (c *RestController) RevokeMembership(w http.ResponseWriter, r *http.Request, membershipID openapi.MembershipId, params openapi.RevokeMembershipParams) {
 	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
 		return c.UseCases.Invoke(r.Context(), revokeMembershipUseCase, actor, usecase.Input{
 			"membership_id": membershipID.String(),
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
 		})
 	}, func(usecase.Output) {
 		w.WriteHeader(http.StatusNoContent)

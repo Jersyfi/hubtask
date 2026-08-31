@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -36,6 +37,8 @@ type GrantMembershipCommand struct {
 	GroupID   shared.ID
 	Scope     domain.Scope
 	Role      domain.Role
+	// StepUpToken is the fresh proof granting OWNER demands (H-03, security.md §5).
+	StepUpToken string
 }
 
 // GrantMembership gives an account or a group a role at a scope.
@@ -53,6 +56,9 @@ type GrantMembership struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// StepUp judges the fresh proof an OWNER grant demands (H-03). Nil refuses rather than
+	// permits, the seam's own rule.
+	StepUp stepup.Verifier
 }
 
 // Execute records the grant and returns it.
@@ -73,6 +79,14 @@ func (h GrantMembership) Execute(
 		TargetID:   grant.Scope.ID,
 	}); err != nil {
 		return domain.Grant{}, err
+	}
+
+	// Handing out OWNER is changing the OWNER role (security.md §5): the privileged act demands
+	// a fresh proof, and the proof is consumed by this one grant.
+	if grant.Role == domain.RoleOwner {
+		if err := stepup.Demand(ctx, h.StepUp, actor.AccountID, cmd.StepUpToken); err != nil {
+			return domain.Grant{}, err
+		}
 	}
 
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -200,7 +214,12 @@ func (h GrantMembership) Descriptor() usecase.Descriptor {
 				Name: "scope_id", Kind: usecase.KindID,
 				Description: "The hub, collection or item the role applies to. Omitted for the whole workspace.",
 			},
+			{
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The fresh proof granting OWNER demands (security.md §5).",
+			},
 		},
+		StepUp: "granting the OWNER role",
 		Audit: usecase.AuditDeclaration{
 			Action: MembershipGrantedAction, TargetType: membershipTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -226,10 +245,11 @@ func (h GrantMembership) invoke(
 	}
 
 	grant, err := h.Execute(ctx, actor, GrantMembershipCommand{
-		AccountID: accountID,
-		GroupID:   groupID,
-		Scope:     domain.Scope{Type: domain.ScopeType(in.String("scope_type")), ID: scopeID},
-		Role:      domain.Role(in.String("role")),
+		AccountID:   accountID,
+		GroupID:     groupID,
+		Scope:       domain.Scope{Type: domain.ScopeType(in.String("scope_type")), ID: scopeID},
+		Role:        domain.Role(in.String("role")),
+		StepUpToken: in.String("step_up_token"),
 	})
 	if err != nil {
 		return nil, err
@@ -267,6 +287,8 @@ func roleNames() []string {
 // RevokeMembershipCommand is the input, typed.
 type RevokeMembershipCommand struct {
 	MembershipID shared.ID
+	// StepUpToken is the fresh proof revoking an OWNER membership demands (H-03).
+	StepUpToken string
 }
 
 // RevokeMembership takes a role away.
@@ -281,6 +303,8 @@ type RevokeMembership struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// StepUp judges the fresh proof revoking an OWNER membership demands (H-03).
+	StepUp stepup.Verifier
 }
 
 // Execute removes the membership.
@@ -318,6 +342,13 @@ func (h RevokeMembership) Execute(
 		TargetID:   grant.ID,
 	}); err != nil {
 		return err
+	}
+
+	// Taking OWNER away is changing the OWNER role as much as handing it out is (security.md §5).
+	if grant.Role == domain.RoleOwner {
+		if err := stepup.Demand(ctx, h.StepUp, actor.AccountID, cmd.StepUpToken); err != nil {
+			return err
+		}
 	}
 
 	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -371,7 +402,12 @@ func (h RevokeMembership) Descriptor() usecase.Descriptor {
 				Name: "membership_id", Kind: usecase.KindID, Required: true,
 				Description: "The membership to remove.",
 			},
+			{
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The fresh proof revoking an OWNER membership demands (security.md §5).",
+			},
 		},
+		StepUp: "revoking an OWNER membership",
 		Audit: usecase.AuditDeclaration{
 			Action: MembershipRevokedAction, TargetType: membershipTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -387,7 +423,10 @@ func (h RevokeMembership) invoke(
 	if err != nil {
 		return nil, err
 	}
-	if err := h.Execute(ctx, actor, RevokeMembershipCommand{MembershipID: membershipID}); err != nil {
+	if err := h.Execute(ctx, actor, RevokeMembershipCommand{
+		MembershipID: membershipID,
+		StepUpToken:  in.String("step_up_token"),
+	}); err != nil {
 		return nil, err
 	}
 	return usecase.Output{}, nil

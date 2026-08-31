@@ -86,6 +86,39 @@ func (q *Queries) ConsumePendingCredential(ctx context.Context, arg ConsumePendi
 	return result.RowsAffected(), nil
 }
 
+const consumeStepUp = `-- name: ConsumeStepUp :execrows
+UPDATE session SET step_up_consumed_at = $1
+WHERE step_up_token_hash = $2
+  AND account_id = $3
+  AND step_up_consumed_at IS NULL
+  AND step_up_at >= $4
+  AND revoked_at IS NULL
+  AND expires_at > $1
+`
+
+type ConsumeStepUpParams struct {
+	Now       pgtype.Timestamptz
+	TokenHash []byte
+	AccountID pgtype.UUID
+	Cutoff    pgtype.Timestamptz
+}
+
+// The one statement the whole feature turns on: the proof is judged and burned atomically -
+// fresh, unconsumed, on a live session of this account - so two privileged actions racing for
+// one proof settle in the database, not in Go. Zero rows is "not proved", whatever the reason.
+func (q *Queries) ConsumeStepUp(ctx context.Context, arg ConsumeStepUpParams) (int64, error) {
+	result, err := q.db.Exec(ctx, consumeStepUp,
+		arg.Now,
+		arg.TokenHash,
+		arg.AccountID,
+		arg.Cutoff,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countExpiredSessions = `-- name: CountExpiredSessions :one
 SELECT count(*) FROM (
   SELECT 1 FROM session AS expired
@@ -559,6 +592,24 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 	return i, err
 }
 
+const findStepUpMethod = `-- name: FindStepUpMethod :one
+SELECT step_up_method FROM session
+WHERE step_up_token_hash = $1 AND account_id = $2
+`
+
+type FindStepUpMethodParams struct {
+	TokenHash []byte
+	AccountID pgtype.UUID
+}
+
+// What proved it, for the audit entry - never the credential.
+func (q *Queries) FindStepUpMethod(ctx context.Context, arg FindStepUpMethodParams) (*string, error) {
+	row := q.db.QueryRow(ctx, findStepUpMethod, arg.TokenHash, arg.AccountID)
+	var step_up_method *string
+	err := row.Scan(&step_up_method)
+	return step_up_method, err
+}
+
 const insertPendingCredential = `-- name: InsertPendingCredential :exec
 
 INSERT INTO auth_pending
@@ -701,6 +752,43 @@ type RecordMfaStepParams struct {
 // means the same or an older code was presented again.
 func (q *Queries) RecordMfaStep(ctx context.Context, arg RecordMfaStepParams) (int64, error) {
 	result, err := q.db.Exec(ctx, recordMfaStep, arg.Step, arg.Now, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const recordStepUp = `-- name: RecordStepUp :execrows
+
+UPDATE session SET
+  step_up_token_hash  = $1,
+  step_up_at          = $2,
+  step_up_method      = $3,
+  step_up_consumed_at = NULL
+WHERE id = $4
+  AND account_id = $5
+  AND revoked_at IS NULL
+`
+
+type RecordStepUpParams struct {
+	TokenHash []byte
+	Now       pgtype.Timestamptz
+	Method    *string
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// ============================ The step-up (H-03) ============================
+// The proof lands on the caller's own session, replacing whatever stood: a fresh proof is the
+// newest answer to "is this still you", and two live proofs would be two coverings.
+func (q *Queries) RecordStepUp(ctx context.Context, arg RecordStepUpParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordStepUp,
+		arg.TokenHash,
+		arg.Now,
+		arg.Method,
+		arg.ID,
+		arg.AccountID,
+	)
 	if err != nil {
 		return 0, err
 	}

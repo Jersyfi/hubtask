@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domainservice "github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
 )
 
 // The listing at the target (E-06, backup-restore.md §8.1). What it is judged by is what it does
@@ -302,10 +303,15 @@ func TestStartingARestoreWritesTheRunAndEnqueuesTheJob(t *testing.T) {
 	}
 }
 
-// §8.3 step 3, and the refusal this installation cannot avoid: nothing here can ask anybody to
-// prove who they are a second time, so a destructive mode is refused rather than permitted.
-func TestADestructiveModeIsRefusedWhileNothingCanProveAStepUp(t *testing.T) {
+// The tombstone of `backup.restore_step_up_unavailable` (E-06 → H-03): from 0.4.5 until 0.6.0
+// this test asserted that a destructive mode was refused because *nothing here could prove* a
+// step-up. H-03 built the verifier, so the honest refusal of an installation that cannot ask is
+// gone from the codebase - what remains is the demand itself, which is every caller's to
+// satisfy. An unwired or unavailable verifier still refuses rather than permits: fail closed is
+// the seam's own rule, and this is the test that keeps it.
+func TestADestructiveModeWithoutAProofIsRefusedNotPermitted(t *testing.T) {
 	h := newStartHarness(t)
+	h.stepUp.available = false
 
 	_, err := (StartRestore{Restorer: h.restorer()}).Execute(context.Background(), caller(),
 		restoreRequest(func(r *domain.RestoreRequest) {
@@ -313,8 +319,11 @@ func TestADestructiveModeIsRefusedWhileNothingCanProveAStepUp(t *testing.T) {
 		}))
 
 	var domainErr *shared.Error
-	if !errors.As(err, &domainErr) || domainErr.DetailCode != domain.CodeStepUpUnavailable {
-		t.Fatalf("refused with %v, want the code that says nothing here can prove it", err)
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != stepup.CodeRequired {
+		t.Fatalf("refused with %v, want the step-up demand", err)
+	}
+	if domainErr.Params["methods"] == "" {
+		t.Error("the demand names no methods - a client cannot know what to ask the person for")
 	}
 	if len(h.restores.stored) != 0 || len(h.queued.requests) != 0 {
 		t.Error("a refused restore left a run or a job behind")

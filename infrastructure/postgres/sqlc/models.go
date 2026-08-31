@@ -1098,15 +1098,19 @@ type SavedView struct {
 }
 
 type Session struct {
-	ID         pgtype.UUID
-	TenantID   pgtype.UUID
-	AccountID  pgtype.UUID
-	CreatedAt  pgtype.Timestamptz
-	LastSeenAt pgtype.Timestamptz
-	UserAgent  *string
-	IpClass    *string
-	ExpiresAt  pgtype.Timestamptz
-	RevokedAt  pgtype.Timestamptz
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	AccountID        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	LastSeenAt       pgtype.Timestamptz
+	UserAgent        *string
+	IpClass          *string
+	ExpiresAt        pgtype.Timestamptz
+	RevokedAt        pgtype.Timestamptz
+	StepUpTokenHash  []byte
+	StepUpAt         pgtype.Timestamptz
+	StepUpMethod     *string
+	StepUpConsumedAt pgtype.Timestamptz
 }
 
 type SessionRefreshToken struct {

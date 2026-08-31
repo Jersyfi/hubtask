@@ -47,6 +47,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		LogFormat:            get("HUBTASK_LOG_FORMAT", "json"),
 		LogLevel:             get("HUBTASK_LOG_LEVEL", "info"),
 		Tenancy:              env.TenancyMode(get("HUBTASK_TENANCY_MODE", "single")),
+		StepUpWindow:         getDuration("HUBTASK_STEP_UP_WINDOW", 5*time.Minute),
 		ShutdownGraceSeconds: getInt("HUBTASK_SHUTDOWN_GRACE_SECONDS", 30),
 		// Longer than it usually needs to be, because the cost of being wrong is asymmetric: a
 		// few seconds of a slower shutdown against requests refused during every rollout (RT-8,
@@ -282,6 +283,11 @@ func validate(cfg env.Config) error {
 	}
 	if len(cfg.Roles) == 0 {
 		errs = append(errs, configError("config.roles_empty", "HUBTASK_ROLES"))
+	}
+	if cfg.StepUpWindow <= 0 {
+		// Zero would mean every step-up is expired the moment it is minted - a privileged
+		// surface nobody can use, configured by accident.
+		errs = append(errs, configError("config.step_up_window_invalid", "HUBTASK_STEP_UP_WINDOW"))
 	}
 	if cfg.ShutdownGraceSeconds <= 0 {
 		errs = append(errs, configError("config.shutdown_grace_invalid", "HUBTASK_SHUTDOWN_GRACE_SECONDS"))

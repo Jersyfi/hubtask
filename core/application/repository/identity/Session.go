@@ -242,3 +242,22 @@ type TenantPolicy interface {
 	// (security.md §5). An absent switch is false: enforcement is a decision, never a default.
 	RequireAdminTotp(ctx context.Context) (bool, error)
 }
+
+// StepUps maintains the proof a privileged action demands (H-03). The presented token travels
+// whole and is hashed in the adapter, the pepper's home.
+type StepUps interface {
+	// Record lands a fresh proof on the caller's own live session, replacing whatever stood.
+	// False means the session is not the account's, or not live.
+	Record(
+		ctx context.Context, sessionID, accountID shared.ID,
+		presented identity.Token, method identity.StepUpMethod, at time.Time,
+	) (bool, error)
+
+	// Consume judges and burns the proof in one statement: fresh within the cutoff, unconsumed,
+	// on a live session of this account - or false, whatever the reason. The method that proved
+	// it comes back for the trail.
+	Consume(
+		ctx context.Context, presented identity.Token, accountID shared.ID,
+		cutoff, now time.Time,
+	) (identity.StepUpMethod, bool, error)
+}
