@@ -56,7 +56,12 @@ func startMinIO(t *testing.T) *storage.S3Storage {
 			},
 			Cmd:          []string{"server", "/data"},
 			ExposedPorts: []string{"9000/tcp"},
-			WaitingFor: wait.ForHTTP("/minio/health/ready").
+			// `cluster`, not `ready`. The two are not the same promise: `ready` says the node
+			// is initialized and taking requests, `cluster` says there is write quorum. The gap
+			// between them is a window in which the very next call - CreateBucket, a write -
+			// gets a 503, and that window is what made this suite fail intermittently on main
+			// and on unrelated branches.
+			WaitingFor: wait.ForHTTP("/minio/health/cluster").
 				WithPort("9000/tcp").WithStartupTimeout(2 * time.Minute),
 		},
 		Started: true,
