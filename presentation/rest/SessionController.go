@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -82,6 +83,60 @@ func (c *RestController) RefreshSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, r, http.StatusOK, sessionTokensResponse(out))
+}
+
+// ListSessions answers GET /auth/sessions.
+//
+// Written out rather than through the identity helper, for the reason ListServiceAccounts is:
+// the operation has no parameters, and the helper's closure gives the linter nothing to trace
+// the request's context through.
+func (c *RestController) ListSessions(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), listSessionsUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	rows, _ := out["data"].([]usecase.Output)
+	sessions := make([]openapi.Session, 0, len(rows))
+	for _, row := range rows {
+		sessions = append(sessions, sessionResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, sessions)
+}
+
+// RevokeSession answers DELETE /auth/sessions/{sessionId}.
+func (c *RestController) RevokeSession(w http.ResponseWriter, r *http.Request, sessionID openapi.SessionId) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), revokeSessionUseCase, actor, usecase.Input{
+			"session_id": sessionID.String(),
+		})
+	}, func(usecase.Output) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+// RevokeAllSessions answers DELETE /auth/sessions.
+func (c *RestController) RevokeAllSessions(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	if _, err := c.UseCases.Invoke(
+		r.Context(), revokeAllSessionsUseCase, actorOf(r), usecase.Input{},
+	); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // tenantSlug reads the subdomain off the request's host, when this installation knows its own.

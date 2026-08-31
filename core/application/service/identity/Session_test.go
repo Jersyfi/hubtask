@@ -11,6 +11,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -43,15 +44,21 @@ func (i *idSequence) NewID() shared.ID {
 type sessionsStore struct {
 	inserted []domain.Session
 	sessions map[shared.ID]repository.SessionCredential
+	listed   []domain.Session
 	extended map[shared.ID]time.Time
 	touched  []shared.ID
 	revoked  []shared.ID
+	// revokeChanged is what Revoke and RevokeAll report; a real repository reports false for a
+	// row that is not the caller's or already stamped.
+	revokeChanged bool
+	revokedAll    int
 }
 
 func newSessionsStore() *sessionsStore {
 	return &sessionsStore{
-		sessions: map[shared.ID]repository.SessionCredential{},
-		extended: map[shared.ID]time.Time{},
+		sessions:      map[shared.ID]repository.SessionCredential{},
+		extended:      map[shared.ID]time.Time{},
+		revokeChanged: true,
 	}
 }
 
@@ -69,7 +76,7 @@ func (s *sessionsStore) FindForAuth(_ context.Context, id shared.ID) (repository
 }
 
 func (s *sessionsStore) ForAccount(context.Context, shared.ID, time.Time) ([]domain.Session, error) {
-	return nil, nil
+	return s.listed, nil
 }
 
 func (s *sessionsStore) TouchLastSeen(_ context.Context, id shared.ID, _ time.Time) error {
@@ -83,12 +90,15 @@ func (s *sessionsStore) Extend(_ context.Context, id shared.ID, expiresAt time.T
 }
 
 func (s *sessionsStore) Revoke(_ context.Context, id, _ shared.ID, _ time.Time) (bool, error) {
+	if !s.revokeChanged {
+		return false, nil
+	}
 	s.revoked = append(s.revoked, id)
 	return true, nil
 }
 
 func (s *sessionsStore) RevokeAll(context.Context, shared.ID, time.Time) (int, error) {
-	return 0, nil
+	return s.revokedAll, nil
 }
 
 type refreshStore struct {
@@ -618,5 +628,98 @@ func TestARevokedSessionRefusesItsPairImmediately(t *testing.T) {
 		AuthenticateTokenCommand{Credential: "hbt_sat_x"})
 	if err == nil || !strings.Contains(err.Error(), "auth.session_revoked") {
 		t.Fatalf("a revoked session's token answered %v", err)
+	}
+}
+
+func sessionActor(scopes ...string) appshared.ActorContext {
+	return appshared.ActorContext{
+		Kind: shared.ActorUser, TenantID: tenant, AccountID: account,
+		AccountName: "Bert", TokenID: sessionRowID, Scopes: scopes,
+	}
+}
+
+func TestListSessionsMarksTheCurrentOne(t *testing.T) {
+	fixture := newSessionFixture(now)
+	fixture.sessions.listed = []domain.Session{
+		{ID: sessionRowID, AccountID: account, CreatedAt: now},
+		{ID: refreshRowID, AccountID: account, CreatedAt: now.Add(-time.Hour)},
+	}
+
+	sessions, currentID, err := ListSessions{Writer: fixture.writer}.
+		Execute(t.Context(), sessionActor(accountsRead))
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if len(sessions) != 2 {
+		t.Fatalf("%d sessions, want two", len(sessions))
+	}
+	if currentID != sessionRowID {
+		t.Errorf("current %v, want the actor's own session", currentID)
+	}
+
+	out := sessionOutput(sessions[0], currentID)
+	if current, _ := out["current"].(bool); !current {
+		t.Error("the answering session is not marked current")
+	}
+	out = sessionOutput(sessions[1], currentID)
+	if current, _ := out["current"].(bool); current {
+		t.Error("another session is marked current")
+	}
+}
+
+func TestRevokeSessionIsIdempotentForOnesOwnAndNotFoundForOthers(t *testing.T) {
+	fixture := newSessionFixture(now)
+	handler := RevokeSession{Writer: fixture.writer}
+
+	// The live one revokes and is audited.
+	credential, _ := refreshCredential(now)
+	fixture.sessions.sessions[sessionRowID] = repository.SessionCredential{
+		Session: credential.Session, Account: credential.Account,
+	}
+	if err := handler.Execute(t.Context(), sessionActor(accountRead), sessionRowID); err != nil {
+		t.Fatalf("revoking: %v", err)
+	}
+	if len(fixture.audit.entries) != 1 || fixture.audit.entries[0].Action != SessionRevokedAction {
+		t.Errorf("audit %v, want the revocation entry", fixture.audit.entries)
+	}
+
+	// Already over: idempotent success, and no second entry.
+	fixture.sessions.revokeChanged = false
+	if err := handler.Execute(t.Context(), sessionActor(accountRead), sessionRowID); err != nil {
+		t.Fatalf("revoking twice answered %v, want success", err)
+	}
+	if len(fixture.audit.entries) != 1 {
+		t.Error("a repeat wrote a second entry")
+	}
+
+	// Somebody else's, or unknown: one indistinguishable not-found.
+	other := newSessionFixture(now)
+	other.sessions.revokeChanged = false
+	err := RevokeSession{Writer: other.writer}.Execute(t.Context(), sessionActor(accountRead), refreshRowID)
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("somebody else's session answered %v, want not found", err)
+	}
+}
+
+func TestRevokeAllSessionsAuditsTheCount(t *testing.T) {
+	fixture := newSessionFixture(now)
+	fixture.sessions.revokedAll = 3
+
+	if err := (RevokeAllSessions{Writer: fixture.writer}).
+		Execute(t.Context(), sessionActor(accountRead)); err != nil {
+		t.Fatalf("revoking all: %v", err)
+	}
+	if len(fixture.audit.entries) != 1 || fixture.audit.entries[0].Action != SessionsRevokedAction {
+		t.Fatalf("audit %v, want one entry", fixture.audit.entries)
+	}
+
+	// Nothing live, nothing written: an entry saying something ended would be a false one.
+	quiet := newSessionFixture(now)
+	if err := (RevokeAllSessions{Writer: quiet.writer}).
+		Execute(t.Context(), sessionActor(accountRead)); err != nil {
+		t.Fatalf("an empty revocation answered %v", err)
+	}
+	if len(quiet.audit.entries) != 0 {
+		t.Error("an empty revocation wrote an entry")
 	}
 }
