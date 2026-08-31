@@ -115,6 +115,30 @@ bin/hubctl view export "$VIEW" --format ICS --out week.ics
 bin/hubctl calendar mint --view "$VIEW"      # prints the feed URL once; it is the credential
 ```
 
+The automation surface, and the inbox it can act on:
+
+```bash
+RULE=$(bin/hubctl rule add --name "mail becomes a task" --trigger JUMBLE_ENTRY \
+  --action 'CONVERT_JUMBLE_ENTRY:{"collection_id":"'"$COLLECTION"'"}' | awk 'NR==2 {print $1}')
+bin/hubctl rule test "$RULE"                 # the dry run: what it would do, with nothing done
+bin/hubctl rule enable "$RULE"               # a rule is written switched off, always
+bin/hubctl rule runs --rule "$RULE"          # what it has done, newest first
+bin/hubctl rule run show "$RUN"              # one run, step by step
+
+bin/hubctl jumble intake rotate-token        # the address the inbox accepts deliveries on, once
+bin/hubctl jumble ls --status NEW
+bin/hubctl jumble convert "$ENTRY" --collection "$COLLECTION"
+bin/hubctl jumble dismiss "$ENTRY"           # a state, not a deletion
+
+WEBHOOK=$(bin/hubctl webhook add --url https://example.org/hooks \
+  --event de.hubtask.work.item.completed.v1 | awk 'NR==2 {print $1}')
+bin/hubctl webhook deliveries "$WEBHOOK" --status FAILED
+bin/hubctl webhook replay "$WEBHOOK" "$DELIVERY"   # the same event id, so a repeat is recognisable
+bin/hubctl webhook rotate-secret "$WEBHOOK" --grace 0   # 0 retires the old one at once
+
+bin/hubctl events poll de.hubtask.work.item.completed.v1 --since "$CURSOR"
+```
+
 What an operator does with an installation is the same client:
 
 ```bash
