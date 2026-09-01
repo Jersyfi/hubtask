@@ -19,7 +19,8 @@ SELECT resolve_tenant(sqlc.narg('slug'))::uuid AS tenant_id;
 SELECT a.id, a.kind, a.email, a.display_name, a.status,
        a.locale AS account_locale, a.time_zone AS account_time_zone,
        a.password_hash,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM account a
 JOIN tenant n ON n.id = a.tenant_id
 WHERE lower(a.email) = lower(sqlc.arg('email')) AND a.deleted_at IS NULL;
@@ -48,7 +49,8 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        a.display_name AS account_display_name,
        a.locale   AS account_locale,
        a.time_zone AS account_time_zone,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id
@@ -113,7 +115,8 @@ SELECT r.id, r.session_id, r.created_at, r.expires_at, r.rotated_at,
        a.display_name AS account_display_name,
        a.locale   AS account_locale,
        a.time_zone AS account_time_zone,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM session_refresh_token r
 JOIN session s ON s.id = r.session_id
 JOIN account a ON a.id = s.account_id
@@ -164,7 +167,8 @@ WHERE id = sqlc.arg('id') AND status = 'INVITED' AND deleted_at IS NULL;
 SELECT a.id, a.kind, a.email, a.display_name, a.status,
        a.locale AS account_locale, a.time_zone AS account_time_zone,
        a.redemption_expires_at,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM account a
 JOIN tenant n ON n.id = a.tenant_id
 WHERE a.redemption_token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
@@ -303,7 +307,8 @@ SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        a.display_name AS account_display_name,
        a.locale   AS account_locale,
        a.time_zone AS account_time_zone,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM auth_pending p
 JOIN account a ON a.id = p.account_id
 JOIN tenant  n ON n.id = p.tenant_id

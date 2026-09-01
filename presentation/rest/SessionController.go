@@ -4,9 +4,7 @@
 package rest
 
 import (
-	"net"
 	"net/http"
-	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -175,22 +173,10 @@ func (c *RestController) RedeemInvitation(w http.ResponseWriter, r *http.Request
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
 }
 
-// tenantSlug reads the subdomain off the request's host, when this installation knows its own.
-// One label and no more: a nested subdomain names nothing here.
+// tenantSlug reads the subdomain off the request's host, through the helper the middleware's
+// contradiction check shares (multi-tenancy.md §3).
 func (c *RestController) tenantSlug(r *http.Request) string {
-	if c.BaseHost == "" {
-		return ""
-	}
-	host := r.Host
-	if split, _, err := net.SplitHostPort(host); err == nil {
-		host = split
-	}
-	host = strings.ToLower(host)
-	label, found := strings.CutSuffix(host, "."+c.BaseHost)
-	if !found || label == "" || strings.Contains(label, ".") {
-		return ""
-	}
-	return label
+	return tenantLabel(r.Host, c.BaseHost)
 }
 
 // sessionResponse maps one session projection onto the contract's shape.

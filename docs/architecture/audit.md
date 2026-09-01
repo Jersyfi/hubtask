@@ -55,7 +55,7 @@ deletion does not do its job.
 Three levels, because one is not enough:
 
 1. **No rights:** the application role `hubtask_app` holds only `INSERT` and `SELECT` on `audit_log` — no `UPDATE`, no `DELETE`, no `TRUNCATE`. Enforced by `GRANT`, checked by gate SG-4.
-2. **Trigger lock:** a `BEFORE UPDATE OR DELETE` trigger raises an exception. Protection also against an operator who accidentally configured themselves too much power.
+2. **Trigger lock:** a `BEFORE UPDATE OR DELETE` trigger raises an exception. Protection also against an operator who accidentally configured themselves too much power. One narrow exception since H-06: a `DELETE` passes while a transaction-scoped marker names exactly the row's tenant — written only by `purge_tenant_trail`, the hard delete's act, which closes the window before it returns (§6, migration 0067).
 3. **Hash chain:** `hash = SHA-256(prev_hash ‖ canonical serialisation of the entry)`, one chain per tenant, plus a gapless `seq`. An endpoint `POST /audit:verify` checks the chain and reports the break point and any sequence gap.
 
 **What the hash is taken over is the entry as the row gives it back**, not as the caller built it,
@@ -233,6 +233,40 @@ The erasure itself is an auditable action with `legal_basis = dsr.erasure`: an e
 erasure, which is exactly the entry that has to survive it. The boundary half is built by E-10,
 which is where the erasure that makes it necessary is built; the rule is written here because two
 documents were already pointing at it.
+
+### The instance's own journal: evidence where a per-tenant trail cannot live
+
+Everything above assumes the tenant outlives the entry. One act breaks that assumption: the hard
+delete of a tenant ([multi-tenancy.md §5](./multi-tenancy.md), H-06) removes the tenant's audit
+trail *by design* — a deletion whose promise is "the data is gone" cannot leave a per-tenant chain
+of entries behind, and an entry recording the deletion inside the trail it deletes would not
+survive its own subject.
+
+The evidence for such acts lives in `instance_event`: the installation's own journal, one row per
+control-plane act (`tenant.provisioned`, `tenant.suspended`, `tenant.resumed`,
+`tenant.deletion_requested`, `tenant.hard_deleted`). A row carries identifiers, the slug, the
+acting operator's label, moments and counts — for a hard delete, how many rows, media objects and
+bytes, outbox events, queued jobs and trail entries went — and never content. Three properties
+distinguish it from the trail:
+
+* **It belongs to no tenant.** The table has no row-level-security policy — deliberately, the job
+  table's precedent: a policy comparing against `current_tenant_id()` would make the rows
+  unreachable under every honest scope, and the row's whole point is to outlive the tenant it
+  names. What bounds it instead: the application writes it in exactly one place (the tenant
+  lifecycle use cases), it is append-only for the application role, and no API serves it — reading
+  it is the operator's, at the database.
+* **It commits with the act it evidences.** The hard delete writes the evidence entry, purges
+  the trail through the one narrow `SECURITY DEFINER` act (`purge_tenant_trail`, migration 0067),
+  and lets the cascade take the rest - all in one transaction, so no committed state ever holds a
+  deletion without evidence, or evidence of a deletion that did not happen.
+* **It is not chained.** The hash chain of §3 exists because tenants must be able to prove their
+  trail untampered to an outside party. The instance journal is the operator's own record about
+  themselves; a chain here would attest the operator to the operator. Its integrity rests on the
+  same grants discipline as the trail (no `UPDATE`, no `DELETE` for the application role).
+
+Ordinary lifecycle acts (provisioning, suspension) additionally land in the *tenant's* trail where
+one exists — the tenant's members are entitled to see that their workspace was suspended. The
+instance journal is not a copy of the trail; it is the floor under it.
 
 ---
 

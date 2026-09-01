@@ -10,16 +10,17 @@ import (
 )
 
 // privilegedUseCases is security.md §5's list, as far as its operations exist in this build: the
-// use cases that must demand a fresh step-up, and why. Deleting a tenant joins with H-06.
+// use cases that must demand a fresh step-up, and why.
 //
 // The map and the descriptors' own StepUp declarations are reconciled in both directions, so the
 // next privileged action ships with a declaration or fails this build - and a declaration nobody
 // meant cannot appear without being named here (H-03).
 var privilegedUseCases = map[string]string{
-	"StartRestore":      "the destructive restore modes replace data (backup-restore.md §8.3)",
-	"GrantMembership":   "granting OWNER is changing the OWNER role",
-	"RevokeMembership":  "revoking an OWNER membership is changing the OWNER role",
-	"CreateAccessToken": "an admin-scoped token reaches the control plane",
+	"StartRestore":          "the destructive restore modes replace data (backup-restore.md §8.3)",
+	"GrantMembership":       "granting OWNER is changing the OWNER role",
+	"RevokeMembership":      "revoking an OWNER membership is changing the OWNER role",
+	"CreateAccessToken":     "an admin-scoped token reaches the control plane",
+	"RequestTenantDeletion": "it is the request that ends a workspace (multi-tenancy.md §5, H-06)",
 }
 
 func TestEveryPrivilegedOperationDeclaresItsStepUp(t *testing.T) {

@@ -42,7 +42,7 @@ func (a *authenticator) Execute(
 
 func authenticatedActor() appshared.ActorContext {
 	return appshared.ActorContext{
-		Kind: appshared.ActorUser, TenantID: tenantID,
+		Kind: appshared.ActorUser, TenantID: tenantID, TenantSlug: "acme",
 		Scopes: []string{"items:read"}, Locale: "de", TimeZone: "Europe/Berlin",
 	}
 }
@@ -68,6 +68,9 @@ func serveAuthenticated(
 		Routes:        routes,
 		Authenticator: auth,
 		Locale:        env.LocaleConfig{DefaultLocale: "en", DefaultTimeZone: "UTC"},
+		// The base host the subdomain checks read against; requests made through request()
+		// carry no subdomain, so nothing changes for the tests that predate it.
+		BaseHost: "hubtask.example",
 		Next: http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			reached = true
 			seen, _ = appshared.ActorFrom(r.Context())
@@ -307,5 +310,74 @@ func TestNoAcceptLanguageMeansNoRequestPreference(t *testing.T) {
 
 	if auth.command.RequestedLocale != "" {
 		t.Errorf("requested locale = %q, want empty", auth.command.RequestedLocale)
+	}
+}
+
+// The subdomain is §3's second source: it may confirm the credential's workspace, never overrule
+// it (H-06, multi-tenancy.md §3).
+func TestASubdomainContradictingTheCredentialIsRefused(t *testing.T) {
+	auth := &authenticator{actor: authenticatedActor()}
+	r := request(t, "/containers")
+	r.Host = "rivals.hubtask.example"
+	r.Header.Set("Authorization", "Bearer "+credential)
+
+	response, _, reached := serveAuthenticated(t, auth, r)
+
+	if reached {
+		t.Error("the handler ran under a contradicted subdomain")
+	}
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status %d, want 403", response.Code)
+	}
+	var problem Problem
+	if err := json.NewDecoder(response.Body).Decode(&problem); err != nil {
+		t.Fatalf("the body is not a problem document: %v", err)
+	}
+	if problem.DetailCode != "access.tenant_mismatch" {
+		t.Errorf("detail code %q", problem.DetailCode)
+	}
+}
+
+func TestASubdomainAgreeingWithTheCredentialPassesThrough(t *testing.T) {
+	auth := &authenticator{actor: authenticatedActor()}
+	r := request(t, "/containers")
+	r.Host = "acme.hubtask.example"
+	r.Header.Set("Authorization", "Bearer "+credential)
+
+	if response, _, reached := serveAuthenticated(t, auth, r); !reached {
+		t.Errorf("the handler was not reached, status %d", response.Code)
+	}
+}
+
+// The header speaks slug as well as identifier: internal tools name the workspace the way people
+// do, and either spelling of the credential's own workspace is a confirmation.
+func TestATenantHeaderMayCarryTheSlug(t *testing.T) {
+	auth := &authenticator{actor: authenticatedActor()}
+	r := request(t, "/containers")
+	r.Header.Set("Authorization", "Bearer "+credential)
+	r.Header.Set(TenantHeader, "acme")
+
+	if response, _, reached := serveAuthenticated(t, auth, r); !reached {
+		t.Errorf("the handler was not reached, status %d", response.Code)
+	}
+}
+
+// The label reader, at its edges: bare hosts, ports, depth, and case.
+func TestTenantLabelReadsExactlyOneSubdomain(t *testing.T) {
+	cases := []struct {
+		host, base, want string
+	}{
+		{"acme.hubtask.example", "hubtask.example", "acme"},
+		{"acme.hubtask.example:8443", "hubtask.example", "acme"},
+		{"ACME.hubtask.example", "hubtask.example", "acme"},
+		{"hubtask.example", "hubtask.example", ""},
+		{"deep.acme.hubtask.example", "hubtask.example", ""},
+		{"acme.elsewhere.example", "hubtask.example", ""},
+		{"acme.hubtask.example", "", ""},
+	}
+	for _, c := range cases {
+		if got := tenantLabel(c.host, c.base); got != c.want {
+			t.Errorf("tenantLabel(%q, %q) = %q, want %q", c.host, c.base, got, c.want)
+		}
 	}
 }

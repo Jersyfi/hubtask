@@ -50,7 +50,9 @@ services:
       # what makes row level security the last, unbypassable boundary here too (ADR-0010).
       HUBTASK_DB_DSN: postgres://hubtask_app:${HUBTASK_DB_APP_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
       HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:-http://localhost:8080}
-      HUBTASK_TENANCY_MODE: single
+      # Single by default - the self-hoster's mode. The smoke check overrides it to exercise the
+      # multi-mode control plane against the same file (H-06): one Compose file, both modes.
+      HUBTASK_TENANCY_MODE: ${HUBTASK_TENANCY_MODE:-single}
       HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}
       # The master keyring for envelope encryption (E-02). Empty means this installation encrypts
       # nothing and says so when asked to seal something; `.env.example` shows how to fill it.

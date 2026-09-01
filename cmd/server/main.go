@@ -31,6 +31,7 @@ import (
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
@@ -1245,6 +1246,35 @@ func run() error {
 			Jobs: jobRecords, Authorizer: authorizer, Audit: auditSink,
 			Clock: clockadapter.System{}, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		// The control plane (H-06). Its credential is a PAT carrying admin:tenants - never a
+		// session (decision 6) - and its authorisation is the scope alone, checked in the
+		// application layer: the operator is deliberately not a member of the tenants they
+		// administer.
+		adminservice.ProvisionTenant{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Accounts: accounts, Redemption: signInStore, Grants: grants,
+			Containers: containers, Buckets: buckets, Labels: labels,
+			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
+		adminservice.ListTenants{
+			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}}.Descriptor(),
+		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}}.Descriptor(),
+		adminservice.RequestTenantDeletion{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
+			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process
@@ -1371,10 +1401,12 @@ func run() error {
 			Clock:      clockadapter.System{},
 			// The session half (H-01): the signature refuses forgeries before any lookup, the
 			// row answers whether the session is still alive. A session carries every declared
-			// scope, because it is the person rather than a bounded credential.
+			// scope except the control plane's, because it is the person rather than a bounded
+			// credential - and the admin surface is entered by a deliberately minted credential,
+			// never by whoever happens to be signed in (H-06, 0.6.0 decision 6).
 			Sessions:      sessions,
 			Signer:        sessionSigner,
-			SessionScopes: catalogue.Scopes(),
+			SessionScopes: catalogue.SessionScopes(),
 		}
 
 		// One limiter, two levels: per credential or client address before authentication, per
@@ -1459,6 +1491,9 @@ func run() error {
 											Routes:        apiRoutes,
 											Authenticator: authenticate,
 											Locale:        cfg.Locale,
+											// The subdomain check of multi-tenancy.md §3 (H-06);
+											// the controller reads its host the same way.
+											BaseHost: controller.BaseHost,
 											Next: rest.Limited{
 												Limiter: limiter,
 												Level:   "tenant",
@@ -1867,7 +1902,16 @@ func run() error {
 			},
 			Fallback: cfg.Retention.Interval,
 		},
-		queueport.KindAuditExport:    worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
+		// The grace job the deletion request seeded (H-06). Detached for the media
+		// reconciliation's reason: bytes leave a bucket between two transactions.
+		queueport.KindTenantHardDelete: worker.TenantHardDelete{
+			Deletion: adminservice.HardDeleteTenant{
+				Tenants: postgres.NewAdminTenantRepository(), Purge: postgres.NewTenantPurge(),
+				Journal: postgres.NewInstanceJournal(), Store: mediaStore,
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			},
+		},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
 		queueport.KindPrivacyDeadlines: worker.PrivacyDeadlines{
 			Watch: privacyservice.WatchDeadlines{

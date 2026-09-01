@@ -257,7 +257,8 @@ const findAccountByRedemptionHash = `-- name: FindAccountByRedemptionHash :one
 SELECT a.id, a.kind, a.email, a.display_name, a.status,
        a.locale AS account_locale, a.time_zone AS account_time_zone,
        a.redemption_expires_at,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM account a
 JOIN tenant n ON n.id = a.tenant_id
 WHERE a.redemption_token_hash = $1 AND a.deleted_at IS NULL
@@ -274,6 +275,8 @@ type FindAccountByRedemptionHashRow struct {
 	RedemptionExpiresAt pgtype.Timestamptz
 	DefaultLocale       string
 	DefaultTimeZone     string
+	TenantSlug          string
+	TenantStatus        string
 }
 
 func (q *Queries) FindAccountByRedemptionHash(ctx context.Context, tokenHash []byte) (FindAccountByRedemptionHashRow, error) {
@@ -290,6 +293,8 @@ func (q *Queries) FindAccountByRedemptionHash(ctx context.Context, tokenHash []b
 		&i.RedemptionExpiresAt,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
+		&i.TenantSlug,
+		&i.TenantStatus,
 	)
 	return i, err
 }
@@ -299,7 +304,8 @@ const findAccountForSignIn = `-- name: FindAccountForSignIn :one
 SELECT a.id, a.kind, a.email, a.display_name, a.status,
        a.locale AS account_locale, a.time_zone AS account_time_zone,
        a.password_hash,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM account a
 JOIN tenant n ON n.id = a.tenant_id
 WHERE lower(a.email) = lower($1) AND a.deleted_at IS NULL
@@ -316,6 +322,8 @@ type FindAccountForSignInRow struct {
 	PasswordHash    *string
 	DefaultLocale   string
 	DefaultTimeZone string
+	TenantSlug      string
+	TenantStatus    string
 }
 
 // ============================== Sign-in ==============================
@@ -335,6 +343,8 @@ func (q *Queries) FindAccountForSignIn(ctx context.Context, email string) (FindA
 		&i.PasswordHash,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
+		&i.TenantSlug,
+		&i.TenantStatus,
 	)
 	return i, err
 }
@@ -410,7 +420,8 @@ SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        a.display_name AS account_display_name,
        a.locale   AS account_locale,
        a.time_zone AS account_time_zone,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM auth_pending p
 JOIN account a ON a.id = p.account_id
 JOIN tenant  n ON n.id = p.tenant_id
@@ -433,6 +444,8 @@ type FindPendingByHashRow struct {
 	AccountTimeZone    *string
 	DefaultLocale      string
 	DefaultTimeZone    string
+	TenantSlug         string
+	TenantStatus       string
 }
 
 // The second step's read: the pending row, its account, and the locale chain in one round trip,
@@ -456,6 +469,8 @@ func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (Find
 		&i.AccountTimeZone,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
+		&i.TenantSlug,
+		&i.TenantStatus,
 	)
 	return i, err
 }
@@ -475,7 +490,8 @@ SELECT r.id, r.session_id, r.created_at, r.expires_at, r.rotated_at,
        a.display_name AS account_display_name,
        a.locale   AS account_locale,
        a.time_zone AS account_time_zone,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM session_refresh_token r
 JOIN session s ON s.id = r.session_id
 JOIN account a ON a.id = s.account_id
@@ -504,6 +520,8 @@ type FindRefreshTokenByHashRow struct {
 	AccountTimeZone    *string
 	DefaultLocale      string
 	DefaultTimeZone    string
+	TenantSlug         string
+	TenantStatus       string
 }
 
 // The exchange's read: the presented token, its session, the account and the locale chain in one
@@ -533,6 +551,8 @@ func (q *Queries) FindRefreshTokenByHash(ctx context.Context, tokenHash []byte) 
 		&i.AccountTimeZone,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
+		&i.TenantSlug,
+		&i.TenantStatus,
 	)
 	return i, err
 }
@@ -546,7 +566,8 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        a.display_name AS account_display_name,
        a.locale   AS account_locale,
        a.time_zone AS account_time_zone,
-       n.default_locale, n.default_time_zone
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id
@@ -572,6 +593,8 @@ type FindSessionForAuthRow struct {
 	AccountTimeZone    *string
 	DefaultLocale      string
 	DefaultTimeZone    string
+	TenantSlug         string
+	TenantStatus       string
 }
 
 // What authenticating a session access token needs: the row the signature named, its account,
@@ -597,6 +620,8 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 		&i.AccountTimeZone,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
+		&i.TenantSlug,
+		&i.TenantStatus,
 	)
 	return i, err
 }

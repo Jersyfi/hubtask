@@ -15,7 +15,8 @@ info:
       * no display text, only codes and parameters
 
     Not yet elaborated (deliberately open, to be added in phase 0/1): templates, views, jumble,
-    reminders, recurrence, automation, webhooks, media, admin/tenants, search, SSE.
+    reminders, recurrence, automation, webhooks, media, search, SSE. admin/tenants left the list
+    with H-06: the control plane is part of the contract like everything else.
   license:
     name: BUSL-1.1
 servers:
@@ -32,6 +33,7 @@ tags:
   - name: identity
   - name: auth
   - name: oauth
+  - name: admin
   - name: containers
   - name: items
   - name: structure
@@ -2716,6 +2718,120 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants:
+    get:
+      tags: [admin]
+      operationId: listTenants
+      summary: The installation's workspaces
+      description: >
+        The one legitimate tenant enumerator (multi-tenancy.md, 0.6.0 decision 6): provisioning
+        and lifecycle are the control plane's job, and the control plane must see its rows. It
+        reads through a deliberate installation-scoped path behind the `admin:tenants` scope -
+        which no session carries: the credential is a personal access token minted for exactly
+        this, behind a step-up (security.md §5). "Nothing enumerates tenants" remains the rule
+        for jobs; this is not a job.
+      responses:
+        "200":
+          description: The workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminTenant"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [admin]
+      operationId: provisionTenant
+      summary: Provision a workspace
+      description: >
+        Creates the tenant with its defaults, exactly the §5 table: a default hub, an example
+        collection, standard buckets and labels, the locale and time zone, and the owner - an
+        invited account whose redemption token is answered once, so the person the workspace is
+        for can set their password and sign in (H-01's loop). Idempotent under
+        `Idempotency-Key`: provisioning twice under one key creates one.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantProvision"
+      responses:
+        "201":
+          description: Provisioned, with the owner's redemption token shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvisionedTenant"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/tenants/{tenantId}:suspend:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: suspendTenant
+      summary: Suspend a workspace
+      description: >
+        Flips the middleware: every API call of the tenant's own people answers
+        `403 tenant_suspended` on their very next request. The data remains, and the read
+        export still works - the suspended are exactly who needs it (multi-tenancy.md §5).
+      responses:
+        "204":
+          description: Suspended
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/tenants/{tenantId}:resume:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: resumeTenant
+      summary: Reactivate a workspace
+      description: One write, as §5 promises. The next request of the tenant's people works again.
+      responses:
+        "204":
+          description: Active again
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/tenants/{tenantId}:delete:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+      - $ref: "#/components/parameters/StepUpToken"
+    post:
+      tags: [admin]
+      operationId: requestTenantDeletion
+      summary: Request a workspace's deletion
+      description: >
+        The most irreversible act this API has, and it behaves like it: it demands a fresh
+        step-up (H-03) in the `X-Hubtask-Step-Up` header and the workspace's display name,
+        typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked,
+        automations disabled, the export still answering. The hard delete runs after the
+        30-day grace as a job seeded by this very write - it cascades across database rows,
+        media bytes, search, outbox and queue, and leaves an installation-level evidence entry,
+        because the tenant's own trail dies with it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantDeletionRequest"
+      responses:
+        "202":
+          description: Scheduled, naming the moment the grace runs out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantDeletionScheduled"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /oauth/clients:
     get:
       tags: [oauth]
@@ -5208,6 +5324,12 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    AdminTenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     OauthClientId:
       name: clientId
       in: path
@@ -5788,6 +5910,72 @@ components:
           description: >
             The pair, when a pending credential completed a sign-in here. Absent for a signed-in
             caller, who already holds one.
+
+    AdminTenant:
+      type: object
+      required: [id, slug, display_name, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        display_name: { type: string }
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, PENDING_DELETION]
+        default_locale: { type: string }
+        default_time_zone: { type: string }
+        created_at: { type: string, format: date-time }
+        purge_after:
+          type: [string, "null"]
+          format: date-time
+          description: Set while a deletion request stands - when the grace runs out.
+
+    TenantProvision:
+      type: object
+      required: [slug, display_name, owner_email]
+      properties:
+        slug:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{2,39}$"
+          description: The subdomain the workspace answers on. Unique across the installation.
+        display_name: { type: string, minLength: 1, maxLength: 200 }
+        default_locale: { type: [string, "null"] }
+        default_time_zone: { type: [string, "null"] }
+        owner_email: { type: string, format: email, maxLength: 254 }
+        owner_display_name: { type: [string, "null"], maxLength: 200 }
+
+    ProvisionedTenant:
+      allOf:
+        - $ref: "#/components/schemas/AdminTenant"
+        - type: object
+          required: [owner_account_id, owner_redemption_token, default_hub_id, example_collection_id]
+          properties:
+            owner_account_id: { type: string, format: uuid }
+            owner_redemption_token:
+              type: string
+              description: >
+                The owner's way in, shown for the only time: whoever the workspace is for
+                redeems it, sets a password, and is signed in (H-01). Hand it to them; it
+                cannot be read again.
+            default_hub_id: { type: string, format: uuid }
+            example_collection_id: { type: string, format: uuid }
+
+    TenantDeletionRequest:
+      type: object
+      required: [confirmation]
+      properties:
+        confirmation:
+          type: string
+          description: The workspace's display name, typed exactly - the restore precedent.
+
+    TenantDeletionScheduled:
+      type: object
+      required: [tenant_id, purge_after]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        purge_after:
+          type: string
+          format: date-time
+          description: When the 30-day grace runs out and the hard delete job takes it.
 
     OauthClientCreate:
       type: object

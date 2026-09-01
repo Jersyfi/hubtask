@@ -5,6 +5,7 @@ package catalogue_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/catalogue"
@@ -86,6 +87,27 @@ func TestScopesAreTheDescriptorsOwnSetSortedAndUnique(t *testing.T) {
 		if descriptor.TokenScope != "" && !seen[descriptor.TokenScope] {
 			t.Errorf("%s needs %s, which no token could carry",
 				descriptor.Name, descriptor.TokenScope)
+		}
+	}
+}
+
+// Sessions never carry the control plane (H-06, 0.6.0 decision 6): whatever admin:* scopes this
+// build declares, SessionScopes leaves them out - and changes nothing else.
+func TestSessionScopesLeaveOutTheControlPlane(t *testing.T) {
+	session := catalogue.SessionScopes()
+	for _, scope := range session {
+		if strings.HasPrefix(scope, "admin:") {
+			t.Errorf("a session carries %q", scope)
+		}
+	}
+
+	kept := make(map[string]bool, len(session))
+	for _, scope := range session {
+		kept[scope] = true
+	}
+	for _, scope := range catalogue.Scopes() {
+		if !strings.HasPrefix(scope, "admin:") && !kept[scope] {
+			t.Errorf("SessionScopes dropped %q, which is not the control plane's", scope)
 		}
 	}
 }

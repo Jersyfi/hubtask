@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**176 use cases, 155 distinct action codes, 129 of them recorded on every call.** A use case that
+**181 use cases, 160 distinct action codes, 133 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -281,6 +281,16 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `template.read` | GetTemplate | `template` | INFO | When refused |
 | `template.read` | ListTemplates | `template` | INFO | When refused |
 | `template.updated` | UpdateTemplate | `template` | INFO | Every time |
+
+## Tenant
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `tenant.deletion_requested` | RequestTenantDeletion | `tenant` | CRITICAL | Every time |
+| `tenant.listed` | ListTenants | `tenant` | INFO | When refused |
+| `tenant.provisioned` | ProvisionTenant | `tenant` | INFO | Every time |
+| `tenant.resumed` | ResumeTenant | `tenant` | INFO | Every time |
+| `tenant.suspended` | SuspendTenant | `tenant` | WARNING | Every time |
 
 ## Triggers
 

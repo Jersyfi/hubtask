@@ -142,6 +142,11 @@ func (h RedeemInvitation) Execute(
 			w.failure(ctx, FailureRedemption)
 			return redemptionRefused()
 		}
+		// The workspace's standing (H-06): an invitation into a suspended workspace waits the
+		// suspension out rather than opening a first session into it.
+		if err := found.TenantStatus.Verify(); err != nil {
+			return err
+		}
 
 		redeemed, err := w.Accounts.Redeem(ctx, found.Account.ID, passwordHash, now)
 		if err != nil {

@@ -24,6 +24,9 @@ type SessionCredential struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	TenantSlug   string
+	TenantStatus identity.TenantStatus
 }
 
 // RefreshCredential is what the exchange reads: the presented link of the chain, its session,
@@ -35,6 +38,9 @@ type RefreshCredential struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	TenantSlug   string
+	TenantStatus identity.TenantStatus
 }
 
 // SignInAccount is what the credential check reads. The stored hash travels as a secret: the
@@ -49,6 +55,9 @@ type SignInAccount struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	TenantSlug   string
+	TenantStatus identity.TenantStatus
 }
 
 // RedemptionAccount is what redeeming an invitation reads.
@@ -60,6 +69,9 @@ type RedemptionAccount struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	TenantSlug   string
+	TenantStatus identity.TenantStatus
 }
 
 // AuthAttempt is one subject's standing in the attempt ledger (T-02).
@@ -222,6 +234,9 @@ type PendingLookup struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
+	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
+	TenantSlug   string
+	TenantStatus identity.TenantStatus
 }
 
 // PendingCredentials maintains the two-step sign-in's middle state.

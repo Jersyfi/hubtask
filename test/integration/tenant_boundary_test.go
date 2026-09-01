@@ -73,6 +73,9 @@ func TestRowLevelSecurityIsActiveOnEveryTenantTable(t *testing.T) {
 	exceptions := map[string]string{
 		"job":              "system jobs are partly tenant-less; access is restricted by privileges (db/schema.sql)",
 		"goose_db_version": "the migration ledger; the application role has no access at all",
+		"instance_event": "the installation's own evidence journal (H-06, audit.md §6): its rows " +
+			"outlive the tenants they name, and a policy comparing current_tenant_id() would make " +
+			"them unreachable under every honest scope; bounded instead by append-only grants",
 	}
 
 	rows, err := admin.Query(ctx, `
@@ -614,6 +617,8 @@ func TestTheTablesOutsideTheRuleAreTheDocumentedOnes(t *testing.T) {
 		"backup_schedule":         "schedules an installation-wide target",
 		"backup_run":              "records a run of an installation-wide target",
 		"restore_run":             "restores from an installation-wide target",
+		"instance_event": "a bare identifier of a workspace that is usually gone - a reference " +
+			"would forbid the very rows the journal exists for (H-06, migration 0067)",
 	}
 
 	rows, err := admin.Query(ctx, `

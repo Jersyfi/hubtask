@@ -20,7 +20,9 @@ package catalogue
 
 import (
 	"slices"
+	"strings"
 
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
@@ -214,6 +216,11 @@ func Descriptors() []usecase.Descriptor {
 		jumbleservice.ConvertJumbleEntry{}.Descriptor(),
 		jumbleservice.DismissJumbleEntry{}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{}.Descriptor(),
+		adminservice.ProvisionTenant{}.Descriptor(),
+		adminservice.ListTenants{}.Descriptor(),
+		adminservice.SuspendTenant{}.Descriptor(),
+		adminservice.ResumeTenant{}.Descriptor(),
+		adminservice.RequestTenantDeletion{}.Descriptor(),
 	}
 }
 
@@ -235,5 +242,20 @@ func Scopes() []string {
 		scopes = append(scopes, descriptor.TokenScope)
 	}
 	slices.Sort(scopes)
+	return scopes
+}
+
+// SessionScopes is what a session-authenticated person may exercise: every declared scope except
+// the control plane's. A session is the person themselves - but the admin surface is entered by
+// a deliberately minted credential, never by whoever happens to be signed in (H-06, 0.6.0
+// decision 6), so the one scope class sessions never carry is `admin:*`.
+func SessionScopes() []string {
+	scopes := make([]string, 0, len(Scopes()))
+	for _, scope := range Scopes() {
+		if strings.HasPrefix(scope, "admin:") {
+			continue
+		}
+		scopes = append(scopes, scope)
+	}
 	return scopes
 }

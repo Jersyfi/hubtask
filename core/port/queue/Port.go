@@ -202,6 +202,17 @@ const (
 	// (multi-tenancy.md §2.1), so a scheduler cannot create one job per tenant even if it wanted
 	// to - and a tenant with no scheduled rule has no row at all.
 	KindAutomationSchedule Kind = "automation.schedule"
+
+	// KindTenantHardDelete carries out §5's final act after the 30-day grace (H-06): the media
+	// bytes store-first, the tables the cascade cannot reach, the audit trail through the one
+	// narrow purge, and the tenant row whose cascade takes the rest - each store counted into
+	// the evidence entry that outlives them all.
+	//
+	// Seeded by the deletion request's own write (decision 6: nothing enumerates tenants, so
+	// there is no sweeper to find pending deletions - the request that created the debt creates
+	// the job), with RunAt at the grace's end. The handler re-reads the two facts the grace
+	// could have changed and deletes nothing if either moved.
+	KindTenantHardDelete Kind = "tenant.hard_delete"
 )
 
 func (k Kind) String() string { return string(k) }

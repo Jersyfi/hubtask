@@ -331,6 +331,8 @@ func (r MfaRepository) FindByToken(
 		},
 		TenantLocale:   row.DefaultLocale,
 		TenantTimeZone: row.DefaultTimeZone,
+		TenantSlug:     row.TenantSlug,
+		TenantStatus:   identity.TenantStatus(row.TenantStatus),
 	}, nil
 }
 

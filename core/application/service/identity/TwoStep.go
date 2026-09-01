@@ -226,6 +226,11 @@ func (h CompleteSignIn) Execute(
 		if err := lookup.Account.Verify(); err != nil {
 			return err
 		}
+		// The workspace's standing (H-06), Session's reasoning: the second step of a sign-in a
+		// suspension has overtaken completes nothing.
+		if err := lookup.TenantStatus.Verify(); err != nil {
+			return err
+		}
 
 		subject := mfaSubject(lookup.Account.ID)
 		if err := w.checkLocked(ctx, []string{subject}, now); err != nil {
