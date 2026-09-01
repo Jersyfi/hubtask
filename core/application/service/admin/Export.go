@@ -6,6 +6,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
@@ -113,7 +114,7 @@ func (h ExportTenant) Execute(
 		if live >= h.exportQuota() {
 			return shared.ErrRateLimited.
 				WithDetail("capacity.export_jobs").
-				WithParams(map[string]string{"limit": itoa(h.exportQuota())})
+				WithParams(map[string]string{"limit": strconv.Itoa(h.exportQuota())})
 		}
 
 		now := h.Clock.Now()
@@ -156,14 +157,6 @@ func (h ExportTenant) exportQuota() int {
 		return exportQuotaMulti
 	}
 	return exportQuotaSingle
-}
-
-// itoa avoids strconv for one two-digit constant; the params map wants text.
-func itoa(n int) string {
-	if n < 10 {
-		return string(rune('0' + n))
-	}
-	return string(rune('0'+n/10)) + string(rune('0'+n%10))
 }
 
 // Descriptor is the catalogue entry.
