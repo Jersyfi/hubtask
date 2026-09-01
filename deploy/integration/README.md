@@ -18,9 +18,14 @@ against a live one is safe — and that is the property that matters: an environ
 built once is an environment nobody dares touch.
 
 ```bash
-scp -r deploy/integration root@<host>:/root/
-ssh root@<host> /root/integration/bootstrap.sh
+scp -r deploy root@<host>:/root/
+ssh root@<host> /root/deploy/integration/bootstrap.sh
 ```
+
+The whole `deploy/` directory rather than `deploy/integration` alone: the script builds
+Prometheus's rules ConfigMap from `deploy/observability/alerts/`, so that what evaluates on this
+cluster is the file the gate tests and not a copy of it. The script says so and stops if the
+directory is missing, rather than starting a Prometheus with no rules.
 
 Then the one manual step, which is manual on purpose — a credential does not belong in a script's
 output, in a repository, or in a chat window:
@@ -32,6 +37,39 @@ ssh root@<host> cat /root/deploy-kubeconfig.yaml | gh secret set KUBE_CONFIG --e
 What the host needs beforehand: ports 22, 80, 443 and 6443 open inbound, and a DNS record
 `*.<environment>.hubtask.eu` pointing at it (A and AAAA). Port 80 is not optional — it is where
 Let's Encrypt validates.
+
+## Monitoring
+
+The environment watches itself (`observability-reliability.md` §14, O-1): Prometheus scrapes every
+role's operations port, evaluates the three shipped rule files, and hands what fires to
+Alertmanager, which delivers by SMTP into a mail catcher in the same namespace. Nothing has an
+Ingress — the way in is the kubeconfig.
+
+| | |
+|---|---|
+| Namespace | `monitoring` |
+| Applied by | `bootstrap.sh`, from [`monitoring.yaml`](./monitoring.yaml) |
+| History | `ALERTS{alertstate="firing"}` in Prometheus, 45 days |
+| Now | `/api/v2/alerts` in Alertmanager |
+| Delivered | `/api/v1/messages` in Mailpit |
+
+The mail catcher is the receiver because the environment's alerts are read by whoever is working
+on it. Delivery is SMTP all the same — the receiver a provider would use — so a real mail server
+later is an address and a credential in the config, not a different routing. What is deliberately
+*not* here is a pager: an alert that fires at three in the morning waits in Mailpit until somebody
+looks, and this environment is one where that is the right answer.
+
+```bash
+# from the host: forward, ask, stop. Port-forwarding rather than curl against the cluster IP,
+# because the IP changes and the service name does not.
+kubectl -n monitoring port-forward svc/alertmanager 9093:9093 >/dev/null 2>&1 &
+curl -s localhost:9093/api/v2/alerts | head -c 2000
+kill %1
+
+kubectl -n monitoring port-forward svc/mailpit 8025:8025 >/dev/null 2>&1 &
+curl -s localhost:8025/api/v1/messages | head -c 2000
+kill %1
+```
 
 ## What is not here, and why
 
