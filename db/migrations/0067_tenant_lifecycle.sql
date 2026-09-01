@@ -68,6 +68,23 @@ GRANT EXECUTE ON FUNCTION admin_tenants() TO hubtask_app;
 -- the tenant's data is gone. This is the one narrow act that squares them: it removes exactly
 -- one tenant's rows, it exists for the hard delete alone, and every use is preceded by the
 -- instance_event entry that outlives it.
+-- The trail's immutability trigger learns the one exception it now has (level 2 of audit.md
+-- §3): a row may fall only while the transaction-scoped purge marker names exactly its tenant -
+-- and the only writer of that marker is purge_tenant_trail below, which closes the window
+-- before it returns. UPDATE stays impossible unconditionally.
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION audit_log_immutable() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE'
+     AND current_setting('hubtask.trail_purge', true) = OLD.tenant_id::text THEN
+    RETURN OLD;
+  END IF;
+  RAISE EXCEPTION 'audit_log is append-only (attempted %)', TG_OP
+    USING ERRCODE = 'insufficient_privilege';
+END $$;
+-- +goose StatementEnd
+
 -- +goose StatementBegin
 CREATE OR REPLACE FUNCTION purge_tenant_trail(purged_tenant uuid) RETURNS bigint
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -75,9 +92,12 @@ DECLARE
   removed bigint;
 BEGIN
   -- Only the partitioned trail itself: audit_anchor and audit_pseudonym carry foreign keys and
-  -- die with the tenant row.
+  -- die with the tenant row. The marker opens the immutability trigger for exactly this tenant,
+  -- and the window closes before the function returns.
+  PERFORM set_config('hubtask.trail_purge', purged_tenant::text, true);
   DELETE FROM audit_log WHERE tenant_id = purged_tenant;
   GET DIAGNOSTICS removed = ROW_COUNT;
+  PERFORM set_config('hubtask.trail_purge', '', true);
   RETURN removed;
 END $$;
 -- +goose StatementEnd

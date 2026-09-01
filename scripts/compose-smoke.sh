@@ -36,9 +36,14 @@ OPS_PORT=19090
 DEADLINE_SECONDS=300
 
 ENV_FILE="$(mktemp)"
+MULTI_ENV_FILE="$(mktemp)"
+MULTI_PROJECT="hubtask-smoke-multi"
+MULTI_HTTP_PORT=18081
+MULTI_OPS_PORT=19091
 cleanup() {
 	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
-	rm -f "$ENV_FILE"
+	$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
+	rm -f "$ENV_FILE" "$MULTI_ENV_FILE"
 }
 trap cleanup EXIT
 
@@ -306,4 +311,144 @@ if [ "${sessions:-0}" -lt 1 ]; then
 fi
 echo "tenant boundary: the application connects as hubtask_app and cannot bypass RLS"
 
-echo "compose: the reference stack starts from $IMAGE:$TAG and is ready"
+# ============ Multi mode (H-06): the same file, the other mode ============
+# The mode is exercised rather than configured (multi-tenancy.md §5): a second stack from the
+# same Compose file boots in multi mode, the control plane provisions a workspace behind
+# admin:tenants, and the acceptance is walked on the wire - the owner redeems the once-shown
+# token, is signed in, and sees the seeded structure; a suspension flips every call to 403 with
+# the lifecycle's code, and one write brings the workspace back.
+echo "--- multi mode: booting a second stack ---"
+
+MULTI_SECRET="$(head -c 32 /dev/urandom | base64)"
+cat > "$MULTI_ENV_FILE" <<ENV
+POSTGRES_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
+HUBTASK_DB_APP_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
+HUBTASK_SECRET_KEY=$MULTI_SECRET
+HUBTASK_IMAGE=$IMAGE
+HUBTASK_VERSION=$TAG
+HUBTASK_PORT=$MULTI_HTTP_PORT
+HUBTASK_OPS_PORT=$MULTI_OPS_PORT
+HUBTASK_TENANCY_MODE=multi
+ENV
+
+$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
+$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" up -d
+
+multi_started=$SECONDS
+multi_ready=""
+while [ $((SECONDS - multi_started)) -lt $DEADLINE_SECONDS ]; do
+	if curl -fsS -o /dev/null "http://127.0.0.1:$MULTI_OPS_PORT/readyz" 2>/dev/null; then
+		multi_ready="yes"
+		break
+	fi
+	sleep 2
+done
+if [ -z "$multi_ready" ]; then
+	echo "FAILED: the multi-mode stack did not turn ready within ${DEADLINE_SECONDS}s"
+	$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" logs --tail 50
+	exit 1
+fi
+echo "multi mode ready after $((SECONDS - multi_started))s"
+
+multi_psql() {
+	$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" exec -T db \
+		psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -tA -c "$1"
+}
+# One JSON field, without adding a dependency the script does not otherwise have.
+json_field() { python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))"; }
+
+# The operator's own workspace and the deliberately minted credential the admin surface demands:
+# a PAT carrying admin:tenants - the scope no session carries (0.6.0 decision 6).
+OPERATOR_TENANT="01936f2a-7c1e-7000-8000-0000000000e0"
+read -r ADMIN_TOKEN ADMIN_HASH < <(cd ../.. && \
+	HUBTASK_SECRET_KEY="$MULTI_SECRET" go run ./test/e2e/mint --tenant "$OPERATOR_TENANT")
+multi_psql "
+BEGIN;
+INSERT INTO tenant (id, slug, display_name)
+  VALUES ('$OPERATOR_TENANT', 'operator', 'Operator');
+INSERT INTO account (id, tenant_id, kind, display_name, status)
+  VALUES ('01936f2a-7c1e-7000-8000-0000000000e1', '$OPERATOR_TENANT', 'USER', 'Operator', 'ACTIVE');
+INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
+  VALUES ('01936f2a-7c1e-7000-8000-0000000000e2', '$OPERATOR_TENANT',
+          '01936f2a-7c1e-7000-8000-0000000000e1', 'the control plane bootstrap',
+          decode('$ADMIN_HASH', 'hex'), 'hbt_pat_', ARRAY['admin:tenants'],
+          now() + interval '15 minutes');
+COMMIT;" > /dev/null
+
+api() { curl -sS "http://127.0.0.1:$MULTI_HTTP_PORT/api/v1$1" "${@:2}"; }
+
+echo "--- multi mode: provisioning a workspace ---"
+IDEMPOTENCY_KEY="01936f2a-7c1e-7000-8000-0000000000e9"
+provision_body='{"slug":"acme","display_name":"Acme","owner_email":"eva@acme.example","default_locale":"de","default_time_zone":"Europe/Berlin"}'
+provisioned="$(api /admin/tenants -X POST \
+	-H "Authorization: Bearer $ADMIN_TOKEN" -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+	-H 'Content-Type: application/json' -d "$provision_body")"
+ACME_ID="$(json_field id <<< "$provisioned")"
+OWNER_REDEMPTION="$(json_field owner_redemption_token <<< "$provisioned")"
+if [ -z "$ACME_ID" ] || [ -z "$OWNER_REDEMPTION" ]; then
+	echo "FAILED: provisioning answered '$provisioned'"
+	exit 1
+fi
+
+# Idempotent under the key: provisioning twice creates one (§5).
+replayed="$(api /admin/tenants -X POST \
+	-H "Authorization: Bearer $ADMIN_TOKEN" -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+	-H 'Content-Type: application/json' -d "$provision_body")"
+if [ "$(json_field id <<< "$replayed")" != "$ACME_ID" ]; then
+	echo "FAILED: the replay answered a different workspace: '$replayed'"
+	exit 1
+fi
+tenants="$(multi_psql "SELECT count(*) FROM tenant")"
+if [ "$tenants" != "2" ]; then
+	echo "FAILED: $tenants tenant rows after two provisions under one key, want 2"
+	exit 1
+fi
+
+# A session must not reach the control plane, however privileged its person (decision 6).
+echo "--- multi mode: the owner signs in and sees the seeded structure ---"
+redeemed="$(api /auth/invitations:redeem -X POST -H 'Content-Type: application/json' \
+	-d "{\"token\":\"$OWNER_REDEMPTION\",\"password\":\"correct horse battery staple\"}")"
+OWNER_ACCESS="$(json_field access_token <<< "$redeemed")"
+if [ -z "$OWNER_ACCESS" ]; then
+	echo "FAILED: the redemption answered '$redeemed'"
+	exit 1
+fi
+containers="$(api /containers -H "Authorization: Bearer $OWNER_ACCESS")"
+if ! grep -q '"HUB"' <<< "$containers" || ! grep -q '"COLLECTION"' <<< "$containers"; then
+	echo "FAILED: the seeded structure is missing: '$containers'"
+	exit 1
+fi
+admin_as_owner="$(api /admin/tenants -o /dev/null -w '%{http_code}' \
+	-H "Authorization: Bearer $OWNER_ACCESS")"
+if [ "$admin_as_owner" != "403" ]; then
+	echo "FAILED: the owner's session reached the control plane ($admin_as_owner)"
+	exit 1
+fi
+
+echo "--- multi mode: suspension flips the middleware, one write flips it back ---"
+suspend_code="$(api "/admin/tenants/$ACME_ID:suspend" -X POST -o /dev/null -w '%{http_code}' \
+	-H "Authorization: Bearer $ADMIN_TOKEN")"
+if [ "$suspend_code" != "204" ]; then
+	echo "FAILED: the suspension answered $suspend_code"
+	exit 1
+fi
+suspended="$(api /containers -H "Authorization: Bearer $OWNER_ACCESS")"
+if ! grep -q "tenant_suspended" <<< "$suspended"; then
+	echo "FAILED: a suspended workspace's call answered '$suspended'"
+	exit 1
+fi
+resume_code="$(api "/admin/tenants/$ACME_ID:resume" -X POST -o /dev/null -w '%{http_code}' \
+	-H "Authorization: Bearer $ADMIN_TOKEN")"
+if [ "$resume_code" != "204" ]; then
+	echo "FAILED: the reactivation answered $resume_code"
+	exit 1
+fi
+if ! api /containers -H "Authorization: Bearer $OWNER_ACCESS" | grep -q '"HUB"'; then
+	echo "FAILED: the workspace did not come back after one write"
+	exit 1
+fi
+echo "multi mode: provisioned, redeemed, suspended and resumed on the wire"
+
+$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
+
+echo "compose: the reference stack starts from $IMAGE:$TAG and is ready, in both modes"

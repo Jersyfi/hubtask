@@ -55,7 +55,7 @@ deletion does not do its job.
 Three levels, because one is not enough:
 
 1. **No rights:** the application role `hubtask_app` holds only `INSERT` and `SELECT` on `audit_log` — no `UPDATE`, no `DELETE`, no `TRUNCATE`. Enforced by `GRANT`, checked by gate SG-4.
-2. **Trigger lock:** a `BEFORE UPDATE OR DELETE` trigger raises an exception. Protection also against an operator who accidentally configured themselves too much power.
+2. **Trigger lock:** a `BEFORE UPDATE OR DELETE` trigger raises an exception. Protection also against an operator who accidentally configured themselves too much power. One narrow exception since H-06: a `DELETE` passes while a transaction-scoped marker names exactly the row's tenant — written only by `purge_tenant_trail`, the hard delete's act, which closes the window before it returns (§6, migration 0067).
 3. **Hash chain:** `hash = SHA-256(prev_hash ‖ canonical serialisation of the entry)`, one chain per tenant, plus a gapless `seq`. An endpoint `POST /audit:verify` checks the chain and reports the break point and any sequence gap.
 
 **What the hash is taken over is the entry as the row gives it back**, not as the caller built it,
@@ -255,10 +255,10 @@ distinguish it from the trail:
   names. What bounds it instead: the application writes it in exactly one place (the tenant
   lifecycle use cases), it is append-only for the application role, and no API serves it — reading
   it is the operator's, at the database.
-* **It is written before the act it evidences.** The hard delete writes the evidence entry, then
-  purges the trail through the one narrow `SECURITY DEFINER` act (`purge_tenant_trail`, migration
-  0067), then lets the cascade take the rest. An act that fails halfway leaves evidence of the
-  attempt, never a deletion without evidence.
+* **It commits with the act it evidences.** The hard delete writes the evidence entry, purges
+  the trail through the one narrow `SECURITY DEFINER` act (`purge_tenant_trail`, migration 0067),
+  and lets the cascade take the rest - all in one transaction, so no committed state ever holds a
+  deletion without evidence, or evidence of a deletion that did not happen.
 * **It is not chained.** The hash chain of §3 exists because tenants must be able to prove their
   trail untampered to an outside party. The instance journal is the operator's own record about
   themselves; a chain here would attest the operator to the operator. Its integrity rests on the
