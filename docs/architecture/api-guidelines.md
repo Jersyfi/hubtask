@@ -94,7 +94,7 @@ One endpoint serves list, kanban, and timeline: `POST /api/v1/items:query`.
 | Operators | `EQ`, `NEQ`, `IN`, `NOT_IN`, `LT`, `LTE`, `GT`, `GTE`, `BETWEEN`, `IS_NULL`, `CONTAINS`, `CONTAINS_ANY`, `CONTAINS_ALL`, `STARTS_WITH`, `MATCHES` (full text) |
 | Placeholders | `@me`, `@today`, `@start_of_week`, `@end_of_month`, relative durations (`@today+P3D`) — resolved server-side in the actor's time zone |
 | Nesting | Maximum depth 5, maximum 50 nodes (protection against expensive queries) |
-| Cost | An estimate over the parsed tree, capped at 50: a plain comparison costs 1, a prefix 2, a text scan (`CONTAINS`/`MATCHES`) 5, a list its value count, a `NOT` doubles its subtree. Past the cap → `422 query.filter_too_expensive` naming the estimate and the ceiling — refused before it runs (H-08, multi-tenancy.md §4) |
+| Cost | An estimate over the parsed tree, capped at 50: a plain comparison costs 1, a prefix 2, a text scan (`CONTAINS`/`MATCHES`) 5, a list 1 plus one per twenty values, a `NOT` doubles its subtree. Past the cap → `422 query.filter_too_expensive` naming the estimate and the ceiling — refused before it runs (H-08, multi-tenancy.md §4) |
 | Fields | Only fields from `/meta/capabilities`; unknown fields → `422 invalid_query_field` |
 | `group_by` | Returns groups each with their own cursor → kanban columns can be paged independently |
 | Timeline | `sort=[start_at]`, filter `BETWEEN` on `start_at`/`due_at` |

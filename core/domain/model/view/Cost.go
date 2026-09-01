@@ -23,8 +23,11 @@ const (
 
 	// costPlain is a comparison an index can serve: EQ, the ranges, IS_NULL.
 	costPlain = 1
-	// costList is a list operator: one comparison per value it fans out to, priced up front.
-	costListPerValue = 1
+	// costListValuesPerUnit prices a list operator: an IN over an indexed field is index
+	// probes, not a scan, so twenty values cost one unit - the grammar's own MaxValues of 100
+	// stays affordable on its own (it is explicitly a legitimate board selection), while a
+	// query stacking full lists under OR still climbs.
+	costListValuesPerUnit = 20
 	// costText is a text scan: CONTAINS and MATCHES walk what no btree serves.
 	costText = 5
 	// costStartsWith sits between: a prefix can use an index, but only sometimes.
@@ -59,10 +62,7 @@ func Cost(node *Node) int {
 		return costStartsWith
 	case node.Op == OpIn || node.Op == OpNotIn ||
 		node.Op == OpContainsAny || node.Op == OpContainsAll:
-		if len(node.Values) == 0 {
-			return costPlain
-		}
-		return costListPerValue * len(node.Values)
+		return costPlain + len(node.Values)/costListValuesPerUnit
 	default:
 		return costPlain
 	}

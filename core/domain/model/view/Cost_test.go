@@ -57,8 +57,13 @@ func TestTheWeightsPriceTheKnownShapes(t *testing.T) {
 		t.Errorf("a prefix costs %d", view.Cost(prefix))
 	}
 	list := &view.Node{Op: view.OpIn, Values: make([]view.Value, 30)}
-	if view.Cost(list) != 30 {
+	if view.Cost(list) != 2 {
 		t.Errorf("a thirty-value list costs %d", view.Cost(list))
+	}
+	// The grammar's own MaxValues stays affordable alone: a full board selection is legitimate.
+	full := &view.Node{Op: view.OpIn, Values: make([]view.Value, 100)}
+	if view.Cost(full) != 6 {
+		t.Errorf("a full list costs %d", view.Cost(full))
 	}
 	negated := &view.Node{Op: view.OpNot, Nodes: []view.Node{{Op: view.OpContains}}}
 	if view.Cost(negated) != 10 {

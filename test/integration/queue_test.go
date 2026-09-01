@@ -402,16 +402,23 @@ func TestAFloodingTenantDoesNotMonopoliseTheClaim(t *testing.T) {
 	}
 	// Round-robin: both make progress and neither claims the whole pool. The assertions are
 	// deliberately about the property rather than exact shares - the suite's other tests leave
-	// their own tenants' due jobs behind, and those share the batch too, which is the fairness
-	// working, not the test flaking.
-	if counts[modest] < 2 {
-		t.Errorf("the modest tenant got %d jobs into the batch (flooder %d) - age alone decided",
-			counts[modest], counts[flooder])
+	// their own tenants' due jobs behind, and those share the batch too (each with their own
+	// first-place rows), which is the fairness working, not the test flaking. What must hold
+	// whatever the crowd: the flooder's twenty-job head start buys it no more than one round's
+	// head start over the modest tenant, and both are in the batch.
+	if counts[modest] < 1 {
+		t.Errorf("the modest tenant got nothing (flooder %d) - age alone decided", counts[flooder])
 	}
-	if counts[flooder] < 2 {
-		t.Errorf("the flooding tenant starved (%d) - fairness is sharing, not punishment", counts[flooder])
+	if counts[flooder] < 1 {
+		t.Error("the flooding tenant starved - fairness is sharing, not punishment")
 	}
 	if counts[flooder] == len(claimed) {
 		t.Error("the flooding tenant claimed the whole pool")
+	}
+	// The flooder may pull ahead only once the modest tenant has nothing left to claim - its
+	// whole three are in the batch. Anything else means the storm bought priority.
+	if counts[flooder] > counts[modest]+1 && counts[modest] != 3 {
+		t.Errorf("the flooder took %d while the modest tenant still had work (%d of 3 claimed)",
+			counts[flooder], counts[modest])
 	}
 }
