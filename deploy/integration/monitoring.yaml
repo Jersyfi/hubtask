@@ -45,7 +45,13 @@ metadata:
   namespace: hubtask
 rules:
   - apiGroups: [""]
-    resources: [services, endpoints, pods]
+    resources: [services, pods]
+    verbs: [get, list, watch]
+  # EndpointSlices rather than Endpoints: the core/v1 object is deprecated from 1.33 and the
+  # cluster says so in Prometheus's log on every discovery refresh. This is the API that replaces
+  # it, and it lives in its own group.
+  - apiGroups: ["discovery.k8s.io"]
+    resources: [endpointslices]
     verbs: [get, list, watch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -96,11 +102,11 @@ data:
       # API (k8s/templates/service.yaml).
       - job_name: hubtask
         kubernetes_sd_configs:
-          - role: endpoints
+          - role: endpointslice
             namespaces:
               names: [hubtask]
         relabel_configs:
-          - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+          - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpointslice_port_name]
             action: keep
             regex: hubtask-metrics;ops
           # The pod, not the endpoint address: an alert that names 10.42.0.17 names something that
@@ -298,6 +304,14 @@ data:
           receiver: watchdog
           group_wait: 0s
           repeat_interval: 12h
+        # A-12 is true here, and deliberately so: this environment keeps no backups, and the rule
+        # fires on the *absent* series precisely so that "nobody configured one" is loud rather
+        # than silent. What is a finding on a real installation is a written decision on a
+        # throwaway one (deploy/integration/README.md, "What is not here, and why"), so it is
+        # routed to a receiver that sends nothing. Not a silence: a silence expires, and this
+        # decision does not - and a route is in the diff where somebody can argue with it.
+        - matchers: ['alert_id="A-12"']
+          receiver: muted
         - matchers: ['severity="page"']
           receiver: page
           # A page waits for nothing and repeats until somebody acts.
@@ -329,6 +343,8 @@ data:
         email_configs:
           - to: "info@integration.hubtask.eu"
             send_resolved: false
+      # Sends nothing, on purpose. See the A-12 route above.
+      - name: muted
       # Its own mailbox, so that "is the path alive" is one query and never competes with a page.
       - name: watchdog
         email_configs:
