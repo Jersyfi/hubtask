@@ -94,6 +94,7 @@ One endpoint serves list, kanban, and timeline: `POST /api/v1/items:query`.
 | Operators | `EQ`, `NEQ`, `IN`, `NOT_IN`, `LT`, `LTE`, `GT`, `GTE`, `BETWEEN`, `IS_NULL`, `CONTAINS`, `CONTAINS_ANY`, `CONTAINS_ALL`, `STARTS_WITH`, `MATCHES` (full text) |
 | Placeholders | `@me`, `@today`, `@start_of_week`, `@end_of_month`, relative durations (`@today+P3D`) — resolved server-side in the actor's time zone |
 | Nesting | Maximum depth 5, maximum 50 nodes (protection against expensive queries) |
+| Cost | An estimate over the parsed tree, capped at 50: a plain comparison costs 1, a prefix 2, a text scan (`CONTAINS`/`MATCHES`) 5, a list its value count, a `NOT` doubles its subtree. Past the cap → `422 query.filter_too_expensive` naming the estimate and the ceiling — refused before it runs (H-08, multi-tenancy.md §4) |
 | Fields | Only fields from `/meta/capabilities`; unknown fields → `422 invalid_query_field` |
 | `group_by` | Returns groups each with their own cursor → kanban columns can be paged independently |
 | Timeline | `sort=[start_at]`, filter `BETWEEN` on `start_at`/`due_at` |
@@ -151,7 +152,9 @@ backend change (requirement C-14).
 
 The standard mapping: `400 malformed_request`, `401 unauthenticated`, `403 forbidden`,
 `404 not_found`, `409 conflict|version_conflict`, `410 gone` (permanently deleted),
-`422 validation_failed|capability_not_supported|invalid_query_field`,
+`422 validation_failed|capability_not_supported|invalid_query_field` (a capacity quota refuses
+as `422` with `capacity.<quota>` naming the quota and the ceiling — waiting does not help, which
+is what separates it from `429`),
 `429 rate_limited`, `500 internal`, `503 dependency_unavailable|ai_unavailable`.
 
 ---
