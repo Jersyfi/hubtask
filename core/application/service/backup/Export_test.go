@@ -279,3 +279,71 @@ func TestARepositoryFailureIsNotSwallowed(t *testing.T) {
 		t.Fatalf("the failure was swallowed: %v", err)
 	}
 }
+
+// The redaction of tenant-export.md §9: an archive handed outwards loses exactly the credential
+// columns, and nothing else changes hands differently.
+func TestRedactionStripsExactlyTheCredentialColumns(t *testing.T) {
+	inner := scriptedSource{records: map[string][]archive.Record{
+		"account": {{
+			ID: "a1", Op: archive.OpUpsert,
+			Data: map[string]any{
+				"email": "a@example.org", "password_hash": "argon2id...",
+				"redemption_token_hash": "beef", "display_name": "A",
+			},
+		}},
+		"calendar_feed": {{
+			ID: "f1", Op: archive.OpUpsert,
+			Data: map[string]any{"token_hash": "cafe", "account_id": "a1"},
+		}},
+		"work_item": {{
+			ID: "w1", Op: archive.OpUpsert,
+			Data: map[string]any{"title": "untouched"},
+		}},
+	}}
+
+	redacted := service.Redacted(inner)
+	collect := func(entity archive.Entity) []archive.Record {
+		var out []archive.Record
+		if err := redacted.Records(t.Context(), entity, time.Time{}, func(r archive.Record) error {
+			out = append(out, r)
+			return nil
+		}); err != nil {
+			t.Fatalf("reading %s: %v", entity.Table, err)
+		}
+		return out
+	}
+
+	account := collect(archive.Entity{Name: "accounts", Table: "account"})[0]
+	for _, gone := range []string{"password_hash", "redemption_token_hash"} {
+		if _, held := account.Data[gone]; held {
+			t.Errorf("the account still carries %s", gone)
+		}
+	}
+	if account.Data["email"] != "a@example.org" || account.Data["display_name"] != "A" {
+		t.Errorf("the account lost data: %v", account.Data)
+	}
+
+	feed := collect(archive.Entity{Name: "calendar_feeds", Table: "calendar_feed"})[0]
+	if _, held := feed.Data["token_hash"]; held {
+		t.Error("the feed still carries its token hash")
+	}
+
+	item := collect(archive.Entity{Name: "work_items", Table: "work_item"})[0]
+	if item.Data["title"] != "untouched" {
+		t.Errorf("an unredacted entity changed: %v", item.Data)
+	}
+}
+
+// scriptedSource answers canned records per table.
+type scriptedSource struct{ records map[string][]archive.Record }
+
+func (s scriptedSource) Records(
+	_ context.Context, entity archive.Entity, _ time.Time, yield func(archive.Record) error,
+) error {
+	for _, record := range s.records[entity.Table] {
+		if err := yield(record); err != nil {
+			return err
+		}
+	}
+	return nil
+}

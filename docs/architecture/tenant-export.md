@@ -110,7 +110,7 @@ Each line of a `data/<entity>.jsonl` file is one JSON object:
 |---|---|---|
 | `id` | string | The row's identity: the entity's key columns (§6), joined with `/` when there are several. Never contains the tenant — the archive's scope carries it once. |
 | `op` | string | `UPSERT` — the row as it stood at the snapshot. (`DELETE` markers exist only in incremental backups; a `FULL` export contains none.) |
-| `updated_at` | RFC 3339 | When the row last changed. Always present; for entities whose table records no change stamp it is the zero instant `0001-01-01T00:00:00Z`. |
+| `updated_at` | RFC 3339 | When the row last changed. Always present; a row whose table records no change stamp carries the archive's `snapshot_at` — the honest time for "seen in this archive". |
 | `data` | object | **The row's columns, under their column names, minus `tenant_id`** — the field dictionary is `db/schema.sql` at the manifest's `schema_version`. Values are the column values as JSON: text as strings, numerics as numbers, `timestamptz` as RFC 3339 strings, `jsonb` embedded as-is, arrays as arrays, `NULL` as `null`. |
 | `blobs` | array | Only on `media_objects` records whose bytes are in the archive: `[{"sha256": "<64 lower hex>", "bytes": <int>}]` — the reference into `media/` (§7). |
 

@@ -394,3 +394,26 @@ func (TenantPurge) HardDelete(ctx context.Context, now time.Time) (bool, error) 
 	}
 	return removed > 0, nil
 }
+
+// ExportLoad answers the §4 concurrency quota's question (H-07).
+type ExportLoad struct{}
+
+func NewExportLoad() ExportLoad { return ExportLoad{} }
+
+var _ repository.ExportLoad = ExportLoad{}
+
+// LiveExports counts the transaction's tenant's pending and running export jobs.
+func (ExportLoad) LiveExports(ctx context.Context) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	live, err := queries.CountLiveTenantExports(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the live exports: %w", err))
+	}
+	return int(live), nil
+}

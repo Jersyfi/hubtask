@@ -68,6 +68,22 @@ func (q *Queries) AdminTenants(ctx context.Context) ([]AdminTenantsRow, error) {
 	return items, nil
 }
 
+const countLiveTenantExports = `-- name: CountLiveTenantExports :one
+SELECT count(*) FROM job
+WHERE tenant_id = current_tenant_id()
+  AND kind = 'tenant.export'
+  AND state IN ('PENDING', 'RUNNING')
+`
+
+// The §4 concurrency quota's question (H-07). The job table has no policy, so the tenant is the
+// transaction's own, written as an explicit predicate - DeleteTenantJobs' precedent.
+func (q *Queries) CountLiveTenantExports(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countLiveTenantExports)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countTenantFootprint = `-- name: CountTenantFootprint :one
 
 SELECT
