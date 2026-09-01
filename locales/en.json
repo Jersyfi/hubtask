@@ -1,6 +1,5 @@
 {
   "_comment": "Source catalogue (i18n-l10n.md §3). ICU MessageFormat, keys hierarchical and semantic. English is the source language; every other locale is translated from this file. The backend never emits these sentences - it emits the key plus params, and the client renders them.",
-
   "errors.validation_failed": "The request contains invalid values.",
   "errors.malformed_request": "The request could not be read.",
   "errors.unauthenticated": "Please sign in.",
@@ -16,7 +15,6 @@
   "errors.internal": "Something went wrong on our side. Reference: {request_id}",
   "errors.capability_not_supported": "That kind of entry does not support this field.",
   "errors.config_invalid": "The installation is misconfigured.",
-
   "config.db_dsn_missing": "{variable} is not set. Hubtask needs a PostgreSQL connection.",
   "config.secret_key_missing": "{variable} is not set. Without it, stored credentials cannot be encrypted.",
   "config.secret_key_too_short": "{variable} must be at least {minimum} characters long.",
@@ -49,8 +47,7 @@
   "config.allowed_host_invalid": "{variable} takes host names, not URLs. {value} contains a scheme or a path.",
   "config.timezone_unknown": "{variable} must be an IANA time zone such as Europe/Berlin. {value} is not one.",
   "config.cors_origin_invalid": "{variable} takes complete origins such as https://app.example.com. {value} is not one.",
-
-  "config.backup_not_configured": "No backup target is configured. A restore drill is a release criterion.",
+  "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.smtp_missing": "No SMTP server is configured. Notifications by email are unavailable.",
   "config.smtp_missing_with_reminders": "No SMTP server is configured, and this installation fires reminders. They are recorded and wait in the queue; nobody is told until a mail server is configured.",
   "config.base_url_missing": "HUBTASK_BASE_URL is not set. Links in emails and feeds will be wrong.",
@@ -58,7 +55,6 @@
   "config.egress_allowlist_missing": "No egress allowlist is configured. In multi-tenant operation, outbound calls should be restricted to known hosts.",
   "config.egress_private_networks_allowed": "Outbound calls to private networks are allowed. A webhook target can reach services inside your network.",
   "config.smtp_without_tls": "SMTP to {host} is configured without TLS. Credentials travel unencrypted.",
-
   "request.body_malformed": "The request body is not valid JSON.",
   "request.body_missing": "This operation needs a request body.",
   "request.body_unreadable": "The request body could not be read to the end.",
@@ -90,7 +86,6 @@
   "access.token_unmintable": "This installation could not draw a token. Try again.",
   "access.not_permitted": "Your role in this workspace does not allow that ({permission}).",
   "access.account_not_active": "This account cannot be used at the moment. Its status is {status}.",
-
   "auth.sign_in_failed": "Sign-in failed. Check the email address and the password.",
   "auth.sign_in_locked": "Too many failed attempts. Wait a moment, then try again.",
   "auth.refresh_failed": "That refresh token cannot be exchanged. Sign in again.",
@@ -116,7 +111,6 @@
   "auth.step_up_required": "This action needs you to prove who you are again. Call POST /auth/step-up with your {methods}, then repeat this call with the X-Hubtask-Step-Up header.",
   "auth.step_up_method_required": "Send password, or code where a second factor is armed - one of the two, never both.",
   "auth.step_up_session_required": "A step-up is a session's act. Sign in with your password first; a personal access token cannot prove a person afresh.",
-
   "oauth.client_incomplete": "This installation could not register that app.",
   "oauth.client_name_required": "An app needs a name. It is what people read when they decide to allow it.",
   "oauth.client_name_too_long": "An app name may be at most 200 characters.",
@@ -131,23 +125,18 @@
   "oauth.grant_revoked": "What this app was allowed has been withdrawn. Authorize again.",
   "oauth.grant_not_found": "There is no such grant.",
   "oauth.authorization_failed": "That authorization cannot be made. Check the app and the redirect URI.",
-
   "admin.tenant_not_found": "There is no such workspace.",
   "admin.slug_taken": "That subdomain is already a workspace's. Choose another.",
-  "admin.tenant_not_suspended": "That workspace is not suspended.",
-  "admin.tenant_already_active": "That workspace is already active.",
   "admin.tenant_leaving": "That workspace is pending deletion. Its lifecycle only moves forward from here.",
   "admin.deletion_confirmation_required": "Deleting a workspace needs its display name, typed exactly. Expected {name}.",
   "admin.multi_mode_required": "This installation runs in single mode. The control plane provisions workspaces only in multi mode.",
   "access.tenant_suspended": "This workspace is suspended. Its data remains; ask the operator.",
   "access.tenant_pending_deletion": "This workspace is being deleted. Access is closed while the grace period runs.",
   "config.step_up_window_invalid": "HUBTASK_STEP_UP_WINDOW has to be a positive duration, such as 5m.",
-
   "idempotency.key_malformed": "The Idempotency-Key header has to be a UUID.",
   "idempotency.key_reused": "This Idempotency-Key was already used for a different request. Use a new one.",
   "idempotency.in_progress": "An identical request is still running. Try again in a moment.",
   "idempotency.body_unreadable": "The request body could not be read to the end.",
-
   "containers.type_unknown": "{value} is not a kind of container. Use HUB or COLLECTION.",
   "containers.name_empty": "A hub or collection needs a name.",
   "containers.name_too_long": "The name may be at most {maximum} characters long.",
@@ -181,7 +170,6 @@
   "containers.auto_assign_candidate_kind_unknown": "{value} is not a kind of candidate. Use ACCOUNT or GROUP.",
   "containers.auto_assign_candidate_kind_invalid": "The {strategy} strategy does not draw from a {kind} candidate.",
   "containers.auto_assign_candidate_id_required": "Every candidate needs an identifier.",
-
   "items.capability_not_supported": "A {item_type} has no {capability}.",
   "items.type_unknown": "{value} is not a kind of entry. Use TASK, WORK_PACKAGE or ACTIVITY.",
   "items.title_empty": "An entry needs a title.",
@@ -249,7 +237,6 @@
   "items.cover_kind_unknown": "{value} is not a kind of cover. Use COLOR or IMAGE.",
   "items.cover_contradictory": "A COLOR cover carries a colour token and an IMAGE cover a media identifier - exactly one of the two.",
   "items.cover_token_malformed": "The colour token has to fit on one line.",
-
   "fields.kind_unknown": "{value} is not a kind of custom field. Use TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER or URL.",
   "fields.key_required": "A custom field needs a key.",
   "fields.key_too_long": "A key may be at most {maximum} characters long.",
@@ -289,7 +276,6 @@
   "fields.deletion_stamp_missing": "This installation is misconfigured and could not delete that custom field.",
   "fields.identity_incomplete": "This installation is misconfigured and could not create that custom field.",
   "fields.kind_unhandled": "This installation could not judge that value.",
-
   "comments.body_required": "A comment needs text.",
   "comments.body_too_long": "A comment may be at most {maximum} characters long.",
   "comments.parent_not_on_item": "That comment belongs to another entry.",
@@ -300,7 +286,6 @@
   "comments.comment_id_required": "Say which comment.",
   "comments.comment_deleted": "That comment was deleted. Its text cannot be changed.",
   "comments.version_conflict": "Someone else changed that comment in the meantime. Read it again and reapply.",
-
   "media.type_mismatch": "The file does not look like {claimed}. Send it as what it is, or without a content type.",
   "media.too_large": "The file is larger than this installation accepts ({limit_bytes} bytes).",
   "media.content_required": "The upload carries no content.",
@@ -322,11 +307,9 @@
   "media.reconcile_without_tenant": "This installation is misconfigured and could not reclaim unused files.",
   "media.ingest_without_tenant": "This installation is misconfigured and could not store an inbound file.",
   "media.token_invalid": "That link is not valid any more.",
-
   "storage.key_invalid": "This installation is misconfigured and could not store that file.",
   "storage.io_failed": "The file store did not respond as expected. Please try again in a moment.",
   "items.auto_assign_strategy_unhandled": "This installation is misconfigured and could not hand that entry out automatically.",
-
   "buckets.name_empty": "A bucket needs a name.",
   "buckets.name_too_long": "The name may be at most {maximum} characters long.",
   "buckets.name_malformed": "The name has to fit on one line.",
@@ -342,7 +325,6 @@
   "buckets.update_empty": "Say what to change about that bucket.",
   "buckets.name_taken": "A bucket called {name} already exists in this collection.",
   "buckets.version_conflict": "Someone else changed that bucket in the meantime. Read it again and reapply.",
-
   "labels.name_empty": "A label needs a name.",
   "labels.name_too_long": "The name may be at most {maximum} characters long.",
   "labels.name_malformed": "The name has to fit on one line.",
@@ -357,7 +339,6 @@
   "labels.update_empty": "Say what to change about that label.",
   "labels.name_taken": "A label called {name} already exists in this collection.",
   "labels.version_conflict": "Someone else changed that label in the meantime. Read it again and reapply.",
-
   "accounts.email_empty": "An invitation needs an email address.",
   "accounts.email_malformed": "{value} does not look like an email address.",
   "accounts.email_too_long": "An email address may be at most {maximum} characters long.",
@@ -385,7 +366,6 @@
   "memberships.identity_incomplete": "This installation is misconfigured and could not record that role.",
   "memberships.identifier_required": "Say which membership.",
   "memberships.not_found": "That membership does not exist.",
-
   "events.payload_unserialisable": "This installation could not announce that change.",
   "events.payload_unreadable": "This installation could not read a recorded change and has not delivered it yet.",
   "events.consumer_unnamed": "This installation is misconfigured: a subscriber without a name cannot be told what it has already seen.",
@@ -402,7 +382,6 @@
   "events.due_unchanged": "This installation could not announce that change.",
   "events.due_missing": "This installation is misconfigured and could not announce a deadline.",
   "events.account_missing": "This installation could not announce that change.",
-
   "shared.id_malformed": "{value} is not a valid identifier.",
   "shared.cursor_invalid": "This page link is no longer usable. Please start the list again.",
   "lifecycle.legal_hold": "This cannot be deleted for good: a legal hold is in force on the {scope}. Ask whoever placed it.",
@@ -413,7 +392,7 @@
   "lifecycle.hold_reason_too_long": "That reason is longer than a legal hold can carry. Keep it to the substance and the citation.",
   "lifecycle.hold_not_found": "There is no such legal hold.",
   "lifecycle.hold_already_released": "That legal hold has already been lifted.",
-  "lifecycle.hold_account_scope_unavailable": "Hubtask cannot yet hold a person\u2019s own data - that arrives with the data subject requests, and a hold nothing acts on would be worse than none. Hold the workspace, the collection or the entry instead.",
+  "lifecycle.hold_account_scope_unavailable": "Hubtask cannot yet hold a person’s own data - that arrives with the data subject requests, and a hold nothing acts on would be worse than none. Hold the workspace, the collection or the entry instead.",
   "lifecycle.hold_placed": "A legal hold was placed.",
   "lifecycle.hold_released": "A legal hold was lifted.",
   "lifecycle.removal_incomplete": "This installation is misconfigured and could not record that deletion.",
@@ -422,7 +401,6 @@
   "lifecycle.run_unrecordable": "This installation could not record what a deletion run did.",
   "lifecycle.history_not_wired": "This installation is misconfigured: nothing removes the notification history when its period runs out.",
   "lifecycle.inbox_not_wired": "This installation is misconfigured: nothing removes jumble entries when their period runs out.",
-
   "lifecycle.rule_incomplete": "That retention rule cannot be created as described.",
   "lifecycle.data_kind_unknown": "That is not a kind of data Hubtask keeps a period for.",
   "lifecycle.data_kind_not_swept": "Hubtask does not yet remove {data_kind}, so a period for it would be a promise nothing keeps. Ask for it in a later release rather than configuring one that never runs.",
@@ -451,7 +429,6 @@
   "lifecycle.retained": "An entry was taken out of its retention period.",
   "lifecycle.restriction": "This cannot be deleted: processing of it is restricted while a data subject request is open.",
   "lifecycle.descendant_retained": "This cannot be deleted yet: something below it is kept for longer.",
-
   "notifications.tenant_missing": "This installation could not record a notification.",
   "notifications.recipient_missing": "This installation could not record a notification.",
   "notifications.category_unknown": "{value} is not a notification category.",
@@ -462,7 +439,6 @@
   "notifications.delivery_failed": "This message could not be delivered.",
   "notifications.payload_malformed": "This installation could not read an event it was announcing.",
   "notifications.job_without_tenant": "This installation could not send a message: the job named no workspace.",
-
   "email.assignment.subject": "{actor} gave you “{title}”",
   "email.assignment.subject.withheld": "Something was assigned to you",
   "email.assignment.body": "{actor} put “{title}” on you.\n\n{link}",
@@ -493,7 +469,6 @@
   "email.retention.body.withheld": "A retention rule in this workspace is due to act on something you can reach. Until it does, anybody who may edit it can take it out of the period - by editing it, moving it, or asking to keep it.\n\n{link}",
   "mail.recipient_missing": "This installation could not send a message: it had no address to send it to.",
   "mail.header_injection": "This installation refused to send a message whose subject or address was not on one line.",
-
   "usecase.input_invalid": "The request contains invalid values.",
   "usecase.field_required": "This field is required.",
   "usecase.field_unknown": "This field does not exist on this operation.",
@@ -512,7 +487,6 @@
   "bulk.payload_malformed": "Operation {index} of the bulk carries a body that is not an object.",
   "bulk.rolled_back": "Nothing in this bulk was applied: operation {failed_index} was refused, and the bulk was all or nothing.",
   "bulk.deadline_exceeded": "The bulk ran out of time. Read the entries back to see what was applied, and send the rest again.",
-
   "automation.run_as_missing": "This rule has no account to run as. Set one before enabling it.",
   "automation.action_unknown": "This installation has no automation action called {action}.",
   "automation.rule_incomplete": "This installation could not write that rule.",
@@ -588,7 +562,6 @@
   "automation.test_event_type_required": "A dry run needs a sample event with a type.",
   "automation.run_not_replayable": "Only a failed run can be replayed. That one is {status}.",
   "automation.replay_occasion_unknown": "That run was recorded before its occasion was stored, and a {trigger} run cannot be replayed without it.",
-
   "jumble.entry_invalid": "That entry cannot be stored as written.",
   "jumble.entry_incomplete": "This installation could not store that entry.",
   "jumble.channel_unknown": "That is not a channel an entry can arrive over.",
@@ -645,7 +618,6 @@
   "automation.on_error_unknown": "{value} is not a way to handle a failure. Use STOP, CONTINUE or RETRY.",
   "automation.object_required": "That part of the rule is missing.",
   "automation.object_invalid": "That part of the rule has to be an object.",
-
   "audit.tenant_mismatch": "This installation could not record that action and therefore did not carry it out.",
   "audit.entry_incomplete": "This installation could not record that action and therefore did not carry it out.",
   "audit.entry_unserialisable": "This installation could not record that action and therefore did not carry it out.",
@@ -658,7 +630,6 @@
   "audit.outcome_invalid": "That is not an outcome an entry can have. Use SUCCESS, DENIED or FAILED.",
   "audit.format_invalid": "That is not a format an audit export can be written in.",
   "audit.export_target_required": "An export needs a backup target to write to.",
-
   "privacy.kind_invalid": "That is not a right this installation can record a request for.",
   "privacy.scope_invalid": "That is not a scope a request can have. Use TENANT or INSTALLATION.",
   "privacy.subject_required": "A request needs somebody it is about: an account or an email address.",
@@ -677,7 +648,6 @@
   "privacy.subject_not_found": "There is no account here for the person that request is about.",
   "privacy.due_at_malformed": "That deadline is not a date and time this installation understands.",
   "privacy.installation_scope_denied": "Reaching across every workspace of this installation needs the admin:tenants scope.",
-
   "activity.entry_incomplete": "This installation could not record that step in the history and therefore did not carry the change out.",
   "activity.verb_unknown": "This installation could not record that step in the history and therefore did not carry the change out.",
   "activity.actor_kind_invalid": "This installation could not record that step in the history and therefore did not carry the change out.",
@@ -685,7 +655,6 @@
   "activity.change_set_unserialisable": "This installation could not record that step in the history and therefore did not carry the change out.",
   "activity.journal_missing": "This installation could not record that step in the history and therefore did not carry the change out.",
   "activity.change_set_unreadable": "Part of this entry's history could not be read.",
-
   "activity.item_created": "{actor} created this entry",
   "activity.item_duplicated": "{actor} created this entry as a copy of another one",
   "activity.item_updated": "{actor} edited this entry",
@@ -715,7 +684,6 @@
   "activity.item_recurrence_removed": "{actor} stopped this repeating",
   "activity.item_recurrence_skipped": "{actor} skipped the next occurrence",
   "activity.item_commented": "{actor} commented",
-
   "sync.payload_unserialisable": "This installation could not record that change for offline devices.",
   "sync.change_without_clock": "This installation could not record that change for offline devices.",
   "sync.payload_unreadable": "This installation could not read a recorded change.",
@@ -727,16 +695,12 @@
   "sync.hlc_incomplete": "This installation could not stamp that change.",
   "sync.hlc_device_malformed": "This installation could not stamp that change.",
   "sync.hlc_counter_exhausted": "This installation could not stamp that change.",
-
   "ordering.bounds_invalid": "This installation could not work out where to put that entry.",
   "ordering.key_malformed": "This installation could not work out where to put that entry.",
   "ordering.space_exhausted": "There is no room left above the first entry in this list. Sort it once, then try again.",
-
   "rest.use_case_not_wired": "This installation is misconfigured and cannot answer that request.",
-
   "route.unknown": "There is nothing at this address.",
   "route.operation_not_available": "This installation does not offer that operation yet.",
-
   "dependency.unavailable": "A service this feature needs cannot be reached at the moment. Everything else keeps working.",
   "dependency.timeout": "{dependency} did not answer in time. Please try again in a moment.",
   "dependency.circuit_open": "{dependency} is unreachable at the moment. Hubtask has stopped calling it and will try again shortly.",
@@ -749,7 +713,6 @@
   "dependency.target_unresolvable": "The address {host} could not be resolved at the moment.",
   "dependency.too_many_redirects": "The address redirected more than {limit} times. Hubtask stopped following it.",
   "dependency.response_too_large": "The answer was larger than the permitted {limit_bytes} bytes.",
-
   "search.words_required": "Say what to look for.",
   "search.words_too_long": "A search may be at most {maximum} characters long.",
   "query.document_unreadable": "That is not a JSON query document.",
@@ -797,7 +760,6 @@
   "query.operator_not_compilable": "This installation is misconfigured and could not run that search.",
   "query.parameters_inconsistent": "This installation is misconfigured and could not run that search.",
   "query.placeholder_unresolved": "This installation is misconfigured and could not run that search.",
-
   "views.name_empty": "A view needs a name.",
   "views.name_too_long": "The name may be at most {maximum} characters long.",
   "views.name_malformed": "The name has to fit on one line.",
@@ -820,7 +782,6 @@
   "views.query_undecodable": "This installation is misconfigured and could not read that view.",
   "views.sharing_undecided": "This installation is misconfigured and could not store that view.",
   "views.identity_incomplete": "This installation is misconfigured and could not store that view.",
-
   "reminders.offset_spec_required": "A reminder needs to say when it fires.",
   "reminders.offset_spec_invalid": "{value} is neither REL: with a duration such as -PT1H nor ABS: with a moment such as 2026-09-01T08:00:00Z.",
   "reminders.offset_spec_too_long": "That is longer than a reminder's offset may be.",
@@ -838,7 +799,6 @@
   "reminders.reminder_id_required": "Which reminder? Send reminder_id.",
   "reminders.update_empty": "The update names no field. Send at least one.",
   "reminders.version_conflict": "The reminder changed while you were editing it. Read it again and reapply.",
-
   "recurrence.rrule_required": "A series needs a rule.",
   "recurrence.rrule_too_long": "A rule may be at most {maximum} characters long.",
   "recurrence.rrule_invalid": "{value} is not a recurrence rule this installation can read.",
@@ -863,7 +823,6 @@
   "recurrence.stored_rule_unreadable": "That series was stored with a rule this installation can no longer read.",
   "events.occurrence_incomplete": "This installation is misconfigured and could not announce an occurrence.",
   "events.instantiation_incomplete": "This installation is misconfigured and could not announce an instantiation.",
-
   "templates.scope_unknown": "{value} is not a template scope. Use TENANT, HUB or COLLECTION.",
   "templates.scope_id_required": "This scope names a container. Send scope_id with it.",
   "templates.scope_id_not_allowed": "A workspace-wide template names no container. Leave scope_id out.",
@@ -890,10 +849,8 @@
   "templates.nodes_unreadable": "That is not a JSON array of template nodes.",
   "templates.nodes_undecodable": "This installation is misconfigured and could not read that template.",
   "templates.nodes_unencodable": "This installation is misconfigured and could not store that template.",
-
   "views.export_format_unknown": "{value} is not an export format. Use CSV, JSON or ICS.",
   "views.export_zone_unknown": "This installation does not know the time zone {time_zone}.",
-
   "calendar.token_malformed": "That is not a calendar feed address this server minted.",
   "calendar.token_tenant_missing": "This installation is misconfigured and could not mint a feed token.",
   "calendar.token_secret_short": "This installation is misconfigured and could not mint a feed token.",
@@ -940,13 +897,11 @@
   "triggers.cursor_expired": "This poll position is older than the {retain_days} days of events that are kept, so what happened since then is no longer all there. Poll again without a position, and expect to have missed events.",
   "calendar.owner_required": "A calendar feed reads as a person. A service account has nobody to read as.",
   "calendar.token_unmintable": "This installation could not draw the randomness a feed token needs. Try again.",
-
   "jobs.not_found": "There is no such job.",
   "jobs.unknown_state": "That job is in a state this version does not know how to report.",
   "jobs.job_id_required": "Which job? Send job_id.",
   "jobs.already_finished": "That job is already {status}. There is nothing left to stop.",
   "jobs.cancellation_raced": "That job changed while it was being stopped. Ask for it again to see where it stands.",
-
   "backup.target_invalid": "That backup target cannot be created as described.",
   "backup.name_required": "A backup target needs a name.",
   "backup.name_too_long": "That name is too long for a backup target.",
@@ -979,7 +934,6 @@
   "backup.config_unreadable": "This installation could not read that target's configuration.",
   "backup.credentials_unserialisable": "This installation could not store that target's credentials.",
   "backup.credentials_unreadable": "This installation could not read that target's credentials.",
-
   "backup.archive_format_unsupported": "That archive is written in format version {format_version}, and this version of Hubtask reads up to {supported}. Restore it with a newer Hubtask.",
   "backup.archive_manifest_unreadable": "That archive's manifest could not be read. It is not a Hubtask archive, or it has been altered.",
   "backup.archive_manifest_invalid": "That archive's manifest is missing {reason}, so it cannot be restored.",
@@ -993,7 +947,6 @@
   "backup.archive_chain_broken": "The chain of archives before {prefix} is not complete ({reason}), so it cannot be restored on its own.",
   "backup.archive_key_required": "That archive is encrypted with the key {key_id}. Supply it to read the archive.",
   "backup.archive_key_unexpected": "That archive is not encrypted, so it needs no key.",
-
   "backup.schedule_invalid": "That backup schedule cannot be created as described.",
   "backup.schedule_target_required": "A backup schedule needs a target to write to.",
   "backup.schedule_scope_invalid": "That is not a scope a backup schedule can have.",
@@ -1023,7 +976,6 @@
   "backup.run_abandoned": "That backup run was given up on after repeated failures, and its target is free again. The dead letter has the attempt that failed.",
   "backup.restore_abandoned": "That restore was given up on after repeated failures, and restores are possible here again. The dead letter has the attempt that failed.",
   "backup.schedule_pass_without_tenant": "A backup schedule pass reached a worker without a tenant.",
-
   "backup.restore_target_required": "Which backup target holds the archive? Send target_id.",
   "backup.restore_archive_required": "Which archive? Send archive_id - the path the listing at the target gave you.",
   "backup.restore_mode_invalid": "That is not a way to restore. Use INSPECT, SELECTIVE, MERGE, REPLACE_TENANT, NEW_TENANT or INSTANCE.",
@@ -1043,11 +995,8 @@
   "backup.restore_failed": "That restore did not finish.",
   "backup.restore_started": "A restore was started.",
   "backup.restore_finished": "A restore finished.",
-
-  "config.backup_not_configured": "No backup target is configured, so nothing is being backed up.",
   "config.backup_unencrypted": "{count} backup target stores archives unencrypted.",
   "config.backup_single_target": "There is only one backup target. Two, in different places, is the point of the 3-2-1 rule.",
-
   "crypto.password_hash_unreadable": "The stored password hash could not be read. This is a defect in the installation, not in the request.",
   "crypto.no_encryption_key": "This installation has no encryption key configured, so it cannot store that securely. Set HUBTASK_ENCRYPTION_KEYS.",
   "crypto.unknown_key": "This installation no longer holds the key {key_id} that value was encrypted with.",
@@ -1062,6 +1011,19 @@
   "crypto.key_too_short": "The encryption key {key_id} is shorter than {minimum} characters.",
   "crypto.key_underivable": "This installation could not prepare the encryption key {key_id}.",
   "crypto.key_unusable": "This installation could not use the encryption key it was given.",
-
-  "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds."
+  "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds.",
+  "admin.tenant_incomplete": "The workspace could not be assembled.",
+  "admin.slug_invalid": "A workspace slug is 3-40 characters of lower-case letters, digits and hyphens, starting with a letter or digit.",
+  "admin.display_name_invalid": "A workspace name is 1-200 characters on one line.",
+  "admin.locale_invalid": "The default locale is not a valid BCP 47 tag: {value}.",
+  "admin.time_zone_invalid": "The default time zone is not an IANA name: {value}.",
+  "seed.hub.name": "General",
+  "seed.collection.name": "Getting started",
+  "seed.bucket.todo": "To do",
+  "seed.bucket.doing": "In progress",
+  "seed.bucket.done": "Done",
+  "seed.label.important": "Important",
+  "seed.label.waiting": "Waiting",
+  "seed.label.quick_win": "Quick win",
+  "seed.label.idea": "Idea"
 }

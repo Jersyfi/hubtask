@@ -31,6 +31,7 @@ import (
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
@@ -1245,6 +1246,29 @@ func run() error {
 			Jobs: jobRecords, Authorizer: authorizer, Audit: auditSink,
 			Clock: clockadapter.System{}, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		// The control plane (H-06). Its credential is a PAT carrying admin:tenants - never a
+		// session (decision 6) - and its authorisation is the scope alone, checked in the
+		// application layer: the operator is deliberately not a member of the tenants they
+		// administer.
+		adminservice.ProvisionTenant{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Accounts: accounts, Redemption: signInStore, Grants: grants,
+			Containers: containers, Buckets: buckets, Labels: labels,
+			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
+		adminservice.ListTenants{
+			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}}.Descriptor(),
+		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process

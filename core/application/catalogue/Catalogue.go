@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strings"
 
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
@@ -215,6 +216,10 @@ func Descriptors() []usecase.Descriptor {
 		jumbleservice.ConvertJumbleEntry{}.Descriptor(),
 		jumbleservice.DismissJumbleEntry{}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{}.Descriptor(),
+		adminservice.ProvisionTenant{}.Descriptor(),
+		adminservice.ListTenants{}.Descriptor(),
+		adminservice.SuspendTenant{}.Descriptor(),
+		adminservice.ResumeTenant{}.Descriptor(),
 	}
 }
 
