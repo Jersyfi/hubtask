@@ -1246,3 +1246,32 @@ func TestAnEntryStatesNoLanguageWhenTheCreatorHasNoLocale(t *testing.T) {
 		t.Errorf("the language is %q, want none", item.ContentLanguage)
 	}
 }
+
+// itemQuotaFake refuses when told to - the resolution itself is the quota engine's, tested
+// there; what this package owes is that the wall holds the door (H-08).
+type itemQuotaFake struct{ refused error }
+
+func (q itemQuotaFake) Items(context.Context, string, int64) error { return q.refused }
+
+func TestTheItemsCeilingHoldsTheDoor(t *testing.T) {
+	h := newItemHarness()
+	h.handler.Quota = itemQuotaFake{
+		refused: shared.ErrValidation.WithDetail("capacity.items"),
+	}
+
+	_, _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand())
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != "capacity.items" {
+		t.Errorf("answer %v, want capacity.items", err)
+	}
+	if len(h.items.stored) != 0 {
+		t.Error("an item landed past the wall")
+	}
+	// And below the wall nothing changes: the guard is consulted, not in charge.
+	h = newItemHarness()
+	h.handler.Quota = itemQuotaFake{}
+	if _, _, err := h.handler.Execute(context.Background(), itemActor(), taskCommand()); err != nil {
+		t.Errorf("a permitting guard refused: %v", err)
+	}
+}

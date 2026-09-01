@@ -139,10 +139,11 @@ func (r SessionRepository) FindForAuth(
 			Locale:      stringFrom(row.AccountLocale),
 			TimeZone:    stringFrom(row.AccountTimeZone),
 		},
-		TenantLocale:   row.DefaultLocale,
-		TenantTimeZone: row.DefaultTimeZone,
-		TenantSlug:     row.TenantSlug,
-		TenantStatus:   identity.TenantStatus(row.TenantStatus),
+		TenantLocale:       row.DefaultLocale,
+		TenantTimeZone:     row.DefaultTimeZone,
+		TenantSlug:         row.TenantSlug,
+		TenantStatus:       identity.TenantStatus(row.TenantStatus),
+		TokenRatePerMinute: rateOf(row.TokenRateOverride),
 	}, nil
 }
 

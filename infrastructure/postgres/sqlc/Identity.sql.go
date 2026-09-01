@@ -254,7 +254,8 @@ SELECT
   n.default_locale,
   n.default_time_zone,
   n.slug         AS tenant_slug,
-  n.status::text AS tenant_status
+  n.status::text AS tenant_status,
+  coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
 FROM access_token t
 JOIN account a ON a.id = t.account_id
 JOIN tenant  n ON n.id = t.tenant_id
@@ -279,6 +280,7 @@ type FindAccessTokenByHashRow struct {
 	DefaultTimeZone    string
 	TenantSlug         string
 	TenantStatus       string
+	TokenRateOverride  interface{}
 }
 
 func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (FindAccessTokenByHashRow, error) {
@@ -301,6 +303,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 		&i.DefaultTimeZone,
 		&i.TenantSlug,
 		&i.TenantStatus,
+		&i.TokenRateOverride,
 	)
 	return i, err
 }

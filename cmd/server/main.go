@@ -45,6 +45,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -774,7 +775,15 @@ func run() error {
 	// its three sets, the vocabulary of the collection it lands in, and the counter of every file
 	// it points at (C-11). It is a value rather than a literal in the registry because the
 	// materialisation reuses it: an occurrence is a copy of its template (D-05).
+	// The one capacity decision of H-08, asked from every bounded create. One value, shared:
+	// the ceilings, the counts and the ratio metric speak through the same guard everywhere.
+	quotaGuard := quotaservice.Guard{
+		Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+		Meter: postgres.NewQuotaRepository(), Signals: metrics, Tenancy: cfg.Tenancy,
+	}
+
 	duplicate := work.DuplicateWorkItem{
+		Quota: quotaGuard,
 		Items: items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
 		Buckets: buckets, Fields: customFields, Containers: containers,
 		Attachments: mediaObjects, Media: mediaObjects, Profiles: profiles,
@@ -869,7 +878,7 @@ func run() error {
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.CreateServiceAccount{Accounts: serviceAccounts}.Descriptor(),
 		identity.ListServiceAccounts{Accounts: serviceAccounts}.Descriptor(),
-		integrationservice.CreateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.CreateWebhookSubscription{Writer: webhookWriter, Quota: quotaGuard}.Descriptor(),
 		integrationservice.GetWebhookSubscription{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ListWebhookSubscriptions{Writer: webhookWriter}.Descriptor(),
 		integrationservice.UpdateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
@@ -949,6 +958,7 @@ func run() error {
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items:      items,
+			Quota:      quotaGuard,
 			Buckets:    buckets,
 			Containers: containers,
 			Profiles:   profiles,
@@ -1130,6 +1140,7 @@ func run() error {
 		}.Descriptor(),
 
 		mediaservice.RequestMediaUpload{
+			Quota:   quotaGuard,
 			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
 		}.Descriptor(),
@@ -1160,6 +1171,7 @@ func run() error {
 		work.UpdateTemplate{Writer: templateWriter}.Descriptor(),
 		work.DeleteTemplate{Writer: templateWriter}.Descriptor(),
 		work.InstantiateTemplate{
+			Quota:  quotaGuard,
 			Writer: templateWriter, Items: items, ItemMembers: itemMembers,
 			Visibility: authorizer, Events: outbox, Activity: journal,
 		}.Descriptor(),
@@ -1276,9 +1288,22 @@ func run() error {
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		adminservice.ExportTenant{
-			Tenants: postgres.NewAdminTenantRepository(), Load: postgres.NewExportLoad(),
+			Tenants: postgres.NewAdminTenantRepository(), Quota: quotaGuard,
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, Tenancy: cfg.Tenancy,
+			Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
+		// The §4 quota surface (H-08): the workspace reads its own standing, the operator
+		// moves the walls.
+		quotaservice.ReadQuotas{
+			Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
+		adminservice.UpdateTenantQuotas{
+			Tenants: postgres.NewAdminTenantRepository(),
+			Store:   postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+			Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
 	)
 	if err != nil {
@@ -1465,8 +1490,8 @@ func run() error {
 						MaxMailBytes: cfg.Request.MaxMailBytes,
 						Timeout:      cfg.Request.Timeout,
 						Next: rest.Limited{
-							Limiter: limiter,
-							Level:   "credential",
+							Limiter: limiter, Signals: metrics,
+							Level: "credential",
 							Bucket: rest.CredentialBucket(
 								cfg.RateLimit.AnonymousPerMinute,
 								cfg.RateLimit.TokenPerMinute,
@@ -1477,8 +1502,8 @@ func run() error {
 							// shed before either is reached. It applies to those routes and
 							// passes everything else through.
 							Next: rest.Limited{
-								Limiter: limiter,
-								Level:   "auth",
+								Limiter: limiter, Signals: metrics,
+								Level: "auth",
 								Bucket: rest.AuthBucket(
 									cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
 								// The feed's own bucket, in front of the lookup rather than
@@ -1486,8 +1511,8 @@ func run() error {
 								// must not shed the calendar of somebody else behind the same
 								// address (D-08, T-21).
 								Next: rest.Limited{
-									Limiter: limiter,
-									Level:   "feed",
+									Limiter: limiter, Signals: metrics,
+									Level: "feed",
 									Bucket: rest.FeedBucket(
 										cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
 									Next: rest.Localised{
@@ -1500,14 +1525,21 @@ func run() error {
 											// the controller reads its host the same way.
 											BaseHost: controller.BaseHost,
 											Next: rest.Limited{
-												Limiter: limiter,
-												Level:   "tenant",
-												Bucket: rest.TenantBucket(
-													cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-												Next: rest.Idempotent{
-													Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-													Routes: apiRoutes,
-													Next:   apiRoutes,
+												// H-08: the workspace's own per-token ceiling,
+												// engaging only where one is configured.
+												Limiter: limiter, Signals: metrics,
+												Level:  "token",
+												Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
+												Next: rest.Limited{
+													Limiter: limiter, Signals: metrics,
+													Level: "tenant",
+													Bucket: rest.TenantBucket(
+														cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+													Next: rest.Idempotent{
+														Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+														Routes: apiRoutes,
+														Next:   apiRoutes,
+													},
 												},
 											},
 										},
@@ -1854,6 +1886,7 @@ func run() error {
 	// transaction, and an action is a use case.
 	automationRun := worker.AutomationRun{
 		Engine: automationservice.RunRule{
+			Quota:      quotaGuard,
 			Rules:      postgres.NewAutomationRuleRepository(cursors),
 			Runs:       automationRuns,
 			Failures:   automationRuns,

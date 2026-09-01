@@ -1029,5 +1029,9 @@
   "admin.purge_without_tenant": "A tenant hard delete job named no tenant.",
   "admin.export_target_required": "Name the backup target the archive is written to.",
   "admin.export_without_tenant": "A tenant export job named no tenant.",
-  "capacity.export_jobs": "The workspace already has {limit} export jobs running; wait for one to finish."
+  "capacity.export_jobs": "The workspace already has {limit} export jobs running; wait for one to finish.",
+  "admin.quota_unknown": "No quota is called {quota}.",
+  "admin.quota_negative": "A ceiling is 0 (unlimited) or above; {quota} was given less.",
+  "admin.tenant_version_moved": "The workspace changed while you were editing; read it again.",
+  "query.filter_too_expensive": "The filter's estimated cost is {cost}; at most {maximum} is planned for. Fewer text scans, shorter lists."
 }

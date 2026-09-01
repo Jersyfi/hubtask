@@ -2866,6 +2866,59 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}/quotas:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    patch:
+      tags: [admin]
+      operationId: updateTenantQuotas
+      summary: Set a workspace's quotas
+      description: >
+        The operator's write (H-08): each provided key becomes the workspace's ceiling, an
+        explicit null clears the override back to the mode's default, and absent keys stay
+        untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and
+        "who moved the wall" is a question with an answer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantQuotas"
+      responses:
+        "200":
+          description: The workspace's quotas after the write, resolved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuotaStanding"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /quotas:
+    get:
+      tags: [meta]
+      operationId: readQuotas
+      summary: The workspace's quota standing
+      description: >
+        Every §4 limit as it applies to this workspace (multi-tenancy.md, H-08): the resolved
+        ceiling (0 means unlimited), what is currently used where a live count exists, and the
+        approach ratio. Needs the permission that manages structure, or the auditor's read-only
+        configuration permission - a quota is workspace configuration, and who is near a wall is
+        exactly what an auditor reads.
+      responses:
+        "200":
+          description: The quota standing
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuotaStanding"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /oauth/clients:
     get:
       tags: [oauth]
@@ -6012,6 +6065,42 @@ components:
             The configured backup target the archive is written to - the one discipline for
             "bytes leave the installation" (E-09's precedent). The target must belong to the
             workspace being exported, or be an installation-wide one.
+
+    QuotaStanding:
+      type: object
+      required: [quota, limit]
+      properties:
+        quota:
+          type: string
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs]
+        limit:
+          type: integer
+          format: int64
+          description: The resolved ceiling. 0 means unlimited.
+        used:
+          type: [integer, "null"]
+          format: int64
+          description: The live count, where one exists; null where the limit is enforced elsewhere (the request rate lives in the limiter's own headers).
+        ratio:
+          type: [number, "null"]
+          description: used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
+        configured:
+          type: boolean
+          description: True when the workspace carries its own ceiling rather than the mode's default.
+
+    TenantQuotas:
+      type: object
+      description: >
+        Partial by design - each §4 limit, settable per workspace. A provided value becomes the
+        ceiling (0 = unlimited), an explicit null clears the override, an absent key changes
+        nothing.
+      properties:
+        api_requests_per_minute: { type: [integer, "null"], format: int64, minimum: 0 }
+        items: { type: [integer, "null"], format: int64, minimum: 0 }
+        media_bytes: { type: [integer, "null"], format: int64, minimum: 0 }
+        automation_runs_per_hour: { type: [integer, "null"], format: int64, minimum: 0 }
+        webhook_targets: { type: [integer, "null"], format: int64, minimum: 0 }
+        export_jobs: { type: [integer, "null"], format: int64, minimum: 0 }
 
     TenantDeletionScheduled:
       type: object

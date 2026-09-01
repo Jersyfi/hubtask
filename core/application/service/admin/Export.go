@@ -6,7 +6,6 @@ package admin
 import (
 	"context"
 	"errors"
-	"strconv"
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
@@ -19,7 +18,6 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/backupstorage"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
-	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/storage"
@@ -38,15 +36,6 @@ const (
 	TenantExportedAction audit.Action = "tenant.exported"
 )
 
-// The §4 concurrency quota (multi-tenancy.md §4): how many export jobs one workspace may have
-// alive at once. Constants by mode for now - the general, tenant-configurable quota machinery is
-// H-08's; this is the one limit the export already owes, and H-08 replaces these numbers with
-// `tenant.settings`.
-const (
-	exportQuotaMulti  = 2
-	exportQuotaSingle = 5
-)
-
 // ExportTenantCommand is the input, typed.
 type ExportTenantCommand struct {
 	TenantID shared.ID
@@ -60,19 +49,24 @@ type ExportAccepted struct {
 	ExportID shared.ID
 }
 
+// ExportQuota is the §4 concurrency ceiling, resolved per workspace since H-08 - the quota
+// engine replaced this use case's own constants, as H-07 said it would.
+type ExportQuota interface {
+	ExportJobs(ctx context.Context, tenant string) error
+}
+
 // ExportTenant accepts one workspace export (H-07): a job that writes the complete, documented
 // archive of tenant-export.md to a configured backup target. It works for ACTIVE, SUSPENDED and
 // PENDING_DELETION workspaces alike - the suspended and the leaving are exactly who needs it -
 // and it is audited with its target, never its content.
 type ExportTenant struct {
 	Tenants    adminrepo.Tenants
-	Load       adminrepo.ExportLoad
+	Quota      ExportQuota
 	Jobs       JobQueue
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	Tenancy    env.TenancyMode
 }
 
 // Execute enqueues the export.
@@ -105,16 +99,10 @@ func (h ExportTenant) Execute(
 			return err
 		}
 
-		// The §4 quota, before the job exists: the workspace next door must not wait behind a
-		// storm of one tenant's exports.
-		live, err := h.Load.LiveExports(ctx)
-		if err != nil {
+		// The §4 ceiling, before the job exists: the workspace next door must not wait behind
+		// a storm of one tenant's exports.
+		if err := h.Quota.ExportJobs(ctx, cmd.TenantID.String()); err != nil {
 			return err
-		}
-		if live >= h.exportQuota() {
-			return shared.ErrRateLimited.
-				WithDetail("capacity.export_jobs").
-				WithParams(map[string]string{"limit": strconv.Itoa(h.exportQuota())})
 		}
 
 		now := h.Clock.Now()
@@ -150,13 +138,6 @@ func (h ExportTenant) Execute(
 		return ExportAccepted{}, err
 	}
 	return accepted, nil
-}
-
-func (h ExportTenant) exportQuota() int {
-	if h.Tenancy == env.TenancyMulti {
-		return exportQuotaMulti
-	}
-	return exportQuotaSingle
 }
 
 // Descriptor is the catalogue entry.

@@ -770,3 +770,26 @@ func TestTheContentRoutePassesTheGuardsRefusalOn(t *testing.T) {
 		t.Error("refused bytes reached the store")
 	}
 }
+
+// storageQuotaFake refuses when told to - the resolution is the quota engine's; this package
+// owes that the wall holds the staging door (H-08).
+type storageQuotaFake struct{ refused error }
+
+func (q storageQuotaFake) MediaBytes(context.Context, string, int64) error { return q.refused }
+
+func TestTheStorageCeilingHoldsTheStagingDoor(t *testing.T) {
+	handler, records, _, _ := stagingHarness()
+	handler.Quota = storageQuotaFake{refused: shared.ErrValidation.WithDetail("capacity.media_bytes")}
+
+	_, err := handler.Execute(t.Context(), actor(mediaWrite), UploadCommand{
+		FileName: "plan.png", ClaimedType: "image/png", Size: 32, Usage: domain.UsageCover,
+	})
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != "capacity.media_bytes" {
+		t.Errorf("answer %v, want capacity.media_bytes", err)
+	}
+	if len(records.stored) != 0 {
+		t.Error("an object was staged past the wall")
+	}
+}

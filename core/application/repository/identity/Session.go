@@ -27,6 +27,9 @@ type SessionCredential struct {
 	// TenantSlug and TenantStatus ride with every credential read, Credential's reason (H-06).
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
+	// TokenRatePerMinute is the workspace's own request-rate ceiling (H-08), Credential's
+	// reason. 0 means the installation's default applies.
+	TokenRatePerMinute int64
 }
 
 // RefreshCredential is what the exchange reads: the presented link of the chain, its session,

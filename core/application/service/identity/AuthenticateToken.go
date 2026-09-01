@@ -123,13 +123,14 @@ func (a AuthenticateToken) Execute(
 		}
 
 		actor = appshared.ActorContext{
-			Kind:        actorKind(credential.Account.Kind),
-			TenantID:    credential.Token.TenantID,
-			TenantSlug:  credential.TenantSlug,
-			AccountID:   credential.Account.ID,
-			AccountName: credential.Account.DisplayName,
-			TokenID:     credential.Token.ID,
-			Scopes:      credential.Token.Scopes,
+			Kind:               actorKind(credential.Account.Kind),
+			TenantID:           credential.Token.TenantID,
+			TenantSlug:         credential.TenantSlug,
+			RateLimitPerMinute: credential.TokenRatePerMinute,
+			AccountID:          credential.Account.ID,
+			AccountName:        credential.Account.DisplayName,
+			TokenID:            credential.Token.ID,
+			Scopes:             credential.Token.Scopes,
 			Locale: firstNonEmpty(
 				cmd.RequestedLocale, credential.Account.Locale,
 				credential.TenantLocale, cmd.FallbackLocale),
@@ -204,11 +205,12 @@ func (a AuthenticateToken) executeSession(
 			scopes = credential.Session.Scopes
 		}
 		actor = appshared.ActorContext{
-			Kind:        actorKind(credential.Account.Kind),
-			TenantID:    claims.TenantID,
-			TenantSlug:  credential.TenantSlug,
-			AccountID:   credential.Account.ID,
-			AccountName: credential.Account.DisplayName,
+			Kind:               actorKind(credential.Account.Kind),
+			TenantID:           claims.TenantID,
+			TenantSlug:         credential.TenantSlug,
+			RateLimitPerMinute: credential.TokenRatePerMinute,
+			AccountID:          credential.Account.ID,
+			AccountName:        credential.Account.DisplayName,
 			// The session stands where a token identifier would: it is the credential of the
 			// request, and the session listing uses it to mark the row that is answering.
 			TokenID:   credential.Session.ID,

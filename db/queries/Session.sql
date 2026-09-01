@@ -50,7 +50,8 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        a.locale   AS account_locale,
        a.time_zone AS account_time_zone,
        n.default_locale, n.default_time_zone,
-       n.slug AS tenant_slug, n.status::text AS tenant_status
+       n.slug AS tenant_slug, n.status::text AS tenant_status,
+       coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
 FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id

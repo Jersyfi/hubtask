@@ -127,6 +127,11 @@ func ParseFilter(raw any, path string) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Priced after the grammar (H-08): the tree is already bounded, and the estimate refuses
+	// the shapes the caps alone cannot - fifty text scans fit the node cap and no plan.
+	if err := checkCost(&node, path); err != nil {
+		return nil, err
+	}
 	return &node, nil
 }
 

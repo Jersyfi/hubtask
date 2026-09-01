@@ -119,6 +119,13 @@ func (pending) ExportTenant(w http.ResponseWriter, r *http.Request, _ openapi.Ad
 	notAvailable(w, r)
 }
 
+// The quota surface of H-08, pending until each use case lands.
+func (pending) ReadQuotas(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) UpdateTenantQuotas(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
 // The OAuth2 provider of H-05, pending until each use case lands.
 func (pending) ListOauthClients(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

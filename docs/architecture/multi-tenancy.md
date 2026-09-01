@@ -94,7 +94,11 @@ Contradictions between the token and the subdomain/header → `403 tenant_mismat
 
 ## 4. Quotas, fairness, limits
 
-Configurable per tenant (`tenant.settings`), enforced in the application layer and middleware:
+Configurable per tenant (`tenant.settings.quotas`, written by the operator through
+`PATCH /admin/tenants/{id}/quotas`, read by the workspace through `GET /quotas`), enforced in
+the application layer and middleware since H-08 — a capacity row refuses as `422
+capacity.<quota>`, the rate as `429`, and the approach is `hubtask_tenant_quota_usage_ratio`
+(alert A-18):
 
 | Limit | Default (multi) | Default (single/self-hosted) |
 |---|---|---|

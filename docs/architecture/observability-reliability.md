@@ -280,7 +280,11 @@ Symptom-based, each with a runbook. The thresholds are starting values for provi
 
 For **self-hosting** there is a reduced variant: a standard Grafana dashboard and an alert rule file
 with A-03, A-04, A-05, A-07, A-08, A-12, A-19, A-20 — plus the warnings from `/meta/health`, which are visible even
-without Prometheus.
+without Prometheus. **A-18 ships in its own file beside it**
+(`deploy/observability/alerts/prometheus-rules-tenant.yaml`, H-08): the self-hosting set is pinned
+to "doing nothing loses data", and a capacity-planning signal deliberately does not join it — a
+provider adds the second file, a self-hoster who configures no quotas has no series for it to
+fire on.
 
 ---
 

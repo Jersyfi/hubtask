@@ -1409,3 +1409,62 @@ func TestAJumbleRunReadsTheEntryAndSuppliesIt(t *testing.T) {
 		t.Errorf("the run supplied %v, want the entry", call.supplied)
 	}
 }
+
+// tenantBudgetFake answers the verdict directly - the resolution is the quota engine's, tested
+// there; this engine owes that an exhausted workspace budget throttles visibly (H-08).
+type tenantBudgetFake struct {
+	allowed bool
+	asked   int
+}
+
+func (b *tenantBudgetFake) AutomationRuns(context.Context, string, time.Time) (bool, error) {
+	b.asked++
+	return b.allowed, nil
+}
+
+func TestTheTenantBudgetThrottlesTheWholeWorkspace(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{{Kind: "ADD_LABEL"}}
+	h := newEngine(t, rule)
+	budget := &tenantBudgetFake{allowed: false}
+	h.engine.Quota = budget
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunThrottled {
+		t.Fatalf("status %q, want THROTTLED - the workspace's hour is spent", run.Status)
+	}
+	if len(h.dispatcher.calls) != 0 {
+		t.Error("an over-budget run acted")
+	}
+
+	// Below the budget nothing changes.
+	budget.allowed = true
+	run, err = h.engine.Execute(context.Background(), engineActor(), command(0))
+	if err != nil || run.Status == domain.RunThrottled {
+		t.Errorf("a permitted run throttled: (%q, %v)", run.Status, err)
+	}
+	if budget.asked != 2 {
+		t.Errorf("the budget was asked %d times", budget.asked)
+	}
+}
+
+// A rule-throttled run consumes nothing of the workspace budget: the rule's own bound answers
+// first.
+func TestARuleThrottleSparesTheTenantBudget(t *testing.T) {
+	rule := enabledRule()
+	rule.Throttle = domain.Throttle{MaxRunsPerHour: 10}
+	h := newEngine(t, rule)
+	h.runs.since = 11
+	budget := &tenantBudgetFake{allowed: true}
+	h.engine.Quota = budget
+
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if budget.asked != 0 {
+		t.Error("a rule-throttled run reached the workspace budget")
+	}
+}

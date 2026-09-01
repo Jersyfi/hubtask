@@ -66,7 +66,13 @@ const (
 // against the entry, and both refuse an object the actor did not upload. Asking here instead would
 // mean asking at the tenant scope, which refuses everybody whose membership sits on a hub or a
 // collection - most of a real installation - for an act that grants nothing.
+// StorageQuota is the §4 media ceiling, asked before an object is staged (H-08).
+type StorageQuota interface {
+	MediaBytes(ctx context.Context, tenant string, adding int64) error
+}
+
 type RequestMediaUpload struct {
+	Quota     StorageQuota
 	Objects   repository.Objects
 	Transfers storage.TransferIssuer
 	Audit     audit.Sink
@@ -123,6 +129,14 @@ func (h RequestMediaUpload) Execute(
 	}
 
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The storage ceiling (H-08, multi-tenancy.md §4), against the declared size: the
+		// confirmation measures the true one, and a lie is caught there. Nil skips - fixtures
+		// predate the wall; the composition root always wires it.
+		if h.Quota != nil {
+			if err := h.Quota.MediaBytes(ctx, actor.TenantID.String(), cmd.Size); err != nil {
+				return err
+			}
+		}
 		if err := h.Objects.Insert(ctx, object); err != nil {
 			return err
 		}
