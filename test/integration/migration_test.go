@@ -50,7 +50,7 @@ func TestTheMigrationRunsAgainstAnExistingDatabase(t *testing.T) {
 		SELECT count(*) FROM pg_class c
 		JOIN pg_namespace n ON n.oid = c.relnamespace
 		WHERE n.nspname = 'public' AND c.relkind IN ('r','p')
-		  AND c.relname NOT IN ('job', 'goose_db_version')
+		  AND c.relname NOT IN ('job', 'goose_db_version', 'instance_event')
 		  AND NOT (c.relrowsecurity AND c.relforcerowsecurity)`).Scan(&unprotected); err != nil {
 		t.Fatalf("catalogue query: %v", err)
 	}

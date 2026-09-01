@@ -413,9 +413,16 @@ if [ -z "$OWNER_ACCESS" ]; then
 	echo "FAILED: the redemption answered '$redeemed'"
 	exit 1
 fi
+# The listing is top-level by default, so the hub answers first and the collection under it.
 containers="$(api /containers -H "Authorization: Bearer $OWNER_ACCESS")"
-if ! grep -q '"HUB"' <<< "$containers" || ! grep -q '"COLLECTION"' <<< "$containers"; then
-	echo "FAILED: the seeded structure is missing: '$containers'"
+if ! grep -q '"HUB"' <<< "$containers"; then
+	echo "FAILED: the seeded hub is missing: '$containers'"
+	exit 1
+fi
+HUB_ID="$(python3 -c "import json,sys; print(json.load(sys.stdin)['data'][0]['id'])" <<< "$containers")"
+collections="$(api "/containers?parent_id=$HUB_ID" -H "Authorization: Bearer $OWNER_ACCESS")"
+if ! grep -q '"COLLECTION"' <<< "$collections"; then
+	echo "FAILED: the seeded collection is missing: '$collections'"
 	exit 1
 fi
 admin_as_owner="$(api /admin/tenants -o /dev/null -w '%{http_code}' \
