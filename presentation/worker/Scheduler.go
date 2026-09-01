@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -77,6 +78,9 @@ type Scheduler struct {
 	// entry of it does, and carries its own policy and its own revokes. Optional, like the two
 	// above: an installation without it keeps writing into the default partition, which has both.
 	AuditPartitions AuditPartitions
+	// StreamPartitions is the same duty for the three monthly streams (H-09): activity entries,
+	// outbox events and rule runs. Nil skips, ensureAuditPartitions' contract.
+	StreamPartitions streams.Partitions
 
 	// TickInterval is how often the leader looks at the clock. It is also how quickly a standby
 	// notices that the leader is gone, because a standby tries the lock on every tick of its own.
@@ -155,6 +159,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
 	s.ensureAuditPartitions(ctx)
+	s.ensureStreamPartitions(ctx)
 	return true
 }
 
@@ -231,6 +236,38 @@ func (s Scheduler) ensureAuditPartitions(ctx context.Context) {
 		if name == "" {
 			slog.InfoContext(ctx, "the audit entries of that month are in the default partition",
 				slog.String("month", month.Format("2006-01")))
+		}
+	}
+}
+
+// ensureStreamPartitions is the audit duty for the three partitioned streams (H-09):
+// activity_entry, outbox_event and rule_run get this month and next kept existing, policies and
+// grants repaired - ensureAuditPartitions' reasoning verbatim, over ensure_stream_partition.
+func (s Scheduler) ensureStreamPartitions(ctx context.Context) {
+	if s.StreamPartitions == nil {
+		return
+	}
+	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	now := s.Clock.Now().UTC()
+	for _, table := range streams.Tables() {
+		for _, month := range []time.Time{now, now.AddDate(0, 1, 0)} {
+			name, err := s.StreamPartitions.Ensure(dutyCtx, table, month)
+			if err != nil {
+				if ctx.Err() == nil {
+					slog.WarnContext(ctx, "a stream partition could not be ensured",
+						slog.String("table", table),
+						slog.String("month", month.Format("2006-01")),
+						slog.String("error", shared.AsError(err).Code))
+				}
+				return
+			}
+			if name == "" {
+				slog.InfoContext(ctx, "the stream's month is in the default partition",
+					slog.String("table", table),
+					slog.String("month", month.Format("2006-01")))
+			}
 		}
 	}
 }

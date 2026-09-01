@@ -30,6 +30,7 @@ import (
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
+	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
@@ -2042,6 +2043,10 @@ func run() error {
 			AuditPartitions: auditPartitionsInBackground{
 				Partitions: postgres.NewAuditPartitionRepository(), Work: backgroundWork,
 			},
+			// The same duty for the three monthly streams (H-09).
+			StreamPartitions: streamPartitionsInBackground{
+				Partitions: postgres.NewStreamPartitionRepository(), Work: backgroundWork,
+			},
 		}
 		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))
 	}
@@ -2426,6 +2431,37 @@ func schemaVersion() string {
 
 // backupRunsInBackground reads the backup freshness on the background pool, which is where every
 // leader duty runs: the API's pool is for requests.
+// streamPartitionsInBackground is auditPartitionsInBackground's shape for the three monthly
+// streams (H-09): the system-scoped transaction both narrow acts run in.
+type streamPartitionsInBackground struct {
+	Partitions streamsrepo.Partitions
+	Work       persistenceport.UnitOfWork
+}
+
+func (b streamPartitionsInBackground) Ensure(
+	ctx context.Context, table string, month time.Time,
+) (string, error) {
+	var name string
+	err := b.Work.Within(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		ensured, err := b.Partitions.Ensure(ctx, table, month)
+		name = ensured
+		return err
+	})
+	return name, err
+}
+
+func (b streamPartitionsInBackground) DropAged(
+	ctx context.Context, table string, cutoff time.Time,
+) ([]streamsrepo.Dropped, error) {
+	var dropped []streamsrepo.Dropped
+	err := b.Work.Within(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		aged, err := b.Partitions.DropAged(ctx, table, cutoff)
+		dropped = aged
+		return err
+	})
+	return dropped, err
+}
+
 // auditPartitionsInBackground gives the partition duty the transaction it needs. A system scope,
 // because a partition belongs to the installation rather than to a tenant - and a write one,
 // because the duty creates a table when there is one to create.
