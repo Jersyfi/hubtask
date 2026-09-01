@@ -378,6 +378,13 @@ delivering by SMTP rather than by something local.
 alert's silence means nothing until that one has arrived, and no rule inside Prometheus can detect
 its own delivery failing — only the absence of something that should be there can.
 
+The stack was stood up and made to fire before the host ran it —
+[docs/evidence/O-1-2026-09-01.md](../evidence/O-1-2026-09-01.md) records the run: a discovered
+target, A-14 driven from a real scrape, and the mail at the far end carrying the catalogue ID and
+its runbook filename. It also records what the rehearsal found, including that A-12 fires
+permanently on an environment that keeps no backups by decision, and is routed to a receiver that
+sends nothing rather than silenced by hand.
+
 **The environment's own two rules are not in the catalogue.** The watchdog and the scrape check
 (`up{job="hubtask"} == 0`) carry no `alert_id`: §10 is the product's catalogue, shipped to
 operators with a runbook each, and these two are this cluster watching itself. `A-03` is the
