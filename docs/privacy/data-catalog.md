@@ -142,6 +142,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Legal holds (scope, reason, who placed and released it) | `legal_hold` | `PERSONAL_TECHNICAL` | Suspending deletion for a legal reason | Until released, plus the evidentiary period | `RETENTION` |
 | Audit anchors (chain hash, destination, receipt) | `audit_anchor` | `NON_PERSONAL` | Proof that the audit chain was not rewritten (ADR-0017) | With the audit period | `IMMUTABLE` |
 | Audit exports (the trail of a period, as JSON Lines or CSV, with a manifest and checksums) | The backup target the export named | `PERSONAL_TECHNICAL` (the same masked entries as `audit_log`, no content) | Handing evidence about a period to an auditor or a second system (audit.md §5) | Whatever the target keeps; the archive is not read back by this system | The operator, at the target |
+| Tenant exports (one workspace whole, as the documented archive of tenant-export.md - content, media, trail; credential columns redacted) | The backup target the export named | `PERSONAL_CONTENT` | Access requests, provider migration, the "no lock-in" promise (multi-tenancy.md §5, H-07) | Whatever the target keeps; the archive is not read back by this system | The operator, at the target |
 | Privacy incidents (categories, count, description, measures) | `privacy_incident` | `PERSONAL_CONTENT` (the description is free text) | Art. 33/34 documentation | 3 years | `RETENTION` |
 
 ---

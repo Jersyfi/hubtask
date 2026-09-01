@@ -20,6 +20,7 @@ const (
 	suspendTenantUseCase         = "SuspendTenant"
 	resumeTenantUseCase          = "ResumeTenant"
 	requestTenantDeletionUseCase = "RequestTenantDeletion"
+	exportTenantUseCase          = "ExportTenant"
 )
 
 // ListTenants answers GET /admin/tenants.
@@ -169,5 +170,37 @@ func (c *RestController) RequestTenantDeletion(
 	writeJSON(w, r, http.StatusAccepted, openapi.TenantDeletionScheduled{
 		TenantId:   uuidValue(out.String("tenant_id")),
 		PurgeAfter: timeValue(out["purge_after"]),
+	})
+}
+
+// ExportTenant answers POST /admin/tenants/{tenantId}:export. Written out longhand for the same
+// reason as its siblings above.
+func (c *RestController) ExportTenant(
+	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.TenantExportRequest
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), exportTenantUseCase, actorOf(r), usecase.Input{
+		"tenant_id": tenantID.String(),
+		"target_id": body.TargetId.String(),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	// No result_url: the archive is at somebody else's machine (the audit export's reasoning).
+	writeJSON(w, r, http.StatusAccepted, openapi.JobRef{
+		JobId:  uuidValue(out.String("job_id")),
+		Status: openapi.JobStatusQUEUED,
 	})
 }

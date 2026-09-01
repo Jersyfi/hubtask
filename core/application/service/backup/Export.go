@@ -135,3 +135,41 @@ func (m ExportMedia) Open(ctx context.Context, digest string) (io.ReadCloser, er
 	}
 	return object.Content, nil
 }
+
+// redactedFields is what a row loses when its archive is handed outwards rather than kept as a
+// backup (H-07, tenant-export.md §9). A backup legitimately keeps these columns - it is encrypted
+// at the operator's own target and a restore is expected to keep sign-ins working. An export is
+// not: it leaves unencrypted, for a receiver who must never hold a credential of this
+// installation, however hashed.
+//
+// Keyed by table name, the repository's vocabulary. The list is pinned by the format document and
+// by a test that greps a written archive for the fields.
+var redactedFields = map[string][]string{
+	"account":              {"password_hash", "redemption_token_hash"},
+	"automation_rule":      {"inbound_token_hash"},
+	"webhook_subscription": {"secret_enc", "secret_key_id", "previous_secret_enc", "previous_secret_key_id", "previous_secret_until"},
+	"calendar_feed":        {"token_hash"},
+}
+
+// Redacted wraps a source so that every record loses the credential columns of tenant-export.md
+// §9 before it reaches the writer. The wrapping is the whole act: the inner source stays the one
+// reader both archives share, and which of the two shapes leaves is decided exactly where the
+// archive is requested.
+func Redacted(inner archive.Source) archive.Source { return redactedSource{inner: inner} }
+
+type redactedSource struct{ inner archive.Source }
+
+func (s redactedSource) Records(
+	ctx context.Context, entity archive.Entity, since time.Time, yield func(archive.Record) error,
+) error {
+	fields := redactedFields[entity.Table]
+	if len(fields) == 0 {
+		return s.inner.Records(ctx, entity, since, yield)
+	}
+	return s.inner.Records(ctx, entity, since, func(record archive.Record) error {
+		for _, field := range fields {
+			delete(record.Data, field)
+		}
+		return yield(record)
+	})
+}

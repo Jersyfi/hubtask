@@ -2832,6 +2832,40 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}:export:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: exportTenant
+      summary: Export a workspace whole
+      description: >
+        A complete, documented archive of one workspace - JSON Lines per entity, media by
+        reference with checksums, a manifest naming counts and the product version - written as
+        a job to a configured backup target (multi-tenancy.md §5, H-07). It is the Hubtask
+        archive format, documented under docs/architecture/tenant-export.md well enough to
+        build an importer against the document alone: the basis for access requests, provider
+        migration, and the "no lock-in" promise. It works for ACTIVE, SUSPENDED and
+        PENDING_DELETION workspaces alike - the suspended and the leaving are exactly who
+        needs it - and it is audited with its target, never its content. The export runs
+        through the same row-level-security path as the API (T-20), and the answer is E-01's
+        JobRef; the archive itself is at the target, so there is no result_url.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantExportRequest"
+      responses:
+        "202":
+          description: The export job was accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRef"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /oauth/clients:
     get:
       tags: [oauth]
@@ -5966,6 +6000,18 @@ components:
         confirmation:
           type: string
           description: The workspace's display name, typed exactly - the restore precedent.
+
+    TenantExportRequest:
+      type: object
+      required: [target_id]
+      properties:
+        target_id:
+          type: string
+          format: uuid
+          description: >
+            The configured backup target the archive is written to - the one discipline for
+            "bytes leave the installation" (E-09's precedent). The target must belong to the
+            workspace being exported, or be an installation-wide one.
 
     TenantDeletionScheduled:
       type: object

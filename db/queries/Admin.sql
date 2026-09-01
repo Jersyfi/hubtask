@@ -153,3 +153,11 @@ DELETE FROM retention_rule;
 -- Bounded by row level security; idempotency_key carries no foreign key, so the cascade never
 -- reaches it.
 DELETE FROM idempotency_key;
+
+-- name: CountLiveTenantExports :one
+-- The §4 concurrency quota's question (H-07). The job table has no policy, so the tenant is the
+-- transaction's own, written as an explicit predicate - DeleteTenantJobs' precedent.
+SELECT count(*) FROM job
+WHERE tenant_id = current_tenant_id()
+  AND kind = 'tenant.export'
+  AND state IN ('PENDING', 'RUNNING');

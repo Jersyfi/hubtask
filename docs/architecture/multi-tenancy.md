@@ -136,7 +136,10 @@ stateDiagram-v2
 
 **Export:** `POST /admin/tenants/{id}:export` produces a complete, documented JSON Lines archive
 (plus media) — the basis for GDPR access requests, provider migration, and building trust
-("no lock-in").
+("no lock-in"). The format is [tenant-export.md](./tenant-export.md), documented well enough to
+build an importer against the document alone; the archive is written as a job to a configured
+backup target, and it works for every lifecycle state — the suspended and the leaving are exactly
+who needs it (H-07).
 
 ---
 

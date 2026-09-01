@@ -1275,6 +1275,11 @@ func run() error {
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
+		adminservice.ExportTenant{
+			Tenants: postgres.NewAdminTenantRepository(), Load: postgres.NewExportLoad(),
+			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: ids, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process
@@ -1905,6 +1910,21 @@ func run() error {
 		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
 		// The grace job the deletion request seeded (H-06). Detached for the media
 		// reconciliation's reason: bytes leave a bucket between two transactions.
+		// The workspace export the control plane seeds (H-07). Detached for the audit
+		// export's reason: an archive streams to a target between reads.
+		queueport.KindTenantExport: worker.TenantExport{
+			Archivist: adminservice.TenantExportArchivist{
+				Targets: backupservice.StoreOpener{
+					Targets: backupTargets, Opener: backupAdapters,
+					Encryptor: encryptor, UnitOfWork: unitOfWork,
+				},
+				Rows:    postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
+				Objects: mediaStore, Cipher: crypto.NewStream(clockadapter.CryptoRandom{}),
+				Snapshot:      unitOfWork,
+				Clock:         clockadapter.System{},
+				SchemaVersion: schemaVersion(), ProductVersion: version,
+			},
+		},
 		queueport.KindTenantHardDelete: worker.TenantHardDelete{
 			Deletion: adminservice.HardDeleteTenant{
 				Tenants: postgres.NewAdminTenantRepository(), Purge: postgres.NewTenantPurge(),

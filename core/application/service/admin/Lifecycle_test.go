@@ -186,12 +186,14 @@ func TestTheAdminUseCasesRoundTripThroughTheRegistry(t *testing.T) {
 	shift := newShiftFixture(domain.TenantActive)
 
 	deletion := newDeletionFixture(domain.TenantActive)
+	export := newExportFixture(domain.TenantActive)
 	registry, err := usecase.NewRegistry(nil,
 		provision.handler.Descriptor(),
 		ListTenants{Tenants: shift.tenants, UnitOfWork: shift.work}.Descriptor(),
 		SuspendTenant{shift.shift}.Descriptor(),
 		ResumeTenant{shift.shift}.Descriptor(),
 		deletion.handler.Descriptor(),
+		export.handler.Descriptor(),
 	)
 	if err != nil {
 		t.Fatalf("building the registry: %v", err)
@@ -257,5 +259,15 @@ func TestTheAdminUseCasesRoundTripThroughTheRegistry(t *testing.T) {
 	}
 	if out.String("tenant_id") != lifecycleTenant.String() || out["purge_after"] == nil {
 		t.Errorf("deletion output %v", out)
+	}
+
+	out, err = registry.Invoke(t.Context(), ExportTenantName, operator(), usecase.Input{
+		"tenant_id": lifecycleTenant.String(), "target_id": exportTarget.String(),
+	})
+	if err != nil {
+		t.Fatalf("exporting through the registry: %v", err)
+	}
+	if out.String("job_id") == "" || out.String("export_id") == "" {
+		t.Errorf("export output %v", out)
 	}
 }

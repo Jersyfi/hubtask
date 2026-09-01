@@ -191,7 +191,10 @@ func (e Exporter) writeOne(
 
 	err = e.Snapshot.WithinSnapshot(ctx, scope, func(snapshotCtx context.Context, at time.Time) error {
 		source := subjectSource{
-			inner:   backupservice.ExportSource{Export: e.Rows, SnapshotAt: at},
+			// Redacted for the tenant export's reason (tenant-export.md §9): this archive
+			// leaves unencrypted, and a person's own password hash is still a credential of
+			// this installation - handing it out invites offline guessing against it.
+			inner:   backupservice.Redacted(backupservice.ExportSource{Export: e.Rows, SnapshotAt: at}),
 			subject: in.subjectID,
 			email:   in.email,
 			counted: &written.Records,

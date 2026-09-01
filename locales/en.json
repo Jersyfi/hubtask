@@ -1026,5 +1026,8 @@
   "seed.label.waiting": "Waiting",
   "seed.label.quick_win": "Quick win",
   "seed.label.idea": "Idea",
-  "admin.purge_without_tenant": "A tenant hard delete job named no tenant."
+  "admin.purge_without_tenant": "A tenant hard delete job named no tenant.",
+  "admin.export_target_required": "Name the backup target the archive is written to.",
+  "admin.export_without_tenant": "A tenant export job named no tenant.",
+  "capacity.export_jobs": "The workspace already has {limit} export jobs running; wait for one to finish."
 }

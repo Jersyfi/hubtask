@@ -203,6 +203,12 @@ const (
 	// to - and a tenant with no scheduled rule has no row at all.
 	KindAutomationSchedule Kind = "automation.schedule"
 
+	// KindTenantExport writes one workspace's complete, documented archive to a configured
+	// backup target (H-07, tenant-export.md): the control plane's act, working for every
+	// lifecycle state - the suspended and the leaving are exactly who needs it. One job per
+	// request; the §4 concurrency quota is enforced where the job is created.
+	KindTenantExport Kind = "tenant.export"
+
 	// KindTenantHardDelete carries out §5's final act after the 30-day grace (H-06): the media
 	// bytes store-first, the tables the cascade cannot reach, the audit trail through the one
 	// narrow purge, and the tenant row whose cascade takes the rest - each store counted into
