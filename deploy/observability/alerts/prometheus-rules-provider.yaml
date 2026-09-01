@@ -81,3 +81,168 @@ groups:
             last half hour looks the same. Slow enough to miss, fast enough to spend the month's
             budget in five days.
           runbook: RB-A02-creeping-burn.md
+
+      # A-06. Rising for the whole window, not merely deep: a busy queue with a stable backlog is
+      # working, and a queue whose depth only ever goes up is not keeping up. `for: 15m` on top of
+      # the 15m delta demands half an hour of one-way growth before anybody is ticketed.
+      - alert: HubtaskQueueNotKeepingUp
+        expr: delta(hubtask_job_queue_depth[15m]) > 0 and hubtask_job_queue_depth > 10
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-06
+        annotations:
+          summary: "The {{ $labels.job_type }} backlog has done nothing but grow"
+          description: >
+            The pending count for this job kind has risen throughout the last half hour.
+            Processing is not keeping up with what is being scheduled.
+          runbook: RB-A06-queue-growth.md
+
+      # A-09. SLO-6's error rate over its own shape: the 4xx class is the recipient's fault and
+      # is excluded, exactly as §2 words the objective. A quiet installation divides by the
+      # clamp and reads 0.
+      - alert: HubtaskWebhookDeliveryFailing
+        expr: >
+          sum(rate(hubtask_webhook_deliveries_total{result!="ok",status_class!="4xx"}[30m]))
+          / clamp_min(sum(rate(hubtask_webhook_deliveries_total[30m])), 1e-9)
+          > 0.2
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-09
+        annotations:
+          summary: "More than 20% of webhook attempts are failing"
+          description: >
+            Excluding recipient-side 4xx answers, at least a fifth of webhook deliveries over
+            the last half hour did not get through. Targets are down, or egress is broken.
+          runbook: RB-A09-webhook-failures.md
+
+      # A-10. State 2 is open: the breaker gave up on the dependency and is refusing calls
+      # outright. Ten minutes open is past "blip" - somebody's integration is persistently down.
+      - alert: HubtaskCircuitBreakerOpen
+        expr: hubtask_circuit_breaker_state == 2
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-10
+        annotations:
+          summary: "The breaker for {{ $labels.dependency }} has been open for 10 minutes"
+          description: >
+            Calls to this dependency are being refused without being attempted. Whatever the
+            feature that needs it does now, it does degraded.
+          runbook: RB-A10-breaker-open.md
+
+      # A-11. Utilisation, not absolute numbers: in_use over the configured max, per pool. The
+      # max rides the same series as a third state precisely so this division needs no
+      # configuration knowledge.
+      - alert: HubtaskPoolNearSaturation
+        expr: >
+          sum by (pool) (hubtask_db_pool_connections{state="in_use"})
+          / clamp_min(sum by (pool) (hubtask_db_pool_connections{state="max"}), 1)
+          > 0.8
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-11
+        annotations:
+          summary: "The {{ $labels.pool }} pool has run above 80% for 10 minutes"
+          description: >
+            Four out of five connections are in use, sustained. The next slow query or small
+            spike turns into waiting - this is the warning before the outage, not the outage.
+          runbook: RB-A11-pool-saturation.md
+
+      # A-13. Every pod reports the migration its build embeds; a spread means a rollout in
+      # flight, and a spread that holds for 15 minutes means one that is stuck.
+      - alert: HubtaskMigrationVersionsDiverge
+        expr: (max(hubtask_migration_version) - min(hubtask_migration_version)) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-13
+        annotations:
+          summary: "The cluster is running two different migration versions"
+          description: >
+            Pods disagree about which migration their build embeds, and have for 15 minutes. A
+            rolling update is stuck halfway - old and new code are serving side by side.
+          runbook: RB-A13-migration-drift.md
+
+      # A-14. The counter carries the warn-severity startup findings /meta/health shows - a
+      # hard-invalid variable stops the process and can never be counted. Greater than zero is
+      # the condition; there is no rate, because the count only moves at startup.
+      - alert: HubtaskMisconfigured
+        expr: hubtask_config_invalid_total > 0
+        for: 5m
+        labels:
+          severity: ticket
+          alert_id: A-14
+        annotations:
+          summary: "The process is running with flagged configuration ({{ $labels.key }})"
+          description: >
+            A startup check flagged this configuration key and the process is running without
+            what it names. The same finding is in /meta/health's warnings, with parameters.
+          runbook: RB-A14-misconfiguration.md
+
+      # A-15, first half. Failed auth attempts against the traffic on the auth routes: above 5%
+      # somebody is guessing, or a client is broken, or a secret rotated without its consumer.
+      - alert: HubtaskAuthFailureRate
+        expr: >
+          sum(rate(hubtask_auth_failures_total[15m]))
+          / clamp_min(sum(rate(hubtask_http_requests_total{route=~"/auth/sessions.*"}[15m])), 1e-9)
+          > 0.05
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-15
+        annotations:
+          summary: "More than 5% of authentication attempts are being refused"
+          description: >
+            The refusal rate across sign-in and refresh is above one in twenty. Either a
+            credential-stuffing attempt, or a client somewhere is misconfigured and retrying.
+          runbook: RB-A15-auth-failures.md
+
+      # A-15, second half. One reuse of a rotated refresh token means two holders of one
+      # credential - H-01 already killed the family; this pages the human. No `for`: a single
+      # occurrence is the event.
+      - alert: HubtaskRefreshTokenReused
+        expr: increase(hubtask_auth_failures_total{reason="refresh_reused"}[15m]) > 0
+        labels:
+          severity: page
+          alert_id: A-15
+        annotations:
+          summary: "A rotated refresh token was presented again - possible token theft"
+          description: >
+            Somebody used a refresh token that had already been rotated away. The session family
+            is already revoked; what needs a person is the question of how there were two holders.
+          runbook: RB-A15-auth-failures.md
+
+      # A-16. The engine's self-protection became visible: a rule failed often enough in a row
+      # to be switched off. The owner was notified through C-09's path; the ticket exists because
+      # a pattern of these is a product defect, not a user problem.
+      - alert: HubtaskRuleSelfDisabled
+        expr: increase(hubtask_rule_disabled_total[1h]) > 0
+        labels:
+          severity: ticket
+          alert_id: A-16
+        annotations:
+          summary: "An automation rule switched itself off ({{ $labels.reason }})"
+          description: >
+            The consecutive-failures protection disabled at least one rule in the last hour. The
+            owner has been notified; this ticket is for finding out what kept failing.
+          runbook: RB-A16-rule-disabled.md
+
+      # A-17. Hubtask's own key material does not expire - TLS is terminated in front of it, and
+      # in our operation the certificates are cert-manager's. This reads cert-manager's exporter
+      # where one is scraped, and stays dormant (no series, no absent()) where none is - the
+      # A-20 precedent for a rule that is ahead of one environment's wiring.
+      - alert: HubtaskCertificateExpiring
+        expr: (certmanager_certificate_expiration_timestamp_seconds - time()) < (14 * 24 * 3600)
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-17
+        annotations:
+          summary: "A certificate expires in under 14 days"
+          description: >
+            cert-manager reports a certificate within two weeks of its end and renewal has not
+            happened. Renewal is supposed to be automatic - it firing means the automation broke.
+          runbook: RB-A17-certificate-expiry.md
