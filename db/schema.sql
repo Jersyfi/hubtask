@@ -222,9 +222,15 @@ CREATE TABLE session (
   step_up_at          timestamptz,
   step_up_method      text,
   step_up_consumed_at timestamptz,
+  -- The leash (H-05): a session issued through an OAuth exchange names its grant and carries
+  -- the grant's scopes. NULL scopes is a person's own session. The foreign key is added after
+  -- oauth_grant below, the order the migrations built it in.
+  grant_id uuid,
+  scopes   text[],
   CONSTRAINT session_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
+CREATE INDEX session_grant_idx ON session (grant_id) WHERE grant_id IS NOT NULL;
 CREATE UNIQUE INDEX session_tenant_id_uq ON session (tenant_id, id);
 CREATE UNIQUE INDEX session_step_up_token_uq ON session (step_up_token_hash)
   WHERE step_up_token_hash IS NOT NULL;
@@ -293,6 +299,63 @@ CREATE TABLE auth_pending (
     REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX auth_pending_token_uq ON auth_pending (token_hash);
+
+-- A registered third-party app (H-05). Redirect URIs match exactly, byte for byte.
+CREATE TABLE oauth_client (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  name          text NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
+  confidential  boolean NOT NULL,
+  secret_hash   bytea,
+  redirect_uris text[] NOT NULL,
+  created_at    timestamptz NOT NULL,
+  created_by    uuid,
+  version       integer NOT NULL DEFAULT 1,
+  CHECK (confidential = (secret_hash IS NOT NULL))
+);
+CREATE UNIQUE INDEX oauth_client_tenant_id_uq ON oauth_client (tenant_id, id);
+
+-- What a person allowed one app (H-05): the row they see and revoke beside their sessions.
+CREATE TABLE oauth_grant (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  client_id  uuid NOT NULL,
+  scopes     text[] NOT NULL,
+  created_at timestamptz NOT NULL,
+  revoked_at timestamptz,
+  CONSTRAINT oauth_grant_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT oauth_grant_client_fkey FOREIGN KEY (tenant_id, client_id)
+    REFERENCES oauth_client (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX oauth_grant_tenant_id_uq ON oauth_grant (tenant_id, id);
+CREATE UNIQUE INDEX oauth_grant_live_uq ON oauth_grant (account_id, client_id)
+  WHERE revoked_at IS NULL;
+CREATE INDEX oauth_grant_account_idx ON oauth_grant (account_id, created_at DESC);
+
+-- A single-use authorization code (H-05), kept briefly after consumption as the replay signal.
+CREATE TABLE oauth_code (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  client_id      uuid NOT NULL,
+  account_id     uuid NOT NULL,
+  grant_id       uuid NOT NULL,
+  code_hash      bytea NOT NULL,
+  code_challenge text NOT NULL,
+  redirect_uri   text NOT NULL,
+  created_at     timestamptz NOT NULL,
+  expires_at     timestamptz NOT NULL,
+  consumed_at    timestamptz,
+  CONSTRAINT oauth_code_grant_fkey FOREIGN KEY (tenant_id, grant_id)
+    REFERENCES oauth_grant (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX oauth_code_hash_uq ON oauth_code (code_hash);
+
+-- The leash's key, addable only once oauth_grant exists.
+ALTER TABLE session
+  ADD CONSTRAINT session_grant_fkey FOREIGN KEY (tenant_id, grant_id)
+    REFERENCES oauth_grant (tenant_id, id) ON DELETE CASCADE;
 
 -- The sign-in attempt ledger (T-02): failures per account and per source network, the subject
 -- only ever a hash under its own purpose label - the ledger counts attempts against addresses
@@ -1587,6 +1650,7 @@ BEGIN
     'account','account_group','account_group_member','membership','access_token',
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','auth_pending',
+    'oauth_client','oauth_grant','oauth_code',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',

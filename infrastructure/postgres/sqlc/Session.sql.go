@@ -539,6 +539,7 @@ func (q *Queries) FindRefreshTokenByHash(ctx context.Context, tokenHash []byte) 
 
 const findSessionForAuth = `-- name: FindSessionForAuth :one
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
+       s.grant_id, s.scopes,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -559,6 +560,8 @@ type FindSessionForAuthRow struct {
 	LastSeenAt         pgtype.Timestamptz
 	ExpiresAt          pgtype.Timestamptz
 	RevokedAt          pgtype.Timestamptz
+	GrantID            pgtype.UUID
+	Scopes             []string
 	AccountKind        AccountKind
 	AccountStatus      AccountStatus
 	AccountDisplayName string
@@ -581,6 +584,8 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 		&i.LastSeenAt,
 		&i.ExpiresAt,
 		&i.RevokedAt,
+		&i.GrantID,
+		&i.Scopes,
 		&i.AccountKind,
 		&i.AccountStatus,
 		&i.AccountDisplayName,
@@ -706,10 +711,12 @@ func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshToken
 
 const insertSession = `-- name: InsertSession :exec
 
-INSERT INTO session (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at)
+INSERT INTO session
+  (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at, grant_id, scopes)
 VALUES (
   $1, current_tenant_id(), $2, $3,
-  $4, $5, $6
+  $4, $5, $6,
+  $7, $8
 )
 `
 
@@ -720,9 +727,13 @@ type InsertSessionParams struct {
 	UserAgent *string
 	IpClass   *string
 	ExpiresAt pgtype.Timestamptz
+	GrantID   pgtype.UUID
+	Scopes    []string
 }
 
 // ============================== Sessions ==============================
+// grant_id and scopes are H-05's leash: set for a session an OAuth exchange issued, NULL for a
+// person's own.
 func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) error {
 	_, err := q.db.Exec(ctx, insertSession,
 		arg.ID,
@@ -731,6 +742,8 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.UserAgent,
 		arg.IpClass,
 		arg.ExpiresAt,
+		arg.GrantID,
+		arg.Scopes,
 	)
 	return err
 }
