@@ -99,8 +99,15 @@ type CreateWorkItemCommand struct {
 // What is new here is that the rules are data. Which type may sit under which, and how deep, come
 // from the capability profiles through the hierarchy service (ADR-0006) - so this file, like that
 // one, names none of the three levels.
+// ItemQuota is the §4 items ceiling, asked before an entry is created (H-08). The slice the
+// work package needs of quota.Guard.
+type ItemQuota interface {
+	Items(ctx context.Context, tenant string, adding int64) error
+}
+
 type CreateWorkItem struct {
 	Items      repository.Items
+	Quota      ItemQuota
 	Buckets    repository.Buckets
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
@@ -176,6 +183,15 @@ func (h CreateWorkItem) Execute(
 	var created domain.WorkItem
 	var outcome *AutoAssignOutcome
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The items ceiling (H-08, multi-tenancy.md §4), inside the transaction so the count and
+		// the write see the same database. Nil skips: fixtures predate the wall, and the
+		// composition root always wires it.
+		if h.Quota != nil {
+			if err := h.Quota.Items(ctx, actor.TenantID.String(), 1); err != nil {
+				return err
+			}
+		}
+
 		// One reading of the clock for the whole write. Two would let the row say it was created
 		// at one moment and the event say another, and the difference would show up as an item
 		// whose `created_at` is not the `time` of the event announcing it.

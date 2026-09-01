@@ -46,6 +46,7 @@ type Metrics struct {
 	jobFailures       metric.Int64Counter
 	jobDeadLetters    metric.Int64Counter
 	jobQueueDepth     metric.Int64Gauge
+	quotaUsageRatio   metric.Float64Gauge
 	outboxLag         metric.Float64Histogram
 	schedulerTickLag  metric.Int64Gauge
 	backupLastSuccess metric.Int64Gauge
@@ -219,6 +220,12 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("Jobs waiting and due, by kind. Reported by the scheduler leader only."),
 	); err != nil {
 		return fmt.Errorf("queue depth gauge: %w", err)
+	}
+	if m.quotaUsageRatio, err = meter.Float64Gauge(
+		namespace+"_tenant_quota_usage_ratio",
+		metric.WithDescription("How close a workspace stands to one of its §4 ceilings: used/limit, by quota. What A-18 watches."),
+	); err != nil {
+		return fmt.Errorf("quota usage gauge: %w", err)
 	}
 	if m.outboxLag, err = meter.Float64Histogram(
 		namespace+"_outbox_lag_seconds",
@@ -613,6 +620,18 @@ func (m *Metrics) UseCase(ctx context.Context, useCase, result string, tenant st
 		attrs = append(attrs, attribute.String("tenant_id", tenant))
 	}
 	m.useCaseTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// QuotaUsage records how close one workspace stands to one of its ceilings (H-08). The label is
+// the quota - a bounded set of six - and the tenant joins it only when the operator enabled the
+// tenant label (§3.2): without it the series carries the last workspace's number per quota,
+// which is still the alarm A-18 needs ("somebody stands at 90%"), just not the who.
+func (m *Metrics) QuotaUsage(ctx context.Context, quota string, tenant string, ratio float64) {
+	attrs := []attribute.KeyValue{attribute.String("quota", quota)}
+	if m.tenantLabelActive && tenant != "" {
+		attrs = append(attrs, attribute.String("tenant_id", tenant))
+	}
+	m.quotaUsageRatio.Record(ctx, ratio, metric.WithAttributes(attrs...))
 }
 
 // DependencyUp mirrors the health report into a time series, so that a disruption has a

@@ -41,6 +41,7 @@ const (
 // carry are reported rather than dropped silently (I-W6); and the whole act is one audit entry and
 // one announcement.
 type InstantiateTemplate struct {
+	Quota       ItemQuota
 	Writer      TemplateWriter
 	Items       repository.Items
 	ItemMembers repository.ItemMembers
@@ -125,6 +126,14 @@ func (h InstantiateTemplate) Execute(
 
 	var result InstantiationResult
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The items ceiling (H-08), DuplicateWorkItem's stance: asked once, and a tree may land
+		// its nodes past the wall by their number - the next create is refused.
+		if h.Quota != nil {
+			if err := h.Quota.Items(ctx, actor.TenantID.String(), 1); err != nil {
+				return err
+			}
+		}
+
 		// One reading of the clock for the whole tree, so that every entry it produces agrees
 		// about when it came into being.
 		now := w.Clock.Now()

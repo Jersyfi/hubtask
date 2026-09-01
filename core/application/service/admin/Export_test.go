@@ -14,20 +14,21 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
-	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 var exportTarget = shared.ID("018f2a1b-0000-7000-8000-0000000000d1")
 
-type exportLoadFake struct{ live int }
+// exportQuotaFake answers the guard's verdict directly - the resolution itself is the quota
+// package's business, tested there.
+type exportQuotaFake struct{ refused error }
 
-func (l *exportLoadFake) LiveExports(context.Context) (int, error) { return l.live, nil }
+func (q *exportQuotaFake) ExportJobs(context.Context, string) error { return q.refused }
 
 type exportFixture struct {
 	handler ExportTenant
 	tenants *tenantsStore
-	load    *exportLoadFake
+	quota   *exportQuotaFake
 	jobs    *jobsFake
 	audit   *auditSink
 	work    *unitOfWork
@@ -38,12 +39,11 @@ func newExportFixture(status domain.TenantStatus) *exportFixture {
 		tenants: &tenantsStore{record: adminrepo.TenantRecord{
 			ID: lifecycleTenant, Slug: "acme", DisplayName: "Acme GmbH", Status: status,
 		}},
-		load: &exportLoadFake{}, jobs: &jobsFake{}, audit: &auditSink{}, work: &unitOfWork{},
+		quota: &exportQuotaFake{}, jobs: &jobsFake{}, audit: &auditSink{}, work: &unitOfWork{},
 	}
 	f.handler = ExportTenant{
-		Tenants: f.tenants, Load: f.load, Jobs: f.jobs, Audit: f.audit,
+		Tenants: f.tenants, Quota: f.quota, Jobs: f.jobs, Audit: f.audit,
 		UnitOfWork: f.work, Clock: clock.Fixed(now), IDs: &sequentialIDs{},
-		Tenancy: env.TenancyMulti,
 	}
 	return f
 }
@@ -89,10 +89,12 @@ func TestEveryLifecycleStateExports(t *testing.T) {
 	}
 }
 
-// The §4 quota: a workspace at its limit is told to wait, and no job is created.
-func TestTheExportQuotaBoundsTheLiveJobs(t *testing.T) {
+// The §4 ceiling holds the door: a refused guard means no job, and the refusal travels as the
+// quota engine shaped it (422, capacity.export_jobs - the resolution itself is tested with the
+// engine).
+func TestTheExportQuotaHoldsTheDoor(t *testing.T) {
 	f := newExportFixture(domain.TenantActive)
-	f.load.live = exportQuotaMulti
+	f.quota.refused = shared.ErrValidation.WithDetail("capacity.export_jobs")
 
 	_, err := f.handler.Execute(t.Context(), operator(), exportCommand())
 
@@ -100,19 +102,11 @@ func TestTheExportQuotaBoundsTheLiveJobs(t *testing.T) {
 	if !errors.As(err, &domainErr) || domainErr.DetailCode != "capacity.export_jobs" {
 		t.Errorf("answer %v, want capacity.export_jobs", err)
 	}
-	if !errors.Is(err, shared.ErrRateLimited) {
-		t.Errorf("category %v, want rate limited", err)
-	}
 	if len(f.jobs.requests) != 0 {
 		t.Error("a job was created over the quota")
 	}
-
-	// Single mode allows more (multi-tenancy.md §4's two columns).
-	f = newExportFixture(domain.TenantActive)
-	f.handler.Tenancy = env.TenancySingle
-	f.load.live = exportQuotaMulti
-	if _, err := f.handler.Execute(t.Context(), operator(), exportCommand()); err != nil {
-		t.Errorf("single mode refused below its own limit: %v", err)
+	if len(f.audit.entries) != 0 {
+		t.Error("a refused export left a success entry")
 	}
 }
 

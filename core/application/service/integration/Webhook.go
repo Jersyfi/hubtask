@@ -106,7 +106,15 @@ type MintedSubscription struct {
 }
 
 // CreateWebhookSubscription subscribes an external system to the event stream (G-03).
-type CreateWebhookSubscription struct{ Writer Writer }
+// TargetQuota is the §4 webhook-targets ceiling (H-08).
+type TargetQuota interface {
+	WebhookTargets(ctx context.Context, tenant string) error
+}
+
+type CreateWebhookSubscription struct {
+	Writer Writer
+	Quota  TargetQuota
+}
 
 // CreateWebhookSubscriptionCommand is the input, typed.
 type CreateWebhookSubscriptionCommand struct {
@@ -142,6 +150,13 @@ func (h CreateWebhookSubscription) Execute(
 
 	var created domain.WebhookSubscription
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The targets ceiling (H-08, multi-tenancy.md §4). Nil skips - fixtures predate the
+		// wall; the composition root always wires it.
+		if h.Quota != nil {
+			if err := h.Quota.WebhookTargets(ctx, actor.TenantID.String()); err != nil {
+				return err
+			}
+		}
 		now := w.Clock.Now()
 
 		subscription, err := domain.NewWebhookSubscription(domain.NewWebhookSubscriptionInput{

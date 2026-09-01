@@ -59,6 +59,7 @@ const (
 // custom field key to whatever definition that collection gives it, and an account may see one
 // collection and not another. A person who spent an afternoon labelling learns what to redo.
 type DuplicateWorkItem struct {
+	Quota       ItemQuota
 	Items       repository.Items
 	ItemLabels  repository.ItemLabels
 	ItemMembers repository.ItemMembers
@@ -307,6 +308,15 @@ func (h DuplicateWorkItem) perform(
 	var result DuplicateResult
 
 	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The items ceiling (H-08). Asked once for the copy: a subtree may land its children past
+		// the wall by their number - the quota is a wall against runaway growth, not an
+		// invariant, and the very next create is refused (quota.Guard's stance).
+		if h.Quota != nil {
+			if err := h.Quota.Items(ctx, actor.TenantID.String(), 1); err != nil {
+				return err
+			}
+		}
+
 		// One reading of the clock for the whole copy, so that every entry it produces agrees about
 		// when it came into being.
 		now := h.Clock.Now()

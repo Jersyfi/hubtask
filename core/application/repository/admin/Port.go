@@ -144,11 +144,3 @@ type Purge interface {
 	// moved, and the caller rolls the whole act back.
 	HardDelete(ctx context.Context, now time.Time) (bool, error)
 }
-
-// ExportLoad answers how many export jobs of the transaction's tenant are alive - the §4
-// concurrency quota's question (multi-tenancy.md §4; the general quota machinery is H-08's,
-// this is the one limit H-07 already owes).
-type ExportLoad interface {
-	// LiveExports counts the tenant's pending and running export jobs.
-	LiveExports(ctx context.Context) (int, error)
-}

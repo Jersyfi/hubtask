@@ -775,7 +775,15 @@ func run() error {
 	// its three sets, the vocabulary of the collection it lands in, and the counter of every file
 	// it points at (C-11). It is a value rather than a literal in the registry because the
 	// materialisation reuses it: an occurrence is a copy of its template (D-05).
+	// The one capacity decision of H-08, asked from every bounded create. One value, shared:
+	// the ceilings, the counts and the ratio metric speak through the same guard everywhere.
+	quotaGuard := quotaservice.Guard{
+		Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+		Meter: postgres.NewQuotaRepository(), Signals: metrics, Tenancy: cfg.Tenancy,
+	}
+
 	duplicate := work.DuplicateWorkItem{
+		Quota: quotaGuard,
 		Items: items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
 		Buckets: buckets, Fields: customFields, Containers: containers,
 		Attachments: mediaObjects, Media: mediaObjects, Profiles: profiles,
@@ -870,7 +878,7 @@ func run() error {
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.CreateServiceAccount{Accounts: serviceAccounts}.Descriptor(),
 		identity.ListServiceAccounts{Accounts: serviceAccounts}.Descriptor(),
-		integrationservice.CreateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
+		integrationservice.CreateWebhookSubscription{Writer: webhookWriter, Quota: quotaGuard}.Descriptor(),
 		integrationservice.GetWebhookSubscription{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ListWebhookSubscriptions{Writer: webhookWriter}.Descriptor(),
 		integrationservice.UpdateWebhookSubscription{Writer: webhookWriter}.Descriptor(),
@@ -950,6 +958,7 @@ func run() error {
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items:      items,
+			Quota:      quotaGuard,
 			Buckets:    buckets,
 			Containers: containers,
 			Profiles:   profiles,
@@ -1131,6 +1140,7 @@ func run() error {
 		}.Descriptor(),
 
 		mediaservice.RequestMediaUpload{
+			Quota:   quotaGuard,
 			Objects: mediaObjects, Transfers: mediaTransfers, Audit: auditSink, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
 		}.Descriptor(),
@@ -1161,6 +1171,7 @@ func run() error {
 		work.UpdateTemplate{Writer: templateWriter}.Descriptor(),
 		work.DeleteTemplate{Writer: templateWriter}.Descriptor(),
 		work.InstantiateTemplate{
+			Quota:  quotaGuard,
 			Writer: templateWriter, Items: items, ItemMembers: itemMembers,
 			Visibility: authorizer, Events: outbox, Activity: journal,
 		}.Descriptor(),
@@ -1277,9 +1288,9 @@ func run() error {
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		adminservice.ExportTenant{
-			Tenants: postgres.NewAdminTenantRepository(), Load: postgres.NewExportLoad(),
+			Tenants: postgres.NewAdminTenantRepository(), Quota: quotaGuard,
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, Tenancy: cfg.Tenancy,
+			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		// The §4 quota surface (H-08): the workspace reads its own standing, the operator
 		// moves the walls.

@@ -493,3 +493,26 @@ func TestTheFiveReachTheirWorkThroughTheirDescriptors(t *testing.T) {
 		t.Error("the MCP annotations do not match what the use cases do")
 	}
 }
+
+// targetQuotaFake refuses when told to - the resolution is the quota engine's; this package
+// owes that the wall holds the subscription door (H-08).
+type targetQuotaFake struct{ refused error }
+
+func (q targetQuotaFake) WebhookTargets(context.Context, string) error { return q.refused }
+
+func TestTheTargetsCeilingHoldsTheSubscriptionDoor(t *testing.T) {
+	h := newHarness()
+
+	_, err := (CreateWebhookSubscription{
+		Writer: h.writer,
+		Quota:  targetQuotaFake{refused: shared.ErrValidation.WithDetail("capacity.webhook_targets")},
+	}).Execute(t.Context(), actor(), validCreate())
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != "capacity.webhook_targets" {
+		t.Errorf("answer %v, want capacity.webhook_targets", err)
+	}
+	if len(h.store.rows) != 0 {
+		t.Error("a subscription landed past the wall")
+	}
+}
