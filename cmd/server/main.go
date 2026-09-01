@@ -1525,14 +1525,21 @@ func run() error {
 											// the controller reads its host the same way.
 											BaseHost: controller.BaseHost,
 											Next: rest.Limited{
+												// H-08: the workspace's own per-token ceiling,
+												// engaging only where one is configured.
 												Limiter: limiter,
-												Level:   "tenant",
-												Bucket: rest.TenantBucket(
-													cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-												Next: rest.Idempotent{
-													Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-													Routes: apiRoutes,
-													Next:   apiRoutes,
+												Level:   "token",
+												Bucket:  rest.OverrideBucket(cfg.RateLimit.Burst),
+												Next: rest.Limited{
+													Limiter: limiter,
+													Level:   "tenant",
+													Bucket: rest.TenantBucket(
+														cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+													Next: rest.Idempotent{
+														Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+														Routes: apiRoutes,
+														Next:   apiRoutes,
+													},
 												},
 											},
 										},

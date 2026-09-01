@@ -49,6 +49,10 @@ type ActorContext struct {
 	// middleware can compare §3's weaker resolution sources - the subdomain and the header -
 	// against what the credential says without a second lookup.
 	TenantSlug string
+	// RateLimitPerMinute is the workspace's own request-rate ceiling (H-08), riding with the
+	// credential for the limiter's sake. 0 means none is configured - the installation's
+	// default applies, at the level that already enforces it.
+	RateLimitPerMinute int64
 	// AccountID is the acting account. Empty for the system itself.
 	AccountID shared.ID
 	// AccountName is the label the audit trail records next to the identifier. It travels with

@@ -311,3 +311,22 @@ func ClientAddress(r *http.Request) string {
 	}
 	return host
 }
+
+// OverrideBucket is the per-workspace request-rate ceiling of H-08 (multi-tenancy.md §4), a
+// level of its own after authentication: it engages only for a workspace that configured one,
+// keyed per credential like the credential level - a workspace's ceiling is "per token", not a
+// shared pool. A workspace without an override answers the empty bucket and the level does not
+// apply; the installation's own default keeps being enforced where it always was.
+func OverrideBucket(burst int) func(*http.Request) Bucket {
+	return func(r *http.Request) Bucket {
+		actor, ok := appshared.ActorFrom(r.Context())
+		if !ok || !actor.IsAuthenticated() || actor.RateLimitPerMinute <= 0 {
+			return Bucket{}
+		}
+		return Bucket{
+			Key:   actor.TenantID.String() + ":" + actor.TokenID.String(),
+			Limit: int(actor.RateLimitPerMinute),
+			Burst: burst,
+		}
+	}
+}

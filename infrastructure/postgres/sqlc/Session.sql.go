@@ -567,7 +567,8 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        a.locale   AS account_locale,
        a.time_zone AS account_time_zone,
        n.default_locale, n.default_time_zone,
-       n.slug AS tenant_slug, n.status::text AS tenant_status
+       n.slug AS tenant_slug, n.status::text AS tenant_status,
+       coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
 FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id
@@ -595,6 +596,7 @@ type FindSessionForAuthRow struct {
 	DefaultTimeZone    string
 	TenantSlug         string
 	TenantStatus       string
+	TokenRateOverride  interface{}
 }
 
 // What authenticating a session access token needs: the row the signature named, its account,
@@ -622,6 +624,7 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 		&i.DefaultTimeZone,
 		&i.TenantSlug,
 		&i.TenantStatus,
+		&i.TokenRateOverride,
 	)
 	return i, err
 }

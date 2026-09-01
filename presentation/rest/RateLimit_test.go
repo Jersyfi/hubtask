@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -283,5 +284,50 @@ func TestTheCredentialIsNotItsOwnBucketKey(t *testing.T) {
 	}
 	if key == credential || len(key) > 32 {
 		t.Errorf("bucket key = %q - the token itself is the key", key)
+	}
+}
+
+// The workspace's own per-token ceiling (H-08): it engages only where one is configured, keys
+// per credential, and a workspace without one leaves the level inert.
+func TestTheOverrideBucketEngagesOnlyWhereConfigured(t *testing.T) {
+	bucket := OverrideBucket(5)
+
+	r := request(t, "/containers")
+	if b := bucket(r); b.Key != "" {
+		t.Errorf("an anonymous request got a bucket: %+v", b)
+	}
+
+	actor := authenticatedActor()
+	actor.TokenID = shared.ID("018f2a1b-0000-7000-8000-0000000000ee")
+	r = r.WithContext(appshared.ContextWithActor(r.Context(), actor))
+	if b := bucket(r); b.Key != "" {
+		t.Errorf("a workspace without an override got a bucket: %+v", b)
+	}
+
+	actor.RateLimitPerMinute = 42
+	r = request(t, "/containers")
+	r = r.WithContext(appshared.ContextWithActor(r.Context(), actor))
+	b := bucket(r)
+	if b.Limit != 42 || b.Burst != 5 {
+		t.Errorf("bucket %+v", b)
+	}
+	if !strings.Contains(b.Key, actor.TokenID.String()) {
+		t.Errorf("the ceiling is per token; key %q does not name one", b.Key)
+	}
+
+	// And through the limiter it engages: the burst passes, the next is refused, and a minute
+	// later the configured rate has refilled the budget.
+	limiter := NewRateLimiter()
+	moment := time.Now()
+	for i := 0; i < b.Burst; i++ {
+		if d := limiter.Allow("token:"+b.Key, b.Limit, b.Burst, moment); !d.Allowed {
+			t.Fatalf("request %d refused inside the burst", i)
+		}
+	}
+	if d := limiter.Allow("token:"+b.Key, b.Limit, b.Burst, moment); d.Allowed {
+		t.Error("the ceiling did not engage at its bound")
+	}
+	if d := limiter.Allow("token:"+b.Key, b.Limit, b.Burst, moment.Add(time.Minute)); !d.Allowed {
+		t.Error("the configured rate did not refill the budget")
 	}
 }

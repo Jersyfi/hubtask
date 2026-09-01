@@ -86,10 +86,11 @@ func (r AccessTokenRepository) FindByToken(
 			Locale:      stringFrom(row.AccountLocale),
 			TimeZone:    stringFrom(row.AccountTimeZone),
 		},
-		TenantLocale:   row.DefaultLocale,
-		TenantTimeZone: row.DefaultTimeZone,
-		TenantSlug:     row.TenantSlug,
-		TenantStatus:   identity.TenantStatus(row.TenantStatus),
+		TenantLocale:       row.DefaultLocale,
+		TenantTimeZone:     row.DefaultTimeZone,
+		TenantSlug:         row.TenantSlug,
+		TenantStatus:       identity.TenantStatus(row.TenantStatus),
+		TokenRatePerMinute: rateOf(row.TokenRateOverride),
 	}, nil
 }
 
@@ -319,4 +320,13 @@ func stringFrom(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+// rateOf reads the override column. The generator types the coalesced cast as interface{}; the
+// database answers int64, and anything else is "no override".
+func rateOf(value any) int64 {
+	if rate, ok := value.(int64); ok {
+		return rate
+	}
+	return 0
 }
