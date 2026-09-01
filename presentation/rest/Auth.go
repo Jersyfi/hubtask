@@ -37,6 +37,10 @@ var PublicRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm": true,
+	// The token endpoint is public the way sign-in is (H-05): the single-use code, the PKCE
+	// verifier and - for a confidential client - the secret travel in the body and are the
+	// whole of what authenticates the exchange.
+	http.MethodPost + " " + APIBasePath + "/oauth/token": true,
 	// The content routes carry their credential in the URL: a signed, expiring token minted by
 	// requestMediaUpload and getMedia, validated by the route itself - the same trust model as a
 	// presigned object-storage URL, which is what these stand in for on a local-storage

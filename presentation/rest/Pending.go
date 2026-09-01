@@ -95,6 +95,27 @@ func (pending) DisableTotp(w http.ResponseWriter, r *http.Request) { notAvailabl
 
 func (pending) StepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The OAuth2 provider of H-05, pending until each use case lands.
+func (pending) ListOauthClients(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) RegisterOauthClient(w http.ResponseWriter, r *http.Request, _ openapi.RegisterOauthClientParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteOauthClient(w http.ResponseWriter, r *http.Request, _ openapi.OauthClientId) {
+	notAvailable(w, r)
+}
+
+func (pending) AuthorizeOauthClient(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ExchangeOauthCode(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListOauthGrants(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) RevokeOauthGrant(w http.ResponseWriter, r *http.Request, _ openapi.OauthGrantId) {
+	notAvailable(w, r)
+}
+
 // The five credential operations of G-01. All of them are overridden by RestController; they stay
 // here because the compile-time check above needs every method of the interface.
 func (pending) ListAccessTokens(w http.ResponseWriter, r *http.Request, _ openapi.ListAccessTokensParams) {

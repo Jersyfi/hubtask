@@ -1617,6 +1617,36 @@ func (e MfaChallengeMethods) Valid() bool {
 	}
 }
 
+// Defines values for OauthAuthorizationCodeChallengeMethod.
+const (
+	S256 OauthAuthorizationCodeChallengeMethod = "S256"
+)
+
+// Valid indicates whether the value is a known member of the OauthAuthorizationCodeChallengeMethod enum.
+func (e OauthAuthorizationCodeChallengeMethod) Valid() bool {
+	switch e {
+	case S256:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OauthTokenRequestGrantType.
+const (
+	AuthorizationCode OauthTokenRequestGrantType = "authorization_code"
+)
+
+// Valid indicates whether the value is a known member of the OauthTokenRequestGrantType enum.
+func (e OauthTokenRequestGrantType) Valid() bool {
+	switch e {
+	case AuthorizationCode:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -4413,6 +4443,98 @@ type MoveResult struct {
 	Item              WorkItem           `json:"item"`
 }
 
+// OauthAuthorization defines model for OauthAuthorization.
+type OauthAuthorization struct {
+	ClientId openapi_types.UUID `json:"client_id"`
+
+	// CodeChallenge BASE64URL(SHA256(code_verifier)), RFC 7636.
+	CodeChallenge       string                                `json:"code_challenge"`
+	CodeChallengeMethod OauthAuthorizationCodeChallengeMethod `json:"code_challenge_method"`
+	RedirectUri         string                                `json:"redirect_uri"`
+
+	// Scopes From this installation's own catalogue - the scopes descriptors already declare, no parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is.
+	Scopes []string `json:"scopes"`
+
+	// State Echoed back untouched, for the client's own CSRF binding.
+	State *string `json:"state,omitempty"`
+}
+
+// OauthAuthorizationCodeChallengeMethod defines model for OauthAuthorization.CodeChallengeMethod.
+type OauthAuthorizationCodeChallengeMethod string
+
+// OauthClient defines model for OauthClient.
+type OauthClient struct {
+	Confidential bool               `json:"confidential"`
+	CreatedAt    time.Time          `json:"created_at"`
+	Id           openapi_types.UUID `json:"id"`
+	Name         string             `json:"name"`
+	RedirectUris []string           `json:"redirect_uris"`
+}
+
+// OauthClientCreate defines model for OauthClientCreate.
+type OauthClientCreate struct {
+	// Confidential True for an app that can keep a secret on a server; false for a native or single-page app, which gets none and must bring PKCE.
+	Confidential bool `json:"confidential"`
+
+	// Name What people read on the consent screen and in their grant list.
+	Name string `json:"name"`
+
+	// RedirectUris Matched exactly, byte for byte, at authorization and at exchange.
+	RedirectUris []string `json:"redirect_uris"`
+}
+
+// OauthClientSecret defines model for OauthClientSecret.
+type OauthClientSecret struct {
+	// ClientSecret The confidential client's credential, in clear, for the only time. Absent for a public client, which authenticates with PKCE alone.
+	ClientSecret *string            `json:"client_secret,omitempty"`
+	Confidential bool               `json:"confidential"`
+	CreatedAt    time.Time          `json:"created_at"`
+	Id           openapi_types.UUID `json:"id"`
+	Name         string             `json:"name"`
+	RedirectUris []string           `json:"redirect_uris"`
+}
+
+// OauthCode defines model for OauthCode.
+type OauthCode struct {
+	// Code Single use, minutes of life, exchanged at /oauth/token.
+	Code      string    `json:"code"`
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// State The authorization's state, echoed back untouched.
+	State *string `json:"state,omitempty"`
+}
+
+// OauthGrant defines model for OauthGrant.
+type OauthGrant struct {
+	ClientId   openapi_types.UUID `json:"client_id"`
+	ClientName string             `json:"client_name"`
+	CreatedAt  time.Time          `json:"created_at"`
+	Id         openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When a session under this grant last acted, to the minute.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	Scopes     []string   `json:"scopes"`
+}
+
+// OauthTokenRequest defines model for OauthTokenRequest.
+type OauthTokenRequest struct {
+	ClientId openapi_types.UUID `json:"client_id"`
+
+	// ClientSecret The confidential client's credential.
+	ClientSecret *string `json:"client_secret,omitempty"`
+	Code         string  `json:"code"`
+
+	// CodeVerifier RFC 7636's verifier. Mandatory for a public client.
+	CodeVerifier *string                    `json:"code_verifier,omitempty"`
+	GrantType    OauthTokenRequestGrantType `json:"grant_type"`
+
+	// RedirectUri Has to repeat the authorization's, exactly.
+	RedirectUri string `json:"redirect_uri"`
+}
+
+// OauthTokenRequestGrantType defines model for OauthTokenRequest.GrantType.
+type OauthTokenRequestGrantType string
+
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
 	HasMore bool `json:"has_more"`
@@ -5744,6 +5866,12 @@ type MediaId = openapi_types.UUID
 // MembershipId defines model for MembershipId.
 type MembershipId = openapi_types.UUID
 
+// OauthClientId defines model for OauthClientId.
+type OauthClientId = openapi_types.UUID
+
+// OauthGrantId defines model for OauthGrantId.
+type OauthGrantId = openapi_types.UUID
+
 // PageSize defines model for PageSize.
 type PageSize = int
 
@@ -6455,6 +6583,12 @@ type RevokeMembershipParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// RegisterOauthClientParams defines parameters for RegisterOauthClient.
+type RegisterOauthClientParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListDataSubjectRequestsParams defines parameters for ListDataSubjectRequests.
 type ListDataSubjectRequestsParams struct {
 	Status *DataSubjectRequestStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -6764,6 +6898,15 @@ type RequestMediaUploadJSONRequestBody = MediaUploadRequest
 
 // GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
 type GrantMembershipJSONRequestBody = MembershipGrant
+
+// AuthorizeOauthClientJSONRequestBody defines body for AuthorizeOauthClient for application/json ContentType.
+type AuthorizeOauthClientJSONRequestBody = OauthAuthorization
+
+// RegisterOauthClientJSONRequestBody defines body for RegisterOauthClient for application/json ContentType.
+type RegisterOauthClientJSONRequestBody = OauthClientCreate
+
+// ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
+type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
 
 // WithdrawConsentJSONRequestBody defines body for WithdrawConsent for application/json ContentType.
 type WithdrawConsentJSONRequestBody = ConsentWithdrawal
@@ -7268,6 +7411,27 @@ type ServerInterface interface {
 	// GetHealthReport Deep self-diagnosis of the installation
 	// (GET /meta/health)
 	GetHealthReport(w http.ResponseWriter, r *http.Request)
+	// AuthorizeOauthClient Consent to an app's request for bounded access
+	// (POST /oauth/authorize)
+	AuthorizeOauthClient(w http.ResponseWriter, r *http.Request)
+	// ListOauthClients The workspace's registered third-party apps
+	// (GET /oauth/clients)
+	ListOauthClients(w http.ResponseWriter, r *http.Request)
+	// RegisterOauthClient Register a third-party app
+	// (POST /oauth/clients)
+	RegisterOauthClient(w http.ResponseWriter, r *http.Request, params RegisterOauthClientParams)
+	// DeleteOauthClient Remove a third-party app
+	// (DELETE /oauth/clients/{clientId})
+	DeleteOauthClient(w http.ResponseWriter, r *http.Request, clientId OauthClientId)
+	// ListOauthGrants The apps the caller has allowed, and what
+	// (GET /oauth/grants)
+	ListOauthGrants(w http.ResponseWriter, r *http.Request)
+	// RevokeOauthGrant Withdraw what an app was allowed
+	// (DELETE /oauth/grants/{grantId})
+	RevokeOauthGrant(w http.ResponseWriter, r *http.Request, grantId OauthGrantId)
+	// ExchangeOauthCode Exchange the code for the pair
+	// (POST /oauth/token)
+	ExchangeOauthCode(w http.ResponseWriter, r *http.Request)
 	// WithdrawConsent Withdraw consent for an optional processing purpose (Art. 21)
 	// (POST /privacy/consents:withdraw)
 	WithdrawConsent(w http.ResponseWriter, r *http.Request)
@@ -13423,6 +13587,155 @@ func (siw *ServerInterfaceWrapper) GetHealthReport(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// AuthorizeOauthClient operation middleware
+func (siw *ServerInterfaceWrapper) AuthorizeOauthClient(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AuthorizeOauthClient(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOauthClients operation middleware
+func (siw *ServerInterfaceWrapper) ListOauthClients(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOauthClients(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegisterOauthClient operation middleware
+func (siw *ServerInterfaceWrapper) RegisterOauthClient(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RegisterOauthClientParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegisterOauthClient(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteOauthClient operation middleware
+func (siw *ServerInterfaceWrapper) DeleteOauthClient(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "clientId" -------------
+	var clientId OauthClientId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "clientId", r.PathValue("clientId"), &clientId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "clientId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteOauthClient(w, r, clientId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOauthGrants operation middleware
+func (siw *ServerInterfaceWrapper) ListOauthGrants(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOauthGrants(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeOauthGrant operation middleware
+func (siw *ServerInterfaceWrapper) RevokeOauthGrant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "grantId" -------------
+	var grantId OauthGrantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "grantId", r.PathValue("grantId"), &grantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "grantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeOauthGrant(w, r, grantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExchangeOauthCode operation middleware
+func (siw *ServerInterfaceWrapper) ExchangeOauthCode(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExchangeOauthCode(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // WithdrawConsent operation middleware
 func (siw *ServerInterfaceWrapper) WithdrawConsent(w http.ResponseWriter, r *http.Request) {
 
@@ -14723,6 +15036,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/tokens/{tokenId}", wrapper.RevokeAccessToken)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/service-accounts", wrapper.ListServiceAccounts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/service-accounts", wrapper.CreateServiceAccount)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/authorize", wrapper.AuthorizeOauthClient)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/token", wrapper.ExchangeOauthCode)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/grants", wrapper.ListOauthGrants)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/grants/{grantId}", wrapper.RevokeOauthGrant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests", wrapper.ListDataSubjectRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests", wrapper.CreateDataSubjectRequest)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/privacy/requests/{requestId}", wrapper.UpdateDataSubjectRequest)

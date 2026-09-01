@@ -31,6 +31,7 @@ tags:
   - name: meta
   - name: identity
   - name: auth
+  - name: oauth
   - name: containers
   - name: items
   - name: structure
@@ -2715,6 +2716,175 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /oauth/clients:
+    get:
+      tags: [oauth]
+      operationId: listOauthClients
+      summary: The workspace's registered third-party apps
+      description: >
+        The client registry an administrator manages (H-05): every app that may ask people here
+        for bounded access. The secret of a confidential client is not among the fields - it was
+        answered once, at registration.
+      responses:
+        "200":
+          description: The clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OauthClient"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [oauth]
+      operationId: registerOauthClient
+      summary: Register a third-party app
+      description: >
+        A name, the exact redirect URIs it may be sent back to, and whether it can keep a
+        secret. A public client - a native or single-page app - gets no secret and must bring
+        PKCE to every authorization (RFC 7636); a confidential client gets one, in clear, for
+        the only time, stored as a hash under its own purpose label.
+
+        Redirect URIs match exactly, byte for byte: a prefix or wildcard match is how
+        authorization codes end up on attacker-controlled pages.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OauthClientCreate"
+      responses:
+        "201":
+          description: Registered, with the secret - where there is one - shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OauthClientSecret"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /oauth/clients/{clientId}:
+    parameters:
+      - $ref: "#/components/parameters/OauthClientId"
+    delete:
+      tags: [oauth]
+      operationId: deleteOauthClient
+      summary: Remove a third-party app
+      description: >
+        Removes the client and revokes every grant that pointed at it: the sessions those grants
+        leashed refuse on their next request. What people allowed the app is withdrawn with the
+        app, because a grant to a client nobody can name is a door with no label.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /oauth/authorize:
+    post:
+      tags: [oauth]
+      operationId: authorizeOauthClient
+      summary: Consent to an app's request for bounded access
+      description: >
+        The authorization endpoint, headless (0.6.0 decision 5): the signed-in person - never a
+        token, a person - names the client, the exact redirect URI, the scopes from this
+        installation's own catalogue, and the PKCE challenge, and receives the single-use code
+        the app will exchange. The consent is recorded as a grant the person can see and revoke
+        beside their sessions; the consent *screen* arrives with the client track and calls
+        exactly this.
+
+        A public client without PKCE is refused; `S256` is the only accepted method - `plain`
+        would put the verifier on the wire twice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OauthAuthorization"
+      responses:
+        "201":
+          description: Consented, with the code shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OauthCode"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /oauth/token:
+    post:
+      tags: [oauth]
+      operationId: exchangeOauthCode
+      security: []
+      summary: Exchange the code for the pair
+      description: >
+        The token endpoint. Public the way sign-in is: what authenticates is in the body - the
+        single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code
+        was minted under, and, for a confidential client, the secret. A code replayed after
+        exchange is refused; the redirect URI has to repeat the authorization's, exactly.
+
+        The answer is the same pair sign-in mints (security.md §5), leashed to the grant:
+        revoking the grant refuses the pair on its next request, exactly as refresh reuse would.
+        Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. This
+        milestone speaks JSON; the form encoding RFC 6749 clients expect arrives with the public
+        marketplace track, additively.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OauthTokenRequest"
+      responses:
+        "201":
+          description: Exchanged, with the pair shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTokens"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /oauth/grants:
+    get:
+      tags: [oauth]
+      operationId: listOauthGrants
+      summary: The apps the caller has allowed, and what
+      description: >
+        One's own grants, newest first: which client, which scopes, when it was allowed and when
+        it last acted. Never anybody else's - what a person allowed is theirs to see and to
+        withdraw, the session listing's reasoning.
+      responses:
+        "200":
+          description: The grants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OauthGrant"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /oauth/grants/{grantId}:
+    parameters:
+      - $ref: "#/components/parameters/OauthGrantId"
+    delete:
+      tags: [oauth]
+      operationId: revokeOauthGrant
+      summary: Withdraw what an app was allowed
+      description: >
+        Immediate: every session the grant leashed refuses on its next request, the way a revoked
+        session's pair does. Somebody else's grant is not found rather than forbidden; revoking
+        twice is not an error.
+      responses:
+        "204":
+          description: Withdrawn
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /privacy/requests:
     get:
       tags: [privacy]
@@ -5038,6 +5208,18 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    OauthClientId:
+      name: clientId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+    OauthGrantId:
+      name: grantId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     StepUpToken:
       name: X-Hubtask-Step-Up
       in: header
@@ -5606,6 +5788,123 @@ components:
           description: >
             The pair, when a pending credential completed a sign-in here. Absent for a signed-in
             caller, who already holds one.
+
+    OauthClientCreate:
+      type: object
+      required: [name, redirect_uris, confidential]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: What people read on the consent screen and in their grant list.
+        redirect_uris:
+          type: array
+          minItems: 1
+          items: { type: string, format: uri }
+          description: Matched exactly, byte for byte, at authorization and at exchange.
+        confidential:
+          type: boolean
+          description: >
+            True for an app that can keep a secret on a server; false for a native or
+            single-page app, which gets none and must bring PKCE.
+
+    OauthClient:
+      type: object
+      required: [id, name, redirect_uris, confidential, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        redirect_uris:
+          type: array
+          items: { type: string }
+        confidential: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    OauthClientSecret:
+      allOf:
+        - $ref: "#/components/schemas/OauthClient"
+        - type: object
+          properties:
+            client_secret:
+              type: [string, "null"]
+              description: >
+                The confidential client's credential, in clear, for the only time. Absent for a
+                public client, which authenticates with PKCE alone.
+
+    OauthAuthorization:
+      type: object
+      required: [client_id, redirect_uri, scopes, code_challenge, code_challenge_method]
+      properties:
+        client_id: { type: string, format: uuid }
+        redirect_uri: { type: string, format: uri }
+        scopes:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: >
+            From this installation's own catalogue - the scopes descriptors already declare, no
+            parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is.
+        code_challenge:
+          type: string
+          description: BASE64URL(SHA256(code_verifier)), RFC 7636.
+        code_challenge_method:
+          type: string
+          enum: [S256]
+        state:
+          type: [string, "null"]
+          maxLength: 512
+          description: Echoed back untouched, for the client's own CSRF binding.
+
+    OauthCode:
+      type: object
+      required: [code, expires_at]
+      properties:
+        code:
+          type: string
+          description: Single use, minutes of life, exchanged at /oauth/token.
+        expires_at: { type: string, format: date-time }
+        state:
+          type: [string, "null"]
+          description: The authorization's state, echoed back untouched.
+
+    OauthTokenRequest:
+      type: object
+      required: [grant_type, code, redirect_uri, client_id]
+      properties:
+        grant_type:
+          type: string
+          enum: [authorization_code]
+        code: { type: string }
+        redirect_uri:
+          type: string
+          format: uri
+          description: Has to repeat the authorization's, exactly.
+        client_id: { type: string, format: uuid }
+        code_verifier:
+          type: [string, "null"]
+          minLength: 43
+          maxLength: 128
+          description: RFC 7636's verifier. Mandatory for a public client.
+        client_secret:
+          type: [string, "null"]
+          description: The confidential client's credential.
+
+    OauthGrant:
+      type: object
+      required: [id, client_id, client_name, scopes, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        client_id: { type: string, format: uuid }
+        client_name: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+        created_at: { type: string, format: date-time }
+        last_used_at:
+          type: [string, "null"]
+          format: date-time
+          description: When a session under this grant last acted, to the minute.
 
     StepUpRequest:
       type: object
