@@ -5554,6 +5554,12 @@ type TenantDeletionScheduled struct {
 	TenantId   openapi_types.UUID `json:"tenant_id"`
 }
 
+// TenantExportRequest defines model for TenantExportRequest.
+type TenantExportRequest struct {
+	// TargetId The configured backup target the archive is written to - the one discipline for "bytes leave the installation" (E-09's precedent). The target must belong to the workspace being exported, or be an installation-wide one.
+	TargetId openapi_types.UUID `json:"target_id"`
+}
+
 // TenantProvision defines model for TenantProvision.
 type TenantProvision struct {
 	DefaultLocale    *string             `json:"default_locale,omitempty"`
@@ -6841,6 +6847,9 @@ type ProvisionTenantJSONRequestBody = TenantProvision
 // RequestTenantDeletionJSONRequestBody defines body for RequestTenantDeletion for application/json ContentType.
 type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 
+// ExportTenantJSONRequestBody defines body for ExportTenant for application/json ContentType.
+type ExportTenantJSONRequestBody = TenantExportRequest
+
 // ExportAuditTrailJSONRequestBody defines body for ExportAuditTrail for application/json ContentType.
 type ExportAuditTrailJSONRequestBody = AuditExport
 
@@ -7101,6 +7110,9 @@ type ServerInterface interface {
 	// RequestTenantDeletion Request a workspace's deletion
 	// (POST /admin/tenants/{tenantId}:delete)
 	RequestTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params RequestTenantDeletionParams)
+	// ExportTenant Export a workspace whole
+	// (POST /admin/tenants/{tenantId}:export)
+	ExportTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
 	// ResumeTenant Reactivate a workspace
 	// (POST /admin/tenants/{tenantId}:resume)
 	ResumeTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -7862,6 +7874,32 @@ func (siw *ServerInterfaceWrapper) RequestTenantDeletion(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RequestTenantDeletion(w, r, tenantId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportTenant operation middleware
+func (siw *ServerInterfaceWrapper) ExportTenant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportTenant(w, r, tenantId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15341,6 +15379,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:suspend", wrapper.SuspendTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)

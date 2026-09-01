@@ -114,6 +114,11 @@ func (pending) RequestTenantDeletion(w http.ResponseWriter, r *http.Request, _ o
 	notAvailable(w, r)
 }
 
+// The tenant export of H-07, pending until the use case lands.
+func (pending) ExportTenant(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
 // The OAuth2 provider of H-05, pending until each use case lands.
 func (pending) ListOauthClients(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
