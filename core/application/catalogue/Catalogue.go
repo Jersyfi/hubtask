@@ -33,6 +33,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 )
@@ -222,6 +223,8 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.ResumeTenant{}.Descriptor(),
 		adminservice.RequestTenantDeletion{}.Descriptor(),
 		adminservice.ExportTenant{}.Descriptor(),
+		adminservice.UpdateTenantQuotas{}.Descriptor(),
+		quotaservice.ReadQuotas{}.Descriptor(),
 	}
 }
 

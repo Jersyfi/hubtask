@@ -204,3 +204,57 @@ func (c *RestController) ExportTenant(
 		Status: openapi.JobStatusQUEUED,
 	})
 }
+
+// UpdateTenantQuotas answers PATCH /admin/tenants/{tenantId}/quotas. The body is read as a raw
+// document rather than the generated struct: "absent", "null" and "0" are three different
+// instructions, and a Go pointer can only carry two of them.
+func (c *RestController) UpdateTenantQuotas(
+	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body map[string]any
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), updateTenantQuotasUseCase, actorOf(r), usecase.Input{
+		"tenant_id": tenantID.String(),
+		"quotas":    body,
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, quotaStandingsResponse(out))
+}
+
+func quotaStandingsResponse(out usecase.Output) []openapi.QuotaStanding {
+	rows, _ := out["data"].([]usecase.Output)
+	standings := make([]openapi.QuotaStanding, 0, len(rows))
+	for _, row := range rows {
+		standing := openapi.QuotaStanding{
+			Quota: openapi.QuotaStandingQuota(row.String("quota")),
+		}
+		if limit, held := row["limit"].(int64); held {
+			standing.Limit = limit
+		}
+		if configured, _ := row["configured"].(bool); configured {
+			standing.Configured = &configured
+		}
+		if used, held := row["used"].(int64); held {
+			standing.Used = &used
+		}
+		if ratio, held := row["ratio"].(float64); held {
+			float := float32(ratio)
+			standing.Ratio = &float
+		}
+		standings = append(standings, standing)
+	}
+	return standings
+}

@@ -45,6 +45,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -1279,6 +1280,19 @@ func run() error {
 			Tenants: postgres.NewAdminTenantRepository(), Load: postgres.NewExportLoad(),
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
+		// The §4 quota surface (H-08): the workspace reads its own standing, the operator
+		// moves the walls.
+		quotaservice.ReadQuotas{
+			Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
+		adminservice.UpdateTenantQuotas{
+			Tenants: postgres.NewAdminTenantRepository(),
+			Store:   postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+			Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
 	)
 	if err != nil {

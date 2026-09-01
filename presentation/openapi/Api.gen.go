@@ -1743,6 +1743,36 @@ func (e QueryFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for QuotaStandingQuota.
+const (
+	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
+	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
+	ExportJobs            QuotaStandingQuota = "export_jobs"
+	Items                 QuotaStandingQuota = "items"
+	MediaBytes            QuotaStandingQuota = "media_bytes"
+	WebhookTargets        QuotaStandingQuota = "webhook_targets"
+)
+
+// Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
+func (e QuotaStandingQuota) Valid() bool {
+	switch e {
+	case ApiRequestsPerMinute:
+		return true
+	case AutomationRunsPerHour:
+		return true
+	case ExportJobs:
+		return true
+	case Items:
+		return true
+	case MediaBytes:
+		return true
+	case WebhookTargets:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RecurrenceMode.
 const (
 	ONCOMPLETION RecurrenceMode = "ON_COMPLETION"
@@ -4699,6 +4729,25 @@ type QueryField struct {
 // QueryFieldKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
 type QueryFieldKind string
 
+// QuotaStanding defines model for QuotaStanding.
+type QuotaStanding struct {
+	// Configured True when the workspace carries its own ceiling rather than the mode's default.
+	Configured *bool `json:"configured,omitempty"`
+
+	// Limit The resolved ceiling. 0 means unlimited.
+	Limit int64              `json:"limit"`
+	Quota QuotaStandingQuota `json:"quota"`
+
+	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
+	Ratio *float32 `json:"ratio,omitempty"`
+
+	// Used The live count, where one exists; null where the limit is enforced elsewhere (the request rate lives in the limiter's own headers).
+	Used *int64 `json:"used,omitempty"`
+}
+
+// QuotaStandingQuota defines model for QuotaStanding.Quota.
+type QuotaStandingQuota string
+
 // Recurrence defines model for Recurrence.
 type Recurrence struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -5570,6 +5619,16 @@ type TenantProvision struct {
 
 	// Slug The subdomain the workspace answers on. Unique across the installation.
 	Slug string `json:"slug"`
+}
+
+// TenantQuotas Partial by design - each §4 limit, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
+type TenantQuotas struct {
+	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
+	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
+	ExportJobs            *int64 `json:"export_jobs,omitempty"`
+	Items                 *int64 `json:"items,omitempty"`
+	MediaBytes            *int64 `json:"media_bytes,omitempty"`
+	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
 }
 
 // TotpConfirmation defines model for TotpConfirmation.
@@ -6844,6 +6903,9 @@ type InviteAccountJSONRequestBody = AccountInvite
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
+// UpdateTenantQuotasJSONRequestBody defines body for UpdateTenantQuotas for application/json ContentType.
+type UpdateTenantQuotasJSONRequestBody = TenantQuotas
+
 // RequestTenantDeletionJSONRequestBody defines body for RequestTenantDeletion for application/json ContentType.
 type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 
@@ -7107,6 +7169,9 @@ type ServerInterface interface {
 	// ProvisionTenant Provision a workspace
 	// (POST /admin/tenants)
 	ProvisionTenant(w http.ResponseWriter, r *http.Request, params ProvisionTenantParams)
+	// UpdateTenantQuotas Set a workspace's quotas
+	// (PATCH /admin/tenants/{tenantId}/quotas)
+	UpdateTenantQuotas(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
 	// RequestTenantDeletion Request a workspace's deletion
 	// (POST /admin/tenants/{tenantId}:delete)
 	RequestTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params RequestTenantDeletionParams)
@@ -7599,6 +7664,9 @@ type ServerInterface interface {
 	// UpdateDataSubjectRequest Move a case along
 	// (PATCH /privacy/requests/{requestId})
 	UpdateDataSubjectRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID)
+	// ReadQuotas The workspace's quota standing
+	// (GET /quotas)
+	ReadQuotas(w http.ResponseWriter, r *http.Request)
 	// StartRestore Start a restore
 	// (POST /restores)
 	StartRestore(w http.ResponseWriter, r *http.Request)
@@ -7824,6 +7892,32 @@ func (siw *ServerInterfaceWrapper) ProvisionTenant(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ProvisionTenant(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTenantQuotas operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTenantQuotas(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTenantQuotas(w, r, tenantId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14253,6 +14347,20 @@ func (siw *ServerInterfaceWrapper) UpdateDataSubjectRequest(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
+// ReadQuotas operation middleware
+func (siw *ServerInterfaceWrapper) ReadQuotas(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadQuotas(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StartRestore operation middleware
 func (siw *ServerInterfaceWrapper) StartRestore(w http.ResponseWriter, r *http.Request) {
 
@@ -15380,6 +15488,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)
