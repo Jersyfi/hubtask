@@ -121,7 +121,7 @@ func TestGrantsAndCodesAreBoundToTheirTenantAndBurnOnce(t *testing.T) {
 		}
 		// The fresh consent replaces the scopes on the same live grant.
 		live, err = grants.Upsert(ctx, identity.OauthGrant{
-			ID: shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a04"),
+			ID:       shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a04"),
 			TenantID: tenantA, AccountID: sessionAccountA, ClientID: clientA,
 			Scopes: []string{"items:read", "items:write"}, CreatedAt: now,
 		})
@@ -157,7 +157,7 @@ func TestGrantsAndCodesAreBoundToTheirTenantAndBurnOnce(t *testing.T) {
 	}
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
 		return codes.Insert(ctx, identity.OauthCode{
-			ID: shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a05"),
+			ID:       shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a05"),
 			TenantID: tenantA, ClientID: clientA, AccountID: sessionAccountA, GrantID: grantID,
 			Challenge: "c", RedirectURI: "https://app.example/cb",
 			CreatedAt: now, ExpiresAt: now.Add(2 * time.Minute),
