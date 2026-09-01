@@ -658,14 +658,21 @@ ALTER TABLE comment ADD CONSTRAINT comment_parent_comment_id_fkey
     FOREIGN KEY (tenant_id, parent_comment_id) REFERENCES comment (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
 
-CREATE TABLE activity_entry (
-  id           uuid PRIMARY KEY,
-  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+-- Partitioned by month since H-09 (multi-tenancy.md §7), constructed exactly as migration 0068
+-- leaves a converted installation: a standalone history partition carrying the old shapes, a
+-- partitioned parent under the working name, a default catch-all, and the coming month through
+-- ensure_stream_partition below. The history is empty on a fresh install and holds everything
+-- older than the conversion on a migrated one - one construction, so the schema reference and
+-- the migrations agree object for object.
+CREATE TABLE activity_entry_history (
+  id           uuid NOT NULL,
+  tenant_id    uuid NOT NULL CONSTRAINT activity_entry_tenant_id_fkey REFERENCES tenant(id) ON DELETE CASCADE,
   -- nullable, and the key below is MATCH SIMPLE: container_id is there for a container's own
   -- history, which has no reader yet. An entry without an item is refused by the domain.
   item_id      uuid,
   container_id uuid,
-  actor_type   text NOT NULL CHECK (actor_type IN ('USER','SERVICE_ACCOUNT','AUTOMATION','AI_AGENT','SYSTEM')),
+  -- Named like the parent's: the attach matches check constraints by name.
+  actor_type   text NOT NULL CONSTRAINT activity_entry_actor_type_check CHECK (actor_type IN ('USER','SERVICE_ACCOUNT','AUTOMATION','AI_AGENT','SYSTEM')),
   actor_id     uuid,
   verb         text NOT NULL,                    -- a message code, e.g. 'item.completed'
   change_set   jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -678,7 +685,36 @@ CREATE TABLE activity_entry (
 );
 -- A page is read newest first within one item and continues after a boundary, so the tie-break
 -- belongs in the index rather than in a sort.
-CREATE INDEX activity_page_idx ON activity_entry (tenant_id, item_id, occurred_at DESC, id DESC);
+CREATE INDEX activity_page_idx ON activity_entry_history (tenant_id, item_id, occurred_at DESC, id DESC);
+CREATE UNIQUE INDEX activity_entry_part_pkey ON activity_entry_history (tenant_id, occurred_at, id);
+CREATE UNIQUE INDEX activity_entry_history_id_idx ON activity_entry_history (id);
+
+CREATE TABLE activity_entry (
+  id           uuid NOT NULL,
+  tenant_id    uuid NOT NULL CONSTRAINT activity_entry_tenant_id_fkey REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id      uuid,
+  container_id uuid,
+  actor_type   text NOT NULL CONSTRAINT activity_entry_actor_type_check CHECK (actor_type IN ('USER','SERVICE_ACCOUNT','AUTOMATION','AI_AGENT','SYSTEM')),
+  actor_id     uuid,
+  verb         text NOT NULL,
+  change_set   jsonb NOT NULL DEFAULT '{}'::jsonb,
+  occurred_at  timestamptz NOT NULL DEFAULT now(),
+  correlation_id uuid,
+  causation_id   uuid,
+  -- The partition key must be part of every unique constraint (the audit_log lesson).
+  PRIMARY KEY (tenant_id, occurred_at, id),
+  CONSTRAINT activity_entry_item_id_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+) PARTITION BY RANGE (occurred_at);
+CREATE INDEX activity_entry_page_idx ON activity_entry (tenant_id, item_id, occurred_at DESC, id DESC);
+
+DO $activity_attach$
+BEGIN
+  EXECUTE format(
+    'ALTER TABLE activity_entry ATTACH PARTITION activity_entry_history FOR VALUES FROM (MINVALUE) TO (%L)',
+    (date_trunc('month', now()) + interval '1 month')::date);
+END $activity_attach$;
+CREATE TABLE activity_entry_default PARTITION OF activity_entry DEFAULT;
 
 CREATE TABLE media_object (
   id          uuid PRIMARY KEY,
@@ -901,9 +937,10 @@ CREATE INDEX automation_rule_due_idx ON automation_rule (next_run_at)
 CREATE UNIQUE INDEX automation_rule_inbound_token_uq ON automation_rule (inbound_token_hash)
   WHERE inbound_token_hash IS NOT NULL;
 
-CREATE TABLE rule_run (
-  id           uuid PRIMARY KEY,
-  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+-- Partitioned by month since H-09 (range on started_at), activity_entry's construction.
+CREATE TABLE rule_run_history (
+  id           uuid NOT NULL,
+  tenant_id    uuid NOT NULL CONSTRAINT rule_run_tenant_id_fkey REFERENCES tenant(id) ON DELETE CASCADE,
   rule_id      uuid NOT NULL,
   event_id     uuid,
   -- What started the run (G-08, migration 0054). On the run rather than read back from the rule,
@@ -919,7 +956,7 @@ CREATE TABLE rule_run (
   -- 'WAITING' is a run parked on a WAIT action (G-09, migration 0058): its results so far are
   -- written and a scheduled job holds the resume point. Its own status, because a row left in
   -- RUNNING is how a crash is recognised.
-  status       text NOT NULL CHECK (status IN ('RUNNING','WAITING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
+  status       text NOT NULL CONSTRAINT rule_run_status_check CHECK (status IN ('RUNNING','WAITING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
   condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
   action_results    jsonb NOT NULL DEFAULT '[]'::jsonb,
   -- What made this run one occurrence (G-09, migration 0059): the idempotency key's middle third,
@@ -935,9 +972,44 @@ CREATE TABLE rule_run (
   CONSTRAINT rule_run_trigger_check
     CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY'))
 );
-CREATE INDEX rule_run_idx ON rule_run (tenant_id, rule_id, started_at DESC);
+CREATE INDEX rule_run_idx ON rule_run_history (tenant_id, rule_id, started_at DESC);
+CREATE INDEX rule_run_trigger_idx ON rule_run_history (tenant_id, trigger, id DESC);
+CREATE UNIQUE INDEX rule_run_part_pkey ON rule_run_history (tenant_id, started_at, id);
+CREATE UNIQUE INDEX rule_run_history_id_idx ON rule_run_history (id);
+
+CREATE TABLE rule_run (
+  id           uuid NOT NULL,
+  tenant_id    uuid NOT NULL CONSTRAINT rule_run_tenant_id_fkey REFERENCES tenant(id) ON DELETE CASCADE,
+  rule_id      uuid NOT NULL,
+  event_id     uuid,
+  trigger      text NOT NULL DEFAULT 'EVENT',
+  triggered_by uuid,
+  subject_id   uuid,
+  status       text NOT NULL CONSTRAINT rule_run_status_check CHECK (status IN ('RUNNING','WAITING','SUCCEEDED','SKIPPED','FAILED','ABORTED_LOOP','THROTTLED')),
+  condition_results jsonb NOT NULL DEFAULT '[]'::jsonb,
+  action_results    jsonb NOT NULL DEFAULT '[]'::jsonb,
+  occasion     text,
+  error_code   text,
+  started_at   timestamptz NOT NULL DEFAULT now(),
+  finished_at  timestamptz,
+  causation_depth integer NOT NULL DEFAULT 0,
+  PRIMARY KEY (tenant_id, started_at, id),
+  CONSTRAINT rule_run_rule_id_fkey
+    FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT rule_run_trigger_check
+    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY'))
+) PARTITION BY RANGE (started_at);
+CREATE INDEX rule_run_rule_idx ON rule_run (tenant_id, rule_id, started_at DESC);
 -- What the run listing's trigger filter asks: this tenant's runs of one kind, newest first.
-CREATE INDEX rule_run_trigger_idx ON rule_run (tenant_id, trigger, id DESC);
+CREATE INDEX rule_run_page_idx ON rule_run (tenant_id, trigger, id DESC);
+
+DO $rule_run_attach$
+BEGIN
+  EXECUTE format(
+    'ALTER TABLE rule_run ATTACH PARTITION rule_run_history FOR VALUES FROM (MINVALUE) TO (%L)',
+    (date_trunc('month', now()) + interval '1 month')::date);
+END $rule_run_attach$;
+CREATE TABLE rule_run_default PARTITION OF rule_run DEFAULT;
 
 -- What a RELATIVE_DATE rule owes for one entry, and when (G-08, migration 0056). D-02's shape
 -- rather than a new one: `reminder` has carried "this entry, this moment" since phase 0, and a
@@ -1076,8 +1148,10 @@ CREATE TABLE notification_preference (
 
 -- ========================= Events, jobs, idempotency =======================
 
-CREATE TABLE outbox_event (
-  id              uuid PRIMARY KEY,
+-- Partitioned by month since H-09, activity_entry's construction: history + parent + default,
+-- one shape for the schema reference and the migrations.
+CREATE TABLE outbox_event_history (
+  id              uuid NOT NULL,
   tenant_id       uuid NOT NULL,
   event_type      text NOT NULL,                 -- de.hubtask.work.item.created.v1
   subject         text,
@@ -1096,14 +1170,47 @@ CREATE TABLE outbox_event (
   -- month's states to every webhook and every rule.
   replay          boolean NOT NULL DEFAULT false
 );
-CREATE INDEX outbox_pending_idx ON outbox_event (occurred_at)
+CREATE INDEX outbox_pending_idx ON outbox_event_history (occurred_at)
+  WHERE dispatched_at IS NULL;
+CREATE INDEX outbox_poll_idx ON outbox_event_history (tenant_id, event_type, occurred_at, id)
+  WHERE replay = false;
+CREATE UNIQUE INDEX outbox_event_part_pkey ON outbox_event_history (tenant_id, occurred_at, id);
+CREATE UNIQUE INDEX outbox_event_history_id_idx ON outbox_event_history (id);
+
+CREATE TABLE outbox_event (
+  id              uuid NOT NULL,
+  tenant_id       uuid NOT NULL,
+  event_type      text NOT NULL,
+  subject         text,
+  payload         jsonb NOT NULL,
+  actor_type      text NOT NULL,
+  actor_id        uuid,
+  correlation_id  uuid,
+  causation_id    uuid,
+  causation_depth integer NOT NULL DEFAULT 0,
+  occurred_at     timestamptz NOT NULL DEFAULT now(),
+  dispatched_at   timestamptz,
+  attempts        integer NOT NULL DEFAULT 0,
+  locked_until    timestamptz,
+  replay          boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (tenant_id, occurred_at, id)
+) PARTITION BY RANGE (occurred_at);
+CREATE INDEX outbox_event_pending_idx ON outbox_event (occurred_at)
   WHERE dispatched_at IS NULL;
 -- The polling trigger's walk (G-04, migration 0052): one type, in the outbox's own order. The
 -- tenant leads because row level security puts it in front of every predicate; the ordering pair
 -- comes last so a page is a range read rather than a sort. Partial, because a poll never answers a
 -- replayed event.
-CREATE INDEX outbox_poll_idx ON outbox_event (tenant_id, event_type, occurred_at, id)
+CREATE INDEX outbox_event_poll_idx ON outbox_event (tenant_id, event_type, occurred_at, id)
   WHERE replay = false;
+
+DO $outbox_attach$
+BEGIN
+  EXECUTE format(
+    'ALTER TABLE outbox_event ATTACH PARTITION outbox_event_history FOR VALUES FROM (MINVALUE) TO (%L)',
+    (date_trunc('month', now()) + interval '1 month')::date);
+END $outbox_attach$;
+CREATE TABLE outbox_event_default PARTITION OF outbox_event DEFAULT;
 
 CREATE TABLE job (
   id           uuid PRIMARY KEY,
@@ -1748,7 +1855,8 @@ BEGIN
     FROM pg_class c
     JOIN pg_inherits i ON i.inhrelid = c.oid
     JOIN pg_class parent ON parent.oid = i.inhparent
-    WHERE parent.relname IN ('audit_log', 'change_log')
+    WHERE parent.relname IN ('audit_log', 'change_log',
+                             'activity_entry', 'outbox_event', 'rule_run')
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', p.relname);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', p.relname);
@@ -1971,5 +2079,106 @@ END $$;
 
 REVOKE ALL ON FUNCTION purge_tenant_trail(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION purge_tenant_trail(uuid) TO hubtask_app;
+
+-- ============ The stream partitions' duty (H-09) ============================
+-- ensure_audit_partition's shape for the three monthly streams, one function rather than three
+-- copies: a month's partition, RLS carried, and - unlike the trail - the full grant, since
+-- these tables are legitimately updated and swept. See db/migrations/0068_stream_partitions.sql
+-- for the whole reasoning, the conversion strategy included.
+CREATE OR REPLACE FUNCTION ensure_stream_partition(parent text, month date) RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  starts date := date_trunc('month', month)::date;
+  ends   date := (date_trunc('month', month) + interval '1 month')::date;
+  name   text := parent || '_' || to_char(date_trunc('month', month), 'YYYY_MM');
+  target regclass;
+BEGIN
+  IF parent NOT IN ('activity_entry', 'outbox_event', 'rule_run') THEN
+    RAISE EXCEPTION 'ensure_stream_partition: % is not a partitioned stream', parent
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  target := to_regclass(format('public.%I', name));
+  IF target IS NULL THEN
+    BEGIN
+      EXECUTE format('CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
+        name, parent, starts, ends);
+    EXCEPTION WHEN check_violation OR invalid_table_definition THEN
+      RETURN NULL;
+    END;
+    target := to_regclass(format('public.%I', name));
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE oid = target AND relrowsecurity) THEN
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', name);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE oid = target AND relforcerowsecurity) THEN
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', name);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = target AND polname = 'tenant_isolation') THEN
+    EXECUTE format($policy$
+      CREATE POLICY tenant_isolation ON %I
+        USING (tenant_id = current_tenant_id())
+        WITH CHECK (tenant_id = current_tenant_id())
+    $policy$, name);
+  END IF;
+  IF NOT has_table_privilege('hubtask_app', target, 'INSERT')
+     OR NOT has_table_privilege('hubtask_app', target, 'SELECT')
+     OR NOT has_table_privilege('hubtask_app', target, 'UPDATE')
+     OR NOT has_table_privilege('hubtask_app', target, 'DELETE') THEN
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I TO hubtask_app', name);
+  END IF;
+
+  RETURN name;
+END $$;
+
+REVOKE ALL ON FUNCTION ensure_stream_partition(text, date) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION ensure_stream_partition(text, date) TO hubtask_app;
+
+-- The retention half: an aged-out month of a partitioned stream is a dropped partition, not a
+-- million-row DELETE. It refuses the default partition and anything not wholly past the cutoff,
+-- and counts the rows for the evidence.
+CREATE OR REPLACE FUNCTION drop_stream_partition(parent text, cutoff timestamptz) RETURNS TABLE (
+  dropped text, rows_removed bigint
+)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  candidate record;
+  removed   bigint;
+BEGIN
+  IF parent NOT IN ('activity_entry', 'outbox_event', 'rule_run') THEN
+    RAISE EXCEPTION 'drop_stream_partition: % is not a partitioned stream', parent
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  FOR candidate IN
+    SELECT c.relname AS name,
+           (regexp_match(pg_get_expr(c.relpartbound, c.oid), 'TO \(''([^'')]+)''\)'))[1] AS upper_bound
+    FROM pg_class c
+    JOIN pg_inherits i ON i.inhrelid = c.oid
+    JOIN pg_class p ON p.oid = i.inhparent
+    WHERE p.relname = parent
+      AND pg_get_expr(c.relpartbound, c.oid) NOT LIKE 'DEFAULT%'
+    ORDER BY c.relname
+  LOOP
+    IF candidate.upper_bound IS NULL OR candidate.upper_bound::timestamptz > cutoff THEN
+      CONTINUE;
+    END IF;
+    EXECUTE format('SELECT count(*) FROM %I', candidate.name) INTO removed;
+    EXECUTE format('ALTER TABLE %I DETACH PARTITION %I', parent, candidate.name);
+    EXECUTE format('DROP TABLE %I', candidate.name);
+    dropped := candidate.name;
+    rows_removed := removed;
+    RETURN NEXT;
+  END LOOP;
+  RETURN;
+END $$;
+
+REVOKE ALL ON FUNCTION drop_stream_partition(text, timestamptz) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION drop_stream_partition(text, timestamptz) TO hubtask_app;
+
+SELECT ensure_stream_partition('activity_entry', (date_trunc('month', now()) + interval '1 month')::date);
+SELECT ensure_stream_partition('outbox_event', (date_trunc('month', now()) + interval '1 month')::date);
+SELECT ensure_stream_partition('rule_run', (date_trunc('month', now()) + interval '1 month')::date);
 
 COMMIT;
