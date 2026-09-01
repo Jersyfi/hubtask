@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# The provider alert set (observability-reliability.md §10, H-12): what joins the self-hosting
+# file and the tenant file when this system is operated for other people, with an on-call rota
+# and an error budget. A provider loads all three files; a self-hoster loads only the first and
+# is deliberately never paged by anything in here.
+#
+# The burn-rate pair A-01/A-02 is the multiwindow shape: each alert needs its long window - which
+# says the budget is genuinely being spent - AND a short window, which says the spending is still
+# happening now. Without the short window the alert keeps firing long after the outage ended,
+# because the long window remembers it. The arithmetic lives in RB-A01-acute-burn.md.
+#
+# Every rule carries a `runbook` annotation naming a file under deploy/observability/runbooks/,
+# and the gate in test/observability enforces the pairing in both directions. The thresholds are
+# the catalogue's starting values.
+groups:
+  - name: hubtask-slo
+    interval: 30s
+    rules:
+      # SLO-1's indicator, recorded at every window the burn alerts read: the share of requests
+      # answered 5xx. A request that timed out client-side appears as whatever status the
+      # middleware finally wrote - SLO-1's "without a timeout" half has no series of its own, and
+      # the 5xx share is the measurable part. clamp_min keeps a quiet installation at ratio 0
+      # instead of NaN, which would otherwise make every burn alert unevaluable at night.
+      - record: hubtask:slo1_error_ratio:rate5m
+        expr: >
+          sum(rate(hubtask_http_requests_total{status_class="5xx"}[5m]))
+          / clamp_min(sum(rate(hubtask_http_requests_total[5m])), 1e-9)
+      - record: hubtask:slo1_error_ratio:rate30m
+        expr: >
+          sum(rate(hubtask_http_requests_total{status_class="5xx"}[30m]))
+          / clamp_min(sum(rate(hubtask_http_requests_total[30m])), 1e-9)
+      - record: hubtask:slo1_error_ratio:rate1h
+        expr: >
+          sum(rate(hubtask_http_requests_total{status_class="5xx"}[1h]))
+          / clamp_min(sum(rate(hubtask_http_requests_total[1h])), 1e-9)
+      - record: hubtask:slo1_error_ratio:rate6h
+        expr: >
+          sum(rate(hubtask_http_requests_total{status_class="5xx"}[6h]))
+          / clamp_min(sum(rate(hubtask_http_requests_total[6h])), 1e-9)
+
+  - name: hubtask-provider
+    interval: 30s
+    rules:
+      # A-01. Burn rate 14 means the 30-day budget of SLO-1 (0.1% of requests) is being spent
+      # 14 times too fast - gone in about two days. The 1h window carries the verdict, the 5m
+      # window confirms it is still happening, and `for: 2m` rides out a single bad scrape.
+      - alert: HubtaskErrorBudgetBurnAcute
+        expr: >
+          hubtask:slo1_error_ratio:rate1h > (14 * 0.001)
+          and
+          hubtask:slo1_error_ratio:rate5m > (14 * 0.001)
+        for: 2m
+        labels:
+          severity: page
+          alert_id: A-01
+        annotations:
+          summary: "SLO-1's error budget is burning at more than 14x - an acute outage"
+          description: >
+            More than 1.4% of requests are failing with a 5xx, sustained over the last hour and
+            still happening in the last five minutes. At this rate the 30-day budget is gone in
+            two days.
+          runbook: RB-A01-acute-burn.md
+
+      # A-02. Burn rate 6 over six hours: nothing is on fire, but the budget is quietly going -
+      # gone in five days. The 30m window keeps it from paging for a burn that already stopped.
+      - alert: HubtaskErrorBudgetBurnCreeping
+        expr: >
+          hubtask:slo1_error_ratio:rate6h > (6 * 0.001)
+          and
+          hubtask:slo1_error_ratio:rate30m > (6 * 0.001)
+        for: 15m
+        labels:
+          severity: page
+          alert_id: A-02
+        annotations:
+          summary: "SLO-1's error budget is burning at more than 6x - a creeping outage"
+          description: >
+            More than 0.6% of requests have failed with a 5xx across the last six hours, and the
+            last half hour looks the same. Slow enough to miss, fast enough to spend the month's
+            budget in five days.
+          runbook: RB-A02-creeping-burn.md

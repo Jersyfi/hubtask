@@ -27,8 +27,12 @@ const (
 	// tenantRulesFile is the multi-tenant operator's additions (H-08): a separate file, so the
 	// self-hosting pin below stays on the set where doing nothing loses data.
 	tenantRulesFile = "../../deploy/observability/alerts/prometheus-rules-tenant.yaml"
-	runbookDir      = "../../deploy/observability/runbooks"
-	dashboardDir    = "../../deploy/observability/dashboards"
+	// providerRulesFile is the rest of the catalogue (H-12): what provider operation adds, with
+	// an on-call rota behind it. A third file for the same reason the second is one - the
+	// self-hosting pin must keep reading a file that never grows.
+	providerRulesFile = "../../deploy/observability/alerts/prometheus-rules-provider.yaml"
+	runbookDir        = "../../deploy/observability/runbooks"
+	dashboardDir      = "../../deploy/observability/dashboards"
 )
 
 // ruleFile is the part of the Prometheus rule format this gate reads. Deliberately not the whole
@@ -71,9 +75,16 @@ func alerts(t *testing.T) []struct {
 		Labels      map[string]string `yaml:"labels"`
 		Annotations map[string]string `yaml:"annotations"`
 	}
-	for _, path := range []string{rulesFile, tenantRulesFile} {
+	for _, path := range []string{rulesFile, tenantRulesFile, providerRulesFile} {
 		for _, group := range load(t, path).Groups {
-			all = append(all, group.Rules...)
+			for _, rule := range group.Rules {
+				if rule.Alert == "" {
+					// A recording rule (the SLO ratios A-01/A-02 read) - not an alert, and the
+					// runbook obligation does not apply to it.
+					continue
+				}
+				all = append(all, rule)
+			}
 		}
 	}
 	if len(all) == 0 {
