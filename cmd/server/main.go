@@ -1883,6 +1883,7 @@ func run() error {
 			Base:     30 * time.Second,
 			Max:      24 * time.Hour,
 		}.Delay,
+		Signals: metrics,
 	}
 
 	// The outbound call (G-09): an HTTP_REQUEST action's HTTP, detached from every transaction and
@@ -2047,6 +2048,7 @@ func run() error {
 		scheduler := worker.Scheduler{
 			Leadership:   postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
 			Queue:        jobs,
+			Backlog:      jobs,
 			UnitOfWork:   backgroundWork,
 			Clock:        clockadapter.System{},
 			Signals:      metrics,

@@ -66,6 +66,14 @@ type Queue interface {
 	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
 }
 
+// Signals is the delivery's trace in the metrics (observability-reliability.md §4): every settled
+// attempt, by what became of it - ok, retry, dead - and the class of the answer. SLO-6's error
+// rate excludes 4xx recipient errors, which is exactly what the class label makes possible. A
+// local interface rather than the metrics adapter, because adapters do not know each other.
+type Signals interface {
+	WebhookDelivery(ctx context.Context, result, statusClass string)
+}
+
 // Deliverer sends one delivery. It is a queue handler, so the retry ladder is the queue's and the
 // backoff policy is the resilience adapter's - eight attempts reaching a day is a schedule this
 // system already knows how to keep.
@@ -99,6 +107,9 @@ type Deliverer struct {
 	// NextAttempt is the backoff, given the attempts made so far. Injected for the runner's
 	// reason: this layer decides when to retry, not how far apart.
 	NextAttempt func(attempt int) time.Duration
+	// Signals carries each settled attempt into the metrics. Nil skips; the composition root
+	// always wires it.
+	Signals Signals
 }
 
 var (
@@ -221,6 +232,7 @@ func (d Deliverer) Run(ctx context.Context, job queue.Job) (queue.Result, error)
 			if err := d.record(ctx, delivery.Succeeded(response.Status)); err != nil {
 				return err
 			}
+			d.observe(ctx, "ok", response.Status)
 			return d.Outcomes.Delivered(ctx, subscriptionID)
 		}
 		return d.retryOrStop(ctx, stored.Subscription, delivery,
@@ -295,6 +307,11 @@ func (d Deliverer) settleAs(
 	if err := d.record(ctx, settled); err != nil {
 		return err
 	}
+	result := "retry"
+	if settled.IsDeadLettered() {
+		result = "dead"
+	}
+	d.observe(ctx, result, settled.ResponseStatus)
 	// Only a delivery that has stopped counts against the subscription. Counting attempts would
 	// disable one after three retries of a single event, which is a target that was briefly
 	// unreachable rather than one that is gone.
@@ -307,6 +324,21 @@ func (d Deliverer) record(ctx context.Context, settled domain.WebhookDelivery) e
 		ResponseStatus: settled.ResponseStatus, ErrorCode: settled.ErrorCode,
 		NextAttemptAt: settled.NextAttemptAt,
 	})
+}
+
+// observe records one settled attempt. The class rather than the status, for the reason the
+// inbound side has: 4xx tells SLO-6 "the recipient's fault" and 5xx "the target is down", and the
+// exact code would add series without adding either answer. Zero is an attempt that never got an
+// answer - the transport or the guard refused - and reports as "none".
+func (d Deliverer) observe(ctx context.Context, result string, status int) {
+	if d.Signals == nil {
+		return
+	}
+	class := "none"
+	if status >= 100 {
+		class = itoa(status/100) + "xx"
+	}
+	d.Signals.WebhookDelivery(ctx, result, class)
 }
 
 // identifiers reads the job payload. A payload this handler cannot read is a programming error

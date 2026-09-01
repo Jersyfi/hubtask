@@ -70,6 +70,8 @@ type Metrics struct {
 	migrationVersion  metric.Int64Gauge
 	ruleRuns          metric.Int64Counter
 	ruleDisabled      metric.Int64Counter
+	webhookDeliveries metric.Int64Counter
+	webhookBacklog    metric.Int64Gauge
 	tenantLabelActive bool
 }
 
@@ -298,6 +300,20 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"watches: the loop and error protection becoming visible."),
 	); err != nil {
 		return fmt.Errorf("rule disabled counter: %w", err)
+	}
+	if m.webhookDeliveries, err = meter.Int64Counter(
+		namespace+"_webhook_deliveries_total",
+		metric.WithDescription("Settled webhook attempts by result (ok/retry/dead) and answer "+
+			"class. SLO-6 excludes the 4xx class - the recipient's fault, not this system's."),
+	); err != nil {
+		return fmt.Errorf("webhook delivery counter: %w", err)
+	}
+	if m.webhookBacklog, err = meter.Int64Gauge(
+		namespace+"_webhook_retry_backlog",
+		metric.WithDescription("Deliveries waiting out their backoff for another attempt. "+
+			"Reported by the scheduler leader only, like the queue depth."),
+	); err != nil {
+		return fmt.Errorf("webhook backlog gauge: %w", err)
 	}
 	if err := m.retentionInstruments(meter); err != nil {
 		return err
@@ -798,6 +814,19 @@ func (m *Metrics) RuleRun(ctx context.Context, result, triggerType string) {
 // exactly one today; the label exists so a second protection would be told apart from the first.
 func (m *Metrics) RuleDisabled(ctx context.Context, reason string) {
 	m.ruleDisabled.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
+}
+
+// WebhookDelivery counts one settled attempt. Both labels are closed sets the deliverer owns:
+// what became of the attempt, and the class of the answer - never a target, never a tenant
+// (§3.2, rule 10: a label per URL would grow a series per customer integration).
+func (m *Metrics) WebhookDelivery(ctx context.Context, result, statusClass string) {
+	m.webhookDeliveries.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("result", result), attribute.String("status_class", statusClass)))
+}
+
+// WebhookRetryBacklog publishes how many deliveries wait for their next rung of the ladder.
+func (m *Metrics) WebhookRetryBacklog(ctx context.Context, waiting int64) {
+	m.webhookBacklog.Record(ctx, waiting)
 }
 
 // PoolConnections publishes one pool's connection states. The max joins in_use and idle as a

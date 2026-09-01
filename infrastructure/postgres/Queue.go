@@ -333,6 +333,24 @@ func (q Queue) Depth(ctx context.Context) ([]queue.Depth, error) {
 	return depths, nil
 }
 
+// ScheduledBacklog counts the jobs of one kind waiting for a future moment - the retry ladders
+// parked on the queue, which is what hubtask_webhook_retry_backlog reads (H-12, §4).
+func (q Queue) ScheduledBacklog(ctx context.Context, kind queue.Kind) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.ScheduledJobBacklog(ctx, sqlc.ScheduledJobBacklogParams{
+		Kind: string(kind), Now: timestampOf(q.now.Now()),
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the scheduled backlog: %w", err))
+	}
+	return int(count), nil
+}
+
 // jobFrom rebuilds a claimed job. A row that cannot be read is a defect rather than a bad job:
 // everything in it was written by this adapter.
 func jobFrom(row sqlc.ClaimJobsRow) (queue.Job, error) {

@@ -140,6 +140,13 @@ FROM job
 WHERE state = 'PENDING' AND run_at <= sqlc.arg('now')
 GROUP BY kind;
 
+-- The retry ladder parked on the queue: jobs of one kind waiting for a future moment. A webhook
+-- retry is exactly one scheduled job - one attempt, one row - so this answers
+-- hubtask_webhook_retry_backlog (§4) from the one table that has no tenant boundary to cross.
+-- name: ScheduledJobBacklog :one
+SELECT count(*) FROM job
+WHERE kind = sqlc.arg('kind') AND state = 'PENDING' AND run_at > sqlc.arg('now');
+
 -- What a caller polls, and the only two statements here that are asked on somebody's behalf
 -- rather than by a worker. They therefore carry the tenant condition themselves - the job table
 -- has no row level security, so there is no policy underneath that would catch a forgotten one,
