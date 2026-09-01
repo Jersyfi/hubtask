@@ -14,6 +14,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -410,5 +411,92 @@ func TestAFreshConsentReplacesTheScopes(t *testing.T) {
 	}
 	if len(listings[0].Grant.Scopes) != 2 {
 		t.Errorf("scopes %v, want the fresh consent's", listings[0].Grant.Scopes)
+	}
+}
+
+// The channel round trip: the whole dance through the registry, the way REST, MCP and
+// automation all reach it - which also proves every projection each channel reads.
+func TestTheOauthUseCasesRoundTripThroughTheRegistry(t *testing.T) {
+	fixture := newOauthFixture(now)
+
+	registry, err := usecase.NewRegistry(nil,
+		RegisterOauthClient{Writer: fixture.writer}.Descriptor(),
+		ListOauthClients{Writer: fixture.writer}.Descriptor(),
+		DeleteOauthClient{Writer: fixture.writer}.Descriptor(),
+		AuthorizeOauthClient{Writer: fixture.writer}.Descriptor(),
+		ExchangeOauthCode{Writer: fixture.writer}.Descriptor(),
+		ListOauthGrants{Writer: fixture.writer}.Descriptor(),
+		RevokeOauthGrant{Writer: fixture.writer}.Descriptor(),
+	)
+	if err != nil {
+		t.Fatalf("building the registry: %v", err)
+	}
+
+	out, err := registry.Invoke(t.Context(), RegisterOauthClientName, adminActor(), usecase.Input{
+		"name":          "Zapier",
+		"redirect_uris": []any{"https://zapier.example/callback"},
+		"confidential":  true,
+	})
+	if err != nil {
+		t.Fatalf("registering through the registry: %v", err)
+	}
+	clientID := out.String("id")
+	if out.String("client_secret") == "" {
+		t.Fatal("the single showing is missing from the output")
+	}
+	clientSecret := out.String("client_secret")
+	for id := range fixture.clients.byID {
+		fixture.grants.names[id] = "Zapier"
+	}
+
+	listed, err := registry.Invoke(t.Context(), ListOauthClientsName, adminActor(), usecase.Input{})
+	if err != nil {
+		t.Fatalf("listing through the registry: %v", err)
+	}
+	if rows, _ := listed["data"].([]usecase.Output); len(rows) != 1 || rows[0]["client_secret"] != nil {
+		t.Fatalf("the listing leaks or lies: %v", listed)
+	}
+
+	verifier, challenge := pkcePair()
+	authorized, err := registry.Invoke(t.Context(), AuthorizeOauthClientName, adminActor(), usecase.Input{
+		"client_id": clientID, "redirect_uri": "https://zapier.example/callback",
+		"scopes": []any{"items:read"}, "code_challenge": challenge,
+		"code_challenge_method": "S256",
+	})
+	if err != nil {
+		t.Fatalf("authorizing through the registry: %v", err)
+	}
+
+	exchanged, err := registry.Invoke(t.Context(), ExchangeOauthCodeName,
+		appshared.Anonymous("en", "UTC"), usecase.Input{
+			"grant_type": "authorization_code", "code": authorized["code"],
+			"redirect_uri": "https://zapier.example/callback", "client_id": clientID,
+			"code_verifier": verifier, "client_secret": clientSecret,
+		})
+	if err != nil {
+		t.Fatalf("exchanging through the registry: %v", err)
+	}
+	if exchanged.String("access_token") == "" {
+		t.Fatal("the pair is missing from the output")
+	}
+
+	grantsOut, err := registry.Invoke(t.Context(), ListOauthGrantsName, adminActor(), usecase.Input{})
+	if err != nil {
+		t.Fatalf("listing grants through the registry: %v", err)
+	}
+	rows, _ := grantsOut["data"].([]usecase.Output)
+	if len(rows) != 1 || rows[0].String("client_name") != "Zapier" {
+		t.Fatalf("grants %v", grantsOut)
+	}
+
+	if _, err := registry.Invoke(t.Context(), RevokeOauthGrantName, adminActor(), usecase.Input{
+		"grant_id": rows[0].String("id"),
+	}); err != nil {
+		t.Fatalf("revoking through the registry: %v", err)
+	}
+	if _, err := registry.Invoke(t.Context(), DeleteOauthClientName, adminActor(), usecase.Input{
+		"client_id": clientID,
+	}); err != nil {
+		t.Fatalf("deleting through the registry: %v", err)
 	}
 }
