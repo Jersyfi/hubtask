@@ -78,7 +78,12 @@ data:
         environment: integration
 
     rule_files:
+      # What the repository ships, built from deploy/observability/alerts by bootstrap.sh.
       - /etc/prometheus/rules/*.yaml
+      # And what belongs to this environment rather than to the product: the watchdog and the
+      # scrape check below. They carry no alert_id, because the catalogue in §10 is the product's
+      # and this is the cluster watching itself.
+      - /etc/prometheus/rules-environment/*.yaml
 
     alerting:
       alertmanagers:
@@ -112,6 +117,49 @@ data:
       - job_name: alertmanager
         static_configs:
           - targets: ["alertmanager:9093"]
+---
+# The environment's own two rules. Neither is in the catalogue and neither has an alert_id: §10 is
+# the product's catalogue, shipped to operators, and these two watch this cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules-environment
+  namespace: monitoring
+data:
+  environment.yaml: |
+    groups:
+      - name: environment
+        interval: 30s
+        rules:
+          # The dead man's switch. It fires always and on purpose: an alerting path is only known
+          # to work while something is coming out of the far end, and every other alert here is
+          # evidence of nothing until this one has arrived. A mail every twelve hours is what
+          # "the pipeline is alive" looks like; its absence is the failure this rule detects, and
+          # no rule can detect that from the inside.
+          - alert: HubtaskAlertingPathAlive
+            expr: vector(1)
+            labels:
+              severity: watchdog
+            annotations:
+              summary: "The alerting path is alive - Prometheus evaluated, Alertmanager routed, this arrived"
+              description: >
+                This alert always fires. What it proves is delivery: if it stops arriving, the
+                path from evaluation to mailbox is broken, and every silence from every other
+                alert means nothing until it is back.
+
+          # A target that stopped answering. Not the catalogue's A-03, which is the application
+          # saying a dependency is down - this is nobody saying anything, which is the failure
+          # that hides every other one.
+          - alert: HubtaskTargetDown
+            expr: up{job="hubtask"} == 0
+            for: 10m
+            labels:
+              severity: ticket
+            annotations:
+              summary: "The {{ $labels.role }} pod {{ $labels.instance }} has not been scrapeable for 10 minutes"
+              description: >
+                Its operations port is refusing or timing out. Everything this pod reports is
+                stale, and an alert that reads its metrics cannot fire while it is gone.
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -190,6 +238,8 @@ spec:
               mountPath: /etc/prometheus
             - name: rules
               mountPath: /etc/prometheus/rules
+            - name: rules-environment
+              mountPath: /etc/prometheus/rules-environment
             - name: data
               mountPath: /prometheus
       volumes:
@@ -199,6 +249,9 @@ spec:
         - name: rules
           configMap:
             name: prometheus-rules
+        - name: rules-environment
+          configMap:
+            name: prometheus-rules-environment
         - name: data
           persistentVolumeClaim:
             claimName: prometheus-data
@@ -240,6 +293,11 @@ data:
       repeat_interval: 12h
       receiver: ticket
       routes:
+        # First, because it matches nothing else and must never be grouped with a real incident.
+        - matchers: ['severity="watchdog"']
+          receiver: watchdog
+          group_wait: 0s
+          repeat_interval: 12h
         - matchers: ['severity="page"']
           receiver: page
           # A page waits for nothing and repeats until somebody acts.
@@ -270,6 +328,11 @@ data:
       - name: info
         email_configs:
           - to: "info@integration.hubtask.eu"
+            send_resolved: false
+      # Its own mailbox, so that "is the path alive" is one query and never competes with a page.
+      - name: watchdog
+        email_configs:
+          - to: "watchdog@integration.hubtask.eu"
             send_resolved: false
 ---
 apiVersion: v1
