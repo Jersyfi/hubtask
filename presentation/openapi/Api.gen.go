@@ -135,6 +135,27 @@ func (e ActivityEntryActorType) Valid() bool {
 	}
 }
 
+// Defines values for AdminTenantStatus.
+const (
+	AdminTenantStatusACTIVE          AdminTenantStatus = "ACTIVE"
+	AdminTenantStatusPENDINGDELETION AdminTenantStatus = "PENDING_DELETION"
+	AdminTenantStatusSUSPENDED       AdminTenantStatus = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the AdminTenantStatus enum.
+func (e AdminTenantStatus) Valid() bool {
+	switch e {
+	case AdminTenantStatusACTIVE:
+		return true
+	case AdminTenantStatusPENDINGDELETION:
+		return true
+	case AdminTenantStatusSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -1665,6 +1686,27 @@ func (e ProcessingStateStatus) Valid() bool {
 	}
 }
 
+// Defines values for ProvisionedTenantStatus.
+const (
+	ProvisionedTenantStatusACTIVE          ProvisionedTenantStatus = "ACTIVE"
+	ProvisionedTenantStatusPENDINGDELETION ProvisionedTenantStatus = "PENDING_DELETION"
+	ProvisionedTenantStatusSUSPENDED       ProvisionedTenantStatus = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the ProvisionedTenantStatus enum.
+func (e ProvisionedTenantStatus) Valid() bool {
+	switch e {
+	case ProvisionedTenantStatusACTIVE:
+		return true
+	case ProvisionedTenantStatusPENDINGDELETION:
+		return true
+	case ProvisionedTenantStatusSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QueryFieldKind.
 const (
 	Boolean   QueryFieldKind = "boolean"
@@ -2896,6 +2938,23 @@ type ActivityPage struct {
 	Data []ActivityEntry `json:"data"`
 	Page PageInfo        `json:"page"`
 }
+
+// AdminTenant defines model for AdminTenant.
+type AdminTenant struct {
+	CreatedAt       time.Time          `json:"created_at"`
+	DefaultLocale   *string            `json:"default_locale,omitempty"`
+	DefaultTimeZone *string            `json:"default_time_zone,omitempty"`
+	DisplayName     string             `json:"display_name"`
+	Id              openapi_types.UUID `json:"id"`
+
+	// PurgeAfter Set while a deletion request stands - when the grace runs out.
+	PurgeAfter *time.Time        `json:"purge_after,omitempty"`
+	Slug       string            `json:"slug"`
+	Status     AdminTenantStatus `json:"status"`
+}
+
+// AdminTenantStatus defines model for AdminTenant.Status.
+type AdminTenantStatus string
 
 // Assignment Who the entry is assigned to.
 type Assignment struct {
@@ -4583,6 +4642,29 @@ type ProcessingState struct {
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
 
+// ProvisionedTenant defines model for ProvisionedTenant.
+type ProvisionedTenant struct {
+	CreatedAt           time.Time          `json:"created_at"`
+	DefaultHubId        openapi_types.UUID `json:"default_hub_id"`
+	DefaultLocale       *string            `json:"default_locale,omitempty"`
+	DefaultTimeZone     *string            `json:"default_time_zone,omitempty"`
+	DisplayName         string             `json:"display_name"`
+	ExampleCollectionId openapi_types.UUID `json:"example_collection_id"`
+	Id                  openapi_types.UUID `json:"id"`
+	OwnerAccountId      openapi_types.UUID `json:"owner_account_id"`
+
+	// OwnerRedemptionToken The owner's way in, shown for the only time: whoever the workspace is for redeems it, sets a password, and is signed in (H-01). Hand it to them; it cannot be read again.
+	OwnerRedemptionToken string `json:"owner_redemption_token"`
+
+	// PurgeAfter Set while a deletion request stands - when the grace runs out.
+	PurgeAfter *time.Time              `json:"purge_after,omitempty"`
+	Slug       string                  `json:"slug"`
+	Status     ProvisionedTenantStatus `json:"status"`
+}
+
+// ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
+type ProvisionedTenantStatus string
+
 // PurgeSummary What one pass of a removal did.
 type PurgeSummary struct {
 	// Blocked What was kept, counted by reason - `legal_hold`, `tombstone_window`. An object rather than a total, so that a client can say why rather than only how many.
@@ -5459,6 +5541,31 @@ type TemplateUpdate struct {
 	Nodes       *[]TemplateNode `json:"nodes,omitempty"`
 }
 
+// TenantDeletionRequest defines model for TenantDeletionRequest.
+type TenantDeletionRequest struct {
+	// Confirmation The workspace's display name, typed exactly - the restore precedent.
+	Confirmation string `json:"confirmation"`
+}
+
+// TenantDeletionScheduled defines model for TenantDeletionScheduled.
+type TenantDeletionScheduled struct {
+	// PurgeAfter When the 30-day grace runs out and the hard delete job takes it.
+	PurgeAfter time.Time          `json:"purge_after"`
+	TenantId   openapi_types.UUID `json:"tenant_id"`
+}
+
+// TenantProvision defines model for TenantProvision.
+type TenantProvision struct {
+	DefaultLocale    *string             `json:"default_locale,omitempty"`
+	DefaultTimeZone  *string             `json:"default_time_zone,omitempty"`
+	DisplayName      string              `json:"display_name"`
+	OwnerDisplayName *string             `json:"owner_display_name,omitempty"`
+	OwnerEmail       openapi_types.Email `json:"owner_email"`
+
+	// Slug The subdomain the workspace answers on. Unique across the installation.
+	Slug string `json:"slug"`
+}
+
 // TotpConfirmation defines model for TotpConfirmation.
 type TotpConfirmation struct {
 	Code string `json:"code"`
@@ -5803,6 +5910,9 @@ type WorkItemUpdate struct {
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID
 
+// AdminTenantId defines model for AdminTenantId.
+type AdminTenantId = openapi_types.UUID
+
 // BucketId defines model for BucketId.
 type BucketId = openapi_types.UUID
 
@@ -5906,6 +6016,18 @@ type WebhookId = openapi_types.UUID
 type InviteAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ProvisionTenantParams defines parameters for ProvisionTenant.
+type ProvisionTenantParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
+type RequestTenantDeletionParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded (H-03, security.md §5): the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required` and the accepted methods.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListAuditEntriesParams defines parameters for ListAuditEntries.
@@ -6713,6 +6835,12 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
+type ProvisionTenantJSONRequestBody = TenantProvision
+
+// RequestTenantDeletionJSONRequestBody defines body for RequestTenantDeletion for application/json ContentType.
+type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
+
 // ExportAuditTrailJSONRequestBody defines body for ExportAuditTrail for application/json ContentType.
 type ExportAuditTrailJSONRequestBody = AuditExport
 
@@ -6964,6 +7092,21 @@ type ServerInterface interface {
 	// InviteAccount Invite a person into this workspace
 	// (POST /accounts:invite)
 	InviteAccount(w http.ResponseWriter, r *http.Request, params InviteAccountParams)
+	// ListTenants The installation's workspaces
+	// (GET /admin/tenants)
+	ListTenants(w http.ResponseWriter, r *http.Request)
+	// ProvisionTenant Provision a workspace
+	// (POST /admin/tenants)
+	ProvisionTenant(w http.ResponseWriter, r *http.Request, params ProvisionTenantParams)
+	// RequestTenantDeletion Request a workspace's deletion
+	// (POST /admin/tenants/{tenantId}:delete)
+	RequestTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params RequestTenantDeletionParams)
+	// ResumeTenant Reactivate a workspace
+	// (POST /admin/tenants/{tenantId}:resume)
+	ResumeTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// SuspendTenant Suspend a workspace
+	// (POST /admin/tenants/{tenantId}:suspend)
+	SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
 	// ListAuditEntries Query audit entries
 	// (GET /audit)
 	ListAuditEntries(w http.ResponseWriter, r *http.Request, params ListAuditEntriesParams)
@@ -7614,6 +7757,163 @@ func (siw *ServerInterfaceWrapper) InviteAccount(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InviteAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTenants operation middleware
+func (siw *ServerInterfaceWrapper) ListTenants(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTenants(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ProvisionTenant operation middleware
+func (siw *ServerInterfaceWrapper) ProvisionTenant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ProvisionTenantParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ProvisionTenant(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RequestTenantDeletion operation middleware
+func (siw *ServerInterfaceWrapper) RequestTenantDeletion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RequestTenantDeletionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequestTenantDeletion(w, r, tenantId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResumeTenant operation middleware
+func (siw *ServerInterfaceWrapper) ResumeTenant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResumeTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SuspendTenant operation middleware
+func (siw *ServerInterfaceWrapper) SuspendTenant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SuspendTenant(w, r, tenantId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15036,6 +15336,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/tokens/{tokenId}", wrapper.RevokeAccessToken)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/service-accounts", wrapper.ListServiceAccounts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/service-accounts", wrapper.CreateServiceAccount)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants", wrapper.ListTenants)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:suspend", wrapper.SuspendTenant)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)

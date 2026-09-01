@@ -95,6 +95,25 @@ func (pending) DisableTotp(w http.ResponseWriter, r *http.Request) { notAvailabl
 
 func (pending) StepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The control plane of H-06, pending until each use case lands.
+func (pending) ListTenants(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ProvisionTenant(w http.ResponseWriter, r *http.Request, _ openapi.ProvisionTenantParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SuspendTenant(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
+func (pending) ResumeTenant(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
+func (pending) RequestTenantDeletion(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.RequestTenantDeletionParams) {
+	notAvailable(w, r)
+}
+
 // The OAuth2 provider of H-05, pending until each use case lands.
 func (pending) ListOauthClients(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
