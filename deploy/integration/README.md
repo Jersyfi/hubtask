@@ -59,6 +59,36 @@ later is an address and a credential in the config, not a different routing. Wha
 *not* here is a pager: an alert that fires at three in the morning waits in Mailpit until somebody
 looks, and this environment is one where that is the right answer.
 
+### The daily check
+
+[`alert-check.sh`](./alert-check.sh) asks the four questions in the order they matter, from your
+own machine, and changes nothing:
+
+```bash
+export HUBTASK_INTEGRATION_SSH="ssh -i ~/.ssh/<key> root@<host>"
+deploy/integration/alert-check.sh
+```
+
+It exits 0 when nothing needs a person and 1 when something does, so it can be run by a schedule
+as well as by hand.
+
+1. **Is the alerting path alive?** A watchdog mail older than a day means Prometheus, Alertmanager
+   or the catcher has stopped — and that every silence underneath it is unexplained. It is asked
+   first because it is the failure that hides all the others.
+2. **What is firing**, with the runbook for each: the runbook is the answer to "what do I do about
+   it", and this script deliberately does not try to be a second one.
+3. **What is pending** — about to fire, and cheaper to deal with before it does.
+4. **Is every process still scraped?** A pod nobody scrapes reports nothing, and an alert that
+   reads its metrics cannot fire while it is gone.
+
+Two things are expected here and are not reasons to act. The watchdog fires permanently — that is
+what it is for, and it is reported under question 1 rather than counted as an incident. And A-12
+fires because this environment keeps no backups by the decision below; it is printed with that
+said rather than hidden, because a check that silently drops an alert is a check that lies.
+
+If a run finds something, the fix path is the alert's runbook, and a fix that changes this
+repository goes through a branch and a pull request like any other.
+
 ```bash
 # from the host: forward, ask, stop. Port-forwarding rather than curl against the cluster IP,
 # because the IP changes and the service name does not.
