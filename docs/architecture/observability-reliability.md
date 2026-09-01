@@ -77,10 +77,10 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_http_request_duration_seconds` | Histogram | `route`, `method` | RED duration, SLO-2/3 |
 | `hubtask_usecase_total` | Counter | `use_case`, `result` (see below) | The business error rate per use case |
 | `hubtask_inflight_requests` | Gauge | `role` | Overload detection |
-| `hubtask_db_pool_connections` | Gauge | `state` (`in_use`/`idle`) | Saturation |
-| `hubtask_db_query_duration_seconds` | Histogram | `query_name` (from sqlc) | Slow queries |
-| `hubtask_db_errors_total` | Counter | `class` (`timeout`/`serialization`/`connection`) | Instability |
-| `hubtask_outbox_pending` | Gauge | — | Backlog |
+| `hubtask_db_pool_connections` | Gauge | `pool`, `state` (`in_use`/`idle`/`max`) | Saturation. The configured ceiling rides the same series as a third state, so A-11 divides one metric by itself and needs no configuration knowledge |
+| `hubtask_db_query_duration_seconds` | Histogram | `query_name` (from sqlc) | Slow queries. **Not built yet**: no alert reads it, and sqlc names every query, so it is a wiring question rather than a design one |
+| `hubtask_db_errors_total` | Counter | `class` (`timeout`/`serialization`/`connection`) | Instability. **Not built yet**: the categories exist in the error model; nothing counts them per class |
+| `hubtask_outbox_pending` | Gauge | — | Backlog. **Not built yet as a series**: the number exists as a field in `/meta/health`, and A-05 alerts on the lag rather than on the depth |
 | `hubtask_outbox_lag_seconds` | Histogram | — | SLO-4 |
 | `hubtask_job_queue_depth` | Gauge | `job_type` | Backlog |
 | `hubtask_job_duration_seconds` | Histogram | `job_type` | Runtime behaviour |
@@ -111,6 +111,13 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_build_info` | Gauge (1) | `version`, `commit`, `go_version` | The version situation across the cluster |
 | `hubtask_migration_version` | Gauge | — | Makes schema drift between pods visible |
 | `hubtask_tenant_quota_usage_ratio` | Gauge | `quota` | Approaching a quota |
+| `hubtask_backup_last_success_timestamp_seconds` | Gauge | `target_id` | A-12. By target and not by tenant: which targets exist is bounded by configuration, how many tenants there are is not |
+| `hubtask_dsr_deadline_total` | Counter | `stage` | A-19. A counter rather than a gauge, for the reason [`data-protection.md`](./data-protection.md) §4 gives |
+| `hubtask_retention_deleted_total` | Counter | `data_kind` | What a deletion run removed for good ([`data-retention.md`](./data-retention.md) §5) |
+| `hubtask_retention_blocked_total` | Counter | `reason` | And what it kept past its period, which is the half an operator has to be able to see |
+| `hubtask_retention_run_duration_seconds` | Histogram | `data_kind` | How long one pass took |
+| `hubtask_media_reclaimed_total` | Counter | — | Media objects removed because nothing referenced them |
+| `hubtask_media_reclaim_failed_total` | Counter | — | Orphans a pass could not reclaim. A number that keeps rising is a bucket that will not let go, not a backlog that clears |
 
 ### 4.1 The `result` label
 
@@ -255,6 +262,12 @@ That is a test case, not an intention.
 
 Symptom-based, each with a runbook. The thresholds are starting values for provider operation.
 
+**The whole catalogue ships as rules since H-12.** Every row below is a rule in one of the three
+files §11 names, with a runbook beside it and a synthetic test that drives its condition. Two rows
+carry two rules — A-15's refusal rate and its token-reuse page are different severities of
+different things, and A-01/A-02 each need a long window and a short one — so the files hold more
+rules than this table has rows.
+
 | ID | Condition | Severity | Meaning |
 |---|---|---|---|
 | A-01 | SLO-1 error budget burn rate > 14× (1 h) | page | An acute outage |
@@ -284,7 +297,9 @@ without Prometheus. **A-18 ships in its own file beside it**
 (`deploy/observability/alerts/prometheus-rules-tenant.yaml`, H-08): the self-hosting set is pinned
 to "doing nothing loses data", and a capacity-planning signal deliberately does not join it — a
 provider adds the second file, a self-hoster who configures no quotas has no series for it to
-fire on.
+fire on. The rest of the catalogue is the third file, and nothing in it reaches a self-hosted
+installation: the reduced set is a decision about what "doing nothing loses data" means, and H-12
+added rules without touching it.
 
 ---
 
@@ -295,16 +310,41 @@ Shipped under `deploy/observability/`:
 * `dashboards/overview.json` — RED per route, SLO burn, saturation, version situation *(shipped)*
 * `dashboards/pipeline.json` — outbox, jobs, automation, webhooks, reminders *(shipped; the
   reminder row arrived with D-03, automation and webhooks join it as those features arrive)*
-* `dashboards/tenant.json` — quotas, top tenants (only with the tenant label enabled) *(with
-  multi-tenant operation, `0.6.0`)*
-* `alerts/prometheus-rules.yaml` — the alert catalogue as rules *(shipped: the reduced
-  self-hosting set A-03, A-04, A-05, A-07, A-08, A-12, A-19, A-20; the full catalogue with provider operation)*
+* `dashboards/tenant.json` — quotas, top tenants *(shipped with H-12; behind the tenant label of
+  §3.2, and it degrades rather than empties — the quota panels read the unlabelled series, and
+  each per-tenant panel names the setting that fills it)*
+* `dashboards/slo.json` — the eight objectives of §2, one row each: the attainment over the
+  objective's own window and the signal underneath it *(shipped with H-12)*
+* `alerts/prometheus-rules.yaml` — the reduced self-hosting set: A-03, A-04, A-05, A-07, A-08,
+  A-12, A-19, A-20 *(shipped; the set is pinned in `test/observability`, so adding one is a
+  deliberate act)*
+* `alerts/prometheus-rules-tenant.yaml` — A-18, the capacity signal a provider adds *(shipped, H-08)*
+* `alerts/prometheus-rules-provider.yaml` — the rest of the catalogue, with an on-call rota behind
+  it *(shipped with H-12: A-01/A-02 as multiwindow burn rates over recorded `hubtask:slo1_error_ratio:*`
+  series, then A-06, A-09, A-10, A-11, A-13, A-14, A-15, A-16, A-17)*
 * `runbooks/RB-xx.md` — per alert: the symptom, the immediate action, the diagnostic query, escalation, follow-up *(shipped, one per shipped alert)*
+
+A provider loads all three rule files; a self-hoster loads only the first and is deliberately never
+paged by anything in the other two. Three files rather than one growing file, so that the pinned
+set keeps reading a file that never changes.
 
 Any alert without a runbook does not ship. That is `make gate-observability`, which checks it in
 both directions — an alert whose runbook is missing, and a runbook no alert points at — and
 `promtool check rules` for the expressions themselves. `make gate-selftest` proves it catches an
 alert added without one.
+
+Since H-12 the gate also *runs* the rules: `promtool test rules` drives every alert's condition
+from crafted series and matches the labels and annotations it produces in full, one test file per
+rule file. The burn pair proves the negative as well — an outage that ended fires neither A-01 nor
+A-02 — which is the test that fails if somebody simplifies a multiwindow expression to one window.
+A rule that cannot fire is the failure mode this catches: A-15's denominator selected traffic with
+a regex that could never match the route label, and no amount of checking the syntax would have
+said so.
+
+The dashboards are checked too, in the same Go test: that the shipped set is the one this section
+names, that no two share a uid — Grafana keys an import by it, and a collision quietly keeps one —
+that `slo.json` has a row for every objective, and that every panel in `tenant.json` reading
+`tenant_id` carries the notice it degrades to.
 
 ---
 
