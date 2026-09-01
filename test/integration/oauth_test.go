@@ -34,7 +34,7 @@ func oauthStores(ctx context.Context, t *testing.T) (
 		postgres.NewUnitOfWork(appPool(ctx, t))
 }
 
-func seededClient(ctx context.Context, t *testing.T, uow persistence.UnitOfWork,
+func seededClient(t *testing.T, uow persistence.UnitOfWork,
 	clients postgres.OauthClientRepository, tenantID shared.ID, id shared.ID,
 ) identity.Token {
 	t.Helper()
@@ -58,7 +58,7 @@ func TestAClientIsInvisibleAndUnusableFromAnotherTenant(t *testing.T) {
 	clients, _, _, uow := oauthStores(ctx, t)
 
 	clientA := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a01")
-	secretA := seededClient(ctx, t, uow, clients, tenantA, clientA)
+	secretA := seededClient(t, uow, clients, tenantA, clientA)
 
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
 		found, err := clients.Find(ctx, clientA)
@@ -107,7 +107,7 @@ func TestGrantsAndCodesAreBoundToTheirTenantAndBurnOnce(t *testing.T) {
 	clients, grants, codes, uow := oauthStores(ctx, t)
 
 	clientA := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a02")
-	seededClient(ctx, t, uow, clients, tenantA, clientA)
+	seededClient(t, uow, clients, tenantA, clientA)
 
 	grantID := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000a03")
 	now := time.Now().UTC()
