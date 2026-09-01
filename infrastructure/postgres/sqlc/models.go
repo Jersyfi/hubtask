@@ -776,6 +776,16 @@ type IdempotencyKey struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+type InstanceEvent struct {
+	ID         pgtype.UUID
+	OccurredAt pgtype.Timestamptz
+	Action     string
+	TenantID   pgtype.UUID
+	TenantSlug *string
+	ActorLabel *string
+	Details    []byte
+}
+
 type ItemAttachment struct {
 	TenantID pgtype.UUID
 	ItemID   pgtype.UUID
@@ -1221,6 +1231,7 @@ type Tenant struct {
 	UpdatedAt       pgtype.Timestamptz
 	DeletedAt       pgtype.Timestamptz
 	Version         int32
+	PurgeAfter      pgtype.Timestamptz
 }
 
 type Tombstone struct {

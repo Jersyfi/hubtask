@@ -97,7 +97,10 @@ CREATE TABLE tenant (
   created_at         timestamptz NOT NULL DEFAULT now(),
   updated_at         timestamptz NOT NULL DEFAULT now(),
   deleted_at         timestamptz,
-  version            integer NOT NULL DEFAULT 1
+  version            integer NOT NULL DEFAULT 1,
+  -- When the 30-day grace after a deletion request runs out (H-06); the hard-delete job waits
+  -- for this moment.
+  purge_after        timestamptz
 );
 
 CREATE TYPE account_kind   AS ENUM ('USER', 'SERVICE_ACCOUNT');
@@ -1872,6 +1875,31 @@ $$;
 REVOKE ALL ON FUNCTION subject_tenants(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION subject_tenants(text) TO hubtask_app;
 
+-- ============ The instance's own journal (H-06) ============================
+-- Evidence of acts whose per-tenant trail cannot hold them - above all a hard delete, after
+-- which the tenant's own audit chain is gone by design. Identifiers, a slug, counts and
+-- moments; never content. Deliberately without a row-level-security policy (the job table's
+-- precedent): the rows belong to the installation, and a policy comparing against
+-- current_tenant_id() would make them unreachable under every honest scope. See
+-- db/migrations/0067_tenant_lifecycle.sql for the whole reasoning.
+CREATE TABLE instance_event (
+  id          uuid PRIMARY KEY,
+  occurred_at timestamptz NOT NULL,
+  action      text NOT NULL,
+  -- A bare identifier, no foreign key: the row it named is usually gone, which is the reason
+  -- this table exists.
+  tenant_id   uuid,
+  tenant_slug text,
+  actor_label text,
+  details     jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+CREATE INDEX instance_event_occurred_idx ON instance_event (occurred_at);
+
+-- Append-only for the application, the audit trail's discipline: evidence that could be edited
+-- or removed afterwards would not be evidence.
+REVOKE UPDATE, DELETE, TRUNCATE ON instance_event FROM hubtask_app;
+GRANT SELECT, INSERT ON instance_event TO hubtask_app;
+
 -- ============ Tenant resolution before a credential exists (H-01) ==========
 -- Sign-in needs a tenant before it can check a password (0.6.0 decision 3). One identifier or
 -- none, never a listing: a slug names its tenant, NULL answers the single-mode installation's
@@ -1890,5 +1918,47 @@ $$;
 
 REVOKE ALL ON FUNCTION resolve_tenant(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION resolve_tenant(text) TO hubtask_app;
+
+-- ============ The control plane's two narrow acts (H-06) ====================
+-- The one legitimate tenant enumerator (0.6.0 decision 6): provisioning and lifecycle are the
+-- control plane's job, and the control plane must see its rows. SECURITY DEFINER for
+-- resolve_tenant's reason; what bounds it is the application - the use case behind it demands
+-- the admin:tenants scope, which no session carries.
+CREATE OR REPLACE FUNCTION admin_tenants()
+RETURNS TABLE (
+  id uuid, slug text, display_name text, status text,
+  default_locale text, default_time_zone text,
+  created_at timestamptz, purge_after timestamptz
+)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT id, slug, display_name, status::text,
+         default_locale, default_time_zone, created_at, purge_after
+  FROM tenant
+  WHERE deleted_at IS NULL
+  ORDER BY created_at, id
+$$;
+
+REVOKE ALL ON FUNCTION admin_tenants() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_tenants() TO hubtask_app;
+
+-- The trail that dies with its tenant: audit_log rows carry no foreign key to tenant and the
+-- application role deliberately holds no DELETE on them (T-15) - both correct for a living
+-- tenant, and both in the way of a hard delete whose promise is that the tenant's data is gone.
+-- This narrow act squares them; every use is preceded by the instance_event entry that outlives
+-- it. See db/migrations/0067_tenant_lifecycle.sql.
+CREATE OR REPLACE FUNCTION purge_tenant_trail(purged_tenant uuid) RETURNS bigint
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  removed bigint;
+BEGIN
+  -- Only the partitioned trail itself: audit_anchor and audit_pseudonym carry foreign keys and
+  -- die with the tenant row.
+  DELETE FROM audit_log WHERE tenant_id = purged_tenant;
+  GET DIAGNOSTICS removed = ROW_COUNT;
+  RETURN removed;
+END $$;
+
+REVOKE ALL ON FUNCTION purge_tenant_trail(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION purge_tenant_trail(uuid) TO hubtask_app;
 
 COMMIT;
