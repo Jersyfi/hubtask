@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -152,7 +153,12 @@ func TestAPartitionCannotBeUsedToReadAnotherTenant(t *testing.T) {
 	// Counted by the fixture's own action rather than as a total. The package shares one database
 	// and other tests append to this tenant's trail; an exact total would make this assertion
 	// depend on how many of them ran first, which is not what it is about.
-	for _, relation := range []string{"audit_log", "audit_log_2026_08"} {
+	// The partition's name follows the clock: the seeded row lands in the current month's, which
+	// the leader (and the migration seed) always creates. A hard-coded name here broke on the
+	// first day of the next month - found 2026-09-01, when audit_log_2026_08 stopped holding
+	// today's rows.
+	currentPartition := "audit_log_" + time.Now().UTC().Format("2006_01")
+	for _, relation := range []string{"audit_log", currentPartition} {
 		t.Run(relation+" own rows", func(t *testing.T) {
 			var own int
 			err := uow.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantA}, func(ctx context.Context) error {

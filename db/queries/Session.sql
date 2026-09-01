@@ -27,16 +27,22 @@ WHERE lower(a.email) = lower(sqlc.arg('email')) AND a.deleted_at IS NULL;
 -- ============================== Sessions ==============================
 
 -- name: InsertSession :exec
-INSERT INTO session (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at)
+-- grant_id and scopes are H-05's leash: set for a session an OAuth exchange issued, NULL for a
+-- person's own.
+INSERT INTO session
+  (id, tenant_id, account_id, created_at, user_agent, ip_class, expires_at, grant_id, scopes)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('created_at'),
-  sqlc.narg('user_agent'), sqlc.narg('ip_class'), sqlc.arg('expires_at')
+  sqlc.narg('user_agent'), sqlc.narg('ip_class'), sqlc.arg('expires_at'),
+  sqlc.narg('grant_id'), sqlc.narg('scopes')
 );
 
 -- name: FindSessionForAuth :one
 -- What authenticating a session access token needs: the row the signature named, its account,
 -- and the locale chain - one round trip, the FindAccessTokenByHash shape.
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
+       s.grant_id, s.scopes,
+       g.client_id AS grant_client_id,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -46,6 +52,7 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
 FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id
+LEFT JOIN oauth_grant g ON g.id = s.grant_id
 WHERE s.id = sqlc.arg('id') AND a.deleted_at IS NULL;
 
 -- name: SessionsForAccount :many

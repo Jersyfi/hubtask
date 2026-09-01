@@ -804,6 +804,15 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
+	// The provider's shared dependencies (H-05).
+	oauthWriter := identity.OauthWriter{
+		Session:    sessionWriter,
+		Clients:    postgres.NewOauthClientRepository(security.NewOauthClientSecretHasher(cfg.SecretKey)),
+		Grants:     postgres.NewOauthGrantRepository(),
+		Codes:      postgres.NewOauthCodeRepository(security.NewOauthCodeHasher(cfg.SecretKey)),
+		Authorizer: authorizer, KnownScopes: catalogue.Scopes(),
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -847,6 +856,13 @@ func run() error {
 		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),
 		identity.DisableTotp{Writer: sessionWriter}.Descriptor(),
 		identity.StepUp{Writer: sessionWriter}.Descriptor(),
+		identity.RegisterOauthClient{Writer: oauthWriter}.Descriptor(),
+		identity.ListOauthClients{Writer: oauthWriter}.Descriptor(),
+		identity.DeleteOauthClient{Writer: oauthWriter}.Descriptor(),
+		identity.AuthorizeOauthClient{Writer: oauthWriter}.Descriptor(),
+		identity.ExchangeOauthCode{Writer: oauthWriter}.Descriptor(),
+		identity.ListOauthGrants{Writer: oauthWriter}.Descriptor(),
+		identity.RevokeOauthGrant{Writer: oauthWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),

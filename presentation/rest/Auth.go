@@ -37,6 +37,10 @@ var PublicRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm": true,
+	// The token endpoint is public the way sign-in is (H-05): the single-use code, the PKCE
+	// verifier and - for a confidential client - the secret travel in the body and are the
+	// whole of what authenticates the exchange.
+	http.MethodPost + " " + APIBasePath + "/oauth/token": true,
 	// The content routes carry their credential in the URL: a signed, expiring token minted by
 	// requestMediaUpload and getMedia, validated by the route itself - the same trust model as a
 	// presigned object-storage URL, which is what these stand in for on a local-storage
@@ -134,6 +138,10 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The tenant reaches the log lines and the metric label from here (§3.1). An identifier of an
 	// installation, never user content (rule 10).
 	ctx = correlation.ContextWithTenant(ctx, actor.TenantID.String())
+	if !actor.APIClient.IsZero() {
+		// The app behind the credential (H-05): every audit entry of the request records it.
+		ctx = correlation.ContextWithAPIClient(ctx, actor.APIClient.String())
+	}
 
 	a.Next.ServeHTTP(w, r.WithContext(ctx))
 }

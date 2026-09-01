@@ -187,6 +187,12 @@ func (a AuthenticateToken) executeSession(
 			}
 		}
 
+		// A grant session carries the grant's scopes and names its client (H-05); a person's
+		// own session carries every declared scope, because it is the person.
+		scopes := a.SessionScopes
+		if credential.Session.Scopes != nil {
+			scopes = credential.Session.Scopes
+		}
 		actor = appshared.ActorContext{
 			Kind:        actorKind(credential.Account.Kind),
 			TenantID:    claims.TenantID,
@@ -194,8 +200,9 @@ func (a AuthenticateToken) executeSession(
 			AccountName: credential.Account.DisplayName,
 			// The session stands where a token identifier would: it is the credential of the
 			// request, and the session listing uses it to mark the row that is answering.
-			TokenID: credential.Session.ID,
-			Scopes:  a.SessionScopes,
+			TokenID:   credential.Session.ID,
+			APIClient: credential.ClientID,
+			Scopes:    scopes,
 			Locale: firstNonEmpty(
 				cmd.RequestedLocale, credential.Account.Locale,
 				credential.TenantLocale, cmd.FallbackLocale),

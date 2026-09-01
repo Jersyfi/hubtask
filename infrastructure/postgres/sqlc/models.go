@@ -919,6 +919,42 @@ type NotificationPreference struct {
 	UpdatedAt    pgtype.Timestamptz
 }
 
+type OauthClient struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	Name         string
+	Confidential bool
+	SecretHash   []byte
+	RedirectUris []string
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
+	Version      int32
+}
+
+type OauthCode struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	ClientID      pgtype.UUID
+	AccountID     pgtype.UUID
+	GrantID       pgtype.UUID
+	CodeHash      []byte
+	CodeChallenge string
+	RedirectUri   string
+	CreatedAt     pgtype.Timestamptz
+	ExpiresAt     pgtype.Timestamptz
+	ConsumedAt    pgtype.Timestamptz
+}
+
+type OauthGrant struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	ClientID  pgtype.UUID
+	Scopes    []string
+	CreatedAt pgtype.Timestamptz
+	RevokedAt pgtype.Timestamptz
+}
+
 type OutboxEvent struct {
 	ID             pgtype.UUID
 	TenantID       pgtype.UUID
@@ -1111,6 +1147,8 @@ type Session struct {
 	StepUpAt         pgtype.Timestamptz
 	StepUpMethod     *string
 	StepUpConsumedAt pgtype.Timestamptz
+	GrantID          pgtype.UUID
+	Scopes           []string
 }
 
 type SessionRefreshToken struct {
