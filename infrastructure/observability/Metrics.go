@@ -68,6 +68,8 @@ type Metrics struct {
 	authFailures      metric.Int64Counter
 	poolConnections   metric.Int64Gauge
 	migrationVersion  metric.Int64Gauge
+	ruleRuns          metric.Int64Counter
+	ruleDisabled      metric.Int64Counter
 	tenantLabelActive bool
 }
 
@@ -282,6 +284,20 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("Refused sign-in and refresh attempts, by reason. refresh_reused is A-15's second half: a rotated refresh token presented again means two holders of one credential."),
 	); err != nil {
 		return fmt.Errorf("auth failure counter: %w", err)
+	}
+	if m.ruleRuns, err = meter.Int64Counter(
+		namespace+"_rule_runs_total",
+		metric.WithDescription("Ended automation runs by result and trigger kind. SLO-7's share "+
+			"of runs without an internal error divides failed by everything."),
+	); err != nil {
+		return fmt.Errorf("rule run counter: %w", err)
+	}
+	if m.ruleDisabled, err = meter.Int64Counter(
+		namespace+"_rule_disabled_total",
+		metric.WithDescription("Rules that switched themselves off, by reason. What A-16 "+
+			"watches: the loop and error protection becoming visible."),
+	); err != nil {
+		return fmt.Errorf("rule disabled counter: %w", err)
 	}
 	if err := m.retentionInstruments(meter); err != nil {
 		return err
@@ -769,6 +785,19 @@ func (m *Metrics) DataSubjectDeadline(ctx context.Context, stage string, count i
 // than as guesswork in a support conversation.
 func (m *Metrics) ConfigInvalid(ctx context.Context, key string) {
 	m.configInvalid.Add(ctx, 1, metric.WithAttributes(attribute.String("key", key)))
+}
+
+// RuleRun counts one ended automation run. Both values come from the engine's closed sets - the
+// domain's status vocabulary and the six trigger kinds - never a rule or a tenant (§3.2).
+func (m *Metrics) RuleRun(ctx context.Context, result, triggerType string) {
+	m.ruleRuns.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("result", result), attribute.String("trigger_type", triggerType)))
+}
+
+// RuleDisabled counts one rule switching itself off. The reason is the engine's, and there is
+// exactly one today; the label exists so a second protection would be told apart from the first.
+func (m *Metrics) RuleDisabled(ctx context.Context, reason string) {
+	m.ruleDisabled.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
 }
 
 // PoolConnections publishes one pool's connection states. The max joins in_use and idle as a

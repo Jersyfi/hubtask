@@ -1917,6 +1917,7 @@ func run() error {
 			Containers: containers,
 			Jumble:     postgres.NewJumbleRepository(cursors),
 			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
+			Signals:    metrics,
 			Owners: notification.RecordRuleDisabled{
 				Notifications: notifications, Accounts: accounts,
 				Preferences: notificationPreferences, Jobs: jobs,

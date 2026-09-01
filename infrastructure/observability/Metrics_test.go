@@ -211,6 +211,8 @@ var allowedLabels = map[string]bool{
 	"version": true, "commit": true, "go_version": true,
 	// hubtask_db_pool_connections
 	"pool": true, "state": true,
+	// hubtask_rule_runs_total, hubtask_rule_disabled_total
+	"trigger_type": true, "reason": true,
 	// Only with HUBTASK_METRICS_TENANT_LABEL, and covered by its own test.
 	"tenant_id": true,
 	// The exporter's own marker on a counter series.
@@ -243,6 +245,8 @@ func exerciseEveryInstrument(m *Metrics) {
 	m.SchedulerTickLag(ctx, 2)
 	m.PoolConnections(ctx, "api", 4, 6, 10)
 	m.MigrationVersion(ctx, 68)
+	m.RuleRun(ctx, "succeeded", "event")
+	m.RuleDisabled(ctx, "consecutive_failures")
 }
 
 // The gate for label cardinality: no label may appear that the catalogue does not list. A test
