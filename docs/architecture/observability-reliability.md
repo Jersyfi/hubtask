@@ -343,13 +343,54 @@ a red build.
 Importantly: the code is identical. Only the configuration and the operating process differ — the
 self-diagnosis works in both cases.
 
+### 13.1 Our own operation
+
+The backend for the alerts of the environments *we* run, decided in H-12 and closing O-1:
+**Prometheus and Alertmanager in the cluster itself**, applied by
+[`deploy/integration/bootstrap.sh`](../../deploy/integration/monitoring.yaml) into a `monitoring`
+namespace beside the application.
+
+| | |
+|---|---|
+| Evaluation | Prometheus, pinned to the Makefile's `PROMTOOL_VERSION` |
+| Rules | The three shipped files, mounted as a ConfigMap built from `deploy/observability/alerts/` |
+| Routing | Alertmanager, by `severity`: a page waits for nothing, a ticket groups for five minutes, an info repeats daily |
+| Delivery | SMTP into a mail catcher in the same namespace |
+| History | `ALERTS{alertstate="firing"}`, 45 days |
+
+Four properties this shape is chosen for.
+
+**What runs is what is tested.** The rules are not transcribed into a manifest; the ConfigMap is
+built from the shipped files, and Prometheus is the version `make gate-observability` checks them
+with. "It parses in CI" and "it evaluates on the cluster" are then one statement rather than two
+hopes, and a rule that fires names a file somebody can open.
+
+**The recipient is whoever is working on the environment.** An alert here is read by the session
+maintaining the cluster, so it goes where a session can read it: Prometheus keeps what fired,
+Alertmanager what is firing, the catcher what was delivered. This is deliberately not a pager —
+an alert at three in the morning waits until somebody looks, and for an environment that is
+nobody's production that is the right answer. A real installation replaces the smarthost with a
+mail server and the mailbox with a rota; the routing above does not change, which is the point of
+delivering by SMTP rather than by something local.
+
+**A dead man's switch, because a silent alerting path is indistinguishable from a quiet system.**
+`HubtaskAlertingPathAlive` fires permanently and is delivered every twelve hours. Every other
+alert's silence means nothing until that one has arrived, and no rule inside Prometheus can detect
+its own delivery failing — only the absence of something that should be there can.
+
+**The environment's own two rules are not in the catalogue.** The watchdog and the scrape check
+(`up{job="hubtask"} == 0`) carry no `alert_id`: §10 is the product's catalogue, shipped to
+operators with a runbook each, and these two are this cluster watching itself. `A-03` is the
+application saying a dependency is down; a target that stopped answering is nobody saying
+anything, which is the failure that hides every other one.
+
 ---
 
 ## 14. Open points
 
 | # | Point | Needed by |
 |---|---|---|
-| O-1 | Choose the alerting backend for our own operation | `0.6.0` |
+| O-1 | ~~Choose the alerting backend for our own operation~~ — answered in H-12 and written into §13.1: Prometheus and Alertmanager in the cluster, the rules built from the files the gate tests, delivery by SMTP into a catcher a maintaining session reads. Wired rather than described — [`deploy/integration/monitoring.yaml`](../../deploy/integration/monitoring.yaml) is applied by the environment's own bootstrap, and a watchdog alert proves the path continuously instead of once | Closed (H-12) |
 | O-2 | A capacity model (items per tenant → resources) from real load data | `0.9.0` |
 | O-3 | Derive a public status page from `/meta/health` | After `1.0.0` |
 | O-4 | ~~Decide: chaos tests permanently in CI, or nightly only~~ — answered in G-12 and written into [`ci-cd.md`](./ci-cd.md) §3.2 with the measurement behind it: the chaos-shaped RT tests stay a pull request gate, because they cost four and a half minutes beside jobs that take eight and therefore no wall clock at all, and because a defect they find has to reach the run that reviews the diff that caused it. RT-6, RT-8 and RT-11 stay nightly, because an hour of sustained load is not something a shared runner has | Closed (G-12) |
