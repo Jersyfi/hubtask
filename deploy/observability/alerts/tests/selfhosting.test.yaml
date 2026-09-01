@@ -1,0 +1,162 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# Synthetic firing tests for the self-hosting alert set (H-12): every rule is driven to fire at
+# least once from crafted series, so a threshold typo or a label rename fails the gate rather
+# than an operator. Run by `make gate-observability` through `promtool test rules`.
+rule_files:
+  - ../prometheus-rules.yaml
+evaluation_interval: 30s
+tests:
+  # A-03: the process is gone from the scrape.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="hubtask", instance="one"}'
+        values: '0x15'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: HubtaskNotReady
+        exp_alerts:
+          - exp_labels:
+              job: hubtask
+              instance: one
+              severity: page
+              alert_id: A-03
+            exp_annotations:
+              summary: "Hubtask is not ready to serve"
+              description: "The process is unreachable or its mandatory dependency is down."
+              runbook: RB-A03-not-ready.md
+
+  # A-04: one recovered panic, and the alert is immediate.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_panics_recovered_total{component="process"}'
+        values: '0 0 0 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HubtaskPanicRecovered
+        exp_alerts:
+          - exp_labels:
+              component: process
+              severity: page
+              alert_id: A-04
+            exp_annotations:
+              summary: "A panic was recovered in process"
+              description: "hubtask_panics_recovered_total must stay at zero; a rise is a defect, not load."
+              runbook: RB-A04-panic.md
+
+  # A-05: the outbox P99 sits between 60 and 300 seconds - every event lands past the 60s bucket.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_outbox_lag_seconds_bucket{le="30"}'
+        values: '0x30'
+      - series: 'hubtask_outbox_lag_seconds_bucket{le="60"}'
+        values: '0x30'
+      - series: 'hubtask_outbox_lag_seconds_bucket{le="300"}'
+        values: '0+5x30'
+      - series: 'hubtask_outbox_lag_seconds_bucket{le="+Inf"}'
+        values: '0+5x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: HubtaskOutboxLagging
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              alert_id: A-05
+            exp_annotations:
+              summary: "Events are reaching their consumers late"
+              description: "Outbox lag P99 is above 60s - the dispatcher is behind or not running."
+              runbook: RB-A05-outbox-lag.md
+
+  # A-07: one dead letter, immediate.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_job_dead_letter_total{job_type="reminder.fire"}'
+        values: '0 0 0 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HubtaskDeadLetter
+        exp_alerts:
+          - exp_labels:
+              job_type: reminder.fire
+              severity: ticket
+              alert_id: A-07
+            exp_annotations:
+              summary: "A reminder.fire job was given up on"
+              description: "The job used up its attempts. The row carries the code of the last failure."
+              runbook: RB-A07-dead-letter.md
+
+  # A-08: reminders arrive between two and ten minutes late - P95 above the 120s target.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_reminder_delivery_delay_seconds_bucket{le="60"}'
+        values: '0x50'
+      - series: 'hubtask_reminder_delivery_delay_seconds_bucket{le="120"}'
+        values: '0x50'
+      - series: 'hubtask_reminder_delivery_delay_seconds_bucket{le="600"}'
+        values: '0+5x50'
+      - series: 'hubtask_reminder_delivery_delay_seconds_bucket{le="+Inf"}'
+        values: '0+5x50'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: HubtaskReminderDelay
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-08
+            exp_annotations:
+              summary: "Reminders are firing late"
+              description: "Reminder delay P95 is above 120s - the firing pass is behind or not running."
+              runbook: RB-A08-reminder-delay.md
+
+  # A-12, the absence arm: no backup series exists at all - the misconfiguration that loses data.
+  - interval: 1m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: HubtaskBackupStale
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "No successful backup in the last 24 hours"
+              description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
+              runbook: RB-A12-backup-stale.md
+
+  # A-19: the deadline watch reported an overdue case on its daily pass.
+  - interval: 1h
+    input_series:
+      - series: 'hubtask_dsr_deadline_total{stage="overdue"}'
+        values: '0 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 3h
+        alertname: HubtaskDataSubjectDeadline
+        exp_alerts:
+          - exp_labels:
+              stage: overdue
+              severity: ticket
+              alert_id: A-19
+            exp_annotations:
+              summary: "A data subject request is approaching or past its statutory deadline"
+              description: "The period is legal rather than internal. GET /privacy/requests?due_within_days=7 lists what is owed."
+              runbook: RB-A19-dsr-deadline.md
+
+  # A-20: a drill timestamp more than 90 days behind the evaluation clock. The test clock starts
+  # at zero, so the recorded moment is written as a negative timestamp - the arithmetic is the
+  # same one the rule does in production, without simulating ninety days of scrapes.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_restore_drill_last_success_timestamp_seconds'
+        values: '-7776000x120'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: HubtaskRestoreDrillStale
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-20
+            exp_annotations:
+              summary: "The last restore drill is more than 90 days old"
+              description: "Nobody has proved that these backups restore. Run a trial restore into a new tenant."
+              runbook: RB-A20-restore-drill-stale.md

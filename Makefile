@@ -445,6 +445,11 @@ gate-observability:
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules.yaml
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules-tenant.yaml
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules-provider.yaml
+	@# The synthetic firing tests (H-12): every alert's condition driven from crafted series, and
+	@# the burn pair's multiwindow shape proved in both directions.
+	$(TOOLS_DIR)/promtool test rules deploy/observability/alerts/tests/selfhosting.test.yaml \
+		deploy/observability/alerts/tests/tenant.test.yaml \
+		deploy/observability/alerts/tests/provider.test.yaml
 	@# The structural half - every alert has a runbook, every runbook an alert - is a Go test, so
 	@# that it runs in `make verify` without needing a downloaded tool (test/observability).
 	$(call go_test,,./test/observability/...,)

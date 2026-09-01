@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# Synthetic firing test for the tenant file's one rule (H-08's A-18).
+rule_files:
+  - ../prometheus-rules-tenant.yaml
+evaluation_interval: 30s
+tests:
+  # A-18: one quota stands at 95% for long enough to be capacity planning, not a blip.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_tenant_quota_usage_ratio{quota="items"}'
+        values: '0.95x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HubtaskTenantQuotaApproaching
+        exp_alerts:
+          - exp_labels:
+              quota: items
+              severity: info
+              alert_id: A-18
+            exp_annotations:
+              summary: "A workspace stands at 95% of its items quota"
+              description: "hubtask_tenant_quota_usage_ratio is above 0.9; capacity planning, not an outage."
+              runbook: RB-A18-quota-approaching.md
