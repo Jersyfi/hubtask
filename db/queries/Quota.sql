@@ -6,7 +6,7 @@
 -- name: TenantQuotaOverrides :one
 -- The quotas key of the settings document, whole: the adapter parses it, the application layer
 -- never learns the document's shape (TenantPolicy's discipline).
-SELECT coalesce(settings->'quotas', '{}'::jsonb) FROM tenant WHERE id = current_tenant_id();
+SELECT coalesce(settings->'quotas', '{}'::jsonb)::text FROM tenant WHERE id = current_tenant_id();
 
 -- name: SetTenantQuotas :execrows
 -- Replaces the quotas key and only it - require_admin_totp and whatever else lives beside it

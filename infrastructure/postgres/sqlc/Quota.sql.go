@@ -109,7 +109,7 @@ func (q *Queries) SumTenantMediaBytes(ctx context.Context) (int64, error) {
 
 const tenantQuotaOverrides = `-- name: TenantQuotaOverrides :one
 
-SELECT coalesce(settings->'quotas', '{}'::jsonb) FROM tenant WHERE id = current_tenant_id()
+SELECT coalesce(settings->'quotas', '{}'::jsonb)::text FROM tenant WHERE id = current_tenant_id()
 `
 
 // The §4 limits (multi-tenancy.md, H-08): the overrides in the tenant's own settings document,
@@ -118,9 +118,9 @@ SELECT coalesce(settings->'quotas', '{}'::jsonb) FROM tenant WHERE id = current_
 // naming a tenant column explicitly says why in place.
 // The quotas key of the settings document, whole: the adapter parses it, the application layer
 // never learns the document's shape (TenantPolicy's discipline).
-func (q *Queries) TenantQuotaOverrides(ctx context.Context) (interface{}, error) {
+func (q *Queries) TenantQuotaOverrides(ctx context.Context) (string, error) {
 	row := q.db.QueryRow(ctx, tenantQuotaOverrides)
-	var coalesce interface{}
-	err := row.Scan(&coalesce)
-	return coalesce, err
+	var column_1 string
+	err := row.Scan(&column_1)
+	return column_1, err
 }

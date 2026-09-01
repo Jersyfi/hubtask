@@ -57,16 +57,8 @@ func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, err
 			WithCause(fmt.Errorf("reading the quota overrides: %w", err))
 	}
 
-	payload, ok := raw.([]byte)
-	if !ok {
-		if text, isText := raw.(string); isText {
-			payload = []byte(text)
-		} else {
-			return repository.Overrides{}, nil
-		}
-	}
 	var document quotasDocument
-	if err := json.Unmarshal(payload, &document); err != nil {
+	if err := json.Unmarshal([]byte(raw), &document); err != nil {
 		// Fail closed into the defaults rather than into an outage: a corrupt overrides key is
 		// the operator's to repair, and every request refusing until then would be the worse
 		// outcome. The write path below can only produce a valid document.
