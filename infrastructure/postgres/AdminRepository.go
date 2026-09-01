@@ -193,3 +193,47 @@ func (InstanceJournal) Record(ctx context.Context, entry repository.InstanceEven
 	}
 	return nil
 }
+
+// RequestDeletion moves either living status to PENDING_DELETION and stamps the grace deadline.
+func (AdminTenantRepository) RequestDeletion(
+	ctx context.Context, purgeAfter, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	changed, err := queries.RequestTenantDeletion(ctx, sqlc.RequestTenantDeletionParams{
+		PurgeAfter: pgtype.Timestamptz{Time: purgeAfter, Valid: true},
+		Now:        pgtype.Timestamptz{Time: now, Valid: true},
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("requesting the tenant deletion: %w", err))
+	}
+	return changed > 0, nil
+}
+
+// AutomationSwitch throws §5's one switch: every enabled rule of the transaction's tenant, off.
+type AutomationSwitch struct{}
+
+func NewAutomationSwitch() AutomationSwitch { return AutomationSwitch{} }
+
+var _ repository.Automations = AutomationSwitch{}
+
+// DisableAll is bounded by row level security to the tenant of the transaction.
+func (AutomationSwitch) DisableAll(ctx context.Context, now time.Time) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	disabled, err := queries.DisableAllAutomationRules(ctx, pgtype.Timestamptz{Time: now, Valid: true})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("disabling the automation rules: %w", err))
+	}
+	return int(disabled), nil
+}

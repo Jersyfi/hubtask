@@ -53,12 +53,14 @@ func (u *unitOfWork) WithinReadOnly(ctx context.Context, scope persistence.Scope
 }
 
 type tenantsStore struct {
-	inserted []adminrepo.TenantRecord
-	record   adminrepo.TenantRecord
-	findErr  error
-	moved    []string
-	moveOK   bool
-	listed   []adminrepo.TenantRecord
+	inserted  []adminrepo.TenantRecord
+	record    adminrepo.TenantRecord
+	findErr   error
+	moved     []string
+	moveOK    bool
+	listed    []adminrepo.TenantRecord
+	deletions []time.Time
+	deleteOK  bool
 }
 
 func (s *tenantsStore) List(context.Context) ([]adminrepo.TenantRecord, error) {
@@ -75,6 +77,13 @@ func (s *tenantsStore) Find(context.Context) (adminrepo.TenantRecord, error) {
 		return adminrepo.TenantRecord{}, s.findErr
 	}
 	return s.record, nil
+}
+
+func (s *tenantsStore) RequestDeletion(
+	_ context.Context, purgeAfter, _ time.Time,
+) (bool, error) {
+	s.deletions = append(s.deletions, purgeAfter)
+	return s.deleteOK, nil
 }
 
 func (s *tenantsStore) SetStatus(

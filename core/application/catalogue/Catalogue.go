@@ -220,6 +220,7 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.ListTenants{}.Descriptor(),
 		adminservice.SuspendTenant{}.Descriptor(),
 		adminservice.ResumeTenant{}.Descriptor(),
+		adminservice.RequestTenantDeletion{}.Descriptor(),
 	}
 }
 

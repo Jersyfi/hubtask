@@ -185,11 +185,13 @@ func TestTheAdminUseCasesRoundTripThroughTheRegistry(t *testing.T) {
 	provision := newProvisionFixture()
 	shift := newShiftFixture(domain.TenantActive)
 
+	deletion := newDeletionFixture(domain.TenantActive)
 	registry, err := usecase.NewRegistry(nil,
 		provision.handler.Descriptor(),
 		ListTenants{Tenants: shift.tenants, UnitOfWork: shift.work}.Descriptor(),
 		SuspendTenant{shift.shift}.Descriptor(),
 		ResumeTenant{shift.shift}.Descriptor(),
+		deletion.handler.Descriptor(),
 	)
 	if err != nil {
 		t.Fatalf("building the registry: %v", err)
@@ -244,5 +246,16 @@ func TestTheAdminUseCasesRoundTripThroughTheRegistry(t *testing.T) {
 	}
 	if len(shift.tenants.moved) != 2 {
 		t.Errorf("moves %v", shift.tenants.moved)
+	}
+
+	out, err = registry.Invoke(t.Context(), RequestTenantDeletionName, operator(), usecase.Input{
+		"tenant_id": lifecycleTenant.String(), "confirmation": "Acme GmbH",
+		"step_up_token": "hbt_sup_proof",
+	})
+	if err != nil {
+		t.Fatalf("requesting the deletion through the registry: %v", err)
+	}
+	if out.String("tenant_id") != lifecycleTenant.String() || out["purge_after"] == nil {
+		t.Errorf("deletion output %v", out)
 	}
 }

@@ -1269,6 +1269,12 @@ func run() error {
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}}.Descriptor(),
+		adminservice.RequestTenantDeletion{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(),
+			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
+			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process

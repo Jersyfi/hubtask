@@ -15,10 +15,11 @@ import (
 // ListServiceAccounts' reason: the identity helper's closure gives the linter nothing to trace
 // the context through.
 const (
-	listTenantsUseCase     = "ListTenants"
-	provisionTenantUseCase = "ProvisionTenant"
-	suspendTenantUseCase   = "SuspendTenant"
-	resumeTenantUseCase    = "ResumeTenant"
+	listTenantsUseCase           = "ListTenants"
+	provisionTenantUseCase       = "ProvisionTenant"
+	suspendTenantUseCase         = "SuspendTenant"
+	resumeTenantUseCase          = "ResumeTenant"
+	requestTenantDeletionUseCase = "RequestTenantDeletion"
 )
 
 // ListTenants answers GET /admin/tenants.
@@ -136,4 +137,37 @@ func adminTenantResponse(row usecase.Output) openapi.AdminTenant {
 		tenant.DefaultTimeZone = &zone
 	}
 	return tenant
+}
+
+// RequestTenantDeletion answers POST /admin/tenants/{tenantId}:delete. Written out longhand for
+// the same reason as its siblings above.
+func (c *RestController) RequestTenantDeletion(
+	w http.ResponseWriter, r *http.Request,
+	tenantID openapi.AdminTenantId, params openapi.RequestTenantDeletionParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.TenantDeletionRequest
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), requestTenantDeletionUseCase, actorOf(r), usecase.Input{
+		"tenant_id":     tenantID.String(),
+		"confirmation":  body.Confirmation,
+		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusAccepted, openapi.TenantDeletionScheduled{
+		TenantId:   uuidValue(out.String("tenant_id")),
+		PurgeAfter: timeValue(out["purge_after"]),
+	})
 }

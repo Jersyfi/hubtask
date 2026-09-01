@@ -53,6 +53,19 @@ type Tenants interface {
 	// origin status did not stand - the state moved under the caller, who reports the conflict
 	// rather than overwriting it.
 	SetStatus(ctx context.Context, from, to identity.TenantStatus, now time.Time) (bool, error)
+
+	// RequestDeletion moves either living status to PENDING_DELETION and stamps the grace
+	// deadline - the one edge with two origins (§5). False means the workspace was already
+	// leaving, or gone.
+	RequestDeletion(ctx context.Context, purgeAfter, now time.Time) (bool, error)
+}
+
+// Automations is the one switch the deletion request throws (§5, "automations disabled"): every
+// enabled rule of the transaction's tenant, off in one stroke, visibly - the rows keep existing
+// with enabled = false.
+type Automations interface {
+	// DisableAll switches the tenant's enabled rules off and reports how many.
+	DisableAll(ctx context.Context, now time.Time) (int, error)
 }
 
 // InstanceEvent is one row of the installation's own journal: evidence of a control-plane act,
