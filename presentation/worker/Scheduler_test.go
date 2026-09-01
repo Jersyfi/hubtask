@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/queue"
@@ -345,5 +346,58 @@ func TestASchedulerWithoutThePartitionDutyStillTicks(t *testing.T) {
 
 	if leading := leader.tick(t.Context(), false, now); !leading {
 		t.Error("a scheduler with no partition duty did not tick")
+	}
+}
+
+// streamPartitions answers the stream duty's asks, table by table.
+type streamPartitions struct {
+	asked map[string][]time.Time
+}
+
+func (p *streamPartitions) Ensure(_ context.Context, table string, month time.Time) (string, error) {
+	if p.asked == nil {
+		p.asked = map[string][]time.Time{}
+	}
+	p.asked[table] = append(p.asked[table], month)
+	return table + "_" + month.Format("2006_01"), nil
+}
+
+func (p *streamPartitions) DropAged(context.Context, string, int) ([]streams.Dropped, error) {
+	return nil, nil
+}
+
+// The stream duty covers all three tables, this month and next - the audit duty's contract,
+// three times over (H-09).
+func TestTheLeaderEnsuresEveryStreamsComingMonths(t *testing.T) {
+	partitions := &streamPartitions{}
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.StreamPartitions = partitions
+
+	leader.tick(t.Context(), false, now)
+
+	for _, table := range streams.Tables() {
+		months := partitions.asked[table]
+		if len(months) != 2 {
+			t.Fatalf("%s was asked for %d months", table, len(months))
+		}
+		if months[1].Format("2006-01") != now.UTC().AddDate(0, 1, 0).Format("2006-01") {
+			t.Errorf("%s's second month was %s", table, months[1])
+		}
+	}
+}
+
+// A standby runs no stream duty either.
+func TestAStandbyEnsuresNoStreamPartitions(t *testing.T) {
+	contested := &lock{}
+	partitions := &streamPartitions{}
+	holder := scheduler(&leadership{lock: contested, name: "holder"}, &depthQueue{}, newSchedulerSignals())
+	standby := scheduler(&leadership{lock: contested, name: "standby"}, &depthQueue{}, newSchedulerSignals())
+	standby.StreamPartitions = partitions
+
+	holder.tick(t.Context(), false, now)
+	standby.tick(t.Context(), false, now)
+
+	if len(partitions.asked) != 0 {
+		t.Errorf("a standby ensured %v", partitions.asked)
 	}
 }

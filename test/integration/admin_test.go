@@ -89,7 +89,7 @@ func seedLifecycleTenants(ctx context.Context, t *testing.T) {
 		`INSERT INTO outbox_event (id, tenant_id, event_type, payload, actor_type)
 		 VALUES ('01936f2a-7c1e-7000-8000-00000000f019', '` + doomedTenant.String() + `',
 		         'de.hubtask.test.v1', '{}'::jsonb, 'SYSTEM')
-		 ON CONFLICT (id) DO NOTHING`,
+		 ON CONFLICT DO NOTHING`,
 		`INSERT INTO audit_log (id, tenant_id, seq, occurred_at, action, outcome, actor_type, hash)
 		 VALUES ('01936f2a-7c1e-7000-8000-00000000f01a', '` + doomedTenant.String() + `', 9001,
 		         '2026-08-15T12:00:00Z', 'seeded.doomed', 'SUCCESS', 'SYSTEM', '\x00'),

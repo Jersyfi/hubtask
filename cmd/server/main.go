@@ -27,9 +27,11 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/catalogue"
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
+	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
@@ -53,6 +55,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	clockport "github.com/Jersyfi/hubtask/core/port/clock"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
@@ -2042,6 +2045,14 @@ func run() error {
 			AuditPartitions: auditPartitionsInBackground{
 				Partitions: postgres.NewAuditPartitionRepository(), Work: backgroundWork,
 			},
+			// The same duty for the three monthly streams (H-09).
+			StreamPartitions: streamPartitionsInBackground{
+				Partitions: postgres.NewStreamPartitionRepository(), Work: backgroundWork,
+			},
+			StreamEvidence: streamEvidenceInBackground{
+				Journal: postgres.NewInstanceJournal(), IDs: ids, Work: backgroundWork,
+				Clock: clockadapter.System{},
+			},
 		}
 		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))
 	}
@@ -2426,6 +2437,60 @@ func schemaVersion() string {
 
 // backupRunsInBackground reads the backup freshness on the background pool, which is where every
 // leader duty runs: the API's pool is for requests.
+// streamEvidenceInBackground writes the drop's evidence into the instance journal - the record
+// a partition spanning every tenant can have, where no per-tenant trail could hold it
+// (audit.md §6, H-06's journal).
+type streamEvidenceInBackground struct {
+	Journal adminrepo.Journal
+	IDs     clockport.IDGenerator
+	Clock   clockport.Clock
+	Work    persistenceport.UnitOfWork
+}
+
+func (b streamEvidenceInBackground) PartitionDropped(
+	ctx context.Context, table, partition string, rows int64,
+) error {
+	return b.Work.Within(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		return b.Journal.Record(ctx, adminrepo.InstanceEvent{
+			ID: b.IDs.NewID(), OccurredAt: b.Clock.Now(), Action: "retention.partition_dropped",
+			Details: map[string]any{
+				"table": table, "partition": partition, "rows": rows,
+			},
+		})
+	})
+}
+
+// streamPartitionsInBackground is auditPartitionsInBackground's shape for the three monthly
+// streams (H-09): the system-scoped transaction both narrow acts run in.
+type streamPartitionsInBackground struct {
+	Partitions streamsrepo.Partitions
+	Work       persistenceport.UnitOfWork
+}
+
+func (b streamPartitionsInBackground) Ensure(
+	ctx context.Context, table string, month time.Time,
+) (string, error) {
+	var name string
+	err := b.Work.Within(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		ensured, err := b.Partitions.Ensure(ctx, table, month)
+		name = ensured
+		return err
+	})
+	return name, err
+}
+
+func (b streamPartitionsInBackground) DropAged(
+	ctx context.Context, table string, defaultDays int,
+) ([]streamsrepo.Dropped, error) {
+	var dropped []streamsrepo.Dropped
+	err := b.Work.Within(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		aged, err := b.Partitions.DropAged(ctx, table, defaultDays)
+		dropped = aged
+		return err
+	})
+	return dropped, err
+}
+
 // auditPartitionsInBackground gives the partition duty the transaction it needs. A system scope,
 // because a partition belongs to the installation rather than to a tenant - and a write one,
 // because the duty creates a table when there is one to create.

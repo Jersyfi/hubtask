@@ -164,6 +164,10 @@ who needs it (H-07).
 
 * All processes are stateless → any number of `api` replicas.
 * Reads can be directed to read replicas (the `persistence` port allows `ReadOnly` transactions; beware replication lag → always use the primary after a write within the same request).
-* Partitioning of large tables (`activity_entry`, `outbox_event`, `rule_run`) by time; and if needed
-  `work_item` by `tenant_id` hash — prepared for by the `tenant_id` index prefix.
+* Partitioning of large tables: `activity_entry`, `outbox_event` and `rule_run` partition by
+  month since H-09 (the `audit_log` pattern - default catch-all, RLS per partition, the leader
+  keeping coming months existing, and an aged-out month falling as one dropped partition,
+  evidenced in the instance journal; see `db/migrations/0068_stream_partitions.sql` for the
+  conversion strategy). If needed later: `work_item` by `tenant_id` hash — prepared for by the
+  `tenant_id` index prefix.
 * The `scheduler` stays single-leader; the work itself is distributed as jobs.

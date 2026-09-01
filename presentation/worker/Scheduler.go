@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -77,6 +78,13 @@ type Scheduler struct {
 	// entry of it does, and carries its own policy and its own revokes. Optional, like the two
 	// above: an installation without it keeps writing into the default partition, which has both.
 	AuditPartitions AuditPartitions
+	// StreamPartitions is the same duty for the three monthly streams (H-09): activity entries,
+	// outbox events and rule runs. Nil skips, ensureAuditPartitions' contract.
+	StreamPartitions streams.Partitions
+	// StreamEvidence records a dropped partition where a per-tenant trail cannot: a partition
+	// holds every tenant's rows, so the evidence is the instance journal's (audit.md §6). Nil
+	// records nothing.
+	StreamEvidence StreamEvidence
 
 	// TickInterval is how often the leader looks at the clock. It is also how quickly a standby
 	// notices that the leader is gone, because a standby tries the lock on every tick of its own.
@@ -155,6 +163,8 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
 	s.ensureAuditPartitions(ctx)
+	s.ensureStreamPartitions(ctx)
+	s.dropAgedStreamPartitions(ctx)
 	return true
 }
 
@@ -231,6 +241,87 @@ func (s Scheduler) ensureAuditPartitions(ctx context.Context) {
 		if name == "" {
 			slog.InfoContext(ctx, "the audit entries of that month are in the default partition",
 				slog.String("month", month.Format("2006-01")))
+		}
+	}
+}
+
+// ensureStreamPartitions is the audit duty for the three partitioned streams (H-09):
+// activity_entry, outbox_event and rule_run get this month and next kept existing, policies and
+// grants repaired - ensureAuditPartitions' reasoning verbatim, over ensure_stream_partition.
+func (s Scheduler) ensureStreamPartitions(ctx context.Context) {
+	if s.StreamPartitions == nil {
+		return
+	}
+	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	now := s.Clock.Now().UTC()
+	for _, table := range streams.Tables() {
+		for _, month := range []time.Time{now, now.AddDate(0, 1, 0)} {
+			name, err := s.StreamPartitions.Ensure(dutyCtx, table, month)
+			if err != nil {
+				if ctx.Err() == nil {
+					slog.WarnContext(ctx, "a stream partition could not be ensured",
+						slog.String("table", table),
+						slog.String("month", month.Format("2006-01")),
+						slog.String("error", shared.AsError(err).Code))
+				}
+				return
+			}
+			if name == "" {
+				slog.InfoContext(ctx, "the stream's month is in the default partition",
+					slog.String("table", table),
+					slog.String("month", month.Format("2006-01")))
+			}
+		}
+	}
+}
+
+// StreamEvidence is the instance journal's slice the drop duty writes through.
+type StreamEvidence interface {
+	PartitionDropped(ctx context.Context, table, partition string, rows int64) error
+}
+
+// dropAgedStreamPartitions is the retention half of H-09: an aged-out month of a partitioned
+// stream is a dropped partition, not a million-row DELETE. The leader's act, not a tenant
+// sweep's - a partition holds every tenant's rows, and the drop function holds a month back
+// until every tenant's configured retention for the kind has passed. The tenant sweeps keep
+// deleting rows inside the newest months exactly as before; what changes is that a month whose
+// every row has aged out for everybody falls in one catalog act.
+func (s Scheduler) dropAgedStreamPartitions(ctx context.Context) {
+	if s.StreamPartitions == nil {
+		return
+	}
+	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	for _, table := range streams.Tables() {
+		defaultDays := streams.DefaultDays(table)
+		if defaultDays <= 0 {
+			continue
+		}
+		dropped, err := s.StreamPartitions.DropAged(dutyCtx, table, defaultDays)
+		if err != nil {
+			if ctx.Err() == nil {
+				slog.WarnContext(ctx, "aged stream partitions could not be dropped",
+					slog.String("table", table),
+					slog.String("error", shared.AsError(err).Code))
+			}
+			return
+		}
+		for _, fell := range dropped {
+			slog.InfoContext(ctx, "an aged stream partition was dropped",
+				slog.String("table", table),
+				slog.String("partition", fell.Name),
+				slog.Int64("rows", fell.Rows))
+			if s.StreamEvidence == nil {
+				continue
+			}
+			if err := s.StreamEvidence.PartitionDropped(dutyCtx, table, fell.Name, fell.Rows); err != nil {
+				slog.WarnContext(ctx, "a partition drop could not be evidenced",
+					slog.String("partition", fell.Name),
+					slog.String("error", shared.AsError(err).Code))
+			}
 		}
 	}
 }

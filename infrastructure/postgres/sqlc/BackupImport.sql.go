@@ -863,15 +863,13 @@ FROM jsonb_populate_record(
   NULL::activity_entry,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
-ON CONFLICT (id) DO UPDATE SET
-  tenant_id = EXCLUDED.tenant_id,
+ON CONFLICT (tenant_id, occurred_at, id) DO UPDATE SET
   item_id = EXCLUDED.item_id,
   container_id = EXCLUDED.container_id,
   actor_type = EXCLUDED.actor_type,
   actor_id = EXCLUDED.actor_id,
   verb = EXCLUDED.verb,
   change_set = EXCLUDED.change_set,
-  occurred_at = EXCLUDED.occurred_at,
   correlation_id = EXCLUDED.correlation_id,
   causation_id = EXCLUDED.causation_id
 WHERE $2::boolean
@@ -882,6 +880,10 @@ type ImportActivityEntryParams struct {
 	Overwrite bool
 }
 
+// The conflict target is the partitioned key since H-09: a partitioned table cannot hold a
+// unique index on id alone, and occurred_at is immutable on an activity entry, so the pair
+// names the same row the old target did. tenant_id and occurred_at leave the update list -
+// they are the key now.
 func (q *Queries) ImportActivityEntry(ctx context.Context, arg ImportActivityEntryParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importActivityEntry, arg.Payload, arg.Overwrite)
 	if err != nil {
