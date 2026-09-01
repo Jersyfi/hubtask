@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -359,4 +360,58 @@ func onlyClaimOf(t *testing.T, jobs []queue.Job, kind queue.Kind) queue.Job {
 		t.Fatalf("%d jobs of kind %s in the batch, want one", len(found), kind)
 	}
 	return found[0]
+}
+
+// The fairness of H-08 (multi-tenancy.md §4): two tenants due at once share the batch - the
+// claim takes everybody's first job before anybody's second, so a storm from one workspace
+// cannot monopolise the workers and both make progress.
+func TestAFloodingTenantDoesNotMonopoliseTheClaim(t *testing.T) {
+	ctx := context.Background()
+
+	flooder := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fa01")
+	modest := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fa02")
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO tenant (id, slug, display_name)
+		VALUES ($1, 'flooder', 'Flooder'), ($2, 'modest', 'Modest')
+		ON CONFLICT (id) DO NOTHING`, flooder.String(), modest.String()); err != nil {
+		t.Fatalf("seeding tenants: %v", err)
+	}
+
+	moment := time.Now().UTC().Add(-time.Minute)
+	// The storm first, so age alone would hand it the whole batch.
+	for i := 0; i < 20; i++ {
+		enqueue(ctx, t, queue.Request{
+			Kind: queue.Kind("test.fairness"), TenantID: flooder,
+			DedupeKey: "flood-" + strconv.Itoa(i), RunAt: moment,
+		})
+	}
+	for i := 0; i < 3; i++ {
+		enqueue(ctx, t, queue.Request{
+			Kind: queue.Kind("test.fairness"), TenantID: modest,
+			DedupeKey: "modest-" + strconv.Itoa(i), RunAt: moment.Add(time.Second),
+		})
+	}
+
+	claimed := claim(ctx, t, time.Now().UTC(), time.Minute, 10)
+	if len(claimed) != 10 {
+		t.Fatalf("claimed %d, want the full batch", len(claimed))
+	}
+	counts := map[shared.ID]int{}
+	for _, job := range claimed {
+		counts[job.TenantID]++
+	}
+	// Round-robin: both make progress and neither claims the whole pool. The assertions are
+	// deliberately about the property rather than exact shares - the suite's other tests leave
+	// their own tenants' due jobs behind, and those share the batch too, which is the fairness
+	// working, not the test flaking.
+	if counts[modest] < 2 {
+		t.Errorf("the modest tenant got %d jobs into the batch (flooder %d) - age alone decided",
+			counts[modest], counts[flooder])
+	}
+	if counts[flooder] < 2 {
+		t.Errorf("the flooding tenant starved (%d) - fairness is sharing, not punishment", counts[flooder])
+	}
+	if counts[flooder] == len(claimed) {
+		t.Error("the flooding tenant claimed the whole pool")
+	}
 }

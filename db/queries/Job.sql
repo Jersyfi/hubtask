@@ -45,21 +45,42 @@ LIMIT 1;
 -- The claim. Two kinds of row are claimable: one that is due, and one whose lease has run out -
 -- the second is a job whose worker died, and picking it up again is the whole reason a lease has
 -- an end.
+-- Per-tenant round-robin at claim time (H-08, multi-tenancy.md §4): each workspace's due jobs
+-- are ranked among themselves, and the batch takes everybody's first before anybody's second -
+-- one tenant's storm cannot monopolise the workers, and both keep making progress. Priority and
+-- age still order within a rank, so nothing changes whenever only one tenant is due. NULL
+-- tenants (system jobs) rank as one workspace of their own.
+--
+-- The window function cannot share a query level with FOR UPDATE, which is why the lock happens
+-- in a second walk over the base table: the CTE ranks a snapshot, the locking read re-checks
+-- that each picked row is still due, and SKIP LOCKED keeps two workers on disjoint batches
+-- (ADR-0008). The aliases are not decoration: without them "run_at" would mean two different
+-- things in one statement.
 -- name: ClaimJobs :many
+WITH due AS (
+  SELECT d.id AS due_id, d.tenant_id AS due_tenant, d.priority AS due_priority,
+         d.run_at AS due_run_at
+  FROM job AS d
+  WHERE (d.state = 'PENDING' AND d.run_at <= sqlc.arg('now'))
+     OR (d.state = 'RUNNING' AND d.locked_until < sqlc.arg('now'))
+), ranked AS (
+  SELECT due_id, due_priority, due_run_at,
+         row_number() OVER (PARTITION BY due_tenant ORDER BY due_priority, due_run_at, due_id) AS place
+  FROM due
+), picked AS (
+  SELECT j.id FROM job AS j
+  JOIN ranked ON ranked.due_id = j.id
+  WHERE (j.state = 'PENDING' AND j.run_at <= sqlc.arg('now'))
+     OR (j.state = 'RUNNING' AND j.locked_until < sqlc.arg('now'))
+  ORDER BY ranked.place, ranked.due_priority, ranked.due_run_at, ranked.due_id
+  LIMIT sqlc.arg('batch_size')
+  FOR UPDATE OF j SKIP LOCKED
+)
 UPDATE job SET
   state        = 'RUNNING',
   attempts     = attempts + 1,
   locked_until = sqlc.arg('locked_until')
-WHERE id IN (
-  -- The alias is not decoration: without it every column in here reads as a reference to the row
-  -- being updated, and "run_at" would mean two different things in one statement.
-  SELECT due.id FROM job AS due
-  WHERE (due.state = 'PENDING' AND due.run_at <= sqlc.arg('now'))
-     OR (due.state = 'RUNNING' AND due.locked_until < sqlc.arg('now'))
-  ORDER BY due.priority, due.run_at
-  FOR UPDATE SKIP LOCKED
-  LIMIT sqlc.arg('batch_size')
-)
+WHERE id IN (SELECT id FROM picked)
 RETURNING id, tenant_id, kind, payload, attempts, max_attempts, locked_until;
 
 -- The row lock a pass takes on its own job, held until the caller's transaction ends (D-03).
