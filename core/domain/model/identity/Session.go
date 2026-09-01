@@ -86,6 +86,11 @@ type Session struct {
 	// ExpiresAt is the horizon of the newest refresh token. Rotation slides it.
 	ExpiresAt time.Time
 	RevokedAt time.Time
+	// GrantID and Scopes are H-05's leash: set for a session an OAuth exchange issued. Nil
+	// scopes is a person's own session, bounded by nothing but their role; a grant session
+	// carries the grant's scopes and is ended by the grant's revocation.
+	GrantID shared.ID
+	Scopes  []string
 }
 
 // NewSessionInput is what opening a session needs.
