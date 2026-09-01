@@ -184,10 +184,15 @@ groups:
 
       # A-15, first half. Failed auth attempts against the traffic on the auth routes: above 5%
       # somebody is guessing, or a client is broken, or a secret rotated without its consumer.
+      #
+      # The denominator matches the route label as the process emits it: the router's template is
+      # the method followed by the full path under /api/v1 ("POST /api/v1/auth/sessions"), and a
+      # Prometheus regex is anchored at both ends. Sign-in and refresh are the two POSTs; listing
+      # and revoking sessions are not authentication attempts and stay out of the denominator.
       - alert: HubtaskAuthFailureRate
         expr: >
           sum(rate(hubtask_auth_failures_total[15m]))
-          / clamp_min(sum(rate(hubtask_http_requests_total{route=~"/auth/sessions.*"}[15m])), 1e-9)
+          / clamp_min(sum(rate(hubtask_http_requests_total{route=~"POST .*/auth/sessions(:refresh)?"}[15m])), 1e-9)
           > 0.05
         for: 10m
         labels:

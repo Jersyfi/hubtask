@@ -169,12 +169,16 @@ tests:
               description: "A startup check flagged this configuration key and the process is running without what it names. The same finding is in /meta/health's warnings, with parameters.\n"
               runbook: RB-A14-misconfiguration.md
 
-  # A-15, the rate: six refusals a minute against sixty auth requests - one in ten refused.
+  # A-15, the rate: six refusals a minute against sixty auth requests - one in ten refused. The
+  # route label carries the shape the router produces, method included, so that the rule's
+  # denominator is tested against what a real scrape contains rather than against a convenient
+  # abbreviation - an anchored regex that misses would otherwise divide by the clamp and page on
+  # the first refusal.
   - interval: 1m
     input_series:
       - series: 'hubtask_auth_failures_total{reason="wrong_credential"}'
         values: '0+6x40'
-      - series: 'hubtask_http_requests_total{route="/auth/sessions", method="POST", status_class="4xx"}'
+      - series: 'hubtask_http_requests_total{route="POST /api/v1/auth/sessions", method="POST", status_class="4xx"}'
         values: '0+60x40'
     alert_rule_test:
       - eval_time: 27m
@@ -187,6 +191,20 @@ tests:
               summary: "More than 5% of authentication attempts are being refused"
               description: "The refusal rate across sign-in and refresh is above one in twenty. Either a credential-stuffing attempt, or a client somewhere is misconfigured and retrying.\n"
               runbook: RB-A15-auth-failures.md
+
+  # A-15, the negative: one refusal a minute against the same sixty requests is 1.7%, and nothing
+  # may be ticketed. This is the case that fails if the denominator's regex stops matching - a
+  # selector that finds no series divides by the clamp instead, and every rate becomes infinite.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_auth_failures_total{reason="wrong_credential"}'
+        values: '0+1x40'
+      - series: 'hubtask_http_requests_total{route="POST /api/v1/auth/sessions", method="POST", status_class="4xx"}'
+        values: '0+60x40'
+    alert_rule_test:
+      - eval_time: 27m
+        alertname: HubtaskAuthFailureRate
+        exp_alerts: []
 
   # A-15, the reuse: a single rotated token presented again pages at once.
   - interval: 1m
