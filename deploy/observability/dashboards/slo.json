@@ -1,0 +1,1034 @@
+{
+  "uid": "hubtask-slo",
+  "title": "Hubtask \u2014 Service level objectives",
+  "description": "The eight objectives of observability-reliability.md \u00a72, one row each: the attainment over the objective's own window, and the signal underneath it. Shipped as an example - an operator imports it, points it at their Prometheus and edits freely; nothing in the application reads this file. SLO-1's burn panel reads the recorded series the provider alert file defines, so the dashboard and the page cannot disagree about what is burning.",
+  "tags": [
+    "hubtask"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "SLO-1 \u2014 API availability \u00b7 \u2265 99.9% of requests, 30 days rolling",
+      "description": "The share of requests answered without a 5xx. SLO-1's 'without a timeout' half has no series of its own: a request the client abandoned appears as whatever status the middleware finally wrote (\u00a72).",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Attainment (30 d)",
+      "description": "1 minus the 5xx share over the objective's own window. Below 99.9% the month is already lost; the budget panel beside it says by how much.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.999
+              }
+            ]
+          },
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "1 - (\n  sum(increase(hubtask_http_requests_total{status_class=\"5xx\"}[30d]))\n  / clamp_min(sum(increase(hubtask_http_requests_total[30d])), 1)\n)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Error budget left (30 d)",
+      "description": "The budget is 0.1% of the month's requests. 50% consumed is the point where stability work takes precedence over features (\u00a72) - that is the amber step. Below zero the budget is overspent and the number says by how far.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "1 - (\n  sum(increase(hubtask_http_requests_total{status_class=\"5xx\"}[30d]))\n  / clamp_min(0.001 * sum(increase(hubtask_http_requests_total[30d])), 1)\n)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Burn rate, on the windows the alerts read",
+      "description": "The recorded series the burn alerts evaluate, divided by the budget - so the y axis reads directly as a multiple. A-01 pages when the 1 h line passes 14 and the 5 m line agrees; A-02 when the 6 h line passes 6 and the 30 m line agrees. Two lines above a threshold with the other two below is an outage that has ended.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "hubtask:slo1_error_ratio:rate5m / 0.001",
+          "legendFormat": "5 m (A-01's confirmation)",
+          "refId": "A"
+        },
+        {
+          "expr": "hubtask:slo1_error_ratio:rate1h / 0.001",
+          "legendFormat": "1 h (A-01 pages above 14)",
+          "refId": "B"
+        },
+        {
+          "expr": "hubtask:slo1_error_ratio:rate30m / 0.001",
+          "legendFormat": "30 m (A-02's confirmation)",
+          "refId": "C"
+        },
+        {
+          "expr": "hubtask:slo1_error_ratio:rate6h / 0.001",
+          "legendFormat": "6 h (A-02 pages above 6)",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "SLO-2 \u2014 Read latency \u00b7 P95 < 200 ms, 30 days",
+      "description": "Reads are the GET routes plus the :query operations, which are POSTs because a filter does not fit in a URL (api-guidelines.md). The route label carries the method, so one selector names both.",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "P95 (30 d)",
+      "description": "The objective as it is written. Read from the histogram over the whole window; the panel beside it answers the same question from the bucket boundary instead, without interpolation.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.2
+              }
+            ]
+          },
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (\n  rate(hubtask_http_request_duration_seconds_bucket{route=~\"GET .*|.*:query\"}[30d])\n))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Within 200 ms (30 d)",
+      "description": "The share of reads inside the target, counted from the 0.2 s bucket. P95 < 200 ms and this number \u2265 95% are the same statement, and this one needs no interpolation - which is why the boundary exists (\u00a74).",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.95
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hubtask_http_request_duration_seconds_bucket{route=~\"GET .*|.*:query\",le=\"0.2\"}[30d]))\n/ clamp_min(sum(increase(hubtask_http_request_duration_seconds_count{route=~\"GET .*|.*:query\"}[30d])), 1)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Read latency by route",
+      "description": "Which route moved. A P95 that rises across every route is the database or the pool (A-11); one route alone is that route's query.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, route) (\n  rate(hubtask_http_request_duration_seconds_bucket{route=~\"GET .*|.*:query\"}[30m])\n))",
+          "legendFormat": "p95 {{route}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "SLO-3 \u2014 Write latency \u00b7 P95 < 300 ms, 30 days",
+      "description": "Everything that mutates: the mutating methods, minus the :query POSTs that SLO-2 already counts as reads.",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "P95 (30 d)",
+      "description": "The objective as it is written.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 11
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.3
+              }
+            ]
+          },
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (\n  rate(hubtask_http_request_duration_seconds_bucket{route=~\"(POST|PUT|PATCH|DELETE) .*\",route!~\".*:query\"}[30d])\n))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Within 300 ms (30 d)",
+      "description": "Counted from the 0.3 s bucket boundary, which exists for this objective.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 11
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.95
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hubtask_http_request_duration_seconds_bucket{route=~\"(POST|PUT|PATCH|DELETE) .*\",route!~\".*:query\",le=\"0.3\"}[30d]))\n/ clamp_min(sum(increase(hubtask_http_request_duration_seconds_count{route=~\"(POST|PUT|PATCH|DELETE) .*\",route!~\".*:query\"}[30d])), 1)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Write latency by route",
+      "description": "A write is a transaction: a slow one is usually lock contention or a pool that has run out of connections, not the handler.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, route) (\n  rate(hubtask_http_request_duration_seconds_bucket{route=~\"(POST|PUT|PATCH|DELETE) .*\",route!~\".*:query\"}[30m])\n))",
+          "legendFormat": "p95 {{route}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "SLO-4 \u2014 Event delivery \u00b7 outbox lag P99 < 30 s, 7 days",
+      "description": "How long an event waits between being written in the same transaction as its cause and being dispatched (ADR-0007). A-05 tickets on the same lag.",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "P99 (7 d)",
+      "description": "The objective as it is written.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          },
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(hubtask_outbox_lag_seconds_bucket[7d])))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Within 30 s (7 d)",
+      "description": "Counted from the 30 s bucket boundary. A dispatcher that stopped shows here before the quantile moves, because every waiting event lands outside the bucket at once.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hubtask_outbox_lag_seconds_bucket{le=\"30\"}[7d]))\n/ clamp_min(sum(increase(hubtask_outbox_lag_seconds_count[7d])), 1)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox lag and what is waiting",
+      "description": "The lag with the backlog behind it: a P99 that is fine while the pending count climbs is a dispatcher keeping up with the easy events and falling behind on the rest.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(hubtask_outbox_lag_seconds_bucket[30m])))",
+          "legendFormat": "p99",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(hubtask_outbox_lag_seconds_bucket[30m])))",
+          "legendFormat": "p50",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "SLO-5 \u2014 Reminder punctuality \u00b7 \u2265 99% within 60 s, 30 days",
+      "description": "A reminder is the one signal that cannot be caught up on: the moment it was for has passed (\u00a710, the argument that put A-08 in the self-hosting set).",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Within 60 s (30 d)",
+      "description": "The objective, counted from the 60 s bucket - the boundary the histogram carries because this objective asks for it (\u00a74).",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hubtask_reminder_delivery_delay_seconds_bucket{le=\"60\"}[30d]))\n/ clamp_min(sum(increase(hubtask_reminder_delivery_delay_seconds_count[30d])), 1)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "P95 delay (30 d)",
+      "description": "How late the late ones are. A-08 tickets when this passes 120 s, the next boundary up.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 120
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(hubtask_reminder_delivery_delay_seconds_bucket[30d])))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Punctuality by channel",
+      "description": "Split by channel, because a mail server that is queueing and a push service that is throttling look identical in the total.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (channel) (rate(hubtask_reminder_delivery_delay_seconds_bucket{le=\"60\"}[1h]))\n/ clamp_min(sum by (channel) (rate(hubtask_reminder_delivery_delay_seconds_count[1h])), 1e-9)",
+          "legendFormat": "{{channel}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "SLO-6 \u2014 Webhook delivery \u00b7 \u2265 99.5% delivered, 7 days",
+      "description": "One series counts attempts, not deliveries: an event that failed twice and then got through contributes two retries and one ok. The objective is about deliveries, so the panels count only settled outcomes - ok or dead-lettered.",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Delivered (7 d)",
+      "description": "Successes over settled outcomes, with the recipient's own 4xx answers excluded exactly as \u00a72 words the objective. A retry is not a settled outcome and is in neither half - which is what 'after retries' means, and where this differs from A-09: that alert measures attempts, because a target being hammered by retries is the symptom it exists to catch.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 26
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.995
+              }
+            ]
+          },
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hubtask_webhook_deliveries_total{result=\"ok\"}[7d]))\n/ clamp_min(sum(increase(\n  hubtask_webhook_deliveries_total{result=~\"ok|dead\",status_class!=\"4xx\"}[7d]\n)), 1)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Dead-lettered (7 d)",
+      "description": "Deliveries that used up every attempt. Each one is an event a subscriber never received, and it stays replayable.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 26
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hubtask_webhook_deliveries_total{result=\"dead\"}[7d]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Attempt outcomes and the retry backlog",
+      "description": "The three outcomes against what is queued behind them. A retry line that grows while ok holds steady is a single target failing, not the egress.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(hubtask_webhook_deliveries_total[10m]))",
+          "legendFormat": "{{result}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(hubtask_webhook_retry_backlog)",
+          "legendFormat": "waiting to be retried",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "SLO-7 \u2014 Automation \u00b7 \u2265 99.5% of runs without an internal error, 7 days",
+      "description": "A run that was skipped, throttled, or stopped by the loop protection is a rule working as configured, not a failure - the same distinction \u00a74.1 draws for use cases.",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Runs without an internal error (7 d)",
+      "description": "Failed runs over all ended runs. WAITING runs are not ended and are counted when they end.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.995
+              }
+            ]
+          },
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "1 - (\n  sum(increase(hubtask_rule_runs_total{result=\"failed\"}[7d]))\n  / clamp_min(sum(increase(hubtask_rule_runs_total[7d])), 1)\n)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Rules switched off (7 d)",
+      "description": "The self-protection made visible: consecutive failures, or a loop. Above zero is alert A-16, and somebody's automation has stopped running.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hubtask_rule_disabled_total[7d]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Run outcomes by trigger",
+      "description": "Failures split by what set the run off: a rule failing on every event and one failing on the nightly schedule are different problems.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(hubtask_rule_runs_total[30m]))",
+          "legendFormat": "{{result}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (trigger_type) (rate(hubtask_rule_runs_total{result=\"failed\"}[30m]))",
+          "legendFormat": "failed {{trigger_type}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "SLO-8 \u2014 Data loss \u00b7 0, always",
+      "description": "The only objective with no indicator of its own: a confirmed write that vanished produces no series, because nothing is left to count. These four are its proxies, and each of them is a way the loss would become visible.",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "panels": []
+    },
+    {
+      "type": "text",
+      "title": "What this row watches",
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "SLO-8 is measured by the absence of the four numbers below, and by RT-9 - the restore that was actually run (`backup-restore.md` \u00a710).\n\n* **Dead letters** are events that were written and never delivered. The data is not lost, the delivery is, and each one is replayable.\n* **Panics** must be permanently 0 (ADR-0016). A recovered panic in a write path is a transaction whose outcome nobody can state.\n* **Backup age** past 24 h is A-12: an outage now loses everything since the last one.\n* **Restore drill age** past 90 days is A-20: an archive nobody has opened is a hypothesis, not a backup."
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Dead letters (7 d)",
+      "description": "Events that used up every attempt. A-07 tickets on the first one.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hubtask_job_dead_letter_total[7d]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Panics recovered (7 d)",
+      "description": "Target value: permanently 0 (A-04 pages on any).",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hubtask_panics_recovered_total[7d]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Backup age",
+      "description": "Time since the last successful backup, per target. A-12 pages past 24 h.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 86400
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "no backup has ever reported - A-12 fires on the absent series"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "time() - max(hubtask_backup_last_success_timestamp_seconds)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Restore drill age",
+      "description": "Time since a backup was last restored and checked. A-20 tickets past 90 days.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 7776000
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "no drill has ever reported - A-20 fires on the absent series"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "time() - max(hubtask_restore_drill_last_success_timestamp_seconds)",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

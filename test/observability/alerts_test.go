@@ -12,6 +12,7 @@
 package observability
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -229,5 +230,143 @@ func TestTheDashboardsAreImportable(t *testing.T) {
 	}
 	if found == 0 {
 		t.Error("no dashboard is shipped at all (§11)")
+	}
+}
+
+// dashboard is the part of the Grafana schema this gate reads. As with ruleFile above, it is
+// deliberately not the whole thing: Grafana owns that, and the questions asked here are about what
+// the document promises, not about whether Grafana would render every field.
+type dashboard struct {
+	UID    string `json:"uid"`
+	Title  string `json:"title"`
+	Panels []struct {
+		Type        string `json:"type"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		FieldConfig struct {
+			Defaults struct {
+				NoValue string `json:"noValue"`
+			} `json:"defaults"`
+		} `json:"fieldConfig"`
+		Options struct {
+			Content string `json:"content"`
+		} `json:"options"`
+		Targets []struct {
+			Expr string `json:"expr"`
+		} `json:"targets"`
+	} `json:"panels"`
+}
+
+func dashboards(t *testing.T) map[string]dashboard {
+	t.Helper()
+	entries, err := os.ReadDir(dashboardDir)
+	if err != nil {
+		t.Fatalf("the dashboard directory is not readable: %v", err)
+	}
+	loaded := map[string]dashboard{}
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(dashboardDir, entry.Name()))
+		if err != nil {
+			t.Fatalf("%s is not readable: %v", entry.Name(), err)
+		}
+		var parsed dashboard
+		if err := json.Unmarshal(raw, &parsed); err != nil {
+			t.Fatalf("%s is not valid JSON: %v", entry.Name(), err)
+		}
+		loaded[entry.Name()] = parsed
+	}
+	return loaded
+}
+
+// The shipped set is pinned for the reason the self-hosting alert set is: §11 lists these files by
+// name, and a dashboard that exists in one place and not the other is a promise to somebody
+// reading the document rather than the directory.
+func TestTheShippedDashboardsAreTheOnesTheDocumentPromises(t *testing.T) {
+	want := []string{"overview.json", "pipeline.json", "slo.json", "tenant.json"}
+
+	var got []string
+	for name := range dashboards(t) {
+		got = append(got, name)
+	}
+	sort.Strings(got)
+
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("the shipped dashboards are %v, want %v (§11).\n"+
+			"Adding one is a decision: §11 names them, and the list there has to name it too.",
+			got, want)
+	}
+}
+
+// Grafana keys an imported dashboard by its uid: two files sharing one silently overwrite each
+// other, and the operator ends up with three dashboards where four were shipped.
+func TestTheDashboardIdentifiersAreDistinct(t *testing.T) {
+	seen := map[string]string{}
+	for name, board := range dashboards(t) {
+		if board.UID == "" {
+			t.Errorf("%s has no uid - Grafana invents one per import and updates never land", name)
+			continue
+		}
+		if other, taken := seen[board.UID]; taken {
+			t.Errorf("%s and %s share the uid %q - importing both keeps one", name, other, board.UID)
+		}
+		seen[board.UID] = name
+	}
+}
+
+// Every objective in §2 has a row. The dashboard is the answer to "are we keeping our promises",
+// and an objective missing from it is one nobody is looking at - which is how SLO-6 and SLO-7 sat
+// unmeasured until their metrics were built (H-12).
+func TestTheSLODashboardCoversEveryObjective(t *testing.T) {
+	board, ok := dashboards(t)["slo.json"]
+	if !ok {
+		t.Fatal("slo.json is not shipped (§11)")
+	}
+
+	var text strings.Builder
+	for _, panel := range board.Panels {
+		text.WriteString(panel.Title)
+		text.WriteString(" ")
+	}
+	rows := text.String()
+
+	for _, slo := range []string{"SLO-1", "SLO-2", "SLO-3", "SLO-4", "SLO-5", "SLO-6", "SLO-7", "SLO-8"} {
+		if !strings.Contains(rows, slo) {
+			t.Errorf("%s has no row in slo.json - §2 lists eight objectives and the view shows them all", slo)
+		}
+	}
+}
+
+// The tenant label is off by default (§3.2), and a dashboard built on it must say so rather than
+// render empty graphs: an operator who sees "No data" concludes the panel is broken, and the one
+// who reads the notice knows it is a setting. Grafana's `noValue` is the whole mechanism - it
+// replaces an empty result with the text, so the degradation needs no plugin and no scripting.
+func TestTheTenantDashboardDegradesToANotice(t *testing.T) {
+	board, ok := dashboards(t)["tenant.json"]
+	if !ok {
+		t.Fatal("tenant.json is not shipped (§11)")
+	}
+
+	var explains bool
+	for _, panel := range board.Panels {
+		if strings.Contains(panel.Options.Content, "HUBTASK_METRICS_TENANT_LABEL") {
+			explains = true
+		}
+		for _, target := range panel.Targets {
+			if !strings.Contains(target.Expr, "tenant_id") {
+				continue
+			}
+			if strings.TrimSpace(panel.FieldConfig.Defaults.NoValue) == "" {
+				t.Errorf("panel %q reads tenant_id and has no noValue notice: without the label "+
+					"it renders as No data, which reads as a broken panel rather than as a "+
+					"setting that is off (§3.2)", panel.Title)
+			}
+		}
+	}
+	if !explains {
+		t.Error("tenant.json nowhere names HUBTASK_METRICS_TENANT_LABEL - the notice it degrades " +
+			"to has to say which setting fills it")
 	}
 }
