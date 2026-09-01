@@ -296,10 +296,11 @@ BEGIN
     BEGIN
       EXECUTE format('CREATE TABLE %I PARTITION OF %I FOR VALUES FROM (%L) TO (%L)',
         name, parent, starts, ends);
-    EXCEPTION WHEN check_violation OR invalid_table_definition THEN
-      -- Rows for that month already sit in the default partition; creating the month now would
-      -- have to move them. The default is the catch-all, and living with it for one month is
-      -- the honest outcome (ensure_audit_partition's reasoning).
+    EXCEPTION WHEN check_violation OR invalid_table_definition OR invalid_object_definition THEN
+      -- The month is already covered - its rows sit in the default partition, or the history
+      -- partition's open-ended range holds it (every pre-conversion month does). Creating the
+      -- month now would have to move rows; living with the covering partition is the honest
+      -- outcome (ensure_audit_partition's reasoning).
       RETURN NULL;
     END;
     target := to_regclass(format('public.%I', name));
@@ -332,24 +333,66 @@ END $$;
 REVOKE ALL ON FUNCTION ensure_stream_partition(text, date) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ensure_stream_partition(text, date) TO hubtask_app;
 
+-- The maintenance read the drop function opens (the trail purge's marker discipline): a
+-- dedicated SELECT policy on the two period tables, honouring the transaction-scoped marker the
+-- function sets and clears around one aggregate read. Policies are OR'd, so tenants' own reads
+-- are untouched; without the marker the policy grants nothing to anybody.
+-- +goose StatementBegin
+DO $scan_policies$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'retention_policy' AND policyname = 'retention_maintenance_read') THEN
+    CREATE POLICY retention_maintenance_read ON retention_policy FOR SELECT
+      USING (current_setting('hubtask.retention_scan', true) = 'on');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'retention_rule' AND policyname = 'retention_maintenance_read') THEN
+    CREATE POLICY retention_maintenance_read ON retention_rule FOR SELECT
+      USING (current_setting('hubtask.retention_scan', true) = 'on');
+  END IF;
+END $scan_policies$;
+-- +goose StatementEnd
+
 -- The retention half (H-09): an aged-out month of a partitioned stream is a dropped partition,
 -- not a million-row DELETE. SECURITY DEFINER, because the application role holds no DDL - the
 -- one narrow act, the purge_tenant_trail discipline. It refuses to drop the default partition
 -- and anything whose upper bound is not wholly past the cutoff, counts the rows as the evidence
 -- needs them, and answers NULL when there is nothing to drop.
 -- +goose StatementBegin
-CREATE OR REPLACE FUNCTION drop_stream_partition(parent text, cutoff timestamptz) RETURNS TABLE (
+CREATE OR REPLACE FUNCTION drop_stream_partition(parent text, default_days integer) RETURNS TABLE (
   dropped text, rows_removed bigint
 )
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
+  kind      text;
+  horizon   integer;
+  cutoff    timestamptz;
   candidate record;
   removed   bigint;
 BEGIN
-  IF parent NOT IN ('activity_entry', 'outbox_event', 'rule_run') THEN
+  kind := CASE parent
+    WHEN 'activity_entry' THEN 'ACTIVITY_ENTRY'
+    WHEN 'outbox_event'   THEN 'OUTBOX_EVENT'
+    WHEN 'rule_run'       THEN 'RULE_RUN'
+    ELSE NULL
+  END;
+  IF kind IS NULL THEN
     RAISE EXCEPTION 'drop_stream_partition: % is not a partitioned stream', parent
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  IF default_days <= 0 THEN
+    -- A stream with no bound has no aged-out month; nothing may fall.
+    RETURN;
+  END IF;
+
+  PERFORM set_config('hubtask.retention_scan', 'on', true);
+  SELECT GREATEST(
+    default_days,
+    coalesce((SELECT max(retain_days) FROM retention_policy WHERE data_kind = kind), 0),
+    coalesce((SELECT max(retain_days + coalesce(then_after_days, 0) + grace_days)
+              FROM retention_rule WHERE data_kind = kind AND enabled), 0)
+  ) INTO horizon;
+  PERFORM set_config('hubtask.retention_scan', '', true);
+
+  cutoff := now() - make_interval(days => horizon);
 
   FOR candidate IN
     SELECT c.relname AS name,
@@ -375,8 +418,8 @@ BEGIN
 END $$;
 -- +goose StatementEnd
 
-REVOKE ALL ON FUNCTION drop_stream_partition(text, timestamptz) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION drop_stream_partition(text, timestamptz) TO hubtask_app;
+REVOKE ALL ON FUNCTION drop_stream_partition(text, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION drop_stream_partition(text, integer) TO hubtask_app;
 
 -- Seed the coming months, the audit pattern: this month is still the history partition's
 -- (its bound runs to next month), so only next month needs a table of its own.

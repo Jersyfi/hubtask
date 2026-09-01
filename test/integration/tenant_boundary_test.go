@@ -130,7 +130,14 @@ func TestAPartitionCannotBeUsedToReadAnotherTenant(t *testing.T) {
 
 	// The question is not how many rows a relation holds - the default partition legitimately
 	// holds none - but whether any of them belong to the other tenant.
-	for _, relation := range []string{"audit_log", "audit_log_2026_08", "audit_log_default"} {
+	// The three monthly streams joined the pattern with H-09: parent, history and default each
+	// answer under the same policy, addressed directly or through the parent.
+	for _, relation := range []string{
+		"audit_log", "audit_log_2026_08", "audit_log_default",
+		"activity_entry", "activity_entry_history", "activity_entry_default",
+		"outbox_event", "outbox_event_history", "outbox_event_default",
+		"rule_run", "rule_run_history", "rule_run_default",
+	} {
 		t.Run(relation, func(t *testing.T) {
 			var foreign int
 			err := uow.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantA}, func(ctx context.Context) error {

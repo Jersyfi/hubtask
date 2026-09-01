@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/catalogue"
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
@@ -54,6 +55,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	clockport "github.com/Jersyfi/hubtask/core/port/clock"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
@@ -2047,6 +2049,10 @@ func run() error {
 			StreamPartitions: streamPartitionsInBackground{
 				Partitions: postgres.NewStreamPartitionRepository(), Work: backgroundWork,
 			},
+			StreamEvidence: streamEvidenceInBackground{
+				Journal: postgres.NewInstanceJournal(), IDs: ids, Work: backgroundWork,
+				Clock: clockadapter.System{},
+			},
 		}
 		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))
 	}
@@ -2431,6 +2437,29 @@ func schemaVersion() string {
 
 // backupRunsInBackground reads the backup freshness on the background pool, which is where every
 // leader duty runs: the API's pool is for requests.
+// streamEvidenceInBackground writes the drop's evidence into the instance journal - the record
+// a partition spanning every tenant can have, where no per-tenant trail could hold it
+// (audit.md §6, H-06's journal).
+type streamEvidenceInBackground struct {
+	Journal adminrepo.Journal
+	IDs     clockport.IDGenerator
+	Clock   clockport.Clock
+	Work    persistenceport.UnitOfWork
+}
+
+func (b streamEvidenceInBackground) PartitionDropped(
+	ctx context.Context, table, partition string, rows int64,
+) error {
+	return b.Work.Within(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		return b.Journal.Record(ctx, adminrepo.InstanceEvent{
+			ID: b.IDs.NewID(), OccurredAt: b.Clock.Now(), Action: "retention.partition_dropped",
+			Details: map[string]any{
+				"table": table, "partition": partition, "rows": rows,
+			},
+		})
+	})
+}
+
 // streamPartitionsInBackground is auditPartitionsInBackground's shape for the three monthly
 // streams (H-09): the system-scoped transaction both narrow acts run in.
 type streamPartitionsInBackground struct {
@@ -2451,11 +2480,11 @@ func (b streamPartitionsInBackground) Ensure(
 }
 
 func (b streamPartitionsInBackground) DropAged(
-	ctx context.Context, table string, cutoff time.Time,
+	ctx context.Context, table string, defaultDays int,
 ) ([]streamsrepo.Dropped, error) {
 	var dropped []streamsrepo.Dropped
 	err := b.Work.Within(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
-		aged, err := b.Partitions.DropAged(ctx, table, cutoff)
+		aged, err := b.Partitions.DropAged(ctx, table, defaultDays)
 		dropped = aged
 		return err
 	})

@@ -12,12 +12,12 @@ import (
 )
 
 const dropAgedStreamPartitions = `-- name: DropAgedStreamPartitions :many
-SELECT d.dropped::text AS dropped, d.rows_removed::bigint AS rows_removed FROM drop_stream_partition($1::text, $2::timestamptz) AS d
+SELECT d.dropped::text AS dropped, d.rows_removed::bigint AS rows_removed FROM drop_stream_partition($1::text, $2::int) AS d
 `
 
 type DropAgedStreamPartitionsParams struct {
-	Parent string
-	Cutoff pgtype.Timestamptz
+	Parent      string
+	DefaultDays int32
 }
 
 type DropAgedStreamPartitionsRow struct {
@@ -27,7 +27,7 @@ type DropAgedStreamPartitionsRow struct {
 
 // The casts are for the generator: it cannot see into the function's OUT table.
 func (q *Queries) DropAgedStreamPartitions(ctx context.Context, arg DropAgedStreamPartitionsParams) ([]DropAgedStreamPartitionsRow, error) {
-	rows, err := q.db.Query(ctx, dropAgedStreamPartitions, arg.Parent, arg.Cutoff)
+	rows, err := q.db.Query(ctx, dropAgedStreamPartitions, arg.Parent, arg.DefaultDays)
 	if err != nil {
 		return nil, err
 	}

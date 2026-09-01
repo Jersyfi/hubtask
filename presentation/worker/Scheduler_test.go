@@ -362,7 +362,7 @@ func (p *streamPartitions) Ensure(_ context.Context, table string, month time.Ti
 	return table + "_" + month.Format("2006_01"), nil
 }
 
-func (p *streamPartitions) DropAged(context.Context, string, time.Time) ([]streams.Dropped, error) {
+func (p *streamPartitions) DropAged(context.Context, string, int) ([]streams.Dropped, error) {
 	return nil, nil
 }
 

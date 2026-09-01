@@ -47,7 +47,7 @@ func (StreamPartitionRepository) Ensure(
 
 // DropAged lets go what has wholly aged out.
 func (StreamPartitionRepository) DropAged(
-	ctx context.Context, table string, cutoff time.Time,
+	ctx context.Context, table string, defaultDays int,
 ) ([]repository.Dropped, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -56,7 +56,8 @@ func (StreamPartitionRepository) DropAged(
 
 	rows, err := queries.DropAgedStreamPartitions(ctx, sqlc.DropAgedStreamPartitionsParams{
 		Parent: table,
-		Cutoff: pgtype.Timestamptz{Time: cutoff, Valid: true},
+		//nolint:gosec // G115: a day count from the closed catalogue, tiny
+		DefaultDays: int32(defaultDays),
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.

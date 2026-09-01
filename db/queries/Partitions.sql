@@ -8,4 +8,4 @@ SELECT COALESCE(ensure_stream_partition(sqlc.arg('parent')::text, sqlc.arg('mont
 
 -- name: DropAgedStreamPartitions :many
 -- The casts are for the generator: it cannot see into the function's OUT table.
-SELECT d.dropped::text AS dropped, d.rows_removed::bigint AS rows_removed FROM drop_stream_partition(sqlc.arg('parent')::text, sqlc.arg('cutoff')::timestamptz) AS d;
+SELECT d.dropped::text AS dropped, d.rows_removed::bigint AS rows_removed FROM drop_stream_partition(sqlc.arg('parent')::text, sqlc.arg('default_days')::int) AS d;
