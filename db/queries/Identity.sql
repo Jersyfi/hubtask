@@ -13,7 +13,9 @@ SELECT
   a.locale   AS account_locale,
   a.time_zone AS account_time_zone,
   n.default_locale,
-  n.default_time_zone
+  n.default_time_zone,
+  n.slug         AS tenant_slug,
+  n.status::text AS tenant_status
 FROM access_token t
 JOIN account a ON a.id = t.account_id
 JOIN tenant  n ON n.id = t.tenant_id

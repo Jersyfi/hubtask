@@ -141,6 +141,8 @@ func (r SessionRepository) FindForAuth(
 		},
 		TenantLocale:   row.DefaultLocale,
 		TenantTimeZone: row.DefaultTimeZone,
+		TenantSlug:     row.TenantSlug,
+		TenantStatus:   identity.TenantStatus(row.TenantStatus),
 	}, nil
 }
 
@@ -371,6 +373,8 @@ func (r RefreshTokenRepository) FindByToken(
 		},
 		TenantLocale:   row.DefaultLocale,
 		TenantTimeZone: row.DefaultTimeZone,
+		TenantSlug:     row.TenantSlug,
+		TenantStatus:   identity.TenantStatus(row.TenantStatus),
 	}, nil
 }
 
@@ -451,6 +455,8 @@ func (r SignInRepository) FindForSignIn(
 		PasswordHash:   secret.New(stringFrom(row.PasswordHash)),
 		TenantLocale:   row.DefaultLocale,
 		TenantTimeZone: row.DefaultTimeZone,
+		TenantSlug:     row.TenantSlug,
+		TenantStatus:   identity.TenantStatus(row.TenantStatus),
 	}, nil
 }
 
@@ -516,6 +522,8 @@ func (r SignInRepository) FindByRedemptionToken(
 		ExpiresAt:      timeFrom(row.RedemptionExpiresAt),
 		TenantLocale:   row.DefaultLocale,
 		TenantTimeZone: row.DefaultTimeZone,
+		TenantSlug:     row.TenantSlug,
+		TenantStatus:   identity.TenantStatus(row.TenantStatus),
 	}, nil
 }
 

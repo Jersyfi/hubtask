@@ -119,6 +119,7 @@ func mintCredential(t *testing.T) (string, repository.Credential) {
 	}
 
 	return token.Secret(), repository.Credential{
+		TenantStatus: identity.TenantActive,
 		Token: identity.AccessToken{
 			ID:         tokenID,
 			TenantID:   tenant,
@@ -391,5 +392,44 @@ func TestTheActorCarriesTheAccountLabel(t *testing.T) {
 	}
 	if actor.AccountName != "Anna Beispiel" {
 		t.Errorf("the actor carries %q as its label", actor.AccountName)
+	}
+}
+
+// A suspended workspace refuses at authentication, once, for every route (H-06,
+// multi-tenancy.md §5): the credential is real, so the answer is forbidden with the lifecycle's
+// own code rather than unauthenticated.
+func TestASuspendedTenantRefusesAuthentication(t *testing.T) {
+	raw, credential := mintCredential(t)
+	credential.TenantStatus = identity.TenantSuspended
+	store := &tokens{credential: credential}
+
+	_, err := handlerFor(store, &unitOfWork{}).Execute(t.Context(), AuthenticateTokenCommand{
+		Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC",
+	})
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) {
+		t.Fatalf("not a domain error: %v", err)
+	}
+	if !errors.Is(err, shared.ErrForbidden) || domainErr.DetailCode != "access.tenant_suspended" {
+		t.Errorf("answer %v, want forbidden access.tenant_suspended", err)
+	}
+}
+
+// The slug rides with the actor so the middleware can compare §3's weaker sources without a
+// second lookup.
+func TestTheActorCarriesTheWorkspaceSlug(t *testing.T) {
+	raw, credential := mintCredential(t)
+	credential.TenantSlug = "acme"
+	store := &tokens{credential: credential}
+
+	actor, err := handlerFor(store, &unitOfWork{}).Execute(t.Context(), AuthenticateTokenCommand{
+		Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC",
+	})
+	if err != nil {
+		t.Fatalf("authentication failed: %v", err)
+	}
+	if actor.TenantSlug != "acme" {
+		t.Errorf("slug %q, want acme", actor.TenantSlug)
 	}
 }

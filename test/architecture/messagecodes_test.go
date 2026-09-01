@@ -54,7 +54,7 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 // error model, the health report's degradation reasons, or the load shedder's capacity refusals.
 // Narrow on purpose: only the prefixes that exist today, so that an example in a test comment
 // does not turn into a false alarm.
-var messageCode = regexp.MustCompile(`"((?:route|request|access|accounts|auth|oauth|groups|memberships|idempotency|config|errors|dependency|capacity|containers|items|buckets|labels|comments|fields|media|ordering|events|sync|storage|audit|usecase|shared|automation|lifecycle|activity|query|views|notifications|email|mail|jobs|crypto|calendar|backup)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
+var messageCode = regexp.MustCompile(`"((?:route|request|access|accounts|auth|oauth|admin|groups|memberships|idempotency|config|errors|dependency|capacity|containers|items|buckets|labels|comments|fields|media|ordering|events|sync|storage|audit|usecase|shared|automation|lifecycle|activity|query|views|notifications|email|mail|jobs|crypto|calendar|backup)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
 
 // TestEveryUsedMessageCodeIsInTheCatalogue reads the source rather than a registry: a code is
 // used where it is written, and a registry would only be a second place to forget.

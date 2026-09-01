@@ -124,7 +124,8 @@ func (s *pendingStore) Insert(
 	_ context.Context, credential domain.PendingCredential, presented domain.Token,
 ) error {
 	s.rows[presented.Secret()] = repository.PendingLookup{
-		Credential: credential,
+		TenantStatus: domain.TenantActive,
+		Credential:   credential,
 		Account: domain.Account{
 			ID: credential.AccountID, TenantID: credential.TenantID,
 			Kind: domain.AccountUser, DisplayName: "Bert", Status: domain.AccountActive,

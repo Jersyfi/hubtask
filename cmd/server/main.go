@@ -1371,10 +1371,12 @@ func run() error {
 			Clock:      clockadapter.System{},
 			// The session half (H-01): the signature refuses forgeries before any lookup, the
 			// row answers whether the session is still alive. A session carries every declared
-			// scope, because it is the person rather than a bounded credential.
+			// scope except the control plane's, because it is the person rather than a bounded
+			// credential - and the admin surface is entered by a deliberately minted credential,
+			// never by whoever happens to be signed in (H-06, 0.6.0 decision 6).
 			Sessions:      sessions,
 			Signer:        sessionSigner,
-			SessionScopes: catalogue.Scopes(),
+			SessionScopes: catalogue.SessionScopes(),
 		}
 
 		// One limiter, two levels: per credential or client address before authentication, per
@@ -1459,6 +1461,9 @@ func run() error {
 											Routes:        apiRoutes,
 											Authenticator: authenticate,
 											Locale:        cfg.Locale,
+											// The subdomain check of multi-tenancy.md §3 (H-06);
+											// the controller reads its host the same way.
+											BaseHost: controller.BaseHost,
 											Next: rest.Limited{
 												Limiter: limiter,
 												Level:   "tenant",

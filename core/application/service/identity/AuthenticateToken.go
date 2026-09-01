@@ -106,6 +106,11 @@ func (a AuthenticateToken) Execute(
 		if err := credential.Account.Verify(); err != nil {
 			return err
 		}
+		// The workspace's own standing refuses before any use case runs: a suspension flips
+		// authentication itself (H-06, multi-tenancy.md §5).
+		if err := credential.TenantStatus.Verify(); err != nil {
+			return err
+		}
 
 		if credential.Token.NeedsTouch(now, LastUsedInterval) {
 			if err := a.Tokens.TouchLastUsed(ctx, credential.Token.ID, now); err != nil {
@@ -120,6 +125,7 @@ func (a AuthenticateToken) Execute(
 		actor = appshared.ActorContext{
 			Kind:        actorKind(credential.Account.Kind),
 			TenantID:    credential.Token.TenantID,
+			TenantSlug:  credential.TenantSlug,
 			AccountID:   credential.Account.ID,
 			AccountName: credential.Account.DisplayName,
 			TokenID:     credential.Token.ID,
@@ -177,6 +183,10 @@ func (a AuthenticateToken) executeSession(
 		if err := credential.Account.Verify(); err != nil {
 			return err
 		}
+		// AuthenticateToken's reason: the suspension refuses here, once, for every route.
+		if err := credential.TenantStatus.Verify(); err != nil {
+			return err
+		}
 
 		if credential.Session.NeedsTouch(now, LastUsedInterval) {
 			if err := a.Sessions.TouchLastSeen(ctx, credential.Session.ID, now); err != nil {
@@ -196,6 +206,7 @@ func (a AuthenticateToken) executeSession(
 		actor = appshared.ActorContext{
 			Kind:        actorKind(credential.Account.Kind),
 			TenantID:    claims.TenantID,
+			TenantSlug:  credential.TenantSlug,
 			AccountID:   credential.Account.ID,
 			AccountName: credential.Account.DisplayName,
 			// The session stands where a token identifier would: it is the credential of the

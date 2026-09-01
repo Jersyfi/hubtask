@@ -70,7 +70,8 @@ func stepUpFixture(at time.Time) *sessionFixture {
 	fixture.writer.StepUps = newStepUps()
 	credential, _ := refreshCredential(at)
 	fixture.sessions.sessions[sessionRowID] = repository.SessionCredential{
-		Session: credential.Session, Account: credential.Account,
+		TenantStatus: domain.TenantActive,
+		Session:      credential.Session, Account: credential.Account,
 	}
 	fixture.withAccount("bert@example.org", "correct horse battery")
 	return fixture

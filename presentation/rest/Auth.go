@@ -5,6 +5,7 @@ package rest
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"strings"
 
@@ -90,6 +91,10 @@ type Authenticated struct {
 	Authenticator TokenAuthenticator
 	// Locale carries the installation defaults, the last link of the resolution chain.
 	Locale env.LocaleConfig
+	// BaseHost is the installation's own host name, for reading a tenant subdomain off the
+	// request (multi-tenancy.md §3). Empty means no subdomain is ever read - single mode, or an
+	// installation that did not state its base URL.
+	BaseHost string
 }
 
 func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -127,9 +132,15 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The header is the third source of tenant resolution and the weakest: it may confirm the
-	// token, never overrule it (multi-tenancy.md §3).
-	if claimed := r.Header.Get(TenantHeader); claimed != "" && claimed != actor.TenantID.String() {
+	// The subdomain and the header are §3's weaker sources of tenant resolution: either may
+	// confirm the token's claim, never overrule it - a contradiction is answered with the code
+	// the table names, not resolved in anybody's favour (multi-tenancy.md §3).
+	if label := tenantLabel(r.Host, a.BaseHost); label != "" && label != actor.TenantSlug {
+		WriteProblem(w, shared.ErrForbidden.WithDetail("access.tenant_mismatch"), requestID)
+		return
+	}
+	if claimed := r.Header.Get(TenantHeader); claimed != "" &&
+		claimed != actor.TenantID.String() && claimed != actor.TenantSlug {
 		WriteProblem(w, shared.ErrForbidden.WithDetail("access.tenant_mismatch"), requestID)
 		return
 	}
@@ -144,6 +155,22 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.Next.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// tenantLabel reads the subdomain off a request host, when this installation knows its own.
+// One label and no more: a nested subdomain names nothing here.
+func tenantLabel(host, baseHost string) string {
+	if baseHost == "" {
+		return ""
+	}
+	if split, _, err := net.SplitHostPort(host); err == nil {
+		host = split
+	}
+	label, found := strings.CutSuffix(strings.ToLower(host), "."+baseHost)
+	if !found || label == "" || strings.Contains(label, ".") {
+		return ""
+	}
+	return label
 }
 
 // bearerCredential reads the Authorization header. An absent header is not an error - that is an

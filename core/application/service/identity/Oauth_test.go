@@ -183,7 +183,8 @@ func newOauthFixture(at time.Time) *oauthFixture {
 	// The consent demands a person's own session behind the actor.
 	credential, _ := refreshCredential(at)
 	session.sessions.sessions[sessionRowID] = repository.SessionCredential{
-		Session: credential.Session, Account: credential.Account,
+		TenantStatus: domain.TenantActive,
+		Session:      credential.Session, Account: credential.Account,
 	}
 	f.writer = OauthWriter{
 		Session: session.writer, Clients: f.clients, Grants: f.grants, Codes: f.codes,

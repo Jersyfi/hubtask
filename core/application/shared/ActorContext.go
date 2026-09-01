@@ -45,6 +45,10 @@ type ActorContext struct {
 	Kind ActorKind
 	// TenantID is empty exactly when the actor is anonymous.
 	TenantID shared.ID
+	// TenantSlug is the workspace's public name, riding with the credential (H-06) so the
+	// middleware can compare §3's weaker resolution sources - the subdomain and the header -
+	// against what the credential says without a second lookup.
+	TenantSlug string
 	// AccountID is the acting account. Empty for the system itself.
 	AccountID shared.ID
 	// AccountName is the label the audit trail records next to the identifier. It travels with

@@ -289,6 +289,7 @@ func newSessionFixture(at time.Time) *sessionFixture {
 
 func (f *sessionFixture) withAccount(email, password string) {
 	f.accounts.byEmail[email] = repository.SignInAccount{
+		TenantStatus: domain.TenantActive,
 		Account: domain.Account{
 			ID: account, TenantID: tenant, Kind: domain.AccountUser,
 			Email: email, DisplayName: "Bert", Status: domain.AccountActive,
@@ -448,6 +449,7 @@ func TestATenantHeaderMayConfirmButNeverOverrule(t *testing.T) {
 func refreshCredential(at time.Time) (repository.RefreshCredential, domain.Token) {
 	presented, _ := domain.NewRefreshToken(tenant, []byte(strings.Repeat("a", domain.TokenSecretBytes)))
 	return repository.RefreshCredential{
+		TenantStatus: domain.TenantActive,
 		Token: domain.RefreshToken{
 			ID: refreshRowID, TenantID: tenant, SessionID: sessionRowID,
 			CreatedAt: at.Add(-time.Hour), ExpiresAt: at.Add(29 * 24 * time.Hour),
@@ -617,7 +619,8 @@ func TestASessionTokenAuthenticates(t *testing.T) {
 	sessions := newSessionsStore()
 	credential, _ := refreshCredential(now)
 	sessions.sessions[sessionRowID] = repository.SessionCredential{
-		Session: credential.Session, Account: credential.Account,
+
+		TenantStatus: domain.TenantActive, Session: credential.Session, Account: credential.Account,
 		TenantLocale: "en", TenantTimeZone: "UTC",
 	}
 	signer := validatingSigner{token: "hbt_sat_x", claims: cryptoport.SessionClaims{
@@ -648,7 +651,8 @@ func TestARevokedSessionRefusesItsPairImmediately(t *testing.T) {
 	credential, _ := refreshCredential(now)
 	credential.Session.RevokedAt = now.Add(-time.Second)
 	sessions.sessions[sessionRowID] = repository.SessionCredential{
-		Session: credential.Session, Account: credential.Account,
+
+		TenantStatus: domain.TenantActive, Session: credential.Session, Account: credential.Account,
 	}
 	signer := validatingSigner{token: "hbt_sat_x", claims: cryptoport.SessionClaims{
 		TenantID: tenant, SessionID: sessionRowID, AccountID: account,
@@ -705,7 +709,8 @@ func TestRevokeSessionIsIdempotentForOnesOwnAndNotFoundForOthers(t *testing.T) {
 	// The live one revokes and is audited.
 	credential, _ := refreshCredential(now)
 	fixture.sessions.sessions[sessionRowID] = repository.SessionCredential{
-		Session: credential.Session, Account: credential.Account,
+
+		TenantStatus: domain.TenantActive, Session: credential.Session, Account: credential.Account,
 	}
 	if err := handler.Execute(t.Context(), sessionActor(accountRead), sessionRowID); err != nil {
 		t.Fatalf("revoking: %v", err)
@@ -766,6 +771,7 @@ func redemptionToken(t *testing.T) domain.Token {
 
 func waitingRedemption() repository.RedemptionAccount {
 	return repository.RedemptionAccount{
+		TenantStatus: domain.TenantActive,
 		Account: domain.Account{
 			ID: account, TenantID: tenant, Kind: domain.AccountUser,
 			Email: "bert@example.org", DisplayName: "Bert", Status: domain.AccountInvited,
@@ -881,5 +887,39 @@ func TestMintRedemptionTokenAnswersOnceAndStoresAHash(t *testing.T) {
 	token, err = minter.MintRedemptionToken(t.Context(), tenant, account)
 	if err != nil || !token.IsEmpty() {
 		t.Errorf("a settled account answered (%q, %v), want the empty secret", token.Reveal(), err)
+	}
+}
+
+// A suspended workspace refuses sign-in with the lifecycle's own code - after the password, so
+// the refusal proves nothing to somebody probing addresses (H-06, multi-tenancy.md §5).
+func TestASuspendedTenantRefusesSignInAfterThePassword(t *testing.T) {
+	fixture := newSessionFixture(now)
+	fixture.withAccount("bert@example.org", "correct horse battery")
+	suspended := fixture.accounts.byEmail["bert@example.org"]
+	suspended.TenantStatus = domain.TenantSuspended
+	fixture.accounts.byEmail["bert@example.org"] = suspended
+
+	_, err := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
+		Email: "bert@example.org", Password: secret.New("correct horse battery"),
+	})
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) {
+		t.Fatalf("not a domain error: %v", err)
+	}
+	if !errors.Is(err, shared.ErrForbidden) || domainErr.DetailCode != "access.tenant_suspended" {
+		t.Errorf("answer %v, want forbidden access.tenant_suspended", err)
+	}
+	if len(fixture.sessions.inserted) != 0 {
+		t.Errorf("%d sessions written into a suspended workspace", len(fixture.sessions.inserted))
+	}
+
+	// The wrong password still answers the indistinguishable refusal, suspension or not: the
+	// standing is only spoken about once the caller has proved they are the holder.
+	_, err = SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
+		Email: "bert@example.org", Password: secret.New("wrong"),
+	})
+	if !errors.As(err, &domainErr) || domainErr.DetailCode == "access.tenant_suspended" {
+		t.Errorf("a wrong password leaked the suspension: %v", err)
 	}
 }

@@ -20,6 +20,7 @@ package catalogue
 
 import (
 	"slices"
+	"strings"
 
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
@@ -235,5 +236,20 @@ func Scopes() []string {
 		scopes = append(scopes, descriptor.TokenScope)
 	}
 	slices.Sort(scopes)
+	return scopes
+}
+
+// SessionScopes is what a session-authenticated person may exercise: every declared scope except
+// the control plane's. A session is the person themselves - but the admin surface is entered by
+// a deliberately minted credential, never by whoever happens to be signed in (H-06, 0.6.0
+// decision 6), so the one scope class sessions never carry is `admin:*`.
+func SessionScopes() []string {
+	scopes := make([]string, 0, len(Scopes()))
+	for _, scope := range Scopes() {
+		if strings.HasPrefix(scope, "admin:") {
+			continue
+		}
+		scopes = append(scopes, scope)
+	}
 	return scopes
 }

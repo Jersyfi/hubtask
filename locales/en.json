@@ -131,6 +131,16 @@
   "oauth.grant_revoked": "What this app was allowed has been withdrawn. Authorize again.",
   "oauth.grant_not_found": "There is no such grant.",
   "oauth.authorization_failed": "That authorization cannot be made. Check the app and the redirect URI.",
+
+  "admin.tenant_not_found": "There is no such workspace.",
+  "admin.slug_taken": "That subdomain is already a workspace's. Choose another.",
+  "admin.tenant_not_suspended": "That workspace is not suspended.",
+  "admin.tenant_already_active": "That workspace is already active.",
+  "admin.tenant_leaving": "That workspace is pending deletion. Its lifecycle only moves forward from here.",
+  "admin.deletion_confirmation_required": "Deleting a workspace needs its display name, typed exactly. Expected {name}.",
+  "admin.multi_mode_required": "This installation runs in single mode. The control plane provisions workspaces only in multi mode.",
+  "access.tenant_suspended": "This workspace is suspended. Its data remains; ask the operator.",
+  "access.tenant_pending_deletion": "This workspace is being deleted. Access is closed while the grace period runs.",
   "config.step_up_window_invalid": "HUBTASK_STEP_UP_WINDOW has to be a positive duration, such as 5m.",
 
   "idempotency.key_malformed": "The Idempotency-Key header has to be a UUID.",

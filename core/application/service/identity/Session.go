@@ -213,6 +213,11 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	if err := found.Account.Verify(); err != nil {
 		return SignInResult{}, err
 	}
+	// The workspace's own standing (H-06): a suspended tenant refuses sign-in with the same
+	// code every authenticated call answers, after the password so the refusal leaks nothing.
+	if err := found.TenantStatus.Verify(); err != nil {
+		return SignInResult{}, err
+	}
 
 	challenge, err := w.challengeFor(ctx, scope, found.Account, cmd, subjects)
 	if err != nil {
@@ -284,6 +289,11 @@ func (h RefreshSession) Execute(ctx context.Context, cmd RefreshSessionCommand) 
 			return err
 		}
 		if err := credential.Account.Verify(); err != nil {
+			return err
+		}
+		// The workspace's standing refuses the exchange too (H-06): a suspension without this
+		// would pause access tokens while the refresh chain kept minting new ones.
+		if err := credential.TenantStatus.Verify(); err != nil {
 			return err
 		}
 

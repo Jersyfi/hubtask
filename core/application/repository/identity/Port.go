@@ -28,6 +28,11 @@ type Credential struct {
 	// (i18n-l10n.md §2). Never empty: the columns have defaults.
 	TenantLocale   string
 	TenantTimeZone string
+	// TenantSlug and TenantStatus ride with every credential read (H-06): the middleware
+	// compares the slug against §3's weaker sources, and a suspension flips authentication
+	// itself rather than each use case separately.
+	TenantSlug   string
+	TenantStatus identity.TenantStatus
 }
 
 // AccessTokens finds and maintains personal access tokens.
