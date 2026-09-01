@@ -443,6 +443,7 @@ gate-e2e: docker-build
 gate-observability:
 	$(call require_tool,promtool)
 	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules.yaml
+	$(TOOLS_DIR)/promtool check rules deploy/observability/alerts/prometheus-rules-tenant.yaml
 	@# The structural half - every alert has a runbook, every runbook an alert - is a Go test, so
 	@# that it runs in `make verify` without needing a downloaded tool (test/observability).
 	$(call go_test,,./test/observability/...,)

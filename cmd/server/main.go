@@ -1490,8 +1490,8 @@ func run() error {
 						MaxMailBytes: cfg.Request.MaxMailBytes,
 						Timeout:      cfg.Request.Timeout,
 						Next: rest.Limited{
-							Limiter: limiter,
-							Level:   "credential",
+							Limiter: limiter, Signals: metrics,
+							Level: "credential",
 							Bucket: rest.CredentialBucket(
 								cfg.RateLimit.AnonymousPerMinute,
 								cfg.RateLimit.TokenPerMinute,
@@ -1502,8 +1502,8 @@ func run() error {
 							// shed before either is reached. It applies to those routes and
 							// passes everything else through.
 							Next: rest.Limited{
-								Limiter: limiter,
-								Level:   "auth",
+								Limiter: limiter, Signals: metrics,
+								Level: "auth",
 								Bucket: rest.AuthBucket(
 									cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
 								// The feed's own bucket, in front of the lookup rather than
@@ -1511,8 +1511,8 @@ func run() error {
 								// must not shed the calendar of somebody else behind the same
 								// address (D-08, T-21).
 								Next: rest.Limited{
-									Limiter: limiter,
-									Level:   "feed",
+									Limiter: limiter, Signals: metrics,
+									Level: "feed",
 									Bucket: rest.FeedBucket(
 										cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
 									Next: rest.Localised{
@@ -1527,12 +1527,12 @@ func run() error {
 											Next: rest.Limited{
 												// H-08: the workspace's own per-token ceiling,
 												// engaging only where one is configured.
-												Limiter: limiter,
-												Level:   "token",
-												Bucket:  rest.OverrideBucket(cfg.RateLimit.Burst),
+												Limiter: limiter, Signals: metrics,
+												Level:  "token",
+												Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
 												Next: rest.Limited{
-													Limiter: limiter,
-													Level:   "tenant",
+													Limiter: limiter, Signals: metrics,
+													Level: "tenant",
 													Bucket: rest.TenantBucket(
 														cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
 													Next: rest.Idempotent{

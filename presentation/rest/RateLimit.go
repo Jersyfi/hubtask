@@ -4,6 +4,7 @@
 package rest
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"math"
@@ -144,7 +145,15 @@ type Bucket struct {
 // address, afterwards per tenant (security.md §9, "multi-level"). Counting per credential needs
 // no database - the key is a fingerprint of the presented string - which is what keeps a flood of
 // invalid tokens from costing a lookup each.
+// LimitSignals is the metric slice a refusal reports through - the scope is the level, so an
+// operator sees which wall is being hit (observability-reliability.md §4).
+type LimitSignals interface {
+	RateLimited(ctx context.Context, scope string)
+}
+
 type Limited struct {
+	// Signals is optional; nil records nothing.
+	Signals LimitSignals
 	Next    http.Handler
 	Limiter *RateLimiter
 	// Level names the bucket in the refusal, so an operator reading a 429 knows which limit bit.
@@ -167,6 +176,9 @@ func (l Limited) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeRateLimitHeaders(w, decision)
 
 	if !decision.Allowed {
+		if l.Signals != nil {
+			l.Signals.RateLimited(r.Context(), l.Level)
+		}
 		w.Header().Set("Retry-After", strconv.Itoa(int(decision.RetryAfter.Seconds())))
 		WriteProblem(w,
 			shared.ErrRateLimited.

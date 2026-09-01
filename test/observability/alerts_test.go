@@ -23,9 +23,12 @@ import (
 )
 
 const (
-	rulesFile    = "../../deploy/observability/alerts/prometheus-rules.yaml"
-	runbookDir   = "../../deploy/observability/runbooks"
-	dashboardDir = "../../deploy/observability/dashboards"
+	rulesFile = "../../deploy/observability/alerts/prometheus-rules.yaml"
+	// tenantRulesFile is the multi-tenant operator's additions (H-08): a separate file, so the
+	// self-hosting pin below stays on the set where doing nothing loses data.
+	tenantRulesFile = "../../deploy/observability/alerts/prometheus-rules-tenant.yaml"
+	runbookDir      = "../../deploy/observability/runbooks"
+	dashboardDir    = "../../deploy/observability/dashboards"
 )
 
 // ruleFile is the part of the Prometheus rule format this gate reads. Deliberately not the whole
@@ -42,9 +45,9 @@ type ruleFile struct {
 	} `yaml:"groups"`
 }
 
-func load(t *testing.T) ruleFile {
+func load(t *testing.T, path string) ruleFile {
 	t.Helper()
-	raw, err := os.ReadFile(rulesFile)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("the shipped rules are not readable: %v", err)
 	}
@@ -68,13 +71,27 @@ func alerts(t *testing.T) []struct {
 		Labels      map[string]string `yaml:"labels"`
 		Annotations map[string]string `yaml:"annotations"`
 	}
-	for _, group := range load(t).Groups {
-		all = append(all, group.Rules...)
+	for _, path := range []string{rulesFile, tenantRulesFile} {
+		for _, group := range load(t, path).Groups {
+			all = append(all, group.Rules...)
+		}
 	}
 	if len(all) == 0 {
 		t.Fatal("no alert was read at all - the parser no longer matches the file")
 	}
 	return all
+}
+
+// selfHostingAlerts is the pinned set's own file, alone.
+func selfHostingAlerts(t *testing.T) []string {
+	t.Helper()
+	var got []string
+	for _, group := range load(t, rulesFile).Groups {
+		for _, rule := range group.Rules {
+			got = append(got, rule.Labels["alert_id"])
+		}
+	}
+	return got
 }
 
 // The rule observability-reliability.md §11 states in one line: any alert without a runbook does
@@ -153,10 +170,10 @@ func TestEveryAlertCarriesWhatAnOperatorNeeds(t *testing.T) {
 func TestTheSelfHostingSetIsExactlyWhatWasDecided(t *testing.T) {
 	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12", "A-19", "A-20"}
 
-	var got []string
-	for _, alert := range alerts(t) {
-		got = append(got, alert.Labels["alert_id"])
-	}
+	// The self-hosting file alone: the tenant file next door (A-18, H-08) is the provider's
+	// set, under its own rule - a capacity signal is not "doing nothing loses data", which is
+	// exactly why it does not join this list.
+	got := selfHostingAlerts(t)
 	sort.Strings(got)
 
 	// A-19 joined with E-10, under the rule this test states: a statutory deadline is not a
