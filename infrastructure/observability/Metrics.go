@@ -66,6 +66,8 @@ type Metrics struct {
 	streamRefused     metric.Int64Counter
 	streamRecords     metric.Int64Counter
 	authFailures      metric.Int64Counter
+	poolConnections   metric.Int64Gauge
+	migrationVersion  metric.Int64Gauge
 	tenantLabelActive bool
 }
 
@@ -159,9 +161,25 @@ func (m *Metrics) instruments(meter metric.Meter) error {
 	}
 	if m.configInvalid, err = meter.Int64Counter(
 		namespace+"_config_invalid_total",
-		metric.WithDescription("Configuration rejected at startup, by variable."),
+		metric.WithDescription("Configuration the process flagged at startup, by key. A hard "+
+			"rejection stops the process before the exporter exists - what this carries are the "+
+			"tolerated misconfigurations /meta/health warns about, as a series A-14 can watch."),
 	); err != nil {
 		return fmt.Errorf("config counter: %w", err)
+	}
+	if m.poolConnections, err = meter.Int64Gauge(
+		namespace+"_db_pool_connections",
+		metric.WithDescription("Connections per pool by state: in_use, idle, and the configured "+
+			"max, which is what turns the first two into a utilisation (A-11)."),
+	); err != nil {
+		return fmt.Errorf("pool gauge: %w", err)
+	}
+	if m.migrationVersion, err = meter.Int64Gauge(
+		namespace+"_migration_version",
+		metric.WithDescription("The migration this build embeds. Differing values across the "+
+			"cluster mean a rollout in progress; differing for long means a stuck one (A-13)."),
+	); err != nil {
+		return fmt.Errorf("migration gauge: %w", err)
 	}
 	if m.breakerState, err = meter.Int64Gauge(
 		namespace+"_circuit_breaker_state",
@@ -751,6 +769,24 @@ func (m *Metrics) DataSubjectDeadline(ctx context.Context, stage string, count i
 // than as guesswork in a support conversation.
 func (m *Metrics) ConfigInvalid(ctx context.Context, key string) {
 	m.configInvalid.Add(ctx, 1, metric.WithAttributes(attribute.String("key", key)))
+}
+
+// PoolConnections publishes one pool's connection states. The max joins in_use and idle as a
+// third state rather than a separate metric, because it is the denominator A-11 divides by and
+// belongs on the same series a dashboard already reads. The pool label tells the API's pool from
+// the background one - their saturation means different things (§6).
+func (m *Metrics) PoolConnections(ctx context.Context, pool string, inUse, idle, maxConns int64) {
+	for state, value := range map[string]int64{"in_use": inUse, "idle": idle, "max": maxConns} {
+		m.poolConnections.Record(ctx, value, metric.WithAttributes(
+			attribute.String("pool", pool), attribute.String("state", state)))
+	}
+}
+
+// MigrationVersion publishes the migration this build embeds, once at startup. It deliberately
+// reports the build, not the database: every pod asks the same database, so the database's answer
+// could never differ between pods, and differing is the whole signal (A-13).
+func (m *Metrics) MigrationVersion(ctx context.Context, version int64) {
+	m.migrationVersion.Record(ctx, version)
 }
 
 // Shutdown flushes the meter. Metrics missing from the last seconds of a pod's life are exactly

@@ -209,6 +209,8 @@ var allowedLabels = map[string]bool{
 	"job_type": true, "attempt_class": true,
 	// hubtask_build_info
 	"version": true, "commit": true, "go_version": true,
+	// hubtask_db_pool_connections
+	"pool": true, "state": true,
 	// Only with HUBTASK_METRICS_TENANT_LABEL, and covered by its own test.
 	"tenant_id": true,
 	// The exporter's own marker on a counter series.
@@ -239,6 +241,8 @@ func exerciseEveryInstrument(m *Metrics) {
 	m.QueueDepth(ctx, "outbox.dispatch", 12)
 	m.OutboxLag(ctx, 1.5)
 	m.SchedulerTickLag(ctx, 2)
+	m.PoolConnections(ctx, "api", 4, 6, 10)
+	m.MigrationVersion(ctx, 68)
 }
 
 // The gate for label cardinality: no label may appear that the catalogue does not list. A test
@@ -400,6 +404,31 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 		`hubtask_scheduler_tick_lag_seconds 4`,
 		`hubtask_job_duration_seconds_sum{job_type="outbox.dispatch"} 0.25`,
 		`hubtask_outbox_lag_seconds_sum 1.5`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the scrape does not contain %s", want)
+		}
+	}
+}
+
+// The saturation and rollout gauges H-12 added, under their catalogue names (§4): the pool with
+// its three states including the max A-11 divides by, and the embedded migration version whose
+// spread across pods is what A-13 reads.
+func TestThePoolAndMigrationGaugesAreScrapable(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+	ctx := context.Background()
+
+	m.PoolConnections(ctx, "api", 8, 2, 10)
+	m.PoolConnections(ctx, "background", 1, 4, 20)
+	m.MigrationVersion(ctx, 68)
+
+	body := scrape(t, m)
+	for _, want := range []string{
+		`hubtask_db_pool_connections{pool="api",state="in_use"} 8`,
+		`hubtask_db_pool_connections{pool="api",state="idle"} 2`,
+		`hubtask_db_pool_connections{pool="api",state="max"} 10`,
+		`hubtask_db_pool_connections{pool="background",state="max"} 20`,
+		`hubtask_migration_version 68`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the scrape does not contain %s", want)

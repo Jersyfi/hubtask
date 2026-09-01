@@ -157,7 +157,22 @@ func run() error {
 	}()
 
 	registry := healthadapter.NewRegistry(version, roles)
-	registry.SetWarnings(toPortWarnings(envadapter.New(version, commit).Warnings(cfg)))
+	warnings := envadapter.New(version, commit).Warnings(cfg)
+	registry.SetWarnings(toPortWarnings(warnings))
+
+	// A-14's series. A hard-invalid variable stopped the process a few lines up and can never be
+	// counted; what the counter carries is the misconfiguration this process runs with anyway -
+	// the warn-severity findings /meta/health shows, mirrored where an alert can see them.
+	for _, warning := range warnings {
+		if warning.Severity == "warn" {
+			metrics.ConfigInvalid(context.Background(), warning.Code)
+		}
+	}
+	// A-13's series: the migration this build embeds, so that a scrape across pods shows a
+	// rollout as a spread of values and a stuck rollout as a spread that stays.
+	if embedded, err := strconv.ParseInt(schemaVersion(), 10, 64); err == nil {
+		metrics.MigrationVersion(context.Background(), embedded)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
@@ -2070,6 +2085,16 @@ func run() error {
 		defer ticker.Stop()
 		for {
 			registry.Report(ctx)
+			// The pool gauges ride the same sample: saturation is part of the same diagnosis,
+			// and A-11 needs a series, not a number in a report nobody scrapes.
+			stats := postgres.Stats(pool)
+			metrics.PoolConnections(ctx, string(primaryRole(cfg)),
+				int64(stats.Acquired), int64(stats.Idle), int64(stats.Max))
+			if backgroundPool != pool {
+				stats = postgres.Stats(backgroundPool)
+				metrics.PoolConnections(ctx, "background",
+					int64(stats.Acquired), int64(stats.Idle), int64(stats.Max))
+			}
 			select {
 			case <-ctx.Done():
 				return
