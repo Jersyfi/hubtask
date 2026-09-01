@@ -1879,6 +1879,7 @@ func run() error {
 	// transaction, and an action is a use case.
 	automationRun := worker.AutomationRun{
 		Engine: automationservice.RunRule{
+			Quota:      quotaGuard,
 			Rules:      postgres.NewAutomationRuleRepository(cursors),
 			Runs:       automationRuns,
 			Failures:   automationRuns,

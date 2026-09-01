@@ -77,7 +77,14 @@ type Owners interface {
 // through, as the `run_as` account, and the authoriser answers it the way it answers anybody
 // (rule 2). That is the whole point of `run_as`, and the reason G-05 spent its effort on who may
 // write a rule at all.
+// TenantRunBudget is the §4 hourly ceiling over all of a workspace's rules (H-08) - the slice
+// this engine needs of quota.Guard.
+type TenantRunBudget interface {
+	AutomationRuns(ctx context.Context, tenant string, now time.Time) (bool, error)
+}
+
 type RunRule struct {
+	Quota      TenantRunBudget
 	Rules      repository.Rules
 	Runs       repository.Runs
 	Failures   repository.Failures
@@ -378,6 +385,20 @@ func (h RunRule) decide(
 	}
 	if throttled {
 		return run.Throttle(now), nil
+	}
+
+	// The tenant's hourly budget (H-08, multi-tenancy.md §4), after the rule's own throttle: a
+	// rule-throttled run consumes nothing of it. Over budget is the same visible verdict - a
+	// THROTTLED run - because a problem document has nobody to read it here. Nil skips;
+	// the composition root always wires it.
+	if h.Quota != nil {
+		allowed, err := h.Quota.AutomationRuns(ctx, actor.TenantID.String(), now)
+		if err != nil {
+			return domain.Run{}, err
+		}
+		if !allowed {
+			return run.Throttle(now), nil
+		}
 	}
 
 	envelope, err := h.envelope(ctx, cmd.EventID)
