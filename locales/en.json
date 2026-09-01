@@ -1025,5 +1025,6 @@
   "seed.label.important": "Important",
   "seed.label.waiting": "Waiting",
   "seed.label.quick_win": "Quick win",
-  "seed.label.idea": "Idea"
+  "seed.label.idea": "Idea",
+  "admin.purge_without_tenant": "A tenant hard delete job named no tenant."
 }

@@ -87,9 +87,10 @@ WHERE id IN (SELECT id FROM outbox_event LIMIT sqlc.arg('batch'));
 
 -- name: DeleteTenantJobs :execrows
 -- The job table has no policy (multi-tenancy.md §2.1), so the tenant is an explicit predicate -
--- CancelJob's precedent. The job running this delete is its own row; it survives to report.
+-- CancelJob's precedent - taken from the transaction's own scope, like everywhere else. The job
+-- running this delete is its own row; it survives to report.
 DELETE FROM job
-WHERE tenant_id = sqlc.arg('tenant_id') AND id <> sqlc.arg('keep_id');
+WHERE tenant_id = current_tenant_id() AND id <> sqlc.arg('keep_id');
 
 -- name: DisableAllAutomationRules :execrows
 -- The deletion request switches the tenant's automations off in one stroke (§5), visibly: the
@@ -99,9 +100,9 @@ SET enabled = false, updated_at = sqlc.arg('now'), version = version + 1
 WHERE deleted_at IS NULL AND enabled = true;
 
 -- name: PurgeTenantTrail :one
--- The SECURITY DEFINER act migration 0067 reasons through; called once, after the evidence
--- entry that outlives the trail is already written.
-SELECT purge_tenant_trail(sqlc.arg('tenant_id'))::bigint AS removed;
+-- The SECURITY DEFINER act migration 0067 reasons through, aimed by the transaction's own
+-- scope: even this narrow path can only take the trail of the tenant it was opened for.
+SELECT purge_tenant_trail(current_tenant_id())::bigint AS removed;
 
 -- ====================== The instance's own journal =========================
 
@@ -118,3 +119,37 @@ SELECT id, occurred_at, action, tenant_id, tenant_slug, actor_label, details
 FROM instance_event
 WHERE tenant_id = sqlc.arg('tenant_id')
 ORDER BY occurred_at, id;
+
+-- ====================== The ordered fall of the structure ==================
+-- A bare DELETE FROM tenant would trip its own cascade: RESTRICT edges (a hub under its
+-- collections, a media object under its covers and attachments, an account under the rules that
+-- run as it, a backup target under its runs) are checked per row, in an order nobody controls.
+-- The purge therefore fells the structure explicitly, children first, all of it bounded by row
+-- level security to the tenant of the transaction - and only then lets the cascade take the rest.
+
+-- name: DeleteTenantCollections :execrows
+DELETE FROM container WHERE parent_id IS NOT NULL;
+
+-- name: DeleteTenantHubs :execrows
+DELETE FROM container;
+
+-- name: DeleteTenantMediaRows :execrows
+-- After the collections: nothing references media once the items are gone. The bytes were
+-- deleted store-first before this statement, ReconcileMedia's order.
+DELETE FROM media_object;
+
+-- name: DeleteTenantAutomationRules :execrows
+-- Before the cascade reaches the accounts its rules run as (the run_as RESTRICT edge).
+DELETE FROM automation_rule;
+
+-- name: DeleteTenantRestoreRuns :execrows
+-- Before the cascade reaches a tenant-scoped backup target (the target_id RESTRICT edge).
+DELETE FROM restore_run;
+
+-- name: DeleteTenantRetentionRules :execrows
+DELETE FROM retention_rule;
+
+-- name: DeleteTenantIdempotency :execrows
+-- Bounded by row level security; idempotency_key carries no foreign key, so the cascade never
+-- reaches it.
+DELETE FROM idempotency_key;

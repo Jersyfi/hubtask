@@ -1902,7 +1902,16 @@ func run() error {
 			},
 			Fallback: cfg.Retention.Interval,
 		},
-		queueport.KindAuditExport:    worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindAuditExport: worker.AuditExport{Archivist: auditArchivist},
+		// The grace job the deletion request seeded (H-06). Detached for the media
+		// reconciliation's reason: bytes leave a bucket between two transactions.
+		queueport.KindTenantHardDelete: worker.TenantHardDelete{
+			Deletion: adminservice.HardDeleteTenant{
+				Tenants: postgres.NewAdminTenantRepository(), Purge: postgres.NewTenantPurge(),
+				Journal: postgres.NewInstanceJournal(), Store: mediaStore,
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			},
+		},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
 		queueport.KindPrivacyDeadlines: worker.PrivacyDeadlines{
 			Watch: privacyservice.WatchDeadlines{

@@ -237,3 +237,160 @@ func (AutomationSwitch) DisableAll(ctx context.Context, now time.Time) (int, err
 	}
 	return int(disabled), nil
 }
+
+// TenantPurge is the hard delete's surface (H-06, §5's final phase).
+type TenantPurge struct{}
+
+func NewTenantPurge() TenantPurge { return TenantPurge{} }
+
+var _ repository.Purge = TenantPurge{}
+
+// Footprint counts the stores before the fall.
+func (TenantPurge) Footprint(ctx context.Context) (repository.Footprint, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.Footprint{}, err
+	}
+
+	row, err := queries.CountTenantFootprint(ctx)
+	if err != nil {
+		return repository.Footprint{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the tenant footprint: %w", err))
+	}
+	return repository.Footprint{
+		Items: row.Items, Containers: row.Containers,
+		MediaObjects: row.MediaObjects, MediaBytes: row.MediaBytes,
+		OutboxEvents: row.OutboxEvents, AuditEntries: row.AuditEntries,
+	}, nil
+}
+
+// StorageKeys pages through the tenant's object keys.
+func (TenantPurge) StorageKeys(ctx context.Context, after string, batch int) ([]string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	keys, err := queries.ListTenantStorageKeys(ctx, sqlc.ListTenantStorageKeysParams{
+		After: after, Batch: int32(batch), //nolint:gosec // G115: a batch size, bounded small
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the storage keys: %w", err))
+	}
+	return keys, nil
+}
+
+// DropStructure fells the structure in dependency order; see db/queries/Admin.sql for why the
+// cascade cannot be left to do it.
+func (TenantPurge) DropStructure(ctx context.Context) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	var felled int64
+	for _, step := range []func(context.Context) (int64, error){
+		queries.DeleteTenantCollections,
+		queries.DeleteTenantHubs,
+		queries.DeleteTenantMediaRows,
+		queries.DeleteTenantAutomationRules,
+		queries.DeleteTenantRestoreRuns,
+		queries.DeleteTenantRetentionRules,
+	} {
+		removed, err := step(ctx)
+		if err != nil {
+			return felled, shared.ErrUnavailable.
+				WithDetail("postgres.query_failed").
+				WithCause(fmt.Errorf("felling the structure: %w", err))
+		}
+		felled += removed
+	}
+	return felled, nil
+}
+
+// DeleteOutbox removes one batch of the tenant's outbox.
+func (TenantPurge) DeleteOutbox(ctx context.Context, batch int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	removed, err := queries.DeleteTenantOutbox(ctx, int32(batch)) //nolint:gosec // G115: bounded small
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("clearing the outbox: %w", err))
+	}
+	return int(removed), nil
+}
+
+// DeleteIdempotency clears the replay guards.
+func (TenantPurge) DeleteIdempotency(ctx context.Context) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	removed, err := queries.DeleteTenantIdempotency(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("clearing the idempotency keys: %w", err))
+	}
+	return int(removed), nil
+}
+
+// DeleteJobs removes the tenant's queue rows except the one running this purge.
+func (TenantPurge) DeleteJobs(ctx context.Context, keep shared.ID) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	keepID, err := uuidOf(keep)
+	if err != nil {
+		return 0, err
+	}
+	removed, err := queries.DeleteTenantJobs(ctx, keepID)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("clearing the queue: %w", err))
+	}
+	return int(removed), nil
+}
+
+// PurgeTrail removes the tenant's audit trail through migration 0067's narrow act.
+func (TenantPurge) PurgeTrail(ctx context.Context) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	removed, err := queries.PurgeTenantTrail(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("purging the trail: %w", err))
+	}
+	return removed, nil
+}
+
+// HardDelete removes the tenant row itself.
+func (TenantPurge) HardDelete(ctx context.Context, now time.Time) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	removed, err := queries.HardDeleteTenant(ctx, pgtype.Timestamptz{Time: now, Valid: true})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("deleting the tenant row: %w", err))
+	}
+	return removed > 0, nil
+}

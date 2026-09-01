@@ -106,20 +106,88 @@ func (q *Queries) CountTenantFootprint(ctx context.Context) (CountTenantFootprin
 	return i, err
 }
 
-const deleteTenantJobs = `-- name: DeleteTenantJobs :execrows
-DELETE FROM job
-WHERE tenant_id = $1 AND id <> $2
+const deleteTenantAutomationRules = `-- name: DeleteTenantAutomationRules :execrows
+DELETE FROM automation_rule
 `
 
-type DeleteTenantJobsParams struct {
-	TenantID pgtype.UUID
-	KeepID   pgtype.UUID
+// Before the cascade reaches the accounts its rules run as (the run_as RESTRICT edge).
+func (q *Queries) DeleteTenantAutomationRules(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenantAutomationRules)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
+const deleteTenantCollections = `-- name: DeleteTenantCollections :execrows
+
+DELETE FROM container WHERE parent_id IS NOT NULL
+`
+
+// ====================== The ordered fall of the structure ==================
+// A bare DELETE FROM tenant would trip its own cascade: RESTRICT edges (a hub under its
+// collections, a media object under its covers and attachments, an account under the rules that
+// run as it, a backup target under its runs) are checked per row, in an order nobody controls.
+// The purge therefore fells the structure explicitly, children first, all of it bounded by row
+// level security to the tenant of the transaction - and only then lets the cascade take the rest.
+func (q *Queries) DeleteTenantCollections(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenantCollections)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTenantHubs = `-- name: DeleteTenantHubs :execrows
+DELETE FROM container
+`
+
+func (q *Queries) DeleteTenantHubs(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenantHubs)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTenantIdempotency = `-- name: DeleteTenantIdempotency :execrows
+DELETE FROM idempotency_key
+`
+
+// Bounded by row level security; idempotency_key carries no foreign key, so the cascade never
+// reaches it.
+func (q *Queries) DeleteTenantIdempotency(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenantIdempotency)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTenantJobs = `-- name: DeleteTenantJobs :execrows
+DELETE FROM job
+WHERE tenant_id = current_tenant_id() AND id <> $1
+`
+
 // The job table has no policy (multi-tenancy.md §2.1), so the tenant is an explicit predicate -
-// CancelJob's precedent. The job running this delete is its own row; it survives to report.
-func (q *Queries) DeleteTenantJobs(ctx context.Context, arg DeleteTenantJobsParams) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteTenantJobs, arg.TenantID, arg.KeepID)
+// CancelJob's precedent - taken from the transaction's own scope, like everywhere else. The job
+// running this delete is its own row; it survives to report.
+func (q *Queries) DeleteTenantJobs(ctx context.Context, keepID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenantJobs, keepID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTenantMediaRows = `-- name: DeleteTenantMediaRows :execrows
+DELETE FROM media_object
+`
+
+// After the collections: nothing references media once the items are gone. The bytes were
+// deleted store-first before this statement, ReconcileMedia's order.
+func (q *Queries) DeleteTenantMediaRows(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenantMediaRows)
 	if err != nil {
 		return 0, err
 	}
@@ -135,6 +203,31 @@ WHERE id IN (SELECT id FROM outbox_event LIMIT $1)
 // foreign key, so the cascade never reaches it.
 func (q *Queries) DeleteTenantOutbox(ctx context.Context, batch int32) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteTenantOutbox, batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTenantRestoreRuns = `-- name: DeleteTenantRestoreRuns :execrows
+DELETE FROM restore_run
+`
+
+// Before the cascade reaches a tenant-scoped backup target (the target_id RESTRICT edge).
+func (q *Queries) DeleteTenantRestoreRuns(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenantRestoreRuns)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTenantRetentionRules = `-- name: DeleteTenantRetentionRules :execrows
+DELETE FROM retention_rule
+`
+
+func (q *Queries) DeleteTenantRetentionRules(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenantRetentionRules)
 	if err != nil {
 		return 0, err
 	}
@@ -347,13 +440,13 @@ func (q *Queries) ListTenantStorageKeys(ctx context.Context, arg ListTenantStora
 }
 
 const purgeTenantTrail = `-- name: PurgeTenantTrail :one
-SELECT purge_tenant_trail($1)::bigint AS removed
+SELECT purge_tenant_trail(current_tenant_id())::bigint AS removed
 `
 
-// The SECURITY DEFINER act migration 0067 reasons through; called once, after the evidence
-// entry that outlives the trail is already written.
-func (q *Queries) PurgeTenantTrail(ctx context.Context, tenantID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, purgeTenantTrail, tenantID)
+// The SECURITY DEFINER act migration 0067 reasons through, aimed by the transaction's own
+// scope: even this narrow path can only take the trail of the tenant it was opened for.
+func (q *Queries) PurgeTenantTrail(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, purgeTenantTrail)
 	var removed int64
 	err := row.Scan(&removed)
 	return removed, err

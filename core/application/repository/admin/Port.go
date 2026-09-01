@@ -94,3 +94,53 @@ type Journal interface {
 	// whatever transaction the act runs in - including the one that ends the tenant it names.
 	Record(ctx context.Context, entry InstanceEvent) error
 }
+
+// Footprint is the §5 stores, counted: what the evidence entry records before the fall, and what
+// the acceptance proof counts to zero afterwards. Search rides inside the items (their vectors
+// are columns of the row), so the item count is the search count.
+type Footprint struct {
+	Items        int64
+	Containers   int64
+	MediaObjects int64
+	MediaBytes   int64
+	OutboxEvents int64
+	AuditEntries int64
+}
+
+// Purge is the hard delete's surface (§5's final phase). Every method except the two that say
+// otherwise runs inside the dying tenant's own bounded transaction.
+type Purge interface {
+	// Footprint counts the stores before the fall.
+	Footprint(ctx context.Context) (Footprint, error)
+
+	// StorageKeys pages through the tenant's object keys, for the store-first byte deletion -
+	// ReconcileMedia's order: an orphaned byte object is reclaimable, an orphaned row lies.
+	StorageKeys(ctx context.Context, after string, batch int) ([]string, error)
+
+	// DropStructure fells the structure in dependency order - collections, hubs, media rows,
+	// automation rules, restore runs, retention rules - because a bare cascade would trip its
+	// own RESTRICT edges. It reports how many rows fell.
+	DropStructure(ctx context.Context) (int64, error)
+
+	// DeleteOutbox removes one batch of the tenant's outbox and reports how many; the caller
+	// loops until zero. No foreign key reaches the outbox.
+	DeleteOutbox(ctx context.Context, batch int) (int, error)
+
+	// DeleteIdempotency clears the replay guards; no foreign key reaches them either.
+	DeleteIdempotency(ctx context.Context) (int, error)
+
+	// DeleteJobs removes the tenant's queue rows except the one running this purge - the job
+	// table has no policy, so the adapter writes the transaction's own tenant as an explicit
+	// predicate.
+	DeleteJobs(ctx context.Context, keep shared.ID) (int, error)
+
+	// PurgeTrail removes the tenant's audit trail through the one narrow SECURITY DEFINER act
+	// migration 0067 reasons through, aimed by the transaction's own scope, and reports how
+	// many entries went.
+	PurgeTrail(ctx context.Context) (int64, error)
+
+	// HardDelete removes the tenant row itself; the cascade takes everything still standing.
+	// The guard re-reads the two facts the grace could have changed - false means the state
+	// moved, and the caller rolls the whole act back.
+	HardDelete(ctx context.Context, now time.Time) (bool, error)
+}
