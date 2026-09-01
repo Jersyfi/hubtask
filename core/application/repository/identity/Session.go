@@ -19,6 +19,8 @@ import (
 type SessionCredential struct {
 	Session identity.Session
 	Account identity.Account
+	// ClientID is the OAuth client behind a grant session (H-05), zero for a person's own.
+	ClientID shared.ID
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
@@ -260,4 +262,61 @@ type StepUps interface {
 		ctx context.Context, presented identity.Token, accountID shared.ID,
 		cutoff, now time.Time,
 	) (identity.StepUpMethod, bool, error)
+}
+
+// GrantListing is one row of the grants a person sees: the grant, its client's name, and when a
+// session under it last acted - computed, not written back.
+type GrantListing struct {
+	Grant      identity.OauthGrant
+	ClientName string
+	LastUsedAt time.Time
+}
+
+// OauthClients is the registry of third-party apps (H-05). The presented secret travels whole
+// and is hashed in the adapter, the pepper's home.
+type OauthClients interface {
+	// Insert writes a registration. The presented secret is the zero token for a public client.
+	Insert(ctx context.Context, client identity.OauthClient, secret identity.Token) error
+
+	// List answers the registry, newest first.
+	List(ctx context.Context) ([]identity.OauthClient, error)
+
+	// Find answers one client, or an error wrapping shared.ErrNotFound.
+	Find(ctx context.Context, clientID shared.ID) (identity.OauthClient, error)
+
+	// SecretMatches compares a presented secret against the stored hash, in the adapter. False
+	// for a wrong secret and for a public client alike - which of the two is not for the
+	// presenter to learn.
+	SecretMatches(ctx context.Context, clientID shared.ID, presented secret.Secret) (bool, error)
+
+	// Delete removes the registration; the grants and their sessions go by cascade.
+	Delete(ctx context.Context, clientID shared.ID) (bool, error)
+}
+
+// OauthGrants maintains what people allowed.
+type OauthGrants interface {
+	// Upsert records a consent: one live grant per person and app, the fresh scopes replacing
+	// the old. The identifier of the live grant comes back.
+	Upsert(ctx context.Context, grant identity.OauthGrant) (shared.ID, error)
+
+	// Find answers one grant, or an error wrapping shared.ErrNotFound.
+	Find(ctx context.Context, grantID shared.ID) (identity.OauthGrant, error)
+
+	// ListForAccount answers the account's live grants, newest first, with the client's name.
+	ListForAccount(ctx context.Context, accountID shared.ID) ([]GrantListing, error)
+
+	// Revoke withdraws one of the account's grants; false is the indistinguishable not-found.
+	Revoke(ctx context.Context, grantID, accountID shared.ID, at time.Time) (bool, error)
+
+	// RevokeSessions ends every session the grant leashed, immediately.
+	RevokeSessions(ctx context.Context, grantID shared.ID, at time.Time) (int, error)
+}
+
+// OauthCodes maintains the single-use authorization codes.
+type OauthCodes interface {
+	// Insert writes a minted code beside its challenge and redirect.
+	Insert(ctx context.Context, code identity.OauthCode, presented identity.Token) error
+
+	// Consume judges and burns in one statement: unexpired, unconsumed, or nothing.
+	Consume(ctx context.Context, presented identity.Token, now time.Time) (identity.OauthCode, bool, error)
 }

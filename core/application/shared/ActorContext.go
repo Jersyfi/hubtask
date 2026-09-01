@@ -58,6 +58,9 @@ type ActorContext struct {
 	// Scopes are the token's bounds. They are a second, independent limit on top of the role: a
 	// token can never do more than its scopes allow, whatever role its owner holds (ADR-0005).
 	Scopes []string
+	// APIClient is the OAuth client the credential was issued to (H-05), empty for everything
+	// that is not a grant session. It is what the audit trail records as the acting app.
+	APIClient shared.ID
 	// Locale is BCP 47, resolved request → account → tenant → installation (i18n-l10n.md §2).
 	Locale string
 	// TimeZone is an IANA name. Every relative date in a query and every reminder is computed in

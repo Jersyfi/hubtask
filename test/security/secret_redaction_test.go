@@ -117,6 +117,13 @@ func confidentialValues(t *testing.T) []any {
 			URI:           secret.New(passphrase),
 			RecoveryCodes: []secret.Secret{secret.New(credential)},
 		},
+		// And the paths H-05 added: a registered client's single-showing secret, and the
+		// authorization code on its way to the response.
+		identity.RegisteredClient{
+			Client: model.OauthClient{ID: "01936f2a-7c1e-7000-8000-0000000000d4", Name: "an app"},
+			Secret: secret.New(credential),
+		},
+		identity.AuthorizedCode{Code: secret.New(masterMaterial)},
 	}
 }
 

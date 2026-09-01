@@ -20,6 +20,7 @@ type contextKey int
 const (
 	requestIDKey contextKey = iota
 	tenantIDKey
+	apiClientKey
 )
 
 // ContextWithRequestID carries the request ID through the call chain. It is what a user quotes
@@ -48,5 +49,18 @@ func ContextWithTenant(ctx context.Context, tenantID string) context.Context {
 // TenantFrom returns the tenant, or the empty string outside a tenant scope.
 func TenantFrom(ctx context.Context) string {
 	id, _ := ctx.Value(tenantIDKey).(string)
+	return id
+}
+
+// ContextWithAPIClient carries the OAuth client a request acts under (H-05): an identifier of a
+// registered app, which is what "audited with the client as a first-class actor attribute"
+// means. An identifier like the other two, never content - which is why it belongs here.
+func ContextWithAPIClient(ctx context.Context, clientID string) context.Context {
+	return context.WithValue(ctx, apiClientKey, clientID)
+}
+
+// APIClientFrom returns the client, or the empty string for a request no app is behind.
+func APIClientFrom(ctx context.Context) string {
+	id, _ := ctx.Value(apiClientKey).(string)
 	return id
 }

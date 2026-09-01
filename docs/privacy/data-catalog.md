@@ -49,6 +49,9 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Sessions (user agent, IP class - an IPv4 /24 or IPv6 /48, never the full address) | `session`, `session_refresh_token` | `PERSONAL_TECHNICAL` | Session management, security (T-01's client-binding hint) | Legitimate interest | 30 days after the last use, once expired or revoked | `RETENTION` |
 | Failed sign-ins, lockout counters (the subject only ever a keyed hash of the address or network) | `auth_attempt` | `PERSONAL_TECHNICAL` | Brute force protection (T-02) | Legitimate interest | Until the next successful sign-in wipes the slate | `HASH_ONLY`, `CASCADE` |
 | Invitation redemption token (hash) | `account` | `SECRET` | Redeeming an invitation | Contract | 14 days, or until redeemed | `HASH_ONLY`, `CASCADE` |
+| OAuth grants (who allowed which app what) | `oauth_grant` | `PERSONAL_BASIC` | Third-party access (H-05) | Consent | Until revoked; sessions end with it | `CASCADE` |
+| OAuth authorization codes (hash) | `oauth_code` | `SECRET` | The code+PKCE exchange | Consent | Minutes; swept with the sessions | `HASH_ONLY`, `RETENTION` |
+| OAuth client registry (name, redirect URIs, secret hash) | `oauth_client` | `NON_PERSONAL` (+ `SECRET` for the hash) | Third-party access | Contract | The lifetime of the registration | `CASCADE` |
 | Invitations (address, status) | `account` (status `INVITED`) | `PERSONAL_BASIC` | Onboarding | Contract | With the account; an invitation never accepted is an account never used | `CASCADE` |
 | Who invited whom, and when | `audit_log` | `PERSONAL_TECHNICAL` | Evidence of how somebody got access | Legitimate interest | The audit period | `IMMUTABLE` |
 | Queued invitation message (identifiers only) | `job` | `PERSONAL_TECHNICAL` (references) | Delivering the invitation | Contract | 7 days after completion | `RETENTION` |

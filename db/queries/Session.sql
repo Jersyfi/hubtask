@@ -42,6 +42,7 @@ VALUES (
 -- and the locale chain - one round trip, the FindAccessTokenByHash shape.
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
        s.grant_id, s.scopes,
+       g.client_id AS grant_client_id,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -51,6 +52,7 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
 FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id
+LEFT JOIN oauth_grant g ON g.id = s.grant_id
 WHERE s.id = sqlc.arg('id') AND a.deleted_at IS NULL;
 
 -- name: SessionsForAccount :many

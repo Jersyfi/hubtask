@@ -55,6 +55,10 @@ func (r SessionRepository) Insert(ctx context.Context, session identity.Session)
 	if err != nil {
 		return err
 	}
+	grantID, err := optionalUUID(session.GrantID)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertSession(ctx, sqlc.InsertSessionParams{
 		ID:        id,
 		AccountID: accountID,
@@ -62,6 +66,8 @@ func (r SessionRepository) Insert(ctx context.Context, session identity.Session)
 		UserAgent: nullableString(session.UserAgent),
 		IpClass:   nullableString(session.IPClass),
 		ExpiresAt: pgtype.Timestamptz{Time: session.ExpiresAt, Valid: true},
+		GrantID:   grantID,
+		Scopes:    session.Scopes,
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -101,13 +107,28 @@ func (r SessionRepository) FindForAuth(
 		return repository.SessionCredential{}, err
 	}
 
+	var grantID, clientID shared.ID
+	if row.GrantID.Valid {
+		if grantID, err = idFrom(row.GrantID); err != nil {
+			return repository.SessionCredential{}, err
+		}
+	}
+	if row.GrantClientID.Valid {
+		if clientID, err = idFrom(row.GrantClientID); err != nil {
+			return repository.SessionCredential{}, err
+		}
+	}
+
 	return repository.SessionCredential{
+		ClientID: clientID,
 		Session: identity.Session{
 			ID: sessionID, TenantID: tenantID, AccountID: accountID,
 			CreatedAt:  timeFrom(row.CreatedAt),
 			LastSeenAt: timeFrom(row.LastSeenAt),
 			ExpiresAt:  timeFrom(row.ExpiresAt),
 			RevokedAt:  timeFrom(row.RevokedAt),
+			GrantID:    grantID,
+			Scopes:     row.Scopes,
 		},
 		Account: identity.Account{
 			ID:          accountID,
@@ -637,6 +658,16 @@ func (r SessionRepository) DeleteExpired(ctx context.Context, cutoff time.Time, 
 		return int(removed), shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("sweeping the pending credentials: %w", err))
+	}
+	// And the expired authorization codes (H-05), with the same reasoning: minutes of life,
+	// and a consumed or expired one is bookkeeping about a dance nobody finished.
+	if _, err := queries.DeleteExpiredOauthCodes(ctx, sqlc.DeleteExpiredOauthCodesParams{
+		Cutoff: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		Batch:  int32(batch), //nolint:gosec // G115: the batch size is a small configuration value
+	}); err != nil {
+		return int(removed), shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the authorization codes: %w", err))
 	}
 	return int(removed), nil
 }

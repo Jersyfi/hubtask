@@ -213,3 +213,29 @@ func NewStepUpTokenHasher(installationSecret secret.Secret) StepUpTokenHasher {
 }
 
 func (h StepUpTokenHasher) Hash(presented string) []byte { return hashUnder(h.pepper, presented) }
+
+// The provider's stored credentials (H-05), TokenHasher's construction under their own labels.
+const (
+	oauthCodeInfo   = "hubtask/oauth-code/v1"
+	oauthClientInfo = "hubtask/oauth-client/v1"
+)
+
+// OauthCodeHasher turns a presented authorization code into the value stored in
+// oauth_code.code_hash.
+type OauthCodeHasher struct{ pepper []byte }
+
+func NewOauthCodeHasher(installationSecret secret.Secret) OauthCodeHasher {
+	return OauthCodeHasher{pepper: derivePepper(installationSecret, oauthCodeInfo)}
+}
+
+func (h OauthCodeHasher) Hash(presented string) []byte { return hashUnder(h.pepper, presented) }
+
+// OauthClientSecretHasher turns a confidential client's secret into the value stored in
+// oauth_client.secret_hash.
+type OauthClientSecretHasher struct{ pepper []byte }
+
+func NewOauthClientSecretHasher(installationSecret secret.Secret) OauthClientSecretHasher {
+	return OauthClientSecretHasher{pepper: derivePepper(installationSecret, oauthClientInfo)}
+}
+
+func (h OauthClientSecretHasher) Hash(presented string) []byte { return hashUnder(h.pepper, presented) }

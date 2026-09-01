@@ -138,6 +138,10 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The tenant reaches the log lines and the metric label from here (§3.1). An identifier of an
 	// installation, never user content (rule 10).
 	ctx = correlation.ContextWithTenant(ctx, actor.TenantID.String())
+	if !actor.APIClient.IsZero() {
+		// The app behind the credential (H-05): every audit entry of the request records it.
+		ctx = correlation.ContextWithAPIClient(ctx, actor.APIClient.String())
+	}
 
 	a.Next.ServeHTTP(w, r.WithContext(ctx))
 }

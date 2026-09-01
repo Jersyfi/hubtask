@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
@@ -73,6 +74,14 @@ func (s AuditSink) Append(ctx context.Context, entry port.Entry) error {
 	// precision is known: the port and the domain have no business knowing what PostgreSQL keeps.
 	// Rounding would move an instant forwards; truncation cannot.
 	entry.OccurredAt = entry.OccurredAt.UTC().Truncate(time.Microsecond)
+
+	// The client as a first-class actor attribute (H-05): when the request acts under an OAuth
+	// grant, the correlation context carries the client's identifier, and every entry of the
+	// request records it - here, once, rather than in every service that writes one. An entry
+	// that already names a client keeps its own answer.
+	if entry.Context.APIClient == "" {
+		entry.Context.APIClient = correlation.APIClientFrom(ctx)
+	}
 
 	// And the changed fields, in the shape the row will give them back.
 	//
