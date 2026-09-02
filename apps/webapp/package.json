@@ -15,8 +15,8 @@
     "test": "node --test \"src/**/*.test.ts\" \"build/*.test.js\""
   },
   "dependencies": {
-    "@hubtask/api-client": "workspace:*",
-    "@hubtask/design-system": "workspace:*"
+    "@hubtask/design-system": "workspace:*",
+    "@hubtask/sync-engine": "workspace:*"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",

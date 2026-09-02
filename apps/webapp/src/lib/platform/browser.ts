@@ -10,4 +10,9 @@ import type { Platform } from './index.ts';
  */
 export const platform: Platform = {
   target: 'browser',
+
+  // Nobody is signed in yet: F1-11 brings the token and the place it is kept. Answering
+  // `undefined` rather than an empty string is the difference between "no credential" and "a
+  // credential that is empty", and only one of those is true.
+  bearer: () => undefined,
 };
