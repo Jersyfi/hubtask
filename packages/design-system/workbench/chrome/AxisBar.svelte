@@ -86,6 +86,9 @@
 
   .values {
     display: flex;
+    /* An axis with six values must not push the page sideways when the frame is narrow. The
+       workbench holds itself to what it checks: nothing here scrolls the body horizontally. */
+    flex-wrap: wrap;
     margin-top: var(--sp-050);
     border: 1px solid var(--border-default);
     border-radius: var(--r-sm);

@@ -201,6 +201,16 @@ workbench:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter @hubtask/design-system workbench
 
+## workbench-build: Build the workbench into packages/design-system/dist/workbench
+# What workbench.hubtask.eu serves (ADR-0038). Still not part of `pnpm -r build`: a surface that
+# is published is not thereby a product artefact, and none of ADR-0037's three exclusions moves -
+# the embedded bundle and the binary are untouched by this.
+.PHONY: workbench-build
+workbench-build:
+	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
+	$(PNPM) --filter @hubtask/design-system workbench:build
+	@echo "packages/design-system/dist/workbench is ready to deploy"
+
 ## website: Build the project website into apps/website/dist
 # It is not embedded into the binary and never will be: it has no API contract with the server and
 # no reason to be in it (ADR-0028). This produces a directory of static files; where that directory

@@ -21,7 +21,9 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
   different lists.
 * **No workbench in the product.** `workbench/` is a development tool. It is not part of
   `pnpm build`, `pnpm -r build` does not depend on it, and nothing of it may reach `apps/webapp`'s
-  bundle or the binary that embeds it (ADR-0028).
+  bundle or the binary that embeds it (ADR-0028). Being published at `workbench.hubtask.eu`
+  (ADR-0038) does not change any of that — but it does mean **the page is public**: nothing there
+  may promise anything about the product, contact a foreign domain, or carry a form.
 * **No colour value in the Go output.** `LabelTokens.go` carries the ten *names* and nothing else,
   so the core keeps the vocabulary while staying colour-blind. A hex constant in `core/domain`
   would be display information in the backend.

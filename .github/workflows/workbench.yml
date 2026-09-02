@@ -1,0 +1,153 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+
+name: Workbench
+
+# workbench.hubtask.eu is the component workbench (ADR-0038), served from the same IONOS webspace
+# as the website but from its own directory, and this is the workflow that puts it there.
+#
+# A separate workflow rather than a second job in website.yml, because it is a separate surface:
+# its own trigger paths, its own directory, its own concurrency group. Two publishers writing into
+# one workflow named "Website" is how somebody eventually deploys the wrong tree.
+#
+# The transport is website.yml's, deliberately: lftp over SFTP with the host key pinned, no
+# third-party deploy action, no trust-on-first-use. That reasoning is not weaker here.
+#
+# It is the same webspace and therefore the same host and host key, but its **own SFTP account**.
+# That is the important half: a credential scoped to the workbench's directory cannot reach the
+# website's tree at all, which is a stronger boundary than any string comparison a workflow could
+# make. So this workflow never falls back to the website's user - an unset workbench secret stops
+# it rather than borrowing one that can write everywhere.
+#
+#   vars.WEBSITE_SFTP_HOST      - the IONOS SFTP host; one webspace, one host
+#   vars.WEBSITE_SFTP_HOST_KEY  - one known_hosts line for it; same host, same key
+#   secrets.WORKBENCH_SFTP_USER / secrets.WORKBENCH_SFTP_PASSWORD - the workbench's own account
+#   vars.WORKBENCH_REMOTE_DIR   - the directory the subdomain serves, relative to that account's
+#                                 home. Defaults to `.`, which is that account's home and not the
+#                                 webspace root - the two are only the same thing for an account
+#                                 that was never scoped, which is what the guard below is for.
+#
+# The other half is the domain owner's and no workflow can do it: the DNS record for
+# workbench.hubtask.eu and the webspace mapping from that subdomain to that directory.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/design-system/**"
+      - ".github/workflows/workbench.yml"
+      - "pnpm-lock.yaml"
+  # A redeploy without a commit: after the webspace was reconfigured, or to publish the current
+  # state once the variables above are first set.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One publish at a time, and never a cancelled one: an interrupted mirror leaves the webspace half
+# old and half new. Its own group, so a website deploy and a workbench deploy do not queue behind
+# each other - they touch different directories.
+concurrency:
+  group: workbench-deploy
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      # The same command a contributor runs, so the version of pnpm is pinned in exactly one
+      # place - `packageManager` in package.json (ADR-0027).
+      - run: make tools-node
+      - run: echo "$PWD/.tools" >> "$GITHUB_PATH"
+      - id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+
+      # The tokens are regenerated first by the target itself, so what is published cannot be a
+      # page built against a stale stylesheet.
+      - run: make workbench-build
+
+      - name: Decide whether this installation deploys
+        id: config
+        env:
+          HOST: ${{ vars.WEBSITE_SFTP_HOST }}
+        run: |
+          if [ -n "$HOST" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "workbench: built; deploy skipped - WEBSITE_SFTP_HOST is not set"
+          fi
+
+      - name: Publish dist/workbench to the webspace
+        if: steps.config.outputs.deploy == 'true'
+        env:
+          HOST: ${{ vars.WEBSITE_SFTP_HOST }}
+          HOST_KEY: ${{ vars.WEBSITE_SFTP_HOST_KEY }}
+          REMOTE_DIR: ${{ vars.WORKBENCH_REMOTE_DIR }}
+          SFTP_USER: ${{ secrets.WORKBENCH_SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.WORKBENCH_SFTP_PASSWORD }}
+        run: |
+          set -eu
+          # Never the website's account. Borrowing it would publish the workbench with a
+          # credential that can write the whole webspace, which is the boundary this setup exists
+          # to have.
+          if [ -z "$SFTP_USER" ] || [ -z "$SFTP_PASSWORD" ]; then
+            echo "workbench: WORKBENCH_SFTP_USER or WORKBENCH_SFTP_PASSWORD is not set" >&2
+            exit 1
+          fi
+          if [ -z "$HOST_KEY" ]; then
+            echo "workbench: WEBSITE_SFTP_HOST is set but WEBSITE_SFTP_HOST_KEY is not" >&2
+            exit 1
+          fi
+          TARGET="${REMOTE_DIR:-.}"
+
+          sudo apt-get update -q && sudo apt-get install -qy lftp
+          mkdir -p ~/.ssh && printf '%s\n' "$HOST_KEY" > ~/.ssh/known_hosts
+
+          # Provenance for a public page, and the marker the guard below reads. Written here
+          # rather than by `make workbench-build`, because only the workflow knows the commit.
+          cat > packages/design-system/dist/workbench/build-info.json <<JSON
+          {
+            "commit": "${GITHUB_SHA}",
+            "ref": "${GITHUB_REF}",
+            "built": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "artefact": "hubtask-workbench"
+          }
+          JSON
+
+          # The mirror below runs with --delete: it empties the target of everything this build
+          # does not produce. The credential is scoped, so it should be unable to reach anything
+          # else - but "should" is not a check, and an account that was never scoped would take
+          # `.` to mean the webspace root and silently replace hubtask.eu with a development tool.
+          #
+          # So the target must be either empty or a previous workbench deploy. `build-info.json`
+          # is what says which. This refuses once, on a directory holding something else, and
+          # never again afterwards.
+          listing="$(lftp -u "$SFTP_USER,$SFTP_PASSWORD" "sftp://$HOST" -e "
+            set sftp:auto-confirm no;
+            cls -1 -a $TARGET/;
+            bye" 2>/dev/null || true)"
+          contents="$(printf '%s\n' "$listing" | grep -vE '^\.?\.?/?$' || true)"
+          if [ -n "$contents" ] && ! printf '%s\n' "$contents" | grep -q 'build-info.json'; then
+            echo "workbench: $TARGET holds something that is not a workbench deploy - refusing to" >&2
+            echo "  mirror --delete over it. Point WORKBENCH_REMOTE_DIR at the subdomain's own" >&2
+            echo "  directory, or empty that directory once if this is the first publish." >&2
+            echo "  It contains:" >&2
+            printf '%s\n' "$contents" | sed 's/^/    /' >&2
+            exit 1
+          fi
+
+          lftp -u "$SFTP_USER,$SFTP_PASSWORD" "sftp://$HOST" -e "
+            set sftp:auto-confirm no;
+            mirror -R --delete --parallel=4 packages/design-system/dist/workbench/ $TARGET;
+            bye"
+          echo "workbench: published to $HOST/$TARGET"
