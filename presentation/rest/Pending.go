@@ -861,3 +861,25 @@ func (pending) GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, _
 func (pending) ExportView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId, _ openapi.ExportViewParams) {
 	notAvailable(w, r)
 }
+
+// The relying party (H-04). RestController serves all five of its routes; these stand behind
+// them, as they do behind every operation this installation does serve.
+func (pending) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CompleteOidcSignIn(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

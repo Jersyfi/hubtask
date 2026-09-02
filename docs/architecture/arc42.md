@@ -447,7 +447,7 @@ converts it automatically → a `WorkItem` with a back reference to the arrival.
 
 | Scenario | Key points |
 |---|---|
-| Login (OIDC) | Authorization code + PKCE, just-in-time provisioning of the account, tenant assignment through claim mapping |
+| Login (OIDC) | Authorization code + PKCE, just-in-time provisioning of the account. The workspace is resolved **before** the flow begins - from the subdomain or the tenant header, decision 3's sources - and travels inside the single-use `state`; it is not read from a claim. It cannot be: the provider is configured per workspace (H-04), so which issuer to send somebody to is a question that has to be answered before there is a token to read a claim out of |
 | Kanban query | `POST /api/v1/items:query` with `group_by=bucket`, cursor pagination per group, `X-Total-Count` optional |
 | Trash & retention | `DELETE` → `deleted_at` set, visibility filtered, the retention job hard-deletes after 30 days including media |
 | Tenant deletion | Block → provide the export → cascading hard delete → evidence in the audit log |
@@ -745,6 +745,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0033 | One product UI, three targets: the shared client architecture | accepted |
 | 0034 | The language-dependent search document | accepted |
 | 0035 | One product version for the server and every first-party client | accepted |
+| 0036 | The OIDC token verification library: go-oidc, confined to one adapter | accepted |
 | 0037 | The component workbench is ours, and it renders every story through the rules | accepted |
 | 0038 | The workbench is published at workbench.hubtask.eu | accepted |
 

@@ -39,6 +39,9 @@ it does not touch the conversion the paragraph above is about.
 | [github.com/beorn7/perks/quantile](https://github.com/beorn7/perks/blob/v1.0.1/LICENSE) | MIT |
 | [github.com/cenkalti/backoff/v5](https://github.com/cenkalti/backoff/blob/v5.0.3/LICENSE) | MIT |
 | [github.com/cespare/xxhash/v2](https://github.com/cespare/xxhash/blob/v2.3.0/LICENSE.txt) | MIT |
+| [github.com/coreos/go-oidc/v3/oidc](https://github.com/coreos/go-oidc/blob/v3.21.0/LICENSE) | Apache-2.0 |
+| [github.com/go-jose/go-jose/v4](https://github.com/go-jose/go-jose/blob/v4.1.4/LICENSE) | Apache-2.0 |
+| [github.com/go-jose/go-jose/v4/json](https://github.com/go-jose/go-jose/blob/v4.1.4/json/LICENSE) | BSD-3-Clause |
 | [github.com/go-logr/logr](https://github.com/go-logr/logr/blob/v1.4.4/LICENSE) | Apache-2.0 |
 | [github.com/go-logr/stdr](https://github.com/go-logr/stdr/blob/v1.2.2/LICENSE) | Apache-2.0 |
 | [github.com/google/uuid](https://github.com/google/uuid/blob/v1.6.0/LICENSE) | BSD-3-Clause |
@@ -74,6 +77,7 @@ it does not touch the conversion the paragraph above is about.
 | [golang.org/x/crypto](https://cs.opensource.google/go/x/crypto/+/v0.55.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/exp/slices](https://cs.opensource.google/go/x/exp/+/764159d7:LICENSE) | BSD-3-Clause |
 | [golang.org/x/net](https://cs.opensource.google/go/x/net/+/v0.58.0:LICENSE) | BSD-3-Clause |
+| [golang.org/x/oauth2](https://cs.opensource.google/go/x/oauth2/+/v0.36.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/sync](https://cs.opensource.google/go/x/sync/+/v0.22.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/sys](https://cs.opensource.google/go/x/sys/+/v0.47.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/text](https://cs.opensource.google/go/x/text/+/v0.41.0:LICENSE) | BSD-3-Clause |

@@ -776,6 +776,19 @@ type IdempotencyKey struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+type IdentityProvider struct {
+	TenantID            pgtype.UUID
+	Issuer              string
+	ClientID            string
+	ClientSecretEnc     []byte
+	ClientSecretKeyID   string
+	AllowedEmailDomains []string
+	Enabled             bool
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	Version             int32
+}
+
 type InstanceEvent struct {
 	ID         pgtype.UUID
 	OccurredAt pgtype.Timestamptz
@@ -963,6 +976,17 @@ type OauthGrant struct {
 	Scopes    []string
 	CreatedAt pgtype.Timestamptz
 	RevokedAt pgtype.Timestamptz
+}
+
+type OidcFlow struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	StateHash    []byte
+	CodeVerifier string
+	Nonce        string
+	CreatedAt    pgtype.Timestamptz
+	ExpiresAt    pgtype.Timestamptz
+	ConsumedAt   pgtype.Timestamptz
 }
 
 type OutboxEvent struct {

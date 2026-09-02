@@ -408,3 +408,52 @@ func isTimeout(err error) bool {
 	var netErr net.Error
 	return errors.As(err, &netErr) && netErr.Timeout()
 }
+
+// HTTPClient exposes the guard as a standard library client, for the one kind of dependency that
+// insists on taking one (ADR-0036): a library that does its own discovery and key fetching
+// cannot be handed `Do`, and forking it to make it would be worse than this.
+//
+// Nothing is given up. The allowlist and scheme check run in front of every request, the
+// resolution check runs before the socket, the dial-time address check is the transport's own -
+// so DNS rebinding is caught here exactly as it is in Do - and each redirect hop is checked
+// again. The duration is reported under the class the caller names.
+//
+// What is deliberately absent is the circuit breaker `Do` carries. A breaker is keyed by
+// dependency class, and the targets reached through this client are configured per workspace:
+// one class per tenant's issuer would be an unbounded label (§3.2), and a single shared class
+// would let one workspace's broken provider hold every other workspace's sign-in shut. An
+// interactive sign-in fails fast on its own and says so with a code.
+func (c *GuardedClient) HTTPClient(targetClass string) *http.Client {
+	class := targetClass
+	if class == "" {
+		class = "unclassified"
+	}
+	return &http.Client{
+		Transport:     guardedTransport{client: c, class: class},
+		CheckRedirect: c.checkRedirect,
+		Timeout:       c.cfg.Timeout,
+	}
+}
+
+// guardedTransport is HTTPClient's round tripper: the checks of Do, in the shape the standard
+// library calls.
+type guardedTransport struct {
+	client *GuardedClient
+	class  string
+}
+
+func (g guardedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if _, err := g.client.guard.CheckURL(req.URL.String()); err != nil {
+		return nil, err
+	}
+	if _, err := g.client.guard.Resolve(req.Context(), req.URL.Hostname()); err != nil {
+		return nil, err
+	}
+	started := g.client.now()
+	response, err := g.client.client.Transport.RoundTrip(req)
+	g.client.observe(req.Context(), g.class, g.client.now().Sub(started).Seconds())
+	if err != nil {
+		return nil, transportError(g.class, err)
+	}
+	return response, nil
+}

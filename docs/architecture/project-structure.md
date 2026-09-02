@@ -103,7 +103,8 @@ hubtask/
 │   ├── httpclient/                 # GuardedClient.go (SSRF, timeouts, retry)
 │   ├── eventbus/                   # OutboxBus.go, NatsBus.go
 │   ├── ai/                         # OpenAiCompatible.go, Ollama.go, NoopAi.go
-│   ├── identityprovider/           # OidcProvider.go, LocalProvider.go
+│   ├── oidc/                       # Provider.go - the relying party, and the only package
+│   │                               # that imports go-oidc (ADR-0036)
 │   ├── search/                     # PostgresSearch.go, VectorSearch.go
 │   ├── i18n/                       # IcuCatalog.go, embed.go
 │   ├── observability/              # Otel.go, Metrics.go, Logger.go, Redaction.go,

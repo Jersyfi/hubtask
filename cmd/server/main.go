@@ -78,6 +78,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
+	oidcadapter "github.com/Jersyfi/hubtask/infrastructure/oidc"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	recurrenceadapter "github.com/Jersyfi/hubtask/infrastructure/recurrence"
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
@@ -841,6 +842,36 @@ func run() error {
 		Authorizer: authorizer, KnownScopes: catalogue.Scopes(),
 	}
 
+	// The relying party (H-04). One object for the installation: the configuration travels per
+	// call, so two workspaces pointed at the same provider share its discovery and neither can
+	// see the other's. Through the guarded client as a standard one, because go-oidc takes one -
+	// an issuer is a URL a tenant administrator typed, so it is an egress channel like any other.
+	relyingParty := oidcadapter.New(
+		outboundClient.HTTPClient(oidcadapter.TargetClass), clockadapter.System{})
+
+	// Where the provider sends the browser back: this installation's own address, computed
+	// here so that nothing inwards of the composition root has to know a frontend exists
+	// (ADR-0028). The path is the web UI's callback route, which reads the code and the state
+	// out of the query and hands them to the API.
+	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
+
+	oidcWriter := identity.OidcWriter{
+		Session:     sessionWriter,
+		Providers:   postgres.NewIdentityProviderRepository(),
+		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
+		External:    postgres.NewExternalAccountRepository(),
+		Accounts:    accounts,
+		Relying:     relyingParty,
+		RedirectURL: oidcRedirectURL,
+	}
+
+	identityProviderWriter := identity.IdentityProviderWriter{
+		Session:    sessionWriter,
+		Providers:  postgres.NewIdentityProviderRepository(),
+		Relying:    relyingParty,
+		Authorizer: authorizer,
+	}
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -891,6 +922,11 @@ func run() error {
 		identity.ExchangeOauthCode{Writer: oauthWriter}.Descriptor(),
 		identity.ListOauthGrants{Writer: oauthWriter}.Descriptor(),
 		identity.RevokeOauthGrant{Writer: oauthWriter}.Descriptor(),
+		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.ReadIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.RemoveIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
+		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),
