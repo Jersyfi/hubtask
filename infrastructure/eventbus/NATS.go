@@ -81,6 +81,13 @@ func NewPublisher(ctx context.Context, config PublisherConfig) *Publisher {
 		// their bus work again after a maintenance window.
 		nats.MaxReconnects(-1),
 		nats.ReconnectWait(2 * time.Second),
+		// And the same forgiveness for the *first* connection. Without this, a bus that is down
+		// while this process starts is a bus this process never reaches: Connect returns an error,
+		// there is no connection to reconnect, and the reconnection loop above never runs. With
+		// it, Connect answers a connection in a reconnecting state, publishes are refused as
+		// unavailable meanwhile, and the bus is picked up when it appears - which is the sentence
+		// this adapter's documentation already made, and did not keep until now.
+		nats.RetryOnFailedConnect(true),
 	}
 	if config.CredentialsFile != "" {
 		options = append(options, nats.UserCredentials(config.CredentialsFile))
@@ -88,12 +95,16 @@ func NewPublisher(ctx context.Context, config PublisherConfig) *Publisher {
 
 	conn, err := nats.Connect(config.URL, options...)
 	if err != nil {
-		// Deliberately not returned. The publish path answers ErrUnavailable until the connection
-		// exists, which is the same answer it gives when the bus goes away later - one degraded
-		// state rather than two.
+		// Only a URL the client cannot parse reaches this, now that a failed first connection is
+		// retried rather than returned. Deliberately not a startup error even so: the publish path
+		// answers ErrUnavailable, which is the same answer it gives when the bus goes away later -
+		// one degraded state rather than two.
 		return publisher
 	}
 
+	// The JetStream context is built from the connection rather than from a live session, so it is
+	// available immediately and a publish through it fails while the connection is still coming
+	// up. That is the behaviour that makes RetryOnFailedConnect worth anything here.
 	stream, err := jetstream.New(conn)
 	if err != nil {
 		conn.Close()

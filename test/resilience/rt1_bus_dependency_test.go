@@ -48,6 +48,13 @@ func startBus(ctx context.Context, t *testing.T) (testcontainers.Container, stri
 	// states: the daemon re-allocates a random binding on restart, and an endpoint that moved
 	// during the outage would turn "recovery without a restart" into a test of reconfiguration.
 	port := freeLoopbackPort(ctx, t)
+	return startBusOn(ctx, t, port), fmt.Sprintf("nats://127.0.0.1:%d", port)
+}
+
+// startBusOn is the half of it that a test which needs the address *before* the server exists
+// calls on its own.
+func startBusOn(ctx context.Context, t *testing.T, port int) testcontainers.Container {
+	t.Helper()
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
@@ -64,7 +71,7 @@ func startBus(ctx context.Context, t *testing.T) (testcontainers.Container, stri
 	}
 	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
 
-	return container, fmt.Sprintf("nats://127.0.0.1:%d", port)
+	return container
 }
 
 // createStream binds a stream to `<prefix>.>`, which is what an operator does once.
@@ -215,4 +222,45 @@ func eventuallyPublishes(ctx context.Context, bus eventbus.Resilient, tenant sha
 		time.Sleep(500 * time.Millisecond)
 	}
 	return false
+}
+
+// A bus that is down while this process starts must be picked up when it appears, and that is not
+// free: without `RetryOnFailedConnect` the client's Connect returns an error, there is no
+// connection to reconnect, and the reconnection loop never runs - so the adapter would answer
+// "unavailable" for ever while the bus sat there working.
+//
+// The adapter's own documentation made that promise before the option did. This is the test that
+// keeps it.
+func TestRT1ABusThatIsDownAtStartupIsPickedUpWhenItAppears(t *testing.T) {
+	ctx := context.Background()
+	port := freeLoopbackPort(ctx, t)
+	url := fmt.Sprintf("nats://127.0.0.1:%d", port)
+
+	// Built against an address where nothing is listening. Nothing about this may fail, block or
+	// panic: a bus that is down at startup is a degraded state, not a startup error.
+	breaker := res.NewBreaker(res.BreakerConfig{
+		Dependency: eventbus.BusDependency, FailureThreshold: 2, SuccessThreshold: 1,
+		OpenFor: 200 * time.Millisecond,
+	})
+	bus := eventbus.NewResilient(eventbus.NewPublisher(ctx, eventbus.PublisherConfig{
+		URL:            url,
+		SubjectPrefix:  busSubjectPrefix,
+		ConnectTimeout: 2 * time.Second,
+		PublishTimeout: 2 * time.Second,
+	}), breaker)
+
+	tenant := shared.ID("01936f2a-7c1e-7000-8000-0000000000a1")
+	const eventType = "de.hubtask.work.item.created.v1"
+
+	if err := bus.Publish(ctx, tenant, eventType, []byte(`{"id":"before"}`)); err == nil {
+		t.Fatal("publishing to an address nothing listens on was reported as a success")
+	}
+
+	// The bus arrives.
+	startBusOn(ctx, t, port)
+	createStream(ctx, t, url)
+
+	if !eventuallyPublishes(ctx, bus, tenant, eventType) {
+		t.Fatal("the publisher never reached a bus that appeared after it was built")
+	}
 }
