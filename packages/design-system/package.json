@@ -20,12 +20,18 @@
     "build": "node build/build.js",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "node build/lint-no-literals.js",
-    "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.js"
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "test": "node --test test/*.test.js",
+    "workbench": "node build/build.js && vite --config workbench/vite.config.ts",
+    "workbench:build": "node build/build.js && vite build --config workbench/vite.config.ts"
   },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "style-dictionary": "^5.5.2",
-    "typescript": "^6.0.3"
+    "svelte": "^5.56.10",
+    "svelte-check": "^4.7.6",
+    "typescript": "^6.0.3",
+    "vite": "^8.2.2"
   },
   "dependencies": {
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
