@@ -23,14 +23,14 @@ export const longLabels: Story = {
   name: 'The same row in German',
   about:
     'Set Text to +40 % on top of this and rule 4 stops being a prediction. The row wraps; nothing is cut off and nothing scrolls sideways.',
-  args: { long: true },
+  args: { isLong: true },
 };
 
 export const noWrap: Story = {
   name: 'Wrapping switched off',
   about:
-    'What `wrap={false}` costs, shown deliberately. At compact width with the pseudo-locale on, this is the layout rule 4 is about — which is why the prop defaults the other way and needs a reason.',
-  args: { long: true, wrap: false },
+    'What `isWrapping={false}` costs, shown deliberately. At compact width with the pseudo-locale on, this is the layout rule 4 is about — which is why the prop defaults the other way and needs a reason.',
+  args: { isLong: true, isWrapping: false },
 };
 
 export const spaceBetween: Story = {

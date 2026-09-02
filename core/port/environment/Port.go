@@ -179,7 +179,7 @@ func (c EncryptionConfig) ActiveKeyID() string {
 	return c.Keys[0].ID
 }
 
-// BusConfig is the optional message bus (ADR-0007, ADR-0041).
+// BusConfig is the optional message bus (ADR-0007, ADR-0042).
 //
 // Optional in the sense that costs nothing when unset: with no URL, no connection is attempted, no
 // subscriber is registered with the dispatcher, and no job is written. The stream itself belongs to

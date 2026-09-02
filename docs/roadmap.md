@@ -267,11 +267,11 @@ cut into issues when it opens, from the then-current state of this file and the 
 | **F5 — AI, i18n, accessibility** | `0.7.0` | `0.7.0` and `0.8.0` | `AISuggestion` — visually separable, and gone without residue when AI is switched off — semantic search, and the AI paths of the jumble and of decomposition; language switching, CLDR formats and the RTL audit against design-system rule 3; and accessibility: WCAG 2.2 AA, keyboard operability, `focus-visible`, a screen-reader pass, and the accessibility statement the European Accessibility Act expects |
 | **F6 — Offline, the shells, the moments** | `0.8.5` | `0.8.5` | The sync engine becomes what its name says: local store, mutation queue, HLC, cursor and tombstone handling, `ACCESS_REVOKED` and `sync.cursor_too_old` behaviour, `SyncStatus` and `ConflictResolver`, the `offline-sync.md` §9 harness against fakes, and `hubctl sync-conformance` passed against a first-party client. Then the Tauri desktop shell — SQLite and keystore behind the `Storage` port, updater, signed distribution, the webview smoke matrix — and after it the mobile shell with signing, the store pipeline, platform adaptation (§9's last gap) and the capability matrix made real — the admin routes F4 tagged are excluded from this build, and each appears as the affordance ADR-0032 asks for: named, and linked to the web app of the server the client is signed into. The celebration kit and the onboarding tour close the milestone: the tour's last step is the first celebration, so they arrive together |
 
-Each open point in [`design-system.md`](./design/design-system.md) §9 therefore has an owner:
-iconography, the wordmark and the border scale in F1, platform adaptation with the mobile shell in
-F6. The list is not fixed — F1-02 and F1-04 closed contrast verification and voice and tone, and
-F1-13 closed the layering scale and opened two more, which is what a gap list does while a
-milestone runs.
+Each open point in [`design-system.md`](./design/design-system.md) §9 therefore has an owner: the
+wordmark in F1, platform adaptation with the mobile shell in F6. The list is not fixed — F1-02,
+F1-03, F1-04 and F1-05 closed contrast verification, iconography, voice and tone and the border
+scale, and F1-13 closed the layering scale and opened two more, which is what a gap list does while
+a milestone runs.
 
 **F1 is open**, and its backlog is [`backlog/milestone-F1.md`](./backlog/milestone-F1.md) —
 thirteen tasks, F1-01…F1-13. Cutting it found one thing this table could not: the client has no way

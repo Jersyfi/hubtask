@@ -24,7 +24,7 @@ import (
 )
 
 // This file imports the NATS client, and it is the one place outside infrastructure/eventbus that
-// may: the architecture gate ADR-0041 asks for covers core, infrastructure, presentation and cmd,
+// may: the architecture gate ADR-0042 asks for covers core, infrastructure, presentation and cmd,
 // and deliberately not test/. A test that proves the adapter delivers has to be able to look at
 // the other end of the connection, and looking at it through the adapter would prove that the
 // adapter agrees with itself.
@@ -40,7 +40,7 @@ func natsImage() string {
 
 // startBus brings up a JetStream server and a stream bound to the prefix this system publishes
 // under. The stream is created here because it is the operator's act, and in this test the test is
-// the operator - the adapter deliberately does not create one (ADR-0041).
+// the operator - the adapter deliberately does not create one (ADR-0042).
 func startBus(ctx context.Context, t *testing.T) (testcontainers.Container, string) {
 	t.Helper()
 

@@ -312,7 +312,7 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	if m.busPublications, err = meter.Int64Counter(
 		namespace+"_bus_publications_total",
 		metric.WithDescription("Events put on the optional message bus, and the ones that were "+
-			"not, by outcome (H-14, ADR-0041). The event type is a label and the subject is not: "+
+			"not, by outcome (H-14, ADR-0042). The event type is a label and the subject is not: "+
 			"a subject carries a tenant identifier."),
 	); err != nil {
 		return fmt.Errorf("bus publication counter: %w", err)

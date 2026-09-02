@@ -18,7 +18,7 @@ import (
 )
 
 // This file is the only place in the repository that imports the NATS client, and a gate in
-// test/architecture says so (ADR-0041). Everything above it speaks the event bus port; a bus
+// test/architecture says so (ADR-0042). Everything above it speaks the event bus port; a bus
 // swapped tomorrow changes no event anybody publishes.
 
 // typePrefix is the namespace every event type this system emits begins with

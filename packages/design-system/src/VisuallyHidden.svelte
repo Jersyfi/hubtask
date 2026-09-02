@@ -18,14 +18,14 @@
     /** The element to render. `span` inside a control, `div` where a block is wanted. */
     as?: string;
     /** Become visible when this element, or anything inside it, has focus. */
-    focusable?: boolean;
+    isFocusable?: boolean;
     children?: Snippet;
   }
 
-  const { as = 'span', focusable = false, children, ...rest }: Props = $props();
+  const { as = 'span', isFocusable = false, children, ...rest }: Props = $props();
 </script>
 
-<svelte:element this={as} class="visually-hidden" data-focusable={focusable ? '' : undefined} {...rest}>
+<svelte:element this={as} class="visually-hidden" data-focusable={isFocusable ? '' : undefined} {...rest}>
   {@render children?.()}
 </svelte:element>
 

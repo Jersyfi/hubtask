@@ -1,15 +1,22 @@
 # Components live here — Svelte 5, built deliberately
 
-Wave 0 is built: `Box`, `Stack`, `Inline` and `VisuallyHidden`, the four primitives everything
-else lays itself out with ([`design-system.md`](../../../docs/design/design-system.md) §4).
-Beside them are `space.ts` (the scale, as a type read from the generated tokens),
-`layers.ts` (which layer `Escape` reaches) and `index.ts`, which is what
-`@hubtask/design-system/components` resolves to.
+Built so far: **wave 0** — `Box`, `Stack`, `Inline`, `VisuallyHidden` — and the **forms half of
+wave 1** — `Icon`, `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Radio`,
+`Switch` ([`design-system.md`](../../../docs/design/design-system.md) §4). Beside them are
+`space.ts` and `control.ts` (the shared prop types), `layers.ts` (which layer `Escape` reaches),
+`icons/` (the set — `base.ts` is generated, `custom.ts` is the domain marks) and `index.ts`, which
+is what `@hubtask/design-system/components` resolves to.
 
 Everything after them arrives through the component-layer work package (roadmap, frontend track),
 wave by wave in the order §4 proposes — not as a side effect of feature work.
 
-Four constraints apply to every component here:
+`test/conventions.test.js` is where most of these stop being conventions: it reads every
+`.svelte` under this directory and fails on a physical `left`, a missing focus ring, a state that
+became a prop, an animated length, a boolean that does not ask a question, and a native input
+hidden from the accessibility tree. Read its failure messages before arguing with it — each one
+names the failure it guards against.
+
+Six constraints apply to every component here:
 
 * **A component without a `<Name>.stories.ts` beside it fails the build**, and so does one that
   appears in no wave of `design-system.md` §4
@@ -26,3 +33,10 @@ Four constraints apply to every component here:
   order comes from `primitive.layer`; `pnpm lint` fails on the rest.
 * **A primitive produces no visual style of its own** — no colour, no border, no shadow. One that
   decorates is a component, and belongs in a wave that plans it.
+* **No `disabled` boolean.** `disabledReason` is what switches a control off, so a control the
+  reader cannot use cannot come apart from the reason — the `CapabilityGate` principle of §4's
+  wave 3, applied by construction rather than by review.
+* **An icon takes the colour of the text it sits in.** `currentColor` and `none` are the only two
+  colours anything under `icons/` may name ([ADR-0041](../../../docs/adr/ADR-0041-icon-set.md)).
+  `base.ts` is generated from the declared list in `build/icons.js` — add a name there and run
+  `make icons`, never edit the file.

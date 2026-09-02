@@ -172,7 +172,7 @@ const (
 	// the event as it was, so a retry sends what the first attempt would have.
 	KindWebhookDeliver Kind = "webhook.deliver"
 
-	// KindBusPublish puts one event on the optional message bus (H-14, ADR-0041).
+	// KindBusPublish puts one event on the optional message bus (H-14, ADR-0042).
 	//
 	// A job and not a step of the dispatch, for the reason this package states about every
 	// subscriber: a subscriber runs inside the dispatcher's transaction and must not call the

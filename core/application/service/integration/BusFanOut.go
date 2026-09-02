@@ -39,7 +39,7 @@ const BusFanOutName = "bus"
 // An installation with no bus registers no BusFanOut, so no job is written and no row is paid for.
 // Registering it always and letting the handler decide would put a job per event in the queue of
 // every installation that does not use this at all, which is the opposite of what "optional" has to
-// mean (ADR-0041).
+// mean (ADR-0042).
 type BusFanOut struct {
 	Jobs  Queue
 	Clock clock.Clock

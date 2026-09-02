@@ -25,11 +25,11 @@
      * Off only where wrapping is provably wrong - a segmented control, a pair that means nothing
      * apart. Rule 4 is the reason this is a decision and not a default.
      */
-    wrap?: boolean;
+    isWrapping?: boolean;
     children?: Snippet;
   }
 
-  const { as = 'div', gap, align, justify, wrap = true, children, ...rest }: Props = $props();
+  const { as = 'div', gap, align, justify, isWrapping = true, children, ...rest }: Props = $props();
 </script>
 
 <svelte:element
@@ -38,7 +38,7 @@
   data-gap={gap}
   data-align={align}
   data-justify={justify}
-  data-wrap={wrap ? 'wrap' : 'nowrap'}
+  data-wrap={isWrapping ? 'wrap' : 'nowrap'}
   {...rest}
 >
   {@render children?.()}

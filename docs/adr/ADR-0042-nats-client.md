@@ -1,4 +1,4 @@
-# ADR-0041 — The NATS client library: nats.go, confined to one adapter
+# ADR-0042 — The NATS client library: nats.go, confined to one adapter
 
 **Status:** accepted · **Date:** 2026-09-02
 

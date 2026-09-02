@@ -88,7 +88,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		},
 		Bus: env.BusConfig{
 			// No default URL, and that is the off switch: an installation that never names a bus
-			// attempts no connection, registers no subscriber and writes no job (ADR-0041).
+			// attempts no connection, registers no subscriber and writes no job (ADR-0042).
 			URL:             get("HUBTASK_NATS_URL", ""),
 			SubjectPrefix:   get("HUBTASK_NATS_SUBJECT_PREFIX", "hubtask"),
 			CredentialsFile: get("HUBTASK_NATS_CREDENTIALS_FILE", ""),

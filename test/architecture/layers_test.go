@@ -276,7 +276,7 @@ func rel(p string) string {
 
 // The NATS client lives in exactly one package, and this is the gate that says so (H-14).
 //
-// ADR-0041 could choose a library for the same reason ADR-0009 could: nothing outside the adapter
+// ADR-0042 could choose a library for the same reason ADR-0009 could: nothing outside the adapter
 // depends on the choice. The core describes an event and a subscriber, and a bus swapped tomorrow
 // changes no event anybody publishes. The confinement is what makes that true rather than intended,
 // and it is the sentence the ADR would otherwise only be asserting.
@@ -292,7 +292,7 @@ func TestTheNATSClientIsBehindOneAdapter(t *testing.T) {
 				}
 				if !strings.Contains(filepath.ToSlash(path), adapter) {
 					t.Errorf("%s imports the NATS client: it belongs in %s and nowhere else "+
-						"(ADR-0041, ADR-0001)", rel(path), adapter)
+						"(ADR-0042, ADR-0001)", rel(path), adapter)
 				}
 			}
 		})

@@ -28,9 +28,11 @@ test('design-system.md §4 still reads as an inventory', () => {
   for (const wave of ['Wave 1', 'Wave 2', 'Wave 3', 'Wave 4']) {
     assert.ok(waves.has(wave), `${wave} is no longer readable from design-system.md §4`);
   }
-  // Wave 1 is the one F1 builds, and §4 names its eighteen by hand. If this number moves, a
-  // component was added or removed in the specification and the waves need re-reading.
-  assert.equal(waves.get('Wave 1').length, 18, 'wave 1 is no longer the eighteen §4 lists');
+  // Wave 1 is the one F1 builds, and §4 names its nineteen by hand - eighteen, plus the `Icon`
+  // that F1-03 brought forward because `IconButton` cannot be built before there is one. If this
+  // number moves, a component was added or removed in the specification and the waves need
+  // re-reading.
+  assert.equal(waves.get('Wave 1').length, 19, 'wave 1 is no longer the nineteen §4 lists');
 });
 
 test('the axis ids and the statuses are read from the files that declare them', () => {

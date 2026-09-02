@@ -10,10 +10,10 @@
     gap?: Space;
     align?: Align;
     /** Long enough that rule 4 has something to break when the pseudo-locale grows it. */
-    long?: boolean;
+    isLong?: boolean;
   }
 
-  const { gap = '200', align, long = false }: Props = $props();
+  const { gap = '200', align, isLong = false }: Props = $props();
 
   const short = ['One', 'Two', 'Three'];
   const wordy = [
@@ -25,7 +25,7 @@
 
 <div class="frame">
   <Stack {gap} {align}>
-    {#each long ? wordy : short as item (item)}
+    {#each isLong ? wordy : short as item (item)}
       <span class="item">{item}</span>
     {/each}
   </Stack>

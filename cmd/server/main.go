@@ -1685,7 +1685,7 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 	}
 
-	// The optional bus (H-14, ADR-0041). Everything about it is conditional on a URL having been
+	// The optional bus (H-14, ADR-0042). Everything about it is conditional on a URL having been
 	// configured, and that is what "optional" has to mean: with none, no connection is attempted,
 	// no subscriber is registered, no job is written and no row is paid for.
 	// The probe is registered either way, so that /meta/health says "disabled" rather than saying
@@ -2325,7 +2325,7 @@ func buildObjectStore(
 	return storageadapter.NewResilientStore(s3, breaker, bulkhead), s3, nil
 }
 
-// busBreaker is the bus's own breaker, and the probe that reads it (H-14, ADR-0041).
+// busBreaker is the bus's own breaker, and the probe that reads it (H-14, ADR-0042).
 //
 // No bulkhead beside it, unlike the mail sender's: every publish is already a job, so the worker
 // pool is the compartment, and a second one inside it would be a limit on a limit.
