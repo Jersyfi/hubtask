@@ -1685,6 +1685,37 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids,
 	}
 
+	// The optional bus (H-14, ADR-0041). Everything about it is conditional on a URL having been
+	// configured, and that is what "optional" has to mean: with none, no connection is attempted,
+	// no subscriber is registered, no job is written and no row is paid for.
+	// The probe is registered either way, so that /meta/health says "disabled" rather than saying
+	// nothing: an operator looking for the bus should find out that this installation has none,
+	// which is a different answer from the report having forgotten about it (the mail sender makes
+	// the same choice for the same reason).
+	busGuard := busBreaker(cfg.Bus.Enabled(), metrics, registry)
+
+	var busFanOut []eventbusport.Subscriber
+	var busPublication queueport.Handler
+	if cfg.Bus.Enabled() {
+		bus := eventbus.NewResilient(
+			eventbus.NewPublisher(ctx, eventbus.PublisherConfig{
+				URL:             cfg.Bus.URL,
+				SubjectPrefix:   cfg.Bus.SubjectPrefix,
+				CredentialsFile: cfg.Bus.CredentialsFile,
+				ConnectTimeout:  cfg.Bus.ConnectTimeout,
+				PublishTimeout:  cfg.Bus.PublishTimeout,
+			}),
+			busGuard,
+		)
+		busFanOut = []eventbusport.Subscriber{integrationservice.BusFanOut{
+			Jobs: jobs, Clock: clockadapter.System{},
+		}}
+		busPublication = eventbus.Publication{
+			Events: outbox, Bus: bus, UnitOfWork: backgroundWork,
+			Source: cfg.BaseURL, Signals: metrics,
+		}
+	}
+
 	webhookFanOut := integrationservice.FanOut{
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
@@ -1699,7 +1730,10 @@ func run() error {
 		// restore reaches no external system (backup-restore.md §8.4).
 		// The automation engine beside them, and it deliberately does not implement TakesReplays
 		// either: no rule fires for a restore's events (backup-restore.md §8.4, BK-5).
-		Subscribers: []eventbusport.Subscriber{notify, webhookFanOut, matchRules, relativeDates},
+		// The bus joins them only when one is configured (H-14): appending an empty slice is how
+		// an installation without a bus ends up with exactly the subscriber list it had before.
+		Subscribers: append([]eventbusport.Subscriber{notify, webhookFanOut, matchRules, relativeDates},
+			busFanOut...),
 		Clock:       clockadapter.System{},
 		Batch:       cfg.Queue.OutboxBatch,
 		MinInterval: cfg.Queue.OutboxMinInterval,
@@ -2061,6 +2095,12 @@ func run() error {
 			Queue: jobs, Clock: clockadapter.System{},
 		},
 	}
+	// The bus's handler joins the map only when a bus is configured. Registering it always would
+	// give an installation with no bus a kind whose backlog gauge exists and whose jobs never
+	// arrive - a series that can only ever be zero, which §3.2 asks not to publish.
+	if busPublication != nil {
+		handlers[queueport.KindBusPublish] = busPublication
+	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
 	for kind := range handlers {
 		kinds = append(kinds, kind)
@@ -2283,6 +2323,23 @@ func buildObjectStore(
 
 	registry.Register(storageadapter.NewProbe(breaker))
 	return storageadapter.NewResilientStore(s3, breaker, bulkhead), s3, nil
+}
+
+// busBreaker is the bus's own breaker, and the probe that reads it (H-14, ADR-0041).
+//
+// No bulkhead beside it, unlike the mail sender's: every publish is already a job, so the worker
+// pool is the compartment, and a second one inside it would be a limit on a limit.
+func busBreaker(
+	configured bool, metrics *observability.Metrics, registry *healthadapter.Registry,
+) *resilience.Breaker {
+	breaker := resilience.NewBreaker(resilience.BreakerConfig{
+		Dependency: eventbus.BusDependency,
+		OnStateChange: func(dependency string, state resilience.BreakerState) {
+			metrics.CircuitBreakerState(context.Background(), dependency, state.Level())
+		},
+	})
+	registry.Register(eventbus.NewProbe(breaker, configured))
+	return breaker
 }
 
 // buildMailSender assembles the mail port: the SMTP adapter behind a breaker and a bulkhead, and

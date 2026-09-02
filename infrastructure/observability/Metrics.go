@@ -71,6 +71,7 @@ type Metrics struct {
 	ruleRuns          metric.Int64Counter
 	ruleDisabled      metric.Int64Counter
 	webhookDeliveries metric.Int64Counter
+	busPublications   metric.Int64Counter
 	webhookBacklog    metric.Int64Gauge
 	tenantLabelActive bool
 }
@@ -307,6 +308,14 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"class. SLO-6 excludes the 4xx class - the recipient's fault, not this system's."),
 	); err != nil {
 		return fmt.Errorf("webhook delivery counter: %w", err)
+	}
+	if m.busPublications, err = meter.Int64Counter(
+		namespace+"_bus_publications_total",
+		metric.WithDescription("Events put on the optional message bus, and the ones that were "+
+			"not, by outcome (H-14, ADR-0041). The event type is a label and the subject is not: "+
+			"a subject carries a tenant identifier."),
+	); err != nil {
+		return fmt.Errorf("bus publication counter: %w", err)
 	}
 	if m.webhookBacklog, err = meter.Int64Gauge(
 		namespace+"_webhook_retry_backlog",
@@ -822,6 +831,23 @@ func (m *Metrics) RuleDisabled(ctx context.Context, reason string) {
 func (m *Metrics) WebhookDelivery(ctx context.Context, result, statusClass string) {
 	m.webhookDeliveries.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("result", result), attribute.String("status_class", statusClass)))
+}
+
+// BusPublished counts one event that reached the bus. The type is a closed set - the event types
+// this build emits - and the subject is deliberately not a label: it carries a tenant identifier,
+// and a series per tenant is how a Prometheus dies and how a workspace becomes visible in somebody
+// else's dashboard (§3.2, rule 10).
+func (m *Metrics) BusPublished(ctx context.Context, eventType string) {
+	m.busPublications.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("outcome", "published"), attribute.String("event_type", eventType)))
+}
+
+// BusRefused counts one that did not, by reason. The reason is written by hand where it is raised
+// and stays a short closed set: `unavailable` for a bus that could not be reached, `event_expired`
+// for an event swept before its publication ran.
+func (m *Metrics) BusRefused(ctx context.Context, reason string) {
+	m.busPublications.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("outcome", "refused"), attribute.String("reason", reason)))
 }
 
 // WebhookRetryBacklog publishes how many deliveries wait for their next rung of the ladder.

@@ -28,6 +28,7 @@
   "config.role_unknown": "{variable} names the unknown role {value}.",
   "config.shutdown_grace_invalid": "{variable} must be greater than zero.",
   "config.shutdown_deregister_invalid": "{variable} must not be negative.",
+  "config.bus_subject_prefix_invalid": "{variable} is the first token of every subject: it must not be empty and must not contain a dot, a space or a wildcard.",
   "config.load_shed_invalid": "{variable} must not be negative; zero switches load shedding off.",
   "config.log_format_invalid": "{variable} must be either json or text.",
   "config.log_level_invalid": "{variable} must be one of debug, info, warn, error.",
