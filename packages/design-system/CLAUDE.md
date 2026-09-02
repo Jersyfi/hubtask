@@ -45,7 +45,7 @@ make tokens                                       # or: pnpm --filter @hubtask/d
 pnpm --filter @hubtask/design-system lint         # no value outside tokens.json
 pnpm --filter @hubtask/design-system test         # ADR-0029's properties, and the story gate
 pnpm --filter @hubtask/design-system typecheck    # svelte-check over workbench/ and src/
-pnpm --filter @hubtask/design-system workbench    # look at it: :5174
+make workbench                                    # look at it: :5174
 git diff --exit-code core/domain/model/shared/LabelTokens.go   # must be empty after committing
 ```
 

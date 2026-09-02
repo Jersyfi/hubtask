@@ -82,8 +82,12 @@ from `tokens.json` rather than written by hand ([ADR-0037](../../docs/adr/ADR-00
 ## The workbench
 
 ```bash
-pnpm workbench     # http://localhost:5174
+make workbench     # http://localhost:5174
 ```
+
+From inside the package, `pnpm workbench` does the same — but pnpm lives in `.tools` after
+`make tools-node` and is not on anybody's PATH, so the `make` target is the one that works in a
+fresh checkout.
 
 The component workbench of [ADR-0037](../../docs/adr/ADR-0037-component-workbench.md): a small
 Svelte page in `workbench/`, built from dependencies the lockfile already carried, rather than

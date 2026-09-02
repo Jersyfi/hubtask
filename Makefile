@@ -190,6 +190,17 @@ tokens:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter @hubtask/design-system build
 
+## workbench: Start the design system's component workbench on http://localhost:5174
+# A development tool, never a product artefact: it is not part of `pnpm -r build`, nothing of it
+# reaches the embedded bundle, and the binary that carries that bundle is unchanged by it
+# (ADR-0037, ADR-0028). It lives here for the same reason `tokens` does - pnpm is installed into
+# .tools by `make tools-node` and is not on anybody's PATH, so `pnpm --filter ...` is a command
+# that does not work in a fresh checkout.
+.PHONY: workbench
+workbench:
+	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
+	$(PNPM) --filter @hubtask/design-system workbench
+
 ## website: Build the project website into apps/website/dist
 # It is not embedded into the binary and never will be: it has no API contract with the server and
 # no reason to be in it (ADR-0028). This produces a directory of static files; where that directory
