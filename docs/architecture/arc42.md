@@ -749,6 +749,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0037 | The component workbench is ours, and it renders every story through the rules | accepted |
 | 0038 | The workbench is published at workbench.hubtask.eu | accepted |
 | 0039 | Overlays are positioned by CSS, with one fallback we own | proposed |
+| 0041 | The NATS client library: nats.go, confined to one adapter | accepted |
 
 ---
 
