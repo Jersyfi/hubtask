@@ -43,6 +43,10 @@ func (pending) InviteAccount(w http.ResponseWriter, r *http.Request, _ openapi.I
 	notAvailable(w, r)
 }
 
+func (pending) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)
 }

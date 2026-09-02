@@ -460,8 +460,18 @@ there is nothing for MCP or an automation rule to call, and it is served by the 
 `ReadCalendarFeed` the way `MediaContent` serves the content routes.
 
 **Identity & tenancy** `ProvisionTenant`, `UpdateTenantSettings`, `SuspendTenant`, `DeleteTenant`,
-`ExportTenantData`, `InviteAccount`, `UpdateAccountPreferences`, `GrantMembership`, `RevokeMembership`,
-`CreateGroup`, `UpdateGroup`, `DeleteGroup`.
+`ExportTenantData`, `InviteAccount`, `GetOwnAccount`, `UpdateAccountPreferences`, `GrantMembership`,
+`RevokeMembership`, `CreateGroup`, `UpdateGroup`, `DeleteGroup`.
+
+`GetOwnAccount` is the one read in this group and the only one that takes no input: the actor *is*
+the identifier. It exists because nothing else answered "who am I" — `InviteAccount` creates an
+account and `UpdateAccountPreferences` writes to one, and between them a client never learned its
+own id, so the binding requirement that locale and time zone come from the account preference
+(`i18n-l10n.md` §2) had no way to be honoured. It performs no permission check, deliberately:
+reading one's own account is not administering anybody, and requiring `MANAGE_MEMBERS` for it would
+mean a viewer could not discover their own time zone. The token scope still applies, and the tenant
+boundary is the transaction's (ADR-0010). A service account gets the same document rather than a
+refusal — it has an account row like anybody else.
 
 **Search** `SearchItems` (full text, optionally semantic).
 

@@ -2231,6 +2231,35 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/me:
+    get:
+      tags: [identity]
+      operationId: getOwnAccount
+      summary: The account the caller is signed in as
+      description: |
+        Who am I, and how does this product speak to me. A client needs the answer before it can
+        render anything: `locale`, `time_zone` and `week_start` are the second link of the
+        resolution chain request → account → tenant → installation (`i18n-l10n.md` §2), and there
+        is no other way to learn them — `/accounts/{accountId}/preferences` writes to an id the
+        client never receives.
+
+        A service account gets the same document rather than a refusal. It has an `Account` row
+        with `kind: SERVICE_ACCOUNT`, and answering "you are a machine, and here is which one" is
+        more useful to a caller than a 403 it has to special-case.
+
+        `me` is a **reserved segment**: no account identifier is ever the string `me`, because
+        identifiers are UUIDs. The two paths cannot collide, and this is written down because a
+        reader looking at `/accounts/{accountId}` beside it will otherwise wonder.
+      responses:
+        "200":
+          description: The account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/{accountId}/preferences:
     parameters:
       - $ref: "#/components/parameters/AccountId"
@@ -5520,6 +5549,9 @@ components:
       name: accountId
       in: path
       required: true
+      description: >
+        An account identifier, always a UUID. The literal `me` is reserved for `/accounts/me` and
+        can never be one of these, which is what keeps the two paths from colliding.
       schema: { type: string, format: uuid }
 
     GroupId:
