@@ -206,7 +206,7 @@ schema version — everything is reported as a code with a severity, not as free
 | **Retry with backoff + jitter** | Only for idempotent operations; exponential, capped, with a maximum attempt count; never in the synchronous request path against third-party systems. |
 | **Circuit breaker** | Per external dependency (object storage, SMTP, AI, and per webhook target). Open → an immediate error instead of a blocked thread; half-open with a probe. The state appears as a metric and in `/meta/health`. |
 | **Bulkheads** | Separate connection and worker pools for API, worker, and automation. A runaway rule must not starve the interactive path; under Kubernetes, separate deployments on top. |
-| **Load shedding** | Above a threshold for `inflight_requests`, new *non-interactive* requests (bulk, export, search) are rejected with `503` + `Retry-After`, before latency tips over for everyone. |
+| **Load shedding** | Above a threshold for `inflight_requests`, new *non-interactive* requests (bulk, export, search, the query shapes) are rejected with `503` + `Retry-After`, before latency tips over for everyone. The threshold is `HUBTASK_LOAD_SHED_INFLIGHT`, set per role; the classification is `rest.DeferrableRoutes`, and a refusal counts as `hubtask_rate_limited_total{scope="load_shed:deferrable"}` (H-11). A parked request is not load: the change stream is admitted without being counted (`rest.LongLivedRoutes`), because counting it would make the threshold a limit on open tabs. |
 | **Rate limits** | Internally too: automation rules have throttles per rule and per tenant. |
 | **A queue instead of synchrony** | Everything external goes through the outbox or jobs. A hanging webhook recipient cannot delay an API response. |
 | **Idempotency** | `Idempotency-Key` on the outside, `job.dedupe_key` on the inside (the column's own spelling, corrected here by D-03), `delivery_id` for webhooks. At-least-once plus idempotency = effectively exactly-once. |
@@ -357,7 +357,7 @@ that `slo.json` has a row for every objective, and that every panel in `tenant.j
 | RT-3 Process death mid-job | `SIGKILL` during job processing: the lease expires, and the job takes effect exactly once | PR |
 | RT-4 Duplicate delivery | An event delivered twice: no duplicate effect (idempotency) | PR |
 | RT-5 Slow third-party system | A webhook target with 30 s latency: API latency unchanged, the breaker opens | PR |
-| RT-6 Overload | A load test beyond capacity: load shedding engages, P95 on the interactive paths stays within target, no OOM | Nightly |
+| RT-6 Overload | A load test beyond capacity: load shedding engages, P95 on the interactive paths stays within target, no OOM | Nightly *(in `gate-load` since H-11; first run in [docs/evidence/RT-6-2026-09-02.md](../evidence/RT-6-2026-09-02.md))* |
 | RT-7 Automation loop | A rule pair A↔B: the causality bound stops it, the rule is disabled, the alert metric rises | PR |
 | RT-8 Rolling update | A deployment with the N−1/N schema under load: no `5xx`, no data loss | Nightly |
 | RT-9 Restore | Import a backup, run the consistency and isolation checks | Per release |

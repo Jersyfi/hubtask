@@ -205,6 +205,8 @@ Everything else has a self-hosting default:
 | `HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE` | `3000` | Per tenant |
 | `HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE` | `10` | Login, password reset, invitation |
 | `HUBTASK_RATE_LIMIT_BURST` | `20` | How much of a budget may be spent at once |
+| `HUBTASK_LOAD_SHED_INFLIGHT` | `64` | Requests in flight above which deferrable work — bulk, export, search, the query shapes — is refused with `503` and a `Retry-After`, before latency tips over for the interactive path (observability-reliability.md §6, RT-6). Per role rather than per installation: each role is its own deployment with its own resources, and the chart sets the value on the one that serves the API. Several times the pool because not every request in flight holds a connection; `0` switches shedding off, which is the honest setting for an installation whose rate limits are the whole of its admission control |
+| `HUBTASK_LOAD_SHED_RETRY_AFTER` | `5s` | What a shed caller is told to wait |
 | `HUBTASK_MAX_BODY_BYTES` / `HUBTASK_MAX_UPLOAD_BYTES` | `1 MiB` / `64 MiB` | Request and upload limit (T-17) |
 | `HUBTASK_MAX_MAIL_BYTES` | `25 MiB` | The mail intake's own bound (G-11). Its own because a message is not a document: bounding it by the request limit would make the route useless, and by the upload limit would make it a way to store files. 25 MiB is what the mail providers people actually use accept — a message bigger than that is one their sender could not have delivered either |
 | `HUBTASK_REQUEST_TIMEOUT` | `30s` | Server-side deadline every handler inherits |

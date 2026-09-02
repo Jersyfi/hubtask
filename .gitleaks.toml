@@ -25,4 +25,9 @@ regexes = [
   # /dev/urandom; the scan reads the history, so the entries stay for as long as the commits do.
   '''compose-smoke-key-long-enough-for-32''',
   '''compose-smoke-not-a-secret''',
+  # The key ring of the load suite's installation, test/load/stack_test.go. It lives for the
+  # two minutes a run takes, seals a webhook signing secret nothing outside that run ever sees,
+  # and is a literal so that the same run produces the same bytes twice - which is the whole
+  # point of a dataset a baseline is measured over.
+  '''bG9hZC10ZXN0LWtleS0zMi1ieXRlcy1sb25nLWFiY2Q=''',
 ]

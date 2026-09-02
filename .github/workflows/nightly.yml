@@ -42,7 +42,28 @@ jobs:
       # second run under different load is how a flake announces itself before it fails a
       # pull request.
       - run: make gate-resilience
+      # RT-6 and the storm bring up their own installation - a container, the real binary and a
+      # seeded dataset - so they need no service beside them. The hardware is named because the
+      # regression guard compares only against a baseline recorded on the same kind of machine:
+      # comparing across iron measures the iron (H-11, decision 7).
+      #
+      # The dataset is the scaled one. Two million rows is the per-release capacity ramp's figure,
+      # seeded by scripts/seed-load-dataset.sh against a real stack on named hardware; carrying
+      # them into a container on a shared runner would spend the whole nightly on the COPY.
       - run: make gate-load
+        env:
+          HUBTASK_LOAD_HARDWARE: github-ubuntu-latest
+          HUBTASK_LOAD_TENANTS: "20"
+          HUBTASK_LOAD_ITEMS: "40000"
+          HUBTASK_LOAD_EVIDENCE_DIR: ${{ github.workspace }}/load-evidence
+      # Uploaded whether or not the gate passed: the numbers are the finding either way, and a
+      # red load test is read from its timeline rather than from the assertion that failed.
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: load-evidence
+          path: load-evidence/
+          if-no-files-found: ignore
 
   matrix-arm64:
     name: Support matrix - the full suite on arm64
