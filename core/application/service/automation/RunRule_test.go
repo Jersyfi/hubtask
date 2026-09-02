@@ -205,6 +205,21 @@ type engineHarness struct {
 	owners     *told
 	claims     *claims
 	jobs       *queued
+	signals    *runSignals
+}
+
+// runSignals records what the engine reports to the metrics (§4).
+type runSignals struct {
+	runs     []string // "result/trigger_type"
+	disabled []string
+}
+
+func (s *runSignals) RuleRun(_ context.Context, result, triggerType string) {
+	s.runs = append(s.runs, result+"/"+triggerType)
+}
+
+func (s *runSignals) RuleDisabled(_ context.Context, reason string) {
+	s.disabled = append(s.disabled, reason)
 }
 
 func newEngine(t *testing.T, rule domain.Rule) *engineHarness {
@@ -214,13 +229,14 @@ func newEngine(t *testing.T, rule domain.Rule) *engineHarness {
 	h := &engineHarness{
 		rules: store, runs: newRunLog(), failures: &failures{},
 		dispatcher: newDispatched(), events: &published{}, owners: &told{}, claims: newClaims(),
-		jobs: &queued{},
+		jobs: &queued{}, signals: &runSignals{},
 	}
 	h.engine = RunRule{
 		Rules: store, Runs: h.runs, Failures: h.failures, Events: h.events,
 		Source:     source{envelope: itemEvent()},
 		Dispatcher: h.dispatcher, Scopes: h.dispatcher,
 		Conditions: compiler{}, Guard: h.claims, Owners: h.owners, Jobs: h.jobs,
+		Signals:    h.signals,
 		UnitOfWork: unitOfWork{}, Clock: clock.Fixed(now), IDs: runIDs{},
 	}
 	return h
@@ -576,6 +592,40 @@ func TestARuleThatKeepsFailingSwitchesItselfOffAndItsOwnerIsTold(t *testing.T) {
 	}
 	if len(h.owners.rules) != 1 || h.owners.rules[0] != ruleID {
 		t.Errorf("the owner was told %v", h.owners.rules)
+	}
+}
+
+// Every ended run reaches the metrics with its result and its trigger, and the self-protective
+// switch-off reaches them with its reason - SLO-7 and A-16 have no other source. A WAITING run is
+// not an end and must not be counted; its real end passes through settle later.
+func TestTheMetricsSeeEveryEndedRunAndTheSwitchOff(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{{Kind: "ADD_LABEL"}}
+	h := newEngine(t, rule)
+
+	if _, err := h.engine.Execute(context.Background(), engineActor(), command(0)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if len(h.signals.runs) != 1 || h.signals.runs[0] != "succeeded/event" {
+		t.Errorf("the metrics saw %v, want [succeeded/event]", h.signals.runs)
+	}
+
+	h.dispatcher.refuse["ADD_LABEL"] = shared.ErrForbidden.WithDetail("access.not_permitted")
+	for i := range MaxConsecutiveFailures {
+		cmd := command(0)
+		cmd.EventID = shared.ID("01936f2a-7c1e-7000-8000-00000000061" + string(rune('0'+i)))
+		if _, err := h.engine.Execute(context.Background(), engineActor(), cmd); err != nil {
+			t.Fatalf("run %d: %v", i, err)
+		}
+	}
+	if got := len(h.signals.runs); got != 1+MaxConsecutiveFailures {
+		t.Errorf("the metrics saw %d runs, want %d", got, 1+MaxConsecutiveFailures)
+	}
+	if last := h.signals.runs[len(h.signals.runs)-1]; last != "failed/event" {
+		t.Errorf("the last run reported %q, want failed/event", last)
+	}
+	if len(h.signals.disabled) != 1 || h.signals.disabled[0] != DisabledByStreak {
+		t.Errorf("the switch-off reported %v, want [%s]", h.signals.disabled, DisabledByStreak)
 	}
 }
 

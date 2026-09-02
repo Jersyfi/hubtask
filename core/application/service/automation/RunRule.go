@@ -6,6 +6,7 @@ package automation
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
@@ -66,6 +67,19 @@ type Owners interface {
 	RuleDisabled(ctx context.Context, rule domain.Rule, at time.Time) error
 }
 
+// RunSignals is the metrics slice the engine feeds (observability-reliability.md §4): every ended
+// run by result and trigger - SLO-7's numerator and denominator - and each self-protective
+// switch-off by reason, which is what A-16 watches. An implementation receives statuses and
+// reasons from closed sets, never a rule, an account, or a tenant (§3.2).
+type RunSignals interface {
+	RuleRun(ctx context.Context, result, triggerType string)
+	RuleDisabled(ctx context.Context, reason string)
+}
+
+// DisabledByStreak is the one reason this engine ever switches a rule off: MaxConsecutiveFailures
+// runs failed in a row (automation.md §5). A closed set of one, named so the label has a source.
+const DisabledByStreak = "consecutive_failures"
+
 // RunRule is one rule's reaction to one event: the engine (G-07, automation.md §2).
 //
 // It runs inside the queue runner's transaction, which is what makes at-least-once delivery safe to
@@ -100,6 +114,8 @@ type RunRule struct {
 	Jumble condition.JumbleEntries
 	Guard  Idempotency
 	Owners Owners
+	// Signals carries the run into the metrics. Nil skips; the composition root always wires it.
+	Signals RunSignals
 	// Jobs is where a WAIT parks its resume (G-09). The engine runs inside the queue runner's
 	// transaction, so the suspended run and the job that will resume it commit together - a
 	// process that dies between them leaves neither.
@@ -364,10 +380,22 @@ func (h RunRule) orphan(
 	if err := h.Runs.Finish(ctx, failed); err != nil {
 		return domain.Run{}, err
 	}
+	h.observe(ctx, failed)
 	if !rule.ID.IsZero() {
 		h.announceFailure(ctx, rule, failed, false, now)
 	}
 	return failed, nil
+}
+
+// observe records one ended run in the metrics. A WAITING run has not ended - its real end passes
+// through here later - and both labels are lowercased closed sets: the status vocabulary the
+// domain owns and the six trigger kinds, never an identifier (§3.2).
+func (h RunRule) observe(ctx context.Context, run domain.Run) {
+	if h.Signals == nil || run.Status == domain.RunWaiting {
+		return
+	}
+	h.Signals.RuleRun(ctx,
+		strings.ToLower(string(run.Status)), strings.ToLower(string(run.Trigger)))
 }
 
 // decide is everything between starting the run and writing how it ended.
@@ -888,6 +916,7 @@ func (h RunRule) runAs(
 func (h RunRule) settle(
 	ctx context.Context, rule domain.Rule, run domain.Run, now time.Time,
 ) error {
+	h.observe(ctx, run)
 	if run.Status != domain.RunFailed {
 		// Anything that is not a failure ends the streak - including a skip and a throttle. A rule
 		// whose conditions said no is a rule that is working, and counting that as progress towards
@@ -906,6 +935,9 @@ func (h RunRule) settle(
 		if disabled, err = h.Failures.Disable(ctx, rule.ID, MaxConsecutiveFailures, now); err != nil {
 			return err
 		}
+	}
+	if disabled && h.Signals != nil {
+		h.Signals.RuleDisabled(ctx, DisabledByStreak)
 	}
 	h.announceFailure(ctx, rule, run, disabled, now)
 

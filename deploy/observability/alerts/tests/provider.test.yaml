@@ -1,0 +1,262 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# Synthetic firing tests for the provider set (H-12): every alert, including both burn-rate
+# shapes, driven to fire from crafted series. The burn tests also prove the multiwindow
+# construction - the same long-window burn with a quiet short window must NOT fire.
+rule_files:
+  - ../prometheus-rules-provider.yaml
+evaluation_interval: 30s
+tests:
+  # A-01 and A-02: 4% of requests fail for seven hours - well over burn 14 (1.4%) on the short
+  # pair of windows and over burn 6 (0.6%) on the long pair, so both alerts stand.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_http_requests_total{route="/items", method="GET", status_class="2xx"}'
+        values: '0+96x420'
+      - series: 'hubtask_http_requests_total{route="/items", method="GET", status_class="5xx"}'
+        values: '0+4x420'
+    alert_rule_test:
+      - eval_time: 6h30m
+        alertname: HubtaskErrorBudgetBurnAcute
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              alert_id: A-01
+            exp_annotations:
+              summary: "SLO-1's error budget is burning at more than 14x - an acute outage"
+              description: "More than 1.4% of requests are failing with a 5xx, sustained over the last hour and still happening in the last five minutes. At this rate the 30-day budget is gone in two days.\n"
+              runbook: RB-A01-acute-burn.md
+      - eval_time: 6h30m
+        alertname: HubtaskErrorBudgetBurnCreeping
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              alert_id: A-02
+            exp_annotations:
+              summary: "SLO-1's error budget is burning at more than 6x - a creeping outage"
+              description: "More than 0.6% of requests have failed with a 5xx across the last six hours, and the last half hour looks the same. Slow enough to miss, fast enough to spend the month's budget in five days.\n"
+              runbook: RB-A02-creeping-burn.md
+
+  # The multiwindow half of the promise: an outage that ENDED. Six bad hours, then a clean hour -
+  # the long windows still remember the burn, the short windows know it stopped, so neither
+  # alert may fire. This is the test that fails if somebody simplifies the expr to one window.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_http_requests_total{route="/items", method="GET", status_class="2xx"}'
+        values: '0+96x360 34560+100x95'
+      - series: 'hubtask_http_requests_total{route="/items", method="GET", status_class="5xx"}'
+        values: '0+4x360 1440+0x95'
+    alert_rule_test:
+      - eval_time: 7h30m
+        alertname: HubtaskErrorBudgetBurnAcute
+        exp_alerts: []
+      - eval_time: 7h30m
+        alertname: HubtaskErrorBudgetBurnCreeping
+        exp_alerts: []
+
+  # A-06: a backlog that does nothing but grow for half an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_job_queue_depth{job_type="outbox.dispatch"}'
+        values: '11+2x45'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: HubtaskQueueNotKeepingUp
+        exp_alerts:
+          - exp_labels:
+              job_type: outbox.dispatch
+              severity: ticket
+              alert_id: A-06
+            exp_annotations:
+              summary: "The outbox.dispatch backlog has done nothing but grow"
+              description: "The pending count for this job kind has risen throughout the last half hour. Processing is not keeping up with what is being scheduled.\n"
+              runbook: RB-A06-queue-growth.md
+
+  # A-09: half of all attempts fail with 5xx - far over the 20% line, none of it recipient 4xx.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_webhook_deliveries_total{result="ok", status_class="2xx"}'
+        values: '0+8x60'
+      - series: 'hubtask_webhook_deliveries_total{result="retry", status_class="5xx"}'
+        values: '0+8x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: HubtaskWebhookDeliveryFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-09
+            exp_annotations:
+              summary: "More than 20% of webhook attempts are failing"
+              description: "Excluding recipient-side 4xx answers, at least a fifth of webhook deliveries over the last half hour did not get through. Targets are down, or egress is broken.\n"
+              runbook: RB-A09-webhook-failures.md
+
+  # A-10: a breaker sits open (state 2) past the ten-minute mark.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_circuit_breaker_state{dependency="smtp"}'
+        values: '2x20'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: HubtaskCircuitBreakerOpen
+        exp_alerts:
+          - exp_labels:
+              dependency: smtp
+              severity: ticket
+              alert_id: A-10
+            exp_annotations:
+              summary: "The breaker for smtp has been open for 10 minutes"
+              description: "Calls to this dependency are being refused without being attempted. Whatever the feature that needs it does now, it does degraded.\n"
+              runbook: RB-A10-breaker-open.md
+
+  # A-11: nine of ten connections in use, sustained.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_pool_connections{pool="api", state="in_use"}'
+        values: '9x20'
+      - series: 'hubtask_db_pool_connections{pool="api", state="idle"}'
+        values: '1x20'
+      - series: 'hubtask_db_pool_connections{pool="api", state="max"}'
+        values: '10x20'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: HubtaskPoolNearSaturation
+        exp_alerts:
+          - exp_labels:
+              pool: api
+              severity: ticket
+              alert_id: A-11
+            exp_annotations:
+              summary: "The api pool has run above 80% for 10 minutes"
+              description: "Four out of five connections are in use, sustained. The next slow query or small spike turns into waiting - this is the warning before the outage, not the outage.\n"
+              runbook: RB-A11-pool-saturation.md
+
+  # A-13: two pods, two embedded migrations, and it holds.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_migration_version{instance="a"}'
+        values: '68x25'
+      - series: 'hubtask_migration_version{instance="b"}'
+        values: '67x25'
+    alert_rule_test:
+      - eval_time: 17m
+        alertname: HubtaskMigrationVersionsDiverge
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-13
+            exp_annotations:
+              summary: "The cluster is running two different migration versions"
+              description: "Pods disagree about which migration their build embeds, and have for 15 minutes. A rolling update is stuck halfway - old and new code are serving side by side.\n"
+              runbook: RB-A13-migration-drift.md
+
+  # A-14: a warn-severity startup finding was counted once, and the process keeps running.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_config_invalid_total{key="config.base_url_missing"}'
+        values: '1x15'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: HubtaskMisconfigured
+        exp_alerts:
+          - exp_labels:
+              key: config.base_url_missing
+              severity: ticket
+              alert_id: A-14
+            exp_annotations:
+              summary: "The process is running with flagged configuration (config.base_url_missing)"
+              description: "A startup check flagged this configuration key and the process is running without what it names. The same finding is in /meta/health's warnings, with parameters.\n"
+              runbook: RB-A14-misconfiguration.md
+
+  # A-15, the rate: six refusals a minute against sixty auth requests - one in ten refused. The
+  # route label carries the shape the router produces, method included, so that the rule's
+  # denominator is tested against what a real scrape contains rather than against a convenient
+  # abbreviation - an anchored regex that misses would otherwise divide by the clamp and page on
+  # the first refusal.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_auth_failures_total{reason="wrong_credential"}'
+        values: '0+6x40'
+      - series: 'hubtask_http_requests_total{route="POST /api/v1/auth/sessions", method="POST", status_class="4xx"}'
+        values: '0+60x40'
+    alert_rule_test:
+      - eval_time: 27m
+        alertname: HubtaskAuthFailureRate
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-15
+            exp_annotations:
+              summary: "More than 5% of authentication attempts are being refused"
+              description: "The refusal rate across sign-in and refresh is above one in twenty. Either a credential-stuffing attempt, or a client somewhere is misconfigured and retrying.\n"
+              runbook: RB-A15-auth-failures.md
+
+  # A-15, the negative: one refusal a minute against the same sixty requests is 1.7%, and nothing
+  # may be ticketed. This is the case that fails if the denominator's regex stops matching - a
+  # selector that finds no series divides by the clamp instead, and every rate becomes infinite.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_auth_failures_total{reason="wrong_credential"}'
+        values: '0+1x40'
+      - series: 'hubtask_http_requests_total{route="POST /api/v1/auth/sessions", method="POST", status_class="4xx"}'
+        values: '0+60x40'
+    alert_rule_test:
+      - eval_time: 27m
+        alertname: HubtaskAuthFailureRate
+        exp_alerts: []
+
+  # A-15, the reuse: a single rotated token presented again pages at once.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_auth_failures_total{reason="refresh_reused"}'
+        values: '0 0 0 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HubtaskRefreshTokenReused
+        exp_alerts:
+          - exp_labels:
+              reason: refresh_reused
+              severity: page
+              alert_id: A-15
+            exp_annotations:
+              summary: "A rotated refresh token was presented again - possible token theft"
+              description: "Somebody used a refresh token that had already been rotated away. The session family is already revoked; what needs a person is the question of how there were two holders.\n"
+              runbook: RB-A15-auth-failures.md
+
+  # A-16: one rule switched itself off within the hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_rule_disabled_total{reason="consecutive_failures"}'
+        values: '0 0 0 1 1 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: HubtaskRuleSelfDisabled
+        exp_alerts:
+          - exp_labels:
+              reason: consecutive_failures
+              severity: ticket
+              alert_id: A-16
+            exp_annotations:
+              summary: "An automation rule switched itself off (consecutive_failures)"
+              description: "The consecutive-failures protection disabled at least one rule in the last hour. The owner has been notified; this ticket is for finding out what kept failing.\n"
+              runbook: RB-A16-rule-disabled.md
+
+  # A-17: cert-manager reports an expiry seven days out (the test clock starts at zero, so the
+  # timestamp is simply seven days).
+  - interval: 1m
+    input_series:
+      - series: 'certmanager_certificate_expiration_timestamp_seconds{name="hubtask-tls"}'
+        values: '604800x120'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: HubtaskCertificateExpiring
+        exp_alerts:
+          - exp_labels:
+              name: hubtask-tls
+              severity: ticket
+              alert_id: A-17
+            exp_annotations:
+              summary: "A certificate expires in under 14 days"
+              description: "cert-manager reports a certificate within two weeks of its end and renewal has not happened. Renewal is supposed to be automatic - it firing means the automation broke.\n"
+              runbook: RB-A17-certificate-expiry.md

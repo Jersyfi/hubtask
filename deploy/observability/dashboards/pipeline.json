@@ -1,7 +1,7 @@
 {
   "uid": "hubtask-pipeline",
-  "title": "Hubtask — Pipeline",
-  "description": "The work that happens outside a request: the outbox, the job queue and the scheduler (ADR-0007, ADR-0008). Reminders joined it with D-03; automation and webhooks join as those arrive.",
+  "title": "Hubtask \u2014 Pipeline",
+  "description": "The work that happens outside a request: the outbox, the job queue and the scheduler (ADR-0007, ADR-0008). Reminders joined it with D-03, automation and webhooks with H-12 - the two rows \u00a711 has been promising since those features were metrics on paper.",
   "tags": [
     "hubtask"
   ],
@@ -334,6 +334,128 @@
           "expr": "sum by (channel) (rate(hubtask_reminder_delivery_delay_seconds_count[10m]))",
           "legendFormat": "{{channel}}",
           "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Rule runs, by outcome",
+      "description": "SLO-7's raw material. Only ended runs are counted - a WAITING run is counted when it ends - and only `failed` is our fault: skipped, throttled and aborted_loop are a rule working exactly as it is configured.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(hubtask_rule_runs_total[10m]))",
+          "legendFormat": "{{result}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Rules that switched themselves off",
+      "description": "The self-protection made visible (A-16): consecutive failures, or the loop bound. Each step is somebody's automation that has stopped running until they re-enable it, and the owner has already been told.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (reason) (increase(hubtask_rule_disabled_total[1h]))",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Webhook attempts, by outcome",
+      "description": "One line per settled attempt (A-09, SLO-6). The 4xx class is the recipient's own refusal and is excluded from the objective - a subscriber answering 400 is a subscriber with a bug, not an outage here.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(hubtask_webhook_deliveries_total[10m]))",
+          "legendFormat": "{{result}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (status_class) (rate(hubtask_webhook_deliveries_total{result!=\"ok\"}[10m]))",
+          "legendFormat": "failed {{status_class}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Webhook retries waiting",
+      "description": "One waiting attempt is one scheduled job. A backlog that grows while the ok line holds is a single target failing its way up the ladder; one that grows with ok falling is egress.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(hubtask_webhook_retry_backlog)",
+          "legendFormat": "waiting",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(hubtask_webhook_deliveries_total{result=\"dead\"}[1h]))",
+          "legendFormat": "dead-lettered / h",
+          "refId": "B"
         }
       ]
     }

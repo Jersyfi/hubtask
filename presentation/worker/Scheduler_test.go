@@ -67,6 +67,7 @@ type schedulerSignals struct {
 	depths    map[string]int64
 	lags      []float64
 	freshness map[string]time.Time
+	backlogs  []int64
 }
 
 func newSchedulerSignals() *schedulerSignals {
@@ -83,6 +84,10 @@ func (s *schedulerSignals) QueueDepth(_ context.Context, kind string, pending in
 
 func (s *schedulerSignals) SchedulerTickLag(_ context.Context, seconds float64) {
 	s.lags = append(s.lags, seconds)
+}
+
+func (s *schedulerSignals) WebhookRetryBacklog(_ context.Context, waiting int64) {
+	s.backlogs = append(s.backlogs, waiting)
 }
 
 type depthQueue struct {
@@ -368,6 +373,27 @@ func (p *streamPartitions) DropAged(context.Context, string, int) ([]streams.Dro
 
 // The stream duty covers all three tables, this month and next - the audit duty's contract,
 // three times over (H-09).
+// retryBacklog is a RetryBacklog with a fixed answer.
+type retryBacklog struct{ waiting int }
+
+func (b retryBacklog) ScheduledBacklog(_ context.Context, _ queue.Kind) (int, error) {
+	return b.waiting, nil
+}
+
+// The retry ladder's gauge is a leader duty like the queue depth: exactly one process reports
+// what is a property of the installation (§4, hubtask_webhook_retry_backlog).
+func TestTheLeaderSamplesTheRetryBacklog(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.Backlog = retryBacklog{waiting: 7}
+
+	leader.tick(t.Context(), false, now)
+
+	if len(signals.backlogs) != 1 || signals.backlogs[0] != 7 {
+		t.Errorf("the backlog was reported as %v, want [7]", signals.backlogs)
+	}
+}
+
 func TestTheLeaderEnsuresEveryStreamsComingMonths(t *testing.T) {
 	partitions := &streamPartitions{}
 	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())

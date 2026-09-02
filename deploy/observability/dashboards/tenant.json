@@ -1,0 +1,296 @@
+{
+  "uid": "hubtask-tenant",
+  "title": "Hubtask \u2014 Tenants and quotas",
+  "description": "Quotas and the busiest workspaces (observability-reliability.md \u00a711). Behind the tenant label opt-in of \u00a73.2: without HUBTASK_METRICS_TENANT_LABEL=true the quota panels still read - the ratios are per quota - and the per-tenant panels say what to set instead of showing an empty graph. Shipped as an example: an operator imports it, points it at their Prometheus and edits freely; nothing in the application reads this file.",
+  "tags": [
+    "hubtask"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "Read this before the panels below",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Two series carry `tenant_id`, and only when the operator asks for it with `HUBTASK_METRICS_TENANT_LABEL=true`: `hubtask_usecase_total` and `hubtask_tenant_quota_usage_ratio`. The label is off by default because in provider operation it multiplies every series by the tenant count (`observability-reliability.md` \u00a73.2) - that is a deliberate ceiling on cardinality, not an oversight, and turning it on is a capacity decision about Prometheus.\n\n**Without the label this dashboard still works, one row shorter.** The quota panels read the same series unlabelled: the alarm A-18 needs - *somebody* is at 90% of *this* quota - survives, and only the *who* is missing. Every panel that needs the label says so in its own place instead of showing an empty graph. To answer 'which tenant', either enable the label, or ask the API from inside the workspace: `GET /api/v1/quotas` reports the same ratios with authorisation behind them and no cardinality at all, and `PATCH /api/v1/admin/tenants/{tenantId}/quotas` is where the ceiling moves."
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Tenants visible",
+      "description": "How many workspaces the metrics can currently tell apart. Without the label this is not zero - it is unanswerable, which is what the panel says.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "label off"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "count(count by (tenant_id) (hubtask_tenant_quota_usage_ratio))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Quotas above 90%",
+      "description": "A-18's condition. Works with the label and without it - the ratio is per quota, and the alert asks whether anybody is near a ceiling.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "count(hubtask_tenant_quota_usage_ratio > 0.9)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Highest quota usage",
+      "description": "The fullest ceiling anywhere. At 1 the next write in that workspace is refused with 429 and `capacity.<quota>` (multi-tenancy.md \u00a77).",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.9
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 1,
+          "noValue": "no quota is configured"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "max(hubtask_tenant_quota_usage_ratio)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Refused for capacity",
+      "description": "Requests turned away by a limit, per second - the request rate is the quota enforced in the limiter rather than as a capacity row. Fairness working looks like a small steady number here, not a zero.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 2,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(hubtask_rate_limited_total[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Quota usage by quota",
+      "description": "Without the tenant label each line is whichever workspace reported last for that quota - enough for 'somebody is near a ceiling', which is what A-18 asks, and not enough to say who. With the label on, the panel beside it answers that.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          },
+          "noValue": "no quota is configured on this installation"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "max by (quota) (hubtask_tenant_quota_usage_ratio)",
+          "legendFormat": "{{quota}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Quota usage by tenant",
+      "description": "Every workspace against every ceiling it has. This is the panel the label exists for.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          },
+          "noValue": "The tenant label is off. Set HUBTASK_METRICS_TENANT_LABEL=true to fill this panel - in provider operation read \u00a73.2 on cardinality first."
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "max by (tenant_id, quota) (hubtask_tenant_quota_usage_ratio)",
+          "legendFormat": "{{tenant_id}} \u00b7 {{quota}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Busiest tenants",
+      "description": "The ten workspaces producing the most use case executions. Load, not requests: one request is one use case, and a bulk operation is one of each per item (domain-model.md).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          },
+          "noValue": "The tenant label is off. Set HUBTASK_METRICS_TENANT_LABEL=true to fill this panel - in provider operation read \u00a73.2 on cardinality first."
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (tenant_id) (rate(hubtask_usecase_total[5m])))",
+          "legendFormat": "{{tenant_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Tenants seeing errors",
+      "description": "The same ten, filtered to the two results that are our fault (\u00a74.1). A workspace with a high validation rate is a client doing what clients do; one with `internal` is a defect somebody is living with.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          },
+          "noValue": "The tenant label is off. Set HUBTASK_METRICS_TENANT_LABEL=true to fill this panel - in provider operation read \u00a73.2 on cardinality first."
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (tenant_id) (\n  rate(hubtask_usecase_total{result=~\"internal|unavailable\"}[5m])\n))",
+          "legendFormat": "{{tenant_id}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

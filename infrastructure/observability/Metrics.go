@@ -66,6 +66,12 @@ type Metrics struct {
 	streamRefused     metric.Int64Counter
 	streamRecords     metric.Int64Counter
 	authFailures      metric.Int64Counter
+	poolConnections   metric.Int64Gauge
+	migrationVersion  metric.Int64Gauge
+	ruleRuns          metric.Int64Counter
+	ruleDisabled      metric.Int64Counter
+	webhookDeliveries metric.Int64Counter
+	webhookBacklog    metric.Int64Gauge
 	tenantLabelActive bool
 }
 
@@ -159,9 +165,25 @@ func (m *Metrics) instruments(meter metric.Meter) error {
 	}
 	if m.configInvalid, err = meter.Int64Counter(
 		namespace+"_config_invalid_total",
-		metric.WithDescription("Configuration rejected at startup, by variable."),
+		metric.WithDescription("Configuration the process flagged at startup, by key. A hard "+
+			"rejection stops the process before the exporter exists - what this carries are the "+
+			"tolerated misconfigurations /meta/health warns about, as a series A-14 can watch."),
 	); err != nil {
 		return fmt.Errorf("config counter: %w", err)
+	}
+	if m.poolConnections, err = meter.Int64Gauge(
+		namespace+"_db_pool_connections",
+		metric.WithDescription("Connections per pool by state: in_use, idle, and the configured "+
+			"max, which is what turns the first two into a utilisation (A-11)."),
+	); err != nil {
+		return fmt.Errorf("pool gauge: %w", err)
+	}
+	if m.migrationVersion, err = meter.Int64Gauge(
+		namespace+"_migration_version",
+		metric.WithDescription("The migration this build embeds. Differing values across the "+
+			"cluster mean a rollout in progress; differing for long means a stuck one (A-13)."),
+	); err != nil {
+		return fmt.Errorf("migration gauge: %w", err)
 	}
 	if m.breakerState, err = meter.Int64Gauge(
 		namespace+"_circuit_breaker_state",
@@ -264,6 +286,34 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("Refused sign-in and refresh attempts, by reason. refresh_reused is A-15's second half: a rotated refresh token presented again means two holders of one credential."),
 	); err != nil {
 		return fmt.Errorf("auth failure counter: %w", err)
+	}
+	if m.ruleRuns, err = meter.Int64Counter(
+		namespace+"_rule_runs_total",
+		metric.WithDescription("Ended automation runs by result and trigger kind. SLO-7's share "+
+			"of runs without an internal error divides failed by everything."),
+	); err != nil {
+		return fmt.Errorf("rule run counter: %w", err)
+	}
+	if m.ruleDisabled, err = meter.Int64Counter(
+		namespace+"_rule_disabled_total",
+		metric.WithDescription("Rules that switched themselves off, by reason. What A-16 "+
+			"watches: the loop and error protection becoming visible."),
+	); err != nil {
+		return fmt.Errorf("rule disabled counter: %w", err)
+	}
+	if m.webhookDeliveries, err = meter.Int64Counter(
+		namespace+"_webhook_deliveries_total",
+		metric.WithDescription("Settled webhook attempts by result (ok/retry/dead) and answer "+
+			"class. SLO-6 excludes the 4xx class - the recipient's fault, not this system's."),
+	); err != nil {
+		return fmt.Errorf("webhook delivery counter: %w", err)
+	}
+	if m.webhookBacklog, err = meter.Int64Gauge(
+		namespace+"_webhook_retry_backlog",
+		metric.WithDescription("Deliveries waiting out their backoff for another attempt. "+
+			"Reported by the scheduler leader only, like the queue depth."),
+	); err != nil {
+		return fmt.Errorf("webhook backlog gauge: %w", err)
 	}
 	if err := m.retentionInstruments(meter); err != nil {
 		return err
@@ -751,6 +801,50 @@ func (m *Metrics) DataSubjectDeadline(ctx context.Context, stage string, count i
 // than as guesswork in a support conversation.
 func (m *Metrics) ConfigInvalid(ctx context.Context, key string) {
 	m.configInvalid.Add(ctx, 1, metric.WithAttributes(attribute.String("key", key)))
+}
+
+// RuleRun counts one ended automation run. Both values come from the engine's closed sets - the
+// domain's status vocabulary and the six trigger kinds - never a rule or a tenant (§3.2).
+func (m *Metrics) RuleRun(ctx context.Context, result, triggerType string) {
+	m.ruleRuns.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("result", result), attribute.String("trigger_type", triggerType)))
+}
+
+// RuleDisabled counts one rule switching itself off. The reason is the engine's, and there is
+// exactly one today; the label exists so a second protection would be told apart from the first.
+func (m *Metrics) RuleDisabled(ctx context.Context, reason string) {
+	m.ruleDisabled.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
+}
+
+// WebhookDelivery counts one settled attempt. Both labels are closed sets the deliverer owns:
+// what became of the attempt, and the class of the answer - never a target, never a tenant
+// (§3.2, rule 10: a label per URL would grow a series per customer integration).
+func (m *Metrics) WebhookDelivery(ctx context.Context, result, statusClass string) {
+	m.webhookDeliveries.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("result", result), attribute.String("status_class", statusClass)))
+}
+
+// WebhookRetryBacklog publishes how many deliveries wait for their next rung of the ladder.
+func (m *Metrics) WebhookRetryBacklog(ctx context.Context, waiting int64) {
+	m.webhookBacklog.Record(ctx, waiting)
+}
+
+// PoolConnections publishes one pool's connection states. The max joins in_use and idle as a
+// third state rather than a separate metric, because it is the denominator A-11 divides by and
+// belongs on the same series a dashboard already reads. The pool label tells the API's pool from
+// the background one - their saturation means different things (§6).
+func (m *Metrics) PoolConnections(ctx context.Context, pool string, inUse, idle, maxConns int64) {
+	for state, value := range map[string]int64{"in_use": inUse, "idle": idle, "max": maxConns} {
+		m.poolConnections.Record(ctx, value, metric.WithAttributes(
+			attribute.String("pool", pool), attribute.String("state", state)))
+	}
+}
+
+// MigrationVersion publishes the migration this build embeds, once at startup. It deliberately
+// reports the build, not the database: every pod asks the same database, so the database's answer
+// could never differ between pods, and differing is the whole signal (A-13).
+func (m *Metrics) MigrationVersion(ctx context.Context, version int64) {
+	m.migrationVersion.Record(ctx, version)
 }
 
 // Shutdown flushes the meter. Metrics missing from the last seconds of a pod's life are exactly

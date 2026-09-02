@@ -28,6 +28,15 @@ type SchedulerSignals interface {
 	// BackupLastSuccess is when a target last had a backup that worked - alert A-12's number
 	// (E-05, observability-reliability.md §10).
 	BackupLastSuccess(ctx context.Context, targetID string, at time.Time)
+	// WebhookRetryBacklog is the deliveries waiting out their backoff (§4, H-12).
+	WebhookRetryBacklog(ctx context.Context, waiting int64)
+}
+
+// RetryBacklog answers how many jobs of one kind wait for a future moment. One series reads it
+// today: a webhook retry is exactly one scheduled job - one attempt, one row - so the queue is
+// where hubtask_webhook_retry_backlog is honestly counted, and no tenant-bounded table is crossed.
+type RetryBacklog interface {
+	ScheduledBacklog(ctx context.Context, kind queue.Kind) (int, error)
 }
 
 // InstanceBackups is the slice of the schedule pass the leader runs: the instance-wide schedules,
@@ -68,6 +77,10 @@ type Scheduler struct {
 	// alert on a backlog that never appears is an alert that reads "no data" and is believed
 	// (observability-reliability.md §4, alert A-06). The same reasoning seeds the panic counter.
 	Kinds []queue.Kind
+
+	// Backlog is where the webhook retry ladder is counted (H-12). Optional, like everything
+	// below: a build without it publishes no backlog series rather than a wrong one.
+	Backlog RetryBacklog
 
 	// InstanceBackups fires the schedules that belong to no tenant. Optional: an installation
 	// without it simply never has one, which is the state every installation is in today.
@@ -160,6 +173,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	}
 
 	s.sampleQueueDepth(ctx)
+	s.sampleRetryBacklog(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
 	s.ensureAuditPartitions(ctx)
@@ -389,6 +403,31 @@ func (s Scheduler) sampleQueueDepth(ctx context.Context) {
 			s.Signals.QueueDepth(ctx, kind.String(), 0)
 		}
 	}
+}
+
+// sampleRetryBacklog publishes the webhook retries waiting out their backoff. The queue depth
+// above counts what is due; what this adds is the ladder - deliveries that failed and wait for
+// their next rung, which is the number that says a target is down before the dead letters do.
+func (s Scheduler) sampleRetryBacklog(ctx context.Context) {
+	if s.Signals == nil || s.Backlog == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	var waiting int
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		waiting, err = s.Backlog.ScheduledBacklog(txCtx, queue.KindWebhookDeliver)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the retry backlog failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.WebhookRetryBacklog(ctx, int64(waiting))
 }
 
 // release gives leadership up on the way out.

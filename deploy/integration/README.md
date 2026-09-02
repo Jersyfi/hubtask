@@ -18,9 +18,14 @@ against a live one is safe — and that is the property that matters: an environ
 built once is an environment nobody dares touch.
 
 ```bash
-scp -r deploy/integration root@<host>:/root/
-ssh root@<host> /root/integration/bootstrap.sh
+scp -r deploy root@<host>:/root/
+ssh root@<host> /root/deploy/integration/bootstrap.sh
 ```
+
+The whole `deploy/` directory rather than `deploy/integration` alone: the script builds
+Prometheus's rules ConfigMap from `deploy/observability/alerts/`, so that what evaluates on this
+cluster is the file the gate tests and not a copy of it. The script says so and stops if the
+directory is missing, rather than starting a Prometheus with no rules.
 
 Then the one manual step, which is manual on purpose — a credential does not belong in a script's
 output, in a repository, or in a chat window:
@@ -32,6 +37,69 @@ ssh root@<host> cat /root/deploy-kubeconfig.yaml | gh secret set KUBE_CONFIG --e
 What the host needs beforehand: ports 22, 80, 443 and 6443 open inbound, and a DNS record
 `*.<environment>.hubtask.eu` pointing at it (A and AAAA). Port 80 is not optional — it is where
 Let's Encrypt validates.
+
+## Monitoring
+
+The environment watches itself (`observability-reliability.md` §14, O-1): Prometheus scrapes every
+role's operations port, evaluates the three shipped rule files, and hands what fires to
+Alertmanager, which delivers by SMTP into a mail catcher in the same namespace. Nothing has an
+Ingress — the way in is the kubeconfig.
+
+| | |
+|---|---|
+| Namespace | `monitoring` |
+| Applied by | `bootstrap.sh`, from [`monitoring.yaml`](./monitoring.yaml) |
+| History | `ALERTS{alertstate="firing"}` in Prometheus, 45 days |
+| Now | `/api/v2/alerts` in Alertmanager |
+| Delivered | `/api/v1/messages` in Mailpit |
+
+The mail catcher is the receiver because the environment's alerts are read by whoever is working
+on it. Delivery is SMTP all the same — the receiver a provider would use — so a real mail server
+later is an address and a credential in the config, not a different routing. What is deliberately
+*not* here is a pager: an alert that fires at three in the morning waits in Mailpit until somebody
+looks, and this environment is one where that is the right answer.
+
+### The daily check
+
+[`alert-check.sh`](./alert-check.sh) asks the four questions in the order they matter, from your
+own machine, and changes nothing:
+
+```bash
+export HUBTASK_INTEGRATION_SSH="ssh -i ~/.ssh/<key> root@<host>"
+deploy/integration/alert-check.sh
+```
+
+It exits 0 when nothing needs a person and 1 when something does, so it can be run by a schedule
+as well as by hand.
+
+1. **Is the alerting path alive?** A watchdog mail older than a day means Prometheus, Alertmanager
+   or the catcher has stopped — and that every silence underneath it is unexplained. It is asked
+   first because it is the failure that hides all the others.
+2. **What is firing**, with the runbook for each: the runbook is the answer to "what do I do about
+   it", and this script deliberately does not try to be a second one.
+3. **What is pending** — about to fire, and cheaper to deal with before it does.
+4. **Is every process still scraped?** A pod nobody scrapes reports nothing, and an alert that
+   reads its metrics cannot fire while it is gone.
+
+Two things are expected here and are not reasons to act. The watchdog fires permanently — that is
+what it is for, and it is reported under question 1 rather than counted as an incident. And A-12
+fires because this environment keeps no backups by the decision below; it is printed with that
+said rather than hidden, because a check that silently drops an alert is a check that lies.
+
+If a run finds something, the fix path is the alert's runbook, and a fix that changes this
+repository goes through a branch and a pull request like any other.
+
+```bash
+# from the host: forward, ask, stop. Port-forwarding rather than curl against the cluster IP,
+# because the IP changes and the service name does not.
+kubectl -n monitoring port-forward svc/alertmanager 9093:9093 >/dev/null 2>&1 &
+curl -s localhost:9093/api/v2/alerts | head -c 2000
+kill %1
+
+kubectl -n monitoring port-forward svc/mailpit 8025:8025 >/dev/null 2>&1 &
+curl -s localhost:8025/api/v1/messages | head -c 2000
+kill %1
+```
 
 ## What is not here, and why
 

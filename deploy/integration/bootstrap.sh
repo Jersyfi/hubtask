@@ -25,6 +25,10 @@ readonly CERT_MANAGER_SHA256="5f6a499b8c1857d57f560f536e0dcc830914b45c420899fe7a
 readonly API_HOST="k8s.integration.hubtask.eu"
 readonly NAMESPACE="hubtask"
 readonly HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The alert rules the repository ships, one directory up. Prometheus evaluates these files and no
+# copy of them: what fires on this cluster is what `promtool test rules` proves in the gate, and a
+# rule that fires here is one somebody can find (observability-reliability.md §14).
+readonly ALERT_RULES="${HERE}/../observability/alerts"
 
 log() { printf '\n=== %s\n' "$*"; }
 
@@ -131,6 +135,33 @@ kubectl apply -f "${HERE}/postgres.yaml"
 kubectl -n "$NAMESPACE" rollout status statefulset/hubtask-db --timeout=300s
 
 # ---------------------------------------------------------------------------------------------
+log "monitoring"
+
+if [[ ! -d "$ALERT_RULES" ]]; then
+  echo "the alert rules are not beside this script: expected ${ALERT_RULES}" >&2
+  echo "copy the whole deploy/ directory to the host, not deploy/integration alone." >&2
+  exit 1
+fi
+
+kubectl apply -f "${HERE}/monitoring.yaml"
+
+# The rules are a ConfigMap built from the shipped files rather than a copy pasted into a manifest.
+# Two copies of an alert rule is one copy nobody updates.
+kubectl -n monitoring create configmap prometheus-rules \
+  --from-file="$ALERT_RULES" --dry-run=client -o yaml | kubectl apply -f -
+
+# A ConfigMap change alone restarts nothing, and Prometheus reads its rules at startup. Stamping
+# the pod with the rules' own checksum is what makes `bootstrap.sh` after a rules change actually
+# load them - and what makes running it twice with unchanged rules roll nothing.
+checksum="$(cat "$ALERT_RULES"/*.yaml | sha256sum | cut -d' ' -f1)"
+kubectl -n monitoring patch deployment prometheus --type=merge \
+  -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"hubtask.eu/rules-checksum\":\"${checksum}\"}}}}}"
+
+kubectl -n monitoring rollout status deployment/mailpit --timeout=180s
+kubectl -n monitoring rollout status deployment/alertmanager --timeout=180s
+kubectl -n monitoring rollout status deployment/prometheus --timeout=300s
+
+# ---------------------------------------------------------------------------------------------
 log "the deploy identity"
 kubectl apply -f "${HERE}/deployer-rbac.yaml"
 
@@ -172,4 +203,15 @@ The cluster is up and the namespace is ready. Two things are left, and neither b
   1. Put /root/deploy-kubeconfig.yaml into the GitHub environment 'integration' as the secret
      KUBE_CONFIG. It is the credential; it is not in the repository and must not be.
   2. Let CI deploy. Nothing here installs the chart on purpose.
+
+Monitoring is up in the namespace 'monitoring' and reachable from the node only - there is no
+Ingress in front of it on purpose. From the host:
+
+  kubectl -n monitoring port-forward svc/prometheus 9090:9090     # targets, rules, ALERTS
+  kubectl -n monitoring port-forward svc/alertmanager 9093:9093   # what is routed right now
+  kubectl -n monitoring port-forward svc/mailpit 8025:8025        # what was delivered
+
+What fired and when is a query rather than an inbox: ALERTS{alertstate="firing"} in Prometheus
+keeps the history, /api/v2/alerts in Alertmanager has the present, and /api/v1/messages in Mailpit
+has the mail that went out.
 SUMMARY

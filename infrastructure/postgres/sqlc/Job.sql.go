@@ -452,6 +452,26 @@ func (q *Queries) RetryJob(ctx context.Context, arg RetryJobParams) (int64, erro
 	return result.RowsAffected(), nil
 }
 
+const scheduledJobBacklog = `-- name: ScheduledJobBacklog :one
+SELECT count(*) FROM job
+WHERE kind = $1 AND state = 'PENDING' AND run_at > $2
+`
+
+type ScheduledJobBacklogParams struct {
+	Kind string
+	Now  pgtype.Timestamptz
+}
+
+// The retry ladder parked on the queue: jobs of one kind waiting for a future moment. A webhook
+// retry is exactly one scheduled job - one attempt, one row - so this answers
+// hubtask_webhook_retry_backlog (§4) from the one table that has no tenant boundary to cross.
+func (q *Queries) ScheduledJobBacklog(ctx context.Context, arg ScheduledJobBacklogParams) (int64, error) {
+	row := q.db.QueryRow(ctx, scheduledJobBacklog, arg.Kind, arg.Now)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const setJobProgress = `-- name: SetJobProgress :exec
 UPDATE job
 SET progress = LEAST(1.0, GREATEST(0.0, $1::real))

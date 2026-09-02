@@ -176,6 +176,14 @@ type harness struct {
 	calls     *caller
 	results   *outcomes
 	queued    *jobs
+	signals   *deliverySignals
+}
+
+// deliverySignals records what the deliverer reports to the metrics (§4).
+type deliverySignals struct{ settled []string }
+
+func (s *deliverySignals) WebhookDelivery(_ context.Context, result, statusClass string) {
+	s.settled = append(s.settled, result+"/"+statusClass)
 }
 
 func newHarness(t *testing.T, attempt int) *harness {
@@ -203,6 +211,7 @@ func newHarness(t *testing.T, attempt int) *harness {
 			deliveries: map[shared.ID]domain.WebhookDelivery{delivery.ID: delivery},
 		},
 		calls: &caller{status: 200}, results: &outcomes{}, queued: &jobs{},
+		signals: &deliverySignals{},
 	}
 	h.deliverer = Deliverer{
 		Subscriptions: subscriptions{store: h.store}, Deliveries: h.store,
@@ -212,8 +221,39 @@ func newHarness(t *testing.T, attempt int) *harness {
 		Clock: clock.Fixed(now), IDs: ids{next: nextID},
 		Source:      "urn:hubtask:test",
 		NextAttempt: func(attempt int) time.Duration { return time.Duration(attempt) * time.Minute },
+		Signals:     h.signals,
 	}
 	return h
+}
+
+// Every settled attempt reaches the metrics with its result and the class of the answer - SLO-6
+// has no other numerator. An attempt the transport refused has no class and reports "none".
+func TestEverySettledAttemptReachesTheMetrics(t *testing.T) {
+	delivered := newHarness(t, 1)
+	if _, err := delivered.deliverer.Run(context.Background(), job()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(delivered.signals.settled) != 1 || delivered.signals.settled[0] != "ok/2xx" {
+		t.Errorf("the metrics saw %v, want [ok/2xx]", delivered.signals.settled)
+	}
+
+	retried := newHarness(t, 1)
+	retried.calls.status = 503
+	if _, err := retried.deliverer.Run(context.Background(), job()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(retried.signals.settled) != 1 || retried.signals.settled[0] != "retry/5xx" {
+		t.Errorf("the metrics saw %v, want [retry/5xx]", retried.signals.settled)
+	}
+
+	dead := newHarness(t, domain.MaxDeliveryAttempts)
+	dead.calls.err = shared.ErrUnavailable.WithDetail("httpclient.unreachable")
+	if _, err := dead.deliverer.Run(context.Background(), job()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(dead.signals.settled) != 1 || dead.signals.settled[0] != "dead/none" {
+		t.Errorf("the metrics saw %v, want [dead/none]", dead.signals.settled)
+	}
 }
 
 func job() queue.Job {
