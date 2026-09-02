@@ -125,9 +125,11 @@ func TestTheStateMachineIsTheOneTheDocumentNames(t *testing.T) {
 	}
 }
 
-// An erasure with no mode chosen is a case that cannot be carried out, and finding that out after
-// the job has started would leave a case that says it is running and is not.
-func TestAnErasureCannotStartWithoutItsMode(t *testing.T) {
+// An erasure that named no mode is started as the workspace default, which P-6 settled as
+// anonymisation (H-13). It used to be a refusal, and the refusal was the wrong shape: a case that
+// cannot start because a field nobody filled in is empty is a statutory deadline running while an
+// administrator works out which of two words to type.
+func TestAnErasureWithNoModeStartsAsTheDefault(t *testing.T) {
 	request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
 		in.Kind = privacy.KindErasure
 	}))
@@ -135,19 +137,55 @@ func TestAnErasureCannotStartWithoutItsMode(t *testing.T) {
 		t.Fatalf("recording the case: %v", err)
 	}
 
-	if _, err := request.Start("", "", handlerID); err == nil {
-		t.Fatal("an erasure started with no mode")
+	started, err := request.Start("", "", handlerID)
+	if err != nil {
+		t.Fatalf("starting an erasure that named no mode: %v", err)
+	}
+	if started.ErasureMode != privacy.DefaultErasureMode {
+		t.Errorf("the case started as %s, want the default", started.ErasureMode)
+	}
+	// The default is anonymisation and not full deletion, and that direction is the whole of P-6:
+	// a default is the setting nobody thinks about, so it must not be the one with the wider
+	// blast radius.
+	if privacy.DefaultErasureMode != privacy.ModeAnonymize {
+		t.Errorf("the default is %s", privacy.DefaultErasureMode)
+	}
+}
+
+// A mode named on the case is what the case is carried out as. The default fills a silence; it
+// never overrides an answer.
+func TestAModeNamedOnTheCaseIsTheModeItStartsWith(t *testing.T) {
+	request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
+		in.Kind = privacy.KindErasure
+	}))
+	if err != nil {
+		t.Fatalf("recording the case: %v", err)
 	}
 
-	started, err := request.Start(privacy.ModeAnonymize, "", handlerID)
+	started, err := request.Start(privacy.ModeFullDelete, "", handlerID)
 	if err != nil {
 		t.Fatalf("starting: %v", err)
 	}
-	if started.Status != privacy.StatusInProgress || started.ErasureMode != privacy.ModeAnonymize {
+	if started.Status != privacy.StatusInProgress || started.ErasureMode != privacy.ModeFullDelete {
 		t.Errorf("the case started as %+v", started)
 	}
 	if started.HandledBy != handlerID {
 		t.Errorf("the case is handled by %s", started.HandledBy)
+	}
+}
+
+// A mode that is neither of the two is still refused. The default fills an empty field, and an
+// unknown value is not an empty field.
+func TestAnUnknownModeIsStillRefused(t *testing.T) {
+	request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
+		in.Kind = privacy.KindErasure
+	}))
+	if err != nil {
+		t.Fatalf("recording the case: %v", err)
+	}
+
+	if _, err := request.Start("PARTIALLY", "", handlerID); err == nil {
+		t.Fatal("an erasure started with a mode nobody defined")
 	}
 }
 

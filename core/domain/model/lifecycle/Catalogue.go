@@ -213,7 +213,14 @@ var catalogue = []Kind{
 		Name: KindSession, Anchor: AnchorLastSeenAt, DefaultDays: 30,
 		Actions: []Action{ActionHardDelete},
 	},
-	{Name: KindAudit, Anchor: AnchorOccurredAt, DefaultDays: 400},
+	{
+		// 400 days is a decision rather than a placeholder since H-13 (audit.md §9, A-1): a year
+		// plus a quarter, so that an annual review still reaches the start of the year it is
+		// reviewing. No action, because nothing in this build removes an audit entry - the trail
+		// is pseudonymised rather than deleted (audit.md §6), and a kind with no sweeper is
+		// listed here rather than hidden so that configuring one is refused honestly.
+		Name: KindAudit, Anchor: AnchorOccurredAt, DefaultDays: 400,
+	},
 	{Name: KindMediaOrphan, Anchor: AnchorCreatedAt, DefaultDays: 7},
 	{Name: KindDeletedAccountResidue, Anchor: AnchorDeletedAt, DefaultDays: 30},
 }

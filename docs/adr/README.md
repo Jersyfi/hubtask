@@ -46,4 +46,5 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0037](./ADR-0037-component-workbench.md) | The component workbench is ours, and it renders every story through the rules | accepted | Design system, clients, tooling |
 | [0038](./ADR-0038-workbench-published.md) | The workbench is published at workbench.hubtask.eu | accepted | Design system, deployment |
 | [0039](./ADR-0039-overlay-positioning.md) | Overlays are positioned by CSS, with one fallback we own | proposed | Design system, clients, supply chain |
+| [0040](./ADR-0040-no-imap-intake.md) | No IMAP intake: the webhook door is the mail door | accepted | Automation, mail, supply chain |
 | [0041](./ADR-0041-nats-client.md) | The NATS client library: nats.go, confined to one adapter | accepted | Events, integration, supply chain |
