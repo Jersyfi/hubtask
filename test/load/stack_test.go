@@ -48,7 +48,7 @@ const (
 	installationSecret = "load-test-installation-secret-not-a-real-one"
 	// encryptionKey is 32 bytes, base64, and fixed: it is the key ring of an installation that
 	// lives for two minutes.
-	encryptionKey = "bG9hZC10ZXN0LWtleS0zMi1ieXRlcy1sb25nLWFiY2Q=" //nolint:gosec // G101: test material.
+	encryptionKey = "bG9hZC10ZXN0LWtleS0zMi1ieXRlcy1sb25nLWFiY2Q="
 	// shedLimit is the admission threshold the server under test runs with. Small on purpose:
 	// RT-6 has to reach it on whatever hardware the nightly gets, and what is under test is that
 	// the mechanism engages and holds the interactive path - not what the threshold's value
@@ -299,8 +299,8 @@ func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, te
 	hasher := security.NewTokenHasher(secret.New(installationSecret))
 
 	for rank := range credentialled {
-		tenantID := derived("tenant", rank)
-		accountID := derived("account", rank)
+		tenantID := derived(ctx, "tenant", rank)
+		accountID := derived(ctx, "account", rank)
 
 		parsed, err := shared.ParseID(tenantID)
 		if err != nil {
@@ -319,7 +319,7 @@ func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, te
 			`INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
 			 VALUES ('%s', '%s', '%s', 'the load run', decode('%x', 'hex'), 'hbt_pat_',
 			         ARRAY[%s], now() + interval '2 hours')`,
-			derived("load-token", rank), tenantID, accountID, hasher.Hash(token.Secret()), scopes,
+			derived(ctx, "load-token", rank), tenantID, accountID, hasher.Hash(token.Secret()), scopes,
 		)); err != nil {
 			return nil, err
 		}
@@ -327,7 +327,7 @@ func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, te
 		minted = append(minted, tenant{
 			id:         tenantID,
 			token:      token.Secret(),
-			collection: derived("collection", rank, 0),
+			collection: derived(ctx, "collection", rank, 0),
 		})
 	}
 	return minted, nil
@@ -350,18 +350,20 @@ func startServer(ctx context.Context, dsn string) (string, int, error) {
 		return "", 0, fmt.Errorf("building the server: %w: %s", err, out)
 	}
 
-	httpPort, err := freePort()
+	httpPort, err := freePort(ctx)
 	if err != nil {
 		return "", 0, err
 	}
-	opsPort, err := freePort()
+	opsPort, err := freePort(ctx)
 	if err != nil {
 		return "", 0, err
 	}
 
 	// Started with its own context rather than the caller's: the stack outlives the function that
-	// brought it up, and t.Cleanup is what ends it.
-	serverCtx, stop := context.WithCancel(context.Background())
+	// brought it up, and TestMain's teardown is what ends it. Detached from ctx on purpose, which
+	// is why contextcheck is answered here rather than silenced - inheriting the start-up
+	// deadline would kill the installation twenty minutes into the suite.
+	serverCtx, stop := context.WithCancel(context.WithoutCancel(ctx))
 	server := exec.CommandContext(serverCtx, binary)
 	server.Env = append(os.Environ(),
 		// Every role in one process, which is what the storm needs: a bulk write that fans into
@@ -425,8 +427,9 @@ func startServer(ctx context.Context, dsn string) (string, int, error) {
 // deploys rather than one invented here.
 const memoryLimitBytes = 768 << 20
 
-func freePort() (int, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+func freePort(ctx context.Context) (int, error) {
+	var config net.ListenConfig
+	listener, err := config.Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, err
 	}
@@ -463,12 +466,12 @@ func waitReady(ctx context.Context, url string) error {
 // wrote without a lookup. It shells out to the generator rather than reimplementing the hash: two
 // implementations of the same derivation is exactly how a dataset and the credentials into it
 // drift apart.
-func derived(kind string, index ...int) string {
+func derived(ctx context.Context, kind string, index ...int) string {
 	args := []string{"run", "./test/load/seed", "--derive", kind}
 	for _, n := range index {
 		args = append(args, strconv.Itoa(n))
 	}
-	cmd := exec.Command("go", args...) //nolint:gosec // G204: the arguments are integers and a constant.
+	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = repositoryRoot()
 	out, err := cmd.Output()
 	if err != nil {

@@ -305,8 +305,8 @@ func ruleRuns(t *testing.T, stack *stack, as tenant) int {
 func accountOf(t *testing.T, as tenant) string {
 	t.Helper()
 	for rank := range 8 {
-		if derived("tenant", rank) == as.id {
-			return derived("account", rank)
+		if derived(context.Background(), "tenant", rank) == as.id {
+			return derived(context.Background(), "account", rank)
 		}
 	}
 	t.Fatalf("no account for tenant %s", as.id)

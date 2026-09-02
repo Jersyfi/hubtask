@@ -536,7 +536,12 @@ gate-fuzz:
 	$(GO) test -run=NONE -fuzz=Fuzz -fuzztime=5m ./core/... ./infrastructure/... || true
 	@echo "Note: fuzz targets appear alongside the building blocks they cover (SG-8)."
 
-## gate-load: Load test against the target figures (nightly)
+## gate-load: RT-6, the automation storm and the regression guard (nightly)
+#
+# It brings up its own installation - a PostgreSQL container, the migrations, a seeded dataset and
+# the real `cmd/server` binary - so it needs Docker and nothing else. What it does not do is
+# produce an absolute capacity figure: on a shared runner that would be a number nobody could
+# defend. That is the second tier, on named hardware, per release (test/load/README.md).
 .PHONY: gate-load
 gate-load:
 	$(call go_test,load,./test/load/...,-timeout=60m)
