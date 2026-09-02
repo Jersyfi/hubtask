@@ -172,6 +172,19 @@ const (
 	// the event as it was, so a retry sends what the first attempt would have.
 	KindWebhookDeliver Kind = "webhook.deliver"
 
+	// KindBusPublish puts one event on the optional message bus (H-14, ADR-0041).
+	//
+	// A job and not a step of the dispatch, for the reason this package states about every
+	// subscriber: a subscriber runs inside the dispatcher's transaction and must not call the
+	// outside world. A bus that is slow, restarting or gone would otherwise hold a database
+	// transaction open across the network, which observability-reliability.md §8 forbids outright.
+	//
+	// One job per event rather than one per subject: there is one bus, so a failure isolates
+	// nothing by being split further, and the queue's own ladder is the retry. The job carries the
+	// event's identifier and reads the event back at each attempt, exactly as the webhook delivery
+	// does - so a retry publishes what the first attempt would have.
+	KindBusPublish Kind = "bus.publish"
+
 	// KindAutomationRun is one rule's reaction to one event (G-07, automation.md §2).
 	//
 	// One job per matching rule rather than one per event: failure isolation per rule, the queue's
