@@ -33,7 +33,7 @@ const STORY_ROOTS = [path.join('src'), path.join('workbench', 'fixtures')];
  * silence into a failure: an edit that breaks the reading is reported as a broken reading, not as
  * a clean run.
  */
-const FLOOR = { 'Wave 1': 15, 'Wave 2': 10, 'Wave 3': 15, 'Wave 4': 6 };
+const FLOOR = { 'Wave 0': 4, 'Wave 1': 15, 'Wave 2': 10, 'Wave 3': 15, 'Wave 4': 6 };
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 

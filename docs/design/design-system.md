@@ -45,6 +45,17 @@ fails when the generated and the committed version diverge.
 layer are framework-agnostic and can exist immediately; components cannot. A design system that
 fixes components before the framework decision has to be rebuilt at the first contradiction.
 
+**What the tokens guarantee.** `test/contrast.test.js` measures the WCAG 2.2 contrast ratio of
+every pair `tokens.json` declares, in both modes, on every run of `pnpm test`. Text clears 4.5:1
+(SC 1.4.3) against every surface it may sit on — including the canvas under each `ambient`
+gradient, and the two `accent.*-subtle` tints. A control's boundary and the focus ring clear 3:1
+(SC 1.4.11). Every semantic colour token carries a role in that file, and a token nobody has
+classified fails the suite rather than being skipped, so the guarantee cannot shrink as the token
+set grows. One rule follows from it and belongs at the call site: **`border.default` and
+`border.strong` draw controls, `border.subtle` does not.** A hairline that separates sections or
+edges a card carries no information and is exempt; a border that is the only thing saying "this is
+an input" is not.
+
 ---
 
 ## 2. Directory layout
@@ -114,7 +125,7 @@ emulates page zoom. If that trade is ever to be revisited, it is revisited here.
 The order is a build proposal. The domain components are derived from
 `docs/architecture/domain-model.md`, not from a generic list.
 
-### Wave 0 — the primitives everything else is made of (4)
+### Wave 0 — the primitives everything else is made of (4) · **built**
 `Box` · `Stack` · `Inline` · `VisuallyHidden`
 
 Not a stylistic preference. §0's rule means no component may write a bare spacing value, so every
@@ -127,6 +138,12 @@ and every icon-only control needs one.
 They take spacing, direction and alignment as props and produce **no visual style of their own** —
 no colour, no border, no shadow. A primitive that decorates is a component, and belongs in a wave
 that plans it.
+
+The steps travel as `data-` attributes selected by a stylesheet, not as an inline `style`:
+[ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` has no `'unsafe-inline'`, so a
+component that writes `style="gap: …"` writes a rule the browser refuses — silently, in production
+only. Every component from wave 1 on inherits that constraint, and these four are where it is
+worked out.
 
 ### Wave 1 — nothing works without these (≈ 18)
 Button · IconButton · Input · Textarea · Select · Checkbox · Radio · Switch · Tooltip ·
@@ -202,6 +219,19 @@ matrix that contains states explodes.
    honours `[data-motion="reduced"]` alongside the media query
    ([ADR-0037](../adr/ADR-0037-component-workbench.md)) — §7 requires a *user* preference that
    switches celebrations off, and a preference only the operating system can set is not one.
+
+**The layering scale.** `primitive.layer` in `tokens.json` is the only place a `z-index` comes
+from: `base` · `raised` · `sticky` · `overlay` · `dialog` · `popover` · `tooltip` · `toast`, ten
+apart so a component may sit one above its own layer without borrowing the next one's rank. A
+number written at a call site is the failure this exists to prevent — five overlays each picking
+their own is five different answers to which is on top.
+
+What paints over what and what `Escape` reaches are **not the same question**, so they are not the
+same list. A tooltip paints above a dialog and is never closed by a key; a popover opened from
+inside a dialog is closed first, whatever order the two were opened in. `src/layers.ts` holds that
+second order, and it is one register rather than one per component — `Escape` closing exactly one
+layer is only meaningful if something knows which one. Where an overlay is *drawn* is
+[ADR-0039](../adr/ADR-0039-overlay-positioning.md).
 
 ---
 
@@ -298,16 +328,15 @@ teaches the screenshots.
   15 custom ones for Hub, Collection, Work Package, Activity, Jumble, Bucket, Capability.
 - **Logo and wordmark** — the placeholder in `foundations.html` shows the idea (three nested
   planes, the innermost in bordeaux) but is not a finished mark.
-- **Contrast verification** — the label tokens are calculated for ≥ 4.5:1 but have not been
-  measured. This belongs in CI as an automated test, not in a one-off check.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
 - **Voice and tone** — one page of writing rules for buttons, errors and empty states.
-- **A layering scale** — `tokens.json` has no `z` step, and wave 1b lands `Tooltip`, `Menu`,
-  `Popover`, `Dialog` and `Toast` together with the rule that `Escape` closes one layer at a time.
-  Without a scale each of the five invents its own order.
-- **Anchor positioning** — `Menu`, `Popover` and `Tooltip` need it. CSS Anchor Positioning
-  (checked against `support-matrix.md`) or a library, which is a supplier and therefore CLAUDE.md's
-  rule rather than a component author's call.
+- **Border widths** — `tokens.json` has a radius scale and no border scale, so the hairline every
+  wave-1 control draws around itself has nowhere to come from. The no-literals lint catches it at
+  the first `Checkbox`, which makes this `F1-05`'s to add rather than a preference.
+- **A browser support row** — `support-matrix.md` covers the server and `hubctl` and says nothing
+  about which browsers a client is required to work in. [ADR-0039](../adr/ADR-0039-overlay-positioning.md)
+  is `proposed` rather than `accepted` because of it, and it is a support-scope decision rather
+  than an implementation one.
 - **Named motion roles** — four easings and six durations exist, but nothing says which is
   *entrance*, which is *exit*, which is *emphasis* and which carries a celebration slot. Rule 6 and
   §7 both talk about motion in terms the tokens cannot currently express.
@@ -318,6 +347,5 @@ teaches the screenshots.
   its own colour, elevation, motion and tone, not a row in a component table.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
-list: iconography, the wordmark, contrast verification in CI and voice and tone in `F1`, because
-the component layer cannot be built without them; platform adaptation in `F6`, with the mobile
-shell that raises the question.
+list: iconography, the wordmark, voice and tone and the border scale in `F1`, because the component
+layer cannot be built without them; platform adaptation in `F6`, with the mobile shell that raises the question.

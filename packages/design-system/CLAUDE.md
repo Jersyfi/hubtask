@@ -10,11 +10,15 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
 * **No second place for a value.** A design system drifts at exactly the point where the same
   number is written twice. `pnpm lint` fails on a colour written outside `tokens.json`, and on a
   bare length or duration in application code.
-* **No component yet.** The framework is decided — Svelte 5
-  ([ADR-0030](../../docs/adr/ADR-0030-svelte-frontend-framework.md)) — and there is now somewhere
-  to look at one ([ADR-0037](../../docs/adr/ADR-0037-component-workbench.md)), but `src/` stays
-  empty until the component-layer work package builds it deliberately, wave by wave per
-  `design-system.md` §4. No component arrives here as a side effect of other work.
+* **No component out of turn.** `src/` holds wave 0 — `Box`, `Stack`, `Inline`,
+  `VisuallyHidden` — and grows wave by wave per `design-system.md` §4, through the component-layer
+  work package. No component arrives here as a side effect of other work.
+* **No inline `style`.** ADR-0028's policy is `style-src 'self'` with no `'unsafe-inline'`, so a
+  `style="gap: …"` is a rule the browser refuses — in production only, never in a workbench served
+  without the header. The value travels as a `data-` attribute and a stylesheet rule selects on it;
+  wave 0 is the worked example.
+* **No `z-index` written at a call site.** It comes from `primitive.layer` in `tokens.json`, and
+  what `Escape` reaches comes from `src/layers.ts` — one register, not one per overlay.
 * **No component without a story.** A `<Name>.svelte` in `src/` needs a `<Name>.stories.ts` beside
   it and a place in one of `design-system.md` §4's waves; `pnpm test` fails otherwise. That is the
   design system's parity gate — the specification's inventory and the tree may not become two
@@ -24,6 +28,10 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
   bundle or the binary that embeds it (ADR-0028). Being published at `workbench.hubtask.eu`
   (ADR-0038) does not change any of that — but it does mean **the page is public**: nothing there
   may promise anything about the product, contact a foreign domain, or carry a form.
+* **No pair below its floor.** `pnpm test` measures the WCAG 2.2 contrast of every pair
+  `tokens.json` declares, in both modes: 4.5:1 for text, 3:1 for a control boundary and the focus
+  ring. A new semantic colour token needs a role in `test/contrast.test.js` — an unclassified token
+  fails the suite rather than being skipped, which is what stops the check from shrinking.
 * **No colour value in the Go output.** `LabelTokens.go` carries the ten *names* and nothing else,
   so the core keeps the vocabulary while staying colour-blind. A hex constant in `core/domain`
   would be display information in the backend.
@@ -45,7 +53,7 @@ changed. Never the other way round.
 ```bash
 make tokens                                       # or: pnpm --filter @hubtask/design-system build
 pnpm --filter @hubtask/design-system lint         # no value outside tokens.json
-pnpm --filter @hubtask/design-system test         # ADR-0029's properties, and the story gate
+pnpm --filter @hubtask/design-system test         # ADR-0029's properties, contrast, layers, stories
 pnpm --filter @hubtask/design-system typecheck    # svelte-check over workbench/ and src/
 make workbench                                    # look at it: :5174
 git diff --exit-code core/domain/model/shared/LabelTokens.go   # must be empty after committing
