@@ -50,8 +50,12 @@ it does not touch the conversion the paragraph above is about.
 | [github.com/jackc/pgservicefile](https://github.com/jackc/pgservicefile/blob/5a60cdf6a761/LICENSE) | MIT |
 | [github.com/jackc/pgx/v5](https://github.com/jackc/pgx/blob/v5.10.0/LICENSE) | MIT |
 | [github.com/jackc/puddle/v2](https://github.com/jackc/puddle/blob/v2.2.2/LICENSE) | MIT |
+| [github.com/klauspost/compress](https://github.com/klauspost/compress/blob/v1.19.1/LICENSE) | Apache-2.0 |
 | [github.com/mfridman/interpolate](https://github.com/mfridman/interpolate/blob/v0.0.2/LICENSE.txt) | MIT |
 | [github.com/munnerz/goautoneg](https://github.com/munnerz/goautoneg/blob/a7dc8b61c822/LICENSE) | BSD-3-Clause |
+| [github.com/nats-io/nats.go](https://github.com/nats-io/nats.go/blob/v1.53.1/LICENSE) | Apache-2.0 |
+| [github.com/nats-io/nkeys](https://github.com/nats-io/nkeys/blob/v0.4.15/LICENSE) | Apache-2.0 |
+| [github.com/nats-io/nuid](https://github.com/nats-io/nuid/blob/v1.0.1/LICENSE) | Apache-2.0 |
 | [github.com/oapi-codegen/runtime](https://github.com/oapi-codegen/runtime/blob/v1.7.0/LICENSE) | Apache-2.0 |
 | [github.com/pressly/goose/v3](https://github.com/pressly/goose/blob/v3.27.3/LICENSE) | MIT |
 | [github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil](https://github.com/prometheus/client_golang/blob/v1.24.1/internal/github.com/golang/gddo/LICENSE) | BSD-3-Clause |

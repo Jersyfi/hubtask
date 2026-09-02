@@ -228,7 +228,7 @@ schema version — everything is reported as a code with a severity, not as free
 | `LISTEN/NOTIFY` (the stream's wake-up) | Streams fall back to their idle poll interval; no record is lost or reordered | Changes arrive within seconds instead of immediately |
 | AI provider | AI suggestions disappear, every manual route remains | The feature is greyed out with a reason |
 | External search index (optional) | Fallback to PostgreSQL full-text search | Slower, slightly different search |
-| NATS (optional) | Fallback to the database outbox dispatch | No visible change |
+| NATS (optional) | The breaker opens, the outbox holds the events, and the publish jobs retry on the queue's ladder; delivery resumes when the bus returns, without a restart (H-14, proved in `test/resilience/rt1_bus_dependency_test.go`) | No visible change |
 | Webhook recipient | Retries over 24 h, then dead letter plus a subscription warning | A warning in the integration settings |
 | OIDC provider | Existing sessions continue (tokens until expiry), local accounts work | New sign-in through SSO is not possible, with a clear message |
 

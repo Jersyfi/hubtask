@@ -34,6 +34,13 @@ Everything else it needs — `golang.org/x/crypto`, `net`, `sys`, `text` — is 
 newer versions. `make gate-licenses` refuses the AGPL/GPL/LGPL families
 ([ADR-0013](ADR-0013-licensing.md)); Apache-2.0 passes, and relicensing stays possible.
 
+`THIRD-PARTY-LICENSES.md` gains a **fourth** row, `github.com/klauspost/compress` (Apache-2.0), and
+it is worth saying why it is not a fourth module: it was already required in `go.mod` and no linked
+package imported it. The client does, so it appears in a report that lists what is compiled in
+rather than what is written down. Three modules added, four rows — the difference is the difference
+between the two questions, and a reader comparing the table above against the file would otherwise
+find a discrepancy and have to work that out.
+
 ## Options
 
 1. **The official client (chosen).**
