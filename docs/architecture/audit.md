@@ -210,9 +210,9 @@ with the evidence rather than with the erasure, because what it protects is the 
 
 **An erasure request does not reach the trail.** Deleting the entries about a person would delete
 the record that their request was handled — the one entry a supervisory authority would ask for.
-The trail is kept under the evidentiary interest, for the period §9's open point A-1 has to settle
-legally, and the entries about somebody are then a record of what was done, not a profile of them:
-no content, a truncated address, a user agent class, no free text.
+The trail is kept under the evidentiary interest, for 400 days by default (§9, A-1), and the
+entries about somebody are then a record of what was done, not a profile of them: no content, a
+truncated address, a user agent class, no free text.
 
 **It could not be edited in place even if it should be.** The application role holds no `UPDATE`, a
 trigger refuses one, and every field an erasure would want to change — the actor's identifier, the
@@ -311,7 +311,7 @@ that defines the tests and rewrote the rest. The identifiers that were in circul
 
 | # | Point | Needed by |
 |---|---|---|
-| A-1 | Agree the default audit trail retention period legally (evidentiary interest vs. storage limitation) | `0.6.0` |
+| A-1 | ~~Agree the default audit trail retention period legally (evidentiary interest vs. storage limitation)~~ — settled at **400 days**, the placeholder becoming the decision (H-13). A year plus a quarter, chosen so that an annual review still reaches the start of the year it is reviewing: at 365 the first weeks of a period are already gone by the time anybody looks at it, and the entries a review actually wants are the oldest ones in its window. Longer was weighed and declined — an audit entry is personal data under a legitimate interest, and an interest that cannot say why it needs a second year does not have one. The number is the default and not a ceiling: a tenant under its own obligation configures its own, and the trail is pseudonymised rather than deleted for an erased actor either way (§6) | Closed (H-13) |
 | A-2 | The format and target of the external chain anchoring (WORM bucket, transparency log) | `0.9.0` |
 | A-3 | Establish the need for a SIEM connection (syslog/CEF export or pull through the API) | After `1.0.0` |
 | A-4 | ~~The `AUDITOR`'s second half: reading the configuration~~ — done in G-12. `READ_CONFIGURATION` is split out of `STRUCTURE` in the role matrix (`domain-model.md` §3.2), the `AUDITOR` holds it, and the configuration reads — backup targets and runs, retention rules and previews, legal holds, automation rules and their runs, webhook subscriptions — accept it beside the permission they always named. No secret is in any of them, and no pre-existing role gained or lost a right: the matrix test asserts that in both directions | Closed (G-12) |

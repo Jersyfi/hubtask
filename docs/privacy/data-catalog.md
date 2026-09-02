@@ -119,7 +119,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 
 | Data category | Location | Classification | Purpose | Retention | Deletion path |
 |---|---|---|---|---|---|
-| Audit trail (metadata, masked diffs, truncated IP) | `audit_log` | `PERSONAL_TECHNICAL` | Evidence, security | Configurable, 400 days by default | `IMMUTABLE` (retention only) |
+| Audit trail (metadata, masked diffs, truncated IP) | `audit_log` | `PERSONAL_TECHNICAL` | Evidence, security | **400 days** (audit.md §9, A-1); a tenant under its own obligation may configure another | `IMMUTABLE` (retention only) |
 | Data subject requests (kind, deadline, assignee, reason, the subject's account or address) | `data_subject_request` | `PERSONAL_BASIC` | Fulfilling data subject rights | 3 years (evidentiary interest, P-1 to be settled) | `RETENTION` |
 | Consents and withdrawals (purpose, when granted, when taken back, by whom) | `consent_record` | `PERSONAL_TECHNICAL` (a reference and two moments, no content) | Showing which optional processing was lawful when (Art. 7(1)) | With the account; a withdrawal is recorded rather than deleted | `CASCADE` |
 | Audit pseudonyms (an actor identifier and a label with no meaning outside the workspace) | `audit_pseudonym` | `PERSONAL_TECHNICAL` (a reference; it holds no name) | Answering an erased actor's entries without a name, where the trail itself cannot be edited (audit.md §6) | With the audit period | `IMMUTABLE` (append-only for the reason the trail is) |

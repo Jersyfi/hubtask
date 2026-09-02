@@ -114,6 +114,20 @@ const (
 
 func (m ErasureMode) Valid() bool { return m == ModeAnonymize || m == ModeFullDelete }
 
+// DefaultErasureMode is what a case is carried out as when nobody named a mode, and it is the
+// decision open point P-6 owed (data-protection.md §12, H-13).
+//
+// Anonymisation, because the rights in a workspace are not only the asking person's. A task
+// somebody else depends on, a comment in a thread that stops making sense without it, a decision
+// whose author explains why it was taken - deleting those erases the person and damages everybody
+// around them, and the erasure obligation does not ask for that. What it asks is that the person
+// stop being identifiable, which is what anonymisation does.
+//
+// A controller who owes maximal erasure names FULL_DELETE on the case. Making that the default
+// instead would be choosing, for every workspace that never thought about it, the mode with the
+// wider blast radius - and a default is exactly the setting nobody thinks about.
+const DefaultErasureMode = ModeAnonymize
+
 // Scope is how far the case reaches.
 type Scope string
 
@@ -250,6 +264,13 @@ func (r Request) Start(mode ErasureMode, targetID shared.ID, by shared.ID) (Requ
 	if r.Kind == KindErasure {
 		if mode == "" {
 			mode = r.ErasureMode
+		}
+		if mode == "" {
+			// Nobody named one, on the case or at the start. P-6 settled what happens then, and
+			// it is a default rather than a refusal: a case that cannot start because a field
+			// nobody filled in is empty is a statutory deadline running while an administrator
+			// works out which of two words to type.
+			mode = DefaultErasureMode
 		}
 		if !mode.Valid() {
 			return Request{}, invalid(CodeErasureModeRequired, "/erasure_mode")
