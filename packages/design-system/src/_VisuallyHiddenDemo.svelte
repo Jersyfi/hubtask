@@ -21,7 +21,7 @@
   <p class="note">
     Tab into this pane. The link is not painted until it has focus, and it is announced either way.
   </p>
-  <VisuallyHidden as="div" focusable>
+  <VisuallyHidden as="div" isFocusable>
     <a class="skip" href="#main">Skip to content</a>
   </VisuallyHidden>
   <p id="main" class="note">The content the link skips to.</p>

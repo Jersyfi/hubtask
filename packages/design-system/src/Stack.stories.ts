@@ -30,7 +30,7 @@ export const longLabels: Story = {
   name: 'Labels that already wrap',
   about:
     'German before the pseudo-locale touches it. Narrow the Width axis and the items wrap inside their own box; the gaps do not collapse and nothing overlaps.',
-  args: { long: true, align: 'start' },
+  args: { isLong: true, align: 'start' },
 };
 
 export const tightest: Story = {

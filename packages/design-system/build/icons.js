@@ -28,6 +28,7 @@ export const DECLARED = {
   'Actions — wave 1': [
     'check',
     'plus',
+    'minus', // the third state of a checkbox: some, not all
     'x',
     'pencil',
     'trash-2',
