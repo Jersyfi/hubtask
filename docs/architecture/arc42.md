@@ -197,7 +197,7 @@ graph LR
 | AI agents | Bidirectional | The MCP server (tools = use cases), alternatively REST with a service account |
 | Identity provider | Outbound | OIDC discovery, authorization code + PKCE; local users as a fallback |
 | Object storage | Outbound | The S3 API (presigned URLs); self-hosting fallback: a local volume |
-| Email | Inbound and outbound | SMTP for sending; intake **webhook-first** since G-11 — a bridge, an MTA or a provider's push posts the message to a token-protected URL per tenant, and the parser is transport-independent, so IMAP polling is a producer of bytes rather than a second intake (open point AM-1 in `automation.md` §5) |
+| Email | Inbound and outbound | SMTP for sending; intake **webhook-only** — a bridge, an MTA or a provider's push posts the message to a token-protected URL per tenant ([ADR-0040](../adr/ADR-0040-no-imap-intake.md) closed AM-1: no IMAP). The parser stays transport-independent, so a later transport — JMAP, when one is wanted — is a producer of bytes rather than a second intake |
 | Calendar | Outbound | An ICS feed per view/user, CalDAV later |
 | LLM provider | Outbound | The `core/port/ai` port; adapters for OpenAI-compatible APIs and local Ollama; disabled by default |
 
@@ -272,7 +272,7 @@ graph TB
   subgraph INF[infrastructure — outbound adapters]
     PG[(PostgreSQL<br/>repositories, outbox, queue)]
     OBJ[Object storage]
-    MAILA[SMTP/IMAP]
+    MAILA[SMTP]
     HTTPA[HTTP client<br/>webhooks/actions]
     AIA[AI provider]
     IDPA[OIDC]
@@ -749,6 +749,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0037 | The component workbench is ours, and it renders every story through the rules | accepted |
 | 0038 | The workbench is published at workbench.hubtask.eu | accepted |
 | 0039 | Overlays are positioned by CSS, with one fallback we own | proposed |
+| 0040 | No IMAP intake: the webhook door is the mail door | accepted |
 
 ---
 

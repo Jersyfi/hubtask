@@ -492,10 +492,11 @@ so that answering it stays a change rather than a rewrite.
 
 | # | The question | What the ADR has to decide | Due |
 |---|---|---|---|
-| AM-1 | **How mail reaches the jumble, beyond the webhook-first transport.** 0.5.0 serves `POST /jumble/mail/{token}`: an operator points their MTA, their provider's push, or any mail-to-webhook bridge at a token-protected URL per tenant, and the bytes are what any of them can forward. IMAP polling is the transport that would need no bridge at all — and it needs a client library, which is a dependency and therefore not a decision a pull request makes (G-11) | Whether an IMAP client is taken in, and which one: a supply chain decision about a library that reads hostile input on behalf of every tenant. Where the credentials live, since polling means storing somebody's mailbox password rather than accepting a call. Who polls: a per-tenant job seeded by a write in that tenant, because nothing in this system may enumerate tenants (`multi-tenancy.md` §2.1). And what happens to a mailbox nobody can reach any more — a poll that fails for a week is an inbox quietly not arriving | `0.6.0` |
+| AM-1 | ~~**How mail reaches the jumble, beyond the webhook-first transport.**~~ — answered by [ADR-0040](../adr/ADR-0040-no-imap-intake.md): **no IMAP client is taken in**, and the webhook door stays the only way a message reaches the jumble. The four questions this row asked are answered by not asking them — no library reading hostile input on every tenant's behalf, no stored mailbox password this installation cannot revoke, no per-tenant poll job, and no week-long silent failure to detect. What an operator without an MTA does instead is what they already do: a provider's inbound route or a mail-to-webhook bridge, both of which forward the raw message. And the protocol question moved while the point stood open — the transport worth building, when one is wanted, is **JMAP**: JSON over HTTP with push, rather than a stateful session protocol with a dialect per server | Closed (ADR-0040) | `0.6.0` |
 
-**What is already decided, and what makes AM-1 an adapter rather than a rewrite.** The parser is
+**The cut that made AM-1 answerable is what keeps it answerable again.** The parser is
 transport-independent: it takes bytes and answers a sender, a subject, a text and some attachments,
 and it knows nothing about how the bytes arrived. The use case behind it takes that answer and a
-token, and knows nothing about MIME. An IMAP poll is therefore a producer of bytes and a source of a
-tenant — the two things the webhook transport already supplies — and nothing between them changes.
+token, and knows nothing about MIME. A second transport is therefore a producer of bytes and a
+source of a tenant — the two things the webhook transport already supplies — and nothing between
+them changes. ADR-0040 declined one candidate for that slot; it did not close the slot.

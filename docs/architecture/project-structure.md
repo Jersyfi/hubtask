@@ -63,7 +63,7 @@ hubtask/
 │   │   ├── environment/Port.go     # configuration (from the template, extended)
 │   │   ├── persistence/Port.go     # UnitOfWork, Snapshot, TenantScope
 │   │   ├── storage/Port.go         # object storage (S3/local)
-│   │   ├── mail/Port.go            # SMTP sending, IMAP intake
+│   │   ├── mail/Port.go            # SMTP sending
 │   │   ├── notification/Port.go    # channels (mail, webhook, push)
 │   │   ├── eventbus/Port.go        # publish/subscribe (outbox, NATS)
 │   │   ├── httpclient/Port.go      # outbound calls with SSRF protection
