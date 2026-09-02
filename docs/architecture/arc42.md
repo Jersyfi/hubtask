@@ -746,6 +746,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0034 | The language-dependent search document | accepted |
 | 0035 | One product version for the server and every first-party client | accepted |
 | 0036 | The OIDC token verification library: go-oidc, confined to one adapter | accepted |
+| 0037 | The component workbench is ours, and it renders every story through the rules | accepted |
 
 ---
 

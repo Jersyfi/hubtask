@@ -180,7 +180,8 @@ point at it and say a label breaks it.
 
 ## F1-05 — Wave 1a: the components a form is made of **[L]**
 
-*Depends on: F1-01 (somewhere to see them), F1-03 (IconButton), F1-04 (their copy).*
+*Depends on: F1-01 (somewhere to see them), F1-03 (IconButton), F1-04 (their copy),
+F1-13 (the primitives they lay themselves out with).*
 
 `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Radio`, `Switch` — eight of
 §4's eighteen, and the half without which no screen in F2 can be built.
@@ -440,15 +441,56 @@ claimed); `apps/website/CLAUDE.md`; `roadmap.md` phase 5, the website lane; `ci-
 
 ---
 
+## F1-13 — Wave 0: the primitives, and a scale to stack on **[L]**
+
+*Depends on: F1-01 (somewhere to see them). Runs **before** F1-05 — the number is an identifier,
+not a position.*
+
+Two holes found while building the workbench, both cheap now and expensive after fifty components.
+
+**The layout primitives.** `design-system.md` §4 used to begin at `Button`, but §0's rule means no
+component may write a bare spacing value and `lint-no-literals` enforces it inside
+`packages/design-system/src/`. Every component that lays anything out therefore needs the space
+scale reachable through something. Without `Box`, `Stack`, `Inline` and `VisuallyHidden`, each of
+the fifty writes its own flex with an exemption comment — and an exemption that appears fifty times
+is not an exemption, it is the rule the lint was meant to prevent.
+
+They carry spacing, direction and alignment and **no visual style of their own**: no colour, no
+border, no shadow. A primitive that decorates is a component, and belongs in a wave that plans it.
+
+**The layering scale.** `tokens.json` has no `z` step. F1-06 lands `Tooltip`, `Menu`, `Popover`,
+`Dialog` and `Toast` together and its acceptance already says "`Escape` closes one layer at a time
+with two open" — which presupposes an order that does not exist. Tokens first (rule 15), then one
+place that knows which layer is on top; five components each picking a number is the failure mode
+this milestone can still avoid.
+
+One decision belongs here rather than to whoever writes `Tooltip` first: **how an overlay is
+positioned against its anchor.** CSS Anchor Positioning, checked against `support-matrix.md`, or a
+library — which is a supplier and therefore CLAUDE.md's rule rather than a component author's call.
+The pull request says which and why.
+
+**Acceptance:** the four primitives exist with stories and tests, take their spacing from the
+tokens and declare no colour, border or shadow of their own; the `z` scale is in `tokens.json` and
+reaches the generated CSS; one register decides which layer is on top, and `Escape` closing the
+topmost is testable against it before any overlay exists; the positioning decision is recorded with
+its alternatives; `design-system.md` §4's wave 0 is ticked and §9's layering and positioning lines
+are struck; the no-literals lint and `check-stories` are green.
+
+**Read:** `design-system.md` §0, §4 (wave 0), §5, §6, §9; ADR-0029; ADR-0037;
+`support-matrix.md` (what a browser here may be required to have)
+
+---
+
 ## The order at a glance
 
 ```
-F1-01 ── F1-03 ─┐
-F1-04 ──────────┴── F1-05 ── F1-06 ─┐
-F1-02                               │
-F1-07 ──────────────────────────────┼── F1-10 ── F1-11
-F1-09 ──────────────────────────────┘           │
-F1-08 ──────────────────────────────────────────┘
+F1-01 ── F1-03 ──┐
+F1-01 ── F1-13 ──┤
+F1-04 ───────────┴── F1-05 ── F1-06 ─┐
+F1-02                                │
+F1-07 ───────────────────────────────┼── F1-10 ── F1-11
+F1-09 ───────────────────────────────┘           │
+F1-08 ───────────────────────────────────────────┘
 F1-12
 ```
 
@@ -457,7 +499,8 @@ waves need), **F1-02** (contrast, which should land before the waves inherit a t
 (text), **F1-08** (the core read), **F1-09** (the seam) — and **F1-12**, which shares nothing with
 the application at all. F1-11 is last: it consumes the frame, the seam and the new endpoint.
 
-**Definition of Done for the milestone:** the design system has a workbench, eighteen components
+**Definition of Done for the milestone:** the design system has a workbench, four layout
+primitives and a layering scale, eighteen components
 that are keyboard-operable in both themes and in RTL, an icon set, a page of writing rules, and
 contrast that is measured in CI rather than asserted; the web application renders message codes and
 problem documents in the reader's language, configures itself from `/meta/capabilities`, states its
