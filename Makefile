@@ -190,6 +190,16 @@ tokens:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter @hubtask/design-system build
 
+## icons: Regenerate the declared subset of the icon set from lucide-static
+# Separate from `make tokens` for the reason `tokens` is separate from `generate`: it reads a
+# devDependency that `make tools` does not install, and the output is committed so that neither
+# `go build ./...` nor a checkout without Node ever needs it (ADR-0040). Only a change to the
+# declared list in packages/design-system/build/icons.js needs this.
+.PHONY: icons
+icons:
+	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
+	$(PNPM) --filter @hubtask/design-system icons
+
 ## workbench: Start the design system's component workbench on http://localhost:5174
 # A development tool, never a product artefact: it is not part of `pnpm -r build`, nothing of it
 # reaches the embedded bundle, and the binary that carries that bundle is unchanged by it
