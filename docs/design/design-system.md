@@ -153,7 +153,7 @@ Icon · Button · IconButton · Input · Textarea · Select · Checkbox · Radio
 Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner
 
 `Icon` arrives ahead of the rest, with the icon set itself
-([ADR-0040](../adr/ADR-0040-icon-set.md)): `IconButton` cannot be built before there is something
+([ADR-0041](../adr/ADR-0041-icon-set.md)): `IconButton` cannot be built before there is something
 to put in it, and every other component in this wave has a state it wants to draw rather than
 spell. It takes a name from one merged set — the declared subset of Lucide plus the marks only
 this domain needs — and nothing else in the wave knows which of the two a mark came from.

@@ -47,3 +47,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0038](./ADR-0038-workbench-published.md) | The workbench is published at workbench.hubtask.eu | accepted | Design system, deployment |
 | [0039](./ADR-0039-overlay-positioning.md) | Overlays are positioned by CSS, with one fallback we own | proposed | Design system, clients, supply chain |
 | [0040](./ADR-0040-no-imap-intake.md) | No IMAP intake: the webhook door is the mail door | accepted | Automation, mail, supply chain |
+| [0041](./ADR-0041-icon-set.md) | Lucide, cut down to a declared subset, behind one `Icon` | accepted | Design system, supply chain |

@@ -37,6 +37,10 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
   `tokens.json` declares, in both modes: 4.5:1 for text, 3:1 for a control boundary and the focus
   ring. A new semantic colour token needs a role in `test/contrast.test.js` — an unclassified token
   fails the suite rather than being skipped, which is what stops the check from shrinking.
+* **No icon that names a colour.** The set takes `currentColor` from the text it sits in
+  ([ADR-0041](../../docs/adr/ADR-0041-icon-set.md)); `currentColor` and `none` are the only values
+  a mark may carry. `src/icons/base.ts` is generated from the declared list in `build/icons.js` —
+  add a name there and run `make icons`; the test fails on a file that is out of step.
 * **No colour value in the Go output.** `LabelTokens.go` carries the ten *names* and nothing else,
   so the core keeps the vocabulary while staying colour-blind. A hex constant in `core/domain`
   would be display information in the backend.
@@ -58,7 +62,8 @@ changed. Never the other way round.
 ```bash
 make tokens                                       # or: pnpm --filter @hubtask/design-system build
 pnpm --filter @hubtask/design-system lint         # no value outside tokens.json
-pnpm --filter @hubtask/design-system test         # ADR-0029's properties, contrast, layers, stories
+pnpm --filter @hubtask/design-system test         # tokens, contrast, layers, icons, stories
+make icons                                        # only after changing the declared icon list
 pnpm --filter @hubtask/design-system typecheck    # svelte-check over workbench/ and src/
 make workbench                                    # look at it: :5174
 git diff --exit-code core/domain/model/shared/LabelTokens.go   # must be empty after committing
