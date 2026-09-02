@@ -355,6 +355,40 @@ CREATE TABLE oauth_code (
 );
 CREATE UNIQUE INDEX oauth_code_hash_uq ON oauth_code (code_hash);
 
+-- The provider a workspace signs its people in through (H-04). One per workspace, and the
+-- primary key says so: a second row cannot exist, so nothing has to decide which one wins. The
+-- client secret is sealed under E-02's envelope - a token exchange needs the plaintext, which is
+-- why this is not a hash.
+CREATE TABLE identity_provider (
+  tenant_id             uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  issuer                text NOT NULL CHECK (length(issuer) BETWEEN 1 AND 500),
+  client_id             text NOT NULL CHECK (length(client_id) BETWEEN 1 AND 500),
+  client_secret_enc     bytea NOT NULL,
+  client_secret_key_id  text NOT NULL,
+  allowed_email_domains text[] NOT NULL DEFAULT '{}',
+  enabled               boolean NOT NULL DEFAULT true,
+  created_at            timestamptz NOT NULL,
+  updated_at            timestamptz,
+  version               integer NOT NULL DEFAULT 1
+);
+
+-- One browser round trip of authorization code + PKCE. The state is hashed because the caller
+-- presents it back; the verifier and the nonce are kept as they are because one travels to the
+-- provider and the other is compared with a claim - and neither completes a flow without the
+-- sealed client secret.
+CREATE TABLE oidc_flow (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  state_hash    bytea NOT NULL,
+  code_verifier text NOT NULL,
+  nonce         text NOT NULL,
+  created_at    timestamptz NOT NULL,
+  expires_at    timestamptz NOT NULL,
+  consumed_at   timestamptz
+);
+CREATE UNIQUE INDEX oidc_flow_state_uq ON oidc_flow (state_hash);
+CREATE INDEX oidc_flow_expiry_idx ON oidc_flow (expires_at);
+
 -- The leash's key, addable only once oauth_grant exists.
 ALTER TABLE session
   ADD CONSTRAINT session_grant_fkey FOREIGN KEY (tenant_id, grant_id)
@@ -1769,6 +1803,7 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
+    'identity_provider','oidc_flow',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',

@@ -678,6 +678,17 @@ func (r SessionRepository) DeleteExpired(ctx context.Context, cutoff time.Time, 
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("sweeping the authorization codes: %w", err))
 	}
+	// And the sign-in flows of the relying party (H-04), for the third time the same reason: a
+	// flow is one browser round trip, and what is left of it afterwards is a row nobody will
+	// ever present again.
+	if _, err := queries.DeleteExpiredOidcFlows(ctx, sqlc.DeleteExpiredOidcFlowsParams{
+		Cutoff: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		Batch:  int32(batch), //nolint:gosec // G115: the batch size is a small configuration value
+	}); err != nil {
+		return int(removed), shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the sign-in flows: %w", err))
+	}
 	return int(removed), nil
 }
 
