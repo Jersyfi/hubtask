@@ -1498,6 +1498,30 @@ func run() error {
 		// presented string - so a flood of invalid tokens costs no lookups.
 		limiter := rest.NewRateLimiter()
 
+		// Admission control in front of the whole API (H-11): above the configured number of
+		// requests in flight, deferrable work - bulk, export, search, the query shapes - is
+		// refused with `503` and a `Retry-After` instead of queueing behind the interactive path
+		// (observability-reliability.md §6, RT-6). Nil when the threshold is zero, which is how
+		// an installation on one machine says its rate limits are the whole of its admission
+		// control.
+		var admit rest.Shedder
+		if cfg.LoadShed.Inflight > 0 {
+			shedder := resilience.NewLoadShedder(resilience.LoadShedderConfig{
+				Limit:      cfg.LoadShed.Inflight,
+				RetryAfter: cfg.LoadShed.RetryAfter,
+			})
+			// The class is the middleware's decision, taken from the route template; what
+			// crosses the boundary is a bool, because the presentation layer does not import the
+			// outbound side (project-structure.md §2).
+			admit = func(deferrable bool) (func(), error) {
+				class := resilience.ClassInteractive
+				if deferrable {
+					class = resilience.ClassDeferrable
+				}
+				return shedder.Admit(class)
+			}
+		}
+
 		// The web interface, when this installation serves one (ADR-0028). It is built from the
 		// bundle embedded at link time, so it is the same version as the API by construction -
 		// there is no second artefact that could be a release behind.
@@ -1530,6 +1554,11 @@ func run() error {
 		// static: it needs no actor, no tenant and no idempotency key, and a page load that spent
 		// six requests of the anonymous budget would make the first visit the last one. The API
 		// keeps every path it owns; the interface gets what is left.
+		//
+		// Shedding sits under the CORS headers and above everything else the API does, because a
+		// refusal must cost nothing: a shed request that had already read a body and resolved an
+		// actor would be load rather than the absence of it. Under the headers, because a browser
+		// that cannot read the `503` cannot act on its `Retry-After` either.
 		api = &http.Server{
 			Addr: cfg.HTTPAddr,
 			Handler: rest.Observed{
@@ -1537,62 +1566,65 @@ func run() error {
 					API:      apiRoutes,
 					Reserved: []string{rest.APIBasePath + "/", mcp.Path},
 					UI:       ui,
-					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Bounded{
-						MaxBodyBytes: cfg.Request.MaxBodyBytes,
-						// The mail door's own bound (G-11): a message is not a document, and the
-						// route reads one whole.
-						MaxMailBytes: cfg.Request.MaxMailBytes,
-						Timeout:      cfg.Request.Timeout,
-						Next: rest.Limited{
-							Limiter: limiter, Signals: metrics,
-							Level: "credential",
-							Bucket: rest.CredentialBucket(
-								cfg.RateLimit.AnonymousPerMinute,
-								cfg.RateLimit.TokenPerMinute,
-								cfg.RateLimit.Burst),
-							// The auth bucket (T-02): stricter than the anonymous budget, on the
-							// three routes where a credential is guessed rather than presented.
-							// In front of the ledger and the Argon2id work, so a fast guesser is
-							// shed before either is reached. It applies to those routes and
-							// passes everything else through.
+					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Shedding{
+						Routes: apiRoutes, Admit: admit, Signals: metrics,
+						Next: rest.Bounded{
+							MaxBodyBytes: cfg.Request.MaxBodyBytes,
+							// The mail door's own bound (G-11): a message is not a document, and the
+							// route reads one whole.
+							MaxMailBytes: cfg.Request.MaxMailBytes,
+							Timeout:      cfg.Request.Timeout,
 							Next: rest.Limited{
 								Limiter: limiter, Signals: metrics,
-								Level: "auth",
-								Bucket: rest.AuthBucket(
-									cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
-								// The feed's own bucket, in front of the lookup rather than
-								// behind it: a subscription polls, and one client polling hard
-								// must not shed the calendar of somebody else behind the same
-								// address (D-08, T-21).
+								Level: "credential",
+								Bucket: rest.CredentialBucket(
+									cfg.RateLimit.AnonymousPerMinute,
+									cfg.RateLimit.TokenPerMinute,
+									cfg.RateLimit.Burst),
+								// The auth bucket (T-02): stricter than the anonymous budget, on the
+								// three routes where a credential is guessed rather than presented.
+								// In front of the ledger and the Argon2id work, so a fast guesser is
+								// shed before either is reached. It applies to those routes and
+								// passes everything else through.
 								Next: rest.Limited{
 									Limiter: limiter, Signals: metrics,
-									Level: "feed",
-									Bucket: rest.FeedBucket(
-										cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
-									Next: rest.Localised{
-										Locale: cfg.Locale,
-										Next: rest.Authenticated{
-											Routes:        apiRoutes,
-											Authenticator: authenticate,
-											Locale:        cfg.Locale,
-											// The subdomain check of multi-tenancy.md §3 (H-06);
-											// the controller reads its host the same way.
-											BaseHost: controller.BaseHost,
-											Next: rest.Limited{
-												// H-08: the workspace's own per-token ceiling,
-												// engaging only where one is configured.
-												Limiter: limiter, Signals: metrics,
-												Level:  "token",
-												Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
+									Level: "auth",
+									Bucket: rest.AuthBucket(
+										cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
+									// The feed's own bucket, in front of the lookup rather than
+									// behind it: a subscription polls, and one client polling hard
+									// must not shed the calendar of somebody else behind the same
+									// address (D-08, T-21).
+									Next: rest.Limited{
+										Limiter: limiter, Signals: metrics,
+										Level: "feed",
+										Bucket: rest.FeedBucket(
+											cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
+										Next: rest.Localised{
+											Locale: cfg.Locale,
+											Next: rest.Authenticated{
+												Routes:        apiRoutes,
+												Authenticator: authenticate,
+												Locale:        cfg.Locale,
+												// The subdomain check of multi-tenancy.md §3 (H-06);
+												// the controller reads its host the same way.
+												BaseHost: controller.BaseHost,
 												Next: rest.Limited{
+													// H-08: the workspace's own per-token ceiling,
+													// engaging only where one is configured.
 													Limiter: limiter, Signals: metrics,
-													Level: "tenant",
-													Bucket: rest.TenantBucket(
-														cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-													Next: rest.Idempotent{
-														Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-														Routes: apiRoutes,
-														Next:   apiRoutes,
+													Level:  "token",
+													Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
+													Next: rest.Limited{
+														Limiter: limiter, Signals: metrics,
+														Level: "tenant",
+														Bucket: rest.TenantBucket(
+															cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+														Next: rest.Idempotent{
+															Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+															Routes: apiRoutes,
+															Next:   apiRoutes,
+														},
 													},
 												},
 											},
@@ -1600,8 +1632,7 @@ func run() error {
 									},
 								},
 							},
-						},
-					}},
+						}}},
 				},
 				Metrics: metrics,
 				Tracer:  tracing.Tracer("rest"),

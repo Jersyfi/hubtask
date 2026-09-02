@@ -1,0 +1,32 @@
+{
+  "name": "steady state, 200 req/s, interactive only",
+  "recorded_at": "2026-09-02",
+  "hardware": "unnamed-darwin-arm64",
+  "dataset": {
+    "tenants": 10,
+    "items": 5000
+  },
+  "figures": {
+    "interactive_p50_ms": {
+      "value": 4,
+      "direction": "lower_is_better",
+      "band_percent": 60,
+      "minimum_delta": 8,
+      "note": "The worst of several runs rather than the best. This machine is not quiet - Docker and the rest of a working laptop are on it - and a baseline taken from its quietest minute would go red on its ordinary one."
+    },
+    "interactive_p95_ms": {
+      "value": 16,
+      "direction": "lower_is_better",
+      "band_percent": 60,
+      "minimum_delta": 8,
+      "note": "Observed between 6 and 16 ms across runs of unchanged code, which is the spread this hardware has. Band and floor together put the line at about 26 ms: past that is a change, below it is the machine. The read target of engineering-guidelines.md \u00a74 is 200 ms, and what is guarded here is movement rather than the target."
+    },
+    "requests_per_second": {
+      "value": 200,
+      "direction": "higher_is_better",
+      "band_percent": 5,
+      "minimum_delta": 5,
+      "note": "The offered rate, which the installation keeps up with exactly. Worth guarding tightly: a run that delivered less than it was offered stopped keeping up, and no latency percentile states that as plainly."
+    }
+  }
+}

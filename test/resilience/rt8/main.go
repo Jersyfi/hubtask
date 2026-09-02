@@ -10,28 +10,21 @@
 // answerable by somebody who knows what was written - so this writes, remembers what it wrote,
 // and goes looking for all of it again at the end.
 //
-// Three things it does deliberately:
+// The generator itself lives in test/load/harness: it counts from the client, paces independently
+// of the responses, and records a timeline, and H-11 gave it a ramp so that RT-6 could use the
+// same one. What stays here is what is particular to RT-8 - the mix of calls both versions of a
+// rolling update can serve, and the search for every identifier afterwards.
 //
-//   - It counts transport errors separately and treats them as failures. A connection reset while
-//     a pod goes away carries no status code at all, and a run that only counted 5xx would call
-//     that a success. It is the exact failure a rolling update produces when the readiness gate or
-//     the grace period is wrong.
+// Two things it does deliberately, beyond what the harness gives it:
+//
 //   - It keeps connections alive. A client that opens a fresh connection per request never meets
 //     the problem, because it never holds one to a pod that is about to stop. Reuse is both what
 //     real clients do and the harsher test.
-//   - It records a timeline. "No 5xx over five minutes" and "no 5xx during the ninety seconds the
-//     rollout took" are different claims, and only the second one is evidence.
-//
-// The endpoints it uses are the ones both versions of a rolling update serve. That is a
-// constraint, not a simplification: load that only the new version can answer would report the old
-// version's correct refusals as failures.
-//
-// It is paced, and it spreads itself over several credentials, because the installation's rate
-// limits are part of what is deployed and are not turned off to make a test comfortable. Traffic
-// that runs into the limiter measures the limiter: a 429 is a correct answer, it never reaches
-// the path a rollout could break, and a run full of them would report a quiet rollout it never
-// actually tested. So --rate is chosen below the tenant's budget and the tokens are several,
-// which is also how real traffic arrives (deployment.md §6.1).
+//   - It is paced and spread over several credentials, because the installation's rate limits are
+//     part of what is deployed and are not turned off to make a test comfortable. Traffic that
+//     runs into the limiter measures the limiter: a 429 is a correct answer, it never reaches the
+//     path a rollout could break, and a run full of them would report a quiet rollout it never
+//     actually tested (deployment.md §6.1).
 package main
 
 import (
@@ -43,10 +36,11 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Jersyfi/hubtask/test/load/harness"
 )
 
 // envToken carries the credentials, comma separated. Read from the environment rather than taken
@@ -60,10 +54,6 @@ const envToken = "HUBTASK_TOKEN" //nolint:gosec // G101: the name of an environm
 // answered at all - a slow answer during a rollout is a different finding from a refused one, and
 // this has to be able to tell them apart (CLAUDE.md rule 7).
 const requestTimeout = 30 * time.Second
-
-// tick is the resolution of the timeline. Five seconds is fine enough to place a fault inside a
-// rollout and coarse enough that the report stays readable.
-const tick = 5 * time.Second
 
 // stagger is how far apart the workers begin.
 const stagger = 60 * time.Millisecond
@@ -85,18 +75,9 @@ func main() {
 
 // Result is the whole finding, and it is JSON because it ends up quoted in an evidence document.
 type Result struct {
-	URL             string         `json:"url"`
-	StartedAt       time.Time      `json:"started_at"`
-	EndedAt         time.Time      `json:"ended_at"`
-	Workers         int            `json:"workers"`
-	Requests        int            `json:"requests"`
-	ByStatus        map[string]int `json:"by_status"`
-	TransportErrors int            `json:"transport_errors"`
-	// ErrorExamples keeps the first few verbatim. A count says something went wrong; the text
-	// says whether it was a reset connection or a name that stopped resolving.
-	ErrorExamples []string `json:"transport_error_examples,omitempty"`
-	LatencyMillis Latency  `json:"latency_ms"`
-	Timeline      []Bucket `json:"timeline"`
+	URL string `json:"url"`
+	harness.Summary
+	Workers int `json:"workers"`
 
 	ItemsCreated int `json:"items_created"`
 	// ItemsMissing is the data loss question. Every identifier here is one the installation
@@ -106,102 +87,6 @@ type Result struct {
 
 	NoFailedRequests bool `json:"verdict_no_failed_requests"`
 	NoDataLoss       bool `json:"verdict_no_data_loss"`
-}
-
-// Latency is what the run felt like, not what it promised. RT-6 is the test with a target; this
-// is here so that a rollout which answered everything slowly is not filed as uneventful.
-type Latency struct {
-	P50 int64 `json:"p50"`
-	P95 int64 `json:"p95"`
-	Max int64 `json:"max"`
-}
-
-// Bucket is one interval of the timeline.
-type Bucket struct {
-	SecondsIn       int `json:"seconds_in"`
-	Requests        int `json:"requests"`
-	NonSuccess      int `json:"non_success"`
-	ServerErrors    int `json:"server_errors"`
-	TransportErrors int `json:"transport_errors"`
-}
-
-// recorder collects what every worker sees. One mutex rather than per-worker counters merged at
-// the end: the timeline needs each observation placed in time, and the contention of a few
-// thousand requests a minute is not worth a lock-free design.
-type recorder struct {
-	mu        sync.Mutex
-	start     time.Time
-	byStatus  map[string]int
-	transport int
-	examples  []string
-	latencies []int64
-	buckets   map[int]*Bucket
-	created   []string
-}
-
-func newRecorder(start time.Time) *recorder {
-	return &recorder{
-		start:    start,
-		byStatus: map[string]int{},
-		buckets:  map[int]*Bucket{},
-	}
-}
-
-func (r *recorder) bucketAt(now time.Time) *Bucket {
-	resolution := int(tick.Seconds())
-	seconds := int(now.Sub(r.start).Seconds()) / resolution * resolution
-	b, known := r.buckets[seconds]
-	if !known {
-		b = &Bucket{SecondsIn: seconds}
-		r.buckets[seconds] = b
-	}
-	return b
-}
-
-// lastClosed is the interval that has just ended, and it never creates one. The ticker fires on
-// the boundary, so the interval that is current at that moment is always the one nobody has
-// written to yet - reporting it printed a run of zeroes through a run that was working.
-func (r *recorder) lastClosed(now time.Time) Bucket {
-	resolution := int(tick.Seconds())
-	seconds := int(now.Sub(r.start).Seconds())/resolution*resolution - resolution
-	if b, known := r.buckets[seconds]; known {
-		return *b
-	}
-	return Bucket{SecondsIn: seconds}
-}
-
-func (r *recorder) observe(status int, took time.Duration, err error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	now := time.Now()
-	b := r.bucketAt(now)
-	b.Requests++
-
-	if err != nil {
-		r.transport++
-		b.TransportErrors++
-		b.NonSuccess++
-		if len(r.examples) < 5 {
-			r.examples = append(r.examples, err.Error())
-		}
-		return
-	}
-
-	r.byStatus[fmt.Sprint(status)]++
-	r.latencies = append(r.latencies, took.Milliseconds())
-	if status >= 300 {
-		b.NonSuccess++
-	}
-	if status >= 500 {
-		b.ServerErrors++
-	}
-}
-
-func (r *recorder) remember(id string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.created = append(r.created, id)
 }
 
 func run(url, collection, credentials string, duration time.Duration, workers, rate int, out string) error {
@@ -218,13 +103,14 @@ func run(url, collection, credentials string, duration time.Duration, workers, r
 	}
 
 	client := &http.Client{Timeout: requestTimeout}
+	plan := harness.FlatPlan(rate, duration)
 	start := time.Now()
-	rec := newRecorder(start)
+	recorder := harness.NewRecorder(start, plan)
 
 	ctx, stop := context.WithDeadline(context.Background(), start.Add(duration))
 	defer stop()
 
-	pace := newPacer(ctx, rate)
+	pacer := harness.NewPacer(ctx, plan, start)
 	fmt.Fprintf(os.Stderr, "rt8: %d workers, %d credentials, %d req/s against %s for %s\n",
 		workers, len(tokens), rate, url, duration)
 
@@ -233,14 +119,14 @@ func run(url, collection, credentials string, duration time.Duration, workers, r
 		wg.Add(1)
 		go func(worker int) {
 			defer wg.Done()
-			load(ctx, client, url, collection, tokens[worker%len(tokens)], worker, rec, pace)
+			load(ctx, client, url, collection, tokens[worker%len(tokens)], worker, recorder, pacer)
 		}(worker)
 	}
 
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		progress(ctx, rec, start)
+		progress(ctx, recorder)
 	}()
 
 	wg.Wait()
@@ -248,17 +134,35 @@ func run(url, collection, credentials string, duration time.Duration, workers, r
 	ended := time.Now()
 
 	fmt.Fprintf(os.Stderr, "rt8: the load is off, looking for what was written\n")
+	created := recorder.Created()
 	// A fresh context: the run's own has expired by now, and that is what ended the load.
-	missing, examples := verify(context.Background(), client, url, tokens[0], rec.created)
+	missing, examples := verify(context.Background(), client, url, tokens[0], created)
 
-	result := assemble(url, start, ended, workers, rec, missing, examples)
+	summary := recorder.Summarise(ended)
+	result := Result{
+		URL:              url,
+		Summary:          summary,
+		Workers:          workers,
+		ItemsCreated:     len(created),
+		ItemsMissing:     missing,
+		MissingExample:   examples,
+		NoFailedRequests: summary.ServerErrors() == 0 && summary.TransportErrors == 0,
+		NoDataLoss:       missing == 0,
+	}
 	return report(result, out)
 }
 
 // load is one worker: write something, read it back, and read the level it is in. The mix is
 // deliberate - a rollout that drops writes and a rollout that drops reads look identical in a
 // summary that only counts requests.
-func load(ctx context.Context, client *http.Client, url, collection, token string, worker int, rec *recorder, pace *pacer) {
+//
+// Every call is interactive: these are the shapes both versions of a rolling update serve, and
+// none of them is one the load shedder may refuse. RT-8 is about a deployment, not about
+// admission control.
+func load(
+	ctx context.Context, client *http.Client, url, collection, token string,
+	worker int, recorder *harness.Recorder, pacer *harness.Pacer,
+) {
 	// Each worker staggers its start, so that a rollout does not meet all of them mid-request at
 	// exactly the same instant and turn one fault into several. Spread by index rather than at
 	// random: the same run twice should be the same run twice, and randomness here would buy
@@ -271,53 +175,13 @@ func load(ctx context.Context, client *http.Client, url, collection, token strin
 
 	for n := 0; ctx.Err() == nil; n++ {
 		body := fmt.Sprintf(`{"collection_id":%q,"type":"TASK","title":"rt8 w%d n%d"}`, collection, worker, n)
-		id, ok := call(ctx, client, rec, pace, token, http.MethodPost, url+"/api/v1/items", body)
+		id, ok := call(ctx, client, recorder, pacer, token, http.MethodPost, url+"/api/v1/items", body)
 		if ok && id != "" {
-			rec.remember(id)
-			call(ctx, client, rec, pace, token, http.MethodGet, url+"/api/v1/items/"+id, "")
+			recorder.Remember(id)
+			call(ctx, client, recorder, pacer, token, http.MethodGet, url+"/api/v1/items/"+id, "")
 		}
-		call(ctx, client, rec, pace, token, http.MethodGet,
+		call(ctx, client, recorder, pacer, token, http.MethodGet,
 			url+"/api/v1/items?collection_id="+collection+"&page_size=20", "")
-	}
-}
-
-// pacer hands out permission to make a request, at a fixed rate shared by every worker. A rate
-// held by the workers themselves would drift with latency: eight workers waiting 200ms each is
-// forty requests a second only while every answer is instant.
-type pacer struct {
-	permits chan struct{}
-}
-
-func newPacer(ctx context.Context, perSecond int) *pacer {
-	p := &pacer{permits: make(chan struct{})}
-	go func() {
-		ticker := time.NewTicker(time.Second / time.Duration(perSecond))
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				close(p.permits)
-				return
-			case <-ticker.C:
-				select {
-				case p.permits <- struct{}{}:
-				case <-ctx.Done():
-					close(p.permits)
-					return
-				}
-			}
-		}
-	}()
-	return p
-}
-
-// wait blocks until this request may be made, and reports false when the run is over.
-func (p *pacer) wait(ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		return false
-	case _, open := <-p.permits:
-		return open
 	}
 }
 
@@ -334,8 +198,11 @@ func splitTokens(credentials string) []string {
 
 // call makes one request and records it. It returns the `id` of the answer when there is one, so
 // that a created item can be remembered and looked for later.
-func call(ctx context.Context, client *http.Client, rec *recorder, pace *pacer, token, method, url, body string) (string, bool) {
-	if !pace.wait(ctx) {
+func call(
+	ctx context.Context, client *http.Client, recorder *harness.Recorder, pacer *harness.Pacer,
+	token, method, url, body string,
+) (string, bool) {
+	if !pacer.Wait(ctx) {
 		return "", false
 	}
 
@@ -361,13 +228,13 @@ func call(ctx context.Context, client *http.Client, rec *recorder, pace *pacer, 
 		if ctx.Err() != nil {
 			return "", false
 		}
-		rec.observe(0, took, err)
+		recorder.Observe(harness.ClassInteractive, 0, took, err)
 		return "", false
 	}
 	defer func() { _ = response.Body.Close() }()
 
 	payload, _ := io.ReadAll(response.Body)
-	rec.observe(response.StatusCode, took, nil)
+	recorder.Observe(harness.ClassInteractive, response.StatusCode, took, nil)
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return "", false
 	}
@@ -430,74 +297,19 @@ func verify(ctx context.Context, client *http.Client, url, token string, created
 
 // progress prints a line per interval, so that whoever triggers the rollout can see where in the
 // run it landed.
-func progress(ctx context.Context, rec *recorder, start time.Time) {
-	ticker := time.NewTicker(tick)
+func progress(ctx context.Context, recorder *harness.Recorder) {
+	ticker := time.NewTicker(harness.Tick)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			rec.mu.Lock()
-			b := rec.lastClosed(time.Now())
-			fmt.Fprintf(os.Stderr, "  %4ds  requests=%-6d non-2xx=%-4d 5xx=%-4d transport=%d\n",
-				b.SecondsIn, b.Requests, b.NonSuccess, b.ServerErrors, b.TransportErrors)
-			rec.mu.Unlock()
+			b := recorder.LastClosed(time.Now())
+			fmt.Fprintf(os.Stderr, "  %4ds  requests=%-6d non-2xx=%-4d 5xx=%-4d transport=%d p95=%dms\n",
+				b.SecondsIn, b.Requests, b.NonSuccess, b.ServerErrors, b.TransportErrors, b.InteractiveP95)
 		}
 	}
-}
-
-func assemble(url string, start, ended time.Time, workers int, rec *recorder, missing int, missingExamples []string) Result {
-	rec.mu.Lock()
-	defer rec.mu.Unlock()
-
-	requests := rec.transport
-	for _, n := range rec.byStatus {
-		requests += n
-	}
-
-	timeline := make([]Bucket, 0, len(rec.buckets))
-	for _, b := range rec.buckets {
-		timeline = append(timeline, *b)
-	}
-	sort.Slice(timeline, func(i, j int) bool { return timeline[i].SecondsIn < timeline[j].SecondsIn })
-
-	serverErrors := 0
-	for status, n := range rec.byStatus {
-		if len(status) == 3 && status[0] == '5' {
-			serverErrors += n
-		}
-	}
-
-	return Result{
-		URL:              url,
-		StartedAt:        start.UTC(),
-		EndedAt:          ended.UTC(),
-		Workers:          workers,
-		Requests:         requests,
-		ByStatus:         rec.byStatus,
-		TransportErrors:  rec.transport,
-		ErrorExamples:    rec.examples,
-		LatencyMillis:    percentiles(rec.latencies),
-		Timeline:         timeline,
-		ItemsCreated:     len(rec.created),
-		ItemsMissing:     missing,
-		MissingExample:   missingExamples,
-		NoFailedRequests: serverErrors == 0 && rec.transport == 0,
-		NoDataLoss:       missing == 0,
-	}
-}
-
-func percentiles(latencies []int64) Latency {
-	if len(latencies) == 0 {
-		return Latency{}
-	}
-	sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
-	at := func(q float64) int64 {
-		index := int(float64(len(latencies)-1) * q)
-		return latencies[index]
-	}
-	return Latency{P50: at(0.50), P95: at(0.95), Max: latencies[len(latencies)-1]}
 }
 
 func report(result Result, out string) error {

@@ -507,8 +507,22 @@ mv "$ARC42.selftest-backup" "$ARC42"
 CHECKS=$((CHECKS + 1))
 cp "$ARC42" "$ARC42.selftest-backup"
 LAST_ADR_ROW=$(grep -n '^| [0-9]\{4\} |' "$ARC42" | tail -1 | cut -d: -f1)
-sed -i.tmp "${LAST_ADR_ROW}s/| accepted |/| superseded |/" "$ARC42" && rm -f "$ARC42.tmp"
-if make --no-print-directory gate-docs >/dev/null 2>&1; then
+# Whatever status that row carries, write a different one. Naming the status it was expected to
+# have was the same mistake as naming the ADR number, one column to the right: ADR-0039 landed as
+# `proposed`, the substitution matched nothing, gate-docs stayed correctly green, and the probe
+# reported the gate as broken.
+CURRENT_STATUS=$(sed -n "${LAST_ADR_ROW}p" "$ARC42" | sed -E 's/.*\| *([a-z]+) *\|[[:space:]]*$/\1/')
+DIFFERENT_STATUS=superseded
+[ "$CURRENT_STATUS" = "superseded" ] && DIFFERENT_STATUS=accepted
+sed -i.tmp "${LAST_ADR_ROW}s/| $CURRENT_STATUS |/| $DIFFERENT_STATUS |/" "$ARC42" && rm -f "$ARC42.tmp"
+if cmp -s "$ARC42" "$ARC42.selftest-backup"; then
+	# The probe changed nothing, so whatever gate-docs answers next is about the unmodified file.
+	# Reported as the probe's own failure rather than left to look like the gate's: a self-test
+	# that cannot inject its violation is the one thing it must never call "caught".
+	printf '  FAILED  %-44s the probe changed nothing (status %s)\n' \
+		"a status arc42 and the index disagree on" "$CURRENT_STATUS"
+	FAILURES=$((FAILURES + 1))
+elif make --no-print-directory gate-docs >/dev/null 2>&1; then
 	printf '  FAILED  %-44s make gate-docs stayed green\n' "a status arc42 and the index disagree on"
 	FAILURES=$((FAILURES + 1))
 else
