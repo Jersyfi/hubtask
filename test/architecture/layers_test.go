@@ -301,3 +301,39 @@ func TestTheExpressionEngineIsBehindOneAdapter(t *testing.T) {
 			}
 		})
 }
+
+// The relying party lives in exactly one package, and this is the gate ADR-0036 promised (H-04).
+//
+// It is the same sentence as the expression engine's above, for a dependency with a sharper
+// edge: go-oidc and go-jose parse hostile input on the authentication path of every workspace
+// that enables single sign-on. Accepting them was a supply chain decision, and what made it
+// acceptable is that nothing outside `infrastructure/oidc` depends on the choice - the
+// application layer holds a port with four plain structs, so the library can be replaced without
+// a use case changing.
+//
+// Three module prefixes rather than one: `x/oauth2` carries the code exchange, go-jose comes in
+// underneath go-oidc, and an import of either from somewhere else would be the same leak by a
+// different name.
+func TestTheIdentityProviderLibraryIsBehindOneAdapter(t *testing.T) {
+	libraries := []string{
+		"github.com/coreos/go-oidc",
+		"github.com/go-jose/go-jose",
+		"golang.org/x/oauth2",
+	}
+	const adapter = "infrastructure/oidc"
+
+	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"},
+		func(path string, f *ast.File, fset *token.FileSet) {
+			for _, imp := range f.Imports {
+				for _, library := range libraries {
+					if !strings.HasPrefix(strings.Trim(imp.Path.Value, `"`), library) {
+						continue
+					}
+					if !strings.Contains(filepath.ToSlash(path), adapter) {
+						t.Errorf("%s imports %s: the relying party belongs in %s and nowhere "+
+							"else (ADR-0036, ADR-0001)", rel(path), library, adapter)
+					}
+				}
+			}
+		})
+}
