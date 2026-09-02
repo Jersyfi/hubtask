@@ -45,6 +45,17 @@ fails when the generated and the committed version diverge.
 layer are framework-agnostic and can exist immediately; components cannot. A design system that
 fixes components before the framework decision has to be rebuilt at the first contradiction.
 
+**What the tokens guarantee.** `test/contrast.test.js` measures the WCAG 2.2 contrast ratio of
+every pair `tokens.json` declares, in both modes, on every run of `pnpm test`. Text clears 4.5:1
+(SC 1.4.3) against every surface it may sit on — including the canvas under each `ambient`
+gradient, and the two `accent.*-subtle` tints. A control's boundary and the focus ring clear 3:1
+(SC 1.4.11). Every semantic colour token carries a role in that file, and a token nobody has
+classified fails the suite rather than being skipped, so the guarantee cannot shrink as the token
+set grows. One rule follows from it and belongs at the call site: **`border.default` and
+`border.strong` draw controls, `border.subtle` does not.** A hairline that separates sections or
+edges a card carries no information and is exempt; a border that is the only thing saying "this is
+an input" is not.
+
 ---
 
 ## 2. Directory layout
@@ -298,8 +309,6 @@ teaches the screenshots.
   15 custom ones for Hub, Collection, Work Package, Activity, Jumble, Bucket, Capability.
 - **Logo and wordmark** — the placeholder in `foundations.html` shows the idea (three nested
   planes, the innermost in bordeaux) but is not a finished mark.
-- **Contrast verification** — the label tokens are calculated for ≥ 4.5:1 but have not been
-  measured. This belongs in CI as an automated test, not in a one-off check.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
 - **Voice and tone** — one page of writing rules for buttons, errors and empty states.
 - **A layering scale** — `tokens.json` has no `z` step, and wave 1b lands `Tooltip`, `Menu`,
@@ -318,6 +327,5 @@ teaches the screenshots.
   its own colour, elevation, motion and tone, not a row in a component table.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
-list: iconography, the wordmark, contrast verification in CI and voice and tone in `F1`, because
-the component layer cannot be built without them; platform adaptation in `F6`, with the mobile
-shell that raises the question.
+list: iconography, the wordmark and voice and tone in `F1`, because the component layer cannot be
+built without them; platform adaptation in `F6`, with the mobile shell that raises the question.
