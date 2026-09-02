@@ -10,20 +10,20 @@
     gap?: Space;
     align?: Align;
     justify?: Justify;
-    wrap?: boolean;
+    isWrapping?: boolean;
     /** The German labels rule 4 is written for. */
-    long?: boolean;
+    isLong?: boolean;
   }
 
-  const { gap = '150', align, justify, wrap = true, long = false }: Props = $props();
+  const { gap = '150', align, justify, isWrapping = true, isLong = false }: Props = $props();
 
   const short = ['Save', 'Cancel', 'More'];
   const wordy = ['Aufgabe erstellen', 'Verwerfen', 'Weitere Möglichkeiten'];
 </script>
 
 <div class="frame">
-  <Inline {gap} {align} {justify} {wrap}>
-    {#each long ? wordy : short as item (item)}
+  <Inline {gap} {align} {justify} {isWrapping}>
+    {#each isLong ? wordy : short as item (item)}
       <span class="item">{item}</span>
     {/each}
   </Inline>
