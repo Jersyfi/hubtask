@@ -87,6 +87,12 @@ jobs:
               - *workspace-manifests
             design_system:
               - 'packages/design-system/**'
+              # The specification is an input to the package's own tests, not documentation about
+              # them: check-stories.js reads design-system.md §4 and refuses a component that
+              # appears in no wave (ADR-0037). A §4 that stops parsing, or a component removed
+              # from it, breaks `pnpm test` - so a change here has to run the package, exactly
+              # like a change to its source.
+              - 'docs/design/design-system.md'
               - *workspace-manifests
             api_client:
               - 'packages/api-client/**'
