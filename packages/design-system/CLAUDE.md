@@ -37,6 +37,10 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
   `tokens.json` declares, in both modes: 4.5:1 for text, 3:1 for a control boundary and the focus
   ring. A new semantic colour token needs a role in `test/contrast.test.js` — an unclassified token
   fails the suite rather than being skipped, which is what stops the check from shrinking.
+* **No control that switches off without saying why.** There is no `disabled` boolean in this
+  package: `disabledReason` is what disables, and `test/conventions.test.js` fails on the other
+  spelling. Same file: no physical `left`/`right`, no state as a prop, no animated length, no
+  boolean that does not ask a question, and no native input hidden from the accessibility tree.
 * **No icon that names a colour.** The set takes `currentColor` from the text it sits in
   ([ADR-0041](../../docs/adr/ADR-0041-icon-set.md)); `currentColor` and `none` are the only values
   a mark may carry. `src/icons/base.ts` is generated from the declared list in `build/icons.js` —
