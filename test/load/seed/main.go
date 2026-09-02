@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -138,9 +139,10 @@ func derive(seed, kind string, index ...int) string {
 	h.Write([]byte{0})
 	h.Write([]byte(kind))
 	for _, n := range index {
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], uint64(n))
-		h.Write(buf[:])
+		// Written as text rather than as bytes: an index is small, the cost is nothing, and a
+		// decimal number needs no conversion whose width somebody has to reason about.
+		// A hash never fails a write, and the value is small enough that formatting it cannot.
+		h.Write([]byte(strconv.Itoa(n) + ";"))
 	}
 	sum := h.Sum(nil)[:16]
 	sum[6] = (sum[6] & 0x0f) | 0x40
@@ -154,8 +156,13 @@ func derive(seed, kind string, index ...int) string {
 // use. There is no random source here at all - CLAUDE.md rule 4 bans one in the core, and a
 // dataset generator that drew from one could not be reproduced anyway.
 func choice(seed, kind string, index int, n int) int {
+	if n < 1 {
+		return 0
+	}
 	sum := sha256.Sum256([]byte(derive(seed, kind, index)))
-	return int(binary.BigEndian.Uint32(sum[:4]) % uint32(n))
+	// Widened to int64 before the modulus, so the arithmetic is done in a type that holds
+	// everything either side of it and the result is by construction below n.
+	return int(int64(binary.BigEndian.Uint32(sum[:4])) % int64(n))
 }
 
 // orderKey is a fixed-width, byte-ordered rank key. Fixed width because the column is compared as
