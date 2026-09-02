@@ -159,6 +159,7 @@ func Descriptors() []usecase.Descriptor {
 		jobservice.GetJob{}.Descriptor(),
 		jobservice.CancelJob{}.Descriptor(),
 		identity.InviteAccount{}.Descriptor(),
+		identity.GetOwnAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.GrantMembership{}.Descriptor(),
 		identity.RevokeMembership{}.Descriptor(),
