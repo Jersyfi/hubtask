@@ -101,6 +101,16 @@ func TestTheDeferrableRoutesAreRoutesTheRouterServes(t *testing.T) {
 			t.Errorf("%q is classified as deferrable and is not a route the specification declares", route)
 		}
 	}
+	// The same for the routes that are admitted without being counted, and for the same reason: a
+	// typo there is an installation whose stream connections quietly count as load again.
+	for route := range rest.LongLivedRoutes {
+		if _, found := declared[route]; !found {
+			t.Errorf("%q is classified as long-lived and is not a route the specification declares", route)
+		}
+		if rest.DeferrableRoutes[route] {
+			t.Errorf("%q is both deferrable and long-lived, which is two answers to one question", route)
+		}
+	}
 }
 
 type manifest struct{ result usecase.Capabilities }

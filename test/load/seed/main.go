@@ -62,7 +62,25 @@ func main() {
 	tenants := flag.Int("tenants", 200, "how many tenants the dataset holds")
 	items := flag.Int("items", 2_000_000, "how many work items in total, across all tenants")
 	seed := flag.String("seed", "hubtask-load", "the seed every identifier is derived from")
+	derived := flag.String("derive", "", "print one derived identifier - the kind, then its indices as arguments")
 	flag.Parse()
+
+	// The one query this program answers: what identifier does this seed give that row? A caller
+	// that needs to address a seeded tenant would otherwise reimplement the derivation, and two
+	// implementations of it are how a dataset and the credentials into it drift apart.
+	if *derived != "" {
+		indices := make([]int, 0, flag.NArg())
+		for _, raw := range flag.Args() {
+			n, err := strconv.Atoi(raw)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "seed: --derive takes integer indices, not %q\n", raw)
+				os.Exit(1)
+			}
+			indices = append(indices, n)
+		}
+		fmt.Println(derive(*seed, *derived, indices...))
+		return
+	}
 
 	out := bufio.NewWriterSize(os.Stdout, 1<<20)
 	if err := write(out, *table, *tenants, *items, *seed); err != nil {
@@ -165,18 +183,35 @@ func choice(seed, kind string, index int, n int) int {
 	return int(int64(binary.BigEndian.Uint32(sum[:4])) % int64(n))
 }
 
-// orderKey is a fixed-width, byte-ordered rank key. Fixed width because the column is compared as
-// text and the database's collation is not to be trusted with the ordering of variable-length keys
-// (the rank keys the application mints have the same property).
+// orderKeyDigits and the heading letters are the fractional index the application mints
+// (core/domain/service/Ordering.go): base 62 in ASCII order, and the integer part's first
+// character says how many digits follow it.
+const orderKeyDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+// orderKey is the key of the nth row of a list, in the application's own scheme.
+//
+// It has to be that scheme and not merely something sortable: inserting after the last row asks
+// the domain for a key above the existing maximum, and it validates the bound it is given. A
+// dataset carrying keys of any other shape answers every insert with an internal error - which is
+// what the first run of RT-6 found, in the shape of a third of its requests being a five hundred.
 func orderKey(position int) string {
-	const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
-	key := make([]byte, 8)
-	value := position
-	for i := 7; i >= 0; i-- {
-		key[i] = digits[value%len(digits)]
-		value /= len(digits)
+	base := len(orderKeyDigits)
+	// 'a' heads a one-digit integer, 'b' a two-digit one, and so on: the space below each head is
+	// exhausted before the next is used, which is what keeps the sequence increasing as text.
+	width, capacity, offset := 1, base, 0
+	for position >= offset+capacity {
+		offset += capacity
+		width++
+		capacity *= base
 	}
-	return string(key)
+
+	value := position - offset
+	digits := make([]byte, width)
+	for i := width - 1; i >= 0; i-- {
+		digits[i] = orderKeyDigits[value%base]
+		value /= base
+	}
+	return string(rune('a'+width-1)) + string(digits)
 }
 
 // seededAt is the moment every row is stamped with. Fixed rather than time.Now(), because two runs

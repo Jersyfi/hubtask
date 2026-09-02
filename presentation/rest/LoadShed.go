@@ -36,6 +36,19 @@ var DeferrableRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/admin/tenants/{tenantId}:export": true,
 }
 
+// LongLivedRoutes are the routes whose requests are parked rather than working: they are admitted
+// without being counted, and they are never shed.
+//
+// The change stream is the whole of the list and the reason for it. An SSE connection is in flight
+// for as long as somebody has a tab open, so counting it would make the gauge measure subscriptions
+// instead of load - three hundred idle streams would put an installation permanently above any
+// sensible threshold and refuse every export in it, while the process sat idle. The stream has its
+// own admission control for its own resource, and it answers the same 503 with the same
+// Retry-After when it is full (StreamRegistry, T-19).
+var LongLivedRoutes = map[string]bool{
+	http.MethodGet + " " + APIBasePath + "/stream": true,
+}
+
 // Shedder decides whether one call may run, and is what the composition root closes over.
 //
 // A function rather than the load shedder itself: the shedder is infrastructure and an inbound
@@ -75,6 +88,11 @@ func (s Shedding) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, route := s.Routes.Handler(r)
+	if LongLivedRoutes[route] {
+		s.Next.ServeHTTP(w, r)
+		return
+	}
+
 	release, err := s.Admit(DeferrableRoutes[route])
 	if release != nil {
 		defer release()

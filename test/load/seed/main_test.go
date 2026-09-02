@@ -134,3 +134,34 @@ func TestNoFieldNeedsEscaping(t *testing.T) {
 		}
 	}
 }
+
+// The keys have to be the application's own fractional index, not merely something sortable.
+// Inserting after the last row asks the domain for a key above the existing maximum and it
+// validates the bound it is given - so a dataset carrying keys of another shape answers every
+// insert with an internal error. RT-6's first run found exactly that, as a third of its requests
+// being a five hundred.
+func TestTheOrderKeysAreTheApplicationsOwnScheme(t *testing.T) {
+	previous := ""
+	for position := range 200_000 {
+		key := orderKey(position)
+		if len(key) < 2 {
+			t.Fatalf("position %d produced %q", position, key)
+		}
+		head, digits := key[0], key[1:]
+		if head < 'a' || head > 'z' {
+			t.Fatalf("position %d produced the head %q", position, string(head))
+		}
+		if int(head-'a')+1 != len(digits) {
+			t.Fatalf("%q declares %d digits and carries %d", key, int(head-'a')+1, len(digits))
+		}
+		for i := range len(digits) {
+			if !strings.ContainsRune(orderKeyDigits, rune(digits[i])) {
+				t.Fatalf("%q carries the digit %q, which is not in the alphabet", key, string(digits[i]))
+			}
+		}
+		if key <= previous {
+			t.Fatalf("position %d produced %q, which does not sort after %q", position, key, previous)
+		}
+		previous = key
+	}
+}

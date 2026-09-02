@@ -155,6 +155,46 @@ func (r *Recorder) LastClosed(now time.Time) Bucket {
 	return Bucket{SecondsIn: seconds}
 }
 
+// Window is a slice of a run, measured from its start: from is inclusive, to is exclusive. It
+// exists as a type so that a caller narrowing one - the last half of a stage rather than the whole
+// of it - says so in one place instead of arithmetic at the call site.
+type Window struct {
+	From time.Duration
+	To   time.Duration
+}
+
+// Window is the latency of one class over a slice of the run, pooled from the raw samples rather
+// than averaged out of the per-interval percentiles. A percentile of percentiles is not a
+// percentile of anything, and the stage comparison RT-6 rests on would be built out of one.
+//
+// from is inclusive and to is exclusive, both measured from the start of the run. It exists so a
+// ramp can be read stage by stage: the claim worth making is not "the P95 held over the run" but
+// "the P95 under overload was within a factor of the P95 before it".
+func (r *Recorder) Window(class Class, from, to time.Duration) Latency {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var pooled []int64
+	for seconds, bucket := range r.buckets {
+		at := time.Duration(seconds) * time.Second
+		if at < from || at >= to {
+			continue
+		}
+		if class == ClassInteractive {
+			pooled = append(pooled, bucket.interactive...)
+		}
+	}
+	return Percentiles(pooled)
+}
+
+// Shed is how many calls of a class were refused. Read while the run is still going, which is what
+// lets a test say the mechanism engaged before it says anything about latency.
+func (r *Recorder) Shed(class Class) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.shed[class]
+}
+
 // Summary is the finding of one run, and it is JSON because it ends up quoted in an evidence
 // document and compared against a stored baseline.
 type Summary struct {

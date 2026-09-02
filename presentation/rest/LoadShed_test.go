@@ -191,3 +191,31 @@ func TestAnUnknownRouteIsNotShed(t *testing.T) {
 		t.Error("an unknown route was shed; it has no class and cannot be deferred")
 	}
 }
+
+// A stream is parked, not working. Counting it would make the gauge measure open tabs rather than
+// load: three hundred idle streams would hold an installation permanently above any sensible
+// threshold and refuse every export in it while the process sat idle.
+func TestALongLivedRouteIsNeitherCountedNorShed(t *testing.T) {
+	served := 0
+	streaming := NewMux()
+	streaming.HandleFunc(http.MethodGet+" "+APIBasePath+"/stream",
+		func(w http.ResponseWriter, _ *http.Request) { served++; w.WriteHeader(http.StatusOK) })
+
+	shedder := &fakeShedder{limit: 1, retryAfter: 5}
+	middleware := Shedding{Next: streaming, Routes: streaming, Admit: shedder.admit}
+
+	for range 5 {
+		response := httptest.NewRecorder()
+		middleware.ServeHTTP(response, httptest.NewRequestWithContext(
+			context.Background(), http.MethodGet, APIBasePath+"/stream", nil))
+		if response.Code != http.StatusOK {
+			t.Fatalf("a stream answered %d", response.Code)
+		}
+	}
+	if served != 5 {
+		t.Errorf("%d streams reached the handler, want 5", served)
+	}
+	if shedder.admitted != 0 {
+		t.Errorf("%d streams were counted against the threshold", shedder.admitted)
+	}
+}

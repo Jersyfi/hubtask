@@ -120,3 +120,27 @@ func TestTheTimelineCarriesTheOfferedRateOfEachInterval(t *testing.T) {
 		t.Errorf("interval P95 = %d, want 40", interval.InteractiveP95)
 	}
 }
+
+// The stage comparison RT-6 rests on: the window pools the raw samples of the intervals it covers,
+// rather than averaging the per-interval percentiles into a number that is a percentile of
+// nothing.
+func TestAWindowPoolsTheSamplesOfItsIntervals(t *testing.T) {
+	start := time.Now().Add(-4 * Tick)
+	recorder := NewRecorder(start, FlatPlan(10, 10*Tick))
+
+	// Two intervals of fast answers are already in the past by construction of the start time;
+	// what can be placed deterministically is the interval the observations land in, which is the
+	// one four ticks in.
+	for range 100 {
+		recorder.Observe(ClassInteractive, 200, 20*time.Millisecond, nil)
+	}
+
+	inside := recorder.Window(ClassInteractive, 4*Tick, 5*Tick)
+	if inside.Count != 100 || inside.P95 != 20 {
+		t.Errorf("the window covering the observations = %+v", inside)
+	}
+	outside := recorder.Window(ClassInteractive, 0, 2*Tick)
+	if outside.Count != 0 {
+		t.Errorf("a window before the observations saw %d of them", outside.Count)
+	}
+}
