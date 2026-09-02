@@ -186,6 +186,8 @@ func TestTheDefaultsAreTheDocumentedOnes(t *testing.T) {
 		{"outbound redirects", cfg.Outbound.MaxRedirects, 3},
 		{"private networks", cfg.Outbound.AllowPrivateNetworks, false},
 		{"anonymous rate limit", cfg.RateLimit.AnonymousPerMinute, 60},
+		{"load shed threshold", cfg.LoadShed.Inflight, 64},
+		{"load shed retry after", cfg.LoadShed.RetryAfter, 5 * time.Second},
 		{"auth rate limit", cfg.RateLimit.AuthPerMinute, 10},
 		{"default locale", cfg.Locale.DefaultLocale, "en"},
 		{"default time zone", cfg.Locale.DefaultTimeZone, "UTC"},
@@ -277,6 +279,8 @@ func TestInvalidValuesAreRejectedByCode(t *testing.T) {
 		{"HUBTASK_HTTP_MAX_REDIRECTS", "50", "config.redirects_invalid"},
 		{"HUBTASK_HTTP_ALLOWED_HOSTS", "https://hooks.example.org", "config.allowed_host_invalid"},
 		{"HUBTASK_HTTP_ALLOWED_HOSTS", "hooks.example.org/path", "config.allowed_host_invalid"},
+		{"HUBTASK_LOAD_SHED_INFLIGHT", "-1", "config.load_shed_invalid"},
+		{"HUBTASK_LOAD_SHED_RETRY_AFTER", "0s", "config.duration_invalid"},
 	}
 
 	for _, tc := range cases {
@@ -288,6 +292,22 @@ func TestInvalidValuesAreRejectedByCode(t *testing.T) {
 
 			assertCode(t, err, tc.want)
 		})
+	}
+}
+
+// Zero is the documented way to switch shedding off, and it has to survive validation - a check
+// that treated it as "greater than zero, like every other limit" would make the off switch a
+// startup failure.
+func TestLoadSheddingCanBeSwitchedOff(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_LOAD_SHED_INFLIGHT", "0")
+
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("switching load shedding off was refused: %v", err)
+	}
+	if cfg.LoadShed.Inflight != 0 {
+		t.Errorf("threshold = %d, want 0", cfg.LoadShed.Inflight)
 	}
 }
 

@@ -73,7 +73,11 @@ has to be the run that reviews it. A nightly failure two days later is a bisect.
 The three that stay nightly — **RT-6** (overload), **RT-8** (rolling update under load) and
 **RT-11** (memory leak over an hour) — are nightly for a reason no measurement changes: they need
 sustained load for an hour or more, and a shared runner cannot give it. Their home is
-`nightly.yml`, and CI-1 (a self-hosted runner for load tests) is what would let them come closer.
+`nightly.yml`. RT-6 runs there since H-11, through `make gate-load`, and what it asserts is written
+to survive a noisy runner: that shedding engaged, that no interactive request was refused, that the
+interactive P95 stayed inside its target, and that the process came back afterwards. The
+percent-level question a shared runner cannot answer is not asked of it — that is the
+[load suite's](../../test/load/README.md) second tier, on the integration server, per release.
 
 The rule this states, for a resilience test written later: **a test that can run in minutes on a
 shared runner is a pull request gate; a test that needs an hour of load is nightly.** Nothing in
@@ -224,9 +228,10 @@ through a pull-based path (Argo CD/Flux) or manually, not through the public pip
 ## 7. Runner selection
 
 Public repositories use the free GitHub runners. `arm64` builds happen through
-`docker/build-push-action` with QEMU, or on native `arm64` runners where available. Load tests in
-the nightly run need more resources than the free runners provide — a self-hosted runner is planned
-for that (open point CI-1).
+`docker/build-push-action` with QEMU, or on native `arm64` runners where available. The load tests
+in the nightly run on those free runners over a scaled dataset, and compare against a baseline
+recorded on the same kind of machine; the run that produces an absolute figure is the per-release
+ramp on the integration server. That is CI-1's answer: two tiers rather than a runner (§8).
 
 ---
 
@@ -234,7 +239,7 @@ for that (open point CI-1).
 
 | # | Point | Needed by |
 |---|---|---|
-| CI-1 | Self-hosted runner for load tests | `0.6.0` |
+| CI-1 | ~~Self-hosted runner for load tests~~ — answered with H-11, and the answer is that no runner is bought. The load suite has two tiers instead: a **relative regression guard** in the nightly on `ubuntu-latest`, which compares a run against a stored baseline with an explicit band and answers only "did this get significantly worse", and a **full capacity ramp per release on the integration server** — the named hardware, run by hand against the two-million-item dataset. A shared runner varies 10–30 % between runs, so it cannot answer a percent-level question and is not asked one; buying quiet iron before there is a figure worth defending would be spending money on precision nobody yet needs. Revisit when a published number depends on it (O-2, `0.9.0`) | Closed (H-11) |
 | CI-2 | Whether to enable the merge queue (worthwhile once several contributors work in parallel) | As needed |
 | CI-3 | Enforce image signature verification at deployment (Kyverno/Sigstore policy) | `0.9.0` |
 | CI-4 | ~~Where `hubtask.eu` is served from, and which workflow deploys it~~ — answered with F1-12: the domain owner's IONOS webspace, published by `.github/workflows/website.yml` over SFTP with the host key pinned. What remains with the owner: setting `WEBSITE_SFTP_HOST`, `WEBSITE_SFTP_HOST_KEY`, `WEBSITE_REMOTE_DIR` and the two secrets in the repository settings, and pointing the domain at the webspace — the workflow builds, checks and skips politely until then | Closed (F1-12), configuration pending |

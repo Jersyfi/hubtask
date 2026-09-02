@@ -10,6 +10,11 @@ roles:
   api:
     enabled: true
     replicas: 2
+    # Requests in flight above which deferrable work - bulk, export, search, the query
+    # shapes - is refused with 503 and a Retry-After, before latency tips over for the
+    # interactive path (observability-reliability.md §6). Empty leaves the image's own
+    # default; 0 switches shedding off.
+    loadShedInflight: ""
     resources:
       requests: { cpu: 250m, memory: 512Mi }
       limits:   { memory: 1Gi }
