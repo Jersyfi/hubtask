@@ -144,3 +144,26 @@ func TestAWindowPoolsTheSamplesOfItsIntervals(t *testing.T) {
 		t.Errorf("a window before the observations saw %d of them", outside.Count)
 	}
 }
+
+// Throughput is the capacity figure, and it counts what was answered - not what was offered, not
+// what was refused. A run that counted its own refusals as throughput would report an installation
+// getting faster the more of its work it turned away.
+func TestThroughputCountsWhatWasAnsweredAndNothingElse(t *testing.T) {
+	start := time.Now().Add(-2 * Tick)
+	recorder := NewRecorder(start, FlatPlan(100, 10*Tick))
+
+	for range 60 {
+		recorder.Observe(ClassInteractive, 200, 5*time.Millisecond, nil)
+	}
+	for range 40 {
+		recorder.Observe(ClassDeferrable, 503, time.Millisecond, nil)
+	}
+	recorder.Observe(ClassInteractive, 0, time.Second, errors.New("connection reset"))
+
+	// One interval of Tick seconds holds all of it: 60 answered, 40 refused, 1 that never
+	// arrived.
+	got := recorder.Throughput(2*Tick, 3*Tick)
+	if want := 60 / Tick.Seconds(); got != want {
+		t.Errorf("throughput = %v, want %v", got, want)
+	}
+}

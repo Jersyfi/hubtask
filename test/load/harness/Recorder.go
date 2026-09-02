@@ -102,6 +102,7 @@ func (r *Recorder) Observe(class Class, status int, took time.Duration, err erro
 	// make the P95 fall as the overload got worse.
 	if status == 503 {
 		r.shed[class]++
+		bucket.Shed++
 		return
 	}
 
@@ -185,6 +186,32 @@ func (r *Recorder) Window(class Class, from, to time.Duration) Latency {
 		}
 	}
 	return Percentiles(pooled)
+}
+
+// Throughput is how many calls the installation actually answered per second over a window,
+// counting neither the refusals nor the connections that never got one.
+//
+// It is the capacity figure and it only means something once the offered rate is past what the
+// process can serve: below saturation this returns the offered rate, because that is what was
+// asked of it. Which is why the figure H-11 records comes from an overload stage and not from a
+// steady one - a run that kept up measured the client.
+func (r *Recorder) Throughput(from, to time.Duration) float64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	seconds := (to - from).Seconds()
+	if seconds <= 0 {
+		return 0
+	}
+	answered := 0
+	for at, bucket := range r.buckets {
+		elapsed := time.Duration(at) * time.Second
+		if elapsed < from || elapsed >= to {
+			continue
+		}
+		answered += bucket.Requests - bucket.Shed - bucket.TransportErrors
+	}
+	return float64(answered) / seconds
 }
 
 // Shed is how many calls of a class were refused. Read while the run is still going, which is what

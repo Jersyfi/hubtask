@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -57,12 +58,18 @@ type RT6Finding struct {
 		Tenants int `json:"tenants"`
 		Items   int `json:"items"`
 	} `json:"dataset"`
-	ShedThreshold  int                        `json:"shed_threshold_inflight"`
-	StageLatency   map[string]harness.Latency `json:"interactive_latency_ms_by_stage"`
-	PeakResident   int64                      `json:"peak_resident_bytes"`
-	MemoryLimit    int64                      `json:"memory_limit_bytes"`
-	MemoryObserved bool                       `json:"memory_observed"`
-	Summary        harness.Summary            `json:"run"`
+	ShedThreshold int `json:"shed_threshold_inflight"`
+	// VCPUs and the throughput below it are the pair H-11 records: requests per second per vCPU,
+	// at a held P95, measured where the offered rate is past what the process can serve. Below
+	// saturation a throughput figure is the offered rate wearing a capacity figure's name.
+	VCPUs                 int                        `json:"vcpus"`
+	OverloadPerSecond     float64                    `json:"answered_per_second_under_overload"`
+	OverloadPerSecondVCPU float64                    `json:"answered_per_second_per_vcpu_under_overload"`
+	StageLatency          map[string]harness.Latency `json:"interactive_latency_ms_by_stage"`
+	PeakResident          int64                      `json:"peak_resident_bytes"`
+	MemoryLimit           int64                      `json:"memory_limit_bytes"`
+	MemoryObserved        bool                       `json:"memory_observed"`
+	Summary               harness.Summary            `json:"run"`
 }
 
 // RT-6 (observability-reliability.md §12): a load test beyond capacity in which shedding engages,
@@ -96,8 +103,9 @@ func TestRT6SheddingHoldsTheInteractivePathUnderOverload(t *testing.T) {
 	summary := recorder.Summarise(ended)
 	finding := RT6Finding{
 		Test: "RT-6", RanAt: started.UTC(),
-		ShedThreshold: shedLimit, StageLatency: map[string]harness.Latency{},
-		MemoryLimit: memoryLimitBytes, Summary: summary,
+		ShedThreshold: shedLimit, VCPUs: runtime.NumCPU(),
+		StageLatency: map[string]harness.Latency{},
+		MemoryLimit:  memoryLimitBytes, Summary: summary,
 	}
 	finding.Dataset.Tenants, finding.Dataset.Items = tenants, items
 
@@ -113,6 +121,10 @@ func TestRT6SheddingHoldsTheInteractivePathUnderOverload(t *testing.T) {
 		finding.StageLatency[stage.name] = recorder.Window(harness.ClassInteractive, window.From, window.To)
 		at += stage.hold
 	}
+	overloadFrom := time.Duration(rt6Stages[0].hold)
+	overloadTo := overloadFrom + rt6Stages[1].hold
+	finding.OverloadPerSecond = recorder.Throughput(overloadFrom, overloadTo)
+	finding.OverloadPerSecondVCPU = finding.OverloadPerSecond / float64(runtime.NumCPU())
 	finding.PeakResident, finding.MemoryObserved = peak.read()
 	writeEvidence(t, "RT-6-latest.json", finding)
 
@@ -166,9 +178,10 @@ func TestRT6SheddingHoldsTheInteractivePathUnderOverload(t *testing.T) {
 		t.Log("the process's resident memory could not be read here; the OOM half of RT-6 is not asserted on this platform")
 	}
 
-	t.Logf("RT-6: %d requests, %d shed, interactive P95 %d ms baseline -> %d ms overload -> %d ms recovery",
+	t.Logf("RT-6: %d requests, %d shed, interactive P95 %d ms baseline -> %d ms overload -> %d ms recovery; %.0f answered per second under overload (%.1f per vCPU over %d)",
 		summary.Requests, summary.Shed[string(harness.ClassDeferrable)],
-		baseline.P95, overload.P95, finding.StageLatency["recovery"].P95)
+		baseline.P95, overload.P95, finding.StageLatency["recovery"].P95,
+		finding.OverloadPerSecond, finding.OverloadPerSecondVCPU, runtime.NumCPU())
 }
 
 // deferrableQuery is the heavy read: anchored to a collection the way the contract requires, over
