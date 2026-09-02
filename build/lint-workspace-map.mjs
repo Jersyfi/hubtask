@@ -25,7 +25,11 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 
 /** The two kinds the map talks about, derived from the directory - not from naming convention. */
 const KINDS = { apps: 'app', packages: 'package' };
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.vite', '.turbo', 'src-tauri', 'fonts']);
+// `.svelte-kit` is SvelteKit's own generated output, and its imports are SvelteKit's rather than
+// ours: they reach into node_modules by relative path, which is exactly the edge this refuses.
+// CI never saw it because the lint runs before anything is installed or built; a contributor
+// running the documented order locally did.
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.vite', '.turbo', '.svelte-kit', 'src-tauri', 'fonts']);
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.svelte', '.css']);
 
 /** Read the members: every directory under apps/ and packages/ that carries a package.json. */

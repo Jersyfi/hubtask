@@ -193,10 +193,16 @@ The JavaScript half has its own direction of dependency, and it points the same 
 towards what is shared:
 
 ```
-apps/webapp  → packages/design-system, packages/api-client
+apps/webapp  → packages/design-system, packages/sync-engine
 apps/website → packages/design-system
 packages/*   → other packages/* only, acyclically (ADR-0033)
+             sync-engine → api-client, and nothing else new
 ```
+
+`apps/webapp` reaches the contract *through* the engine rather than beside it: `sync-engine`
+re-exports the types it needs, and a component that imported `@hubtask/api-client` directly would
+be a component that could reach past the seam ADR-0033 §2 puts there. The engine is the only edge
+between the two packages, and the only one the map has gained.
 
 Forbidden:
 

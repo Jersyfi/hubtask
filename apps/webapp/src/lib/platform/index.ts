@@ -19,6 +19,20 @@ export interface Platform {
    * never as a check on this value scattered through components.
    */
   readonly target: 'browser' | 'desktop' | 'mobile';
+
+  /**
+   * The bearer for an API call, or `undefined` when nobody is signed in.
+   *
+   * A function rather than a value, and here rather than in the sync engine, because *where* a
+   * token is kept is exactly what differs between targets: the browser holds it in memory for the
+   * tab's lifetime, and the shells hold it in the platform keystore (ADR-0031). The engine asks
+   * per call so that a refresh, or a sign-out, is seen by the next request rather than by the
+   * next reload.
+   *
+   * F1-11 puts a real token behind it. Until then it answers `undefined`, which is the honest
+   * state of an application nobody has signed into.
+   */
+  bearer(): string | undefined;
 }
 
 export { platform } from './browser.ts';

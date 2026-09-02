@@ -42,6 +42,7 @@ jobs:
       website: ${{ github.event_name != 'pull_request' || steps.filter.outputs.website == 'true' }}
       design_system: ${{ github.event_name != 'pull_request' || steps.filter.outputs.design_system == 'true' }}
       api_client: ${{ github.event_name != 'pull_request' || steps.filter.outputs.api_client == 'true' }}
+      sync_engine: ${{ github.event_name != 'pull_request' || steps.filter.outputs.sync_engine == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.filter.outputs.docs == 'true' }}
       ci: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ci == 'true' }}
     steps:
@@ -96,6 +97,14 @@ jobs:
               - *workspace-manifests
             api_client:
               - 'packages/api-client/**'
+              - *workspace-manifests
+            sync_engine:
+              - 'packages/sync-engine/**'
+              # The contract is an input rather than documentation: the engine's store schema is
+              # typed from the generated client, so a removed field is a type error here
+              # (ADR-0033 §2).
+              - 'packages/api-client/**'
+              - 'api/openapi.yaml'
               - *workspace-manifests
             docs:
               - '**/*.md'
@@ -455,8 +464,10 @@ jobs:
             run: ${{ needs.changes.outputs.design_system == 'true' || needs.changes.outputs.ci == 'true' }}
           - package: api-client
             run: ${{ needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
+          - package: sync-engine
+            run: ${{ needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
           - package: webapp
-            run: ${{ needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
+            run: ${{ needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
           - package: website
             run: ${{ needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.ci == 'true' }}
     steps:

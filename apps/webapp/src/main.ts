@@ -13,7 +13,10 @@
  *     `'unsafe-eval'`; the built bundle contains no inline script or style, and CI proves it.
  *   - Every value comes from `@hubtask/design-system`; no colour, spacing or duration is written
  *     here (ADR-0029).
- *   - Every type comes from `@hubtask/api-client`, generated from `api/openapi.yaml` (ADR-0004).
+ *   - Every type comes from `@hubtask/sync-engine`, which re-exports what `api/openapi.yaml`
+ *     generated (ADR-0004). The application does not depend on `@hubtask/api-client` directly:
+ *     the engine is the seam, and a component that imported the contract would be a component
+ *     that could reach past it (ADR-0033 §2).
  *   - Platform-specific behaviour lives behind `src/lib/platform/`, never in a component
  *     (ADR-0033).
  *

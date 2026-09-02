@@ -24,6 +24,7 @@ apps/webapp/   the to-do application in the browser — the product UI
 apps/website/  the project website hubtask.eu — information only
 packages/design-system/  tokens/tokens.json, the CSS generated from it, and the workbench
 packages/api-client/     TypeScript types generated from api/openapi.yaml
+packages/sync-engine/    the client's data seam: the ports, and the only caller of fetch
 ```
 
 **`apps/web` is not a name in this project.** There are two clients and it does not say which.
@@ -33,6 +34,7 @@ packages/api-client/     TypeScript types generated from api/openapi.yaml
 ```
 cmd → presentation, infrastructure, core        apps/* → packages/*
 presentation, infrastructure → core             packages/* → packages/* (acyclic; ADR-0033)
+                                                sync-engine → api-client
 core/application → core/domain, core/port       apps/* ↛ apps/*
 core/domain → itself and pure ports             packages/* ↛ apps/*
 ```
