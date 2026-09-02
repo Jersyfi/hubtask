@@ -10,7 +10,8 @@ acceptance reference and said Storybook replaces it "once there is a framework".
 deferred the tool itself: choosing it "is part of the component-layer work, not this ADR". This is
 that choice.
 
-Thirty-eight components arrive over `F1` to `F3`, and six of them are rules rather than pixels.
+Fifty-odd components arrive over `F1` to `F3` — eighteen, twelve and twenty by §4's own count —
+and six of the things that must hold across all of them are rules rather than pixels.
 `design-system.md` §6 says focus is always visible, motion is confined to `opacity` and
 `transform`, colour never stands alone, and **everything grows by 40 %** because German, Finnish
 and Russian break any layout measured against English. `§3` adds that alignment is `start`/`end`
@@ -115,7 +116,7 @@ that embeds that bundle (ADR-0028) is unchanged to the byte.
 * Adding a component means adding a story, or the build goes red. That is the intended pressure:
   `design-system.md` §4 is an inventory, and an inventory nobody can see is a wish list.
 * The axes are shared, so a rule added later — a density axis, a forced-colours axis — appears for
-  all thirty-eight components at once rather than per component.
+  every component at once rather than per component.
 * We maintain roughly five hundred lines that Storybook would have maintained for us. That is the
   price of the 262 packages not installed, and it is the part of this decision most likely to be
   revisited.

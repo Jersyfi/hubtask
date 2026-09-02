@@ -21,7 +21,7 @@ export type Status = 'fixture' | 'draft' | 'stable';
 
 /**
  * A story's component takes whatever its own `args` declare, and the workbench cannot know more
- * than that: it renders thirty-eight different prop shapes through one stage. The looseness is
+ * than that: it renders fifty different prop shapes through one stage. The looseness is
  * confined to this one alias rather than spread across the frame.
  */
 export type StoryComponent = Component<Record<string, any>>;
