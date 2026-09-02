@@ -45,3 +45,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0036](./ADR-0036-oidc-token-verification.md) | The OIDC token verification library: go-oidc, confined to one adapter | accepted | Security, identity, supply chain |
 | [0037](./ADR-0037-component-workbench.md) | The component workbench is ours, and it renders every story through the rules | accepted | Design system, clients, tooling |
 | [0038](./ADR-0038-workbench-published.md) | The workbench is published at workbench.hubtask.eu | accepted | Design system, deployment |
+| [0039](./ADR-0039-overlay-positioning.md) | Overlays are positioned by CSS, with one fallback we own | proposed | Design system, clients, supply chain |
