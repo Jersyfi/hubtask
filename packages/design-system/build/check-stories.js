@@ -93,7 +93,13 @@ export function readInventory(markdown = read(SPECIFICATION)) {
     }
 
     if (names.size === 0) {
+      // Only the first paragraph after the heading. A wave lists its names there and may then
+      // explain itself in prose; reading the whole block glues the last name to the first
+      // sentence of that explanation and loses it - silently, which is the failure mode this
+      // whole file is built to avoid.
       const prose = text
+        .trim()
+        .split(/\n\s*\n/)[0]
         .replace(/\*\([^)]*\)\*/g, '') // the italic asides after a name
         .replace(/\n/g, ' ');
       for (const piece of prose.split('·')) {
@@ -238,6 +244,17 @@ export default {
 export const resting: Story = { name: 'Resting' };
 `;
 
+/** A wave that lists its names and then explains itself - the shape that lost a name once. */
+const WAVE_WITH_PROSE = `## 4. Component inventory
+
+### Wave 0 — the primitives (4)
+\`Box\` · \`Stack\` · \`Inline\` · \`VisuallyHidden\`
+
+An explanation follows the names, and it must not be read as one of them.
+
+## 5. Naming
+`;
+
 export function selftest() {
   const cases = [
     ['a missing title', () => storyProblems('x', GOOD_STORY.replace(/title:[^\n]*\n/, ''), AXES, STATUSES)],
@@ -258,6 +275,15 @@ export function selftest() {
   const clean = storyProblems('x', GOOD_STORY, AXES, STATUSES);
   if (clean.length > 0) {
     console.error(`check-stories selftest: a correct story module was flagged: ${clean[0]}`);
+    return false;
+  }
+
+  // Not a planted violation but a planted *reading*: the last name before a paragraph of prose
+  // was silently swallowed once, and a floor cannot catch the loss of one name out of four.
+  const read = readInventory(WAVE_WITH_PROSE).get('Wave 0') ?? [];
+  const expected = ['Box', 'Stack', 'Inline', 'VisuallyHidden'];
+  if (read.join(',') !== expected.join(',')) {
+    console.error(`check-stories selftest: a wave with prose read as [${read}], expected [${expected}]`);
     return false;
   }
   for (const [what, run] of cases) {
