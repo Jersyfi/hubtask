@@ -9,11 +9,14 @@
 // the other, which is the same separation the package already has on disk.
 
 export { default as Box } from './Box.svelte';
+export { default as Icon } from './Icon.svelte';
 export { default as Inline } from './Inline.svelte';
 export { default as Stack } from './Stack.svelte';
 export { default as VisuallyHidden } from './VisuallyHidden.svelte';
 
 export type { Align, Justify, Space } from './space.ts';
+
+export { BASE_ICONS, CUSTOM_ICONS, ICON_NAMES, ICONS, type IconName, type IconNode } from './icons/index.ts';
 
 export {
   DISMISSIBLE_LAYERS,

@@ -1,15 +1,17 @@
 # Components live here — Svelte 5, built deliberately
 
 Wave 0 is built: `Box`, `Stack`, `Inline` and `VisuallyHidden`, the four primitives everything
-else lays itself out with ([`design-system.md`](../../../docs/design/design-system.md) §4).
+else lays itself out with ([`design-system.md`](../../../docs/design/design-system.md) §4), and
+`Icon`, which wave 1 brought forward because `IconButton` cannot be built before there is one.
 Beside them are `space.ts` (the scale, as a type read from the generated tokens),
-`layers.ts` (which layer `Escape` reaches) and `index.ts`, which is what
-`@hubtask/design-system/components` resolves to.
+`layers.ts` (which layer `Escape` reaches), `icons/` (the set — `base.ts` is generated, `custom.ts`
+is the domain marks) and `index.ts`, which is what `@hubtask/design-system/components` resolves
+to.
 
 Everything after them arrives through the component-layer work package (roadmap, frontend track),
 wave by wave in the order §4 proposes — not as a side effect of feature work.
 
-Four constraints apply to every component here:
+Five constraints apply to every component here:
 
 * **A component without a `<Name>.stories.ts` beside it fails the build**, and so does one that
   appears in no wave of `design-system.md` §4
@@ -26,3 +28,7 @@ Four constraints apply to every component here:
   order comes from `primitive.layer`; `pnpm lint` fails on the rest.
 * **A primitive produces no visual style of its own** — no colour, no border, no shadow. One that
   decorates is a component, and belongs in a wave that plans it.
+* **An icon takes the colour of the text it sits in.** `currentColor` and `none` are the only two
+  colours anything under `icons/` may name ([ADR-0041](../../../docs/adr/ADR-0041-icon-set.md)).
+  `base.ts` is generated from the declared list in `build/icons.js` — add a name there and run
+  `make icons`, never edit the file.

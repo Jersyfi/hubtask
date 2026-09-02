@@ -21,6 +21,7 @@
   "scripts": {
     "build": "node build/build.js",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "icons": "node build/icons.js",
     "lint": "node build/lint-no-literals.js",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "test": "node --test test/*.test.js",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "lucide-static": "^1.39.0",
     "style-dictionary": "^5.5.2",
     "svelte": "^5.56.10",
     "svelte-check": "^4.7.6",
