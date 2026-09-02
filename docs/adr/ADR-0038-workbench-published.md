@@ -33,23 +33,35 @@ checked. The workbench is a development artefact — unfinished components, wave
 — and it does not belong inside that. A subdomain separates the two without a second host: an
 IONOS webspace serves a subdomain from its own directory in the same account.
 
-**The same transport, the same credentials, one new variable.** `website.yml` already mirrors over
-SFTP with `lftp` and a pinned host key, chosen there over a third-party deploy action because an
-action is a supply-chain decision and because the sftp backup adapter refuses trust-on-first-use.
-None of that reasoning is weaker here, so `workbench.yml` is the same shape. It reuses
-`WEBSITE_SFTP_HOST`, `WEBSITE_SFTP_HOST_KEY` and the user and password secrets — it is the same
-webspace account — and adds exactly one variable, `WORKBENCH_REMOTE_DIR`, for the directory the
-subdomain serves.
+**The same transport, its own account.** `website.yml` already mirrors over SFTP with `lftp` and a
+pinned host key, chosen there over a third-party deploy action because an action is a supply-chain
+decision and because the sftp backup adapter refuses trust-on-first-use. None of that reasoning is
+weaker here, so `workbench.yml` is the same shape and shares `WEBSITE_SFTP_HOST` and
+`WEBSITE_SFTP_HOST_KEY` — one webspace, one host, one key.
+
+What it does **not** share is the credential. The workbench publishes with its own SFTP account
+(`WORKBENCH_SFTP_USER` / `WORKBENCH_SFTP_PASSWORD`), scoped by the webspace to its own directory.
+That is the boundary that matters: an account that cannot reach the website's tree cannot damage
+it, which is a stronger guarantee than any comparison a workflow could make on a string. The
+workflow therefore never falls back to the website's user — an unset workbench secret stops it
+rather than borrowing one that can write everywhere.
 
 GitHub Pages was the alternative. It would have kept the product domain untouched at the price of
 enabling Pages in the repository settings and pinning three further actions, for a surface this
 project would then maintain alongside the one it already has. The webspace is already there, is
 already proven, and needs nothing new.
 
-**Its own mirror, so the two cannot delete each other.** `website.yml` mirrors with `--delete`, so
-that a renamed asset does not linger. Two surfaces publishing into overlapping directories with
-that flag is a way to lose one of them, so the workbench mirrors into `WORKBENCH_REMOTE_DIR` and
-nothing else, and the two workflows take separate concurrency groups.
+**The target must prove it is the workbench's.** `website.yml` mirrors with `--delete`, so that a
+renamed asset does not linger, and this one does the same — which means the directory it is
+pointed at is emptied of everything the build does not produce. A scoped account *should* make
+that harmless, but "should" is not a check, and an account that was never scoped would read `.` as
+the webspace root and replace `hubtask.eu` with a development tool, silently.
+
+So the publish step lists the target first and refuses unless it is empty or already holds
+`build-info.json` — a file this workflow writes on every deploy, carrying the commit and the build
+time. It doubles as provenance for a public page: a reader can ask which commit they are looking
+at. The refusal happens once, on a directory holding something else, and never again afterwards.
+The two workflows also take separate concurrency groups, so neither waits on the other.
 
 **The page says what it is.** A public URL showing components that do not exist yet has to say so
 in its own words rather than leave a reader to infer it. The workbench header names its stage —
@@ -67,9 +79,10 @@ weaken because the page is now reachable. Nothing on the page is a promise about
 * A pull request can link to a state of a component and the reader can open it. That is what the
   axis matrix was built for, and it did not work off a developer's own machine until now.
 * The domain owner has a half of this that a workflow cannot do: the DNS record for
-  `workbench.hubtask.eu` and the webspace mapping from that subdomain to a directory. Until both
-  exist and `WORKBENCH_REMOTE_DIR` is set, the workflow builds, checks and then skips the publish
-  with a message — the same politeness `website.yml` shows on a fork.
+  `workbench.hubtask.eu`, the webspace mapping from that subdomain to a directory, and the SFTP
+  account scoped to it. `WORKBENCH_REMOTE_DIR` defaults to `.` — that account's own home — so in
+  the ordinary case there is nothing further to set, and in the case where the account was not
+  scoped the guard above says so with a listing rather than by overwriting anything.
 * A third surface now carries the design system's output: the tokens (`dist/`), the website, and
   this. All three come from `tokens.json`, so the number of surfaces is not a number of sources.
 * Publishing an unfinished thing invites being read as finished. The stage line on the page is the
