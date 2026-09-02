@@ -60,7 +60,7 @@ where. They load when work happens in that directory.
 | `packages/design-system/tokens/tokens.json` | `make tokens`, then commit the regenerated `core/domain/model/shared/LabelTokens.go` |
 | `api/openapi.yaml` (client side) | `make api-client` |
 | Anything under `apps/` or `packages/` | `pnpm -r build && pnpm -r lint && pnpm -r typecheck && pnpm -r test` |
-| A component in `packages/design-system/src/` | `pnpm --filter @hubtask/design-system workbench` — and it needs a story beside it, or `pnpm test` fails ([ADR-0037](docs/adr/ADR-0037-component-workbench.md)) |
+| A component in `packages/design-system/src/` | `make workbench` — and it needs a story beside it, or `pnpm test` fails ([ADR-0037](docs/adr/ADR-0037-component-workbench.md)) |
 | `deploy/docker/` | `make gate-compose` — it builds the image and starts the stack |
 | Any document | `make gate-docs` |
 
@@ -229,6 +229,7 @@ make generate           # generate code from openapi.yaml and db/queries
 make db-up              # start a local PostgreSQL
 make migrate            # apply the migrations
 make run ROLES=api      # start the server locally
+make workbench          # the design system's component workbench on :5174
 ```
 
 ## What you do not decide yourself
