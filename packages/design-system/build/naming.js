@@ -14,6 +14,7 @@ export const PRIMITIVE_PREFIX = {
   color: null, // the family name carries it: color.blue.500 -> blue-500
   space: 'sp',
   radius: 'r',
+  layer: 'z',
   fontFamily: 'font',
   fontWeight: 'fw',
   fontSize: 'fs',
