@@ -1,0 +1,28 @@
+{
+  "name": "@hubtask/sync-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The client's data seam: the ports of ADR-0033, and the one Transport that speaks to a server. No framework, no merging.",
+  "license": "BUSL-1.1",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "build": "node -e \"process.stdout.write('sync-engine: types only, nothing to build\\n')\"",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node ../design-system/build/lint-no-literals.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@hubtask/api-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "^6.0.3"
+  }
+}

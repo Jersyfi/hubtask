@@ -13,12 +13,12 @@ importers:
 
   apps/webapp:
     dependencies:
-      '@hubtask/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
       '@hubtask/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@hubtask/sync-engine':
+        specifier: workspace:*
+        version: link:../../packages/sync-engine
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.3.0
@@ -109,6 +109,19 @@ importers:
       vite:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@24.13.3)
+
+  packages/sync-engine:
+    dependencies:
+      '@hubtask/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
 
 packages:
 
