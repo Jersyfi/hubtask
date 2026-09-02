@@ -101,12 +101,32 @@ must not contact a foreign domain on load.
 
 Alignment is `start`/`end` only, never `left`/`right` — anything else breaks RTL.
 
+The scale is in `px` rather than `rem`, which is a decision and not an oversight: the steps are a
+type scale rather than a set of multiples, and a `rem` scale would move all eight of them the
+moment a browser's default font size differs. The consequence is that WCAG 2.2 SC 1.4.4 is met
+through page zoom rather than through text resize, and the workbench's `zoom` axis therefore
+emulates page zoom. If that trade is ever to be revisited, it is revisited here.
+
 ---
 
 ## 4. Component inventory
 
 The order is a build proposal. The domain components are derived from
 `docs/architecture/domain-model.md`, not from a generic list.
+
+### Wave 0 — the primitives everything else is made of (4)
+`Box` · `Stack` · `Inline` · `VisuallyHidden`
+
+Not a stylistic preference. §0's rule means no component may write a bare spacing value, so every
+component that lays anything out needs the space scale reachable through *something*. Without
+these four, fifty components each hand-roll flex with an exemption comment — and an exemption that
+appears fifty times is not an exemption, it is the rule the lint was meant to prevent.
+`VisuallyHidden` belongs with them: an accessible name that is not on screen is a layout concern,
+and every icon-only control needs one.
+
+They take spacing, direction and alignment as props and produce **no visual style of their own** —
+no colour, no border, no shadow. A primitive that decorates is a component, and belongs in a wave
+that plans it.
 
 ### Wave 1 — nothing works without these (≈ 18)
 Button · IconButton · Input · Textarea · Select · Checkbox · Radio · Switch · Tooltip ·
@@ -178,7 +198,10 @@ matrix that contains states explodes.
 5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`. The app is fully operable
    by keyboard or it is not.
 6. **Motion only in `opacity` and `transform`.** Layout is never animated. Under
-   `prefers-reduced-motion` the completion celebration reduces to a colour change.
+   `prefers-reduced-motion` the completion celebration reduces to a colour change. Component CSS
+   honours `[data-motion="reduced"]` alongside the media query
+   ([ADR-0037](../adr/ADR-0037-component-workbench.md)) — §7 requires a *user* preference that
+   switches celebrations off, and a preference only the operating system can set is not one.
 
 ---
 
@@ -279,6 +302,20 @@ teaches the screenshots.
   measured. This belongs in CI as an automated test, not in a one-off check.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
 - **Voice and tone** — one page of writing rules for buttons, errors and empty states.
+- **A layering scale** — `tokens.json` has no `z` step, and wave 1b lands `Tooltip`, `Menu`,
+  `Popover`, `Dialog` and `Toast` together with the rule that `Escape` closes one layer at a time.
+  Without a scale each of the five invents its own order.
+- **Anchor positioning** — `Menu`, `Popover` and `Tooltip` need it. CSS Anchor Positioning
+  (checked against `support-matrix.md`) or a library, which is a supplier and therefore CLAUDE.md's
+  rule rather than a component author's call.
+- **Named motion roles** — four easings and six durations exist, but nothing says which is
+  *entrance*, which is *exit*, which is *emphasis* and which carries a celebration slot. Rule 6 and
+  §7 both talk about motion in terms the tokens cannot currently express.
+- **Density** — §5 has a `size` prop and no density decision. A task tool with long lists needs
+  one, and it is far cheaper before wave 1 than after wave 3.
+- **The AI surface treatment** — §4 asks one component, `AISuggestion`, to make AI "visually
+  separable" and to disappear "without residue" when AI is switched off. That is a foundation with
+  its own colour, elevation, motion and tone, not a row in a component table.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
 list: iconography, the wordmark, contrast verification in CI and voice and tone in `F1`, because
