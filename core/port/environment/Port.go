@@ -82,6 +82,7 @@ type Config struct {
 	CORS       CORSConfig
 	Outbound   OutboundConfig
 	Queue      QueueConfig
+	Bus        BusConfig
 	Retention  RetentionConfig
 	Encryption EncryptionConfig
 	Backup     BackupConfig
@@ -177,6 +178,32 @@ func (c EncryptionConfig) ActiveKeyID() string {
 	}
 	return c.Keys[0].ID
 }
+
+// BusConfig is the optional message bus (ADR-0007, ADR-0042).
+//
+// Optional in the sense that costs nothing when unset: with no URL, no connection is attempted, no
+// subscriber is registered with the dispatcher, and no job is written. The stream itself belongs to
+// the operator - its retention, its replicas and its storage class are how much of their disk this
+// system may use, and that is not a decision to take on somebody's behalf.
+type BusConfig struct {
+	// URL is the server or the cluster in the client's own form (`nats://host:4222`, several
+	// comma-separated). Empty is the whole of the off switch.
+	URL string
+	// SubjectPrefix is the first token of every subject; the operator binds their stream to
+	// `<prefix>.>`.
+	SubjectPrefix string
+	// CredentialsFile is a mounted NATS credentials file, or empty for a server that takes none.
+	// A path rather than the contents, so the JWT and the seed inside it never become a string
+	// this process holds or formats.
+	CredentialsFile string
+	// ConnectTimeout bounds the first connection, PublishTimeout one publish including its ack.
+	// No call without a deadline (ADR-0016).
+	ConnectTimeout time.Duration
+	PublishTimeout time.Duration
+}
+
+// Enabled reports whether this installation has a bus.
+func (b BusConfig) Enabled() bool { return b.URL != "" }
 
 // RetentionConfig is the lifecycle context's operational surface: how a deletion run is paced, and
 // how long the marker of a removal has to outlive it (ADR-0020, data-retention.md §5).

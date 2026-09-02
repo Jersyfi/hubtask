@@ -86,6 +86,15 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			AuthPerMinute:      getInt("HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE", 10),
 			Burst:              getInt("HUBTASK_RATE_LIMIT_BURST", 20),
 		},
+		Bus: env.BusConfig{
+			// No default URL, and that is the off switch: an installation that never names a bus
+			// attempts no connection, registers no subscriber and writes no job (ADR-0042).
+			URL:             get("HUBTASK_NATS_URL", ""),
+			SubjectPrefix:   get("HUBTASK_NATS_SUBJECT_PREFIX", "hubtask"),
+			CredentialsFile: get("HUBTASK_NATS_CREDENTIALS_FILE", ""),
+			ConnectTimeout:  getDuration("HUBTASK_NATS_CONNECT_TIMEOUT", 5*time.Second),
+			PublishTimeout:  getDuration("HUBTASK_NATS_PUBLISH_TIMEOUT", 10*time.Second),
+		},
 		LoadShed: env.LoadShedConfig{
 			// Several times the pool, because not every request in flight holds a connection -
 			// one reading a body or writing a response holds none - and a threshold below the
@@ -312,6 +321,7 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateStorage(cfg.Storage)...)
 	errs = append(errs, validateMail(cfg.Mail)...)
 	errs = append(errs, validateRateLimit(cfg.RateLimit)...)
+	errs = append(errs, validateBus(cfg.Bus)...)
 	errs = append(errs, validateLoadShed(cfg.LoadShed)...)
 	errs = append(errs, validateRequest(cfg.Request)...)
 	errs = append(errs, validateCORS(cfg.CORS)...)
@@ -464,6 +474,28 @@ func validateRateLimit(r env.RateLimitConfig) []error {
 			// a rate limit that is off by accident is exactly what T-17 is about.
 			errs = append(errs, configError("config.rate_limit_invalid", variable))
 		}
+	}
+	return errs
+}
+
+func validateBus(b env.BusConfig) []error {
+	if !b.Enabled() {
+		// Not configured is not misconfigured. Everything below describes a bus, and there is none.
+		return nil
+	}
+
+	var errs []error
+	// The prefix is the first token of every subject. Empty would publish to `.<tenant>.…`, a
+	// subject with an empty token; a separator or a wildcard in it would publish to a subject
+	// nobody meant, and `>` would make the routing of every other subject somebody's surprise.
+	if strings.TrimSpace(b.SubjectPrefix) == "" || strings.ContainsAny(b.SubjectPrefix, ". *>\t\n") {
+		errs = append(errs, configError("config.bus_subject_prefix_invalid", "HUBTASK_NATS_SUBJECT_PREFIX"))
+	}
+	if b.ConnectTimeout <= 0 {
+		errs = append(errs, configError("config.duration_invalid", "HUBTASK_NATS_CONNECT_TIMEOUT"))
+	}
+	if b.PublishTimeout <= 0 {
+		errs = append(errs, configError("config.duration_invalid", "HUBTASK_NATS_PUBLISH_TIMEOUT"))
 	}
 	return errs
 }

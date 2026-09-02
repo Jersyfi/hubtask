@@ -274,6 +274,30 @@ func rel(p string) string {
 	return strings.TrimPrefix(c, "../../")
 }
 
+// The NATS client lives in exactly one package, and this is the gate that says so (H-14).
+//
+// ADR-0042 could choose a library for the same reason ADR-0009 could: nothing outside the adapter
+// depends on the choice. The core describes an event and a subscriber, and a bus swapped tomorrow
+// changes no event anybody publishes. The confinement is what makes that true rather than intended,
+// and it is the sentence the ADR would otherwise only be asserting.
+func TestTheNATSClientIsBehindOneAdapter(t *testing.T) {
+	const client = "github.com/nats-io"
+	const adapter = "infrastructure/eventbus"
+
+	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"},
+		func(path string, f *ast.File, fset *token.FileSet) {
+			for _, imp := range f.Imports {
+				if !strings.HasPrefix(strings.Trim(imp.Path.Value, `"`), client) {
+					continue
+				}
+				if !strings.Contains(filepath.ToSlash(path), adapter) {
+					t.Errorf("%s imports the NATS client: it belongs in %s and nowhere else "+
+						"(ADR-0042, ADR-0001)", rel(path), adapter)
+				}
+			}
+		})
+}
+
 // The expression engine lives in exactly one package, and this is the gate that says so (G-06).
 //
 // `cel-go` is the milestone's one new direct dependency, and the reason ADR-0009 could choose a
