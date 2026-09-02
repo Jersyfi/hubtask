@@ -3,7 +3,11 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2022", "DOM"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
@@ -11,7 +15,19 @@
     "allowJs": true,
     "checkJs": false,
     "isolatedModules": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "types": [
+      "vite/client"
+    ]
   },
-  "include": ["dist/tokens.ts", "src/**/*.ts", "build/**/*.js"]
+  "include": [
+    "dist/tokens.ts",
+    "src/**/*.ts",
+    "src/**/*.svelte",
+    "build/**/*.js",
+    "workbench/**/*.ts",
+    "workbench/**/*.svelte",
+    "workbench/vite.config.ts"
+  ]
 }

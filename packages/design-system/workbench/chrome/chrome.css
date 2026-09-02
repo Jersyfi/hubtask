@@ -1,0 +1,29 @@
+/* SPDX-License-Identifier: BUSL-1.1
+   Copyright (c) 2026 Jérôme Bastian Winkel
+
+   The workbench's own chrome. Every colour is a token, because that rule holds everywhere
+   (ADR-0029) - the geometry is not, because workbench/ is a tool rather than application code and
+   lint-no-literals draws that line deliberately (ADR-0037). */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-100);
+  font-weight: var(--fw-text);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Rule 5 applies to the workbench too. A tool for checking focus that loses its own focus ring
+   is a tool nobody trusts. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
