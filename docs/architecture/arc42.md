@@ -745,6 +745,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0033 | One product UI, three targets: the shared client architecture | accepted |
 | 0034 | The language-dependent search document | accepted |
 | 0035 | One product version for the server and every first-party client | accepted |
+| 0036 | The OIDC token verification library: go-oidc, confined to one adapter | accepted |
 
 ---
 

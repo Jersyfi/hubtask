@@ -1,6 +1,6 @@
 # ADR-0036 — The OIDC token verification library
 
-**Status:** draft — awaiting the owner's acceptance (0.6.0 decision 4) · **Date:** 2026-09-01
+**Status:** accepted · **Date:** 2026-09-02
 
 ## Context
 
@@ -52,7 +52,7 @@ enables SSO.
 4. **Hand-rolled JOSE on the standard library.** Excluded by §8 outright; listed to record that
    it was not excluded by laziness but by policy.
 
-## Decision (proposed to the owner)
+## Decision
 
 Option 1: `github.com/coreos/go-oidc/v3` (which brings `github.com/go-jose/go-jose/v4`) and
 `golang.org/x/oauth2`, pinned, licence-gated (both Apache-2.0/BSD-class), imported by **exactly
@@ -73,8 +73,9 @@ over a private reimplementation, and `govulncheck` in SG-1 is the standing watch
 adapter, not the library's own tests; Dependabot's security updates are ungrouped and immediate
 (ADR-0022).
 
-## The owner decides
+## The owner's decision
 
-Accepting this ADR pins the three modules above. Rejecting option 1 in favour of option 2 keeps
-the task's shape and swaps the adapter's internals; rejecting a new dependency altogether means
-H-04 cannot be built as specified and goes back to the backlog.
+**Accepted on 2026-09-02: option 1, as proposed.** The three modules above are pinned, and H-04
+is unparked — it is built against this decision. The alternatives stay recorded rather than
+deleted: option 2 remains the swap that keeps the task's shape if go-oidc ever has to go, which
+is precisely what confining the import to `infrastructure/oidc` buys.
