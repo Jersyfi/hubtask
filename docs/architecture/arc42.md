@@ -745,6 +745,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0033 | One product UI, three targets: the shared client architecture | accepted |
 | 0034 | The language-dependent search document | accepted |
 | 0035 | One product version for the server and every first-party client | accepted |
+| 0037 | The component workbench is ours, and it renders every story through the rules | accepted |
 
 ---
 

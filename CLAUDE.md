@@ -22,7 +22,7 @@ api/           openapi.yaml — the source of the contract, not its result
 db/            migrations (forward only) and sqlc queries
 apps/webapp/   the to-do application in the browser — the product UI
 apps/website/  the project website hubtask.eu — information only
-packages/design-system/  tokens/tokens.json and the CSS generated from it
+packages/design-system/  tokens/tokens.json, the CSS generated from it, and the workbench
 packages/api-client/     TypeScript types generated from api/openapi.yaml
 ```
 
@@ -60,6 +60,7 @@ where. They load when work happens in that directory.
 | `packages/design-system/tokens/tokens.json` | `make tokens`, then commit the regenerated `core/domain/model/shared/LabelTokens.go` |
 | `api/openapi.yaml` (client side) | `make api-client` |
 | Anything under `apps/` or `packages/` | `pnpm -r build && pnpm -r lint && pnpm -r typecheck && pnpm -r test` |
+| A component in `packages/design-system/src/` | `pnpm --filter @hubtask/design-system workbench` — and it needs a story beside it, or `pnpm test` fails ([ADR-0037](docs/adr/ADR-0037-component-workbench.md)) |
 | `deploy/docker/` | `make gate-compose` — it builds the image and starts the stack |
 | Any document | `make gate-docs` |
 

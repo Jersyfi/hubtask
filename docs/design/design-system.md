@@ -53,12 +53,13 @@ fixes components before the framework decision has to be rebuilt at the first co
 packages/design-system/
 ├── tokens/
 │   └── tokens.json           source
-├── build/
-│   └── style-dictionary.config.js
-├── dist/                     generated; gitignored except labeltokens.go
+├── build/                    the generators, and the two gates
+├── dist/                     generated; gitignored (the Go target is written into the core)
 ├── reference/
-│   └── foundations.html      living style guide
-├── src/                      components (empty until the framework ADR)
+│   └── foundations.html      the tokens' visual reference; retired at the end of wave 1
+├── workbench/                the component workbench — a development tool (ADR-0037)
+├── test/
+├── src/                      components, wave by wave
 ├── CLAUDE.md
 └── README.md
 ```
@@ -67,9 +68,14 @@ packages/design-system/
 It imports `dist/tokens.css` and defines no values of its own — otherwise it would itself be a
 source of drift.
 
-Whether a component workbench (Storybook or another) replaces this file as living documentation
-is decided with the component-layer work package (roadmap, frontend track). Until then it is
-sufficient and costs nothing.
+The workbench that replaces it as living documentation is decided:
+[ADR-0037](../adr/ADR-0037-component-workbench.md) — a small Svelte page in the package rather
+than Storybook, which resolves to 262 further packages for a tool no user runs. It renders every
+story through an axis matrix — both themes, both directions, a +40 % pseudo-locale, reduced
+motion, 200 % zoom, the five breakpoints, and a walk through the tab order — because §6's rules
+are rules one verifies by looking, and a gallery showing one configuration verifies none of them.
+`foundations.html` is retired at the end of wave 1, once the foundations pages are generated from
+`tokens.json` rather than written by hand.
 
 ---
 
