@@ -136,7 +136,15 @@ jobs:
             set sftp:auto-confirm no;
             cls -1 -a $TARGET/;
             bye" 2>/dev/null || true)"
-          contents="$(printf '%s\n' "$listing" | grep -vE '^\.?\.?/?$' || true)"
+          # lftp answers `cls -1 -a ./` with `././` and `./../`, not `.` and `..`, so the entries
+          # are normalised before `.` and `..` are dropped: strip trailing slashes, take the last
+          # path segment. The first run refused an empty directory because a narrower filter did
+          # not recognise those two spellings - which is what a guard that has not been watched
+          # looks like.
+          contents="$(printf '%s\n' "$listing" \
+            | sed 's#/*$##' \
+            | awk -F/ '{print $NF}' \
+            | grep -vE '^(\.|\.\.)$' || true)"
           if [ -n "$contents" ] && ! printf '%s\n' "$contents" | grep -q 'build-info.json'; then
             echo "workbench: $TARGET holds something that is not a workbench deploy - refusing to" >&2
             echo "  mirror --delete over it. Point WORKBENCH_REMOTE_DIR at the subdomain's own" >&2
