@@ -2,6 +2,9 @@
 
 Foundations v0.1 · Code-first, no external design tool
 
+The rules for the *words* a component shows are the counterpart to this document and live beside
+it: [`voice-and-tone.md`](./voice-and-tone.md).
+
 ---
 
 ## 0. The principle
@@ -316,9 +319,9 @@ teaches the screenshots.
   complete their first own task — whose completion fires the tier-3 onboarding moment (§7). Tour
   end and first moment of success coincide by design.
 * The design system defines the **pattern** — presentation (spotlight, glass overlay per rule 2),
-  tone (caption/body styles, no exclamation marks doing the enthusiasm's work), interaction
-  (next/skip, keyboard operable, focus-visible per rule 5). The concrete tour content per client
-  is implementation work and lives in the roadmap, not here.
+  tone ([`voice-and-tone.md`](./voice-and-tone.md), caption/body styles, no exclamation marks doing
+  the enthusiasm's work), interaction (next/skip, keyboard operable, focus-visible per rule 5). The
+  concrete tour content per client is implementation work and lives in the roadmap, not here.
 
 ---
 
@@ -329,7 +332,6 @@ teaches the screenshots.
 - **Logo and wordmark** — the placeholder in `foundations.html` shows the idea (three nested
   planes, the innermost in bordeaux) but is not a finished mark.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
-- **Voice and tone** — one page of writing rules for buttons, errors and empty states.
 - **Border widths** — `tokens.json` has a radius scale and no border scale, so the hairline every
   wave-1 control draws around itself has nowhere to come from. The no-literals lint catches it at
   the first `Checkbox`, which makes this `F1-05`'s to add rather than a preference.
@@ -347,5 +349,5 @@ teaches the screenshots.
   its own colour, elevation, motion and tone, not a row in a component table.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
-list: iconography, the wordmark, voice and tone and the border scale in `F1`, because the component
-layer cannot be built without them; platform adaptation in `F6`, with the mobile shell that raises the question.
+list: iconography, the wordmark and the border scale in `F1`, because the component layer cannot be
+built without them; platform adaptation in `F6`, with the mobile shell that raises the question.
