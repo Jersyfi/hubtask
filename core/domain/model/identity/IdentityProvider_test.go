@@ -4,6 +4,7 @@
 package identity
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -170,5 +171,120 @@ func TestAProviderNeedsItsClientAndItsWorkspace(t *testing.T) {
 	homeless.TenantID = shared.ID("")
 	if _, err := NewIdentityProvider(homeless); err == nil {
 		t.Error("a provider without a workspace was accepted")
+	}
+}
+
+// A first arrival is active immediately and holds no password: the provider has just vouched for
+// the person, so there is nothing left for them to prove here and nothing to prove it with.
+func TestAProvisionedAccountIsActiveAndHasNoPassword(t *testing.T) {
+	id := shared.ID("01936f2a-7c1e-7000-8000-0000000000d1")
+
+	account, err := ProvisionExternal(id, sessionTenant, "Ada@Example.org", "Ada Lovelace")
+	if err != nil {
+		t.Fatalf("provisioning: %v", err)
+	}
+	if account.Status != AccountActive {
+		t.Errorf("the account is %q, want ACTIVE", account.Status)
+	}
+	if account.Kind != AccountUser {
+		t.Errorf("the account is of kind %q", account.Kind)
+	}
+	if account.Email != "ada@example.org" {
+		t.Errorf("the address is %q, want it normalised", account.Email)
+	}
+	if account.DisplayName != "Ada Lovelace" {
+		t.Errorf("the name is %q", account.DisplayName)
+	}
+}
+
+// A provider that sends no address leaves the account without one, rather than having one
+// invented for it. Everything that needs an address says so itself.
+func TestAProvisionedAccountMayHaveNoAddress(t *testing.T) {
+	id := shared.ID("01936f2a-7c1e-7000-8000-0000000000d2")
+
+	account, err := ProvisionExternal(id, sessionTenant, "", "Ada")
+	if err != nil {
+		t.Fatalf("provisioning without an address: %v", err)
+	}
+	if account.Email != "" {
+		t.Errorf("an address was invented: %q", account.Email)
+	}
+
+	if _, err := ProvisionExternal(id, sessionTenant, "not-an-address", "Ada"); err == nil {
+		t.Error("a malformed address was accepted")
+	}
+	if _, err := ProvisionExternal(shared.ID(""), sessionTenant, "", "Ada"); err == nil {
+		t.Error("an account without an identifier was provisioned")
+	}
+}
+
+// The verifier's length is RFC 7636's, and it is checked rather than trusted: one short enough
+// to guess makes PKCE decorative, and nothing else would notice.
+func TestAFlowNeedsAVerifierWorthTheName(t *testing.T) {
+	at := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+	id := shared.ID("01936f2a-7c1e-7000-8000-0000000000d3")
+	good := strings.Repeat("v", 43)
+
+	flow, err := NewOidcFlow(NewOidcFlowInput{
+		ID: id, TenantID: sessionTenant, Nonce: "n", Verifier: good, Now: at,
+	})
+	if err != nil {
+		t.Fatalf("opening a flow: %v", err)
+	}
+	if flow.ExpiresAt != at.Add(OidcFlowLifetime).UTC() {
+		t.Errorf("the flow expires at %s", flow.ExpiresAt)
+	}
+
+	cases := map[string]NewOidcFlowInput{
+		"no identifier": {TenantID: sessionTenant, Nonce: "n", Verifier: good, Now: at},
+		"no workspace":  {ID: id, Nonce: "n", Verifier: good, Now: at},
+		"no nonce":      {ID: id, TenantID: sessionTenant, Verifier: good, Now: at},
+		"short verifier": {ID: id, TenantID: sessionTenant, Nonce: "n",
+			Verifier: strings.Repeat("v", 42), Now: at},
+		"long verifier": {ID: id, TenantID: sessionTenant, Nonce: "n",
+			Verifier: strings.Repeat("v", 129), Now: at},
+		"no clock": {ID: id, TenantID: sessionTenant, Nonce: "n", Verifier: good},
+	}
+	for name, in := range cases {
+		t.Run(name, func(t *testing.T) {
+			if _, err := NewOidcFlow(in); err == nil {
+				t.Error("an incomplete flow was opened")
+			}
+		})
+	}
+}
+
+// The state carries its workspace, which is what lets the callback resolve one without trusting
+// the leg the browser arrived on.
+func TestTheStateNamesItsWorkspaceAndNothingElseParsesAsOne(t *testing.T) {
+	material := make([]byte, TokenSecretBytes)
+	for i := range material {
+		material[i] = byte(i)
+	}
+
+	state, err := NewOidcFlowState(sessionTenant, material)
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	if !strings.HasPrefix(state.Secret(), OidcFlowPrefix) {
+		t.Errorf("the state does not carry its prefix: %q", state.Secret()[:8])
+	}
+
+	parsed, err := ParseOidcFlowState(state.Secret())
+	if err != nil {
+		t.Fatalf("parsing: %v", err)
+	}
+	if parsed.TenantID() != sessionTenant {
+		t.Errorf("the state names %q", parsed.TenantID())
+	}
+
+	// A token of another kind must not parse as a flow state: the prefixes are what keep the
+	// credential vocabularies apart.
+	code, err := NewOauthCode(sessionTenant, material)
+	if err != nil {
+		t.Fatalf("minting a code: %v", err)
+	}
+	if _, err := ParseOidcFlowState(code.Secret()); err == nil {
+		t.Error("an authorization code parsed as a sign-in state")
 	}
 }

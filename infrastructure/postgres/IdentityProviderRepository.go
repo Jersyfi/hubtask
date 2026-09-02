@@ -198,3 +198,59 @@ func (r OidcFlowRepository) Consume(
 		Nonce: row.Nonce, Verifier: row.CodeVerifier,
 	}, true, nil
 }
+
+// ExternalAccountRepository is the seam `account.external_subject` cut in phase 0 (H-04).
+//
+// Its own type rather than a method on AccountRepository, for the reason every slice here has
+// one: the sign-in flow needs two statements about a column nothing else touches, and a
+// repository that could write the subject from anywhere is one that eventually does.
+type ExternalAccountRepository struct{}
+
+func NewExternalAccountRepository() ExternalAccountRepository { return ExternalAccountRepository{} }
+
+var _ repository.ExternalAccounts = ExternalAccountRepository{}
+
+func (ExternalAccountRepository) FindBySubject(
+	ctx context.Context, subject string,
+) (identity.Account, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.Account{}, err
+	}
+	row, err := queries.FindAccountByExternalSubject(ctx, &subject)
+	if err != nil {
+		if IsNoRows(err) {
+			return identity.Account{}, shared.ErrNotFound.WithDetail("accounts.not_found")
+		}
+		return identity.Account{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			// The subject stays out of the message: it identifies a person at their provider.
+			WithCause(fmt.Errorf("reading an account by its provider subject: %w", err))
+	}
+	return accountFrom(row.ID, row.Kind, row.Email, row.DisplayName, row.Status,
+		row.Locale, row.TimeZone, row.WeekStart)
+}
+
+func (ExternalAccountRepository) LinkSubject(
+	ctx context.Context, accountID shared.ID, subject string, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	linked, err := queries.LinkAccountExternalSubject(ctx, sqlc.LinkAccountExternalSubjectParams{
+		ID:              id,
+		ExternalSubject: &subject,
+		Now:             pgtype.Timestamptz{Time: now, Valid: true},
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("linking an account to its provider subject: %w", err))
+	}
+	return linked > 0, nil
+}

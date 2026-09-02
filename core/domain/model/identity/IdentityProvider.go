@@ -207,3 +207,43 @@ func NewOidcFlow(in NewOidcFlowInput) (OidcFlow, error) {
 		CreatedAt: in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
 	}, nil
 }
+
+// ParseOidcFlowState reads a presented state back into its token, and with it the workspace the
+// flow belongs to. The tenant travels inside the handle rather than being taken from the request
+// on the return leg: the browser comes back from somebody else's site, and what it carries is
+// the only thing about that leg this installation minted itself.
+func ParseOidcFlowState(raw string) (Token, error) { return parsePrefixed(raw, OidcFlowPrefix) }
+
+// ProvisionExternal builds the account a subject gets on its first arrival (H-04).
+//
+// Active immediately and with no password, which is the whole difference from an invitation: the
+// provider has just vouched for this person, so there is nothing left for them to prove here, and
+// there is no local credential to prove it with. An address is optional - a provider that sends
+// none leaves the account without one, and everything that needs an address says so itself rather
+// than inventing one.
+func ProvisionExternal(
+	id, tenantID shared.ID, email, displayName string,
+) (Account, error) {
+	if id.IsZero() || tenantID.IsZero() {
+		return Account{}, shared.ErrInternal.WithDetail("accounts.identity_incomplete")
+	}
+
+	address := ""
+	if strings.TrimSpace(email) != "" {
+		normalised, err := emailAddress(email)
+		if err != nil {
+			return Account{}, err
+		}
+		address = normalised
+	}
+
+	name, err := accountDisplayName(displayName, address)
+	if err != nil {
+		return Account{}, err
+	}
+
+	return Account{
+		ID: id, TenantID: tenantID, Kind: AccountUser,
+		Email: address, DisplayName: name, Status: AccountActive,
+	}, nil
+}

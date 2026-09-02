@@ -849,6 +849,22 @@ func run() error {
 	relyingParty := oidcadapter.New(
 		outboundClient.HTTPClient(oidcadapter.TargetClass), clockadapter.System{})
 
+	// Where the provider sends the browser back: this installation's own address, computed
+	// here so that nothing inwards of the composition root has to know a frontend exists
+	// (ADR-0028). The path is the web UI's callback route, which reads the code and the state
+	// out of the query and hands them to the API.
+	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
+
+	oidcWriter := identity.OidcWriter{
+		Session:     sessionWriter,
+		Providers:   postgres.NewIdentityProviderRepository(),
+		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
+		External:    postgres.NewExternalAccountRepository(),
+		Accounts:    accounts,
+		Relying:     relyingParty,
+		RedirectURL: oidcRedirectURL,
+	}
+
 	identityProviderWriter := identity.IdentityProviderWriter{
 		Session:    sessionWriter,
 		Providers:  postgres.NewIdentityProviderRepository(),
@@ -909,6 +925,8 @@ func run() error {
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ReadIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.RemoveIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
+		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),

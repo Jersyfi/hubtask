@@ -862,8 +862,8 @@ func (pending) ExportView(w http.ResponseWriter, r *http.Request, _ openapi.View
 	notAvailable(w, r)
 }
 
-// The relying party (H-04). RestController overrides what it serves, and these stand for the
-// rest: the configuration is served, the two flow routes land with the sign-in itself.
+// The relying party (H-04). RestController serves all five of its routes; these stand behind
+// them, as they do behind every operation this installation does serve.
 func (pending) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

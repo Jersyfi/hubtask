@@ -75,6 +75,44 @@ func (q *Queries) DeleteIdentityProvider(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const findAccountByExternalSubject = `-- name: FindAccountByExternalSubject :one
+SELECT id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start
+FROM account
+WHERE external_subject = $1 AND deleted_at IS NULL
+`
+
+type FindAccountByExternalSubjectRow struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Kind        AccountKind
+	Email       *string
+	DisplayName string
+	Status      AccountStatus
+	Locale      *string
+	TimeZone    *string
+	WeekStart   *string
+}
+
+// The subject the provider vouched for, under the unique index that makes it one account per
+// workspace. Deleted accounts are excluded: an arriving subject whose account was deleted is a
+// first arrival, not a resurrection.
+func (q *Queries) FindAccountByExternalSubject(ctx context.Context, externalSubject *string) (FindAccountByExternalSubjectRow, error) {
+	row := q.db.QueryRow(ctx, findAccountByExternalSubject, externalSubject)
+	var i FindAccountByExternalSubjectRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Kind,
+		&i.Email,
+		&i.DisplayName,
+		&i.Status,
+		&i.Locale,
+		&i.TimeZone,
+		&i.WeekStart,
+	)
+	return i, err
+}
+
 const findIdentityProvider = `-- name: FindIdentityProvider :one
 SELECT issuer, client_id, allowed_email_domains, enabled, created_at, updated_at, version
 FROM identity_provider
@@ -165,6 +203,31 @@ func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) 
 		arg.ExpiresAt,
 	)
 	return err
+}
+
+const linkAccountExternalSubject = `-- name: LinkAccountExternalSubject :execrows
+UPDATE account
+SET external_subject = $1,
+    updated_at       = $2,
+    version          = version + 1
+WHERE id = $3 AND deleted_at IS NULL AND external_subject IS NULL
+`
+
+type LinkAccountExternalSubjectParams struct {
+	ExternalSubject *string
+	Now             pgtype.Timestamptz
+	ID              pgtype.UUID
+}
+
+// Writes the subject onto an account that has none. The `IS NULL` is what makes this safe to
+// race: a second sign-in that got there first leaves nothing for this one to overwrite, and an
+// account already bound to another subject is never quietly re-pointed.
+func (q *Queries) LinkAccountExternalSubject(ctx context.Context, arg LinkAccountExternalSubjectParams) (int64, error) {
+	result, err := q.db.Exec(ctx, linkAccountExternalSubject, arg.ExternalSubject, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const upsertIdentityProvider = `-- name: UpsertIdentityProvider :one

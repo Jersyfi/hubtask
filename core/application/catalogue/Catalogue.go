@@ -186,6 +186,8 @@ func Descriptors() []usecase.Descriptor {
 		identity.ConfigureIdentityProvider{}.Descriptor(),
 		identity.ReadIdentityProvider{}.Descriptor(),
 		identity.RemoveIdentityProvider{}.Descriptor(),
+		identity.StartOidcSignIn{}.Descriptor(),
+		identity.CompleteOidcSignIn{}.Descriptor(),
 		identity.CreateAccessToken{}.Descriptor(),
 		identity.ListAccessTokens{}.Descriptor(),
 		identity.RevokeAccessToken{}.Descriptor(),

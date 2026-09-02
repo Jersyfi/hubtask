@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
@@ -45,4 +46,17 @@ type OidcFlows interface {
 	// Consume judges and burns in one statement: unexpired, unconsumed, or nothing at all - so
 	// a state presented twice is refused whoever races whom.
 	Consume(ctx context.Context, presented identity.Token, now time.Time) (identity.OidcFlow, bool, error)
+}
+
+// ExternalAccounts is the seam phase 0 cut: `account.external_subject`, under the unique index
+// that makes one provider subject one account per workspace.
+type ExternalAccounts interface {
+	// FindBySubject answers the account a provider's subject already names, or an error
+	// wrapping shared.ErrNotFound on the first arrival.
+	FindBySubject(ctx context.Context, subject string) (identity.Account, error)
+
+	// LinkSubject writes the subject onto an account. False means the account was not there to
+	// link; the unique index is what refuses a subject already spoken for, and it refuses rather
+	// than this method, because two sign-ins racing must not both win.
+	LinkSubject(ctx context.Context, accountID shared.ID, subject string, now time.Time) (bool, error)
 }

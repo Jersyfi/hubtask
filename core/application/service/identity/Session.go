@@ -46,6 +46,10 @@ const (
 	FailureRefreshRefused  = "refresh_refused"
 	FailureRefreshReused   = "refresh_reused"
 	FailureRedemption      = "redemption_refused"
+	// FailureOidc is every dead end of the relying-party flow (H-04): an unknown or spent
+	// state, a provider that refused the code, a token that did not verify. One reason, because
+	// the answer is one refusal - the trail carries which it was.
+	FailureOidc = "oidc_refused"
 )
 
 // AuthSignals is what the sign-in flow reports about itself: one counter, by reason. An
