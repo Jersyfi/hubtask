@@ -239,3 +239,15 @@ func NewOauthClientSecretHasher(installationSecret secret.Secret) OauthClientSec
 }
 
 func (h OauthClientSecretHasher) Hash(presented string) []byte { return hashUnder(h.pepper, presented) }
+
+// oidcFlowInfo separates the relying party's flow handle from every other derivation (H-04).
+const oidcFlowInfo = "hubtask/oidc-flow/v1"
+
+// OidcFlowHasher turns a presented sign-in state into the value stored in oidc_flow.state_hash.
+type OidcFlowHasher struct{ pepper []byte }
+
+func NewOidcFlowHasher(installationSecret secret.Secret) OidcFlowHasher {
+	return OidcFlowHasher{pepper: derivePepper(installationSecret, oidcFlowInfo)}
+}
+
+func (h OidcFlowHasher) Hash(presented string) []byte { return hashUnder(h.pepper, presented) }

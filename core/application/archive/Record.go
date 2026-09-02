@@ -508,8 +508,16 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"oauth_client":          "half a credential: its secret hash is keyed on a live pepper, and a restore must not silently re-open a third-party door (§8.4)",
 	"oauth_grant":           "what somebody allowed an app is consent to a live door, not workspace content; the door is not restored, so neither is the consent",
 	"oauth_code":            "a single-use credential with minutes of life, §8.4's reasoning verbatim",
-	"sync_device":           "a device registration carries a push token, and §8.4's reasoning covers it",
-	"jumble_intake":         "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
+	// The relying party (H-04), and oauth_client's reasoning in the other direction. The row
+	// holds a client secret sealed under the source installation's key, which a restore
+	// elsewhere cannot open - and restoring it silently would point a recovered workspace at a
+	// live provider, so people could sign in to a copy nobody meant to be signed in to. An
+	// administrator reconfigures it, which they must do anyway to type a secret nobody can read
+	// back. The configuration events are in the trail, which is archived.
+	"identity_provider": "§8.4 - a sealed client secret and a live door; a restore must not silently re-open somebody's single sign-on",
+	"oidc_flow":         "one browser round trip with minutes of life, oauth_code's reasoning verbatim",
+	"sync_device":       "a device registration carries a push token, and §8.4's reasoning covers it",
+	"jumble_intake":     "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being
 	// replayed without firing anything, which is a record of things that did not happen.
 	"rule_run": "§8.4 - no automation fires during a restore, so its run log would be fiction",

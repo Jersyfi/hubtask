@@ -78,6 +78,11 @@ type Identity struct {
 
 // Port is the relying party.
 type Port interface {
+	// Check confirms an issuer answers discovery and agrees with its own metadata, so that a
+	// configuration that cannot work is refused where somebody is looking at the form rather
+	// than by the first colleague who tries to sign in.
+	Check(ctx context.Context, issuer string) error
+
 	// AuthorizationURL is where to send the browser. It performs discovery for the issuer, so
 	// an unreachable provider is refused here rather than after somebody has left the page.
 	AuthorizationURL(ctx context.Context, cfg Config, auth Authorization) (string, error)

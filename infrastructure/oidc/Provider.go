@@ -250,3 +250,12 @@ func verifiedFlag(raw json.RawMessage) bool {
 	flag, err := strconv.ParseBool(text)
 	return err == nil && flag
 }
+
+// Check confirms the issuer is one: reachable, and naming itself the same in its own metadata.
+//
+// It shares the discovery cache with the flow, which is what makes configuring a provider warm
+// the path the first sign-in takes.
+func (p *Provider) Check(ctx context.Context, issuer string) error {
+	_, err := p.discover(ctx, issuer)
+	return err
+}

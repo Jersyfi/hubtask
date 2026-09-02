@@ -862,9 +862,8 @@ func (pending) ExportView(w http.ResponseWriter, r *http.Request, _ openapi.View
 	notAvailable(w, r)
 }
 
-// The identity provider (H-04). The contract declares the relying-party flow and its
-// configuration; the use cases behind them land in the steps that follow, and until each does
-// the route exists and says this installation does not serve it yet.
+// The relying party (H-04). RestController overrides what it serves, and these stand for the
+// rest: the configuration is served, the two flow routes land with the sign-in itself.
 func (pending) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
