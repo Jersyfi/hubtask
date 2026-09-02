@@ -10,6 +10,11 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
 * **No second place for a value.** A design system drifts at exactly the point where the same
   number is written twice. `pnpm lint` fails on a colour written outside `tokens.json`, and on a
   bare length or duration in application code.
+* **No sentence in a component.** Every string is a message code in `locales/en.json`
+  ([ADR-0011](../../docs/adr/ADR-0011-i18n-message-codes.md)); a component takes resolved text as a
+  prop. How that text is written is
+  [`voice-and-tone.md`](../../docs/design/voice-and-tone.md) — sentence case, the verb of what
+  happens on a button, an error that names the fix.
 * **No component out of turn.** `src/` holds wave 0 — `Box`, `Stack`, `Inline`,
   `VisuallyHidden` — and grows wave by wave per `design-system.md` §4, through the component-layer
   work package. No component arrives here as a side effect of other work.
