@@ -87,6 +87,32 @@ func TestThePublicRoutesAreTheOnesTheSpecificationExempts(t *testing.T) {
 	}
 }
 
+// The classification decides which routes are refused under load (H-11), and it is written out in
+// the REST layer because the specification does not carry a class. A typo in it would be a line
+// that silently never matches - the route would keep being served, the overload test would keep
+// passing, and nothing would ever be shed. So every entry has to be a route that exists.
+func TestTheDeferrableRoutesAreRoutesTheRouterServes(t *testing.T) {
+	declared := declaredRoutes(t)
+	if len(rest.DeferrableRoutes) == 0 {
+		t.Fatal("no route is deferrable, so load shedding can never engage")
+	}
+	for route := range rest.DeferrableRoutes {
+		if _, found := declared[route]; !found {
+			t.Errorf("%q is classified as deferrable and is not a route the specification declares", route)
+		}
+	}
+	// The same for the routes that are admitted without being counted, and for the same reason: a
+	// typo there is an installation whose stream connections quietly count as load again.
+	for route := range rest.LongLivedRoutes {
+		if _, found := declared[route]; !found {
+			t.Errorf("%q is classified as long-lived and is not a route the specification declares", route)
+		}
+		if rest.DeferrableRoutes[route] {
+			t.Errorf("%q is both deferrable and long-lived, which is two answers to one question", route)
+		}
+	}
+}
+
 type manifest struct{ result usecase.Capabilities }
 
 func (m manifest) Execute(context.Context, appshared.ActorContext) (usecase.Capabilities, error) {

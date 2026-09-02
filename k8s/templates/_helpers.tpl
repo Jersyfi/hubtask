@@ -96,6 +96,13 @@ rather than a re-render of every deployment.
 {{- define "hubtask.env" -}}
 - name: HUBTASK_ROLES
   value: {{ .role | quote }}
+{{- with (index .root.Values.roles .role).loadShedInflight }}
+# Admission control, per role rather than per installation: each role is its own deployment with
+# its own resources, so the number of requests in flight at which deferrable work is refused is a
+# property of this deployment (observability-reliability.md §6, H-11).
+- name: HUBTASK_LOAD_SHED_INFLIGHT
+  value: {{ . | quote }}
+{{- end }}
 - name: HUBTASK_DB_DSN
   valueFrom:
     secretKeyRef:
