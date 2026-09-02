@@ -135,3 +135,34 @@ func TestAnUnreadableBaselineIsAnError(t *testing.T) {
 		t.Error("a figure without a direction was accepted")
 	}
 }
+
+// A percentage band is the wrong shape for a small number: a P95 of six milliseconds with a 60 %
+// band is red at ten, and ten is what one garbage collection during the run looks like. The floor
+// is what keeps the guard from reporting the machine.
+func TestASmallMovementIsNotARegressionEvenPastTheBand(t *testing.T) {
+	baseline := Baseline{Figures: map[string]Figure{
+		"interactive_p95_ms": {Value: 6, Direction: LowerIsBetter, BandPercent: 60, MinimumDelta: 10},
+	}}
+
+	// Past the band's 9.6 ms, and four milliseconds is not a finding.
+	if regressions, _ := baseline.Compare(map[string]float64{"interactive_p95_ms": 13}); len(regressions) != 0 {
+		t.Errorf("a four-millisecond move was called a regression: %v", regressions)
+	}
+	// Twenty-four milliseconds is.
+	if regressions, _ := baseline.Compare(map[string]float64{"interactive_p95_ms": 30}); len(regressions) != 1 {
+		t.Errorf("a five-fold slowdown passed: %v", regressions)
+	}
+}
+
+// The floor alone would be blind on a large figure, which is why both conditions have to hold: a
+// throughput of 500 falling to 480 is twenty requests a second and inside its band, and no floor
+// should be able to turn that into a regression on its own.
+func TestTheFloorDoesNotMakeAMovementInsideTheBandARegression(t *testing.T) {
+	baseline := Baseline{Figures: map[string]Figure{
+		"requests_per_second": {Value: 500, Direction: HigherIsBetter, BandPercent: 20, MinimumDelta: 5},
+	}}
+
+	if regressions, _ := baseline.Compare(map[string]float64{"requests_per_second": 480}); len(regressions) != 0 {
+		t.Errorf("a movement inside the band was called a regression: %v", regressions)
+	}
+}

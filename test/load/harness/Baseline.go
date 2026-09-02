@@ -6,6 +6,7 @@ package harness
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 )
@@ -38,6 +39,12 @@ type Figure struct {
 	// regression. It is per figure because the figures are not equally noisy: a P95 on a shared
 	// runner moves far more than a count of refusals does.
 	BandPercent float64 `json:"band_percent"`
+	// MinimumDelta is the smallest absolute movement worth calling a regression, and it exists
+	// because a percentage band is the wrong shape for a small number. A P95 of six milliseconds
+	// with a 60 % band is red at ten, and ten is what one garbage collection during the run looks
+	// like - the guard would report the machine and be turned off within a week. Both conditions
+	// have to hold: past the band *and* moved by at least this much.
+	MinimumDelta float64 `json:"minimum_delta,omitempty"`
 	// Note says what the figure is, in words, so that a red build is readable without this file
 	// beside the test that produced it.
 	Note string `json:"note,omitempty"`
@@ -118,6 +125,12 @@ func (b Baseline) Compare(measured map[string]float64) (regressions []Regression
 		if figure.Direction == HigherIsBetter {
 			allowed = figure.Value * (1 - figure.BandPercent/100)
 			worse = value < allowed
+		}
+		// The band is proportional and the floor is absolute, and a regression has to be past
+		// both. Either one alone is wrong somewhere: a band alone is hair-triggered on a small
+		// figure, a floor alone is blind on a large one.
+		if worse && math.Abs(value-figure.Value) < figure.MinimumDelta {
+			worse = false
 		}
 		if worse {
 			regressions = append(regressions, Regression{

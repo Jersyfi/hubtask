@@ -56,13 +56,21 @@ user count appears anywhere, the model appears beside it.
 |---|---|
 | `harness/` | The generator: the ramp, the pacer, the recorder, and the baseline comparison. Untagged, so its arithmetic runs in `gate-unit` — a guard that has quietly stopped working must redden a pull request rather than pass a nightly |
 | `seed/` | The dataset generator. Writes COPY text, holds no database driver |
-| `baselines/` | The stored figures, each with the band that says what "significantly worse" means |
+| `baselines/` | The stored figures, each with the band and the floor that say what "significantly worse" means |
 | `stack_test.go` | The installation: a container, the migrations, the dataset, the real binary |
 | `rt6_test.go` | RT-6 — overload, shedding, the interactive target, memory |
 | `storm_test.go` | The automation storm, and H-08's fairness asserted rather than eyeballed |
 | `guard_test.go` | The relative regression guard |
 
 ## Refreshing a baseline
+
+A baseline is taken from the **worst** of several runs of unchanged code, not the best. The
+quietest minute of a machine is not a figure that machine can reproduce, and a baseline it cannot
+reproduce is a red build every other night.
+
+The interactive P99 is measured and recorded and deliberately not guarded: at this scale it is the
+tail of a few hundred requests, and one garbage collection during the run moves it by an order of
+magnitude. A figure that reports the machine is a figure somebody turns off.
 
 A baseline is refreshed when the change that moved it is understood — never to make a red build
 green. Take the figures from `H-11-guard-latest.json` of a run on the machine the baseline names,

@@ -2,30 +2,31 @@
   "name": "steady state, 200 req/s, interactive only",
   "recorded_at": "2026-09-02",
   "hardware": "unnamed-darwin-arm64",
-  "dataset": { "tenants": 10, "items": 5000 },
+  "dataset": {
+    "tenants": 10,
+    "items": 5000
+  },
   "figures": {
     "interactive_p50_ms": {
-      "value": 3,
+      "value": 4,
       "direction": "lower_is_better",
       "band_percent": 60,
-      "note": "The band is wide because the figure is small: at three milliseconds a millisecond of jitter is a third, and a narrow band on a quantised number is a build that goes red for the machine's own reasons."
+      "minimum_delta": 8,
+      "note": "The worst of several runs rather than the best. This machine is not quiet - Docker and the rest of a working laptop are on it - and a baseline taken from its quietest minute would go red on its ordinary one."
     },
     "interactive_p95_ms": {
-      "value": 6,
+      "value": 16,
       "direction": "lower_is_better",
       "band_percent": 60,
-      "note": "The read target of engineering-guidelines.md §4 is 200 ms; this is a steady state far inside it, and what is guarded is the movement, not the target."
-    },
-    "interactive_p99_ms": {
-      "value": 7,
-      "direction": "lower_is_better",
-      "band_percent": 60
+      "minimum_delta": 8,
+      "note": "Observed between 6 and 16 ms across runs of unchanged code, which is the spread this hardware has. Band and floor together put the line at about 26 ms: past that is a change, below it is the machine. The read target of engineering-guidelines.md \u00a74 is 200 ms, and what is guarded here is movement rather than the target."
     },
     "requests_per_second": {
       "value": 200,
       "direction": "higher_is_better",
       "band_percent": 5,
-      "note": "The offered rate, and at this rate the installation keeps up with it exactly. That is what makes it worth guarding tightly: a run that delivered less than it was offered stopped keeping up, which is a finding no latency percentile states as plainly."
+      "minimum_delta": 5,
+      "note": "The offered rate, which the installation keeps up with exactly. Worth guarding tightly: a run that delivered less than it was offered stopped keeping up, and no latency percentile states that as plainly."
     }
   }
 }
