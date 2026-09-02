@@ -148,9 +148,15 @@ component that writes `style="gap: …"` writes a rule the browser refuses — s
 only. Every component from wave 1 on inherits that constraint, and these four are where it is
 worked out.
 
-### Wave 1 — nothing works without these (≈ 18)
-Button · IconButton · Input · Textarea · Select · Checkbox · Radio · Switch · Tooltip ·
+### Wave 1 — nothing works without these (≈ 19)
+Icon · Button · IconButton · Input · Textarea · Select · Checkbox · Radio · Switch · Tooltip ·
 Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner
+
+`Icon` arrives ahead of the rest, with the icon set itself
+([ADR-0040](../adr/ADR-0040-icon-set.md)): `IconButton` cannot be built before there is something
+to put in it, and every other component in this wave has a state it wants to draw rather than
+spell. It takes a name from one merged set — the declared subset of Lucide plus the marks only
+this domain needs — and nothing else in the wave knows which of the two a mark came from.
 
 ### Wave 2 — structure (≈ 12)
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
@@ -327,8 +333,6 @@ teaches the screenshots.
 
 ## 9. Still missing
 
-- **Iconography** — 24 px grid, 1.5 px stroke. Base: Lucide or Phosphor (both MIT), plus roughly
-  15 custom ones for Hub, Collection, Work Package, Activity, Jumble, Bucket, Capability.
 - **Logo and wordmark** — the placeholder in `foundations.html` shows the idea (three nested
   planes, the innermost in bordeaux) but is not a finished mark.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
@@ -349,5 +353,5 @@ teaches the screenshots.
   its own colour, elevation, motion and tone, not a row in a component table.
 
 Each of these has an owner in the client track of [roadmap.md](../roadmap.md) rather than a wish
-list: iconography, the wordmark and the border scale in `F1`, because the component layer cannot be
-built without them; platform adaptation in `F6`, with the mobile shell that raises the question.
+list: the wordmark and the border scale in `F1`, because the component layer cannot be built
+without them; platform adaptation in `F6`, with the mobile shell that raises the question.
