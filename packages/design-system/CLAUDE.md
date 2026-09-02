@@ -24,6 +24,10 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
   bundle or the binary that embeds it (ADR-0028). Being published at `workbench.hubtask.eu`
   (ADR-0038) does not change any of that — but it does mean **the page is public**: nothing there
   may promise anything about the product, contact a foreign domain, or carry a form.
+* **No pair below its floor.** `pnpm test` measures the WCAG 2.2 contrast of every pair
+  `tokens.json` declares, in both modes: 4.5:1 for text, 3:1 for a control boundary and the focus
+  ring. A new semantic colour token needs a role in `test/contrast.test.js` — an unclassified token
+  fails the suite rather than being skipped, which is what stops the check from shrinking.
 * **No colour value in the Go output.** `LabelTokens.go` carries the ten *names* and nothing else,
   so the core keeps the vocabulary while staying colour-blind. A hex constant in `core/domain`
   would be display information in the backend.
