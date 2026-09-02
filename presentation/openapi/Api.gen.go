@@ -3786,6 +3786,12 @@ type DataSubjectRequest struct {
 	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
 	// controller, because tenant data touches third parties' rights (ADR-0018).
+	//
+	// A case that names neither is started as `ANONYMIZE` — the workspace default settled by
+	// open point P-6 (`data-protection.md` §12). It is the answer that preserves the rights of
+	// the people who are not asking: a task somebody else depends on, a comment in a thread that
+	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
+	// on the case, and does so knowingly.
 	ErasureMode *ErasureMode        `json:"erasure_mode,omitempty"`
 	HandledBy   *openapi_types.UUID `json:"handled_by,omitempty"`
 	Id          openapi_types.UUID  `json:"id"`
@@ -3861,6 +3867,12 @@ type DataSubjectRequestUpdate struct {
 	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
 	// controller, because tenant data touches third parties' rights (ADR-0018).
+	//
+	// A case that names neither is started as `ANONYMIZE` — the workspace default settled by
+	// open point P-6 (`data-protection.md` §12). It is the answer that preserves the rights of
+	// the people who are not asking: a task somebody else depends on, a comment in a thread that
+	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
+	// on the case, and does so knowingly.
 	ErasureMode *ErasureMode        `json:"erasure_mode,omitempty"`
 	HandledBy   *openapi_types.UUID `json:"handled_by,omitempty"`
 	Notes       *string             `json:"notes,omitempty"`
@@ -3939,6 +3951,12 @@ type DuplicateResult struct {
 // ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 // `FULL_DELETE` takes the person's own contributions too. The choice rests with the
 // controller, because tenant data touches third parties' rights (ADR-0018).
+//
+// A case that names neither is started as `ANONYMIZE` — the workspace default settled by
+// open point P-6 (`data-protection.md` §12). It is the answer that preserves the rights of
+// the people who are not asking: a task somebody else depends on, a comment in a thread that
+// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
+// on the case, and does so knowingly.
 type ErasureMode string
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
