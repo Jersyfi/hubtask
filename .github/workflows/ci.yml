@@ -439,6 +439,12 @@ jobs:
           # `run` is what makes "the affected packages only" true. A package is affected when it
           # changed - and when something it consumes did, because that is how a renamed token
           # breaks the webapp while the design system stays green.
+          #
+          # It is a *boolean*, and every `if:` below tests it as one. An expression that is
+          # the whole value of a matrix entry keeps its type, so these produce `true`/`false`
+          # and not `"true"`/`"false"` - which is how `if: matrix.run == 'true'` came to be
+          # false on every pull request, and how all four of these jobs reported green for
+          # months without building, linting, typechecking or testing anything.
           - package: design-system
             run: ${{ needs.changes.outputs.design_system == 'true' || needs.changes.outputs.ci == 'true' }}
           - package: api-client
@@ -448,51 +454,51 @@ jobs:
           - package: website
             run: ${{ needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.ci == 'true' }}
     steps:
-      - if: matrix.run != 'true'
+      - if: ${{ !matrix.run }}
         run: echo "nothing under this package or its dependencies changed"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: matrix.run == 'true'
+        if: ${{ matrix.run }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: matrix.run == 'true'
+        if: ${{ matrix.run }}
         with:
           node-version-file: .nvmrc
       # The workspace map of ADR-0033, checked before anything is installed or built from it -
       # the pnpm counterpart of gate-architecture. Selftest first, per the gate-selftest habit:
       # a checker that cannot fail proves nothing by passing. Plain node, no dependencies, so it
       # runs before the install and fails fast.
-      - if: matrix.run == 'true'
+      - if: ${{ matrix.run }}
         run: node build/lint-workspace-map.mjs --selftest && node build/lint-workspace-map.mjs
       # The same command a contributor runs, so the version of pnpm is pinned in exactly one
       # place - `packageManager` in package.json (ADR-0027).
-      - if: matrix.run == 'true'
+      - if: ${{ matrix.run }}
         run: make tools-node
-      - if: matrix.run == 'true'
+      - if: ${{ matrix.run }}
         run: echo "$PWD/.tools" >> "$GITHUB_PATH"
       - id: store
-        if: matrix.run == 'true'
+        if: ${{ matrix.run }}
         run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
       # The pnpm store, cached separately from the Go module and build caches: the two halves of
       # this repository change at different rates, and one key for both would evict the other.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: matrix.run == 'true'
+        if: ${{ matrix.run }}
         with:
           path: ${{ steps.store.outputs.path }}
           key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
-      - if: matrix.run == 'true'
+      - if: ${{ matrix.run }}
         run: pnpm install --frozen-lockfile
       # `^...` is "everything this package depends on, but not the package itself". For a package
       # with no workspace dependencies the selection is empty and pnpm exits 0.
       - name: Build what this package consumes
-        if: matrix.run == 'true'
+        if: ${{ matrix.run }}
         run: pnpm --filter "@hubtask/${{ matrix.package }}^..." build
-      - if: matrix.run == 'true'
+      - if: ${{ matrix.run }}
         run: pnpm --filter "@hubtask/${{ matrix.package }}" build
-      - if: matrix.run == 'true'
+      - if: ${{ matrix.run }}
         run: pnpm --filter "@hubtask/${{ matrix.package }}" lint
-      - if: matrix.run == 'true'
+      - if: ${{ matrix.run }}
         run: pnpm --filter "@hubtask/${{ matrix.package }}" typecheck
-      - if: matrix.run == 'true'
+      - if: ${{ matrix.run }}
         run: pnpm --filter "@hubtask/${{ matrix.package }}" test
 
   tokens-drift:
