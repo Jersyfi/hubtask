@@ -86,6 +86,15 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			AuthPerMinute:      getInt("HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE", 10),
 			Burst:              getInt("HUBTASK_RATE_LIMIT_BURST", 20),
 		},
+		LoadShed: env.LoadShedConfig{
+			// Several times the pool, because not every request in flight holds a connection -
+			// one reading a body or writing a response holds none - and a threshold below the
+			// pool would shed while the database sat idle. Above it, the requests past the
+			// threshold are the ones already waiting for a connection, which is the moment
+			// latency starts to tip (observability-reliability.md §6).
+			Inflight:   getInt("HUBTASK_LOAD_SHED_INFLIGHT", 64),
+			RetryAfter: getDuration("HUBTASK_LOAD_SHED_RETRY_AFTER", 5*time.Second),
+		},
 		Request: env.RequestConfig{
 			MaxBodyBytes:   int64(getInt("HUBTASK_MAX_BODY_BYTES", 1<<20)),   // 1 MiB
 			MaxUploadBytes: int64(getInt("HUBTASK_MAX_UPLOAD_BYTES", 1<<26)), // 64 MiB
@@ -303,6 +312,7 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateStorage(cfg.Storage)...)
 	errs = append(errs, validateMail(cfg.Mail)...)
 	errs = append(errs, validateRateLimit(cfg.RateLimit)...)
+	errs = append(errs, validateLoadShed(cfg.LoadShed)...)
 	errs = append(errs, validateRequest(cfg.Request)...)
 	errs = append(errs, validateCORS(cfg.CORS)...)
 	errs = append(errs, validateOutbound(cfg.Outbound)...)
@@ -454,6 +464,20 @@ func validateRateLimit(r env.RateLimitConfig) []error {
 			// a rate limit that is off by accident is exactly what T-17 is about.
 			errs = append(errs, configError("config.rate_limit_invalid", variable))
 		}
+	}
+	return errs
+}
+
+func validateLoadShed(l env.LoadShedConfig) []error {
+	var errs []error
+	// Zero is allowed and negative is not, the same way the deregistration delay is: switching
+	// shedding off is a real choice for an installation on one machine, and a negative threshold
+	// is a typo that would refuse every deferrable call.
+	if l.Inflight < 0 {
+		errs = append(errs, configError("config.load_shed_invalid", "HUBTASK_LOAD_SHED_INFLIGHT"))
+	}
+	if l.RetryAfter <= 0 {
+		errs = append(errs, configError("config.duration_invalid", "HUBTASK_LOAD_SHED_RETRY_AFTER"))
 	}
 	return errs
 }

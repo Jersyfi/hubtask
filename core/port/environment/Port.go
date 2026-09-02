@@ -77,6 +77,7 @@ type Config struct {
 	Storage    StorageConfig
 	Mail       MailConfig
 	RateLimit  RateLimitConfig
+	LoadShed   LoadShedConfig
 	Request    RequestConfig
 	CORS       CORSConfig
 	Outbound   OutboundConfig
@@ -325,6 +326,24 @@ type RateLimitConfig struct {
 	AuthPerMinute int
 	// Burst is how much of the budget may be spent at once.
 	Burst int
+}
+
+// LoadShedConfig is the admission threshold of observability-reliability.md §6: above so many
+// requests in flight, deferrable work - bulk, export, search, the query shapes - is refused with
+// `503` and a `Retry-After` instead of queueing behind the interactive path.
+//
+// It is a property of the process rather than of the installation, which is why it is one
+// variable set per role rather than a table of them: the API role and the automation role are
+// separate deployments with separate resources, and each one's ceiling is its own (ADR-0014,
+// deployment.md §4).
+type LoadShedConfig struct {
+	// Inflight is the number of requests being served above which a deferrable one is refused.
+	// Zero switches shedding off entirely - the honest way to say "this installation runs on one
+	// machine and its rate limits are the whole of its admission control".
+	Inflight int
+	// RetryAfter is what a refused caller is told to wait. It reaches the client as the header
+	// of the same name, and it is the only thing that makes a refusal actionable.
+	RetryAfter time.Duration
 }
 
 // RequestConfig bounds a single request (security.md §9, threat T-17).
