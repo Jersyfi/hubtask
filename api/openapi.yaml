@@ -2718,6 +2718,78 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/oidc:start:
+    post:
+      tags: [auth]
+      operationId: startOidcSignIn
+      security: []
+      summary: Begin a sign-in through the workspace's identity provider
+      description: >
+        The first half of authorization code + PKCE (ADR-0005, H-04). The workspace is resolved
+        the way a password sign-in resolves it - the subdomain, or the tenant header - and its
+        configured provider answers the URL to send the browser to.
+
+        Nothing about where the code comes back is taken from the request: the redirect URI is
+        this installation's own, derived from its base URL, so a caller cannot point the
+        authorization answer anywhere else. The `state` this returns is the handle for the
+        callback; the code verifier and the nonce stay on the server and are never shown.
+
+        Refused with a clear code when the workspace has no provider configured or has switched
+        it off, and when discovery cannot be reached - the degradation
+        `observability-reliability.md` §7 describes: local accounts keep signing in.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OidcStart"
+      responses:
+        "201":
+          description: Where to send the browser
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OidcAuthorization"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/oidc:callback:
+    post:
+      tags: [auth]
+      operationId: completeOidcSignIn
+      security: []
+      summary: Finish the sign-in with the code the provider issued
+      description: >
+        The second half: the authorization code is exchanged at the provider's token endpoint
+        with the verifier this installation kept, and the ID token is verified in full - the
+        signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted,
+        an algorithm allowlist that never contains `none`, and a clock skew of at most sixty
+        seconds (security.md §4, T-13). Any of those failing is one refusal.
+
+        What it answers is the same pair a password sign-in answers, because it is the same
+        session: how somebody proved themselves is an attribute of the session, not a class of
+        it. The account is provisioned on first arrival under the provider's subject, or linked
+        to an existing local account when the verified address matches inside the configured
+        domains - and that linking is audited.
+
+        A `state` that is unknown, already spent or expired is refused indistinguishably: a flow
+        handle is single use.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OidcCallback"
+      responses:
+        "201":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTokens"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants:
     get:
       tags: [admin]
@@ -2916,6 +2988,69 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/QuotaStanding"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /identity-provider:
+    get:
+      tags: [auth]
+      operationId: readIdentityProvider
+      summary: How this workspace signs people in through its own provider
+      description: >
+        The configured issuer, client id and allowed email domains, and whether the provider is
+        switched on. Needs the permission that manages structure, or the auditor's read-only
+        configuration permission (A-4): which provider vouches for this workspace's people is
+        configuration an auditor reads.
+
+        The client secret is never a member of this answer. It is sealed at configuration time
+        (E-02) and read only by the token exchange.
+      responses:
+        "200":
+          description: The configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [auth]
+      operationId: configureIdentityProvider
+      summary: Configure the workspace's identity provider
+      description: >
+        Sets the provider whole - issuer, client id, client secret and the email domains a
+        linked account may match within. Discovery runs before anything is stored, through the
+        guarded client, so an issuer this installation cannot reach or that disagrees with its
+        own metadata is refused rather than saved and discovered later by a person trying to
+        sign in.
+
+        The secret is sealed on the way in and appears in no answer afterwards. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityProviderConfiguration"
+      responses:
+        "200":
+          description: Configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityProvider"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [auth]
+      operationId: removeIdentityProvider
+      summary: Remove the workspace's identity provider
+      description: >
+        The configuration and its sealed secret go. Accounts provisioned through it keep their
+        rows and their sessions - what they lose is the way to sign in again, which is why an
+        account with no password is worth a thought before this call. Auditable.
+      responses:
+        "204":
+          description: Removed
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -5914,6 +6049,118 @@ components:
           description: >
             Present exactly when a recovery code completed this sign-in: how many remain. Zero is
             the number to act on - re-enrol before the authenticator is needed again.
+
+    OidcStart:
+      type: object
+      description: >
+        What a sign-in through the identity provider needs to begin, which is almost nothing: the
+        workspace comes from the subdomain or the tenant header, and the redirect URI is this
+        installation's own. A caller with nothing to add may omit the body entirely.
+      properties:
+        login_hint:
+          type: [string, "null"]
+          description: >
+            An address to pass the provider as `login_hint`, so somebody who typed it here does
+            not type it again. A hint and nothing more - it never decides which account is signed
+            in, which is the ID token's `sub` and only that.
+
+    OidcAuthorization:
+      type: object
+      description: Where to send the browser, and the handle to finish with.
+      required: [authorization_url, state, expires_at]
+      properties:
+        authorization_url:
+          type: string
+          format: uri
+          description: >
+            The provider's authorization endpoint with this flow's parameters, including the
+            PKCE challenge. The verifier that answers it stays on the server.
+        state:
+          type: string
+          description: >
+            The flow's handle, single use. It is presented back at the callback and dies there,
+            spent or not - a replayed state is refused the way an unknown one is.
+        expires_at:
+          type: string
+          format: date-time
+          description: When this flow stops being answerable. Short, because a browser round trip is short.
+
+    OidcCallback:
+      type: object
+      description: What the provider's redirect carried back.
+      required: [code, state]
+      properties:
+        code:
+          type: string
+          description: The authorization code, exchanged once, at the provider's token endpoint.
+        state:
+          type: string
+          description: The handle `/auth/oidc:start` answered.
+
+    IdentityProvider:
+      type: object
+      description: >
+        How this workspace signs people in through its own provider. The client secret is not a
+        member: it is sealed at configuration time and read only by the token exchange.
+      required: [issuer, client_id, enabled, allowed_email_domains, created_at, version]
+      properties:
+        issuer:
+          type: string
+          format: uri
+          description: >
+            The provider's issuer identifier. Every ID token must name it exactly - a token whose
+            `iss` differs is refused, which is the first of T-13's checks.
+        client_id:
+          type: string
+          description: This installation's registration with the provider.
+        enabled:
+          type: boolean
+          description: >
+            Off leaves the configuration in place and refuses the flow. It is the switch to reach
+            for while a provider is being changed, rather than deleting and retyping a secret.
+        allowed_email_domains:
+          type: array
+          items: { type: string }
+          description: >
+            The domains inside which a verified address may link an arriving subject to an
+            existing local account. Empty means no linking happens at all: every subject is
+            provisioned as its own account, which is the safe reading of "not configured".
+        created_at: { type: string, format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        version:
+          type: integer
+          description: The optimistic lock, as everywhere else.
+
+    IdentityProviderConfiguration:
+      type: object
+      description: >
+        The provider, set whole. Discovery is performed before anything is stored, so an issuer
+        that cannot be reached or that disagrees with its own metadata is refused here rather
+        than by the first person who tries to sign in.
+      required: [issuer, client_id, client_secret]
+      properties:
+        issuer:
+          type: string
+          format: uri
+        client_id:
+          type: string
+        client_secret:
+          type: string
+          writeOnly: true
+          description: >
+            Sealed on the way in (E-02) and never answered again. Sending it a second time
+            replaces it; there is no way to read it back, by design.
+        enabled:
+          type: boolean
+          default: true
+        allowed_email_domains:
+          type: array
+          items: { type: string }
+          default: []
+          description: >
+            Domains a verified address may link within. A domain here is a promise that the
+            provider controls it - anything else hands somebody an account by asserting an
+            address they do not own.
 
     MfaChallenge:
       type: object

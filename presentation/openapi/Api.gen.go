@@ -4060,6 +4060,38 @@ type HttpRequestCall struct {
 // HttpRequestCallMethod defines model for HttpRequestCall.Method.
 type HttpRequestCallMethod string
 
+// IdentityProvider How this workspace signs people in through its own provider. The client secret is not a member: it is sealed at configuration time and read only by the token exchange.
+type IdentityProvider struct {
+	// AllowedEmailDomains The domains inside which a verified address may link an arriving subject to an existing local account. Empty means no linking happens at all: every subject is provisioned as its own account, which is the safe reading of "not configured".
+	AllowedEmailDomains []string `json:"allowed_email_domains"`
+
+	// ClientId This installation's registration with the provider.
+	ClientId  string    `json:"client_id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Enabled Off leaves the configuration in place and refuses the flow. It is the switch to reach for while a provider is being changed, rather than deleting and retyping a secret.
+	Enabled bool `json:"enabled"`
+
+	// Issuer The provider's issuer identifier. Every ID token must name it exactly - a token whose `iss` differs is refused, which is the first of T-13's checks.
+	Issuer    string     `json:"issuer"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+
+	// Version The optimistic lock, as everywhere else.
+	Version int `json:"version"`
+}
+
+// IdentityProviderConfiguration The provider, set whole. Discovery is performed before anything is stored, so an issuer that cannot be reached or that disagrees with its own metadata is refused here rather than by the first person who tries to sign in.
+type IdentityProviderConfiguration struct {
+	// AllowedEmailDomains Domains a verified address may link within. A domain here is a promise that the provider controls it - anything else hands somebody an account by asserting an address they do not own.
+	AllowedEmailDomains *[]string `json:"allowed_email_domains,omitempty"`
+	ClientId            string    `json:"client_id"`
+
+	// ClientSecret Sealed on the way in (E-02) and never answered again. Sending it a second time replaces it; there is no way to read it back, by design.
+	ClientSecret *string `json:"client_secret,omitempty"`
+	Enabled      *bool   `json:"enabled,omitempty"`
+	Issuer       string  `json:"issuer"`
+}
+
 // InboundTriggerToken A freshly minted inbound address. The token exists in this answer and nowhere else afterwards: it is stored hashed, and every later read of the rule shows only when it was minted.
 type InboundTriggerToken struct {
 	RotatedAt time.Time          `json:"rotated_at"`
@@ -4623,6 +4655,33 @@ type OauthTokenRequest struct {
 
 // OauthTokenRequestGrantType defines model for OauthTokenRequest.GrantType.
 type OauthTokenRequestGrantType string
+
+// OidcAuthorization Where to send the browser, and the handle to finish with.
+type OidcAuthorization struct {
+	// AuthorizationUrl The provider's authorization endpoint with this flow's parameters, including the PKCE challenge. The verifier that answers it stays on the server.
+	AuthorizationUrl string `json:"authorization_url"`
+
+	// ExpiresAt When this flow stops being answerable. Short, because a browser round trip is short.
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// State The flow's handle, single use. It is presented back at the callback and dies there, spent or not - a replayed state is refused the way an unknown one is.
+	State string `json:"state"`
+}
+
+// OidcCallback What the provider's redirect carried back.
+type OidcCallback struct {
+	// Code The authorization code, exchanged once, at the provider's token endpoint.
+	Code string `json:"code"`
+
+	// State The handle `/auth/oidc:start` answered.
+	State string `json:"state"`
+}
+
+// OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
+type OidcStart struct {
+	// LoginHint An address to pass the provider as `login_hint`, so somebody who typed it here does not type it again. A hint and nothing more - it never decides which account is signed in, which is the ID token's `sub` and only that.
+	LoginHint *string `json:"login_hint,omitempty"`
+}
 
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
@@ -6930,6 +6989,12 @@ type EnrollTotpJSONRequestBody = TotpEnrollmentStart
 // DisableTotpJSONRequestBody defines body for DisableTotp for application/json ContentType.
 type DisableTotpJSONRequestBody = MfaDisable
 
+// CompleteOidcSignInJSONRequestBody defines body for CompleteOidcSignIn for application/json ContentType.
+type CompleteOidcSignInJSONRequestBody = OidcCallback
+
+// StartOidcSignInJSONRequestBody defines body for StartOidcSignIn for application/json ContentType.
+type StartOidcSignInJSONRequestBody = OidcStart
+
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
@@ -7007,6 +7072,9 @@ type CreateGroupJSONRequestBody = GroupCreate
 
 // UpdateGroupJSONRequestBody defines body for UpdateGroup for application/json ContentType.
 type UpdateGroupJSONRequestBody = GroupUpdate
+
+// ConfigureIdentityProviderJSONRequestBody defines body for ConfigureIdentityProvider for application/json ContentType.
+type ConfigureIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
 // CreateCalendarFeedJSONRequestBody defines body for CreateCalendarFeed for application/json ContentType.
 type CreateCalendarFeedJSONRequestBody = CalendarFeedCreate
@@ -7205,6 +7273,12 @@ type ServerInterface interface {
 	// DisableTotp Disable the second factor
 	// (POST /auth/mfa:disable)
 	DisableTotp(w http.ResponseWriter, r *http.Request)
+	// CompleteOidcSignIn Finish the sign-in with the code the provider issued
+	// (POST /auth/oidc:callback)
+	CompleteOidcSignIn(w http.ResponseWriter, r *http.Request)
+	// StartOidcSignIn Begin a sign-in through the workspace's identity provider
+	// (POST /auth/oidc:start)
+	StartOidcSignIn(w http.ResponseWriter, r *http.Request)
 	// ListServiceAccounts The workspace's service accounts
 	// (GET /auth/service-accounts)
 	ListServiceAccounts(w http.ResponseWriter, r *http.Request)
@@ -7388,6 +7462,15 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
+	// RemoveIdentityProvider Remove the workspace's identity provider
+	// (DELETE /identity-provider)
+	RemoveIdentityProvider(w http.ResponseWriter, r *http.Request)
+	// ReadIdentityProvider How this workspace signs people in through its own provider
+	// (GET /identity-provider)
+	ReadIdentityProvider(w http.ResponseWriter, r *http.Request)
+	// ConfigureIdentityProvider Configure the workspace's identity provider
+	// (PUT /identity-provider)
+	ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request)
 
 	// (GET /integrations/calendar-feeds)
 	ListCalendarFeeds(w http.ResponseWriter, r *http.Request)
@@ -8267,6 +8350,34 @@ func (siw *ServerInterfaceWrapper) DisableTotp(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DisableTotp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteOidcSignIn operation middleware
+func (siw *ServerInterfaceWrapper) CompleteOidcSignIn(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteOidcSignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartOidcSignIn operation middleware
+func (siw *ServerInterfaceWrapper) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartOidcSignIn(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10537,6 +10648,48 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateGroup(w, r, groupId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) RemoveIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveIdentityProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadIdentityProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureIdentityProvider operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureIdentityProvider(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15482,6 +15635,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/tokens/{tokenId}", wrapper.RevokeAccessToken)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/service-accounts", wrapper.ListServiceAccounts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/service-accounts", wrapper.CreateServiceAccount)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:start", wrapper.StartOidcSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:callback", wrapper.CompleteOidcSignIn)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants", wrapper.ListTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:suspend", wrapper.SuspendTenant)
@@ -15490,6 +15645,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-provider", wrapper.RemoveIdentityProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)

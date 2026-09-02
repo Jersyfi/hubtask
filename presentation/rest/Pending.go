@@ -861,3 +861,26 @@ func (pending) GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, _
 func (pending) ExportView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId, _ openapi.ExportViewParams) {
 	notAvailable(w, r)
 }
+
+// The identity provider (H-04). The contract declares the relying-party flow and its
+// configuration; the use cases behind them land in the steps that follow, and until each does
+// the route exists and says this installation does not serve it yet.
+func (pending) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CompleteOidcSignIn(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

@@ -38,6 +38,12 @@ var PublicRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm": true,
+	// The relying-party flow is public for the same reason again (H-04): a person signing in
+	// through their company's provider has no credential here yet, and the flow's own handle -
+	// the single-use `state`, minted by :start and spent at :callback - is the whole of what
+	// authenticates the second call. The auth bucket stands in front of both.
+	http.MethodPost + " " + APIBasePath + "/auth/oidc:start":    true,
+	http.MethodPost + " " + APIBasePath + "/auth/oidc:callback": true,
 	// The token endpoint is public the way sign-in is (H-05): the single-use code, the PKCE
 	// verifier and - for a confidential client - the secret travel in the body and are the
 	// whole of what authenticates the exchange.

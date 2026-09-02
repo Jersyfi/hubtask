@@ -270,8 +270,12 @@ func AuthBucket(perMinute, burst int) func(*http.Request) Bucket {
 	}
 }
 
-// isAuthRoute matches the three public credential routes by their literal paths. A string
-// operation on paths this layer owns, feedTokenInPath's reasoning.
+// isAuthRoute matches the public credential routes by their literal paths. A string operation on
+// paths this layer owns, feedTokenInPath's reasoning.
+//
+// The relying-party pair joined them with H-04, and :start earns its place twice over: it is
+// anonymous, and it writes a flow row and dials the provider's discovery endpoint, so an
+// unbounded caller would be minting server state and outbound calls at once.
 func isAuthRoute(r *http.Request) bool {
 	if r.Method != http.MethodPost {
 		return false
@@ -279,7 +283,9 @@ func isAuthRoute(r *http.Request) bool {
 	switch r.URL.Path {
 	case APIBasePath + "/auth/sessions",
 		APIBasePath + "/auth/sessions:refresh",
-		APIBasePath + "/auth/invitations:redeem":
+		APIBasePath + "/auth/invitations:redeem",
+		APIBasePath + "/auth/oidc:start",
+		APIBasePath + "/auth/oidc:callback":
 		return true
 	}
 	return false
