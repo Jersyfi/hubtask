@@ -20,6 +20,7 @@ import (
 // are reconciled by the parity test rather than by these constants.
 const (
 	inviteAccountUseCase            = "InviteAccount"
+	getOwnAccountUseCase            = "GetOwnAccount"
 	updateAccountPreferencesUseCase = "UpdateAccountPreferences"
 	grantMembershipUseCase          = "GrantMembership"
 	revokeMembershipUseCase         = "RevokeMembership"
@@ -44,6 +45,30 @@ func (c *RestController) InviteAccount(w http.ResponseWriter, r *http.Request, _
 		w.Header().Set("Location", APIBasePath+"/accounts/"+account.Id.String())
 		writeJSON(w, r, http.StatusCreated, account)
 	})
+}
+
+// GetOwnAccount answers GET /accounts/me.
+//
+// No parameter and no body: the actor is the identifier. `me` is a reserved segment rather than a
+// possible account id - identifiers are UUIDs - so this route and /accounts/{accountId} cannot
+// collide, and the specification says so where a reader will look.
+//
+// Written out rather than through the `identity` helper below, the way every other handler that
+// takes no path parameter is: the helper's closure hides the request from `contextcheck`, which
+// then cannot see that the context travels.
+func (c *RestController) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), getOwnAccountUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, accountResponse(out))
 }
 
 // UpdateAccountPreferences answers PATCH /accounts/{accountId}/preferences.

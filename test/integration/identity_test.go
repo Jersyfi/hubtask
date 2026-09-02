@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -186,6 +188,51 @@ func TestPreferencesOfAnotherTenantCannotBeWritten(t *testing.T) {
 	}
 	if read.Locale != "" {
 		t.Errorf("tenant B changed tenant A's locale to %q", read.Locale)
+	}
+}
+
+// F1-08's cross-tenant negative test, and it is about the use case rather than the repository.
+//
+// `TestAnAccountOfAnotherTenantIsNotFound` above proves `Accounts.Find` respects the boundary.
+// This proves the thing a client actually calls does: `GetOwnAccount` performs no permission check
+// of its own by design - the row is the caller's by definition - so the *only* thing standing
+// between a token of tenant B and an account of tenant A is the scope the unit of work opens
+// (ADR-0010). A regression that dropped `PersistenceScope` for a bare pool would pass every unit
+// test in the package and fail here.
+func TestOwnAccountOfAnotherTenantDoesNotResolve(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	account := invitedIn(t, tenantA)
+
+	// One unit of work for both halves: a helper per call opens a pool per call, and a handful of
+	// those exhausts PostgreSQL's connection slots.
+	handler := identityservice.GetOwnAccount{
+		Accounts:   postgres.NewAccountRepository(),
+		UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
+	}
+
+	// The same account id, carried by an actor whose tenant is the other one. This is what a
+	// stolen or misrouted token looks like from the inside.
+	foreign := ownAccountActor(tenantB, account.ID)
+	if _, err := handler.Execute(ctx, foreign); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("error = %v, want not found - an account of another tenant must not resolve", err)
+	}
+
+	// And the same call from the account's own tenant does answer, so the test above is about the
+	// boundary rather than about a handler that never works.
+	own, err := handler.Execute(ctx, ownAccountActor(tenantA, account.ID))
+	if err != nil {
+		t.Fatalf("reading the own account: %v", err)
+	}
+	if own.ID != account.ID {
+		t.Errorf("account = %s, want %s", own.ID, account.ID)
+	}
+}
+
+func ownAccountActor(tenant, accountID shared.ID) appshared.ActorContext {
+	return appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: tenant, AccountID: accountID,
+		AccountName: "Anna", Scopes: []string{"accounts:read"},
 	}
 }
 
