@@ -33,9 +33,9 @@ type AttachmentIngest interface {
 // IntakeMail turns one inbound message into a jumble entry (G-11).
 //
 // The transport-independent half of the mail intake. What reaches this is a message somebody has
-// already parsed - a bridge's delivery today, an IMAP poll when AM-1 is decided - and what it does
-// with one is the same either way: authenticate the tenant by its token, store what the message
-// carried, and announce the arrival.
+// already parsed - a bridge's delivery today, a JMAP fetch if one is ever built (ADR-0040) - and
+// what it does with one is the same either way: authenticate the tenant by its token, store what
+// the message carried, and announce the arrival.
 //
 // Not a catalogue entry, for IntakeJumbleEntry's reason: there is no actor to authorise, because
 // the token authenticates a tenant and never a person.
