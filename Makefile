@@ -285,10 +285,15 @@ gate-quick:
 # cmd joined the list with hubctl (B-13). A composition root has little to test, but a CLI is not
 # one: its flags, its exit codes and the sentences it prints are the contract a script depends on,
 # and the end-to-end session only reaches them once the whole stack is up.
+#
+# test/load is here for its untagged half: the generator's pacing, its percentiles and the
+# regression guard's arithmetic are ordinary code, and a guard that has stopped working must turn
+# a pull request red rather than pass a nightly quietly. The runs themselves are behind the `load`
+# tag and stay in gate-load.
 .PHONY: gate-unit
 gate-unit: export CGO_ENABLED = 1
 gate-unit:
-	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/...,-race -covermode=atomic -coverprofile=coverage.out)
+	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/... ./test/load/...,-race -covermode=atomic -coverprofile=coverage.out)
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/application/... MIN=75
 
