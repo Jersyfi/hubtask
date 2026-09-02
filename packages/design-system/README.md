@@ -81,6 +81,9 @@ from `tokens.json` rather than written by hand ([ADR-0037](../../docs/adr/ADR-00
 
 ## The workbench
 
+Published at **<https://workbench.hubtask.eu>** from `main` ([ADR-0038](../../docs/adr/ADR-0038-workbench-published.md)),
+and run locally with:
+
 ```bash
 make workbench     # http://localhost:5174
 ```
@@ -115,9 +118,10 @@ every component in `src/` has a story beside it, every story names axes that exi
 component in `src/` appears in one of `design-system.md` §4's waves — so the inventory and the
 tree cannot become two different lists. It carries a `--selftest`, like every other gate here.
 
-The workbench is a development tool. It is not part of `pnpm build`, `pnpm -r build` does not
-depend on it, and nothing of it reaches `apps/webapp`'s bundle or the binary that embeds it
-(ADR-0028).
+The workbench is a development tool, and stays one even though it is published: it is not part of
+`pnpm build`, `pnpm -r build` does not depend on it, and nothing of it reaches `apps/webapp`'s
+bundle or the binary that embeds it (ADR-0028). `make workbench-build` produces the static copy
+that `workbench.hubtask.eu` serves, into `dist/workbench/`.
 
 ## What is not here
 

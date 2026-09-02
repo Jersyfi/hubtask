@@ -43,3 +43,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0034](./ADR-0034-language-dependent-search.md) | The language-dependent search document | accepted | Search, i18n, persistence |
 | [0035](./ADR-0035-one-product-version.md) | One product version for the server and every first-party client | accepted | Release, versioning, clients |
 | [0037](./ADR-0037-component-workbench.md) | The component workbench is ours, and it renders every story through the rules | accepted | Design system, clients, tooling |
+| [0038](./ADR-0038-workbench-published.md) | The workbench is published at workbench.hubtask.eu | accepted | Design system, deployment |

@@ -34,9 +34,17 @@
 <div class="frame">
   <header class="top">
     <span class="wordmark">Hubtask Workbench</span>
-    <span class="subtitle"
-      >Every story through every rule — <code>design-system.md</code> §3, §4, §6 (ADR-0037)</span
-    >
+    <!-- This page is public (ADR-0038), so it says what it is rather than leaving a reader to
+         infer it: a development tool showing parts that mostly do not exist yet. The stage word
+         is ADR-0035's vocabulary, and the obligation is the one ADR-0035 put on the
+         application's maturity banner, applied to the surface that shows the parts. -->
+    <span class="stage">experimental</span>
+    <span class="subtitle">
+      A development tool for building <strong>Hubtask</strong> — every story through every rule
+      (<code>design-system.md</code> §3, §4, §6). Components appear, move and disappear without
+      notice; nothing here is a promise about the product.
+    </span>
+    <a class="repo" href="https://github.com/Jersyfi/hubtask" rel="noreferrer">Source</a>
   </header>
 
   <div class="side">
@@ -83,8 +91,9 @@
   .top {
     grid-area: top;
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: var(--sp-200);
+    gap: var(--sp-150);
     padding: var(--sp-150) var(--sp-300);
     border-bottom: 1px solid var(--border-subtle);
     background: var(--bg-surface);
@@ -100,6 +109,26 @@
   .subtitle {
     color: var(--text-subtle);
     font-size: var(--fs-075);
+    max-width: 88ch;
+  }
+
+  /* Rule 3: the stage is a word before it is a tint. */
+  .stage {
+    padding: 0 var(--sp-050);
+    border-radius: var(--r-sm);
+    background: var(--label-amber-bg);
+    color: var(--label-amber-fg);
+    font-family: var(--font-mono);
+    font-size: var(--fs-050);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .repo {
+    margin-inline-start: auto;
+    color: var(--text-brand);
+    font-size: var(--fs-075);
+    white-space: nowrap;
   }
 
   .side {
@@ -126,6 +155,27 @@
     flex: 1;
     overflow: auto;
     min-height: 0;
+  }
+
+  /* Below `--bp-medium` the index sits above the stage instead of beside it: a 264 px column and
+     a stage do not both fit, and the result is a page that scrolls sideways - the one thing the
+     workbench exists to catch. The width is written out because a media query cannot read a
+     custom property; the value is `primitive.breakpoint.medium` minus one, and nothing else here
+     is allowed to name a length twice. */
+  @media (max-width: 599px) {
+    .frame {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas:
+        'top'
+        'side'
+        'main';
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .side {
+      max-height: 30vh;
+      border-bottom: 1px solid var(--border-subtle);
+    }
   }
 
   .about {
