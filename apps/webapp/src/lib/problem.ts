@@ -63,9 +63,11 @@ function candidates(error: TransportError): string[] {
     out.push(error.code.includes('.') ? error.code : `errors.${error.code}`);
   }
   if (error.kind !== 'problem') out.push(KIND_CODES[error.kind]);
-  // The floor. `errors.internal` exists in every catalogue and says the one true thing: something
-  // went wrong and here is the reference.
-  out.push('errors.internal');
+  // The floor, and which floor depends on whether there is a reference to quote. `errors.internal`
+  // is the server's sentence and it *contains* the request id - offering it without one puts a
+  // literal `{request_id}` on the screen, which is what a gateway answering 502 with an empty body
+  // does. That case gets a sentence of its own instead.
+  out.push(error.requestId ? 'errors.internal' : 'app.something_went_wrong');
   return out;
 }
 

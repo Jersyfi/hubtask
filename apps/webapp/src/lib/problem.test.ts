@@ -89,6 +89,17 @@ test('a failure that never reached the server still says something true', () => 
   }
 });
 
+test('a failure with nothing to quote does not show a placeholder instead', () => {
+  // A gateway answering 502 with an empty body: no code, no detail code, no request id. The
+  // server's own sentence for this carries the reference inside it, so offering it here would put
+  // a literal `{request_id}` in front of the reader.
+  const rendered = renderProblem(new TransportError('problem', { status: 502 }), messages);
+  assert.equal(rendered.message, 'Something went wrong. Try again in a moment.');
+  assert.ok(!rendered.message.includes('{'), 'a placeholder reached the reader');
+  assert.equal(rendered.reference, undefined);
+  assert.equal(rendered.isServerFault, true);
+});
+
 test('a validation failure is not the server’s fault', () => {
   const rendered = renderProblem(new TransportError('problem', { status: 422, code: 'validation_failed' }), messages);
   assert.equal(rendered.isServerFault, false);
