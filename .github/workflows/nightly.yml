@@ -259,12 +259,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   report:
-    name: File what broke
+    name: File what broke, close what mended
     # A nightly failure that only exists as a red run in a tab nobody opens is a failure nobody
     # fixes. This turns it into an issue - one per failing job, deduplicated across nights, with
     # the label that lets the CI assistant open a pull request against it.
-    needs: [deep, matrix-arm64, matrix-postgres, matrix-podman, matrix-kind, vulnerabilities, action-pins]
-    if: failure()
+    #
+    # And the other direction, which is not a nicety. Nothing used to close these, so an issue
+    # outlived its defect by however long it took somebody to check: on the morning this was
+    # written, two of the three open ones named a cause that had been fixed days earlier, and the
+    # list read "the nightly never passes" while it had passed. An issue tracker that lies in the
+    # optimistic direction gets read; one that lies in the pessimistic direction gets ignored,
+    # which costs the same as not filing at all.
+    #
+    # `needs` is the watch list, and it is the whole watch list: `matrix-hubctl` was missing from
+    # it, so three rows of the support matrix - hubctl on Linux arm64, macOS and Windows - were
+    # proven by a job whose failure nobody would have heard about. checkdocs now reconciles the
+    # two (tools/checkdocs/matrix.go).
+    needs:
+      [deep, matrix-arm64, matrix-postgres, matrix-podman, matrix-hubctl, matrix-kind,
+       vulnerabilities, action-pins]
+    # Not `always()`: a cancelled run says nothing about any job, and closing an issue on the
+    # strength of a job that never finished would be the pessimistic lie's mirror image.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -274,42 +290,83 @@ jobs:
         with:
           script: |
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const failed = Object.entries(${{ toJSON(needs) }})
-              .filter(([, job]) => job.result === 'failure')
-              .map(([name]) => name);
+            const results = Object.entries(${{ toJSON(needs) }});
 
-            for (const job of failed) {
-              const title = `Nightly: ${job} is failing`;
-              // One issue per job, reopened rather than duplicated: a platform that breaks for a
-              // week should be one thread, not seven.
-              const existing = await github.rest.search.issuesAndPullRequests({
+            // The title is the identity of the thread, so it is also how one is found again. The
+            // search is a phrase match rather than an exact one, so every hit is compared against
+            // the title in full: `matrix-postgres` and `matrix-podman` are one prefix apart, and
+            // taking the first hit unchecked was survivable while this only ever commented. It is
+            // not survivable now that it also closes.
+            const threadFor = async (title) => {
+              const found = await github.rest.search.issuesAndPullRequests({
                 q: `repo:${context.repo.owner}/${context.repo.repo} is:issue in:title "${title}"`,
               });
-              const body = [
-                `The nightly job \`${job}\` failed.`,
-                ``,
-                `* Run: ${run}`,
-                `* Commit: ${context.sha}`,
-                ``,
-                `If this is a \`matrix-*\` job, a row in \`docs/architecture/support-matrix.md\``,
-                `is currently claiming support that nothing proves. Either the defect gets fixed or`,
-                `the row changes - silently leaving it is the one outcome the matrix exists to`,
-                `prevent.`,
-              ].join('\n');
+              return found.data.items.find((issue) => issue.title === title);
+            };
 
-              if (existing.data.total_count > 0) {
-                const issue = existing.data.items[0];
-                await github.rest.issues.createComment({
-                  ...context.repo, issue_number: issue.number, body,
-                });
-                if (issue.state === 'closed') {
-                  await github.rest.issues.update({
-                    ...context.repo, issue_number: issue.number, state: 'open',
+            for (const [job, result] of results) {
+              const title = `Nightly: ${job} is failing`;
+
+              if (result === 'failure') {
+                const body = [
+                  `The nightly job \`${job}\` failed.`,
+                  ``,
+                  `* Run: ${run}`,
+                  `* Commit: ${context.sha}`,
+                  ``,
+                  `If this is a \`matrix-*\` job, a row in \`docs/architecture/support-matrix.md\``,
+                  `is currently claiming support that nothing proves. Either the defect gets fixed or`,
+                  `the row changes - silently leaving it is the one outcome the matrix exists to`,
+                  `prevent.`,
+                ].join('\n');
+
+                // One issue per job, reopened rather than duplicated: a platform that breaks for a
+                // week should be one thread, not seven.
+                const issue = await threadFor(title);
+                if (issue) {
+                  await github.rest.issues.createComment({
+                    ...context.repo, issue_number: issue.number, body,
+                  });
+                  if (issue.state === 'closed') {
+                    await github.rest.issues.update({
+                      ...context.repo, issue_number: issue.number, state: 'open',
+                    });
+                  }
+                } else {
+                  await github.rest.issues.create({
+                    ...context.repo, title, body, labels: ['task', 'claude:task'],
                   });
                 }
-              } else {
-                await github.rest.issues.create({
-                  ...context.repo, title, body, labels: ['task', 'claude:task'],
-                });
+                continue;
               }
+
+              // Only a job that actually ran and passed closes its thread. A skipped one proves
+              // nothing - and neither does a job whose issue somebody opened by hand, which is why
+              // the label this workflow files under has to be on it.
+              if (result !== 'success') {
+                continue;
+              }
+              const issue = await threadFor(title);
+              if (!issue || issue.state === 'closed') {
+                continue;
+              }
+              if (!issue.labels.some((label) => (label.name ?? label) === 'claude:task')) {
+                continue;
+              }
+
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issue.number,
+                body: [
+                  `The nightly job \`${job}\` passed again, so this is closed.`,
+                  ``,
+                  `* Run: ${run}`,
+                  `* Commit: ${context.sha}`,
+                  ``,
+                  `The next failure reopens this same thread rather than filing a new one.`,
+                ].join('\n'),
+              });
+              await github.rest.issues.update({
+                ...context.repo, issue_number: issue.number, state: 'closed',
+              });
             }

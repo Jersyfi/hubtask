@@ -23,6 +23,11 @@ import (
 //   - A matrix job with no row is support that is being paid for and not promised - or, worse,
 //     quietly removed evidence for a promise still on the page. Deleting a job must not be a way
 //     to make a red build green.
+//   - A matrix job nothing waits on is evidence nobody reads. The nightly turns a failure into an
+//     issue from the `needs` list of its reporting job, so a matrix job missing from that list
+//     fails in silence - which is what `matrix-hubctl` did, behind three rows of the table, for as
+//     long as the reporting job has existed. A run that is red where nobody looks is the same
+//     thing as a row nothing proves.
 //
 // Jobs count as matrix jobs by their identifier prefix, `matrix-`. A convention rather than a
 // list, so that adding a platform is adding a job and a row - never editing this file.
@@ -47,9 +52,16 @@ func checkSupportMatrix(root string) []string {
 		return []string{matrixFile + " is missing or empty - the support matrix is what the gate exists for"}
 	}
 
-	jobs, err := workflowJobs(root)
+	workflows, err := readWorkflows(root)
 	if err != nil {
 		return []string{err.Error()}
+	}
+
+	jobs := map[string]bool{}
+	for _, workflow := range workflows {
+		for _, job := range workflow.jobs {
+			jobs[workflow.file+":"+job] = true
+		}
 	}
 
 	var problems []string
@@ -78,18 +90,36 @@ func checkSupportMatrix(root string) []string {
 				"or a row somebody deleted", reference, matrixFile))
 	}
 
+	for _, workflow := range workflows {
+		for _, job := range workflow.jobs {
+			if !strings.HasPrefix(job, matrixPrefix) || workflow.needed[job] {
+				continue
+			}
+			problems = append(problems, fmt.Sprintf(
+				"%s:%s runs and no job in that workflow waits on it - a matrix job outside the "+
+					"reporting job's `needs` fails where nobody is told", workflow.file, job))
+		}
+	}
+
 	sort.Strings(problems)
 	return problems
 }
 
-// workflowJobs collects every job as `workflow.yml:job-id`.
-func workflowJobs(root string) (map[string]bool, error) {
+// workflow is one file's job identifiers and the set of identifiers some job in it waits on.
+type workflow struct {
+	file   string
+	jobs   []string
+	needed map[string]bool
+}
+
+// readWorkflows collects the jobs of every workflow, and which of them something waits on.
+func readWorkflows(root string) ([]workflow, error) {
 	entries, err := os.ReadDir(filepath.Join(root, workflowDir))
 	if err != nil {
 		return nil, fmt.Errorf("%s is not readable: %w", workflowDir, err)
 	}
 
-	jobs := map[string]bool{}
+	var workflows []workflow
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !strings.HasSuffix(name, ".yml") {
@@ -102,9 +132,56 @@ func workflowJobs(root string) (map[string]bool, error) {
 		if !found {
 			continue
 		}
+
+		current := workflow{file: name, needed: map[string]bool{}}
 		for _, match := range workflowJob.FindAllStringSubmatch(body, -1) {
-			jobs[name+":"+match[1]] = true
+			current.jobs = append(current.jobs, match[1])
+		}
+		for _, dependency := range dependencies(body) {
+			current.needed[dependency] = true
+		}
+		workflows = append(workflows, current)
+	}
+	return workflows, nil
+}
+
+// identifier matches a job identifier inside a `needs:` clause.
+var identifier = regexp.MustCompile(`[a-z][a-z0-9-]*`)
+
+// dependencies collects every job identifier something in the body waits on. Still not a YAML
+// parse, and for the reason the job regexp above is not one: what is wanted is a set of
+// identifiers, and each of the three forms `needs:` takes - one name, a flow sequence on one line
+// or several, a block of dashed entries - is a run of identifiers between that keyword and the
+// next line indented no deeper than it.
+func dependencies(body string) []string {
+	var found []string
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		keyword := strings.Index(line, "needs:")
+		// Only where `needs:` opens the line. Anywhere else it is prose in a comment, or the
+		// `needs` context inside an expression - neither declares a dependency.
+		if keyword < 0 || strings.TrimSpace(line[:keyword]) != "" {
+			continue
+		}
+		found = append(found, identifier.FindAllString(line[keyword+len("needs:"):], -1)...)
+
+		for _, next := range lines[i+1:] {
+			trimmed := strings.TrimSpace(next)
+			if trimmed == "" {
+				continue
+			}
+			if indentation(next) <= keyword {
+				break
+			}
+			if strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			found = append(found, identifier.FindAllString(next, -1)...)
 		}
 	}
-	return jobs, nil
+	return found
+}
+
+func indentation(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " "))
 }

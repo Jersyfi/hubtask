@@ -595,6 +595,35 @@ else
 fi
 rm -f "$WORKFLOW"
 
+# And the third direction: a matrix job with a row, run by nobody's `needs`. That one is not a
+# documentation defect at all - the row and the job agree - it is a job whose failure reaches no
+# issue, which is the shape `matrix-hubctl` was in. The probe therefore has to supply both halves,
+# or the gate would go red for the direction above instead and prove nothing.
+CHECKS=$((CHECKS + 1))
+cp "$MATRIX" "$MATRIX.selftest-backup"
+printf '\n| Probe | `supported` | `gate-selftest-probe.yml:matrix-unwatched` |\n' >> "$MATRIX"
+cat > "$WORKFLOW" <<'PROBE'
+name: Selftest probe
+on: workflow_dispatch
+jobs:
+  matrix-unwatched:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "a matrix job no reporting job waits on"
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "and the reporting job that does not wait on it"
+PROBE
+if make --no-print-directory gate-docs >/dev/null 2>&1; then
+	printf '  FAILED  %-44s make gate-docs stayed green\n' "a matrix job nothing waits on"
+	FAILURES=$((FAILURES + 1))
+else
+	printf '  ok      %-44s caught by make gate-docs\n' "a matrix job nothing waits on"
+fi
+rm -f "$WORKFLOW"
+mv "$MATRIX.selftest-backup" "$MATRIX"
+
 header "The Go version (make gate-docs)"
 
 # The Go version stands in seventeen places across eight files, and nothing kept them in step. A

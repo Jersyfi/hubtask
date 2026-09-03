@@ -255,8 +255,40 @@ if [ "${announced:-0}" -lt 1 ]; then
 fi
 
 # And SLO-5's own number exists in the scrape rather than only in the code.
-if ! curl -fsS "http://127.0.0.1:$OPS_PORT/metrics" | grep -q "^hubtask_reminder_delivery_delay_seconds"; then
+#
+# Read once into a variable, and a scrape that did not answer told apart from one that answered
+# without the series. The two used to share a single message, which is how a nightly under Podman
+# spent two runs reporting "the histogram is missing" about an operations port that may simply have
+# refused the connection - nothing was printed either way, so nobody could tell (#119). Podman
+# publishes a port through a userspace proxy, and a connection to one can be refused while it is
+# still settling; Docker's does not behave the same way, which is why this only ever showed there.
+#
+# The retry is for the port, not for the metric. The sample is recorded inside the transaction that
+# marks the reminder SENT (core/application/service/work/FireReminders.go), so by the time the row
+# above reads SENT the histogram already holds its data point: a scrape that answers and does not
+# carry the series is a real defect, and the series it does carry are printed to say which one.
+scrape=""
+scrape_started=$SECONDS
+while [ $((SECONDS - scrape_started)) -lt 30 ]; do
+	if scrape="$(curl -fsS "http://127.0.0.1:$OPS_PORT/metrics")"; then
+		break
+	fi
+	scrape=""
+	sleep 2
+done
+
+if [ -z "$scrape" ]; then
+	echo "FAILED: the operations port served no /metrics within 30s"
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" ps
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 50
+	exit 1
+fi
+
+if ! grep -q "^hubtask_reminder_delivery_delay_seconds" <<< "$scrape"; then
 	echo "FAILED: the reminder delay histogram is missing from the scrape"
+	echo "--- the reminder and notification series the scrape does carry ---"
+	grep -oE "^hubtask_(reminder|notification)[a-z_]*" <<< "$scrape" | sort -u || true
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 50
 	exit 1
 fi
 
