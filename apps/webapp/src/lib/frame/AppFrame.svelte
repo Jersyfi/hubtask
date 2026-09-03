@@ -15,7 +15,9 @@
 
   import HealthNotice from './HealthNotice.svelte';
 
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { actor } from '../data/account.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
   import { MATURITY, shouldAnnounce } from '../maturity.ts';
   import type { Resolution } from '../router.ts';
 
@@ -31,6 +33,26 @@
   // client that did would need somewhere to keep it - which is the platform seam's question and
   // F6's storage port, not this component's.
   let dismissed = $state(false);
+
+  // Who is signed in, read once the frame is up. Nothing is requested without a bearer, so today
+  // this is a no-op - F1-11 is what puts a token behind the seam.
+  $effect(() => actor.start());
+
+  /**
+   * The one place the language is decided, because it is the one place that knows both halves:
+   * what the reader prefers (their account, then their browser) and what the installation has
+   * (the manifest). `i18n-l10n.md` §2's order, with the parenthesis that inverts its top - the
+   * account wins over `Accept-Language`, which is what answers before there is an account.
+   *
+   * It runs again whenever either half changes, which is what makes the manifest's arrival turn
+   * the document round on an installation that serves a right-to-left locale.
+   */
+  $effect(() => {
+    messages.adopt(
+      { account: actor.locale, requested: navigator.languages },
+      manifest.supportedLocales,
+    );
+  });
 
   const links = [
     { path: '/', name: 'home', label: 'app.nav.home' },

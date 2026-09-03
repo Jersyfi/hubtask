@@ -21,7 +21,6 @@
 
 import type { Capabilities, ResourceState } from '@hubtask/sync-engine';
 
-import { messages } from '../i18n/i18n.svelte.ts';
 import type { SupportedLocale } from '../i18n/locale.ts';
 import { engine } from './engine.ts';
 
@@ -63,18 +62,14 @@ class Manifest {
   /**
    * Starts the one read, and returns the function that stops listening.
    *
-   * The locale is adopted the moment the manifest lands: until then the client speaks what the
-   * browser asked for out of what this build carries, and afterwards it speaks what the browser
-   * asked for out of what the *installation* has. That is the manifest driving something visible
-   * rather than being fetched and ignored — on an installation with `ar` it turns the document
-   * round.
+   * It holds the manifest and applies nothing. What the supported locales *do* - decide which
+   * language the document speaks and which way it runs - happens in one place in the frame, which
+   * is the only place that also knows the account's preference; a data module that set an
+   * attribute of its own would be the second answer to "which locale".
    */
   start(): () => void {
     return engine.subscribe<Capabilities>({ path: PATH }, (next) => {
       this.#state = next;
-      if (next.status === 'ready') {
-        messages.adopt({ requested: navigator.languages }, this.supportedLocales);
-      }
     });
   }
 
