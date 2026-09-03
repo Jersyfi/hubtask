@@ -15,6 +15,8 @@ export { default as Stack } from './Stack.svelte';
 export { default as VisuallyHidden } from './VisuallyHidden.svelte';
 
 // Wave 1 - the icon, and the eight a form is made of.
+export { default as Avatar } from './Avatar.svelte';
+export { default as AvatarGroup } from './AvatarGroup.svelte';
 export { default as Badge } from './Badge.svelte';
 export { default as Banner } from './Banner.svelte';
 export { default as Button } from './Button.svelte';
