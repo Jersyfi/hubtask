@@ -74,10 +74,11 @@ pnpm workbench:build  # a static copy of it, into dist/workbench/
 
 From the repository root, `make tokens` does the same as `pnpm build`.
 
-`reference/foundations.html` is the visual acceptance reference for the **tokens**: open it after
-a change and both modes must still look right. It imports the generated stylesheet and declares no
-value of its own. It is retired at the end of wave 1, once the foundations pages are generated
-from `tokens.json` rather than written by hand ([ADR-0037](../../docs/adr/ADR-0037-component-workbench.md)).
+The visual acceptance reference for the **tokens** is the workbench's `Foundations/Tokens`
+stories: `make workbench`, Theme set to Both, and after a token change both modes must still look
+right. They are generated from `dist/tokens.ts` and declare no value of their own, which is what
+ADR-0037 made the condition for retiring the hand-written `reference/foundations.html`
+([ADR-0037](../../docs/adr/ADR-0037-component-workbench.md)).
 
 ## The workbench
 
