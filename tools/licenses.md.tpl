@@ -3,7 +3,16 @@
 It lists what the binary links, with the licence each dependency carries and a link to the text.
 The point is not ceremony: BSL 1.1 converts to Apache-2.0 after three years, and a dependency
 whose licence forbids that would make the conversion impossible - so the list is also the record
-that none of them does. */ -}}
+that none of them does.
+
+The link is **derived from the module path** rather than taken from `{{ .LicenseURL }}`, and that
+is the difference between a generated file that can be checked and one that cannot.
+`go-licenses` resolves that URL over the network while it writes, and emits `Unknown` when the
+lookup fails - so two runs of the same command produced two different files, and the gate that
+compares the result byte for byte went red on pull requests that touched no Go file at all. Every
+other field here comes from the module graph and is deterministic; this one was the only reason
+the file was not. `pkg.go.dev` shows the licence text for any public module, needs no lookup to
+address, and survives a repository move, which the previous URL did not. */ -}}
 # Third-party licences
 
 Hubtask itself is licensed under BUSL-1.1 (see [LICENSE](./LICENSE)) and converts to Apache-2.0
@@ -46,5 +55,5 @@ itself a fork of Feather (MIT), and its LICENSE carries both notices.
 
 | Dependency | Licence |
 |---|---|
-{{ range . }}{{ if ne .Name "github.com/Jersyfi/hubtask" }}| [{{ .Name }}]({{ .LicenseURL }}) | {{ .LicenseName }} |
+{{ range . }}{{ if ne .Name "github.com/Jersyfi/hubtask" }}| [{{ .Name }}](https://pkg.go.dev/{{ .Name }}?tab=licenses) | {{ .LicenseName }} |
 {{ end }}{{ end }}
