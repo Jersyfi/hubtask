@@ -124,7 +124,8 @@ func TestUnusedCatalogueEntriesAreReported(t *testing.T) {
 		if bare, ok := strings.CutPrefix(key, "errors."); ok {
 			needle = bare
 		}
-		if !strings.Contains(source, `"`+needle+`"`) {
+		// Both quote styles: Go writes "route.unknown" and the client writes 'route.unknown'.
+		if !strings.Contains(source, `"`+needle+`"`) && !strings.Contains(source, `'`+needle+`'`) {
 			t.Logf("note: %s is in the catalogue but used nowhere", key)
 		}
 	}
@@ -167,12 +168,30 @@ func loadCatalogue(t *testing.T) map[string]string {
 	return messages
 }
 
+// readAllSources reads everything that can use a message code - which since F1-07 is both halves
+// of the product. The client renders the same catalogue from the same file
+// (apps/webapp/src/lib/i18n/catalogue.ts), so a key used only there is used, and a report that
+// called it unused would be a report nobody trusts. Reading the client's source is all this does;
+// nothing here builds it, and `go test ./...` still runs in a checkout where Node never was.
+var codeUsingSources = []string{
+	"../../core", "../../infrastructure", "../../presentation", "../../cmd", "../../apps/webapp/src",
+}
+
+func isCodeUsingSource(path string) bool {
+	for _, extension := range []string{".go", ".ts", ".svelte"} {
+		if strings.HasSuffix(path, extension) {
+			return true
+		}
+	}
+	return false
+}
+
 func readAllSources(t *testing.T) string {
 	t.Helper()
 	var b strings.Builder
-	for _, root := range []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"} {
+	for _, root := range codeUsingSources {
 		err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			if err != nil || d.IsDir() || !isCodeUsingSource(path) {
 				return err
 			}
 			source, rerr := os.ReadFile(path)
