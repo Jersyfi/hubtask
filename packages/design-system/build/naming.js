@@ -25,6 +25,13 @@ export const PRIMITIVE_PREFIX = {
   breakpoint: 'bp',
 };
 
+/**
+ * The two mode-independent roots, and the prefix each takes. They sit beside `primitive` and
+ * `semantic` rather than inside either: a motion role is not a colour and so has no light and dark
+ * to declare, and a density step is a mode of its own that is orthogonal to the theme.
+ */
+export const ROLE_PREFIX = { motion: 'motion', density: 'density' };
+
 /** Colour families whose token name is shorter than their source name. */
 export const FAMILY_ALIAS = { neutral: 'n' };
 
@@ -52,6 +59,17 @@ export function cssName(path) {
   if (root === 'semantic') {
     const [, , semanticGroup, ...tail] = path; // path[1] is the mode, which the name drops
     return [SEMANTIC_ALIAS[semanticGroup] ?? semanticGroup, ...tail].join('-');
+  }
+  if (root === 'motion') {
+    // `motion.entrance.duration` -> `--motion-entrance-duration`. No mode: a role means the same
+    // thing in both themes, which is the reason it is not under `semantic`.
+    return [ROLE_PREFIX.motion, ...path.slice(1)].join('-');
+  }
+  if (root === 'density') {
+    // `density.compact.control.md.block` -> `--density-control-md-block`. path[1] is the density
+    // mode and the name drops it, exactly as the theme mode is dropped above: the two modes
+    // declare one vocabulary and differ only in what it resolves to.
+    return [ROLE_PREFIX.density, ...path.slice(2)].join('-');
   }
   throw new Error(`unexpected token root "${root}" in ${path.join('.')}`);
 }
