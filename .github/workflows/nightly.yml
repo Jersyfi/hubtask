@@ -263,7 +263,14 @@ jobs:
     # A nightly failure that only exists as a red run in a tab nobody opens is a failure nobody
     # fixes. This turns it into an issue - one per failing job, deduplicated across nights, with
     # the label that lets the CI assistant open a pull request against it.
-    needs: [deep, matrix-arm64, matrix-postgres, matrix-podman, matrix-kind, vulnerabilities, action-pins]
+    #
+    # `needs` is the watch list, and it has to be the whole watch list: `matrix-hubctl` was missing
+    # from it, so three rows of the support matrix - hubctl on Linux arm64, macOS and Windows -
+    # were proven by a job whose failure nobody would ever have been told about. A run that is red
+    # where nobody looks is the same thing as a row nothing proves.
+    needs:
+      [deep, matrix-arm64, matrix-postgres, matrix-podman, matrix-hubctl, matrix-kind,
+       vulnerabilities, action-pins]
     if: failure()
     runs-on: ubuntu-latest
     permissions:
