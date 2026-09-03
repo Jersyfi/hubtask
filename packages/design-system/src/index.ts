@@ -24,6 +24,7 @@ export { default as Checkbox } from './Checkbox.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as IconButton } from './IconButton.svelte';
 export { default as Input } from './Input.svelte';
+export { default as Popover } from './Popover.svelte';
 export { default as Radio } from './Radio.svelte';
 export { default as Select } from './Select.svelte';
 export { default as Spinner } from './Spinner.svelte';
@@ -49,6 +50,8 @@ export {
 } from './positioning.ts';
 
 export { escapeHandler, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
+
+export { openOverlay, type OverlayOptions } from './overlay.ts';
 
 export { BASE_ICONS, CUSTOM_ICONS, ICON_NAMES, ICONS, type IconName, type IconNode } from './icons/index.ts';
 
