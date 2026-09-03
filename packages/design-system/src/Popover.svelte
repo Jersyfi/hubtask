@@ -105,7 +105,7 @@
     color: var(--text-primary);
     font-size: var(--fs-100);
     text-align: start;
-    animation: open var(--dur-fast) var(--ease-entrance) both;
+    animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
   }
 
   /* Opacity alone, and the `transform` that used to be here is the reason why. `animation-fill-mode:

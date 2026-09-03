@@ -35,24 +35,45 @@ function cssValue(token) {
 
 const isPrimitive = (t) => t.path[0] === 'primitive';
 const inMode = (mode) => (t) => t.path[0] === 'semantic' && t.path[1] === mode;
+const isMotion = (t) => t.path[0] === 'motion';
+const inDensity = (mode) => (t) => t.path[0] === 'density' && t.path[1] === mode;
+
+/** The density modes, in the order the stylesheet declares them. `comfortable` is also the default. */
+const DENSITY_MODES = ['comfortable', 'compact'];
 
 function declarations(tokens, indent = '  ') {
   return tokens.map((t) => `${indent}--${cssName(t.path)}: ${cssValue(t)};`).join('\n');
 }
 
 /**
- * cssFormat writes the primitives to `:root` and each semantic mode to its own `[data-theme]`
- * block, which is exactly the structure tokens.json declares. There is deliberately no fallback
- * for a document without `data-theme`: a page that forgets it should look broken immediately
- * rather than silently pick a mode nobody chose.
+ * cssFormat writes the primitives and the motion roles to `:root`, each semantic mode to its own
+ * `[data-theme]` block, and each density mode to its own `[data-density]` block - exactly the
+ * structure tokens.json declares.
+ *
+ * The two mode axes are deliberately treated differently, and the asymmetry is the point. There is
+ * no fallback for a document without `data-theme`: a page that forgets it should look broken
+ * immediately rather than silently pick a mode nobody chose, because neither light nor dark is
+ * right in the absence of a choice. Density does have a right answer in that absence - `comfortable`
+ * is the accessible baseline and `compact` is the opt-in - so `:root` carries it, and a page that
+ * forgets `data-density` gets more air rather than none.
  */
 export const cssFormat = ({ dictionary }) => {
   const all = dictionary.allTokens;
+  const [defaultDensity] = DENSITY_MODES;
   const blocks = [
-    `:root {\n${declarations(all.filter(isPrimitive))}\n}`,
+    `:root {\n${declarations([...all.filter(isPrimitive), ...all.filter(isMotion)])}\n}`,
     ...['light', 'dark'].map(
       (mode) => `[data-theme="${mode}"] {\n${declarations(all.filter(inMode(mode)))}\n}`,
     ),
+    ...DENSITY_MODES.map((mode) => {
+      // The default is declared on `:root` as well as on its own attribute, so that setting the
+      // attribute explicitly and leaving it off produce the same page rather than two.
+      const selector =
+        mode === defaultDensity
+          ? `:root,\n[data-density="${mode}"]`
+          : `[data-density="${mode}"]`;
+      return `${selector} {\n${declarations(all.filter(inDensity(mode)))}\n}`;
+    }),
   ];
   return `${BANNER('Hubtask design tokens as CSS custom properties.')}\n\n${blocks.join('\n\n')}\n`;
 };
@@ -102,6 +123,12 @@ export const tsFormat = ({ dictionary }) => {
     '/** The primitive layer, as custom properties. Application code binds to `tokens` instead. */',
     `export const primitive = ${literal(nest(all.filter(isPrimitive), varOf, 1))} as const;`,
     '',
+    '/** What a movement is for. A component names a role; the duration and easing behind it are decided once. */',
+    `export const motion = ${literal(nest(all.filter(isMotion), varOf, 1))} as const;`,
+    '',
+    '/** How much air a region carries. Both modes declare one vocabulary; `data-density` chooses. */',
+    `export const density = ${literal(nest(all.filter(inDensity(DENSITY_MODES[0])), varOf, 2))} as const;`,
+    '',
     '/** Resolved literals per mode, for the few consumers that cannot use a custom property. */',
     `export const values = ${literal({
       light: nest(all.filter(inMode('light')), (t) => String(t.$value), 2),
@@ -109,6 +136,8 @@ export const tsFormat = ({ dictionary }) => {
     })} as const;`,
     '',
     "export type ThemeMode = 'light' | 'dark';",
+    `export type DensityMode = ${DENSITY_MODES.map((m) => `'${m}'`).join(' | ')};`,
+    'export type MotionRole = keyof typeof motion;',
     'export type Tokens = typeof tokens;',
     '',
     '/** The ten label colours a `colorToken` may name. The backend validates against this list. */',

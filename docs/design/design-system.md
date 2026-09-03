@@ -232,6 +232,13 @@ Prop:               camelCase, question for booleans  size, tone, isDisabled, ha
 States (`hover`, `pressed`, `focus`, `disabled`) are never variants, always CSS states. A variant
 matrix that contains states explodes.
 
+**`size` and density are two different questions and neither is the other's third value.** `size`
+says how prominent one control is beside another and is a prop, because that is a decision per
+control. Density says how much air a whole region carries and is `data-density` on an ancestor,
+because a list does not want each of its rows told individually. The two multiply rather than merge:
+`sm` in a compact region is the tightest control the tokens allow, and it is still 24 px, which is
+where WCAG 2.2 SC 2.5.8 puts the floor.
+
 ---
 
 ## 6. The six rules
@@ -374,11 +381,21 @@ teaches the screenshots.
   an implementation one. [ADR-0039](../adr/ADR-0039-overlay-positioning.md) was accepted without
   it, because its choice is correct whichever shape the row takes; what the row decides is how long
   that ADR's fallback has to live.
-- **Named motion roles** — four easings and six durations exist, but nothing says which is
-  *entrance*, which is *exit*, which is *emphasis* and which carries a celebration slot. Rule 6 and
-  §7 both talk about motion in terms the tokens cannot currently express.
-- **Density** — §5 has a `size` prop and no density decision. A task tool with long lists needs
-  one, and it is far cheaper before wave 1 than after wave 3.
+- ~~**Named motion roles**~~ — closed by F2-01. `motion.<role>` pairs a duration with an easing for
+  seven roles: `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis` and `celebration`. The
+  gap was not theoretical — five components animated a surface arriving and three of them used a
+  different duration from the other two. `attach` and `entrance` are that disagreement resolved
+  rather than averaged: a tooltip against the pointer and a dialog arriving away from it are
+  different roles, not one role at two speeds. `--dur-instant` stays a primitive, because rule 6's
+  floor is the *absence* of movement and a role for it would be a pair whose easing never applies.
+- ~~**Density**~~ — closed by F2-01. It is a property of the **region**, not of the component:
+  `data-density` on an ancestor, the way the theme travels as `data-theme`
+  ([ADR-0043](../adr/ADR-0043-theme-per-device.md)), so a list of two hundred rows is told once
+  rather than two hundred times. `size` therefore keeps its own meaning — how prominent one control
+  is next to another — instead of being overloaded. Unlike the theme it has a default in `:root`,
+  because `comfortable` is right in the absence of a choice where neither light nor dark is. No
+  step in either mode puts a target below 24 px: WCAG 2.2 SC 2.5.8 is a floor rather than a taste,
+  and the token test fails below it.
 - **The AI surface treatment** — §4 asks one component, `AISuggestion`, to make AI "visually
   separable" and to disappear "without residue" when AI is switched off. That is a foundation with
   its own colour, elevation, motion and tone, not a row in a component table.

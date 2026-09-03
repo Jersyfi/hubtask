@@ -122,7 +122,7 @@
     overflow: auto;
     /* Rule 1: raised off the page it covers. */
     box-shadow: var(--shadow-overlay);
-    animation: open var(--dur-base) var(--ease-entrance) both;
+    animation: open var(--motion-entrance-duration) var(--motion-entrance-easing) both;
   }
 
   .dialog::backdrop {

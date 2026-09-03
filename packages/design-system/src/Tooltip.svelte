@@ -121,7 +121,7 @@
     line-height: var(--lh-snug);
     text-align: start;
     pointer-events: none;
-    animation: appear var(--dur-fast) var(--ease-entrance) both;
+    animation: appear var(--motion-attach-duration) var(--motion-attach-easing) both;
   }
 
   /* Opacity alone, and the `transform` that used to be here is the reason why. `animation-fill-mode:

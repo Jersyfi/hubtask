@@ -66,7 +66,7 @@
     font-size: var(--fs-100);
     text-align: start;
     /* Rule 6: it arrives on opacity and transform, so nothing around it moves. */
-    animation: arrive var(--dur-base) var(--ease-entrance) both;
+    animation: arrive var(--motion-entrance-duration) var(--motion-entrance-easing) both;
   }
 
   @keyframes arrive {
