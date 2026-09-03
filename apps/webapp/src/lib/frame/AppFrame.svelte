@@ -11,11 +11,12 @@
 
   import type { Snippet } from 'svelte';
 
-  import { Banner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Inline, Stack } from '@hubtask/design-system/components';
 
   import HealthNotice from './HealthNotice.svelte';
 
   import { actor } from '../data/account.svelte.ts';
+  import { session } from '../session.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { MATURITY, shouldAnnounce } from '../maturity.ts';
@@ -34,9 +35,13 @@
   // F6's storage port, not this component's.
   let dismissed = $state(false);
 
-  // Who is signed in, read once the frame is up. Nothing is requested without a bearer, so today
-  // this is a no-op - F1-11 is what puts a token behind the seam.
-  $effect(() => actor.start());
+  // Who is signed in, read once the frame is up - and read again whenever that changes, which is
+  // what the `session.status` below is doing in an effect that otherwise depends on nothing. A
+  // subscription taken before a sign-in would be a subscription the sign-out already dropped.
+  $effect(() => {
+    void session.status;
+    return actor.start();
+  });
 
   /**
    * The one place the language is decided, because it is the one place that knows both halves:
@@ -64,17 +69,31 @@
   <header class="bar">
     <!-- A name rather than a message: the product is called Hubtask in every language. -->
     <a class="wordmark" href="/">Hubtask</a>
-    <nav aria-label={t('app.nav.home')}>
-      <ul>
-        {#each links as link (link.path)}
-          <li>
-            <a href={link.path} aria-current={route.name === link.name ? 'page' : undefined}>
-              {t(link.label)}
-            </a>
-          </li>
-        {/each}
-      </ul>
-    </nav>
+    <!-- Signed out there is nowhere to go but the token screen, so the frame offers nothing that
+         would land there under another name. -->
+    {#if session.isSignedIn}
+      <nav aria-label={t('app.nav.home')}>
+        <ul>
+          {#each links as link (link.path)}
+            <li>
+              <a href={link.path} aria-current={route.name === link.name ? 'page' : undefined}>
+                {t(link.label)}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </nav>
+      <div class="actor">
+        <Inline gap="150" align="center">
+          {#if actor.account}
+            <span class="who">{t('app.signed_in_as', { name: actor.account.display_name })}</span>
+          {/if}
+          <Button size="sm" tone="subtle" icon="log-out" onclick={() => session.signOut()}>
+            {t('app.sign_out')}
+          </Button>
+        </Inline>
+      </div>
+    {/if}
   </header>
 
   <div class="notices">
@@ -115,7 +134,7 @@
   .bar {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     gap: var(--sp-300);
     padding-block-end: var(--sp-200);
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
@@ -162,6 +181,11 @@
   }
 
   .notices:empty { display: none; }
+
+  /* Pushed to the far edge of the bar, in both directions. */
+  .actor { margin-inline-start: auto; }
+
+  .who { color: var(--text-subtle); font-size: var(--fs-075); }
 
   main { flex: 1; }
 </style>

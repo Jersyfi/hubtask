@@ -13,8 +13,10 @@
   import AppFrame from './lib/frame/AppFrame.svelte';
   import { t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
+  import { session } from './lib/session.svelte.ts';
   import HomeView from './views/HomeView.svelte';
   import InstallationView from './views/InstallationView.svelte';
+  import SignInView from './views/SignInView.svelte';
 
   const router = new Router([
     { name: 'home', pattern: '/' },
@@ -30,10 +32,23 @@
       stop();
     };
   });
+
+  // Signing in again returns the reader to what they were looking at when the session ended. The
+  // path is taken once: one that navigated twice would fight the reader's next click.
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    const intended = session.takeIntendedPath();
+    if (intended && intended !== route.path) router.navigate(intended);
+  });
 </script>
 
 <AppFrame {route}>
-  {#if route.name === 'home'}
+  <!-- Nothing here is usable without a credential, and the token screen is what asks for one. The
+       route is left alone while it is shown, so that the address the reader arrived at is still
+       the address they land on afterwards. -->
+  {#if !session.isSignedIn}
+    <SignInView />
+  {:else if route.name === 'home'}
     <HomeView />
   {:else if route.name === 'installation'}
     <InstallationView />

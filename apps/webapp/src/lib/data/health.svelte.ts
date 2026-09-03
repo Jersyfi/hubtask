@@ -69,7 +69,12 @@ class Health {
    * that knows, and it answers `undefined` until F1-11 puts a token behind it.
    */
   start(): () => void {
-    if (platform.bearer() === undefined) return () => {};
+    if (platform.bearer() === undefined) {
+      // Nobody is signed in, so nothing is known - including whatever a previous session read.
+      // `engine.reset()` drops the engine's copy on sign-out; this drops this module's.
+      this.#state = { status: 'idle' };
+      return () => {};
+    }
 
     return engine.subscribe<HealthReport>({ path: PATH }, (next) => {
       // A refusal is an answer about *this reader*, not about the installation. It leaves the
