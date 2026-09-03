@@ -156,6 +156,29 @@ test('unsubscribing stops the listener and leaves the state', async () => {
   assert.equal(engine.peek(ME).status, 'ready');
 });
 
+test('a refused credential is reported once, from wherever it was refused', async () => {
+  // The engine is the only place that sees every 401. A client that noticed a dead token on one
+  // screen and not on another would keep making requests with a credential it already knows about.
+  const refused = new TransportError('problem', { status: 401, code: 'unauthenticated' });
+  const transport = new FakeTransport().fail('/accounts/me', refused).fail('/items', refused);
+  let refusals = 0;
+  const engine = new SyncEngine({ transport, onUnauthorized: () => (refusals += 1) });
+
+  await engine.refresh(ME);
+  assert.equal(refusals, 1, 'a read that was refused');
+
+  await assert.rejects(() => engine.mutate('POST', '/items', {}));
+  assert.equal(refusals, 2, 'and a write, which never reaches a resource state');
+});
+
+test('a failure that is not a refusal says nothing about the credential', async () => {
+  const transport = new FakeTransport().fail('/accounts/me', new TransportError('problem', { status: 500 }));
+  let refusals = 0;
+  const engine = new SyncEngine({ transport, onUnauthorized: () => (refusals += 1) });
+  await engine.refresh(ME);
+  assert.equal(refusals, 0);
+});
+
 test('reset forgets everything, which is what sign-out means', async () => {
   const transport = new FakeTransport().answer('/accounts/me', { id: 'a1' });
   const engine = new SyncEngine({ transport });

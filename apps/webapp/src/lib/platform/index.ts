@@ -24,15 +24,30 @@ export interface Platform {
    * The bearer for an API call, or `undefined` when nobody is signed in.
    *
    * A function rather than a value, and here rather than in the sync engine, because *where* a
-   * token is kept is exactly what differs between targets: the browser holds it in memory for the
-   * tab's lifetime, and the shells hold it in the platform keystore (ADR-0031). The engine asks
-   * per call so that a refresh, or a sign-out, is seen by the next request rather than by the
-   * next reload.
-   *
-   * F1-11 puts a real token behind it. Until then it answers `undefined`, which is the honest
-   * state of an application nobody has signed into.
+   * token is kept is exactly what differs between targets: the browser holds it for the tab's
+   * lifetime, and the shells hold it in the platform keystore (ADR-0031). The engine asks per call
+   * so that a refresh, or a sign-out, is seen by the next request rather than by the next reload.
    */
   bearer(): string | undefined;
+
+  /**
+   * Holds a bearer for the calls that follow.
+   *
+   * **Temporary, and the milestone that replaces it is named:** a personal access token typed by
+   * the person using it is what F1 can honestly build, because `api/openapi.yaml` declares one
+   * security scheme and no login route. Session management and the OIDC connection are `0.6.0`,
+   * and they replace this method and everything behind it - the browser keeps its token where
+   * script can reach it, and a session the browser holds instead is the point of that work.
+   */
+  holdBearer(token: string): void;
+
+  /**
+   * Forgets it. What sign-out calls, and what a `401` calls before returning to the token screen.
+   *
+   * The credential only; everything else the client holds is dropped by the caller
+   * (`offline-sync.md` §9.6), because this seam knows about a token and not about a cache.
+   */
+  releaseBearer(): void;
 }
 
 export { platform } from './browser.ts';

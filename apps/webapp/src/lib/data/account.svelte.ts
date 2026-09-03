@@ -45,7 +45,12 @@ class Actor {
   }
 
   start(): () => void {
-    if (platform.bearer() === undefined) return () => {};
+    if (platform.bearer() === undefined) {
+      // Nobody is signed in, so nothing is known - including whatever a previous session read.
+      // `engine.reset()` drops the engine's copy on sign-out; this drops this module's.
+      this.#state = { status: 'idle' };
+      return () => {};
+    }
 
     return engine.subscribe<Account>({ path: PATH }, (next) => {
       if (next.status === 'failed' && (next.error.status === 401 || next.error.status === 403)) {

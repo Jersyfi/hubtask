@@ -58,6 +58,16 @@ export interface SyncEngineOptions {
    * copy that keeps working after a sign-out.
    */
   readonly token?: () => string | undefined;
+  /**
+   * Called when the server refuses the credential - any request, any resource.
+   *
+   * This is the only place that sees every `401`, which is why the hook is here rather than in a
+   * caller: a client that noticed a rejected token on one screen and not on another would keep
+   * making requests with a credential it already knows is dead. It is a callback and not a
+   * policy - what happens next (clear the token, remember the path, show the sign-in screen) is
+   * the application's, and this package holds no opinion about screens.
+   */
+  readonly onUnauthorized?: () => void;
 }
 
 /**
@@ -74,11 +84,13 @@ export class SyncEngine {
   readonly #token: () => string | undefined;
   /** One entry per path, so two components asking for the same thing share one state. */
   readonly #resources = new Map<string, ResourceEntry<unknown>>();
+  readonly #onUnauthorized: () => void;
 
   constructor(options: SyncEngineOptions) {
     this.#transport = options.transport;
     this.#clock = options.clock ?? systemClock;
     this.#token = options.token ?? (() => undefined);
+    this.#onUnauthorized = options.onUnauthorized ?? (() => {});
   }
 
   /**
@@ -127,7 +139,13 @@ export class SyncEngine {
     body: unknown,
     options: { idempotencyKey?: string; timeoutMs?: number } = {},
   ): Promise<T> {
-    const answer = await this.#transport.send<T>(method, path, body, this.#options(options));
+    let answer;
+    try {
+      answer = await this.#transport.send<T>(method, path, body, this.#options(options));
+    } catch (cause) {
+      this.#noticeRefusal(cause);
+      throw cause;
+    }
     // A write invalidates what was read: the next subscriber loads again rather than being handed
     // a document the write has just changed.
     this.#resources.clear();
@@ -161,7 +179,13 @@ export class SyncEngine {
         ? cause
         : new TransportError('malformed', { cause });
       this.#publish(entry, { status: 'failed', error });
+      this.#noticeRefusal(error);
     }
+  }
+
+  /** A refused credential, told once to whoever asked to be told. */
+  #noticeRefusal(cause: unknown): void {
+    if (cause instanceof TransportError && cause.status === 401) this.#onUnauthorized();
   }
 
   #publish<T>(entry: ResourceEntry<T>, state: ResourceState<T>): void {

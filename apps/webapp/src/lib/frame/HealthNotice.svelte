@@ -13,8 +13,14 @@
 
   import { health } from '../data/health.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { session } from '../session.svelte.ts';
 
-  $effect(() => health.start());
+  // Read again when the session changes: without a bearer there is nothing to read, and the
+  // subscription taken before somebody signed in is one the sign-out already dropped.
+  $effect(() => {
+    void session.status;
+    return health.start();
+  });
 </script>
 
 {#if health.isTroubled}
