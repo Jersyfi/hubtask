@@ -31,6 +31,17 @@ export interface RequestOptions {
    * - a request nobody is waiting for any more, still holding a connection.
    */
   readonly timeoutMs: number;
+  /**
+   * The `If-Match` for a write against a version the caller has read.
+   *
+   * Absent where the operation does not declare one, for the reason `idempotencyKey` is: a header
+   * an endpoint ignores teaches a client a habit the server does not keep. A failed precondition
+   * comes back as `409 version_conflict` and not as `412` - that is
+   * [ADR-0025](../../../docs/adr/ADR-0025-precondition-failures.md)'s decision, taken because both
+   * branches of the recovery are the same one (re-read, reapply) and a second status leading to
+   * the same action is a second thing to document, translate and support for no behavioural gain.
+   */
+  readonly ifMatch?: string;
   /** Lets a caller abandon the call for its own reasons, on top of the deadline. */
   readonly signal?: AbortSignal;
 }

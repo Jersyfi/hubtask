@@ -79,6 +79,21 @@ export class TransportError extends Error {
     this.requestId = init.requestId;
   }
 
+  /**
+   * Whether the write lost a race with another writer.
+   *
+   * Read off the code rather than the status, because `409` is not exclusively this - a container
+   * name that is already taken is refused with the same status and is a different sentence to a
+   * different person. ADR-0025 makes `version_conflict` the one answer to a failed `If-Match`, so
+   * the code is what identifies it and `412` never appears.
+   *
+   * The recovery is always the same and the UI owes the reader both halves of it: what they wrote
+   * is not lost, and the row moved underneath them. Re-read, then reapply.
+   */
+  get isVersionConflict(): boolean {
+    return this.code === 'version_conflict' || this.detailCode === 'version_conflict';
+  }
+
   /** Whether trying the same call again could plausibly succeed. */
   get isRetryable(): boolean {
     if (this.kind === 'timeout' || this.kind === 'offline') return true;
