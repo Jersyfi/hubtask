@@ -433,6 +433,10 @@ func (pending) MoveContainer(w http.ResponseWriter, r *http.Request, _ openapi.C
 	notAvailable(w, r)
 }
 
+func (pending) ReorderContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.ReorderContainerParams) {
+	notAvailable(w, r)
+}
+
 func (pending) ArchiveContainer(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.ArchiveContainerParams) {
 	notAvailable(w, r)
 }

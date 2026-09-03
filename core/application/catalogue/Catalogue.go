@@ -49,6 +49,7 @@ func Descriptors() []usecase.Descriptor {
 		work.ArchiveContainer{}.Descriptor(),
 		work.UnarchiveContainer{}.Descriptor(),
 		work.MoveContainer{}.Descriptor(),
+		work.ReorderContainer{}.Descriptor(),
 		work.TrashContainer{}.Descriptor(),
 		work.RestoreContainer{}.Descriptor(),
 		work.CreateBucket{}.Descriptor(),

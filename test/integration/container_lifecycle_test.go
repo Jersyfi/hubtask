@@ -433,6 +433,45 @@ func TestNeighboursReportsTheBoundsAndExcludesTheMover(t *testing.T) {
 	}
 }
 
+// The hub level, which is the case F2-04 rests on and the reason the query compares the parent with
+// IS NOT DISTINCT FROM rather than with `=`: a null parent has to mean "the hubs" and not "no
+// filter at all". A plain `parent_id = NULL` is never true, so this level would come back empty and
+// every hub would rank as though it were the only one.
+//
+// The keys sit in a band of their own because a hub level is the whole tenant, unlike a collection
+// level which is one hub: another test's hub is a sibling here, so the assertion is written to hold
+// whatever else the tenant contains rather than to require a level nobody else touched.
+func TestNeighboursReadsTheHubLevelWhereTheParentIsAbsent(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	repo := containerRepo()
+	below, anchor, mover := freshID(t), freshID(t), freshID(t)
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for id, key := range map[shared.ID]string{below: "z1", anchor: "z3", mover: "z5"} {
+			if err := repo.Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), key)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seeding the hub level: %v", err)
+	}
+
+	var previous, next string
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		// The empty parent is the hub level, which is what the port promises and what this proves.
+		previous, next, err = repo.Neighbours(ctx, "", anchor, mover)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the hub bounds: %v", err)
+	}
+	if previous != "z1" || next != "z3" {
+		t.Errorf("bounds (%q, %q), want (z1, z3) - the hub level did not resolve", previous, next)
+	}
+}
+
 // The cross-tenant negative test for all four writes and for Neighbours (gate SG-3): row level
 // security removes the row from the statement's reach, so the write matches nothing and the read
 // sees an empty level.
