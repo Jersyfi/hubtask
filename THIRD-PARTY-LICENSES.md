@@ -86,7 +86,7 @@ itself a fork of Feather (MIT), and its LICENSE carries both notices.
 | [go.opentelemetry.io/proto/otlp](https://github.com/open-telemetry/opentelemetry-proto-go/blob/otlp/v1.11.0/otlp/LICENSE) | Apache-2.0 |
 | [go.uber.org/multierr](https://github.com/uber-go/multierr/blob/v1.11.0/LICENSE.txt) | MIT |
 | [go.yaml.in/yaml/v3](https://github.com/yaml/go-yaml/blob/v3.0.5/LICENSE) | MIT |
-| [golang.org/x/crypto](https://cs.opensource.google/go/x/crypto/+/v0.55.0:LICENSE) | BSD-3-Clause |
+| [golang.org/x/crypto](https://cs.opensource.google/go/x/crypto/+/v0.56.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/exp/slices](https://cs.opensource.google/go/x/exp/+/764159d7:LICENSE) | BSD-3-Clause |
 | [golang.org/x/net](https://cs.opensource.google/go/x/net/+/v0.58.0:LICENSE) | BSD-3-Clause |
 | [golang.org/x/oauth2](https://cs.opensource.google/go/x/oauth2/+/v0.36.0:LICENSE) | BSD-3-Clause |
