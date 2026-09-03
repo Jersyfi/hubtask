@@ -256,6 +256,14 @@ apart so a component may sit one above its own layer without borrowing the next 
 number written at a call site is the failure this exists to prevent — five overlays each picking
 their own is five different answers to which is on top.
 
+Where the browser has it, an anchored overlay is raised into the **top layer** instead
+(`src/positioning.ts`, ADR-0039's module): the scale answers "what paints over what" only among
+elements in the same tree, and an overlay is otherwise laid out inside any ancestor that is a
+containing block for fixed elements — a transform, a filter, `contain` — and clipped by its
+`overflow`. That ancestor is not always ours: a card that lifts on hover is a transform, and a menu
+opened from inside it would be drawn in the card. The scale still decides for everything that stays
+in the flow, and it still decides on a browser without `showPopover`.
+
 What paints over what and what `Escape` reaches are **not the same question**, so they are not the
 same list. A tooltip paints above a dialog and is never closed by a key; a popover opened from
 inside a dialog is closed first, whatever order the two were opened in. `src/layers.ts` holds that

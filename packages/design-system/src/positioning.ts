@@ -232,6 +232,44 @@ export interface AnchorOptions {
  * positioning that is two declarations and no listeners; on one without, it is the same two
  * elements measured on open, on scroll and on resize.
  */
+/**
+ * Puts the overlay in the top layer, and returns the function that takes it out again.
+ *
+ * The top layer is what anchor positioning is designed to pair with, and it is the only answer to
+ * a question a stacking scale cannot reach: an overlay is laid out inside any ancestor that is a
+ * containing block for fixed elements - a transform, a filter, `contain` - and clipped by its
+ * `overflow`. That ancestor is not always ours. A card that lifts on hover is a transform, and a
+ * menu opened from inside it would be drawn in the card.
+ *
+ * `manual` rather than `auto`: light dismiss would close the overlay on its own and take the
+ * `Escape` the register in `layers.ts` is supposed to answer.
+ *
+ * Where the browser has no `showPopover` - older than anchor positioning, so always the fallback
+ * path - nothing is raised and the overlay stays where it was. The attribute is removed again on
+ * the way out *and* if raising fails, because a `[popover]` that was never shown is
+ * `display: none`, and an overlay nobody can see is worse than one drawn in the wrong place.
+ */
+function raise(overlay: HTMLElement): () => void {
+  if (typeof overlay.showPopover !== 'function') return () => {};
+
+  overlay.setAttribute('popover', 'manual');
+  try {
+    overlay.showPopover();
+  } catch {
+    overlay.removeAttribute('popover');
+    return () => {};
+  }
+
+  return () => {
+    try {
+      overlay.hidePopover();
+    } catch {
+      // Already hidden, or already gone from the document. Either way there is nothing to lower.
+    }
+    overlay.removeAttribute('popover');
+  };
+}
+
 export function anchorTo(
   trigger: HTMLElement,
   overlay: HTMLElement,
@@ -244,6 +282,11 @@ export function anchorTo(
   const target = stylesheet();
   const anchorRule = ruleFor(target, `[data-hbt-anchor='${id}']`);
   const overlayRule = ruleFor(target, `[data-hbt-anchored='${id}']`);
+  const lower = raise(overlay);
+
+  // The user agent gives a `[popover]` element `inset: 0` and centres it with `margin: auto`. Both
+  // paths below say where the overlay goes, so both have to say that they mean it.
+  overlayRule.style.setProperty('inset', 'auto');
 
   if (supportsAnchor()) {
     anchorRule.style.setProperty('anchor-name', `--${id}`);
@@ -253,6 +296,7 @@ export function anchorTo(
     // `flip-inline` are the two the sides above can need.
     overlayRule.style.setProperty('position-try-fallbacks', 'flip-block, flip-inline');
     return () => {
+      lower();
       drop(target, anchorRule);
       drop(target, overlayRule);
       delete trigger.dataset.hbtAnchor;
@@ -295,6 +339,7 @@ export function anchorTo(
   return () => {
     window.removeEventListener('scroll', update, true);
     window.removeEventListener('resize', update);
+    lower();
     drop(target, anchorRule);
     drop(target, overlayRule);
     delete trigger.dataset.hbtAnchor;
