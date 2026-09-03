@@ -343,8 +343,16 @@ and no merge appears anywhere in the package.
 *Depends on: F1-06 (Banner, Spinner, Dialog), F1-07 (text), F1-09 (the seam).*
 
 What every later view sits inside: the layout and navigation shell, the route table grown past its
-single entry, the theme following the system preference until an account preference overrides it
-(F1-08 makes that readable), and three things the server says about itself made visible.
+single entry, the theme following the system preference, and three things the server says about
+itself made visible.
+
+> **Corrected after the fact**, the way ADR-0025 corrected the criteria it invalidated: this task
+> asked for "the theme following the system preference **until an account preference overrides
+> it** (F1-08 makes that readable)". There is no such preference — `Account` carries `locale`,
+> `time_zone` and `week_start` and nothing about appearance — and
+> [ADR-0043](../adr/ADR-0043-theme-per-device.md) decided there should not be one: the theme is a
+> property of the device. What F1-08 made readable is the *language*, and that is what the frame
+> made override the browser. The line above is what was built and what is right.
 
 * **`/meta/capabilities`** is read once at start and held. Item types and their capability profiles,
   view layouts, query fields, supported locales with their direction, the installation's limits.

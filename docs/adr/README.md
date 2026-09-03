@@ -49,3 +49,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0040](./ADR-0040-no-imap-intake.md) | No IMAP intake: the webhook door is the mail door | accepted | Automation, mail, supply chain |
 | [0041](./ADR-0041-icon-set.md) | Lucide, cut down to a declared subset, behind one `Icon` | accepted | Design system, supply chain |
 | [0042](./ADR-0042-nats-client.md) | The NATS client library: nats.go, confined to one adapter | accepted | Events, integration, supply chain |
+| [0043](./ADR-0043-theme-per-device.md) | The theme is a property of the device, not of the account | accepted | Clients, design system, contract |
