@@ -196,6 +196,15 @@ tabbable would put six presses between a keyboard reader and the content under i
 the first user of the `overlay` rank, which is what makes a dialog opened from inside one close
 first.
 
+The other seven are a list and every state it can be in, and one of them is shaped by
+[`voice-and-tone.md`](./voice-and-tone.md) rather than by this page. §4 there says an empty list has
+**three** causes — nothing made yet, a filter excluded everything, the emptiness is the good outcome
+— and that one sentence cannot serve all three. So `EmptyState` takes a required `kind` with no
+default, and refuses the call to action on the third: §4.3 offers nothing, and a component that
+trusted every call site to remember would be trusting the wrong half. §4.4's "a failure is not an
+empty state" is why `ErrorState` is a component of its own rather than a fourth kind — the rule is
+structural, not reviewed.
+
 ### Wave 3 — Hubtask's own (≈ 20)
 
 | Component | Why it follows from the model |
