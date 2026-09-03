@@ -51,6 +51,9 @@ export { default as SearchField } from './SearchField.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as Table, type Column } from './Table.svelte';
 
+// Wave 3 - Hubtask's own. CapabilityGate comes first because every screen after it needs one.
+export { default as CapabilityGate, type GateStatus } from './CapabilityGate.svelte';
+
 export { STATUS_ICON } from './control.ts';
 export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from './control.ts';
 

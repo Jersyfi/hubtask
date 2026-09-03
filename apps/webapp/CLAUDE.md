@@ -92,6 +92,21 @@ from the same commit and cannot be a version apart.
   `request_id` where the sentence does not already carry it. A component that read `error.code`
   itself would be a second place where an English sentence could appear.
 
+* **What the installation permits is read, never compiled in.** `lib/data/capability.ts` answers
+  "may a `TASK` carry a bucket", "may an `ACTIVITY` hold a child", "may this role change this
+  entry" — from `/meta/capabilities` and from nothing else. Three rules travel with it. A type or a
+  role the manifest does not declare is **refused, never permitted**: guessing in the permissive
+  direction is what the manifest exists to prevent, and the contract says so in its own words about
+  `roles`. Nothing is knowable **before** the manifest is read, so the verdict has a third value and
+  a control is not shown as available in the meantime. And a prediction uses **the server's own
+  message code** — `items.capability_not_supported`, `items.parent_type_invalid` — so one fact has
+  one sentence whether the client saw the refusal coming or the server sent it.
+
+  `CapabilityGate` is what renders a refusal, and the reason it exists rather than a `hidden` is
+  `domain-model.md` §2: `ErrCapabilityNotSupported` "must never become silent ignoring". Hiding a
+  control tells the reader nothing, and it is the tempting answer because a hidden control looks
+  tidy.
+
 ## Two things the API decides for you
 
 * **Cursor pagination, never page numbers** — the API has none, so no component may imply them.
