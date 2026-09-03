@@ -3699,6 +3699,59 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /containers/{containerId}:reorder:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [containers]
+      operationId: reorderContainer
+      description: >
+        Ranks a container within the level it already sits in: a hub among the tenant's hubs, a
+        collection among its hub's collections. The position is given as the container to place it
+        before; omitting it appends to the end of the level.
+
+        This is the only way to rank a hub. `:move` ranks a collection as a consequence of naming
+        the hub it goes into - which is why its `target_parent_id` is required - and a hub sits in
+        nothing, so an operation whose destination is a hub cannot express it. Every `Container`
+        answers an `order_key`, so without this one the rank of a hub is a field the API reports
+        and nothing can change.
+
+        The rank is a fractional index, so an insertion between two neighbours renumbers nothing
+        else and two offline devices can insert into the same list without either one's order being
+        discarded. An archived container is read-only (I-C3) and is refused, as it is for every
+        other write. Idempotent: asking for the position a container already holds writes nothing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                before_container_id:
+                  type: [string, "null"]
+                  format: uuid
+                  description: >
+                    The sibling to place this container before, at its own level. Null or omitted
+                    appends to the end of the level. A sibling that is not at this level is refused
+                    rather than treated as an append.
+      responses:
+        "200":
+          description: Ranked
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}:restore:
     parameters:
       - $ref: "#/components/parameters/ContainerId"

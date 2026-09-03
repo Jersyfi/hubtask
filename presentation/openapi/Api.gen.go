@@ -6388,6 +6388,21 @@ type MoveContainerParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ReorderContainerJSONBody defines parameters for ReorderContainer.
+type ReorderContainerJSONBody struct {
+	// BeforeContainerId The sibling to place this container before, at its own level. Null or omitted appends to the end of the level. A sibling that is not at this level is refused rather than treated as an append.
+	BeforeContainerId *openapi_types.UUID `json:"before_container_id,omitempty"`
+}
+
+// ReorderContainerParams defines parameters for ReorderContainer.
+type ReorderContainerParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // RestoreContainerParams defines parameters for RestoreContainer.
 type RestoreContainerParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -7079,6 +7094,9 @@ type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
 
+// ReorderContainerJSONRequestBody defines body for ReorderContainer for application/json ContentType.
+type ReorderContainerJSONRequestBody ReorderContainerJSONBody
+
 // DefineCustomFieldJSONRequestBody defines body for DefineCustomField for application/json ContentType.
 type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 
@@ -7456,6 +7474,9 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}:move)
 	MoveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params MoveContainerParams)
+
+	// (POST /containers/{containerId}:reorder)
+	ReorderContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ReorderContainerParams)
 
 	// (POST /containers/{containerId}:restore)
 	RestoreContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params RestoreContainerParams)
@@ -10292,6 +10313,75 @@ func (siw *ServerInterfaceWrapper) MoveContainer(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.MoveContainer(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReorderContainer operation middleware
+func (siw *ServerInterfaceWrapper) ReorderContainer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReorderContainerParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReorderContainer(w, r, containerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15708,6 +15798,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move", wrapper.MoveContainer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:reorder", wrapper.ReorderContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:restore", wrapper.RestoreContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:archive", wrapper.ArchiveContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:unarchive", wrapper.UnarchiveContainer)

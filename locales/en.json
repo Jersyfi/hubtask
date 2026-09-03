@@ -180,7 +180,7 @@
   "containers.container_id_required": "Say which hub or collection to change.",
   "containers.update_empty": "Say what to change about that hub or collection.",
   "containers.target_parent_required": "Say which hub to move that collection into.",
-  "containers.before_container_not_in_level": "That hub or collection is not in the list this one is being moved into.",
+  "containers.before_container_not_in_level": "That hub or collection is not in the list this one is being placed in.",
   "containers.version_conflict": "Someone else changed that hub or collection in the meantime. Read it again and reapply.",
   "containers.auto_assign_strategy_unknown": "{value} is not an assignment strategy this installation knows.",
   "containers.auto_assign_candidates_required": "An assignment policy needs at least one candidate.",

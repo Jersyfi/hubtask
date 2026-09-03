@@ -603,6 +603,36 @@ func (c Container) EnsureEditable() error {
 	return nil
 }
 
+// Ranked returns the container at a different rank within the level it already sits in, and
+// reports the change.
+//
+// It applies to a hub as well as to a collection, which is the whole reason it exists beside
+// MovedInto: a hub sits in the tenant and in nothing else (I-C1), so it has no destination to name
+// and MovedInto refuses it - while `order_key` is a field every container carries and
+// domain-model.md §3.3 defines as "ordering within the parent context". For a hub that context is
+// the tenant, and without this the rank of a hub is a field that is read and never written.
+//
+// Nothing about the parent changes here. That is what separates the two: a move may also reorder,
+// and a reorder never moves.
+func (c Container) Ranked(orderKey string, at time.Time) (Container, []FieldChange, error) {
+	if err := c.EnsureEditable(); err != nil {
+		return Container{}, nil, err
+	}
+	if orderKey == "" {
+		return Container{}, nil, shared.ErrInternal.WithDetail("containers.identity_incomplete")
+	}
+	if orderKey == c.OrderKey {
+		// Already where the caller asked for. No change, so no version is spent and nothing is
+		// announced - the same idempotence a move that lands where it started has.
+		return c, nil, nil
+	}
+
+	changes := []FieldChange{{Field: FieldOrderKey, From: c.OrderKey, To: orderKey}}
+	c.OrderKey = orderKey
+	c.UpdatedAt = at
+	return c, changes, nil
+}
+
 // MovedInto returns the container as it sits under a new parent, and reports what moved with it.
 //
 // Everything a create refuses a move refuses too: the type under the new parent, a trashed or
