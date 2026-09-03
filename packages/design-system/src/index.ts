@@ -21,6 +21,7 @@ export { default as Badge } from './Badge.svelte';
 export { default as Banner } from './Banner.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
+export { default as Dialog } from './Dialog.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as IconButton } from './IconButton.svelte';
 export { default as Input } from './Input.svelte';
