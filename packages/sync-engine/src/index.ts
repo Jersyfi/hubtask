@@ -19,15 +19,17 @@ export { FetchTransport } from './FetchTransport.ts';
 export type { FetchTransportOptions } from './FetchTransport.ts';
 
 export { TransportError } from './errors.ts';
-export type { FailureKind } from './errors.ts';
+export type { FailureKind, FieldProblem } from './errors.ts';
 
 export { systemClock } from './ports.ts';
 export type { Clock, RequestOptions, Response, Storage, Transport } from './ports.ts';
 
 export type {
   Account,
+  Capabilities,
   Collection,
   Container,
+  HealthReport,
   PendingMutation,
   Problem,
   StoredRecord,

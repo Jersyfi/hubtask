@@ -91,6 +91,51 @@ test('a problem document becomes a TransportError carrying its code', async () =
   );
 });
 
+test('the whole problem document travels: detail code and field errors included', async () => {
+  // What the frame needs to put a message under the field it belongs to rather than at the top of
+  // the form (ADR-0025). None of it is interpreted here - `path` is the server's, and so is the
+  // choice between `code` and the more specific `detail_code`.
+  const body = {
+    code: 'validation_failed',
+    detail_code: 'items.title_too_long',
+    params: { maximum: '200' },
+    field_errors: [
+      { path: 'title', code: 'usecase.field_required' },
+      { path: 'due_date', code: 'items.due_date_in_past', params: { at: '2026-01-01' } },
+    ],
+    request_id: 'r-11',
+  };
+  const { fetch } = recordingFetch(() => new Response(JSON.stringify(body), { status: 422 }));
+
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch }).get('/items', { timeoutMs: 1000 }),
+    (error: unknown) => {
+      if (!(error instanceof TransportError)) throw error;
+      assert.equal(error.code, 'validation_failed');
+      assert.equal(error.detailCode, 'items.title_too_long');
+      assert.equal(error.fieldErrors.length, 2);
+      assert.equal(error.fieldErrors[1]?.path, 'due_date');
+      assert.equal(error.fieldErrors[1]?.params?.at, '2026-01-01');
+      return true;
+    },
+  );
+});
+
+test('a problem with no field errors carries an empty list rather than nothing', async () => {
+  // So that a caller never has to guard twice. `field_errors` is optional in the contract and a
+  // `?? []` at every call site is a `??` somebody eventually forgets.
+  const { fetch } = recordingFetch(() => new Response(JSON.stringify({ code: 'errors.not_found' }), { status: 404 }));
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch }).get('/items/x', { timeoutMs: 1000 }),
+    (error: unknown) => {
+      if (!(error instanceof TransportError)) throw error;
+      assert.deepEqual(error.fieldErrors, []);
+      assert.equal(error.detailCode, undefined);
+      return true;
+    },
+  );
+});
+
 test('an empty answer is not an error', async () => {
   // 204 is what a delete answers, and parsing an empty body as JSON would turn a success into a
   // failure.
