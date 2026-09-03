@@ -198,6 +198,25 @@ test('a boolean prop we invented asks a question', () => {
   }
 });
 
+test('the picture of a control never takes the click meant for it', () => {
+  // The pattern is the same in Checkbox, Radio and Switch: a transparent native input on top, and
+  // a painted part beside it that shows the state. The painting has to be inert, and "the input is
+  // positioned so it paints above" is not enough - a painted part that is *translated* creates a
+  // stacking context of its own and is painted in the same layer, later. That is exactly what
+  // happened to Switch: with the knob moved to the checked position it covered the input, and the
+  // switch could only be turned off by clicking the track beside its own knob.
+  for (const component of ALL) {
+    const style = styleOf(component.source);
+    if (!/\.native\s*\{/.test(style)) continue;
+    assert.match(
+      style,
+      /pointer-events:\s*none/,
+      `${component.relative} paints a control over a native input without making the painting ` +
+        'inert. Add `pointer-events: none` to it: the input is the control, this is a picture of it.',
+    );
+  }
+});
+
 test('no component hides a control from the accessibility tree', () => {
   // The Checkbox, Radio and Switch pattern: the native input is transparent and on top, never
   // `display: none`, which would take the keyboard and the screen reader with it.

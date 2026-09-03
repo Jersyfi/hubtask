@@ -97,7 +97,10 @@
 
   .native:disabled { cursor: not-allowed; }
 
+  /* The input above is the control; this is a picture of it, and a picture never takes the click
+     (the failure is worked through in Switch.svelte, where a moved knob did). */
   .box {
+    pointer-events: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
