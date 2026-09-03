@@ -9,7 +9,12 @@ module github.com/Jersyfi/hubtask
 // here therefore turns a green pipeline into a coin toss.
 //
 // 1.25 left Go's support window when 1.27 shipped; Go patches only the two most recent majors.
-go 1.26
+//
+// The `.0` is not a pinned patch and does not contradict the paragraph above: it is the *first*
+// release of 1.26, so every 1.26.x toolchain satisfies it and nothing is turned into a coin toss.
+// It is there because golang.org/x/crypto v0.56.0 - the release that closes GO-2026-6354 and
+// GO-2026-6355 - declares `go 1.26.0`, and a module cannot require less than what it depends on.
+go 1.26.0
 
 // The toolchain is pinned to a patched release: gate-security runs govulncheck, and an unpatched
 // standard library is a finding there. Whoever builds with an older Go gets this one fetched
@@ -39,7 +44,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.46.0
 	go.opentelemetry.io/otel/sdk/metric v1.46.0
 	go.opentelemetry.io/otel/trace v1.46.0
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 )
