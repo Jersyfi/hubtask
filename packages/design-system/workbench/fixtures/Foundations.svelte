@@ -380,6 +380,12 @@
 
   /* Rule 6 in the one place this page moves: opacity and transform, and the axis stops it. */
   .mover {
+    /* `translate` is physical: its X is the screen's X and not the writing direction's, and there
+       is no logical equivalent. So the distance is a custom property the keyframe reads, and the
+       rule below negates it in RTL - the same arithmetic Switch.svelte does for its knob, and the
+       reason §3 bans a bare `left`/`right`: a bar that travels the wrong way is invisible in
+       English and wrong in Arabic. */
+    --travel: var(--sp-1000);
     inline-size: var(--sp-250);
     block-size: var(--sp-250);
     border-radius: var(--r-full);
@@ -389,9 +395,11 @@
     animation-direction: alternate;
   }
 
+  .mover:dir(rtl) { --travel: calc(-1 * var(--sp-1000)); }
+
   @keyframes travel {
     from { transform: translateX(0); }
-    to { transform: translateX(var(--sp-1000)); }
+    to { transform: translateX(var(--travel)); }
   }
 
   .logo { display: flex; align-items: center; gap: var(--sp-150); }
