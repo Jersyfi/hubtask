@@ -130,7 +130,10 @@
 
   .native:disabled { cursor: not-allowed; }
 
+  /* A picture of the control, never the control: the transparent input above it takes every
+     click (the failure is worked through in Switch.svelte). */
   .dot {
+    pointer-events: none;
     display: inline-block;
     width: var(--sp-250);
     height: var(--sp-250);

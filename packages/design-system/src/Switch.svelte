@@ -77,6 +77,11 @@
     /* How far the knob travels: the track's width less the knob's box. Named here so the RTL rule
        below can negate it rather than repeat the arithmetic. */
     --travel: calc(var(--sp-500) - var(--sp-250));
+    /* The input above is the control; this is a picture of it. Without this the knob swallowed the
+       click that was meant to switch it off - a translated element creates a stacking context, so
+       the moved knob painted above the transparent input and took the pointer with it. The switch
+       could then only be turned off by clicking the track beside its own knob. */
+    pointer-events: none;
     display: inline-flex;
     align-items: center;
     width: var(--sp-500);

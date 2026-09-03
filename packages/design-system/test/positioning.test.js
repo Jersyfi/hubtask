@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { logicalRect, positionArea, resolve } from '../src/positioning.ts';
+import { logicalRect, physicalOrigin, positionArea, raiseToTopLayer, resolve } from '../src/positioning.ts';
 
 const viewport = { inlineStart: 0, blockStart: 0, inlineSize: 1000, blockSize: 600 };
 /** A trigger in the middle of the viewport, well clear of every edge. */
@@ -75,4 +75,77 @@ test('the CSS path and the fallback agree on what a placement means', () => {
   assert.equal(positionArea({ side: 'block-end', align: 'end' }), 'block-end span-inline-start');
   assert.equal(positionArea({ side: 'block-end', align: 'center' }), 'block-end');
   assert.equal(positionArea({ side: 'inline-end', align: 'start' }), 'inline-end span-block-end');
+});
+
+test('the physical origin is the inverse of the logical rect it came from', () => {
+  // The fallback writes a logical inset and then measures a physical box; if these two disagree,
+  // the correction below would push the overlay further away rather than back.
+  const rect = { left: 900, right: 960, top: 100, width: 60, height: 20 };
+  for (const dir of ['ltr', 'rtl']) {
+    const logical = logicalRect(rect, 1000, dir);
+    const physical = physicalOrigin(logical, { inlineSize: logical.inlineSize }, 1000, dir);
+    assert.equal(physical.left, rect.left, `round trip in ${dir}`);
+    assert.equal(physical.top, rect.top, `round trip in ${dir}`);
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// The top layer. No DOM here either: the function touches four methods of the element it is given,
+// so a test can give it four methods.
+// ---------------------------------------------------------------------------------------------
+
+function fakeOverlay({ showPopover }) {
+  const element = {
+    attributes: {},
+    shown: 0,
+    hidden: 0,
+    setAttribute(name, value) {
+      this.attributes[name] = value;
+    },
+    removeAttribute(name) {
+      delete this.attributes[name];
+    },
+    showPopover() {
+      showPopover?.();
+      this.shown += 1;
+    },
+    hidePopover() {
+      this.hidden += 1;
+    },
+  };
+  return element;
+}
+
+test('an overlay is raised into the top layer and lowered again', () => {
+  const overlay = fakeOverlay({});
+  const lower = raiseToTopLayer(overlay);
+  assert.equal(overlay.attributes.popover, 'manual', 'manual, so light dismiss cannot take Escape');
+  assert.equal(overlay.shown, 1);
+
+  lower();
+  assert.equal(overlay.hidden, 1);
+  assert.equal(overlay.attributes.popover, undefined, 'the attribute goes off with it');
+});
+
+test('an overlay that cannot be raised is left visible rather than deleted', () => {
+  // The branch that matters most: a `[popover]` which was never shown is `display: none`. Leaving
+  // the attribute on after a failed `showPopover` would not misplace the overlay, it would remove
+  // it from the screen entirely.
+  const overlay = fakeOverlay({
+    showPopover() {
+      throw new Error('not connected');
+    },
+  });
+  const lower = raiseToTopLayer(overlay);
+  assert.equal(overlay.attributes.popover, undefined, 'the overlay is still rendered');
+  lower();
+  assert.equal(overlay.hidden, 0, 'and nothing is lowered that was never raised');
+});
+
+test('a browser with no top layer is left alone', () => {
+  // Older than anchor positioning, so always the measured path - which now corrects itself.
+  const overlay = { setAttribute: () => assert.fail('nothing may be set'), attributes: {} };
+  const lower = raiseToTopLayer(overlay);
+  assert.equal(typeof lower, 'function');
+  lower();
 });

@@ -228,9 +228,15 @@
     border-top: var(--bw-hairline) solid var(--border-subtle);
   }
 
+  /* Opacity alone, and the `transform` that used to be here is the reason why. `animation-fill-mode:
+     both` leaves the last keyframe standing, and a `transform: none` keyframe computes to an
+     identity *matrix* rather than to `none` - which still makes the element a containing block for
+     every `position: fixed` descendant. A popover opened from inside this one was then laid out in
+     its box and clipped by its `overflow`. Rule 6 allows both properties; only one of them is safe
+     for a surface that other overlays are opened from. */
   @keyframes open {
-    from { opacity: 0; transform: scale(0.98); }
-    to { opacity: 1; transform: none; }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   @media (prefers-reduced-motion: reduce) {

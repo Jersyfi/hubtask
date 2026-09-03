@@ -158,6 +158,26 @@ export function logicalRect(rect: DOMRectReadOnly, viewportInlineSize: number, d
   };
 }
 
+/**
+ * Where a resolved position sits in the viewport's *physical* coordinates - the inverse of
+ * `logicalRect`, and the fallback's way of asking "did it land where I said?".
+ *
+ * In a horizontal writing mode the block axis is the same either way; on the inline axis, an
+ * inset measured from the inline start is measured from the right edge in RTL, so the left edge is
+ * what is left of the viewport after the overlay and its inset.
+ */
+export function physicalOrigin(
+  position: { inlineStart: number; blockStart: number },
+  overlay: { inlineSize: number },
+  viewportInlineSize: number,
+  dir: 'ltr' | 'rtl',
+): { left: number; top: number } {
+  return {
+    left: dir === 'rtl' ? viewportInlineSize - position.inlineStart - overlay.inlineSize : position.inlineStart,
+    top: position.blockStart,
+  };
+}
+
 /** `position-area`, which is logical too, so one table serves both directions. */
 export function positionArea({ side, align: alignment }: Placement): string {
   if (isBlockAxis(side)) {
@@ -232,6 +252,47 @@ export interface AnchorOptions {
  * positioning that is two declarations and no listeners; on one without, it is the same two
  * elements measured on open, on scroll and on resize.
  */
+/**
+ * Puts the overlay in the top layer, and returns the function that takes it out again.
+ *
+ * The top layer is what anchor positioning is designed to pair with, and it is the only answer to
+ * a question a stacking scale cannot reach: an overlay is laid out inside any ancestor that is a
+ * containing block for fixed elements - a transform, a filter, `contain` - and clipped by its
+ * `overflow`. That ancestor is not always ours. A card that lifts on hover is a transform, and a
+ * menu opened from inside it would be drawn in the card.
+ *
+ * `manual` rather than `auto`: light dismiss would close the overlay on its own and take the
+ * `Escape` the register in `layers.ts` is supposed to answer.
+ *
+ * Where the browser has no `showPopover` - older than anchor positioning, so always the fallback
+ * path - nothing is raised and the overlay stays where it was. The attribute is removed again on
+ * the way out *and* if raising fails, because a `[popover]` that was never shown is
+ * `display: none`, and an overlay nobody can see is worse than one drawn in the wrong place.
+ */
+export function raiseToTopLayer(overlay: HTMLElement): () => void {
+  if (typeof overlay.showPopover !== 'function') return () => {};
+
+  overlay.setAttribute('popover', 'manual');
+  try {
+    overlay.showPopover();
+  } catch {
+    // The attribute goes straight back off, and this is the branch that matters most in the file:
+    // a `[popover]` that was never shown is `display: none`, so leaving it on would not misplace
+    // the overlay - it would delete it. Better drawn in the wrong box than not drawn at all.
+    overlay.removeAttribute('popover');
+    return () => {};
+  }
+
+  return () => {
+    try {
+      overlay.hidePopover();
+    } catch {
+      // Already hidden, or already gone from the document. Either way there is nothing to lower.
+    }
+    overlay.removeAttribute('popover');
+  };
+}
+
 export function anchorTo(
   trigger: HTMLElement,
   overlay: HTMLElement,
@@ -244,6 +305,11 @@ export function anchorTo(
   const target = stylesheet();
   const anchorRule = ruleFor(target, `[data-hbt-anchor='${id}']`);
   const overlayRule = ruleFor(target, `[data-hbt-anchored='${id}']`);
+  const lower = raiseToTopLayer(overlay);
+
+  // The user agent gives a `[popover]` element `inset: 0` and centres it with `margin: auto`. Both
+  // paths below say where the overlay goes, so both have to say that they mean it.
+  overlayRule.style.setProperty('inset', 'auto');
 
   if (supportsAnchor()) {
     anchorRule.style.setProperty('anchor-name', `--${id}`);
@@ -253,6 +319,7 @@ export function anchorTo(
     // `flip-inline` are the two the sides above can need.
     overlayRule.style.setProperty('position-try-fallbacks', 'flip-block, flip-inline');
     return () => {
+      lower();
       drop(target, anchorRule);
       drop(target, overlayRule);
       delete trigger.dataset.hbtAnchor;
@@ -284,6 +351,27 @@ export function anchorTo(
     overlayRule.style.setProperty('position', 'fixed');
     overlayRule.style.setProperty('inset-inline-start', `${position.inlineStart}px`);
     overlayRule.style.setProperty('inset-block-start', `${position.blockStart}px`);
+
+    // …and then check, because "fixed" is only fixed to the viewport while no ancestor is a
+    // containing block for it. Where one is - a transform, a filter, `contain` - the insets above
+    // are read against *that* box instead, which is the same failure the top layer answers on the
+    // path above. Here there is no top layer to reach for, so the overlay is measured where it
+    // landed and moved by the difference.
+    //
+    // One correction, not a loop: a translated ancestor is a constant offset and is gone after it.
+    // A *scaled* one is not, and this does not pretend to fix that - it gets closer, and a scaled
+    // ancestor around an overlay is a thing to fix where it is written.
+    const landed = overlay.getBoundingClientRect();
+    const wanted = physicalOrigin(position, { inlineSize: landed.width }, viewportInline, dir);
+    const dx = wanted.left - landed.left;
+    const dy = wanted.top - landed.top;
+    // Half a pixel: browsers round, and a correction smaller than that is noise the stylesheet
+    // would be rewritten for on every scroll event.
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+      const inlineCorrection = dir === 'rtl' ? -dx : dx;
+      overlayRule.style.setProperty('inset-inline-start', `${position.inlineStart + inlineCorrection}px`);
+      overlayRule.style.setProperty('inset-block-start', `${position.blockStart + dy}px`);
+    }
   };
 
   update();
@@ -295,6 +383,7 @@ export function anchorTo(
   return () => {
     window.removeEventListener('scroll', update, true);
     window.removeEventListener('resize', update);
+    lower();
     drop(target, anchorRule);
     drop(target, overlayRule);
     delete trigger.dataset.hbtAnchor;
