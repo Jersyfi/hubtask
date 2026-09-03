@@ -401,6 +401,8 @@ gate-licenses:
 		after="$$(git status --porcelain THIRD-PARTY-LICENSES.md)"; \
 		if [ "$$before" != "$$after" ]; then \
 			echo "THIRD-PARTY-LICENSES.md is out of date - run 'make licenses' and commit it"; \
+			echo "what regenerating changed:"; \
+			git --no-pager diff --no-color -- THIRD-PARTY-LICENSES.md; \
 			exit 1; \
 		fi
 
