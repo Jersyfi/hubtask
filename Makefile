@@ -431,6 +431,8 @@ licenses:
 		fi; \
 		if grep -q '](Unknown)' "$$tmp"; then \
 			echo "a licence URL could not be resolved on this run, so the report is degraded:"; \
+			echo "(a backstop: the template derives the link from the module path, so nothing here"; \
+			echo " should need a lookup - if this fires, something reintroduced .LicenseURL.)"; \
 			grep '](Unknown)' "$$tmp"; \
 			echo "go-licenses looks the URL up over the network while it writes; this is transient."; \
 			echo "Run it again. THIRD-PARTY-LICENSES.md was left as it was."; \
