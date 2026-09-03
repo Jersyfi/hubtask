@@ -15,6 +15,7 @@ export { default as Stack } from './Stack.svelte';
 export { default as VisuallyHidden } from './VisuallyHidden.svelte';
 
 // Wave 1 - the icon, and the eight a form is made of.
+export { default as Badge } from './Badge.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
 export { default as Icon } from './Icon.svelte';
@@ -22,10 +23,12 @@ export { default as IconButton } from './IconButton.svelte';
 export { default as Input } from './Input.svelte';
 export { default as Radio } from './Radio.svelte';
 export { default as Select } from './Select.svelte';
+export { default as Spinner } from './Spinner.svelte';
 export { default as Switch } from './Switch.svelte';
 export { default as Textarea } from './Textarea.svelte';
 
-export type { Busyable, ButtonTone, ControlSize, Disableable } from './control.ts';
+export { STATUS_ICON } from './control.ts';
+export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from './control.ts';
 
 export type { Align, Justify, Space } from './space.ts';
 

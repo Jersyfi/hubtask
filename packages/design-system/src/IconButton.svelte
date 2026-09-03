@@ -10,7 +10,7 @@
   import type { HTMLButtonAttributes } from 'svelte/elements';
 
   import Icon from './Icon.svelte';
-  import Spinner from './_Spinner.svelte';
+  import Spinner from './Spinner.svelte';
   import VisuallyHidden from './VisuallyHidden.svelte';
   import type { IconName } from './icons/index.ts';
   import type { Busyable, ButtonTone, ControlSize, Disableable } from './control.ts';

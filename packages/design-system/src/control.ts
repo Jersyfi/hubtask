@@ -8,6 +8,8 @@
 // and no `disabled`. Those are CSS states, and the only reason a component ever knows about one is
 // the reason below.
 
+import type { IconName } from './icons/index.ts';
+
 /** Two sizes, and density is deliberately not one of them (design-system.md §9's open gap). */
 export type ControlSize = 'sm' | 'md';
 
@@ -40,3 +42,23 @@ export interface Disableable {
 export interface Busyable {
   isBusy?: boolean;
 }
+
+/**
+ * What a feedback surface is saying. Not a state of the component - the state of something else,
+ * which is why the same four appear on a `Badge`, a `Banner` and a `Toast` rather than each of
+ * them inventing a vocabulary.
+ */
+export type StatusTone = 'info' | 'success' | 'warning' | 'danger';
+
+/**
+ * The mark each tone carries, because rule 3 says colour never stands alone: a red surface that is
+ * only red says nothing in greyscale, in print, or to a reader with a colour vision deficiency.
+ * The tone chooses the icon rather than the caller - two danger banners with different marks would
+ * be two vocabularies - and a caller with a better mark for one case still passes `icon`.
+ */
+export const STATUS_ICON = {
+  info: 'info',
+  success: 'circle-check',
+  warning: 'triangle-alert',
+  danger: 'circle-alert',
+} as const satisfies Record<StatusTone, IconName>;
