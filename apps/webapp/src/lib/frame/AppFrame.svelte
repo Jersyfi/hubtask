@@ -13,6 +13,8 @@
 
   import { Banner, Stack } from '@hubtask/design-system/components';
 
+  import HealthNotice from './HealthNotice.svelte';
+
   import { t } from '../i18n/i18n.svelte.ts';
   import { MATURITY, shouldAnnounce } from '../maturity.ts';
   import type { Resolution } from '../router.ts';
@@ -67,6 +69,8 @@
           {t(`app.maturity.${MATURITY}.body`)}
         </Banner>
       {/if}
+      <!-- Nothing at all unless the reader may read the report and it says something is wrong. -->
+      <HealthNotice />
     </Stack>
   </div>
 
