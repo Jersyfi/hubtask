@@ -187,6 +187,15 @@ Tabs · SideNav · Toolbar · Table · ListRow · Skeleton · EmptyState · Erro
 LoadMore *(cursor pagination — **no** page numbers, the API has none)* ·
 Drawer · SearchField
 
+The wave arrives in two halves, as wave 1 did. The five that hold a screen up — `Breadcrumb`,
+`Tabs`, `SideNav`, `Toolbar`, `Drawer` — came first, and with them `structure.ts`: the trail's
+collapsing and the tree's flattening are questions about a list, so they live beside `focus.ts` and
+`layers.ts` rather than inside a component where only a browser could check them. Three of the five
+carry a roving `tabindex` for one reason — a strip, a tree or a toolbar whose every control was
+tabbable would put six presses between a keyboard reader and the content under it — and `Drawer` is
+the first user of the `overlay` rank, which is what makes a dialog opened from inside one close
+first.
+
 ### Wave 3 — Hubtask's own (≈ 20)
 
 | Component | Why it follows from the model |
