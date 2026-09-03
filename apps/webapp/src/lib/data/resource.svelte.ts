@@ -13,7 +13,7 @@
  * learns that a Transport exists. When F6 puts a queue and a local store behind `SyncEngine`, this
  * file does not change and neither does any component.
  */
-import type { ResourceState } from '@hubtask/sync-engine';
+import type { ResourceRequest, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 
@@ -22,6 +22,14 @@ export interface Resource<T> {
   readonly state: ResourceState<T>;
   /** Reads it again. What a retry button calls. */
   refresh(): Promise<void>;
+  /**
+   * Asks for the next page and adds it to what is already held. What `LoadMore` calls.
+   *
+   * Does nothing on the last page, so a component may bind it to a button without asking first —
+   * and it throws only when the page it asked for failed, which leaves the pages that arrived
+   * where the reader can still see them.
+   */
+  loadMore(): Promise<void>;
 }
 
 /**
@@ -31,17 +39,24 @@ export interface Resource<T> {
  * when the component is destroyed, so there is no unsubscribe for a caller to forget. That is the
  * reason this is a rune-aware module (`.svelte.ts`) rather than a plain function.
  */
-export function resource<T>(path: string): Resource<T> {
-  let state = $state<ResourceState<T>>(engine.peek<T>({ path }));
+export function resource<T>(request: string | ResourceRequest): Resource<T> {
+  // A path is the common case and a document is the other one: `/items:query` and `/search` read
+  // by `POST`, and a component asking one of them is asking for a resource like any other. The
+  // string form stays because most call sites have nothing to say beyond where to look.
+  const asked: ResourceRequest = typeof request === 'string' ? { path: request } : request;
+  let state = $state<ResourceState<T>>(engine.peek<T>(asked));
 
-  $effect(() => engine.subscribe<T>({ path }, (next) => (state = next)));
+  $effect(() => engine.subscribe<T>(asked, (next) => (state = next)));
 
   return {
     get state() {
       return state;
     },
     async refresh() {
-      await engine.refresh<T>({ path });
+      await engine.refresh<T>(asked);
+    },
+    async loadMore() {
+      await engine.loadMore<T>(asked);
     },
   };
 }
