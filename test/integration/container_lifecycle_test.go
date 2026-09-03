@@ -438,18 +438,22 @@ func TestNeighboursReportsTheBoundsAndExcludesTheMover(t *testing.T) {
 // filter at all". A plain `parent_id = NULL` is never true, so this level would come back empty and
 // every hub would rank as though it were the only one.
 //
-// The keys sit in a band of their own because a hub level is the whole tenant, unlike a collection
-// level which is one hub: another test's hub is a sibling here, so the assertion is written to hold
-// whatever else the tenant contains rather than to require a level nobody else touched.
+// It runs in a tenant of its own, and that is the point rather than tidiness. A collection level is
+// one hub, so a test can own one; the hub level is the **whole tenant**, so every other test's hub
+// is a sibling in it. Seeding into a shared tenant would make this test's rows change what an
+// append computes elsewhere - and would make what it asserts depend on which tests ran first.
 func TestNeighboursReadsTheHubLevelWhereTheParentIsAbsent(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	tenant, author := seedOwnTenant(ctx, t)
 	repo := containerRepo()
 	below, anchor, mover := freshID(t), freshID(t), freshID(t)
 
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		for id, key := range map[shared.ID]string{below: "z1", anchor: "z3", mover: "z5"} {
-			if err := repo.Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), key)); err != nil {
+	// The keys are the ones the ordering service produces: a letter head declaring how many digits
+	// the integer part has, then that many. `z5` is not one of them, which is a thing this test
+	// learned the hard way rather than by reading Ordering.go.
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		for id, key := range map[shared.ID]string{below: "a1", anchor: "a3", mover: "a5"} {
+			if err := repo.Insert(ctx, containerIn(tenant, author, id, freshName(t), key)); err != nil {
 				return err
 			}
 		}
@@ -459,17 +463,40 @@ func TestNeighboursReadsTheHubLevelWhereTheParentIsAbsent(t *testing.T) {
 	}
 
 	var previous, next string
-	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+	if err := read(ctx, t, tenant, func(ctx context.Context) error {
 		var err error
-		// The empty parent is the hub level, which is what the port promises and what this proves.
+		// The empty parent is the hub level, which is what the port promises and this proves.
 		previous, next, err = repo.Neighbours(ctx, "", anchor, mover)
 		return err
 	}); err != nil {
 		t.Fatalf("reading the hub bounds: %v", err)
 	}
-	if previous != "z1" || next != "z3" {
-		t.Errorf("bounds (%q, %q), want (z1, z3) - the hub level did not resolve", previous, next)
+	if previous != "a1" || next != "a3" {
+		t.Errorf("bounds (%q, %q), want (a1, a3) - the hub level did not resolve", previous, next)
 	}
+}
+
+// seedOwnTenant creates a tenant and an account nothing else writes into, and answers both.
+//
+// For a test whose subject is a tenant-wide level. The shared tenantA is right for almost
+// everything - it is cheaper and it exercises rows sitting beside each other - but not for a
+// question whose answer is "what is at the top level of this tenant".
+func seedOwnTenant(ctx context.Context, t *testing.T) (shared.ID, shared.ID) {
+	t.Helper()
+	tenant, author := freshID(t), freshID(t)
+	admin := adminPool(ctx, t)
+
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO tenant (id, slug, display_name) VALUES ($1, $2, $2)`,
+		tenant.String(), "own-"+tenant.String()[:8]); err != nil {
+		t.Fatalf("seeding the tenant: %v", err)
+	}
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Own')`,
+		author.String(), tenant.String()); err != nil {
+		t.Fatalf("seeding the account: %v", err)
+	}
+	return tenant, author
 }
 
 // The cross-tenant negative test for all four writes and for Neighbours (gate SG-3): row level
