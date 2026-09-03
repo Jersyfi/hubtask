@@ -86,8 +86,8 @@
     color: var(--text-subtle);
   }
 
-  .shell[data-size='md'] { min-height: var(--sp-500); }
-  .shell[data-size='sm'] { min-height: var(--sp-400); }
+  .shell[data-size='md'] { min-height: var(--density-control-md-min); }
+  .shell[data-size='sm'] { min-height: var(--density-control-sm-min); }
 
   .shell:has(.select:focus-visible) {
     outline: var(--bw-ring) solid var(--focus-ring);
@@ -106,7 +106,6 @@
   .select {
     flex: 1;
     min-width: 0;
-    padding-block: var(--sp-100);
     padding-inline-start: var(--sp-150);
     border: 0;
     background: transparent;
@@ -117,7 +116,9 @@
     appearance: none;
   }
 
-  .shell[data-size='sm'] .select { font-size: var(--fs-075); }
+  /* Per size, for the reason Input's is: a flat step made a small field taller than its minimum. */
+  .shell[data-size='md'] .select { padding-block: var(--density-control-md-block); }
+  .shell[data-size='sm'] .select { padding-block: var(--density-control-sm-block); font-size: var(--fs-075); }
 
   .select:focus { outline: none; }
   .select:disabled { color: var(--text-subtle); cursor: not-allowed; }

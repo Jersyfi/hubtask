@@ -86,19 +86,19 @@
     cursor: pointer;
     /* Rule 6: opacity and transform only. Layout is never animated. */
     transition:
-      transform var(--dur-fast) var(--ease-standard),
-      opacity var(--dur-fast) var(--ease-standard);
+      transform var(--motion-state-duration) var(--motion-state-easing),
+      opacity var(--motion-state-duration) var(--motion-state-easing);
   }
 
   .button[data-size='md'] {
-    padding: var(--sp-100) var(--sp-200);
-    min-height: var(--sp-500);
+    padding: var(--density-control-md-block) var(--sp-200);
+    min-height: var(--density-control-md-min);
     font-size: var(--fs-100);
   }
 
   .button[data-size='sm'] {
-    padding: var(--sp-050) var(--sp-150);
-    min-height: var(--sp-400);
+    padding: var(--density-control-sm-block) var(--sp-150);
+    min-height: var(--density-control-sm-min);
     font-size: var(--fs-075);
   }
 

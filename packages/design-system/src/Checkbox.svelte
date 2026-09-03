@@ -110,7 +110,7 @@
     border-radius: var(--r-xs);
     background: var(--bg-surface);
     color: var(--text-inverse);
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-state-duration) var(--motion-state-easing);
   }
 
   .native:checked + .box,

@@ -90,7 +90,7 @@
     border: var(--bw-hairline) solid var(--border-strong);
     border-radius: var(--r-full);
     background: var(--bg-surface-sunken);
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-state-duration) var(--motion-state-easing);
   }
 
   .knob {
@@ -99,7 +99,7 @@
     border-radius: var(--r-full);
     background: var(--border-strong);
     /* Rule 6: transform only. The knob moves; nothing is laid out again. */
-    transition: transform var(--dur-fast) var(--ease-standard);
+    transition: transform var(--motion-state-duration) var(--motion-state-easing);
   }
 
   .native:checked + .track .knob {

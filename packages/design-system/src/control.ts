@@ -10,7 +10,15 @@
 
 import type { IconName } from './icons/index.ts';
 
-/** Two sizes, and density is deliberately not one of them (design-system.md §9's open gap). */
+/**
+ * Two sizes, and density is deliberately not a third one of them.
+ *
+ * `size` is how prominent this control is beside the one next to it, which is a decision per
+ * control and therefore a prop. How much air a whole region carries is a different question with a
+ * different answer: `data-density` on an ancestor (design-system.md §5), so that a list of two
+ * hundred rows is told once rather than two hundred times. The two multiply — `sm` in a compact
+ * region is the tightest control the tokens allow, and it is still a 24 px target.
+ */
 export type ControlSize = 'sm' | 'md';
 
 /** What a button is for. Not a state: the same button is hovered, pressed and focused in all four. */

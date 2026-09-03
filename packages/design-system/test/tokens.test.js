@@ -66,3 +66,71 @@ test('the TypeScript target hands out custom properties, not colours', () => {
   assert.equal(tokensBlock.match(/#[0-9a-fA-F]{6}\b/g), null, 'a literal colour is on offer to components');
   assert.match(tokensBlock, /var\(--accent-primary-hover\)/);
 });
+
+// The two roots F2-01 added. They are mode-independent of the theme, which is exactly the property
+// worth testing: a role that quietly acquired a light and a dark value would be a role two themes
+// could disagree about, and that is what putting them under `semantic` would have allowed.
+
+test('both density modes declare the same vocabulary', () => {
+  const names = (mode) => {
+    const out = [];
+    const walk = (node, prefix) => {
+      for (const [key, value] of Object.entries(node)) {
+        if (key.startsWith('$')) continue;
+        if (value && typeof value === 'object' && '$value' in value) out.push([...prefix, key].join('.'));
+        else walk(value, [...prefix, key]);
+      }
+    };
+    walk(source.density[mode], []);
+    return out.sort();
+  };
+  assert.deepEqual(names('comfortable'), names('compact'));
+});
+
+test('every motion role names both a duration and an easing', () => {
+  for (const [role, value] of Object.entries(source.motion)) {
+    if (role.startsWith('$')) continue;
+    assert.ok(value.duration?.$value, `motion.${role} has no duration`);
+    assert.ok(value.easing?.$value, `motion.${role} has no easing`);
+  }
+});
+
+// SC 2.5.8 asks for 24x24 CSS px, and `compact` sits exactly on it. A step below would be a
+// conformance failure rather than a preference, so it fails here rather than in an audit.
+test('no density mode puts a control below the minimum target size', () => {
+  const space = source.primitive.space;
+  const px = (reference) => {
+    const step = /^\{primitive\.space\.([^}]+)\}$/.exec(reference)?.[1];
+    assert.ok(step, `a density minimum is not a space reference: ${reference}`);
+    return Number.parseFloat(space[step].$value);
+  };
+  for (const [mode, values] of Object.entries(source.density)) {
+    if (mode.startsWith('$')) continue;
+    for (const [size, control] of Object.entries(values.control)) {
+      assert.ok(px(control.min.$value) >= 24, `density.${mode}.control.${size} is below 24px`);
+    }
+  }
+});
+
+test('the CSS gives density a default on :root and the theme none', () => {
+  const css = read(packageRoot, 'dist', 'tokens.css');
+  assert.match(css, /^:root,\n\[data-density="comfortable"\] \{$/m);
+  assert.match(css, /^\[data-density="compact"\] \{$/m);
+  // The asymmetry is deliberate (formats.js): no theme is right in the absence of a choice, and
+  // `comfortable` is. A `:root` fallback appearing for the theme would be a regression.
+  assert.doesNotMatch(css, /^:root,\n\[data-theme=/m);
+});
+
+test('no component writes a raw duration or easing where a role exists', () => {
+  const componentDir = path.join(packageRoot, 'src');
+  const offenders = [];
+  for (const file of fs.readdirSync(componentDir).filter((f) => f.endsWith('.svelte'))) {
+    const body = read(componentDir, file);
+    // `--dur-instant` is rule 6's floor rather than a role: it is the absence of movement, and a
+    // role for "no movement" would be a pair whose easing can never apply.
+    for (const match of body.matchAll(/var\(--(?:dur|ease)-(?!instant\b)[a-z]+\)/g)) {
+      offenders.push(`${file}: ${match[0]}`);
+    }
+  }
+  assert.deepEqual(offenders, []);
+});

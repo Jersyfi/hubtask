@@ -53,7 +53,7 @@
   .textarea {
     display: block;
     width: 100%;
-    padding: var(--sp-100) var(--sp-150);
+    padding: var(--density-control-md-block) var(--sp-150);
     border: var(--bw-hairline) solid var(--border-default);
     border-radius: var(--r-md);
     background: var(--bg-surface);

@@ -140,7 +140,7 @@
     border: var(--bw-thick) solid var(--border-strong);
     border-radius: var(--r-full);
     background: var(--bg-surface);
-    transition: box-shadow var(--dur-fast) var(--ease-standard);
+    transition: box-shadow var(--motion-state-duration) var(--motion-state-easing);
   }
 
   /* The filled centre is an inset ring rather than a child element, so there is nothing to
