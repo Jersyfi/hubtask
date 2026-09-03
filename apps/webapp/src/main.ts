@@ -29,6 +29,7 @@ import './app.css';
 
 import { mount } from 'svelte';
 import App from './App.svelte';
+import { manifest } from './lib/data/capabilities.svelte.ts';
 import { startLocale } from './lib/i18n/i18n.svelte.ts';
 import { followSystemTheme } from './lib/theme.ts';
 
@@ -40,6 +41,12 @@ followSystemTheme();
 // own preference is all the client knows; the account's (F1-08) and the installation's supported
 // locales (F1-10) replace it through `messages.adopt`.
 startLocale();
+
+// …and the one read the whole application configures itself from (F1-10). Started here rather
+// than in a component, because it is read once for the lifetime of the page and because what it
+// answers changes the language of the first paint. It needs no token: the manifest is the one
+// unauthenticated route in the contract.
+manifest.start();
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (!root) throw new Error('#app is missing from index.html');

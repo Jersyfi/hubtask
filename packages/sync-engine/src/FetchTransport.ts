@@ -8,7 +8,7 @@
 // - every request carries its bearer, every request that takes an idempotency key sends one, and
 // every request has a deadline.
 
-import { TransportError } from './errors.ts';
+import { TransportError, type FieldProblem } from './errors.ts';
 import type { RequestOptions, Response, Transport } from './ports.ts';
 
 export interface FetchTransportOptions {
@@ -21,7 +21,9 @@ export interface FetchTransportOptions {
 /** The problem document shape this reads. Only the fields the client acts on. */
 interface ProblemBody {
   readonly code?: string;
+  readonly detail_code?: string;
   readonly params?: Record<string, string>;
+  readonly field_errors?: readonly FieldProblem[];
   readonly request_id?: string;
 }
 
@@ -116,7 +118,11 @@ export class FetchTransport implements Transport {
     throw new TransportError('problem', {
       status: answer.status,
       code: problem.code,
+      detailCode: problem.detail_code,
       params: problem.params,
+      // Passed on rather than interpreted: which field a message belongs under is the frame's
+      // question, and it needs the server's `path` to answer it (ADR-0025).
+      fieldErrors: Array.isArray(problem.field_errors) ? problem.field_errors : undefined,
       requestId: problem.request_id ?? answer.headers.get('X-Request-Id') ?? undefined,
     });
   }

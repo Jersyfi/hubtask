@@ -58,6 +58,24 @@ from the same commit and cannot be a version apart.
   join its table in `App.svelte`; a router library would be a new dependency and therefore a
   proposal, not a commit (CLAUDE.md, the W-06 pull request records the reasoning).
 
+* **The frame decides once, and views consume it.** `src/lib/frame/` holds the shell every view
+  sits inside; beside it, four modules hold what the application knows about itself and may not
+  answer twice:
+  `lib/data/capabilities.svelte.ts` reads `/meta/capabilities` **once at boot** — nothing may
+  hard-code what the manifest answers; `lib/data/account.svelte.ts` reads `GET /accounts/me` when
+  there is a bearer, and its `locale` outranks the browser's (`i18n-l10n.md` §2);
+  `lib/data/health.svelte.ts` reads `/meta/health` **only where the actor may read it** — no
+  bearer means no request, a `401` or `403` is silence rather than a message, and there is no
+  second unauthenticated health surface; and `lib/maturity.ts` carries the stage of
+  [ADR-0035](../../docs/adr/ADR-0035-one-product-version.md) §2, which is what the banner reads and
+  what convergence changes by changing one line. The language is applied in exactly one place, the
+  frame, for the reason the theme is: an attribute two modules set is an attribute nobody owns.
+* **A failure becomes a sentence in `lib/problem.ts`, never in a component.** A `TransportError`
+  carries the whole problem document (ADR-0025); that module chooses between `code` and the more
+  specific `detail_code`, puts each `field_errors[]` entry under its own `path`, and hands back the
+  `request_id` where the sentence does not already carry it. A component that read `error.code`
+  itself would be a second place where an English sentence could appear.
+
 ## Two things the API decides for you
 
 * **Cursor pagination, never page numbers** — the API has none, so no component may imply them.
