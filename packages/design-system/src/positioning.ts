@@ -158,6 +158,26 @@ export function logicalRect(rect: DOMRectReadOnly, viewportInlineSize: number, d
   };
 }
 
+/**
+ * Where a resolved position sits in the viewport's *physical* coordinates - the inverse of
+ * `logicalRect`, and the fallback's way of asking "did it land where I said?".
+ *
+ * In a horizontal writing mode the block axis is the same either way; on the inline axis, an
+ * inset measured from the inline start is measured from the right edge in RTL, so the left edge is
+ * what is left of the viewport after the overlay and its inset.
+ */
+export function physicalOrigin(
+  position: { inlineStart: number; blockStart: number },
+  overlay: { inlineSize: number },
+  viewportInlineSize: number,
+  dir: 'ltr' | 'rtl',
+): { left: number; top: number } {
+  return {
+    left: dir === 'rtl' ? viewportInlineSize - position.inlineStart - overlay.inlineSize : position.inlineStart,
+    top: position.blockStart,
+  };
+}
+
 /** `position-area`, which is logical too, so one table serves both directions. */
 export function positionArea({ side, align: alignment }: Placement): string {
   if (isBlockAxis(side)) {
@@ -249,13 +269,16 @@ export interface AnchorOptions {
  * the way out *and* if raising fails, because a `[popover]` that was never shown is
  * `display: none`, and an overlay nobody can see is worse than one drawn in the wrong place.
  */
-function raise(overlay: HTMLElement): () => void {
+export function raiseToTopLayer(overlay: HTMLElement): () => void {
   if (typeof overlay.showPopover !== 'function') return () => {};
 
   overlay.setAttribute('popover', 'manual');
   try {
     overlay.showPopover();
   } catch {
+    // The attribute goes straight back off, and this is the branch that matters most in the file:
+    // a `[popover]` that was never shown is `display: none`, so leaving it on would not misplace
+    // the overlay - it would delete it. Better drawn in the wrong box than not drawn at all.
     overlay.removeAttribute('popover');
     return () => {};
   }
@@ -282,7 +305,7 @@ export function anchorTo(
   const target = stylesheet();
   const anchorRule = ruleFor(target, `[data-hbt-anchor='${id}']`);
   const overlayRule = ruleFor(target, `[data-hbt-anchored='${id}']`);
-  const lower = raise(overlay);
+  const lower = raiseToTopLayer(overlay);
 
   // The user agent gives a `[popover]` element `inset: 0` and centres it with `margin: auto`. Both
   // paths below say where the overlay goes, so both have to say that they mean it.
@@ -328,6 +351,27 @@ export function anchorTo(
     overlayRule.style.setProperty('position', 'fixed');
     overlayRule.style.setProperty('inset-inline-start', `${position.inlineStart}px`);
     overlayRule.style.setProperty('inset-block-start', `${position.blockStart}px`);
+
+    // …and then check, because "fixed" is only fixed to the viewport while no ancestor is a
+    // containing block for it. Where one is - a transform, a filter, `contain` - the insets above
+    // are read against *that* box instead, which is the same failure the top layer answers on the
+    // path above. Here there is no top layer to reach for, so the overlay is measured where it
+    // landed and moved by the difference.
+    //
+    // One correction, not a loop: a translated ancestor is a constant offset and is gone after it.
+    // A *scaled* one is not, and this does not pretend to fix that - it gets closer, and a scaled
+    // ancestor around an overlay is a thing to fix where it is written.
+    const landed = overlay.getBoundingClientRect();
+    const wanted = physicalOrigin(position, { inlineSize: landed.width }, viewportInline, dir);
+    const dx = wanted.left - landed.left;
+    const dy = wanted.top - landed.top;
+    // Half a pixel: browsers round, and a correction smaller than that is noise the stylesheet
+    // would be rewritten for on every scroll event.
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+      const inlineCorrection = dir === 'rtl' ? -dx : dx;
+      overlayRule.style.setProperty('inset-inline-start', `${position.inlineStart + inlineCorrection}px`);
+      overlayRule.style.setProperty('inset-block-start', `${position.blockStart + dy}px`);
+    }
   };
 
   update();
