@@ -15,10 +15,11 @@
  * `undefined` and nothing is read at all, which is the honest state of an application nobody has
  * signed into.
  *
- * **There is no theme here.** `Account` in the contract carries locale, time zone and week start
- * and no appearance preference, so the theme keeps following the system (`lib/theme.ts`). Giving
- * the client one would mean adding a field to `api/openapi.yaml` first (ADR-0004), which is a
- * change to the contract rather than a frame that consumes it.
+ * **There is no theme here, by decision.** `Account` carries locale, time zone and week start and
+ * no appearance preference, and ADR-0043 is why: the theme is a property of the device rather than
+ * of the person, so it neither belongs in the contract nor resolves through this module. The theme
+ * follows the system in `lib/theme.ts`, and a per-device override waits for ADR-0033's local
+ * persistence port.
  */
 
 import type { Account, ResourceState } from '@hubtask/sync-engine';

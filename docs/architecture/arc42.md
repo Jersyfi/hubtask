@@ -752,6 +752,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0040 | No IMAP intake: the webhook door is the mail door | accepted |
 | 0041 | Lucide, cut down to a declared subset, behind one `Icon` | accepted |
 | 0042 | The NATS client library: nats.go, confined to one adapter | accepted |
+| 0043 | The theme is a property of the device, not of the account | accepted |
 
 ---
 

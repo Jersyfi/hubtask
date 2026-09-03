@@ -34,10 +34,14 @@ from the same commit and cannot be a version apart.
   `values.light`/`values.dark` (the resolved literals) are for surfaces a custom property
   cannot reach — a canvas, an exported image — and nothing else: a component that writes the
   light-mode colour is wrong in dark mode, and no type can catch it.
-* **The theme is an attribute, set in one place.** `src/lib/theme.ts` puts `data-theme` on the
-  document, following the system preference until the account preference exists; the generated
-  stylesheet has no `:root` fallback on purpose, so a document without the attribute looks
-  broken at once. Components never read or set the theme themselves.
+* **The theme is an attribute, set in one place, and it belongs to the device.**
+  `src/lib/theme.ts` puts `data-theme` on the document and follows the system preference; the
+  generated stylesheet has no `:root` fallback on purpose, so a document without the attribute
+  looks broken at once. Components never read or set the theme themselves. **There is no account
+  preference for it** ([ADR-0043](../../docs/adr/ADR-0043-theme-per-device.md)): language, time
+  zone and week start are properties of the person and resolve through the account, the theme is
+  the one that is legitimately different per screen. A switch for it keeps its choice on the
+  device, and waits for the local persistence port ADR-0033 defers.
 * **No sentence in a component.** The server delivers a code and parameters, never display text
   (ADR-0011, [`i18n-l10n.md`](../../docs/architecture/i18n-l10n.md) §1), and the client is the half
   that turns the pair into words: `src/lib/i18n/` holds the ICU renderer, the locale resolution of
