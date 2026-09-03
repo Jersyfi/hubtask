@@ -69,27 +69,29 @@ packages/design-system/
 │   └── tokens.json           source
 ├── build/                    the generators, and the two gates
 ├── dist/                     generated; gitignored (the Go target is written into the core)
-├── reference/
-│   └── foundations.html      the tokens' visual reference; retired at the end of wave 1
-├── workbench/                the component workbench — a development tool (ADR-0037)
+├── workbench/                the component workbench, and the generated foundations (ADR-0037)
 ├── test/
 ├── src/                      components, wave by wave
 ├── CLAUDE.md
 └── README.md
 ```
 
-`reference/foundations.html` is the **visual acceptance reference**: what it shows is the target.
-It imports `dist/tokens.css` and defines no values of its own — otherwise it would itself be a
-source of drift.
+The **visual acceptance reference** is `workbench/fixtures/Foundations.stories.ts` — the token
+scales, read out of `dist/tokens.ts` rather than drawn beside it. That is the condition ADR-0037
+attached to retiring the hand-written `reference/foundations.html`, and it is what makes the
+reference trustworthy: a step added to the source appears here without anybody remembering to add
+it, and a step removed cannot leave a square behind that no longer stands for anything.
 
-The workbench that replaces it as living documentation is decided:
+The workbench that holds it as living documentation is decided:
 [ADR-0037](../adr/ADR-0037-component-workbench.md) — a small Svelte page in the package rather
 than Storybook, which resolves to 262 further packages for a tool no user runs. It renders every
 story through an axis matrix — both themes, both directions, a +40 % pseudo-locale, reduced
 motion, 200 % zoom, the five breakpoints, and a walk through the tab order — because §6's rules
 are rules one verifies by looking, and a gallery showing one configuration verifies none of them.
-`foundations.html` is retired at the end of wave 1, once the foundations pages are generated from
-`tokens.json` rather than written by hand.
+The foundations moved into it at the end of wave 1, generated from `tokens.json`, and the
+hand-written page is gone — which also gave them the axis matrix a static page never had: both
+modes side by side, the writing direction, the pseudo-locale, 200 % zoom and reduced motion applied
+to the scales themselves.
 
 ---
 
@@ -362,8 +364,10 @@ teaches the screenshots.
 
 ## 9. Still missing
 
-- **Logo and wordmark** — the placeholder in `foundations.html` shows the idea (three nested
-  planes, the innermost in bordeaux) but is not a finished mark.
+- **Logo and wordmark** — the placeholder in the workbench's `Foundations/Tokens · The wordmark,
+  unfinished` story shows the idea (three nested planes, the innermost in bordeaux) but is not a
+  finished mark. It moved there with the page that used to hold it, because it was the only drawn
+  record of it.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
 - **A browser support row** — `support-matrix.md` covers the server and `hubctl` and says nothing
   about which browsers a client is required to work in. It is a support-scope decision rather than

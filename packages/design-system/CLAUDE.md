@@ -80,6 +80,7 @@ Every axis of the workbench is in the query string. A pull request that says a c
 in dark RTL at 200 % links to it — `?story=…&theme=dark&dir=rtl&zoom=200` — rather than asserting
 it (ADR-0037).
 
-`reference/foundations.html` is the **visual acceptance reference**. Open it after any token
-change and check both modes. It imports the generated stylesheet and declares no value of its own —
-if you find yourself adding one there, that is the bug.
+The **visual acceptance reference** is the workbench's `Foundations/Tokens` stories. Open them
+after any token change with Theme set to Both. They are generated from `dist/tokens.ts`, so there
+is nothing in them to keep in step by hand — if you find yourself typing a value into a foundations
+story, that is the bug.

@@ -56,9 +56,9 @@ const ROLES = {
   'text.warning': 'body-text',
   'text.inverse': 'inverse-text',
 
-  // Borders. `default` and `strong` draw controls - foundations.html uses the first for an input
-  // and a secondary button, the second for a checkbox - and a control's boundary is what says it
-  // is a control, so SC 1.4.11 applies to both.
+  // Borders. `default` and `strong` draw controls - `Input` and a secondary `Button` take the
+  // first, `Checkbox` the second - and a control's boundary is what says it is a control, so
+  // SC 1.4.11 applies to both.
   'border.subtle': ['decorative', 'a hairline between sections and around cards, never the only thing identifying a control'],
   'border.default': 'indicator',
   'border.strong': 'indicator',
