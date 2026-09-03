@@ -38,6 +38,16 @@ from the same commit and cannot be a version apart.
   document, following the system preference until the account preference exists; the generated
   stylesheet has no `:root` fallback on purpose, so a document without the attribute looks
   broken at once. Components never read or set the theme themselves.
+* **No sentence in a component.** The server delivers a code and parameters, never display text
+  (ADR-0011, [`i18n-l10n.md`](../../docs/architecture/i18n-l10n.md) §1), and the client is the half
+  that turns the pair into words: `src/lib/i18n/` holds the ICU renderer, the locale resolution of
+  §2 and the source-language fallback of §3. A component calls `t('code', params)` and writes no
+  English of its own — including the application's own strings, which are codes under `app.*` in
+  the same `locales/en.json` the binary embeds. **A second catalogue under `apps/` is not an
+  option**; `src/lib/i18n/catalogue.ts` is the one place that reads the file, and the workspace lint
+  carries that single exception (`project-structure.md` §2.1). Anything the renderer cannot render
+  is refused by name and `catalogue.test.ts` parses every message, so a construct nobody
+  implemented turns the build red rather than printing braces at a reader.
 * **No hand-written API type.** They come from `@hubtask/api-client`, generated from
   `api/openapi.yaml`. If the type you need is not there, change the specification (ADR-0004).
 * **No request to a foreign origin.** `connect-src 'self'`, and the fonts ship with the bundle. A
