@@ -16,14 +16,17 @@ is [`docs/design/design-system.md`](../../docs/design/design-system.md), and it 
   [`voice-and-tone.md`](../../docs/design/voice-and-tone.md) — sentence case, the verb of what
   happens on a button, an error that names the fix.
 * **No component out of turn.** `src/` holds wave 0 — `Box`, `Stack`, `Inline`,
-  `VisuallyHidden` — and grows wave by wave per `design-system.md` §4, through the component-layer
-  work package. No component arrives here as a side effect of other work.
+  `VisuallyHidden` — and all of wave 1, and grows wave by wave per `design-system.md` §4, through
+  the component-layer work package. No component arrives here as a side effect of other work.
 * **No inline `style`.** ADR-0028's policy is `style-src 'self'` with no `'unsafe-inline'`, so a
   `style="gap: …"` is a rule the browser refuses — in production only, never in a workbench served
   without the header. The value travels as a `data-` attribute and a stylesheet rule selects on it;
   wave 0 is the worked example.
 * **No `z-index` written at a call site.** It comes from `primitive.layer` in `tokens.json`, and
-  what `Escape` reaches comes from `src/layers.ts` — one register, not one per overlay.
+  what `Escape` reaches comes from `src/layers.ts` — one register, not one per overlay. Where an
+  overlay is *drawn* comes from `src/positioning.ts`
+  ([ADR-0039](../../docs/adr/ADR-0039-overlay-positioning.md)): no component measures an anchor
+  itself, and neither path writes an inline style, because the CSP refuses one.
 * **No component without a story.** A `<Name>.svelte` in `src/` needs a `<Name>.stories.ts` beside
   it and a place in one of `design-system.md` §4's waves; `pnpm test` fails otherwise. That is the
   design system's parity gate — the specification's inventory and the tree may not become two

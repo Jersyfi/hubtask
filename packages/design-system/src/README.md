@@ -1,11 +1,22 @@
 # Components live here — Svelte 5, built deliberately
 
-Built so far: **wave 0** — `Box`, `Stack`, `Inline`, `VisuallyHidden` — and the **forms half of
-wave 1** — `Icon`, `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Radio`,
-`Switch` ([`design-system.md`](../../../docs/design/design-system.md) §4). Beside them are
-`space.ts` and `control.ts` (the shared prop types), `layers.ts` (which layer `Escape` reaches),
-`icons/` (the set — `base.ts` is generated, `custom.ts` is the domain marks) and `index.ts`, which
-is what `@hubtask/design-system/components` resolves to.
+Built so far: **wave 0** — `Box`, `Stack`, `Inline`, `VisuallyHidden` — and **all of wave 1**:
+the forms half (`Icon`, `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Radio`,
+`Switch`) and then the overlays and the feedback components (`Tooltip`, `Menu`, `Popover`,
+`Dialog`, `Toast`, `Banner`, `Avatar`, `AvatarGroup`, `Badge`, `Spinner`) —
+[`design-system.md`](../../../docs/design/design-system.md) §4.
+
+Beside them are `space.ts` and `control.ts` (the shared prop types), `layers.ts` (which layer
+`Escape` reaches), `focus.ts` (where the arrows go, and where focus goes back to),
+`positioning.ts` ([ADR-0039](../../../docs/adr/ADR-0039-overlay-positioning.md)'s positioner —
+no component measures anything itself), `overlay.ts` (the four things opening a layer means,
+written once), `icons/` (the set — `base.ts` is generated, `custom.ts` is the domain marks) and
+`index.ts`, which is what `@hubtask/design-system/components` resolves to.
+
+The three modules are plain TypeScript with no runes and no DOM where that was possible, and that
+is deliberate: "a menu is fully operable from the keyboard" and "`Escape` closes one layer at a
+time" are otherwise things one can only check by opening two overlays and pressing a key. As
+arithmetic they are a test that runs in `node --test`.
 
 Everything after them arrives through the component-layer work package (roadmap, frontend track),
 wave by wave in the order §4 proposes — not as a side effect of feature work.

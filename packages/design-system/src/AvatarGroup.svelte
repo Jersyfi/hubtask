@@ -58,6 +58,10 @@
     align-items: center;
     /* Reversed: the last element in the source is the first one seen and the last one painted. */
     flex-direction: row-reverse;
+    /* And hugging its content. A reversed row packs towards its main start, which is the *end* of
+       the line - so a group stretched by its parent would sit at the far edge with a gap in front
+       of it, in both directions. */
+    width: fit-content;
   }
 
   .slot { display: inline-flex; }
