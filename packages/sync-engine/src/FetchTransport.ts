@@ -69,6 +69,7 @@ export class FetchTransport implements Transport {
     const headers = new Headers({ Accept: 'application/json' });
     if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
     if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
+    if (options.ifMatch) headers.set('If-Match', options.ifMatch);
     if (body !== undefined) headers.set('Content-Type', 'application/json');
 
     let answer: globalThis.Response;

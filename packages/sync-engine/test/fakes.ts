@@ -28,11 +28,26 @@ export interface Call {
 export class FakeTransport implements Transport {
   readonly calls: Call[] = [];
   #answers = new Map<string, unknown>();
+  #etags = new Map<string, string>();
+  #sequences = new Map<string, unknown[]>();
   #failures = new Map<string, Error>();
 
-  /** Sets what a path answers with. */
-  answer(path: string, body: unknown): this {
+  /** Sets what a path answers with, and the `ETag` it answers with where one matters. */
+  answer(path: string, body: unknown, etag?: string): this {
     this.#answers.set(path, body);
+    if (etag !== undefined) this.#etags.set(path, etag);
+    return this;
+  }
+
+  /**
+   * Sets a series of answers for one path, consumed one per call.
+   *
+   * Paging is the reason: a second page is the same path answering something else, and a fake
+   * whose answer never changes cannot express that. The last entry repeats once the series is
+   * exhausted, so a test that calls one time too many gets a stable answer rather than undefined.
+   */
+  answerEach(path: string, bodies: readonly unknown[]): this {
+    this.#sequences.set(path, [...bodies]);
     return this;
   }
 
@@ -67,7 +82,13 @@ export class FakeTransport implements Transport {
 
     const failure = this.#failures.get(path);
     if (failure) throw failure;
-    return { status: 200, body: this.#answers.get(path) as T };
+
+    const sequence = this.#sequences.get(path);
+    if (sequence && sequence.length > 0) {
+      const next = sequence.length > 1 ? sequence.shift() : sequence[0];
+      return { status: 200, body: next as T, etag: this.#etags.get(path) };
+    }
+    return { status: 200, body: this.#answers.get(path) as T, etag: this.#etags.get(path) };
   }
 }
 

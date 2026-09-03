@@ -9,6 +9,7 @@
 export { SyncEngine, DEFAULT_TIMEOUT_MS } from './SyncEngine.ts';
 export type {
   Listener,
+  MutateOptions,
   ResourceRequest,
   ResourceState,
   SyncEngineOptions,
