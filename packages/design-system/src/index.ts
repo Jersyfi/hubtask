@@ -35,6 +35,13 @@ export { default as Textarea } from './Textarea.svelte';
 export { default as Toast } from './Toast.svelte';
 export { default as Tooltip } from './Tooltip.svelte';
 
+// Wave 2 - the structure a screen is built out of.
+export { default as Breadcrumb } from './Breadcrumb.svelte';
+export { default as Drawer } from './Drawer.svelte';
+export { default as SideNav } from './SideNav.svelte';
+export { default as Tabs, type Tab } from './Tabs.svelte';
+export { default as Toolbar } from './Toolbar.svelte';
+
 export { STATUS_ICON } from './control.ts';
 export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from './control.ts';
 
@@ -54,6 +61,18 @@ export {
 export { escapeHandler, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
 
 export { openOverlay, type MenuItem, type OverlayOptions } from './overlay.ts';
+
+export {
+  collapseTrail,
+  flattenTree,
+  parentRow,
+  treeIntent,
+  type CollapsedTrail,
+  type Crumb,
+  type NavNode,
+  type NavRow,
+  type TreeIntent,
+} from './structure.ts';
 
 export { BASE_ICONS, CUSTOM_ICONS, ICON_NAMES, ICONS, type IconName, type IconNode } from './icons/index.ts';
 
