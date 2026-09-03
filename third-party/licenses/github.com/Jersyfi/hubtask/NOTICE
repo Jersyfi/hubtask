@@ -1,0 +1,21 @@
+Hubtask
+Copyright (c) 2026 Jérôme Bastian Winkel
+
+This product is licensed under the Business Source License 1.1 (BUSL-1.1).
+See the LICENSE file for the full terms, including the Additional Use Grant
+that permits free non-commercial use, and the Change License under which each
+version becomes available three years after its first public distribution.
+
+The Change License is the Apache License, Version 2.0. Its text is included in
+the LICENSE-APACHE file.
+
+"Hubtask" and the Hubtask logo are trademarks of Jérôme Bastian Winkel. The
+software licence does not grant any right to use them. See TRADEMARK.md.
+
+"Business Source License" is a trademark of MariaDB Corporation Ab. The licence
+text in LICENSE is reproduced verbatim under the permission granted therein.
+
+Third-party dependencies are listed with their respective licences in
+THIRD-PARTY-LICENSES.md, which is generated as part of each release.
+
+For commercial licensing, contact licensing@hubtask.eu.
