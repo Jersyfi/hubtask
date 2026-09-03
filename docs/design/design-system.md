@@ -148,7 +148,7 @@ component that writes `style="gap: …"` writes a rule the browser refuses — s
 only. Every component from wave 1 on inherits that constraint, and these four are where it is
 worked out.
 
-### Wave 1 — nothing works without these (≈ 19)
+### Wave 1 — nothing works without these (≈ 19) · **built**
 Icon · Button · IconButton · Input · Textarea · Select · Checkbox · Radio · Switch · Tooltip ·
 Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner
 
@@ -158,10 +158,18 @@ to put in it, and every other component in this wave has a state it wants to dra
 spell. It takes a name from one merged set — the declared subset of Lucide plus the marks only
 this domain needs — and nothing else in the wave knows which of the two a mark came from.
 
-The wave arrives in two halves. **The eight a form is made of are built** — `Button`,
-`IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Radio`, `Switch` — and the overlays and
-the feedback components follow with the layering scale and
-[ADR-0039](../adr/ADR-0039-overlay-positioning.md) behind them.
+The wave arrived in two halves: the eight a form is made of, and then the overlays and the
+feedback components on top of the layering scale and
+[ADR-0039](../adr/ADR-0039-overlay-positioning.md). Three modules came with the second half and
+are what those five are made of — `positioning.ts` is the ADR's positioner, `focus.ts` is the
+keyboard arithmetic, and `overlay.ts` is the four things opening a layer means, written once so
+that `Menu` and `Popover` cannot come to disagree about what dismisses them.
+
+The accessibility surface of the wave lives in that half. Focus is trapped in a `Dialog` and
+returned to the trigger when it closes; a `Menu` is operable from the keyboard with arrows, `Home`,
+`End` and type-ahead; `Escape` closes one layer at a time, which is why `Dialog` refuses the
+platform's own `cancel` and asks the register instead; and a `Toast` is announced without taking
+focus, because the moment a save confirmation arrives is the moment somebody is typing.
 
 Two rules of the wave are worth stating where they are read rather than only where they are
 enforced. **There is no `disabled` boolean anywhere:** setting `disabledReason` is what switches a
