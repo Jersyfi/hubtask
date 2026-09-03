@@ -414,7 +414,29 @@ licenses:
 	@# linux image (ADR-0014) - on macOS the report is one dependency shorter, because
 	@# prometheus/procfs is only linked there. A generated file that differs by developer is a
 	@# generated file nobody can check.
-	GOOS=linux GOARCH=amd64 $(TOOLS_DIR)/go-licenses report ./... --template tools/licenses.md.tpl 2>/dev/null > THIRD-PARTY-LICENSES.md
+	@# Through a temporary file, and only moved into place on success. The redirection used to
+	@# truncate the real file *before* the tool ran, so a report that failed left an empty generated
+	@# file behind - and `2>/dev/null` meant nothing said why. That is how a transient resolution
+	@# failure in CI became "THIRD-PARTY-LICENSES.md is out of date" on a pull request that touches
+	@# no Go file at all. The warnings about packages containing non-Go code stay suppressed on
+	@# success (the tool cannot follow a .s file); a non-zero exit or an empty report is not noise.
+	@tmp="$$(mktemp)"; err="$$(mktemp)"; \
+		if ! GOOS=linux GOARCH=amd64 $(TOOLS_DIR)/go-licenses report ./... --template tools/licenses.md.tpl 2>"$$err" >"$$tmp"; then \
+			echo "go-licenses failed - THIRD-PARTY-LICENSES.md was left as it was:"; \
+			tail -20 "$$err"; rm -f "$$tmp" "$$err"; exit 1; \
+		fi; \
+		if ! grep -q '^| \[' "$$tmp"; then \
+			echo "go-licenses reported no dependency at all - refusing to overwrite the list:"; \
+			tail -20 "$$err"; rm -f "$$tmp" "$$err"; exit 1; \
+		fi; \
+		if grep -q '](Unknown)' "$$tmp"; then \
+			echo "a licence URL could not be resolved on this run, so the report is degraded:"; \
+			grep '](Unknown)' "$$tmp"; \
+			echo "go-licenses looks the URL up over the network while it writes; this is transient."; \
+			echo "Run it again. THIRD-PARTY-LICENSES.md was left as it was."; \
+			rm -f "$$tmp" "$$err"; exit 1; \
+		fi; \
+		mv "$$tmp" THIRD-PARTY-LICENSES.md; rm -f "$$err"
 	@echo "THIRD-PARTY-LICENSES.md written"
 
 ## gate-chart: helm lint and template, with every optional object switched on
