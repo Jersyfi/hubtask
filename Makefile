@@ -396,12 +396,13 @@ gate-licenses:
 	@# And the list that ships with the release is the list of what is actually linked. The
 	@# comparison is against the state before generating, like in gate-quick, so a work tree with
 	@# other uncommitted changes can still run the gate.
-	@before="$$(git status --porcelain THIRD-PARTY-LICENSES.md)"; \
+	@before="$$(git status --porcelain THIRD-PARTY-LICENSES.md third-party/licenses)"; \
 		$(MAKE) --no-print-directory licenses >/dev/null; \
-		after="$$(git status --porcelain THIRD-PARTY-LICENSES.md)"; \
+		after="$$(git status --porcelain THIRD-PARTY-LICENSES.md third-party/licenses)"; \
 		if [ "$$before" != "$$after" ]; then \
 			echo "THIRD-PARTY-LICENSES.md is out of date - run 'make licenses' and commit it"; \
 			echo "what regenerating changed:"; \
+			git --no-pager diff --no-color --stat -- THIRD-PARTY-LICENSES.md third-party/licenses; \
 			git --no-pager diff --no-color -- THIRD-PARTY-LICENSES.md; \
 			exit 1; \
 		fi
@@ -439,6 +440,23 @@ licenses:
 			rm -f "$$tmp" "$$err"; exit 1; \
 		fi; \
 		mv "$$tmp" THIRD-PARTY-LICENSES.md; rm -f "$$err"
+	@# And the notices themselves, which are what the licences actually ask to accompany a binary.
+	@# `save` refuses to write into a directory that exists, so it is removed first - and `_bundled`
+	@# is put back afterwards, because the typeface and the icon set reach the binary through the
+	@# web bundle rather than through the module graph and `go-licenses` cannot see them. Those two
+	@# are checked in rather than regenerated, so this target keeps working with no Node.js at all.
+	@bundled="$$(mktemp -d)"; \
+		if [ -d third-party/licenses/_bundled ]; then cp -R third-party/licenses/_bundled/. "$$bundled"/; fi; \
+		readme="$$(mktemp)"; \
+		if [ -f third-party/licenses/README.md ]; then cp third-party/licenses/README.md "$$readme"; fi; \
+		rm -rf third-party/licenses; \
+		if ! GOOS=linux GOARCH=amd64 $(TOOLS_DIR)/go-licenses save ./... --save_path=third-party/licenses 2>/dev/null; then \
+			echo "go-licenses save failed - the notices were not written"; exit 1; \
+		fi; \
+		mkdir -p third-party/licenses/_bundled; \
+		cp -R "$$bundled"/. third-party/licenses/_bundled/ 2>/dev/null || true; \
+		if [ -s "$$readme" ]; then cp "$$readme" third-party/licenses/README.md; fi; \
+		rm -rf "$$bundled" "$$readme"
 	@echo "THIRD-PARTY-LICENSES.md written"
 
 ## gate-chart: helm lint and template, with every optional object switched on

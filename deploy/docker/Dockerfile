@@ -80,6 +80,17 @@ COPY --from=certs /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=build /out/hubtask /usr/local/bin/hubtask
 COPY --from=build /out/hubtask-migrate /usr/local/bin/hubtask-migrate
 COPY --from=build /src/locales /app/locales
+# The notices, at the path the container ecosystem looks for them. They are not decoration: this
+# image is published to a registry on every release, which is a distribution to third parties, and
+# 14 of the dependencies are BSD-3-Clause - "redistributions in binary form must reproduce the
+# above copyright notice … in the documentation and/or other materials provided with the
+# distribution". MIT and ISC want the notice in every copy; Apache-2.0 §4 wants the licence and any
+# NOTICE file handed to the recipient. `THIRD-PARTY-LICENSES.md` is the index and the record the
+# build gate reads; `third-party/licenses/` is the material itself, and Hubtask's own terms travel
+# with it (ADR-0013).
+COPY --from=build /src/LICENSE /licenses/LICENSE
+COPY --from=build /src/THIRD-PARTY-LICENSES.md /licenses/THIRD-PARTY-LICENSES.md
+COPY --from=build /src/third-party/licenses /licenses/third-party
 # The media and backup directories, owned by the runtime user. A named volume mounted over a
 # path that is absent from the image is created root-owned, and the nonroot process cannot write
 # into it - the media path of the reference stack was dead until C-13's session, its first

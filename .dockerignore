@@ -11,3 +11,9 @@ docs
 test/golden-archives
 *.md
 !locales/**
+# The notices have to reach the image: it is published to a registry on every release, and the
+# licences of what it links require their text to accompany a binary distribution
+# (deploy/docker/Dockerfile copies them to /licenses). `*.md` above would otherwise drop the index
+# and the directory's own README on the floor, and the failure would only show up in the image.
+!THIRD-PARTY-LICENSES.md
+!third-party/licenses/**
