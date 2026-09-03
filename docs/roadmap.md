@@ -273,14 +273,25 @@ F1-03, F1-04 and F1-05 closed contrast verification, iconography, voice and tone
 scale, and F1-13 closed the layering scale and opened two more, which is what a gap list does while
 a milestone runs.
 
-**F1 is open**, and its backlog is [`backlog/milestone-F1.md`](./backlog/milestone-F1.md) —
-thirteen tasks, F1-01…F1-13. Cutting it found one thing this table could not: the client has no way
-to learn which account it is signed in as, because nothing reads an `Account` and
+**F1 is done**, and its backlog is [`backlog/milestone-F1.md`](./backlog/milestone-F1.md) —
+thirteen tasks, F1-01…F1-13. Cutting it found one thing this table could not: the client had no way
+to learn which account it is signed in as, because nothing read an `Account` and
 `/accounts/{accountId}/preferences` needs an id it never receives. Since "locale and time zone
-through the account preference" is a binding requirement above, F1 carries **one core task**
+through the account preference" is a binding requirement above, F1 carried **one core task**
 (`GET /accounts/me`, additive and specification first) — the first worked example of the rule for
 a requirement that touches both sides, and a reminder that a client milestone may find a gap in
 the contract rather than only build on it.
+
+**F2 is open**, and its backlog is [`backlog/milestone-F2.md`](./backlog/milestone-F2.md) —
+sixteen tasks, F2-01…F2-16. Cutting it found the second such gap, and of the same kind: every
+`Container` carries an `order_key`, `POST /containers/{id}:move` ranks a collection by naming the
+hub it is already in, and a hub sits in nothing and so has a rank that nothing can change. F2
+therefore carries **one core task** as well (`POST /containers/{id}:reorder`, additive and
+specification first). Two of the milestone's own gaps are older: `design-system.md` §9's density
+decision and its named motion roles are what F2-01 closes, because the milestone with the long
+lists is the last cheap moment for both. Whether F2 moves the client's maturity stage from
+`experimental` to `preview` is deliberately not in the backlog — F2-16 produces the evidence and
+the decision stays with the owner.
 
 ### The website: a pre-release site from the `0.4.0` window
 
