@@ -174,7 +174,7 @@
     border-radius: var(--r-lg);
     background: var(--bg-surface);
     box-shadow: var(--shadow-overlay);
-    animation: open var(--dur-fast) var(--ease-entrance) both;
+    animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
   }
 
   .menu:focus-visible {
@@ -186,8 +186,8 @@
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
-    gap: var(--sp-100);
-    padding: var(--sp-100) var(--sp-150);
+    gap: var(--density-row-gap);
+    padding: var(--density-row-block) var(--sp-150);
     border: var(--bw-hairline) solid transparent;
     border-radius: var(--r-sm);
     background: transparent;

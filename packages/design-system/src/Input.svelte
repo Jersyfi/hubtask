@@ -67,8 +67,8 @@
     color: var(--text-subtle);
   }
 
-  .shell[data-size='md'] { padding-inline: var(--sp-150); min-height: var(--sp-500); }
-  .shell[data-size='sm'] { padding-inline: var(--sp-100); min-height: var(--sp-400); }
+  .shell[data-size='md'] { padding-inline: var(--sp-150); min-height: var(--density-control-md-min); }
+  .shell[data-size='sm'] { padding-inline: var(--sp-100); min-height: var(--density-control-sm-min); }
 
   /* The ring goes on the shell, not on the control, so an icon inside it is inside the ring too -
      and through `:has(:focus-visible)` rather than `:focus-within`, because the latter also rings
@@ -90,7 +90,6 @@
   .input {
     flex: 1;
     min-width: 0;
-    padding-block: var(--sp-100);
     border: 0;
     background: transparent;
     color: var(--text-primary);
@@ -98,7 +97,10 @@
     text-align: start;
   }
 
-  .shell[data-size='sm'] .input { font-size: var(--fs-075); }
+  /* Per size, because the shell's minimum is only true if the field inside it fits within one.
+     A flat step here made a small field taller than the minimum it declared. */
+  .shell[data-size='md'] .input { padding-block: var(--density-control-md-block); }
+  .shell[data-size='sm'] .input { padding-block: var(--density-control-sm-block); font-size: var(--fs-075); }
 
   .input:focus { outline: none; }
   .input::placeholder { color: var(--text-subtle); }

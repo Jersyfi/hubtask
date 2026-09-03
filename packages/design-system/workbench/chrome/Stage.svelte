@@ -49,6 +49,7 @@
       class="pane"
       data-theme={pane.theme}
       data-motion={axes.motion === 'reduced' ? 'reduced' : null}
+      data-density={axes.density}
       dir={pane.dir}
     >
       <!-- Chrome, not content: the label reads the same way in every pane, so an RTL pane

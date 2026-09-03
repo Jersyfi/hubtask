@@ -49,7 +49,7 @@
        grey looked right standing on a surface and was unreadable inside a primary button, which is
        where this component spends most of its life. */
     /* Rule 6: transform only. A spinner that animated a width would move the label beside it. */
-    animation: turn var(--dur-deliberate) linear infinite;
+    animation: turn var(--motion-pending-duration) var(--motion-pending-easing) infinite;
   }
 
   @keyframes turn {

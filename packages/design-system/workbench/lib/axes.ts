@@ -14,7 +14,7 @@
 // everywhere.
 
 /** The axes, in the order the bar shows them. */
-export const AXIS_IDS = ['theme', 'dir', 'text', 'motion', 'zoom', 'width'] as const;
+export const AXIS_IDS = ['theme', 'dir', 'text', 'motion', 'density', 'zoom', 'width'] as const;
 
 export type AxisId = (typeof AXIS_IDS)[number];
 
@@ -84,6 +84,20 @@ export const AXES: readonly Axis[] = [
       },
     ],
     fallback: 'system',
+  },
+  {
+    id: 'density',
+    label: 'Density',
+    rule: 'design-system.md §5 and §9 — density is a property of the region, not of the component, so it is only observable by setting it on one',
+    values: [
+      { value: 'comfortable', label: 'Comfortable' },
+      {
+        value: 'compact',
+        label: 'Compact',
+        note: 'Sets data-density="compact". Nothing here may put a target below 24 px — WCAG 2.2 SC 2.5.8 is the floor, and `sm` sits exactly on it.',
+      },
+    ],
+    fallback: 'comfortable',
   },
   {
     id: 'zoom',

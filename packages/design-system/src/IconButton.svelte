@@ -72,19 +72,19 @@
     font: inherit;
     cursor: pointer;
     transition:
-      transform var(--dur-fast) var(--ease-standard),
-      opacity var(--dur-fast) var(--ease-standard);
+      transform var(--motion-state-duration) var(--motion-state-easing),
+      opacity var(--motion-state-duration) var(--motion-state-easing);
   }
 
   /* Square, and big enough to hit. The target is the control, not the glyph. */
   .icon-button[data-size='md'] {
-    width: var(--sp-500);
-    height: var(--sp-500);
+    width: var(--density-control-md-min);
+    height: var(--density-control-md-min);
   }
 
   .icon-button[data-size='sm'] {
-    width: var(--sp-400);
-    height: var(--sp-400);
+    width: var(--density-control-sm-min);
+    height: var(--density-control-sm-min);
   }
 
   .icon-button:focus-visible {
