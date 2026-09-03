@@ -86,9 +86,12 @@
   }
 
   /* Panes carry data-theme, so their own background has to come from the semantic layer or the
-     mode being demonstrated would sit on the chrome's canvas and prove nothing. */
+     mode being demonstrated would sit on the chrome's canvas and prove nothing. The colour has to
+     come with it: a background without one leaves every bare word in a demo inheriting the
+     chrome's light-on-dark text, which is invisible in the light pane and was. */
   .pane {
     background: var(--bg-canvas);
+    color: var(--text-primary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--r-lg);
     overflow: hidden;

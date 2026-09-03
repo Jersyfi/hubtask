@@ -45,7 +45,9 @@
   .spinner {
     display: inline-flex;
     align-items: center;
-    color: var(--text-secondary);
+    /* No colour of its own: it takes the one it sits in, the way the icon inside it does. A muted
+       grey looked right standing on a surface and was unreadable inside a primary button, which is
+       where this component spends most of its life. */
     /* Rule 6: transform only. A spinner that animated a width would move the label beside it. */
     animation: turn var(--dur-deliberate) linear infinite;
   }

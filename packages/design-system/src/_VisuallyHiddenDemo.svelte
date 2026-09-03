@@ -44,13 +44,15 @@
     font-size: var(--fs-100);
   }
 
-  /* No border: there is no border-width token yet (design-system.md §9), and a demo is not the
-     place to invent one. The surface tint is enough to show where the control is. */
+  /* The tint alone was not enough: `bg-surface-sunken` sits one step from `bg-canvas` in both
+     modes, and on a screen that is not showing every step of the neutral ramp the control was
+     invisible. It is a surface with a boundary now, which is what says "this is a control" in the
+     first place (rule 5's neighbour: a control is identified by more than its colour). */
   .icon-button {
     padding: var(--sp-100) var(--sp-150);
-    border: 0;
+    border: var(--bw-hairline) solid var(--border-default);
     border-radius: var(--r-md);
-    background: var(--bg-surface-sunken);
+    background: var(--bg-surface);
     color: var(--text-primary);
     font: inherit;
     cursor: pointer;
