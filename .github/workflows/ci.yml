@@ -82,6 +82,11 @@ jobs:
               - '.dockerignore'
             webapp:
               - 'apps/webapp/**'
+              # The message catalogue is an input rather than documentation: the client renders
+              # every code in it, and its test parses every message to prove the renderer can
+              # (F1-07). A construct nobody implemented has to turn this job red on the day it is
+              # written, not on the day somebody reads Polish.
+              - 'locales/en.json'
               - *workspace-manifests
             website:
               - 'apps/website/**'

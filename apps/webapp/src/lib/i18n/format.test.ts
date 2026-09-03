@@ -96,7 +96,10 @@ test('syntax this renderer does not implement is refused, by name', () => {
   // construct, because "unsupported syntax" sends a reader looking and "{n, number}" sends them
   // to the one line to change.
   assert.throws(() => parse('{n, number}'), MessageSyntaxError);
-  assert.throws(() => parse('{d, date, short}'), (error) => /`\{d, date\}` is not implemented/.test(error.message));
+  assert.throws(
+    () => parse('{d, date, short}'),
+    (error: unknown) => /`\{d, date\}` is not implemented/.test((error as Error).message),
+  );
   assert.throws(() => parse('{n, plural, one{#}}'), /no `other` branch/);
   assert.throws(() => parse('{n, plural, singular{#} other{#}}'), /not a CLDR plural category/);
   assert.throws(() => parse('{name'), /not closed/);

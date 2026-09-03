@@ -102,6 +102,21 @@ export function manifestViolations(members) {
 }
 
 /**
+ * The one file a member may reach out of itself for: the message catalogue.
+ *
+ * `locales/en.json` is the product's single source of display text (i18n-l10n.md §3) and it lives
+ * at the repository root because the Go binary embeds it - `locales/Embed.go` exists for that
+ * reason alone. The client renders the same codes from the same file, and the alternative to this
+ * import is a copy under `apps/`, which is the one thing a source of truth must not have.
+ *
+ * It is deliberately the file rather than the directory: an escape from a member towards anything
+ * else, including anything else in `locales/`, stays a violation. The map this checker enforces is
+ * about edges *between members* (project-structure.md §2.1), and the catalogue is not a member -
+ * it is data both halves of the product read.
+ */
+const SHARED_CATALOGUE = path.join('locales', 'en.json');
+
+/**
  * The import half: the edges a manifest cannot see. A relative import that resolves outside its
  * own member is always wrong - a cross-member path couples to another member's file layout, and
  * the sanctioned route is the package name. A member imported by name must obey the same map as
@@ -114,7 +129,11 @@ export function importViolations(member, members, relativeFile, source) {
     const specifier = match[1];
     if (specifier.startsWith('.')) {
       const resolved = path.normalize(path.join(path.dirname(relativeFile), specifier));
-      if (!resolved.startsWith(member.dir + path.sep) && resolved !== member.dir) {
+      if (
+        !resolved.startsWith(member.dir + path.sep) &&
+        resolved !== member.dir &&
+        resolved !== SHARED_CATALOGUE
+      ) {
         problems.push(`${relativeFile}: relative import '${specifier}' leaves ${member.dir}`);
       }
       continue;
@@ -185,7 +204,24 @@ function selftest() {
       () =>
         importViolations(fixture({})[0], fixture({}), 'apps/webapp/src/x.ts', "import y from '../../packages/a/src/y.ts'"),
     ],
+    [
+      'an escape to the repository root that is not the catalogue',
+      () =>
+        importViolations(fixture({})[0], fixture({}), 'apps/webapp/src/x.ts', "import y from '../../locales/Embed.go'"),
+    ],
   ];
+
+  // …and the exception itself, which is only worth having if it is exactly one file wide.
+  const catalogue = importViolations(
+    fixture({})[0],
+    fixture({}),
+    'apps/webapp/src/lib/i18n/catalogue.ts',
+    "import english from '../../../../../locales/en.json' with { type: 'json' }",
+  );
+  if (catalogue.length > 0) {
+    console.error(`workspace map selftest: the shared catalogue was flagged: ${catalogue[0]}`);
+    return false;
+  }
   const clean = manifestViolations(fixture({ webapp: ['@x/a'], a: ['@x/b'] }));
   if (clean.length > 0) {
     console.error(`workspace map selftest: a legal map was flagged: ${clean[0]}`);
