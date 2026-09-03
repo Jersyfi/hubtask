@@ -1,6 +1,6 @@
 # ADR-0039 — Overlays are positioned by CSS, with one fallback we own
 
-**Status:** proposed · **Date:** 2026-09-02
+**Status:** accepted · **Date:** 2026-09-02
 
 ## Context
 
@@ -71,7 +71,7 @@ scroll containers, resize, and RTL are exactly the hard parts, and writing them 
 visitors when 84 % of them have a browser that does it correctly during layout is work that
 degrades what the majority gets.
 
-**D. CSS Anchor Positioning, with one fallback we own (proposed).** The mechanism is A. Where
+**D. CSS Anchor Positioning, with one fallback we own (chosen).** The mechanism is A. Where
 `CSS.supports('anchor-name: --a')` is false, a single module — one for all four components —
 measures the anchor and writes the offsets into custom properties on a stylesheet rule, which is
 what the CSP permits. It is C's code, but it is C's code on the path that is shrinking rather than
@@ -90,20 +90,23 @@ of ours.
 * `position-area` and `position-try` are logical: they follow the writing direction, so RTL costs
   nothing here. The fallback has to do the same by hand, which is the first thing its test checks.
 
-## What is still open, and why this is `proposed`
+## What is still open
 
-`F1-13`'s brief says the choice is "checked against `support-matrix.md`" — and
-`support-matrix.md` has no browser row. It covers the server and `hubctl`; which browsers a
-Hubtask client is required to work in has never been decided, and it is a support-scope decision
-rather than an implementation one (`CLAUDE.md`, "what you do not decide yourself").
+`F1-13`'s brief says the choice is "checked against `support-matrix.md`" — and `support-matrix.md`
+has no browser row. It covers the server and `hubctl`; which browsers a Hubtask client is required
+to work in has never been decided, and it is a support-scope decision rather than an implementation
+one (`CLAUDE.md`, "what you do not decide yourself").
 
-The numbers above are what the decision rests on, so the missing row is not cosmetic. Two shapes
-of row would each change the answer:
+**D was chosen without that row, deliberately, because it is the only one of the four that is
+correct whichever shape the row takes.** The numbers above are what the decision rests on, and two
+plausible rows pull in opposite directions:
 
 * **"the current and the previous major of each engine"** — then every supported browser has
   anchor positioning, the fallback in D is dead code, and A is simply right.
 * **"anything still receiving security updates"** — then the fallback is load-bearing for years
   and B's argument gets stronger.
 
-This ADR proposes D because it is correct under both, and it is the only one of the four that is.
-It becomes `accepted` when the browser row exists in `support-matrix.md`.
+D is A with B's insurance, so neither row invalidates it. What the row *will* decide is how long
+the fallback has to live — and therefore when it can be deleted, which is a smaller question than
+which mechanism to build on. The row stays an open point in `design-system.md` §9 for that reason
+rather than as a condition on this decision.

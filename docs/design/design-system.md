@@ -350,9 +350,10 @@ teaches the screenshots.
   planes, the innermost in bordeaux) but is not a finished mark.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
 - **A browser support row** — `support-matrix.md` covers the server and `hubctl` and says nothing
-  about which browsers a client is required to work in. [ADR-0039](../adr/ADR-0039-overlay-positioning.md)
-  is `proposed` rather than `accepted` because of it, and it is a support-scope decision rather
-  than an implementation one.
+  about which browsers a client is required to work in. It is a support-scope decision rather than
+  an implementation one. [ADR-0039](../adr/ADR-0039-overlay-positioning.md) was accepted without
+  it, because its choice is correct whichever shape the row takes; what the row decides is how long
+  that ADR's fallback has to live.
 - **Named motion roles** — four easings and six durations exist, but nothing says which is
   *entrance*, which is *exit*, which is *emphasis* and which carries a celebration slot. Rule 6 and
   §7 both talk about motion in terms the tokens cannot currently express.
