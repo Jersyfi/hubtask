@@ -29,9 +29,14 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 COPY apps apps
 COPY packages packages
-# The contract, for the generated client. Nothing else of the Go tree is needed here, and copying
-# less is what keeps this stage from rebuilding when the backend changes.
+# The contract, for the generated client, and the message catalogue, which the client renders from
+# (i18n-l10n.md §3, F1-07). Both live outside apps/ and packages/ because the Go binary needs them
+# too - and both are inputs to this stage rather than to the Go one, so the webapp build resolves
+# `../../../../../locales/en.json` here exactly as it does in a checkout. Nothing else of the Go
+# tree is needed, and copying less is what keeps this stage from rebuilding when the backend
+# changes.
 COPY api/openapi.yaml api/openapi.yaml
+COPY locales/en.json locales/en.json
 # In dependency order, because each one consumes the one before it.
 RUN pnpm --filter @hubtask/api-client build \
  && pnpm --filter @hubtask/design-system build \

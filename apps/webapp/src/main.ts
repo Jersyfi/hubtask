@@ -29,11 +29,17 @@ import './app.css';
 
 import { mount } from 'svelte';
 import App from './App.svelte';
+import { startLocale } from './lib/i18n/i18n.svelte.ts';
 import { followSystemTheme } from './lib/theme.ts';
 
 // Before the first paint: the stylesheet deliberately renders nothing sensible without
 // `data-theme` (ADR-0029), and this is the call that sets it.
 followSystemTheme();
+
+// …and the document has to say what language it is in and which way it runs. At boot the browser's
+// own preference is all the client knows; the account's (F1-08) and the installation's supported
+// locales (F1-10) replace it through `messages.adopt`.
+startLocale();
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (!root) throw new Error('#app is missing from index.html');
