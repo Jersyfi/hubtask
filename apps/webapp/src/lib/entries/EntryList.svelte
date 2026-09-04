@@ -41,6 +41,7 @@
 
   import { announcer } from '../announce.svelte.ts';
   import { acceptsChild, childTypes, rootTypes, supports } from '../data/capability.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -352,6 +353,43 @@
   /** Which row the destination picker is open for. */
   let movingRow = $state<Row | undefined>(undefined);
   let isMoving = $state(false);
+
+  /**
+   * Every collection the workspace holds, read when the picker opens.
+   *
+   * That is the one place it is right to read them. `containers.svelte.ts` argues against reading
+   * every hub's level at boot, because that is a request per hub for rows nobody has asked to see;
+   * here somebody has asked, and a picker offering only the hubs they happened to have expanded
+   * would hide half the workspace.
+   *
+   * `untrack` around the subscribing, for the reason every store here records: the listener writes
+   * the level and writing it reads it, so an effect tracking that read cancels its own
+   * subscription before the answer arrives.
+   */
+  $effect(() => {
+    if (!movingRow) return;
+    const hubs = containers.hubs.map((hub) => hub.id);
+    return untrack(() => {
+      const stops = hubs.map((hubId) => containers.openLevel(hubId));
+      return () => {
+        for (const stop of stops) stop();
+      };
+    });
+  });
+
+  const destinations = $derived(
+    containers.hubs.flatMap((hub) =>
+      containers
+        .collectionsOf(hub.id)
+        // The collection it is already in is not a destination, and an archived one is read-only
+        // (I-C3) — offering it would be offering a move the server refuses.
+        .filter((collection) => collection.id !== collectionId && !collection.effective_archived)
+        .map((collection) => ({
+          value: collection.id,
+          label: t('app.move.destination_option', { hub: hub.name, collection: collection.name }),
+        })),
+    ),
+  );
 
   async function moveElsewhere(collectionId: string) {
     const row = movingRow;
@@ -695,8 +733,16 @@
 {#if movingRow}
   <MoveDialog
     isOpen={true}
-    title={movingRow.item.title}
-    fromCollectionId={collectionId}
+    title={t('app.rank.actions', { title: movingRow.item.title })}
+    label={t('app.move.destination')}
+    placeholder={t('app.move.choose')}
+    options={destinations}
+    emptyLabel={t('app.move.no_destination')}
+    warning={t('app.move.leaves_behind')}
+    confirmLabel={t('app.move.confirm')}
+    busyLabel={t('app.move.moving')}
+    cancelLabel={t('app.entries.cancel')}
+    chooseFirstLabel={t('app.move.choose_first')}
     isBusy={isMoving}
     onmove={(destination) => moveElsewhere(destination)}
   />

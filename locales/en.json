@@ -1178,5 +1178,12 @@
   "app.move.dropped_kind.CUSTOM_FIELD": "Custom field",
   "app.move.inside_above": "Move inside the one above",
   "app.board.moved": "{title} moved to {name}.",
-  "app.board.card_actions": "Move {title}"
+  "app.board.card_actions": "Move {title}",
+  "app.move.to_hub": "Move to another hub…",
+  "app.move.hub": "Hub",
+  "app.move.choose_hub": "Choose a hub",
+  "app.move.choose_hub_first": "Choose a hub to move it to first.",
+  "app.move.no_hub": "There is no other hub in this workspace to move it to.",
+  "app.move.hub_only": "A hub is the top level and sits in nothing, so it has nowhere to move to.",
+  "app.move.container_announced": "{name} moved to {hub}."
 }

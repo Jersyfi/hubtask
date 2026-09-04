@@ -30,6 +30,9 @@
 
   import Board from '../lib/entries/Board.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
+  import MoveDialog from '../lib/entries/MoveDialog.svelte';
+
+  import { announcer } from '../lib/announce.svelte.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
@@ -143,6 +146,54 @@
     } catch (error) {
       failure = renderProblem(error as TransportError, messages);
     }
+  }
+
+  /**
+   * Moving a collection into another hub, which is the one placement no position can express.
+   *
+   * Up and down rank it where it already is; this changes which hub holds it, and `:move`'s
+   * `target_parent_id` is required precisely because that is the question it answers. A hub is
+   * offered none of this: it sits in nothing, so there is no destination to name — the same reason
+   * F2-04 gave hubs a `:reorder` of their own.
+   *
+   * Nothing is lost by it. A collection carries its own labels and its own board, so the losses
+   * `MoveResult` reports for an entry (I-W6) have no counterpart here, and the dialog is shown
+   * without a warning rather than with an invented one.
+   */
+  let isMovingHub = $state(false);
+  let isMovingNow = $state(false);
+
+  const hubs = $derived(
+    containers.hubs
+      .filter((each) => each.id !== container?.parent_id && !each.effective_archived)
+      .map((each) => ({ value: each.id, label: each.name })),
+  );
+
+  async function moveToHub(hubId: string) {
+    if (!container) return;
+    // Both names are read **before** the write, and neither is available afterwards. The move
+    // invalidates `/containers`, so `container` is briefly undefined while the level reloads, and
+    // the destination has stopped being a destination — it is the hub this collection is in now,
+    // so `hubs` no longer offers it. Reading either afterwards throws, and a throw in here would
+    // reach the catch below and be rendered as a transport failure it is not.
+    const moving = container.name;
+    const destination = hubs.find((each) => each.value === hubId)?.label ?? '';
+
+    isMovingNow = true;
+    failure = undefined;
+    try {
+      await containers.move(container.id, hubId, null, crypto.randomUUID());
+      isMovingHub = false;
+    } catch (error) {
+      failure = renderProblem(error as TransportError, messages);
+      return;
+    } finally {
+      isMovingNow = false;
+    }
+    // Outside the try, for the same reason: `renderProblem` reads a problem document, and handing
+    // it anything else fails on `fieldErrors` — which turns a rendering mistake into a sentence
+    // about the server.
+    announcer.say(t('app.move.container_announced', { name: moving, hub: destination }));
   }
 
   // Renaming, and the whole reason it is a form rather than an inline edit: a name collision is a
@@ -286,6 +337,21 @@
             onclick={() => moveBy(1)}
             disabledReason={canMoveDown ? undefined : t('app.rank.already_last')}
           />
+          <!-- The placement no position can express. A hub is offered it with the reason it cannot
+               be used rather than not at all: it sits in nothing, so there is nowhere to move it
+               to, and a control that quietly disappeared would leave the reader wondering. -->
+          <Button
+            size="sm"
+            tone="secondary"
+            onclick={() => (isMovingHub = true)}
+            disabledReason={container.type === 'HUB'
+              ? t('app.move.hub_only')
+              : isReadOnly
+                ? t('app.workspace.archived')
+                : undefined}
+          >
+            {t('app.move.to_hub')}
+          </Button>
         </Toolbar>
       </Stack>
     {/if}
@@ -324,6 +390,23 @@
       </Tabs>
     {/if}
   </Stack>
+{/if}
+
+{#if isMovingHub && container}
+  <MoveDialog
+    bind:isOpen={isMovingHub}
+    title={t('app.rank.actions', { title: container.name })}
+    label={t('app.move.hub')}
+    placeholder={t('app.move.choose_hub')}
+    options={hubs}
+    emptyLabel={t('app.move.no_hub')}
+    confirmLabel={t('app.move.confirm')}
+    busyLabel={t('app.move.moving')}
+    cancelLabel={t('app.workspace.cancel')}
+    chooseFirstLabel={t('app.move.choose_hub_first')}
+    isBusy={isMovingNow}
+    onmove={(hubId) => moveToHub(hubId)}
+  />
 {/if}
 
 <style>
