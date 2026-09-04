@@ -25,12 +25,17 @@
     Menu,
     Skeleton,
     WorkItemCard,
+    rankIntent,
+    rankTarget,
+    type RankCommand,
   } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
+  import { announcer } from '../announce.svelte.ts';
   import { buckets } from '../data/buckets.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
+  import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -100,10 +105,142 @@
       if (target?.is_done_bucket && !moved.completion?.is_completed) {
         await items.setCompleted(moved.id, true, crypto.randomUUID());
       }
+      announcer.say(
+        t('app.board.moved', {
+          title: item.title,
+          name: target?.name ?? t('app.board.unbucketed'),
+        }),
+      );
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
     }
   }
+
+  /**
+   * Ranks a card within its column.
+   *
+   * **A column is not a level.** The level `:reorder` moves an entry within is the collection's
+   * top level, and a column is that level seen through one bucket — so the neighbour named here is
+   * the next card *in the column*, which is a position in the level and lands the card where the
+   * reader watched it go. Naming the next entry of the level instead would put the card in front
+   * of one it cannot see.
+   *
+   * The same call the list makes, from the same arithmetic, with an `Idempotency-Key` per intent.
+   */
+  async function rank(card: WorkItem, cards: readonly WorkItem[], command: RankCommand) {
+    const index = cards.findIndex((each) => each.id === card.id);
+    const target = rankTarget(command, index, cards.length);
+    if (target === null) return;
+
+    writeFailure = undefined;
+    try {
+      await items.reorder(
+        card.id,
+        anchorFor(cards, card.id, target),
+        card.version,
+        crypto.randomUUID(),
+      );
+      announcer.say(
+        t('app.rank.announced', {
+          title: card.title,
+          position: target + 1,
+          count: cards.length,
+        }),
+      );
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  /** Why a rank command is unavailable on this card, or nothing. */
+  function rankReason(
+    card: WorkItem,
+    cards: readonly WorkItem[],
+    command: RankCommand,
+  ): string | undefined {
+    if (isReadOnly) return t('app.entries.read_only');
+    const index = cards.findIndex((each) => each.id === card.id);
+    if (rankTarget(command, index, cards.length) !== null) return undefined;
+    return command === 'up' || command === 'top'
+      ? t('app.rank.already_first')
+      : t('app.rank.already_last');
+  }
+
+  const RANK_COMMANDS: readonly { readonly id: RankCommand; readonly label: string }[] = [
+    { id: 'up', label: 'app.rank.up' },
+    { id: 'down', label: 'app.rank.down' },
+    { id: 'top', label: 'app.rank.top' },
+    { id: 'bottom', label: 'app.rank.bottom' },
+  ];
+
+  /**
+   * The whole of what a card can be told to do: where in the column, and which column.
+   *
+   * Both in one menu, because the reader is answering one question. The separator is where the
+   * column stops being the column — and where the call behind it stops being `:reorder`.
+   */
+  function menuItems(card: WorkItem, cards: readonly WorkItem[]) {
+    return [
+      ...RANK_COMMANDS.map((command) => ({
+        id: command.id,
+        label: t(command.label),
+        disabledReason: rankReason(card, cards, command.id),
+      })),
+      ...[...columns, null].map((target, index) => ({
+        id: `bucket:${target?.id ?? 'none'}`,
+        label: t('app.board.move_to', {
+          title: card.title,
+          name: target?.name ?? t('app.board.unbucketed'),
+        }),
+        hasSeparatorBefore: index === 0,
+      })),
+    ];
+  }
+
+  function chose(card: WorkItem, cards: readonly WorkItem[], id: string) {
+    if (!id.startsWith('bucket:')) {
+      void rank(card, cards, id as RankCommand);
+      return;
+    }
+    const bucketId = id.slice('bucket:'.length);
+    void moveTo(card, bucketId === 'none' ? null : bucketId);
+  }
+
+  /**
+   * The keyboard shortcuts, listened for on the board rather than bound in the markup — a `<div>`
+   * with an `onkeydown` is a static element with an interaction, and Svelte is right to warn.
+   *
+   * `data-card` is how a press finds its way back from the focused control to the card, and
+   * `data-column` says which column's cards it is ranked among.
+   */
+  let board = $state<HTMLElement | null>(null);
+
+  $effect(() => {
+    const node = board;
+    if (!node || isReadOnly) return;
+
+    const onKeydown = (event: KeyboardEvent) => {
+      const held = (event.target as Element | null)?.closest?.('[data-card]');
+      const cardId = held?.getAttribute('data-card');
+      if (!cardId) return;
+      const column = held?.getAttribute('data-column') ?? null;
+      const cards = cardsOf(column === 'none' ? null : column);
+      const index = cards.findIndex((each) => each.id === cardId);
+      const card = cards[index];
+      if (!card) return;
+
+      if (rankIntent(event, index, cards.length) === null) return;
+      event.preventDefault();
+      void rank(
+        card,
+        cards,
+        event.key === 'ArrowUp' ? (event.shiftKey ? 'top' : 'up') : event.shiftKey ? 'bottom' : 'down',
+      );
+    };
+
+    node.addEventListener('keydown', onKeydown);
+    return () => node.removeEventListener('keydown', onKeydown);
+  });
 </script>
 
 {#if boardState === undefined || boardState.status === 'loading' || boardState.status === 'idle'}
@@ -121,7 +258,7 @@
 {:else}
   {#if writeFailure}<p class="failure">{writeFailure.message}</p>{/if}
 
-  <div class="board">
+  <div class="board" bind:this={board}>
     {#each [...columns, null] as bucket (bucket?.id ?? 'none')}
       {@const bucketId = bucket?.id ?? null}
       {@const cards = cardsOf(bucketId)}
@@ -148,44 +285,42 @@
           {/snippet}
 
           {#each cards as card (card.id)}
-            <WorkItemCard
-              title={card.title}
-              href={`/items/${card.id}`}
-              isCompleted={card.completion?.is_completed ?? false}
-              coverKind={card.cover?.kind ?? null}
-              coverColorToken={card.cover?.color_token ?? null}
-            >
-              {#snippet footer()}
-                <Inline gap="050">
-                  {#each (card.label_ids ?? []) as labelId (labelId)}
-                    {@const label = available.find((each) => each.id === labelId)}
-                    {#if label}
-                      <LabelChip name={label.name} colorToken={label.color_token} />
+            <!-- `data-card` is how a key press finds its way back from the focused control to the
+                 card, and `data-column` says which column's cards it is ranked among. -->
+            <div class="card" data-card={card.id} data-column={bucket?.id ?? 'none'}>
+              <WorkItemCard
+                title={card.title}
+                href={`/items/${card.id}`}
+                isCompleted={card.completion?.is_completed ?? false}
+                coverKind={card.cover?.kind ?? null}
+                coverColorToken={card.cover?.color_token ?? null}
+              >
+                {#snippet footer()}
+                  <Inline gap="050">
+                    {#each (card.label_ids ?? []) as labelId (labelId)}
+                      {@const label = available.find((each) => each.id === labelId)}
+                      {#if label}
+                        <LabelChip name={label.name} colorToken={label.color_token} />
+                      {/if}
+                    {/each}
+                    {#if !isReadOnly}
+                      <!-- The keyboard path to moving a card, and for now the only one — F2-12 builds
+                           the drag against it, because WCAG 2.2 SC 2.5.7 wants a single-pointer
+                           alternative and a rank change is a command before it is a gesture. -->
+                      <Menu
+                        label={t('app.board.card_actions', { title: card.title })}
+                        items={menuItems(card, cards)}
+                        onselect={(id) => chose(card, cards, id)}
+                      >
+                        {#snippet trigger(props)}
+                          <IconButton icon="ellipsis" label={t('app.board.card_actions', { title: card.title })} size="sm" {...props} />
+                        {/snippet}
+                      </Menu>
                     {/if}
-                  {/each}
-                  {#if !isReadOnly}
-                    <!-- The keyboard path to moving a card, and for now the only one — F2-12 builds
-                         the drag against it, because WCAG 2.2 SC 2.5.7 wants a single-pointer
-                         alternative and a rank change is a command before it is a gesture. -->
-                    <Menu
-                      label={t('app.board.column_actions', { name: card.title })}
-                      items={[...columns, null].map((target) => ({
-                        id: target?.id ?? 'none',
-                        label: t('app.board.move_to', {
-                          title: card.title,
-                          name: target?.name ?? t('app.board.unbucketed'),
-                        }),
-                      }))}
-                      onselect={(id) => moveTo(card, id === 'none' ? null : id)}
-                    >
-                      {#snippet trigger(props)}
-                        <IconButton icon="ellipsis" label={t('app.board.column_actions', { name: card.title })} size="sm" {...props} />
-                      {/snippet}
-                    </Menu>
-                  {/if}
-                </Inline>
-              {/snippet}
-            </WorkItemCard>
+                  </Inline>
+                {/snippet}
+              </WorkItemCard>
+            </div>
           {/each}
         </BucketColumn>
       {/if}
@@ -194,6 +329,10 @@
 {/if}
 
 <style>
+  /* The card's wrapper carries the identity a key press reads and nothing else — the card itself
+     is the design system's, and a state written on it here would be a second place it is styled. */
+  .card { display: block; }
+
   /* The board scrolls sideways, not the page. */
   .board {
     display: flex;

@@ -1176,5 +1176,7 @@
   "app.move.dropped_kind.ASSIGNEE": "Assignee",
   "app.move.dropped_kind.ATTACHMENT": "Attachment",
   "app.move.dropped_kind.CUSTOM_FIELD": "Custom field",
-  "app.move.inside_above": "Move inside the one above"
+  "app.move.inside_above": "Move inside the one above",
+  "app.board.moved": "{title} moved to {name}.",
+  "app.board.card_actions": "Move {title}"
 }
