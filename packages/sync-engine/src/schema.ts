@@ -82,6 +82,49 @@ export type WorkItem = components['schemas']['WorkItem'];
 export type Problem = components['schemas']['Problem'];
 export type Label = components['schemas']['Label'];
 export type Bucket = components['schemas']['Bucket'];
+/**
+ * What a move answered: the entry where it landed, and what the destination could not carry.
+ *
+ * The second half is the point of the type. Invariant I-W6 is that an unresolvable reference is
+ * **reported**, never silently dropped, and a client that read only `item` would turn a designed
+ * behaviour into data loss — the chips would simply be gone, indistinguishable from a rendering
+ * fault.
+ */
+export type MoveResult = components['schemas']['MoveResult'];
+export type DroppedReference = components['schemas']['DroppedReference'];
+
+/**
+ * What `POST /items:query` accepts, as the installation reports it.
+ *
+ * The contract says what it is for in its own words: "a client builds its filter editor from this
+ * rather than from a hard-coded list, because the set grows with the installation's features — a
+ * field whose use case this version does not have is not in it, and filtering on it is refused
+ * rather than silently matching nothing."
+ */
+export type QueryField = components['schemas']['QueryField'];
+/** One node of the filter grammar: a leaf comparison, or a combination of them (ADR-0026). */
+export type FilterNode = components['schemas']['FilterNode'];
+export type ItemSearchQuery = components['schemas']['ItemSearchQuery'];
+
+/**
+ * The trash, as the API lists it: **one row per deletion**, not one per deleted row.
+ *
+ * A hub with two hundred entries under it went in as one act and comes back as one act (I-C2), so
+ * what is listed is the root of each deletion — the thing somebody deleted — and the batch beside
+ * it is what took the rest.
+ */
+export type TrashPage = components['schemas']['TrashPage'];
+export type TrashEntry = components['schemas']['TrashEntry'];
+/** What one pass of a removal did, including what it kept and why (`legal_hold`). */
+export type PurgeSummary = components['schemas']['PurgeSummary'];
+export type RetentionPolicy = components['schemas']['RetentionPolicy'];
+
+/**
+ * One step of an entry's history. `code` is a message the client renders, never a sentence — which
+ * is what lets one history read in whichever language each client is set to (ADR-0011, §3.5).
+ */
+export type ActivityEntry = components['schemas']['ActivityEntry'];
+export type ActivityPage = components['schemas']['ActivityPage'];
 
 // The paged envelopes, for the reads that answer a page rather than a document. Re-exported for
 // the same reason the documents are: a consumer that reached into `@hubtask/api-client` for one of

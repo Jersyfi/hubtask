@@ -22,7 +22,8 @@
 import type { Container, ContainerPage, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { siblingBefore } from './containers.ts';
+import { etagFor } from './etag.ts';
+import { anchorFor } from './rank.ts';
 
 /** The hub level: the one anchored to nothing. */
 const HUBS = '/containers?type=HUB&page_size=200';
@@ -175,7 +176,7 @@ class Containers {
     return engine.mutate<Container>(
       'POST',
       `/containers/${id}:reorder`,
-      { before_container_id: siblingBefore(siblings, id, position) },
+      { before_container_id: anchorFor(siblings, id, position) },
       { idempotencyKey, invalidates: TOUCHES },
     );
   }
@@ -195,6 +196,28 @@ class Containers {
     );
   }
 
+  /**
+   * Moves a container and everything under it to the trash.
+   *
+   * One deletion for the whole subtree: a hub takes its collections and every collection takes its
+   * entries, under one `trash_batch_id` "so that restoring is atomic" (I-C2). Anything already in
+   * the trash from an earlier deletion keeps that deletion rather than joining this one.
+   */
+  async trash(id: string, version: number): Promise<void> {
+    await engine.mutate<void>('DELETE', `/containers/${id}`, undefined, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /** Takes one container deletion back out of the trash, whole — the hub, its collections, its entries. */
+  async restore(id: string, idempotencyKey: string): Promise<Container> {
+    return engine.mutate<Container>('POST', `/containers/${id}:restore`, undefined, {
+      idempotencyKey,
+      invalidates: ['/containers', '/items', '/trash'],
+    });
+  }
+
   /** Archives or unarchives. Read-only is a state, not a deletion (I-C3). */
   async setArchived(id: string, isArchived: boolean, idempotencyKey: string): Promise<Container> {
     return engine.mutate<Container>(
@@ -204,18 +227,6 @@ class Containers {
       { idempotencyKey, invalidates: TOUCHES },
     );
   }
-}
-
-/**
- * The entity tag for a version.
- *
- * The client holds pages, which carry no tag; every `Container` carries a `version`, and the server
- * forms its `ETag` from exactly that (`etag(version)` in `ContainerController.go`) and reads it back
- * by trimming the quotes. One place, because a second spelling of the same tag is a precondition
- * that never matches.
- */
-export function etagFor(version: number): string {
-  return `"${version}"`;
 }
 
 export const containers = new Containers();

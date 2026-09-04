@@ -16,17 +16,43 @@
  * assembles. F2-03 taught the engine that a `POST` can be a read.
  */
 
-import type { ItemQueryResult, ResourceState, WorkItem } from '@hubtask/sync-engine';
+import type {
+  FilterNode,
+  ItemQueryResult,
+  MoveResult,
+  ResourceState,
+  WorkItem,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { etagFor } from './etag.ts';
 
 const QUERY = '/items:query';
 
 /** What a write to an entry makes stale. Entries, and nothing about the container tree. */
 const TOUCHES = ['/items'];
 
+/**
+ * What the reader has asked of a level beyond "show it": a filter, an order, a grouping.
+ *
+ * All three are the **manifest's** — built by `query.ts` from `query_fields` and never from a list
+ * written here — and all three are optional, because the ordinary case is a collection shown the
+ * way it was arranged. An absent one is left out of the document rather than sent as a null.
+ */
+export interface ItemsQuery {
+  readonly filter?: FilterNode;
+  readonly sort?: readonly { readonly field: string; readonly dir: 'ASC' | 'DESC' }[];
+  readonly group?: { readonly field: string; readonly limit_per_group: number };
+}
+
+/** The manual order: `order_key ASC`, which is also the query's own default. */
+const MANUAL = [{ field: 'order_key', dir: 'ASC' as const }];
+
 /** The question that reads one level: a collection's own entries, or one entry's children. */
-function level(scope: { container_id?: string; item_id?: string }): {
+function level(
+  scope: { container_id?: string; item_id?: string },
+  query: ItemsQuery = {},
+): {
   path: string;
   body: unknown;
 } {
@@ -34,9 +60,19 @@ function level(scope: { container_id?: string; item_id?: string }): {
     path: QUERY,
     body: {
       scope: { ...scope, include_descendants: false },
-      // The manual order, which is `order_key ASC` and the query's own default. Named rather than
-      // left out, because a list a person can drag has to be in the order they dragged it into.
-      sort: [{ field: 'order_key', dir: 'ASC' }],
+      // **Archived is read-only, not hidden** (I-W4). The query defaults to leaving archived
+      // entries out, and taking that default would make "archived" mean "gone" — which is the
+      // failure F2-14 exists to prevent: the row stays, says so, and has every control off with
+      // the reason. A reader who wants them out filters them out; `archived_at` is a field the
+      // manifest reports.
+      //
+      // `include_trashed` stays at its default. The trash is a different screen, and an entry
+      // mixed into the list it was deleted from would be a deletion that did nothing.
+      include_archived: true,
+      // The manual order unless the reader asked for another. Named rather than left out, because
+      // a list a person can drag has to be in the order they dragged it into.
+      sort: query.sort ?? MANUAL,
+      ...(query.filter ? { filter: query.filter } : {}),
       expand: ['labels'],
       page: { size: 200 },
     },
@@ -55,13 +91,19 @@ function level(scope: { container_id?: string; item_id?: string }): {
  * no count is a number nobody can act on. It costs a second pass — the contract says so out loud —
  * and this is the one read so far where it is worth it.
  */
-function board(containerId: string): { path: string; body: unknown } {
+function board(containerId: string, query: ItemsQuery): { path: string; body: unknown } {
   return {
     path: QUERY,
     body: {
       scope: { container_id: containerId, include_descendants: false },
-      group_by: { field: 'bucket_id', limit_per_group: 50 },
-      sort: [{ field: 'order_key', dir: 'ASC' }],
+      // As above: an archived card stays on the board and says so, rather than vanishing from it.
+      include_archived: true,
+      // The grouping is the caller's, and the caller reads it from the manifest. A board grouped
+      // by the column an entry is in is what a board *is*, but which fields may be grouped on at
+      // all is `groupable` in `query_fields` — so the field travels rather than being written here.
+      ...(query.group ? { group_by: query.group } : {}),
+      sort: query.sort ?? MANUAL,
+      ...(query.filter ? { filter: query.filter } : {}),
       expand: ['labels'],
       count: 'exact',
     },
@@ -94,17 +136,24 @@ class Items {
    * reads it, so an effect that subscribes while tracking that read cancels its own subscription
    * before the answer arrives (F2-08 records the symptom).
    */
-  openCollection(containerId: string): () => void {
-    return this.#open(`container:${containerId}`, level({ container_id: containerId }));
+  openCollection(containerId: string, query: ItemsQuery = {}): () => void {
+    return this.#open(`container:${containerId}`, level({ container_id: containerId }, query));
   }
 
+  /**
+   * A child level is read **unfiltered**, and that is deliberate rather than an omission.
+   *
+   * A filter narrows what the reader is looking for at the level they are looking at; applying it
+   * again to the children of a row that matched would hide the entries *inside* a match, which is
+   * the opposite of what expanding a row asks for.
+   */
   openChildren(itemId: string): () => void {
     return this.#open(`item:${itemId}`, level({ item_id: itemId }));
   }
 
   /** Starts the board. **From `untrack`**, like every other subscription here. */
-  openBoard(containerId: string): () => void {
-    return this.#open(`board:${containerId}`, board(containerId));
+  openBoard(containerId: string, query: ItemsQuery = {}): () => void {
+    return this.#open(`board:${containerId}`, board(containerId, query));
   }
 
   /**
@@ -154,7 +203,7 @@ class Items {
     version: number,
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, body, {
-      ifMatch: `"${version}"`,
+      ifMatch: etagFor(version),
       invalidates: TOUCHES,
     });
   }
@@ -169,8 +218,135 @@ class Items {
    */
   async setBucket(id: string, bucketId: string | null, version: number): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, { bucket_id: bucketId }, {
-      ifMatch: `"${version}"`,
+      ifMatch: etagFor(version),
       invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * Ranks an entry within the level it already sits in.
+   *
+   * The position travels as **the sibling to go before**, because the rank is a fractional index
+   * and a fractional index has no index to hand over. That is also what keeps the neighbours
+   * alone: the server writes one key between two others and renumbers nothing, and this client
+   * never sends the level back to be renumbered.
+   *
+   * `ifMatch` although the contract declares no `If-Match` on an action. The server reads the
+   * header anyway and says why (`PlacementController.go`): a rank change against a version the
+   * reader no longer has is a lost race, and losing it silently is what an optimistic lock exists
+   * to prevent. A pointer drag is the case that makes it worth sending — a drag takes seconds, and
+   * seconds are long enough for the row to have moved underneath.
+   */
+  async reorder(
+    id: string,
+    beforeItemId: string | null,
+    version: number,
+    idempotencyKey: string,
+  ): Promise<WorkItem> {
+    return engine.mutate<WorkItem>(
+      'POST',
+      `/items/${id}:reorder`,
+      { before_item_id: beforeItemId },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Moves an entry, and its whole subtree, to another parent or another collection.
+   *
+   * `:move` rather than `:reorder` the moment the parent changes, and it answers a `MoveResult`
+   * rather than the entry: invariant I-W6 says a reference the destination cannot resolve is
+   * **reported** rather than dropped in silence, and `dropped_references` is that report. A caller
+   * that ignored it would turn a designed behaviour into data loss — the labels would simply be
+   * gone, indistinguishable from a rendering fault.
+   *
+   * `target_collection_id` is sent only when the destination names one: an entry's collection is
+   * the one its parent is in, and naming both is how a client says something the server has to
+   * refuse. `target_parent_id` is always sent, because `null` is the top level of a collection and
+   * omitting it means "leave the parent alone" — the value cannot tell the two apart, which is the
+   * same distinction `MoveWorkItem` reads a presence map for on the server side.
+   */
+  async move(
+    id: string,
+    destination: {
+      parentId: string | null;
+      collectionId?: string;
+      beforeItemId?: string | null;
+    },
+    version: number,
+    idempotencyKey: string,
+  ): Promise<MoveResult> {
+    return engine.mutate<MoveResult>(
+      'POST',
+      `/items/${id}:move`,
+      {
+        target_parent_id: destination.parentId,
+        ...(destination.collectionId ? { target_collection_id: destination.collectionId } : {}),
+        before_item_id: destination.beforeItemId ?? null,
+      },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Archives an entry, or brings it back.
+   *
+   * Archived is **read-only, not hidden** (I-W4): the entry stays where it is, stays readable, and
+   * every control on it is off with the reason. That is the screen's half; this is the write.
+   */
+  async setArchived(id: string, isArchived: boolean, idempotencyKey: string): Promise<WorkItem> {
+    return engine.mutate<WorkItem>(
+      'POST',
+      `/items/${id}:${isArchived ? 'archive' : 'unarchive'}`,
+      undefined,
+      { idempotencyKey, invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Moves an entry and everything under it to the trash.
+   *
+   * A **soft** delete, and a batch: the subtree goes in under one deletion sharing a
+   * `trash_batch_id` "so that restoring is atomic" (I-C2). Nothing here says how long it stays —
+   * that is the workspace's retention period, and it is not this client's to assert.
+   *
+   * `If-Match`, because the contract declares one on this `DELETE`: deleting a subtree that moved
+   * underneath the reader is the case an optimistic lock is for.
+   */
+  async trash(id: string, version: number): Promise<void> {
+    await engine.mutate<void>('DELETE', `/items/${id}`, undefined, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * Takes one deletion back out of the trash, whole.
+   *
+   * Exactly what went in together comes back, because a restore is keyed on the **deletion** and
+   * not on the subtree — so a younger deletion inside it stays where it is. An entry archived when
+   * it was deleted comes back archived: restoring undoes the deletion and nothing else.
+   */
+  async restore(id: string, idempotencyKey: string): Promise<WorkItem> {
+    return engine.mutate<WorkItem>('POST', `/items/${id}:restore`, undefined, {
+      idempotencyKey,
+      // The trash changes and so does whatever level the entry came back to.
+      invalidates: ['/items', '/trash'],
+    });
+  }
+
+  /**
+   * Destroys an entry in the trash, and everything under it, for good.
+   *
+   * Irreversible — "no restore brings it back, and a backup taken before it does not either" — so
+   * the screen that calls this asks first and says what will go. A legal hold refuses it, and the
+   * answer says at which level; that refusal is rendered as its own sentence rather than as a
+   * generic failure, which is `problem.ts`'s doing and the reason the code travels.
+   */
+  async purge(id: string, idempotencyKey: string): Promise<void> {
+    await engine.mutate<void>('POST', `/items/${id}:purge`, undefined, {
+      idempotencyKey,
+      invalidates: ['/items', '/trash'],
     });
   }
 

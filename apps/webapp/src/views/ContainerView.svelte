@@ -15,6 +15,7 @@
   import {
     Breadcrumb,
     Button,
+    Dialog,
     EmptyState,
     IconButton,
     Inline,
@@ -22,7 +23,6 @@
     ListRow,
     Skeleton,
     Stack,
-    Tabs,
     Toolbar,
   } from '@hubtask/design-system/components';
 
@@ -30,10 +30,17 @@
 
   import Board from '../lib/entries/Board.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
+  import MoveDialog from '../lib/entries/MoveDialog.svelte';
+  import QueryPanel from '../lib/entries/QueryPanel.svelte';
+
+  import { announcer } from '../lib/announce.svelte.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
-  import { archivalOf, siblingBefore } from '../lib/data/containers.ts';
+  import { archivalOf } from '../lib/data/containers.ts';
+  import { anchorFor } from '../lib/data/rank.ts';
   import type { TransportError } from '@hubtask/sync-engine';
+
+  import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -56,8 +63,18 @@
     return untrack(() => containers.openSingle(wanted));
   });
 
-  /** Which of the two the reader is looking at. Kept on the device; saved views are F3's. */
-  let layout = $state('list');
+  /**
+   * Which layout the reader is looking at, and what they have asked of the entries.
+   *
+   * Kept on the device, in memory. Saved views are F3's, and writing a `SavedView` here would be
+   * building half of that milestone badly — the choice is the reader's for as long as the screen
+   * is open, and no further claim is made about it.
+   */
+  let layout = $state('LIST_COLLAPSED');
+  let query = $state<ItemsQuery>({});
+
+  /** The layouts this client can actually draw. `TIMELINE` needs F3's time work and is not here. */
+  const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN'];
 
   const container = $derived(containers.find(id));
   // The hub above a collection, for the trail. Read on its own for the same reason.
@@ -135,12 +152,89 @@
         await containers.move(
           container.id,
           container.parent_id,
-          siblingBefore(siblings, container.id, target),
+          anchorFor(siblings, container.id, target),
           crypto.randomUUID(),
         );
       }
     } catch (error) {
       failure = renderProblem(error as TransportError, messages);
+    }
+  }
+
+  /**
+   * Moving a collection into another hub, which is the one placement no position can express.
+   *
+   * Up and down rank it where it already is; this changes which hub holds it, and `:move`'s
+   * `target_parent_id` is required precisely because that is the question it answers. A hub is
+   * offered none of this: it sits in nothing, so there is no destination to name — the same reason
+   * F2-04 gave hubs a `:reorder` of their own.
+   *
+   * Nothing is lost by it. A collection carries its own labels and its own board, so the losses
+   * `MoveResult` reports for an entry (I-W6) have no counterpart here, and the dialog is shown
+   * without a warning rather than with an invented one.
+   */
+  let isMovingHub = $state(false);
+  let isMovingNow = $state(false);
+
+  const hubs = $derived(
+    containers.hubs
+      .filter((each) => each.id !== container?.parent_id && !each.effective_archived)
+      .map((each) => ({ value: each.id, label: each.name })),
+  );
+
+  async function moveToHub(hubId: string) {
+    if (!container) return;
+    // Both names are read **before** the write, and neither is available afterwards. The move
+    // invalidates `/containers`, so `container` is briefly undefined while the level reloads, and
+    // the destination has stopped being a destination — it is the hub this collection is in now,
+    // so `hubs` no longer offers it. Reading either afterwards throws, and a throw in here would
+    // reach the catch below and be rendered as a transport failure it is not.
+    const moving = container.name;
+    const destination = hubs.find((each) => each.value === hubId)?.label ?? '';
+
+    isMovingNow = true;
+    failure = undefined;
+    try {
+      await containers.move(container.id, hubId, null, crypto.randomUUID());
+      isMovingHub = false;
+    } catch (error) {
+      failure = renderProblem(error as TransportError, messages);
+      return;
+    } finally {
+      isMovingNow = false;
+    }
+    // Outside the try, for the same reason: `renderProblem` reads a problem document, and handing
+    // it anything else fails on `fieldErrors` — which turns a rendering mistake into a sentence
+    // about the server.
+    announcer.say(t('app.move.container_announced', { name: moving, hub: destination }));
+  }
+
+  /**
+   * Moving a container and everything under it to the trash.
+   *
+   * **Confirmed, although it is reversible.** The trash is a soft delete and a restore brings the
+   * whole batch back (I-C2), so this is not the irreversible act of the milestone — but a hub is
+   * two hundred entries and "one deletion" is the thing worth saying before it happens rather than
+   * afterwards. The sentence says what goes with it, which is what a person is actually deciding.
+   */
+  let isTrashing = $state(false);
+  let isTrashingNow = $state(false);
+
+  async function moveToTrash() {
+    if (!container) return;
+    const name = container.name;
+    isTrashingNow = true;
+    failure = undefined;
+    try {
+      await containers.trash(container.id, container.version);
+      isTrashing = false;
+      announcer.say(t('app.workspace.trashed_announced', { name }));
+      // The container is gone from this address, so the reader goes somewhere that still exists.
+      onnavigate(hub ? `/hubs/${hub.id}` : '/');
+    } catch (error) {
+      failure = renderProblem(error as TransportError, messages);
+    } finally {
+      isTrashingNow = false;
     }
   }
 
@@ -273,18 +367,41 @@
                no stated cause. -->
           <IconButton
             icon="chevron-up"
-            label={t('app.workspace.move_up')}
+            label={t('app.rank.up')}
             size="sm"
             onclick={() => moveBy(-1)}
-            disabledReason={canMoveUp ? undefined : t('app.workspace.already_first')}
+            disabledReason={canMoveUp ? undefined : t('app.rank.already_first')}
           />
           <IconButton
             icon="chevron-down"
-            label={t('app.workspace.move_down')}
+            label={t('app.rank.down')}
             size="sm"
             onclick={() => moveBy(1)}
-            disabledReason={canMoveDown ? undefined : t('app.workspace.already_last')}
+            disabledReason={canMoveDown ? undefined : t('app.rank.already_last')}
           />
+          <!-- The placement no position can express. A hub is offered it with the reason it cannot
+               be used rather than not at all: it sits in nothing, so there is nowhere to move it
+               to, and a control that quietly disappeared would leave the reader wondering. -->
+          <Button
+            size="sm"
+            tone="danger"
+            onclick={() => (isTrashing = true)}
+            disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+          >
+            {t('app.workspace.trash')}
+          </Button>
+          <Button
+            size="sm"
+            tone="secondary"
+            onclick={() => (isMovingHub = true)}
+            disabledReason={container.type === 'HUB'
+              ? t('app.move.hub_only')
+              : isReadOnly
+                ? t('app.workspace.archived')
+                : undefined}
+          >
+            {t('app.move.to_hub')}
+          </Button>
         </Toolbar>
       </Stack>
     {/if}
@@ -300,29 +417,73 @@
         </Stack>
       {/if}
     {:else}
-      <!-- Two ways to look at the same entries. `ViewSwitcher` and the layouts the manifest reports
-           are F2-13's; this is the pair F2-11 built, and the choice is kept on the device because
-           saved views are F3's and writing one here would be building half of that milestone
-           badly. -->
-      <Tabs
-        label={t('app.workspace.title')}
-        tabs={[
-          { id: 'list', label: t('app.board.show_list') },
-          { id: 'board', label: t('app.board.show_board') },
-        ]}
-        bind:selected={layout}
-      >
-        {#if layout === 'board'}
-          <Board collectionId={container.id} isReadOnly={isReadOnly} />
-        {:else}
-          <!-- Read-only follows the container: an archived collection's entries are archived with
-               it (I-C3), and the reason travels with the controls rather than the controls
-               disappearing. -->
-          <EntryList collectionId={container.id} isReadOnly={isReadOnly} />
-        {/if}
-      </Tabs>
+      <!-- The layouts the installation reports, and what the reader has asked of the entries. Both
+           come from the manifest: `view_layouts` decides what is offered and `query_fields` decides
+           what can be asked, and neither is a list written here. -->
+      <QueryPanel
+        {layout}
+        drawable={DRAWABLE}
+        onlayout={(id) => (layout = id)}
+        onquery={(asked) => (query = asked)}
+      />
+
+      {#if layout === 'KANBAN'}
+        <Board collectionId={container.id} isReadOnly={isReadOnly} {query} />
+      {:else}
+        <!-- Read-only follows the container: an archived collection's entries are archived with
+             it (I-C3), and the reason travels with the controls rather than the controls
+             disappearing. -->
+        <EntryList
+          collectionId={container.id}
+          isReadOnly={isReadOnly}
+          {query}
+          isExpanded={layout === 'LIST_EXPANDED'}
+        />
+      {/if}
     {/if}
   </Stack>
+{/if}
+
+{#if isTrashing && container}
+  <!-- Reversible, and confirmed anyway: a hub is two hundred entries, and "one deletion" is worth
+       saying before it happens rather than afterwards. The primary action is the caller's to name
+       and to place last — and it is named for what it does, not "OK". -->
+  <Dialog
+    bind:isOpen={isTrashing}
+    title={t('app.workspace.trash_confirm_title', { name: container.name })}
+    dismissLabel={t('app.workspace.cancel')}
+  >
+    <p class="notice">
+      {container.type === 'HUB'
+        ? t('app.workspace.trash_confirm_hub')
+        : t('app.workspace.trash_confirm_collection')}
+    </p>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isTrashing = false)}>
+        {t('app.workspace.cancel')}
+      </Button>
+      <Button tone="danger" isBusy={isTrashingNow} busyLabel={t('app.workspace.saving')} onclick={moveToTrash}>
+        {t('app.workspace.confirm')}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
+{#if isMovingHub && container}
+  <MoveDialog
+    bind:isOpen={isMovingHub}
+    title={t('app.rank.actions', { title: container.name })}
+    label={t('app.move.hub')}
+    placeholder={t('app.move.choose_hub')}
+    options={hubs}
+    emptyLabel={t('app.move.no_hub')}
+    confirmLabel={t('app.move.confirm')}
+    busyLabel={t('app.move.moving')}
+    cancelLabel={t('app.workspace.cancel')}
+    chooseFirstLabel={t('app.move.choose_hub_first')}
+    isBusy={isMovingNow}
+    onmove={(hubId) => moveToHub(hubId)}
+  />
 {/if}
 
 <style>

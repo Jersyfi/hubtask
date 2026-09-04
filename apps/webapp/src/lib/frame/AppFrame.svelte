@@ -16,6 +16,7 @@
   import HealthNotice from './HealthNotice.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
 
+  import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { session } from '../session.svelte.ts';
@@ -74,6 +75,8 @@
 
   const links = [
     { path: '/', name: 'home', label: 'app.nav.home' },
+    { path: '/search', name: 'search', label: 'app.nav.search' },
+    { path: '/trash', name: 'trash', label: 'app.nav.trash' },
     { path: '/installation', name: 'installation', label: 'app.nav.installation' },
   ];
 </script>
@@ -140,6 +143,12 @@
       {@render children()}
     </main>
   </div>
+
+  <!-- The application's one live region, and it is in the frame because two of them compete: a
+       screen reader watches both and reads whichever changed, in an order nobody chose. It is here
+       before it has anything to say, which is the other half — a region created at the moment it
+       has something to announce is a region nothing was watching. -->
+  <p class="announcement" role="status" aria-live="polite">{announcer.message}</p>
 </div>
 
 <style>
@@ -246,4 +255,18 @@
   }
 
   main { flex: 1; min-width: 0; }
+
+  /* Announced and not drawn. What it says is already on the screen — the row is where it now is —
+     so printing it as well would be noise for every reader who can see the list. */
+  .announcement {
+    position: absolute;
+    inline-size: var(--sp-025);
+    block-size: var(--sp-025);
+    margin: calc(var(--sp-025) * -1);
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
 </style>

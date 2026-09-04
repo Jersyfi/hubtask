@@ -58,6 +58,14 @@ export { default as LabelChip } from './LabelChip.svelte';
 export { default as LabelPicker, type PickerLabel } from './LabelPicker.svelte';
 export { default as BucketColumn } from './BucketColumn.svelte';
 export { default as WorkItemCard } from './WorkItemCard.svelte';
+export {
+  default as QueryBuilder,
+  type QueryCondition,
+  type QueryFieldOption,
+  type QueryOperator,
+} from './QueryBuilder.svelte';
+export { default as ViewSwitcher, type View } from './ViewSwitcher.svelte';
+export { default as ActivityFeed, type ActivityStep } from './ActivityFeed.svelte';
 
 export { STATUS_ICON } from './control.ts';
 export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from './control.ts';
@@ -78,6 +86,18 @@ export {
 export { escapeHandler, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
 
 export { openOverlay, type MenuItem, type OverlayOptions } from './overlay.ts';
+
+export {
+  DRAG_THRESHOLD_PX,
+  boundariesOf,
+  dropIndex,
+  hasLeftTheHandle,
+  rankIntent,
+  rankTarget,
+  type Extent,
+  type RankCommand,
+  type RankKey,
+} from './reorder.ts';
 
 export {
   collapseTrail,
