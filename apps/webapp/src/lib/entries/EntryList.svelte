@@ -15,6 +15,7 @@
   import { untrack } from 'svelte';
 
   import {
+    Badge,
     Button,
     EmptyState,
     ErrorState,
@@ -36,6 +37,8 @@
   } from '@hubtask/design-system/components';
   import type { DroppedReference, WorkItem } from '@hubtask/sync-engine';
 
+  import type { Archival } from '../data/containers.ts';
+
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
   import MoveDialog from './MoveDialog.svelte';
@@ -46,6 +49,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
+  import { archivalOfItem } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -142,12 +146,38 @@
     readonly index: number;
     /** The entry this one sits inside, or `null` for the top level of the collection. */
     readonly parentId: string | null;
+    /**
+     * Where this row stands in the archive — its own, or inherited from what holds it.
+     *
+     * Three values rather than a boolean, because they are three different offers: an archived row
+     * has an unarchive control here, a row under an archived one has that control on the thing
+     * above it, and an active row has neither (I-C3, I-W4).
+     */
+    readonly archival: Archival;
+  }
+
+  /** Whether a row may be written to at all. Archived is read-only, whichever way it got there. */
+  const isFrozen = (row: Row) => row.archival !== 'active';
+
+  /** Why it may not, in the reader's words. There is no `disabled` boolean anywhere. */
+  function frozenReason(row: Row): string | undefined {
+    if (row.archival === 'archived') return t('app.entries.archived');
+    if (row.archival === 'inherited') {
+      return isReadOnly ? t('app.entries.read_only') : t('app.entries.archived_above');
+    }
+    return undefined;
   }
 
   /** The visible rows, in the order the eye walks them. */
-  function flatten(parents: readonly WorkItem[], depth: number, parentId: string | null): Row[] {
+  function flatten(
+    parents: readonly WorkItem[],
+    depth: number,
+    parentId: string | null,
+    isBelowArchived: boolean,
+  ): Row[] {
     const rows: Row[] = [];
     parents.forEach((item, index) => {
+      const archival = archivalOfItem(item, isBelowArchived);
       // Whether it *may* hold children is the manifest's answer; whether it *does* is not known
       // until it is opened, which is why the twist appears for any type that takes them.
       rows.push({
@@ -157,15 +187,20 @@
         siblings: parents,
         index,
         parentId,
+        archival,
       });
       if (expanded.includes(item.id)) {
-        rows.push(...flatten(items.childrenOf(item.id), depth + 1, item.id));
+        // An archived entry makes everything under it read-only (I-W4), and so does an archived
+        // collection above the whole list — which is what `isReadOnly` is at the top level.
+        rows.push(
+          ...flatten(items.childrenOf(item.id), depth + 1, item.id, archival !== 'active'),
+        );
       }
     });
     return rows;
   }
 
-  const rows = $derived(flatten(items.inCollection(collectionId), 0, null));
+  const rows = $derived(flatten(items.inCollection(collectionId), 0, null, isReadOnly));
   // Not called `state`: a variable of that name collides with the `$state` rune in what the
   // compiler generates, and the error it produces names a line that looks unrelated.
   const levelState = $derived(items.stateOf(`container:${collectionId}`));
@@ -276,7 +311,8 @@
 
   /** The reason a command is unavailable, or nothing. There is no `disabled` boolean anywhere. */
   function rankReason(row: Row, command: RankCommand): string | undefined {
-    if (isReadOnly) return t('app.entries.read_only');
+    const frozen = frozenReason(row);
+    if (frozen) return frozen;
     if (rankTarget(command, row.index, row.siblings.length) !== null) return undefined;
     return command === 'up' || command === 'top'
       ? t('app.rank.already_first')
@@ -300,7 +336,7 @@
     const onKeydown = (event: KeyboardEvent) => {
       const id = (event.target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row');
       const row = rows.find((each) => each.item.id === id);
-      if (!row || isReadOnly) return;
+      if (!row || isFrozen(row)) return;
 
       const target = rankIntent(event, row.index, row.siblings.length);
       if (target === null) return;
@@ -332,7 +368,8 @@
 
   /** Why an entry cannot move inside the one above it, or nothing. */
   function insideReason(row: Row): string | undefined {
-    if (isReadOnly) return t('app.entries.read_only');
+    const frozen = frozenReason(row);
+    if (frozen) return frozen;
     const target = previousSibling(row);
     if (!target) return t('app.move.nothing_above');
     const verdict = acceptsChild(target.type, row.item.type, row.depth);
@@ -474,16 +511,43 @@
       {
         id: 'out',
         label: t('app.move.out'),
-        disabledReason: isReadOnly
-          ? t('app.entries.read_only')
-          : row.parentId
-            ? undefined
-            : t('app.move.already_top'),
+        // The archive comes first: a row that cannot be written to cannot be moved out of
+        // anything, and telling it "this is already at the top level" would answer a different
+        // question from the one the reader is about to ask.
+        disabledReason: frozenReason(row) ?? (row.parentId ? undefined : t('app.move.already_top')),
       },
       {
         id: 'elsewhere',
         label: t('app.move.elsewhere'),
-        disabledReason: isReadOnly ? t('app.entries.read_only') : undefined,
+        disabledReason: frozenReason(row),
+      },
+      // Archived is read-only, **not hidden**: the entry stays where it is and every control on it
+      // is off with the reason (I-W4). So this one is offered on an archived row — it is the way
+      // back — and refused on a row that is read-only because something above it is.
+      {
+        id: 'archive',
+        label: t(row.archival === 'archived' ? 'app.entries.unarchive' : 'app.entries.archive'),
+        disabledReason:
+          row.archival === 'inherited'
+            ? (isReadOnly ? t('app.entries.read_only') : t('app.entries.archived_above'))
+            : undefined,
+        hasSeparatorBefore: true,
+      },
+      {
+        id: 'trash',
+        label: t('app.entries.trash'),
+        // **Archived is not frozen against this one.** §3.4's state machine reads "active *or
+        // archived* → trashed", so an archived entry may still be deleted; what stops it is
+        // something above it being archived, because that thing is read-only and everything in it
+        // with it (I-C3).
+        //
+        // Offered without a confirmation because it is reversible: the subtree goes in under one
+        // deletion and comes back as one act. Destroying is what asks first, on the trash screen.
+        disabledReason:
+          row.archival === 'inherited'
+            ? (isReadOnly ? t('app.entries.read_only') : t('app.entries.archived_above'))
+            : undefined,
+        isDestructive: true,
       },
     ];
   }
@@ -504,7 +568,7 @@
     start: (grip) => {
       const id = grip.closest('[data-row]')?.getAttribute('data-row');
       const row = rows.find((each) => each.item.id === id);
-      if (!row || isReadOnly || !level) return null;
+      if (!row || isFrozen(row) || !level) return null;
       return {
         id: row.item.id,
         index: row.index,
@@ -530,13 +594,54 @@
     return node ? drag.attach(node) : undefined;
   });
 
-  /** One press, whichever of the two operations it turns out to be. */
+  /**
+   * Archives an entry or brings it back.
+   *
+   * Only where the entry is archived **in its own right** or active. A row that is read-only
+   * because something above it is archived has no control here — the control is on that thing, and
+   * offering one that unarchives this row would leave it read-only afterwards, which is the exact
+   * failure `archivalOfItem` exists to prevent.
+   */
+  async function setArchived(row: Row, isArchived: boolean) {
+    writeFailure = undefined;
+    try {
+      await items.setArchived(row.item.id, isArchived, crypto.randomUUID());
+      announcer.say(
+        t(isArchived ? 'app.entries.archived_announced' : 'app.entries.unarchived_announced', {
+          title: row.item.title,
+        }),
+      );
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  /**
+   * Moves an entry and everything under it to the trash.
+   *
+   * Reversible, which is why it is offered without a confirmation: the subtree goes in under one
+   * deletion and comes back as one act (I-C2), and the trash screen is where it can be brought
+   * back or destroyed. Destroying is the thing that asks first.
+   */
+  async function moveToTrash(row: Row) {
+    writeFailure = undefined;
+    try {
+      await items.trash(row.item.id, row.item.version);
+      announcer.say(t('app.entries.trashed_announced', { title: row.item.title }));
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  /** One press, whichever operation it turns out to be. */
   function chose(row: Row, id: string) {
     if (id === 'inside') {
       const above = previousSibling(row);
       if (above) void move(row, { parentId: above.id });
     } else if (id === 'out') moveOut(row);
     else if (id === 'elsewhere') movingRow = row;
+    else if (id === 'archive') void setArchived(row, row.archival !== 'archived');
+    else if (id === 'trash') void moveToTrash(row);
     else void rank(row, id as RankCommand);
   }
 
@@ -618,6 +723,7 @@
           <div
             class="row"
             data-row={row.item.id}
+            data-archived={row.archival !== 'active' ? '' : undefined}
             data-dragging={drag.id === row.item.id ? '' : undefined}
             data-drop={drag.id !== null &&
             drag.id !== row.item.id &&
@@ -648,7 +754,7 @@
                 row.item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete',
                 { title: row.item.title },
               )}
-              completeDisabledReason={isReadOnly ? t('app.entries.read_only') : undefined}
+              completeDisabledReason={frozenReason(row)}
               expandLabel={t(
                 expanded.includes(row.item.id) ? 'app.entries.collapse' : 'app.entries.expand',
                 { title: row.item.title },
@@ -660,6 +766,13 @@
                   : [...expanded, row.item.id])}
             >
               {#snippet trailing()}
+                <!-- Rule 3: an archived row is not told apart by being dimmer. It says the word, so
+                     the state reads in greyscale and to a screen reader — which matters more here
+                     than anywhere, because "archived" is why every control beside it is off. -->
+                {#if row.archival !== 'active'}
+                  <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
+                {/if}
+
                 <!-- The labels this entry carries, and a way to change them — but only for a type
                      whose profile has LABELS. The manifest answers that; an ACTIVITY has none, and
                      §2 says a field whose capability is off is refused rather than ignored, so it is
@@ -672,7 +785,7 @@
                         name={entry.name}
                         colorToken={entry.colorToken}
                         description={entry.description}
-                        removeLabel={isReadOnly
+                        removeLabel={isFrozen(row)
                           ? undefined
                           : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
                         onRemove={() => toggleLabel(row.item, labelId)}
@@ -680,7 +793,7 @@
                     {/if}
                   {/each}
 
-                  {#if !isReadOnly}
+                  {#if !isFrozen(row)}
                     <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
                       {#snippet trigger(props)}
                         <Button size="sm" tone="subtle" icon="tag" {...props}>
@@ -700,7 +813,7 @@
                   {/if}
                 {/if}
 
-                {#if !isReadOnly && row.takesChildren}
+                {#if !isFrozen(row) && row.takesChildren}
                   <Button
                     size="sm"
                     tone="subtle"
@@ -811,6 +924,10 @@
   .level { display: flex; flex-direction: column; gap: var(--sp-050); }
 
   .row { display: flex; align-items: center; gap: var(--sp-050); }
+
+  /* The badge beside it is what *says* archived; this only makes the row recede, so what can be
+     acted on reads first. Rule 3 is kept by the badge, not by this. */
+  .row[data-archived] { color: var(--text-subtle); }
 
   .row > :global(*:last-child) { flex: 1; min-width: 0; }
 

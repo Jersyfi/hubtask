@@ -60,6 +60,15 @@ function level(
     path: QUERY,
     body: {
       scope: { ...scope, include_descendants: false },
+      // **Archived is read-only, not hidden** (I-W4). The query defaults to leaving archived
+      // entries out, and taking that default would make "archived" mean "gone" — which is the
+      // failure F2-14 exists to prevent: the row stays, says so, and has every control off with
+      // the reason. A reader who wants them out filters them out; `archived_at` is a field the
+      // manifest reports.
+      //
+      // `include_trashed` stays at its default. The trash is a different screen, and an entry
+      // mixed into the list it was deleted from would be a deletion that did nothing.
+      include_archived: true,
       // The manual order unless the reader asked for another. Named rather than left out, because
       // a list a person can drag has to be in the order they dragged it into.
       sort: query.sort ?? MANUAL,
@@ -87,6 +96,8 @@ function board(containerId: string, query: ItemsQuery): { path: string; body: un
     path: QUERY,
     body: {
       scope: { container_id: containerId, include_descendants: false },
+      // As above: an archived card stays on the board and says so, rather than vanishing from it.
+      include_archived: true,
       // The grouping is the caller's, and the caller reads it from the manifest. A board grouped
       // by the column an entry is in is what a board *is*, but which fields may be grouped on at
       // all is `groupable` in `query_fields` — so the field travels rather than being written here.
@@ -275,6 +286,68 @@ class Items {
       },
       { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
     );
+  }
+
+  /**
+   * Archives an entry, or brings it back.
+   *
+   * Archived is **read-only, not hidden** (I-W4): the entry stays where it is, stays readable, and
+   * every control on it is off with the reason. That is the screen's half; this is the write.
+   */
+  async setArchived(id: string, isArchived: boolean, idempotencyKey: string): Promise<WorkItem> {
+    return engine.mutate<WorkItem>(
+      'POST',
+      `/items/${id}:${isArchived ? 'archive' : 'unarchive'}`,
+      undefined,
+      { idempotencyKey, invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Moves an entry and everything under it to the trash.
+   *
+   * A **soft** delete, and a batch: the subtree goes in under one deletion sharing a
+   * `trash_batch_id` "so that restoring is atomic" (I-C2). Nothing here says how long it stays —
+   * that is the workspace's retention period, and it is not this client's to assert.
+   *
+   * `If-Match`, because the contract declares one on this `DELETE`: deleting a subtree that moved
+   * underneath the reader is the case an optimistic lock is for.
+   */
+  async trash(id: string, version: number): Promise<void> {
+    await engine.mutate<void>('DELETE', `/items/${id}`, undefined, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * Takes one deletion back out of the trash, whole.
+   *
+   * Exactly what went in together comes back, because a restore is keyed on the **deletion** and
+   * not on the subtree — so a younger deletion inside it stays where it is. An entry archived when
+   * it was deleted comes back archived: restoring undoes the deletion and nothing else.
+   */
+  async restore(id: string, idempotencyKey: string): Promise<WorkItem> {
+    return engine.mutate<WorkItem>('POST', `/items/${id}:restore`, undefined, {
+      idempotencyKey,
+      // The trash changes and so does whatever level the entry came back to.
+      invalidates: ['/items', '/trash'],
+    });
+  }
+
+  /**
+   * Destroys an entry in the trash, and everything under it, for good.
+   *
+   * Irreversible — "no restore brings it back, and a backup taken before it does not either" — so
+   * the screen that calls this asks first and says what will go. A legal hold refuses it, and the
+   * answer says at which level; that refusal is rendered as its own sentence rather than as a
+   * generic failure, which is `problem.ts`'s doing and the reason the code travels.
+   */
+  async purge(id: string, idempotencyKey: string): Promise<void> {
+    await engine.mutate<void>('POST', `/items/${id}:purge`, undefined, {
+      idempotencyKey,
+      invalidates: ['/items', '/trash'],
+    });
   }
 
   /**

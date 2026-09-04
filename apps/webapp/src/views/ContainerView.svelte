@@ -15,6 +15,7 @@
   import {
     Breadcrumb,
     Button,
+    Dialog,
     EmptyState,
     IconButton,
     Inline,
@@ -208,6 +209,35 @@
     announcer.say(t('app.move.container_announced', { name: moving, hub: destination }));
   }
 
+  /**
+   * Moving a container and everything under it to the trash.
+   *
+   * **Confirmed, although it is reversible.** The trash is a soft delete and a restore brings the
+   * whole batch back (I-C2), so this is not the irreversible act of the milestone — but a hub is
+   * two hundred entries and "one deletion" is the thing worth saying before it happens rather than
+   * afterwards. The sentence says what goes with it, which is what a person is actually deciding.
+   */
+  let isTrashing = $state(false);
+  let isTrashingNow = $state(false);
+
+  async function moveToTrash() {
+    if (!container) return;
+    const name = container.name;
+    isTrashingNow = true;
+    failure = undefined;
+    try {
+      await containers.trash(container.id, container.version);
+      isTrashing = false;
+      announcer.say(t('app.workspace.trashed_announced', { name }));
+      // The container is gone from this address, so the reader goes somewhere that still exists.
+      onnavigate(hub ? `/hubs/${hub.id}` : '/');
+    } catch (error) {
+      failure = renderProblem(error as TransportError, messages);
+    } finally {
+      isTrashingNow = false;
+    }
+  }
+
   // Renaming, and the whole reason it is a form rather than an inline edit: a name collision is a
   // field error on the name (`containers.name_taken`), and a field error needs a field to land on.
   let isRenaming = $state(false);
@@ -354,6 +384,14 @@
                to, and a control that quietly disappeared would leave the reader wondering. -->
           <Button
             size="sm"
+            tone="danger"
+            onclick={() => (isTrashing = true)}
+            disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+          >
+            {t('app.workspace.trash')}
+          </Button>
+          <Button
+            size="sm"
             tone="secondary"
             onclick={() => (isMovingHub = true)}
             disabledReason={container.type === 'HUB'
@@ -404,6 +442,31 @@
       {/if}
     {/if}
   </Stack>
+{/if}
+
+{#if isTrashing && container}
+  <!-- Reversible, and confirmed anyway: a hub is two hundred entries, and "one deletion" is worth
+       saying before it happens rather than afterwards. The primary action is the caller's to name
+       and to place last — and it is named for what it does, not "OK". -->
+  <Dialog
+    bind:isOpen={isTrashing}
+    title={t('app.workspace.trash_confirm_title', { name: container.name })}
+    dismissLabel={t('app.workspace.cancel')}
+  >
+    <p class="notice">
+      {container.type === 'HUB'
+        ? t('app.workspace.trash_confirm_hub')
+        : t('app.workspace.trash_confirm_collection')}
+    </p>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isTrashing = false)}>
+        {t('app.workspace.cancel')}
+      </Button>
+      <Button tone="danger" isBusy={isTrashingNow} busyLabel={t('app.workspace.saving')} onclick={moveToTrash}>
+        {t('app.workspace.confirm')}
+      </Button>
+    {/snippet}
+  </Dialog>
 {/if}
 
 {#if isMovingHub && container}

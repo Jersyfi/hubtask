@@ -76,6 +76,7 @@
   const links = [
     { path: '/', name: 'home', label: 'app.nav.home' },
     { path: '/search', name: 'search', label: 'app.nav.search' },
+    { path: '/trash', name: 'trash', label: 'app.nav.trash' },
     { path: '/installation', name: 'installation', label: 'app.nav.installation' },
   ];
 </script>

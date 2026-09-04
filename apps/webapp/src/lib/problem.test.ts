@@ -130,3 +130,24 @@ test('a query the server refuses by name still reads as a sentence', () => {
   );
   assert.ok(!rendered.message.includes('{'), 'a placeholder reached the reader');
 });
+
+test('a legal hold reads as its own sentence, not as a generic failure', () => {
+  // F2-14's acceptance. A hold is the one refusal on this screen a person can act on — by asking
+  // whoever placed it — and "something went wrong" would tell them nothing to act on. The scope
+  // travels as a parameter because *where* the hold is placed is what decides who to ask.
+  const rendered = renderProblem(
+    new TransportError('problem', {
+      status: 409,
+      code: 'conflict',
+      detailCode: 'lifecycle.legal_hold',
+      params: { scope: 'hub' },
+    }),
+    messages,
+  );
+  assert.equal(
+    rendered.message,
+    'This cannot be deleted for good: a legal hold is in force on the hub. Ask whoever placed it.',
+  );
+  assert.equal(rendered.isServerFault, false);
+  assert.ok(!rendered.message.includes('{'), 'a placeholder reached the reader');
+});
