@@ -744,6 +744,7 @@
               type={row.item.type}
               title={row.item.title}
               depth={row.depth}
+              href={`/items/${row.item.id}`}
               isCompleted={row.item.completion?.is_completed ?? false}
               expansion={!row.takesChildren
                 ? 'leaf'
@@ -814,14 +815,17 @@
                 {/if}
 
                 {#if !isFrozen(row) && row.takesChildren}
-                  <Button
-                    size="sm"
-                    tone="subtle"
+                  <!-- The label names what it adds. The control at the end of the list adds to the
+                       collection and this one adds inside this entry; sharing "Add an entry"
+                       between them made a list of seven rows carry eight controls of that name,
+                       seven of which do something else. Icon-only, so the row's controls stop
+                       competing with its title for width. -->
+                  <IconButton
                     icon="plus"
+                    label={t('app.entries.add_child', { title: row.item.title })}
+                    size="sm"
                     onclick={() => startAdding(row.item.id)}
-                  >
-                    {t('app.entries.add')}
-                  </Button>
+                  />
                 {/if}
 
                 <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
