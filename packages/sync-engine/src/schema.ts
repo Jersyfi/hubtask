@@ -106,6 +106,19 @@ export type QueryField = components['schemas']['QueryField'];
 export type FilterNode = components['schemas']['FilterNode'];
 export type ItemSearchQuery = components['schemas']['ItemSearchQuery'];
 
+/**
+ * The trash, as the API lists it: **one row per deletion**, not one per deleted row.
+ *
+ * A hub with two hundred entries under it went in as one act and comes back as one act (I-C2), so
+ * what is listed is the root of each deletion — the thing somebody deleted — and the batch beside
+ * it is what took the rest.
+ */
+export type TrashPage = components['schemas']['TrashPage'];
+export type TrashEntry = components['schemas']['TrashEntry'];
+/** What one pass of a removal did, including what it kept and why (`legal_hold`). */
+export type PurgeSummary = components['schemas']['PurgeSummary'];
+export type RetentionPolicy = components['schemas']['RetentionPolicy'];
+
 // The paged envelopes, for the reads that answer a page rather than a document. Re-exported for
 // the same reason the documents are: a consumer that reached into `@hubtask/api-client` for one of
 // these would be a consumer with two packages to keep in step.

@@ -41,9 +41,13 @@ export type {
   MoveResult,
   PendingMutation,
   Problem,
+  PurgeSummary,
   QueryField,
+  RetentionPolicy,
   StoredRecord,
   SyncCursor,
+  TrashEntry,
+  TrashPage,
   WorkItem,
   WorkItemPage,
 } from './schema.ts';

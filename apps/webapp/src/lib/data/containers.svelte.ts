@@ -196,6 +196,28 @@ class Containers {
     );
   }
 
+  /**
+   * Moves a container and everything under it to the trash.
+   *
+   * One deletion for the whole subtree: a hub takes its collections and every collection takes its
+   * entries, under one `trash_batch_id` "so that restoring is atomic" (I-C2). Anything already in
+   * the trash from an earlier deletion keeps that deletion rather than joining this one.
+   */
+  async trash(id: string, version: number): Promise<void> {
+    await engine.mutate<void>('DELETE', `/containers/${id}`, undefined, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /** Takes one container deletion back out of the trash, whole — the hub, its collections, its entries. */
+  async restore(id: string, idempotencyKey: string): Promise<Container> {
+    return engine.mutate<Container>('POST', `/containers/${id}:restore`, undefined, {
+      idempotencyKey,
+      invalidates: ['/containers', '/items', '/trash'],
+    });
+  }
+
   /** Archives or unarchives. Read-only is a state, not a deletion (I-C3). */
   async setArchived(id: string, isArchived: boolean, idempotencyKey: string): Promise<Container> {
     return engine.mutate<Container>(
