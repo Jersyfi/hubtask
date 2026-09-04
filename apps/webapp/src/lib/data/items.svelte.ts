@@ -60,6 +60,15 @@ function level(
     path: QUERY,
     body: {
       scope: { ...scope, include_descendants: false },
+      // **Archived is read-only, not hidden** (I-W4). The query defaults to leaving archived
+      // entries out, and taking that default would make "archived" mean "gone" — which is the
+      // failure F2-14 exists to prevent: the row stays, says so, and has every control off with
+      // the reason. A reader who wants them out filters them out; `archived_at` is a field the
+      // manifest reports.
+      //
+      // `include_trashed` stays at its default. The trash is a different screen, and an entry
+      // mixed into the list it was deleted from would be a deletion that did nothing.
+      include_archived: true,
       // The manual order unless the reader asked for another. Named rather than left out, because
       // a list a person can drag has to be in the order they dragged it into.
       sort: query.sort ?? MANUAL,
@@ -87,6 +96,8 @@ function board(containerId: string, query: ItemsQuery): { path: string; body: un
     path: QUERY,
     body: {
       scope: { container_id: containerId, include_descendants: false },
+      // As above: an archived card stays on the board and says so, rather than vanishing from it.
+      include_archived: true,
       // The grouping is the caller's, and the caller reads it from the manifest. A board grouped
       // by the column an entry is in is what a board *is*, but which fields may be grouped on at
       // all is `groupable` in `query_fields` — so the field travels rather than being written here.

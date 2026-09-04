@@ -18,6 +18,7 @@
   import HomeView from './views/HomeView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import SearchView from './views/SearchView.svelte';
+  import TrashView from './views/TrashView.svelte';
   import SignInView from './views/SignInView.svelte';
 
   // A hub and a collection each have their own path, so a deep link to either survives a reload —
@@ -31,6 +32,7 @@
     // and a query string travels through access logs, proxies and browser history. A route that
     // carried the term would undo that in the address bar (security.md §9, ADR-0018).
     { name: 'search', pattern: '/search' },
+    { name: 'trash', pattern: '/trash' },
     { name: 'hub', pattern: '/hubs/:id' },
     { name: 'collection', pattern: '/collections/:id' },
   ]);
@@ -66,6 +68,8 @@
     <InstallationView />
   {:else if route.name === 'search'}
     <SearchView />
+  {:else if route.name === 'trash'}
+    <TrashView />
   {:else if route.name === 'hub' || route.name === 'collection'}
     <!-- One view for both: they differ in what they hold, not in what they are. Keyed on the id so
          that navigating from one collection to another rebuilds rather than reusing the state of
