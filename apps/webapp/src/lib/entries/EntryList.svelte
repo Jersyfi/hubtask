@@ -36,6 +36,8 @@
   } from '@hubtask/design-system/components';
   import type { DroppedReference, WorkItem } from '@hubtask/sync-engine';
 
+  import type { ItemsQuery } from '../data/items.svelte.ts';
+
   import MoveDialog from './MoveDialog.svelte';
   import { createDrag } from './dragging.svelte.ts';
 
@@ -52,9 +54,19 @@
     collectionId: string;
     /** Whether the collection is archived — the entries in it are then read-only too (I-C3). */
     isReadOnly?: boolean;
+    /** What the reader has asked of this level: a filter, an order. Built from the manifest. */
+    query?: ItemsQuery;
+    /**
+     * `LIST_EXPANDED` rather than `LIST_COLLAPSED`: every row that takes children shows them.
+     *
+     * The layout is not a second component and not a prop on the row — F2-09's note — it is
+     * whether the children are shown, and expanding is still what fetches them. So this opens the
+     * rows as they arrive rather than reading a subtree the reader has not asked for.
+     */
+    isExpanded?: boolean;
   }
 
-  const { collectionId, isReadOnly = false }: Props = $props();
+  const { collectionId, isReadOnly = false, query, isExpanded = false }: Props = $props();
 
   /** The entries whose children are shown. Expanding one is what reads its level. */
   let expanded = $state<string[]>([]);
@@ -63,7 +75,19 @@
   // so an effect that subscribes while tracking that read cancels itself before the answer lands.
   $effect(() => {
     const wanted = collectionId;
-    return untrack(() => items.openCollection(wanted));
+    const asked = query;
+    return untrack(() => items.openCollection(wanted, asked));
+  });
+
+  // What `LIST_EXPANDED` means, one row at a time: a row that takes children is opened, and
+  // opening it is what reads its level — so the rows that arrive are opened in turn rather than a
+  // whole subtree being fetched at once.
+  $effect(() => {
+    if (!isExpanded) return;
+    const opened = rows
+      .filter((row) => row.takesChildren && !expanded.includes(row.item.id))
+      .map((row) => row.item.id);
+    if (opened.length > 0) expanded = [...expanded, ...opened];
   });
 
   $effect(() => {
