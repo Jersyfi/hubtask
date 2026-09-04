@@ -51,3 +51,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0042](./ADR-0042-nats-client.md) | The NATS client library: nats.go, confined to one adapter | accepted | Events, integration, supply chain |
 | [0043](./ADR-0043-theme-per-device.md) | The theme is a property of the device, not of the account | accepted | Clients, design system, contract |
 | [0044](./ADR-0044-browser-support-row.md) | Which browsers a Hubtask client is required to work in | accepted | Clients, design system, support scope |
+| [0045](./ADR-0045-master-key-in-the-environment.md) | The master key stays in the environment | accepted | Security, operations, crypto |

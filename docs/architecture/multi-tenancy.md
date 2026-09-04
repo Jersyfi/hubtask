@@ -130,6 +130,8 @@ stateDiagram-v2
   PendingDeletion --> [*]: hard delete after the grace period (30 days)
 ```
 
+The hard delete ends the workspace in the primary system. It is gone from the operator's system backups a further **35 days** later — P-5's period, stated in days in [data-protection.md](./data-protection.md) §12 precisely so that this sentence can name a number instead of a cycle.
+
 | Phase | Actions |
 |---|---|
 | Provisioning | Tenant, default hub, example collection, owner membership, locale/time zone, standard buckets/labels; idempotent through `Idempotency-Key` |
