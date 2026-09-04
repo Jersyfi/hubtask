@@ -209,7 +209,7 @@ structural, not reviewed.
 
 | Component | Why it follows from the model |
 |---|---|
-| `TaskRow` | Four variants for `TASK`, `WORK_PACKAGE`, `ACTIVITY` and the collapsed state |
+| `TaskRow` | Four variants for `TASK`, `WORK_PACKAGE`, `ACTIVITY` and the collapsed state. Built: the fourth is not a fourth *type* — `type` says which mark and which indent, `expansion` says whether the row hides anything. A type the manifest reports and the icon set has no mark for still gets a row, because tolerance towards unknown fields is a binding client requirement |
 | `WorkItemCard` | Kanban; with `cover` as colour **or** image |
 | `BucketColumn` | `wipLimit`, `isDoneBucket` |
 | `LabelChip` + `LabelPicker` | Ten `colorToken` values, nothing else |

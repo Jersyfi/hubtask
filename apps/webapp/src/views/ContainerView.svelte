@@ -27,6 +27,8 @@
 
   import { untrack } from 'svelte';
 
+  import EntryList from '../lib/entries/EntryList.svelte';
+
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf, siblingBefore } from '../lib/data/containers.ts';
   import type { TransportError } from '@hubtask/sync-engine';
@@ -293,9 +295,10 @@
         </Stack>
       {/if}
     {:else}
-      <!-- Honest about what is not built yet, rather than an invented screen that has to be taken
-           away again. -->
-      <p class="pending">{t('app.workspace.entries_arrive')}</p>
+      <!-- A collection holds entries, and this is where the hierarchy lives. Read-only follows the
+           container: an archived collection's entries are archived with it (I-C3), and the reason
+           travels with the controls rather than the controls disappearing. -->
+      <EntryList collectionId={container.id} isReadOnly={isReadOnly} />
     {/if}
   </Stack>
 {/if}
@@ -316,5 +319,4 @@
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 
-  .pending { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
 </style>

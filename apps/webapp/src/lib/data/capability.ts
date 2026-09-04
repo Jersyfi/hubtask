@@ -84,6 +84,24 @@ export function capabilityVerdict(
     : refused('items.capability_not_supported', { item_type: type, capability });
 }
 
+/**
+ * The types that may be created directly in a collection.
+ *
+ * Derived rather than named: a collection takes the types **nothing else claims as a child**. The
+ * manifest says `allowed_child_types` per type, so the roots are what is left over — and that is
+ * what makes `domain-model.md` §2's extension example true. A list of three names here would be a
+ * list that is wrong on the installation with a fourth.
+ */
+export function rootTypes(manifest: Capabilities | undefined): readonly ItemType[] {
+  const declared = manifest?.item_types ?? [];
+  const claimed = new Set(
+    declared.flatMap((entry) => (entry.allowed_child_types ?? []) as readonly string[]),
+  );
+  return declared
+    .map((entry) => entry.type as string | undefined)
+    .filter((type): type is string => type !== undefined && !claimed.has(type));
+}
+
 /** The types this one may hold. Empty for a type that holds nothing, and for one nobody declared. */
 export function allowedChildTypes(
   manifest: Capabilities | undefined,

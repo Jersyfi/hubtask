@@ -20,6 +20,7 @@ import {
   childVerdict,
   itemAccess,
   permissionVerdict,
+  rootTypes,
 } from './capability.ts';
 
 /** The three types of `0.2.0`, as the capability matrix in domain-model.md §2 has them. */
@@ -205,4 +206,25 @@ test('every code a prediction uses is in the catalogue', async () => {
     if (verdict.status !== 'refused') continue;
     assert.ok(known.has(verdict.code), `${verdict.code} is in no catalogue`);
   }
+});
+
+test('the roots are the types nothing else claims as a child', () => {
+  // A collection takes what no other type takes. Derived rather than named, which is what makes
+  // §2's extension example true — a list of three here would be wrong on an installation with a
+  // fourth, and this asserts exactly that.
+  assert.deepEqual(rootTypes(manifest), ['TASK']);
+
+  const withMilestone = {
+    ...manifest,
+    item_types: [
+      { type: 'MILESTONE', capabilities: [], allowed_child_types: ['TASK'], max_depth: 4 },
+      ...(manifest.item_types ?? []),
+    ],
+  } as unknown as Capabilities;
+  // TASK is now claimed by MILESTONE, so the root moves — with no change here.
+  assert.deepEqual(rootTypes(withMilestone), ['MILESTONE']);
+});
+
+test('an unread manifest has no roots rather than a guess', () => {
+  assert.deepEqual(rootTypes(undefined), []);
 });
