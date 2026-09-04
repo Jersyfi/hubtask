@@ -19,6 +19,7 @@
     BucketColumn,
     EmptyState,
     ErrorState,
+    Icon,
     IconButton,
     Inline,
     LabelChip,
@@ -30,6 +31,8 @@
     type RankCommand,
   } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
+
+  import { createDrag } from './dragging.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { buckets } from '../data/buckets.svelte.ts';
@@ -96,14 +99,14 @@
    * Moving **out** of a done column does not reopen. Nothing says it should, and inventing the
    * reverse of a rule is how a client acquires behaviour nobody can find in the model.
    */
-  async function moveTo(item: WorkItem, bucketId: string | null) {
+  async function moveTo(item: WorkItem, bucketId: string | null): Promise<WorkItem | undefined> {
     writeFailure = undefined;
     try {
-      const moved = await items.setBucket(item.id, bucketId, item.version);
+      let moved = await items.setBucket(item.id, bucketId, item.version);
 
       const target = columns.find((column) => column.id === bucketId);
       if (target?.is_done_bucket && !moved.completion?.is_completed) {
-        await items.setCompleted(moved.id, true, crypto.randomUUID());
+        moved = await items.setCompleted(moved.id, true, crypto.randomUUID());
       }
       announcer.say(
         t('app.board.moved', {
@@ -111,8 +114,13 @@
           name: target?.name ?? t('app.board.unbucketed'),
         }),
       );
+      // The card as it now stands, version included. A drag ranks it straight afterwards, and a
+      // version guessed rather than read is a precondition that fails for no reason the reader
+      // can act on — the completion above may have bumped it a second time.
+      return moved;
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
+      return undefined;
     }
   }
 
@@ -131,7 +139,11 @@
     const index = cards.findIndex((each) => each.id === card.id);
     const target = rankTarget(command, index, cards.length);
     if (target === null) return;
+    await rankTo(card, cards, target);
+  }
 
+  /** The call itself, once something — a command, a key or a drag — has named the position. */
+  async function rankTo(card: WorkItem, cards: readonly WorkItem[], target: number) {
     writeFailure = undefined;
     try {
       await items.reorder(
@@ -207,6 +219,75 @@
   }
 
   /**
+   * The pointer path, and the one surface where a drag may leave the list it started in.
+   *
+   * A card carried into another column is a **column change and a rank change**, and the board
+   * already had a call for the first: the same `PATCH bucket_id` the menu makes, with everything
+   * that hangs off it — the done column still completes the card, because that reaction is this
+   * client's rather than the server's. Then the rank, so the card lands where the reader dropped
+   * it rather than at the end of the column they dropped it into.
+   *
+   * Two writes again, and not atomic, for the reason `moveTo` records: if the second fails the
+   * card has still changed column, which is the larger half of what was asked for and is the
+   * honest outcome rather than a rollback that hides it.
+   */
+  const drag = createDrag({
+    start: (grip) => {
+      const held = grip.closest('[data-card]');
+      const cardId = held?.getAttribute('data-card');
+      const key = held?.getAttribute('data-column') ?? 'none';
+      const cards = cardsOf(key === 'none' ? null : key);
+      const index = cards.findIndex((each) => each.id === cardId);
+      if (!cardId || index < 0 || isReadOnly) return null;
+      return { id: cardId, index, level: { key, elements: elementsOf(key) } };
+    },
+    // Which column the pointer is over. `elementFromPoint` rather than a rectangle kept from the
+    // start of the gesture: a board scrolls sideways while a card is being carried across it.
+    levelAt: ({ x, y }) => {
+      const zone = document.elementFromPoint(x, y)?.closest('[data-column-zone]');
+      const key = zone?.getAttribute('data-column-zone');
+      return key === null || key === undefined ? null : { key, elements: elementsOf(key) };
+    },
+    ondrop: ({ id, to, levelKey }) => {
+      const from = board?.querySelector(`[data-card="${id}"]`)?.getAttribute('data-column') ?? 'none';
+      const card = cardsOf(from === 'none' ? null : from).find((each) => each.id === id);
+      if (card) void drop(card, from, levelKey, to);
+    },
+  });
+
+  /** The card elements of one column, in drawn order, for the measuring. */
+  function elementsOf(key: string): HTMLElement[] {
+    return [...(board?.querySelectorAll<HTMLElement>(`[data-column="${key}"]`) ?? [])];
+  }
+
+  async function drop(card: WorkItem, from: string, to: string, position: number) {
+    const bucketId = to === 'none' ? null : to;
+    // The destination's cards **as the reader saw them**, taken before anything is written. The
+    // board re-reads after a write, and reading it again afterwards would rank the card against a
+    // list that arrived later than the gesture it is answering.
+    const cards = cardsOf(bucketId);
+
+    if (from === to) {
+      await rankTo(card, cards, position);
+      return;
+    }
+
+    const moved = await moveTo(card, bucketId);
+    if (!moved) return;
+    await items.reorder(
+      card.id,
+      anchorFor(cards, card.id, position),
+      moved.version,
+      crypto.randomUUID(),
+    );
+  }
+
+  $effect(() => {
+    const node = board;
+    return node ? drag.attach(node) : undefined;
+  });
+
+  /**
    * The keyboard shortcuts, listened for on the board rather than bound in the markup — a `<div>`
    * with an `onkeydown` is a static element with an interaction, and Svelte is right to warn.
    *
@@ -266,72 +347,138 @@
            shown rather than hidden: a card nobody has put in a column is a card somebody has to
            find. -->
       {#if bucket !== null || cards.length > 0}
-        <BucketColumn
-          name={bucket?.name ?? t('app.board.unbucketed')}
-          count={countOf(bucketId) ?? cards.length}
-          wipLimit={bucket?.wip_limit ?? null}
-          overLimitLabel={t('app.board.over_limit')}
-          isDoneBucket={bucket?.is_done_bucket ?? false}
-          doneBucketLabel={t('app.board.done_bucket')}
-        >
-          {#snippet actions()}
-            {#if bucket}
-              <IconButton
-                icon="ellipsis"
-                label={t('app.board.column_actions', { name: bucket.name })}
-                size="sm"
-              />
-            {/if}
-          {/snippet}
+        <!-- The column as a drop zone. `elementFromPoint` reads this while a card is being carried
+             across the board, which is why it is the whole column rather than the list of cards:
+             an empty column is a destination too. -->
+        <div class="zone" data-column-zone={bucket?.id ?? 'none'}>
+          <BucketColumn
+            name={bucket?.name ?? t('app.board.unbucketed')}
+            count={countOf(bucketId) ?? cards.length}
+            wipLimit={bucket?.wip_limit ?? null}
+            overLimitLabel={t('app.board.over_limit')}
+            isDoneBucket={bucket?.is_done_bucket ?? false}
+            doneBucketLabel={t('app.board.done_bucket')}
+          >
+            {#snippet actions()}
+              {#if bucket}
+                <IconButton
+                  icon="ellipsis"
+                  label={t('app.board.column_actions', { name: bucket.name })}
+                  size="sm"
+                />
+              {/if}
+            {/snippet}
 
-          {#each cards as card (card.id)}
-            <!-- `data-card` is how a key press finds its way back from the focused control to the
-                 card, and `data-column` says which column's cards it is ranked among. -->
-            <div class="card" data-card={card.id} data-column={bucket?.id ?? 'none'}>
-              <WorkItemCard
-                title={card.title}
-                href={`/items/${card.id}`}
-                isCompleted={card.completion?.is_completed ?? false}
-                coverKind={card.cover?.kind ?? null}
-                coverColorToken={card.cover?.color_token ?? null}
+            {#each cards as card (card.id)}
+              <!-- `data-card` is how a key press finds its way back from the focused control to the
+                   card, and `data-column` says which column's cards it is ranked among. -->
+              <div
+                class="card"
+                data-card={card.id}
+                data-column={bucket?.id ?? 'none'}
+                data-dragging={drag.id === card.id ? '' : undefined}
+                data-drop={drag.id !== null &&
+                drag.id !== card.id &&
+                drag.levelKey === (bucket?.id ?? 'none') &&
+                drag.position === cards.indexOf(card)
+                  ? ''
+                  : undefined}
+                style:--drag-offset={drag.id === card.id ? drag.offset : undefined}
               >
-                {#snippet footer()}
-                  <Inline gap="050">
-                    {#each (card.label_ids ?? []) as labelId (labelId)}
-                      {@const label = available.find((each) => each.id === labelId)}
-                      {#if label}
-                        <LabelChip name={label.name} colorToken={label.color_token} />
+                <!-- A picture, not a control: the menu on the card is SC 2.5.7's single-pointer
+                     alternative, and a second focusable element that does nothing for the keyboard
+                     would be noise in the tab order rather than access. -->
+                <span class="grip" data-grip aria-hidden="true">
+                  <Icon name="grip-vertical" size="sm" />
+                </span>
+                <WorkItemCard
+                  title={card.title}
+                  href={`/items/${card.id}`}
+                  isCompleted={card.completion?.is_completed ?? false}
+                  coverKind={card.cover?.kind ?? null}
+                  coverColorToken={card.cover?.color_token ?? null}
+                >
+                  {#snippet footer()}
+                    <Inline gap="050">
+                      {#each (card.label_ids ?? []) as labelId (labelId)}
+                        {@const label = available.find((each) => each.id === labelId)}
+                        {#if label}
+                          <LabelChip name={label.name} colorToken={label.color_token} />
+                        {/if}
+                      {/each}
+                      {#if !isReadOnly}
+                        <!-- The keyboard path to moving a card, and for now the only one — F2-12 builds
+                             the drag against it, because WCAG 2.2 SC 2.5.7 wants a single-pointer
+                             alternative and a rank change is a command before it is a gesture. -->
+                        <Menu
+                          label={t('app.board.card_actions', { title: card.title })}
+                          items={menuItems(card, cards)}
+                          onselect={(id) => chose(card, cards, id)}
+                        >
+                          {#snippet trigger(props)}
+                            <IconButton icon="ellipsis" label={t('app.board.card_actions', { title: card.title })} size="sm" {...props} />
+                          {/snippet}
+                        </Menu>
                       {/if}
-                    {/each}
-                    {#if !isReadOnly}
-                      <!-- The keyboard path to moving a card, and for now the only one — F2-12 builds
-                           the drag against it, because WCAG 2.2 SC 2.5.7 wants a single-pointer
-                           alternative and a rank change is a command before it is a gesture. -->
-                      <Menu
-                        label={t('app.board.card_actions', { title: card.title })}
-                        items={menuItems(card, cards)}
-                        onselect={(id) => chose(card, cards, id)}
-                      >
-                        {#snippet trigger(props)}
-                          <IconButton icon="ellipsis" label={t('app.board.card_actions', { title: card.title })} size="sm" {...props} />
-                        {/snippet}
-                      </Menu>
-                    {/if}
-                  </Inline>
-                {/snippet}
-              </WorkItemCard>
-            </div>
-          {/each}
-        </BucketColumn>
+                    </Inline>
+                  {/snippet}
+                </WorkItemCard>
+              </div>
+            {/each}
+          </BucketColumn>
+        </div>
       {/if}
     {/each}
   </div>
 {/if}
 
 <style>
-  /* The card's wrapper carries the identity a key press reads and nothing else — the card itself
-     is the design system's, and a state written on it here would be a second place it is styled. */
-  .card { display: block; }
+  /* The card's wrapper carries what the two paths read — the identity a key press finds, and the
+     state a drag draws. The card itself is the design system's. */
+  .card { display: flex; align-items: start; gap: var(--sp-050); }
+
+  .card > :global(*:last-child) { flex: 1; min-width: 0; }
+
+  .zone { display: flex; }
+
+  /* `touch-action: none` is what makes a drag possible on a touch screen: without it the browser
+     claims the gesture for scrolling, and the board scrolls sideways, so it would claim it at
+     once. On the grip alone, so the board still scrolls everywhere else. */
+  .grip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    padding-block-start: var(--sp-100);
+    color: var(--text-subtle);
+    cursor: grab;
+    touch-action: none;
+  }
+
+  /* Rule 6: a translate and nothing else, and it is direct manipulation rather than decoration. */
+  .card[data-dragging] {
+    translate: 0 var(--drag-offset);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-overlay);
+    /* Out of the way of the measuring: what is under the pointer has to be the board. */
+    pointer-events: none;
+  }
+
+  .card[data-dragging] .grip { cursor: grabbing; }
+
+  /* Where it would land. Rule 3: an outline rather than a tint, so it reads in greyscale. */
+  .card[data-drop] {
+    outline: var(--bw-thick) dashed var(--accent-primary);
+    outline-offset: var(--sp-025);
+    border-radius: var(--r-md);
+  }
+
+  /* Rule 6's floor: under a reduced-motion preference the card does not travel, and the state and
+     the landing slot are what say what is happening. */
+  @media (prefers-reduced-motion: reduce) {
+    .card[data-dragging] { translate: none; }
+  }
+
+  :global([data-motion='reduced']) .card[data-dragging] { translate: none; }
 
   /* The board scrolls sideways, not the page. */
   .board {

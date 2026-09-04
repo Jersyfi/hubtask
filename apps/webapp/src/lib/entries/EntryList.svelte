@@ -26,6 +26,7 @@
     Menu,
     Popover,
     Select,
+    Icon,
     Skeleton,
     Stack,
     TaskRow,
@@ -36,6 +37,7 @@
   import type { DroppedReference, WorkItem } from '@hubtask/sync-engine';
 
   import MoveDialog from './MoveDialog.svelte';
+  import { createDrag } from './dragging.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { acceptsChild, childTypes, rootTypes, supports } from '../data/capability.svelte.ts';
@@ -220,7 +222,11 @@
   async function rank(row: Row, command: RankCommand) {
     const target = rankTarget(command, row.index, row.siblings.length);
     if (target === null) return;
+    await rankTo(row, target);
+  }
 
+  /** The call itself, once something — a command, a key or a drag — has named the position. */
+  async function rankTo(row: Row, target: number) {
     writeFailure = undefined;
     try {
       await items.reorder(
@@ -420,6 +426,48 @@
     ];
   }
 
+  /**
+   * The pointer path, and it reaches the same call.
+   *
+   * A drag names a **position**, which is the number the menu items already name, so the two
+   * cannot come to disagree about where the fourth row lands — and a drag that ends where it
+   * began writes nothing, which is what makes thinking better of it free.
+   *
+   * The level is the row's own, and a drag stays in it: `:reorder` is a rank within a level, and a
+   * gesture that reparented an entry by drifting over another level's rows would be performing
+   * `:move` without the reader asking for it. Changing the parent is the menu's, where it is a
+   * decision rather than a slip.
+   */
+  const drag = createDrag({
+    start: (grip) => {
+      const id = grip.closest('[data-row]')?.getAttribute('data-row');
+      const row = rows.find((each) => each.item.id === id);
+      if (!row || isReadOnly || !level) return null;
+      return {
+        id: row.item.id,
+        index: row.index,
+        level: {
+          key: row.parentId ?? 'root',
+          // The level's rows in drawn order — the siblings, not everything on screen. A row at
+          // depth 2 is ranked among its parent's children, and the rows above it belong to others.
+          elements: row.siblings
+            .map((sibling) => level?.querySelector<HTMLElement>(`[data-row="${sibling.id}"]`))
+            .filter((element): element is HTMLElement => element !== null),
+        },
+      };
+    },
+    ondrop: ({ id, to }) => {
+      const row = rows.find((each) => each.item.id === id);
+      if (!row) return;
+      void rankTo(row, to);
+    },
+  });
+
+  $effect(() => {
+    const node = level;
+    return node ? drag.attach(node) : undefined;
+  });
+
   /** One press, whichever of the two operations it turns out to be. */
   function chose(row: Row, id: string) {
     if (id === 'inside') {
@@ -505,7 +553,25 @@
            element with an interaction and Svelte is right to warn about one. -->
       <div class="level" bind:this={level}>
         {#each rows as row (row.item.id)}
-          <div class="row" data-row={row.item.id}>
+          <div
+            class="row"
+            data-row={row.item.id}
+            data-dragging={drag.id === row.item.id ? '' : undefined}
+            data-drop={drag.id !== null &&
+            drag.id !== row.item.id &&
+            drag.levelKey === (row.parentId ?? 'root') &&
+            drag.position === row.index
+              ? ''
+              : undefined}
+            style:--drag-offset={drag.id === row.item.id ? drag.offset : undefined}
+          >
+            <!-- A picture, not a control. The single-pointer alternative SC 2.5.7 asks for is the
+                 menu at the end of the row, and it is a real one — so a second focusable element
+                 that does nothing for the keyboard would be noise in the tab order rather than
+                 access. -->
+            <span class="grip" data-grip aria-hidden="true">
+              <Icon name="grip-vertical" size="sm" />
+            </span>
             <TaskRow
               type={row.item.type}
               title={row.item.title}
@@ -673,6 +739,54 @@
   /* What `Stack gap="050"` was, written here because the level now owns a state of its own: a row
      being dragged is drawn differently, and a primitive that decorated would stop being one. */
   .level { display: flex; flex-direction: column; gap: var(--sp-050); }
+
+  .row { display: flex; align-items: center; gap: var(--sp-050); }
+
+  .row > :global(*:last-child) { flex: 1; min-width: 0; }
+
+  /* `touch-action: none` is what makes a drag possible on a touch screen at all: without it the
+     browser claims the gesture for scrolling and the pointer events stop arriving after the first
+     few. It is on the grip alone, so the page still scrolls everywhere else. */
+  .grip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    color: var(--text-subtle);
+    cursor: grab;
+    touch-action: none;
+  }
+
+  /* Rule 6: the movement is a `translate` and nothing else, and it is direct manipulation rather
+     than decoration — the row is under the reader's finger. */
+  .row[data-dragging] {
+    translate: 0 var(--drag-offset);
+    /* Rule 1: it is off the surface while it is being carried, so it is raised. */
+    box-shadow: var(--shadow-overlay);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    /* Out of the way of the measuring: the element under the pointer must be the list, not the
+       row being carried over it. */
+    pointer-events: none;
+  }
+
+  .row[data-dragging] .grip { cursor: grabbing; }
+
+  /* Where it would land. Rule 3: an outline and not a tint, so it reads in greyscale and to a
+     reader who does not perceive the accent. */
+  .row[data-drop] {
+    outline: var(--bw-thick) dashed var(--accent-primary);
+    outline-offset: var(--sp-025);
+    border-radius: var(--r-md);
+  }
+
+  /* Rule 6's floor. Under a reduced-motion preference the row does not travel; the state and the
+     landing slot still say what is happening, which is the colour change the rule fixes as the
+     least a movement may reduce to. */
+  @media (prefers-reduced-motion: reduce) {
+    .row[data-dragging] { translate: none; }
+  }
+
+  :global([data-motion='reduced']) .row[data-dragging] { translate: none; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 
