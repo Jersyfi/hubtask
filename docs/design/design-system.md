@@ -221,8 +221,8 @@ structural, not reviewed.
 | `CapabilityGate` | A disabled field **with a reason** — `ErrCapabilityNotSupported` must never become silent ignoring |
 | `CommentThread` | Nested, with "removed" as its own state |
 | `ActivityFeed` | `verb` is an i18n code, not a finished sentence |
-| `ViewSwitcher` | `LIST_COLLAPSED`, `LIST_EXPANDED`, `KANBAN`, `TIMELINE` |
-| `QueryBuilder` | The query DSL made visible |
+| `ViewSwitcher` | `LIST_COLLAPSED`, `LIST_EXPANDED`, `KANBAN`, `TIMELINE`. Built: a **radio group**, not a tab strip — a tab switches between subjects and owns the panel it reveals, this switches between renderings of one subject and owns nothing. A layout the manifest reports and the client cannot draw is shown **with the reason**; leaving it out would make the switcher disagree with the installation |
+| `QueryBuilder` | The query DSL made visible. Built: it knows **no grammar** — the fields, the comparisons each permits and whether a comparison takes a value are all handed to it, because `query_fields` grows with the installation and a component that spelled the operators out would be the hard-coded list the manifest exists to replace. Changing the field resets the comparison: the operators belong to the field |
 | `JumbleInboxItem` | `NEW` / `PROCESSED` / `DISMISSED`, optionally with an AI suggestion |
 | `AutomationRuleCard` + `RunStatusBadge` | Running / succeeded / failed / dry run |
 | `RoleBadge` + `PermissionMatrix` | Six roles, inherited across four scopes |
