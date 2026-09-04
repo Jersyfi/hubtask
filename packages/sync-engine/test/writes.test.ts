@@ -264,3 +264,73 @@ test('sign-out still empties everything', async () => {
   assert.equal(engine.peek({ path: '/accounts/me' }).status, 'idle');
   assert.equal(engine.etagFor('/accounts/me'), undefined);
 });
+
+// --- what a write does to the screen that made it -----------------------------------------------
+
+test('a write reloads what somebody is looking at', async () => {
+  // The defect this covers: invalidation removed the entry, and the entry holds the listeners — so
+  // the component that made the write was never told, and the change it had just performed did not
+  // appear. Every write was invisible to the screen that made it.
+  const transport = new FakeTransport()
+    .answerEach('/containers', [
+      { data: [{ id: 'c1' }], page: { next_cursor: null } },
+      { data: [{ id: 'c1' }, { id: 'c2' }], page: { next_cursor: null } },
+    ])
+    .answer('/containers/c2', { id: 'c2' });
+  const engine = engineWith(transport);
+
+  const seen: string[][] = [];
+  engine.subscribe<{ data: { id: string }[] }>({ path: '/containers' }, (state) => {
+    if (state.status === 'ready') seen.push(state.data.data.map((row) => row.id));
+  });
+  await engine.refresh({ path: '/containers' });
+
+  await engine.mutate('POST', '/containers', { name: 'Second' }, { invalidates: ['/containers'] });
+  // The reload is not awaited by `mutate`, so give it the turn it needs.
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.deepEqual(seen.at(-1), ['c1', 'c2'], 'the subscriber was never told about the write');
+});
+
+test('a write forgets what nobody is looking at, rather than re-fetching it', async () => {
+  const transport = new FakeTransport()
+    .answer('/containers', { data: [], page: { next_cursor: null } })
+    .answer('/items/i1', { id: 'i1' });
+  const engine = engineWith(transport);
+
+  // Loaded and then abandoned: no listener remains.
+  await loaded(engine, { path: '/containers' });
+  const readsBefore = transport.calls.filter((call) => call.path === '/containers').length;
+
+  await engine.mutate('PATCH', '/items/i1', {}, { invalidates: ['/containers'] });
+  await Promise.resolve();
+
+  assert.equal(engine.peek({ path: '/containers' }).status, 'idle', 'an unwatched entry was kept');
+  assert.equal(
+    transport.calls.filter((call) => call.path === '/containers').length,
+    readsBefore,
+    'a write re-fetched a screen nobody has open',
+  );
+});
+
+test('a reload repeats the question, not just the path', async () => {
+  // A query is keyed on its document, so an invalidation that could only re-fetch a path would ask
+  // `POST /items:query` with no body — which is not the question the subscriber asked.
+  const transport = new FakeTransport()
+    .answer('/items:query', { data: [], groups: [], page: { next_cursor: null } })
+    .answer('/items/i1', { id: 'i1' });
+  const engine = engineWith(transport);
+  const board = { path: '/items:query', body: { scope: { container_id: 'c1' } } };
+
+  engine.subscribe(board, () => {});
+  await engine.refresh(board);
+
+  await engine.mutate('PATCH', '/items/i1', {}, { invalidates: ['/items'] });
+  await Promise.resolve();
+  await Promise.resolve();
+
+  const queries = transport.calls.filter((call) => call.path === '/items:query');
+  assert.equal(queries.length, 3, 'the board was not read again after the write');
+  assert.deepEqual(queries.at(-1)?.body, { scope: { container_id: 'c1' } });
+});
