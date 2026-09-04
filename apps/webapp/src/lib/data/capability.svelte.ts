@@ -16,6 +16,7 @@ import {
   changeVerdict,
   childVerdict,
   permissionVerdict,
+  rootTypes as rootTypesOf,
 } from './capability.ts';
 import { manifest } from './capabilities.svelte.ts';
 
@@ -26,6 +27,9 @@ export const supports = (type: string, capability: string): Verdict =>
 /** Whether a child of this type may be created there, type and depth both. */
 export const acceptsChild = (parentType: string, childType: string, parentDepth = 0): Verdict =>
   childVerdict(manifest.value, parentType, childType, parentDepth);
+
+/** What may be created directly in a collection: the types nothing else claims as a child. */
+export const rootTypes = (): readonly string[] => rootTypesOf(manifest.value);
 
 /** The child types the manifest permits under this one. */
 export const childTypes = (type: string): readonly string[] =>

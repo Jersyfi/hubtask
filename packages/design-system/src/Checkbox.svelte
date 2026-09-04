@@ -20,6 +20,15 @@
     hint?: string;
     /** Some but not all: `aria-checked="mixed"`, and the box shows a bar rather than a tick. */
     isIndeterminate?: boolean;
+    /**
+     * Announced but not drawn, for a checkbox whose meaning the row around it already carries.
+     *
+     * A completion box in a list of entries is the case: the title beside it is what the reader
+     * sees, and a second "Completed" printed against every row would be noise on screen and
+     * nothing in the accessibility tree. Hidden, **never** absent — a checkbox with no accessible
+     * name is a control a screen reader announces as "checkbox" and nothing else.
+     */
+    isLabelHidden?: boolean;
     checked?: boolean;
   }
 
@@ -28,6 +37,7 @@
     hint,
     disabledReason,
     isIndeterminate = false,
+    isLabelHidden = false,
     checked = $bindable(false),
     ...rest
   }: Props = $props();
@@ -59,7 +69,7 @@
         {/if}
       </span>
     </span>
-    <label class="label" for={uid}>{label}</label>
+    <label class="label" class:is-hidden={isLabelHidden} for={uid}>{label}</label>
   </div>
   {#if disabledReason}
     <p id={reasonId} class="message">{disabledReason}</p>
@@ -73,6 +83,19 @@
   .checkbox { display: flex; flex-direction: column; gap: var(--sp-050); }
 
   .row { display: flex; align-items: start; gap: var(--sp-100); }
+
+  /* Announced but not drawn. Never `display: none`, which would take the name out of the
+     accessibility tree along with the text — and a checkbox with no name is a control a screen
+     reader can only call "checkbox". */
+  .label.is-hidden {
+    position: absolute;
+    inline-size: var(--sp-025);
+    block-size: var(--sp-025);
+    margin: calc(var(--sp-025) * -1);
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 
   .control {
     position: relative;
