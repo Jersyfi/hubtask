@@ -52,3 +52,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0043](./ADR-0043-theme-per-device.md) | The theme is a property of the device, not of the account | accepted | Clients, design system, contract |
 | [0044](./ADR-0044-browser-support-row.md) | Which browsers a Hubtask client is required to work in | accepted | Clients, design system, support scope |
 | [0045](./ADR-0045-master-key-in-the-environment.md) | The master key stays in the environment | accepted | Security, operations, crypto |
+| [0046](./ADR-0046-production-on-a-platform-namespace.md) | Production runs in a platform namespace, and the platform's operator does PITR | accepted | Deployment, operations, backup |

@@ -1,0 +1,68 @@
+# The database of the production environment (deployment.md §3.2, ADR-0046 — open point D-2).
+#
+# The CloudNativePG operator is the platform's; this Cluster is ours, and so is its backup stanza.
+# That split is the whole of D-2's answer: point-in-time recovery is ours to configure and theirs
+# to host, which is what makes the restore drill ours to run.
+#
+# Applied once with the deploy kubeconfig. Wiring it into a production deploy job belongs to H-10's
+# second half, together with the drill it exists for.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: hubtask-db
+  namespace: hubtask
+spec:
+  # One instance. A second would be a replica sharing the same quota, and what protects this
+  # installation against losing data is the archive rather than a standby (backup-restore.md).
+  instances: 1
+
+  # PostgreSQL 17 — the newer of the two majors support-matrix.md declares.
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6
+
+  storage:
+    size: 8Gi
+    # Deliberately less than half the namespace's 20Gi: a restore drill bootstraps a second
+    # cluster from the object store into this same namespace, and both have to fit at once.
+
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits:   { memory: 2Gi }
+
+  bootstrap:
+    initdb:
+      database: hubtask
+      owner: hubtask_owner
+
+  backup:
+    # 35 days: P-5's period (data-protection.md §12), and the same number the bucket's Object Lock
+    # retention is set to. They have to be equal — a lock outliving the plan makes this cleanup
+    # fail, and a plan outliving the lock breaks the promise the document makes.
+    retentionPolicy: "35d"
+    barmanObjectStore:
+      destinationPath: PLATFORM_BACKUP_BUCKET_PATH   # README, unknown 5
+      endpointURL: PLATFORM_S3_ENDPOINT
+      s3Credentials:
+        accessKeyId:
+          name: hubtask-backup-s3
+          key: access-key
+        secretAccessKey:
+          name: hubtask-backup-s3
+          key: secret-key
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+
+---
+# Continuous archiving is what gives the RPO; this is the base backup the archive is replayed onto.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: hubtask-db-daily
+  namespace: hubtask
+spec:
+  # 02:30 UTC, in the operator's six-field cron.
+  schedule: "0 30 2 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: hubtask-db
