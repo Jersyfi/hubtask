@@ -33,10 +33,12 @@
     rankTarget,
     type RankCommand,
   } from '@hubtask/design-system/components';
-  import type { WorkItem } from '@hubtask/sync-engine';
+  import type { DroppedReference, WorkItem } from '@hubtask/sync-engine';
+
+  import MoveDialog from './MoveDialog.svelte';
 
   import { announcer } from '../announce.svelte.ts';
-  import { childTypes, rootTypes, supports } from '../data/capability.svelte.ts';
+  import { acceptsChild, childTypes, rootTypes, supports } from '../data/capability.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -111,10 +113,12 @@
      */
     readonly siblings: readonly WorkItem[];
     readonly index: number;
+    /** The entry this one sits inside, or `null` for the top level of the collection. */
+    readonly parentId: string | null;
   }
 
   /** The visible rows, in the order the eye walks them. */
-  function flatten(parents: readonly WorkItem[], depth: number): Row[] {
+  function flatten(parents: readonly WorkItem[], depth: number, parentId: string | null): Row[] {
     const rows: Row[] = [];
     parents.forEach((item, index) => {
       // Whether it *may* hold children is the manifest's answer; whether it *does* is not known
@@ -125,13 +129,16 @@
         takesChildren: childTypes(item.type).length > 0,
         siblings: parents,
         index,
+        parentId,
       });
-      if (expanded.includes(item.id)) rows.push(...flatten(items.childrenOf(item.id), depth + 1));
+      if (expanded.includes(item.id)) {
+        rows.push(...flatten(items.childrenOf(item.id), depth + 1, item.id));
+      }
     });
     return rows;
   }
 
-  const rows = $derived(flatten(items.inCollection(collectionId), 0));
+  const rows = $derived(flatten(items.inCollection(collectionId), 0, null));
   // Not called `state`: a variable of that name collides with the `$state` rune in what the
   // compiler generates, and the error it produces names a line that looks unrelated.
   const levelState = $derived(items.stateOf(`container:${collectionId}`));
@@ -281,12 +288,147 @@
     return event.shiftKey ? 'bottom' : 'down';
   }
 
+  /**
+   * The entry this row would move inside: the sibling directly above it.
+   *
+   * "Another parent" is a position the reader can see, so it is a command rather than a picker —
+   * the sibling above is the one destination that needs no list of everything. Whether the move is
+   * permitted is the **manifest's** answer and not this component's: a work package holds
+   * activities on one installation and something else on the next, and `domain-model.md` §2's
+   * extension example is only true if nothing here spells the three names out.
+   */
+  const previousSibling = (row: Row): WorkItem | undefined => row.siblings[row.index - 1];
+
+  /** Why an entry cannot move inside the one above it, or nothing. */
+  function insideReason(row: Row): string | undefined {
+    if (isReadOnly) return t('app.entries.read_only');
+    const target = previousSibling(row);
+    if (!target) return t('app.move.nothing_above');
+    const verdict = acceptsChild(target.type, row.item.type, row.depth);
+    if (verdict.status === 'permitted') return undefined;
+    // The server's own code where there is one, so a prediction and a refusal read the same way.
+    return verdict.status === 'refused' ? t(verdict.code, verdict.params) : t('app.move.moving');
+  }
+
+  /**
+   * Moves an entry to another parent, another collection, or both.
+   *
+   * `:move` rather than `:reorder` the moment the parent changes, and it answers a `MoveResult`
+   * rather than an entry. **The second half of that answer is shown**: I-W6 says a reference the
+   * destination cannot resolve is reported rather than dropped in silence, and swallowing it here
+   * would turn a designed behaviour into data loss — the chips would simply be gone, which is
+   * indistinguishable from a rendering fault.
+   */
+  async function move(
+    row: Row,
+    destination: { parentId: string | null; collectionId?: string },
+  ) {
+    writeFailure = undefined;
+    try {
+      const result = await items.move(
+        row.item.id,
+        destination,
+        row.item.version,
+        crypto.randomUUID(),
+      );
+      dropped = { title: row.item.title, references: result.dropped_references ?? [] };
+      announcer.say(t('app.move.announced', { title: row.item.title }));
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  /** What the last move left behind, until the reader has read it. */
+  let dropped = $state<{ title: string; references: readonly DroppedReference[] } | undefined>(
+    undefined,
+  );
+
+  /** Which row the destination picker is open for. */
+  let movingRow = $state<Row | undefined>(undefined);
+  let isMoving = $state(false);
+
+  async function moveElsewhere(collectionId: string) {
+    const row = movingRow;
+    if (!row) return;
+    isMoving = true;
+    // The top level of the destination: an entry that had a parent here has none there, because
+    // the parent is not in that collection. `target_collection_id` is what names where it lands.
+    await move(row, { parentId: null, collectionId });
+    isMoving = false;
+    movingRow = undefined;
+  }
+
+  /**
+   * Moves an entry out to the level above it.
+   *
+   * The grandparent, or the collection itself when the parent is already at the top level — and
+   * that is why `target_parent_id` is sent as `null` *with* a collection rather than left out. An
+   * entry's collection is the one its parent is in, so an entry with no parent has to name one.
+   */
+  function moveOut(row: Row) {
+    if (!row.parentId) return;
+    const parent = rows.find((each) => each.item.id === row.parentId);
+    const grandParentId = parent?.parentId ?? null;
+    void move(
+      row,
+      grandParentId === null ? { parentId: null, collectionId } : { parentId: grandParentId },
+    );
+  }
+
   const RANK_COMMANDS: readonly { readonly id: RankCommand; readonly label: string }[] = [
     { id: 'up', label: 'app.rank.up' },
     { id: 'down', label: 'app.rank.down' },
     { id: 'top', label: 'app.rank.top' },
     { id: 'bottom', label: 'app.rank.bottom' },
   ];
+
+  /**
+   * Everything a rank change or a move can do to this row, as one list.
+   *
+   * One menu rather than two, because they are one question to the reader — "where should this go"
+   * — and the API's split between `:reorder` and `:move` is an answer about which operation, not
+   * about which control. The separator is where the level stops being the level.
+   */
+  function menuItems(row: Row) {
+    const above = previousSibling(row);
+    return [
+      ...RANK_COMMANDS.map((command) => ({
+        id: command.id,
+        label: t(command.label),
+        disabledReason: rankReason(row, command.id),
+      })),
+      {
+        id: 'inside',
+        label: above ? t('app.move.inside', { name: above.title }) : t('app.move.inside_above'),
+        disabledReason: insideReason(row),
+        hasSeparatorBefore: true,
+      },
+      {
+        id: 'out',
+        label: t('app.move.out'),
+        disabledReason: isReadOnly
+          ? t('app.entries.read_only')
+          : row.parentId
+            ? undefined
+            : t('app.move.already_top'),
+      },
+      {
+        id: 'elsewhere',
+        label: t('app.move.elsewhere'),
+        disabledReason: isReadOnly ? t('app.entries.read_only') : undefined,
+      },
+    ];
+  }
+
+  /** One press, whichever of the two operations it turns out to be. */
+  function chose(row: Row, id: string) {
+    if (id === 'inside') {
+      const above = previousSibling(row);
+      if (above) void move(row, { parentId: above.id });
+    } else if (id === 'out') moveOut(row);
+    else if (id === 'elsewhere') movingRow = row;
+    else void rank(row, id as RankCommand);
+  }
 
   async function toggleComplete(item: WorkItem) {
     writeFailure = undefined;
@@ -314,6 +456,31 @@
   {:else}
     {#if writeFailure}
       <p class="failure">{writeFailure.message}</p>
+    {/if}
+
+    <!-- I-W6, on the screen. A label belongs to a collection and a column belongs to a board, so
+         an entry carried to another collection leaves both behind — and the operation reports what
+         it left rather than dropping it in silence. Showing it is the part that makes the report
+         worth having; a client that swallowed it would turn a designed behaviour into data loss. -->
+    {#if dropped && dropped.references.length > 0}
+      <div class="dropped">
+        <p>{t('app.move.dropped', { title: dropped.title })}</p>
+        <ul>
+          {#each dropped.references as reference, index (`${reference.kind}-${reference.id}-${index}`)}
+            <li>
+              <strong>{t(`app.move.dropped_kind.${reference.kind}`)}</strong>
+              <!-- The server's own message code says why. One fact, one sentence, whichever
+                   channel reported it (ADR-0011). -->
+              {t(reference.code)}
+            </li>
+          {/each}
+        </ul>
+        <div>
+          <Button size="sm" tone="secondary" onclick={() => (dropped = undefined)}>
+            {t('app.dismiss')}
+          </Button>
+        </div>
+      </div>
     {/if}
 
     {#if rows.length === 0}
@@ -421,12 +588,8 @@
                      cannot be used rather than a control that goes grey for no stated cause. -->
                 <Menu
                   label={t('app.rank.actions', { title: row.item.title })}
-                  items={RANK_COMMANDS.map((command) => ({
-                    id: command.id,
-                    label: t(command.label),
-                    disabledReason: rankReason(row, command.id),
-                  }))}
-                  onselect={(id) => rank(row, id as RankCommand)}
+                  items={menuItems(row)}
+                  onselect={(id) => chose(row, id)}
                 >
                   {#snippet trigger(props)}
                     <IconButton
@@ -462,6 +625,16 @@
     {/if}
   {/if}
 </Stack>
+
+{#if movingRow}
+  <MoveDialog
+    isOpen={true}
+    title={movingRow.item.title}
+    fromCollectionId={collectionId}
+    isBusy={isMoving}
+    onmove={(destination) => moveElsewhere(destination)}
+  />
+{/if}
 
 {#snippet addForm()}
   <Stack gap="150">
@@ -502,4 +675,29 @@
   .level { display: flex; flex-direction: column; gap: var(--sp-050); }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
+
+  /* Rule 1: a standalone notice, so it is raised rather than tinted. Rule 3: it is a list of what
+     was lost and why, so nothing about it rests on the colour. */
+  .dropped {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-100);
+    max-width: 64ch;
+    padding: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
+    font-size: var(--fs-075);
+  }
+
+  .dropped p { margin: 0; }
+
+  .dropped ul {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-050);
+    margin: 0;
+    padding-inline-start: var(--sp-200);
+  }
 </style>
