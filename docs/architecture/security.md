@@ -285,7 +285,7 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | # | Point | Needed by |
 |---|---|---|
 | S-1 | An external penetration test / code audit before the first commercial operation | Before `1.0.0` |
-| S-2 | Decide master key management in provider operation (environment vs. KMS vs. Vault) | `0.6.0` |
+| S-2 | ~~Decide master key management in provider operation (environment vs. KMS vs. Vault)~~ — settled as **the environment keyring** ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md), H-13). The threat the question names is a database dump plus a filesystem read, and only the cold half of it is defensible: a process compromised badly enough to read the environment can hold a KMS session or a Vault token just as easily, so all three options fail together against a live compromise and the cheapest of them already defends the dump — the ring is not in the database. What a KMS would add is the record rather than the secrecy, which is why the decision carries a **trigger instead of a review date**: hardware the project does not control operated by somebody who is not Hubtask's operator, or a compliance review asking for custody separation in writing. The half that was missing is now the work: a ring only grows until something rewraps what an older key sealed, so the ADR decides the re-seal that lets a key finally be retired, and §8.1 is the procedure | Closed (H-13) |
 | S-3 | The data catalogue and the DPA template | Before `1.0.0` |
 | S-4 | Extend the threat model for the frontend (once decided) | With the frontend ADR |
 | S-5 | Bug bounty yes/no, and its framing | After `1.0.0` |

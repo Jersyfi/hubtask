@@ -754,6 +754,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0042 | The NATS client library: nats.go, confined to one adapter | accepted |
 | 0043 | The theme is a property of the device, not of the account | accepted |
 | 0044 | Which browsers a Hubtask client is required to work in | accepted |
+| 0045 | The master key stays in the environment | accepted |
 
 ---
 
