@@ -190,6 +190,23 @@ UPDATE container SET
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
+-- name: SetContainerRank :execrows
+-- The rank alone, which is the whole of what a reorder changes.
+--
+-- Beside SetContainerPlacement rather than reusing it, and the difference is not stylistic. That one
+-- writes `parent_id` because a move changes it, and it is a required argument because a collection
+-- always has one. A **hub** has none: it sits in the tenant and in nothing else (I-C1), so a reorder
+-- of a hub through the placement statement passes an identifier that does not exist and fails before
+-- it reaches the database.
+--
+-- The narrower statement is also the truer one. A reorder does not move anything, so writing the
+-- parent at all would be a statement claiming to change something it must not.
+UPDATE container SET
+  order_key  = sqlc.arg('order_key'),
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
 -- name: ContainerOrderKeyNeighbours :one
 -- The two ranks a position sits between at one container level: the rank of the container to go
 -- before, and the greatest rank below it.

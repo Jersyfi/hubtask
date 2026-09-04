@@ -219,6 +219,15 @@ type Containers interface {
 	// has to follow.
 	SetPlacement(ctx context.Context, container work.Container, expectedVersion int) error
 
+	// SetRank writes how a container ranks within the level it is already in, or reports a version
+	// conflict. The whole of what a reorder changes.
+	//
+	// Beside SetPlacement rather than folded into it: that one writes `parent_id` because a move
+	// changes it, and a **hub** has none (I-C1) - so ranking a hub through the placement statement
+	// passes an identifier that does not exist. The narrower method is also the truer one, because a
+	// reorder must not claim to change a parent it leaves alone.
+	SetRank(ctx context.Context, container work.Container, expectedVersion int) error
+
 	// Neighbours returns the two ranks a position sits between at one container level: the container
 	// to go before, and whatever sits below it.
 	//

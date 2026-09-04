@@ -30,6 +30,7 @@ func (double) SetAttributes(context.Context, work.Container, int) error { return
 func (double) SetPolicies(context.Context, work.Container, int) error   { return nil }
 func (double) SetArchived(context.Context, work.Container, int) error   { return nil }
 func (double) SetPlacement(context.Context, work.Container, int) error  { return nil }
+func (double) SetRank(context.Context, work.Container, int) error       { return nil }
 func (double) TrashSubtree(context.Context, ContainerTrash) (Cascade, error) {
 	return Cascade{}, nil
 }

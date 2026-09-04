@@ -118,7 +118,9 @@ func (h ReorderContainer) write(
 	if expected == 0 {
 		expected = before.Version
 	}
-	if err := h.Writer.Containers.SetPlacement(ctx, after, expected); err != nil {
+	// SetRank and not SetPlacement: a reorder changes the rank and nothing else, and the placement
+	// statement writes a `parent_id` that a hub does not have.
+	if err := h.Writer.Containers.SetRank(ctx, after, expected); err != nil {
 		return domain.Container{}, err
 	}
 	after.Version = expected + 1

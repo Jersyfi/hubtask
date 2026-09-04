@@ -121,6 +121,14 @@ func (c *containers) SetPlacement(_ context.Context, container domain.Container,
 	return c.write("placement", container, expected)
 }
 
+// Recorded under its own name, and that is the point of the method existing. A fake that answered
+// both through "placement" would have let ReorderContainer keep calling the statement that writes a
+// parent_id a hub does not have - which is the defect this method was split out to fix, and which
+// no unit test could see because a fake writes no SQL.
+func (c *containers) SetRank(_ context.Context, container domain.Container, expected int) error {
+	return c.write("rank", container, expected)
+}
+
 // The trash side (B-10). The cascade is worked out from what is stored rather than configured, so
 // that a test which puts two collections in a hub gets two collections back without having to say
 // so twice - and so that the double cannot silently disagree with the fixture it was built from.
