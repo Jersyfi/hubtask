@@ -119,6 +119,13 @@ export type TrashEntry = components['schemas']['TrashEntry'];
 export type PurgeSummary = components['schemas']['PurgeSummary'];
 export type RetentionPolicy = components['schemas']['RetentionPolicy'];
 
+/**
+ * One step of an entry's history. `code` is a message the client renders, never a sentence — which
+ * is what lets one history read in whichever language each client is set to (ADR-0011, §3.5).
+ */
+export type ActivityEntry = components['schemas']['ActivityEntry'];
+export type ActivityPage = components['schemas']['ActivityPage'];
+
 // The paged envelopes, for the reads that answer a page rather than a document. Re-exported for
 // the same reason the documents are: a consumer that reached into `@hubtask/api-client` for one of
 // these would be a consumer with two packages to keep in step.

@@ -65,6 +65,7 @@ export {
   type QueryOperator,
 } from './QueryBuilder.svelte';
 export { default as ViewSwitcher, type View } from './ViewSwitcher.svelte';
+export { default as ActivityFeed, type ActivityStep } from './ActivityFeed.svelte';
 
 export { STATUS_ICON } from './control.ts';
 export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from './control.ts';

@@ -57,3 +57,30 @@ test('has answers for the two codes a problem document carries', () => {
   assert.equal(messages.has('errors.validation_failed'), true);
   assert.equal(messages.has('errors.detail_that_does_not_exist'), false);
 });
+
+test('a verb from a newer server reads as words rather than as a key', () => {
+  // F2-15's acceptance, and the case that is normal rather than exceptional on this track: the
+  // client runs one milestone behind the server, so it *will* meet a verb its catalogue has not
+  // got yet. `0.3.0`'s five are already in `locales/en.json`; the one after that is not, and it
+  // still has to render.
+  const messages = createMessages({ locale: 'en', onProblem: () => {} });
+  assert.equal(messages.has('activity.item_delegated'), false);
+  assert.equal(messages.t('activity.item_delegated', { actor: 'You' }), 'Item delegated');
+  assert.ok(!messages.t('activity.item_delegated').includes('activity.'), 'a key reached a reader');
+});
+
+test('and the twelve verbs this milestone renders are all in the catalogue', () => {
+  // The other half: what F2-15 claims to render, it renders from the catalogue rather than from a
+  // fallback that happens to read well.
+  const messages = createMessages({ locale: 'en', onProblem: () => {} });
+  for (const verb of [
+    'created', 'updated', 'completed', 'reopened', 'moved', 'reordered',
+    'archived', 'unarchived', 'trashed', 'restored', 'label_added', 'label_removed',
+  ]) {
+    const code = `activity.item_${verb}`;
+    assert.ok(messages.has(code), `${code} is not in the catalogue`);
+    const sentence = messages.t(code, { actor: 'You' });
+    assert.ok(sentence.startsWith('You '), `${code} does not put the actor first: ${sentence}`);
+    assert.ok(!sentence.includes('{'), `${code} left a placeholder in: ${sentence}`);
+  }
+});
