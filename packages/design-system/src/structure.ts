@@ -51,6 +51,15 @@ export interface NavNode {
   readonly icon?: string;
   readonly href?: string;
   readonly children?: readonly NavNode[];
+  /**
+   * Whether this node can be opened, when that is not the same as having children **yet**.
+   *
+   * Children answer it in the ordinary case. It is a separate question when a level is fetched on
+   * demand: a hub that has not been opened has no children loaded, and one that is open but still
+   * loading has none either — and a node that stopped being a branch while its level was on the way
+   * would collapse itself under the reader, taking the twist away at the moment they pressed it.
+   */
+  readonly isBranch?: boolean;
 }
 
 /**
@@ -83,7 +92,7 @@ export function flattenTree<T extends NavNode>(
 ): NavRow<T>[] {
   const rows: NavRow<T>[] = [];
   for (const node of nodes) {
-    const isBranch = (node.children?.length ?? 0) > 0;
+    const isBranch = node.isBranch ?? (node.children?.length ?? 0) > 0;
     const isExpanded = isBranch && expanded.includes(node.id);
     rows.push({ node, depth, isBranch, isExpanded });
     if (isExpanded) rows.push(...flattenTree((node.children ?? []) as readonly T[], expanded, depth + 1));

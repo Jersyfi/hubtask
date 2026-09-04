@@ -30,10 +30,13 @@ export type {
   Capabilities,
   Collection,
   Container,
+  ContainerPage,
   HealthReport,
+  ItemQueryResult,
   PendingMutation,
   Problem,
   StoredRecord,
   SyncCursor,
   WorkItem,
+  WorkItemPage,
 } from './schema.ts';

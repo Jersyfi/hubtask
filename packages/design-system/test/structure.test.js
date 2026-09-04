@@ -147,3 +147,15 @@ test('a key the tree does not answer is left alone', () => {
   assert.equal(treeIntent('Tab', flattenTree(tree, []), 0), null);
   assert.equal(treeIntent('a', flattenTree(tree, []), 0), null);
 });
+
+test('a node may declare itself a branch before its children are loaded', () => {
+  // A level fetched on demand: the hub is open, its collections are still on the way, and it must
+  // not stop being a branch in the meantime — a node that collapsed itself under the reader would
+  // take the twist away at the moment they pressed it.
+  const pending = [{ id: 'hub', label: 'Private', isBranch: true, children: [] }];
+  assert.equal(flattenTree(pending, ['hub'])[0].isBranch, true);
+  assert.deepEqual(treeIntent('ArrowLeft', flattenTree(pending, ['hub']), 0), { kind: 'collapse' });
+
+  // And the ordinary case is unchanged: children still answer it when nobody says otherwise.
+  assert.equal(flattenTree([{ id: 'leaf', label: 'Jumble' }], [])[0].isBranch, false);
+});
