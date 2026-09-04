@@ -28,13 +28,13 @@
 
 {#if mode === 'ten'}
   <!-- All ten, which is the whole set: `domain-model.md` §3.5 allows no eleventh. -->
-  <Inline gap="100" wrap>
+  <Inline gap="100">
     {#each labelTokens as token (token)}
       <LabelChip name={token} colorToken={token} />
     {/each}
   </Inline>
 {:else if mode === 'removable'}
-  <Inline gap="100" wrap>
+  <Inline gap="100">
     {#each collectionLabels.filter((label) => onEntry.includes(label.id)) as label (label.id)}
       <LabelChip
         name={label.name}
