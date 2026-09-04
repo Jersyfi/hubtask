@@ -74,30 +74,27 @@ claim than a smoke test and it runs on every pull request.
 
 The web application is embedded in the binary ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) and
 the website is prerendered ([ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md)); both run in
-whatever browser the reader has. Which browsers that is **has not been decided** —
-[ADR-0044](../adr/ADR-0044-browser-support-row.md) carries the evidence and the options, and the
-decision is the owner's.
-
-The row is here rather than absent so that the gap is visible where a reader looks for it.
+whatever browser the reader has. Which browsers that is, is
+[ADR-0044](../adr/ADR-0044-browser-support-row.md).
 
 | Engine | Versions | Status | Proven by |
 |---|---|---|---|
-| Chromium (Chrome, Edge) | — | `awaiting decision` | — no CI job runs a browser |
-| Gecko (Firefox) | — | `awaiting decision` | — no CI job runs a browser |
-| WebKit (Safari) | — | `awaiting decision` | — no CI job runs a browser |
+| Chromium (Chrome, Edge) | current and previous major | `best effort` | — no browser job runs in CI |
+| Gecko (Firefox) | current and previous major | `best effort` | — no browser job runs in CI |
+| WebKit (Safari) | current and previous major | `best effort` | — no browser job runs in CI |
+| Anything older | — | `unsupported` | — the client uses `<dialog>`, `inert` and `:has()`, and none of the three has a fallback |
 
-**"Proven by" is the important column here, and it is empty on purpose.** §1 defines `supported` as
-"a CI job runs the software on it", and there is no browser job of any kind: the client's gates are
-`build`, `lint`, `typecheck` and `node --test`. So **no browser can be `supported` today whatever
-the row says**, and the most any of them could honestly be called is `best effort`. Turning that
-into `supported` is a second decision with a cost attached; ADR-0044 puts both in front of its
-reader rather than only the first.
+**Why `best effort` and not `supported`, when the scope is decided.** §1 defines `supported` as "a
+CI job runs the software on it", and there is no browser job of any kind — the client's gates are
+`build`, `lint`, `typecheck` and `node --test`. The row above says where a defect will be **fixed**;
+it does not claim anyone has **looked**. Turning it into `supported` needs a browser job, which is a
+separate decision ADR-0044 names and leaves open.
 
-What the client actually needs is small and unexotic — `<dialog>`, `inert`, `:has()`, `popover`,
-logical properties — and every current engine has all of it. The question the row answers is not
-which features may be used but **how far back the client must keep working**, and one feature,
-CSS Anchor Positioning, is already insured by a fallback this project owns
-([ADR-0039](../adr/ADR-0039-overlay-positioning.md)). The rest are not.
+What the client needs is small and unexotic — `<dialog>`, `inert`, `:has()`, `popover`, logical
+properties — and every engine in the row has all of it. That is what makes A affordable: nothing had
+to be built to reach it. One feature, CSS Anchor Positioning, carries a fallback this project owns
+([ADR-0039](../adr/ADR-0039-overlay-positioning.md)); under this row it is no longer reachable by a
+supported engine, and removing it waits for the browser job rather than happening on its own.
 
 ## 6. Maintaining this table
 

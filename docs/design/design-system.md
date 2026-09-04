@@ -394,15 +394,19 @@ teaches the screenshots.
   finished mark. It moved there with the page that used to hold it, because it was the only drawn
   record of it.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
-- **A browser support row** — still open, but no longer undescribed.
-  [ADR-0044](../adr/ADR-0044-browser-support-row.md) carries the evidence: what the client actually
-  depends on and where, four candidate rows with what each costs, and the finding that matters more
-  than the choice — **no CI job runs a browser**, so by `support-matrix.md` §1's own definition no
-  browser can be `supported` today whatever is decided. The row is in that table with an explicit
-  `awaiting decision`, so the gap is visible where a reader looks for it. The decision is the
-  owner's; [ADR-0039](../adr/ADR-0039-overlay-positioning.md) was accepted without it because its
-  choice is correct whichever shape the row takes, and what the row decides is how long that ADR's
-  fallback has to live.
+- ~~**A browser support row**~~ — closed by
+  [ADR-0044](../adr/ADR-0044-browser-support-row.md): the current and the previous major of
+  Chromium, Gecko and WebKit, in `support-matrix.md` §5. It was affordable because nothing had to be
+  built to reach it — `<dialog>`, `inert`, `:has()`, `popover` and logical properties are in every
+  engine on the row, and a wider one would have commissioned fallbacks for the first three rather
+  than merely widening a promise.
+
+  Two things the row does **not** say. It is `best effort`, not `supported`, because §1 of that
+  table defines `supported` as "a CI job runs the software on it" and no browser job exists — the
+  row says where a defect will be fixed, not where anyone has looked. And
+  [ADR-0039](../adr/ADR-0039-overlay-positioning.md)'s fallback is now unreachable by any engine on
+  the row, but stays until that job does exist: seventy-nine lines are cheap insurance while nothing
+  checks any engine at all.
 - ~~**Named motion roles**~~ — closed by F2-01. `motion.<role>` pairs a duration with an easing for
   seven roles: `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis` and `celebration`. The
   gap was not theoretical — five components animated a surface arriving and three of them used a
