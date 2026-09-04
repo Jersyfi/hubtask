@@ -210,8 +210,8 @@ structural, not reviewed.
 | Component | Why it follows from the model |
 |---|---|
 | `TaskRow` | Four variants for `TASK`, `WORK_PACKAGE`, `ACTIVITY` and the collapsed state. Built: the fourth is not a fourth *type* — `type` says which mark and which indent, `expansion` says whether the row hides anything. A type the manifest reports and the icon set has no mark for still gets a row, because tolerance towards unknown fields is a binding client requirement |
-| `WorkItemCard` | Kanban; with `cover` as colour **or** image |
-| `BucketColumn` | `wipLimit`, `isDoneBucket` |
+| `WorkItemCard` | Kanban; with `cover` as colour **or** image. Built: a colour cover is a strip rather than a filled card, because a label token's background was measured against its own foreground and not against the card's |
+| `BucketColumn` | `wipLimit`, `isDoneBucket`. Built: both are **announced, never enforced**. The server accepts a card that takes a column past its limit, and it completes nothing when one lands in a done column — `Bucket.IsDoneBucket` is "stored and reported; what reacts to it is the client that renders the board". So the column says what each means and the board acts; a component that acted would be a component with a write in it |
 | `LabelChip` + `LabelPicker` | Ten `colorToken` values, nothing else. Built: each token is a **pair**, `bg` and `fg`, measured together by F1-02 — which is why a hex cannot serve. The picker is handed one collection's labels and no others (I-W3), and the tick rather than the colour says which are on the entry, because every option is coloured |
 | `AssigneeControl` | `assigneeId` **or** `members[]`, depending on capability |
 | `DueDateControl` | `dueDateOnly` (all-day) vs. timed vs. differing `dueTimeZone` |
