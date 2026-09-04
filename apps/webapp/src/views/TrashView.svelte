@@ -69,7 +69,14 @@
     trash.status === 'failed' && trash.error ? renderProblem(trash.error, messages) : undefined,
   );
 
-  /** The window, or nothing. `undefined` days is not "0 days" and must not read like it. */
+  /**
+   * The window, or nothing. `undefined` days is not "0 days" and must not read like it.
+   *
+   * The sentence names the number rather than inflecting around it, because the source catalogue
+   * stays inside the **simple-argument** subset: `infrastructure/i18n/Catalogue_test.go` holds the
+   * whole file to it, so that the day a message needs a plural somebody teaches the Go renderer
+   * rather than watching it print braces at a reader.
+   */
   function window(row: TrashEntry): string {
     const left = remainingDays(row.deleted_at, retention.trashDays, now);
     if (left === undefined) return t('app.trash.window_unknown');
