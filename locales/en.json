@@ -1064,6 +1064,7 @@
   "app.workspace.hub_name": "Hub name",
   "app.workspace.collection_name": "Collection name",
   "app.workspace.description": "Description",
+  "app.workspace.name_required": "Give it a name first.",
   "app.workspace.colour": "Colour",
   "app.workspace.icon": "Icon",
   "app.workspace.rename": "Rename",
