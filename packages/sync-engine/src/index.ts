@@ -27,6 +27,8 @@ export type { Clock, RequestOptions, Response, Storage, Transport } from './port
 
 export type {
   Account,
+  ActivityEntry,
+  ActivityPage,
   Bucket,
   Capabilities,
   Collection,

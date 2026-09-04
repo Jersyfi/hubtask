@@ -16,6 +16,7 @@
   import { session } from './lib/session.svelte.ts';
   import ContainerView from './views/ContainerView.svelte';
   import HomeView from './views/HomeView.svelte';
+  import ItemView from './views/ItemView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import SearchView from './views/SearchView.svelte';
   import TrashView from './views/TrashView.svelte';
@@ -33,6 +34,9 @@
     // carried the term would undo that in the address bar (security.md §9, ADR-0018).
     { name: 'search', pattern: '/search' },
     { name: 'trash', pattern: '/trash' },
+    // The address the board's cards and the search results have linked to since F2-11. An entry
+    // is a thing with its own history (F2-15), so it is a screen rather than a row somewhere.
+    { name: 'item', pattern: '/items/:id' },
     { name: 'hub', pattern: '/hubs/:id' },
     { name: 'collection', pattern: '/collections/:id' },
   ]);
@@ -70,6 +74,10 @@
     <SearchView />
   {:else if route.name === 'trash'}
     <TrashView />
+  {:else if route.name === 'item'}
+    {#key route.params.id}
+      <ItemView id={route.params.id ?? ''} />
+    {/key}
   {:else if route.name === 'hub' || route.name === 'collection'}
     <!-- One view for both: they differ in what they hold, not in what they are. Keyed on the id so
          that navigating from one collection to another rebuilds rather than reusing the state of

@@ -220,7 +220,7 @@ structural, not reviewed.
 | `CustomFieldRenderer` | Eight field kinds from `CustomFieldDefinition` |
 | `CapabilityGate` | A disabled field **with a reason** — `ErrCapabilityNotSupported` must never become silent ignoring |
 | `CommentThread` | Nested, with "removed" as its own state |
-| `ActivityFeed` | `verb` is an i18n code, not a finished sentence |
+| `ActivityFeed` | `verb` is an i18n code, not a finished sentence. Built: the component **never sees one** — every sentence arrives resolved, because a feed that wrote "Completed" would be the message catalogue growing a second copy inside a component. An ordered list with a real `<time datetime>`, since the order is the content; a step with no change set is a shorter sentence rather than an empty panel, because an activity's history is compact by the capability matrix |
 | `ViewSwitcher` | `LIST_COLLAPSED`, `LIST_EXPANDED`, `KANBAN`, `TIMELINE`. Built: a **radio group**, not a tab strip — a tab switches between subjects and owns the panel it reveals, this switches between renderings of one subject and owns nothing. A layout the manifest reports and the client cannot draw is shown **with the reason**; leaving it out would make the switcher disagree with the installation |
 | `QueryBuilder` | The query DSL made visible. Built: it knows **no grammar** — the fields, the comparisons each permits and whether a comparison takes a value are all handed to it, because `query_fields` grows with the installation and a component that spelled the operators out would be the hard-coded list the manifest exists to replace. Changing the field resets the comparison: the operators belong to the field |
 | `JumbleInboxItem` | `NEW` / `PROCESSED` / `DISMISSED`, optionally with an AI suggestion |
