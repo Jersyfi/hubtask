@@ -24,7 +24,9 @@ const (
 )
 
 // MoveWorkItem answers POST /items/{itemId}:move.
-func (c *RestController) MoveWorkItem(w http.ResponseWriter, r *http.Request, itemID openapi.ItemId) {
+func (c *RestController) MoveWorkItem(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, _ openapi.MoveWorkItemParams,
+) {
 	requestID := correlation.RequestIDFrom(r.Context())
 
 	if c.UseCases == nil {

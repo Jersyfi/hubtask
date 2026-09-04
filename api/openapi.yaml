@@ -4304,6 +4304,8 @@ paths:
       tags: [items]
       operationId: moveWorkItem
       description: Moves the item and its subtree; checks the capability profile and reference resolution.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
