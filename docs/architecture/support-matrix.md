@@ -70,7 +70,36 @@ claim than a smoke test and it runs on every pull request.
 
 ---
 
-## 5. Maintaining this table
+## 5. The browser clients
+
+The web application is embedded in the binary ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) and
+the website is prerendered ([ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md)); both run in
+whatever browser the reader has. Which browsers that is **has not been decided** —
+[ADR-0044](../adr/ADR-0044-browser-support-row.md) carries the evidence and the options, and the
+decision is the owner's.
+
+The row is here rather than absent so that the gap is visible where a reader looks for it.
+
+| Engine | Versions | Status | Proven by |
+|---|---|---|---|
+| Chromium (Chrome, Edge) | — | `awaiting decision` | — no CI job runs a browser |
+| Gecko (Firefox) | — | `awaiting decision` | — no CI job runs a browser |
+| WebKit (Safari) | — | `awaiting decision` | — no CI job runs a browser |
+
+**"Proven by" is the important column here, and it is empty on purpose.** §1 defines `supported` as
+"a CI job runs the software on it", and there is no browser job of any kind: the client's gates are
+`build`, `lint`, `typecheck` and `node --test`. So **no browser can be `supported` today whatever
+the row says**, and the most any of them could honestly be called is `best effort`. Turning that
+into `supported` is a second decision with a cost attached; ADR-0044 puts both in front of its
+reader rather than only the first.
+
+What the client actually needs is small and unexotic — `<dialog>`, `inert`, `:has()`, `popover`,
+logical properties — and every current engine has all of it. The question the row answers is not
+which features may be used but **how far back the client must keep working**, and one feature,
+CSS Anchor Positioning, is already insured by a fallback this project owns
+([ADR-0039](../adr/ADR-0039-overlay-positioning.md)). The rest are not.
+
+## 6. Maintaining this table
 
 1. A new row needs a job **in the same pull request**. The gate refuses the row otherwise, which is
    the point: a claim and its evidence land together or not at all.

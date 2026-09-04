@@ -394,11 +394,15 @@ teaches the screenshots.
   finished mark. It moved there with the page that used to hold it, because it was the only drawn
   record of it.
 - **Platform adaptation** — what follows the system convention on iOS and what stays Hubtask.
-- **A browser support row** — `support-matrix.md` covers the server and `hubctl` and says nothing
-  about which browsers a client is required to work in. It is a support-scope decision rather than
-  an implementation one. [ADR-0039](../adr/ADR-0039-overlay-positioning.md) was accepted without
-  it, because its choice is correct whichever shape the row takes; what the row decides is how long
-  that ADR's fallback has to live.
+- **A browser support row** — still open, but no longer undescribed.
+  [ADR-0044](../adr/ADR-0044-browser-support-row.md) carries the evidence: what the client actually
+  depends on and where, four candidate rows with what each costs, and the finding that matters more
+  than the choice — **no CI job runs a browser**, so by `support-matrix.md` §1's own definition no
+  browser can be `supported` today whatever is decided. The row is in that table with an explicit
+  `awaiting decision`, so the gap is visible where a reader looks for it. The decision is the
+  owner's; [ADR-0039](../adr/ADR-0039-overlay-positioning.md) was accepted without it because its
+  choice is correct whichever shape the row takes, and what the row decides is how long that ADR's
+  fallback has to live.
 - ~~**Named motion roles**~~ — closed by F2-01. `motion.<role>` pairs a duration with an easing for
   seven roles: `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis` and `celebration`. The
   gap was not theoretical — five components animated a surface arriving and three of them used a
