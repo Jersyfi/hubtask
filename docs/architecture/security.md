@@ -167,6 +167,41 @@ Secrets come exclusively from environment variables or mounted secret files (the
 convention for Docker and Kubernetes secrets). There is no default value for a secret — if one is
 missing, the process does not start (fail closed, with a clear error message and a message code).
 
+### 8.1 Rotating the master key
+
+*The procedure S-2 owes ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md)). Drilled on
+2026-09-04, [evidence](../evidence/S-2-2026-09-04.md).*
+
+`HUBTASK_ENCRYPTION_KEYS` is a ring, current first, and every predecessor in it stays readable.
+That is what makes a rotation a configuration change: nothing is rewritten at the moment the key
+changes, because the master key protects one data key per row rather than the rows.
+
+1. **Mint the new key.** At least 32 bytes from a real source (`openssl rand -base64 48`), and an
+   identifier that is lower-case letters, digits and underscores — it appears in every row sealed
+   under it, in log lines, and in an environment variable name.
+2. **Put it first, keep the rest.** `HUBTASK_ENCRYPTION_KEYS=k2,k1` and the material for both. From
+   the moment that rollout completes, new values seal under `k2` and values written under `k1` are
+   still opened by it. A rollout that carries the new key but drops the old one is not a rotation;
+   it is an outage with a message code.
+3. **Re-seal what the old key still holds.** Not yet automated — see the paragraph below.
+4. **Retire the old key, when nothing names it any more.** Remove `k1` from the ring only once the
+   count of values still sealed under it is zero. Removing it earlier does not lose the data, but it
+   turns every row that names it into `crypto.unknown_key` — a refusal in the middle of somebody's
+   integration rather than at a moment anybody chose.
+
+**Until the re-seal exists, the ring only grows.** Step 3 has no implementation and step 4 therefore
+has no safe moment: adding keys is safe, removing one is not, and an installation that has rotated
+twice holds three keys. ADR-0045 decides the shape — a job per tenant, enqueued by an operator
+action rather than by anything enumerating tenants, with retirement gated on a count — and
+[#368](https://github.com/Jersyfi/hubtask/issues/368) is the work. The reason it is written here
+rather than left to be discovered is that a rotation procedure ending at step 2 looks finished.
+
+**What the drill proved**, and what it deliberately did not: a value sealed under `k1`, stored, and
+read back through the repository opens under a ring whose current key is `k2`, and everything
+written after the rotation names `k2` without a rewrite. Removing `k1` while a row still named it
+answered an unavailability rather than a corrupted read. A completed rotation — the count reaching
+zero — is what #368 will make drillable.
+
 ---
 
 ## 9. HTTP hardening
@@ -285,7 +320,7 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | # | Point | Needed by |
 |---|---|---|
 | S-1 | An external penetration test / code audit before the first commercial operation | Before `1.0.0` |
-| S-2 | Decide master key management in provider operation (environment vs. KMS vs. Vault) | `0.6.0` |
+| S-2 | ~~Decide master key management in provider operation (environment vs. KMS vs. Vault)~~ — settled as **the environment keyring** ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md), H-13). The threat the question names is a database dump plus a filesystem read, and only the cold half of it is defensible: a process compromised badly enough to read the environment can hold a KMS session or a Vault token just as easily, so all three options fail together against a live compromise and the cheapest of them already defends the dump — the ring is not in the database. What a KMS would add is the record rather than the secrecy, which is why the decision carries a **trigger instead of a review date**: hardware the project does not control operated by somebody who is not Hubtask's operator, or a compliance review asking for custody separation in writing. The half that was missing is now the work: a ring only grows until something rewraps what an older key sealed, so the ADR decides the re-seal that lets a key finally be retired, and §8.1 is the procedure | Closed (H-13) |
 | S-3 | The data catalogue and the DPA template | Before `1.0.0` |
 | S-4 | Extend the threat model for the frontend (once decided) | With the frontend ADR |
 | S-5 | Bug bounty yes/no, and its framing | After `1.0.0` |

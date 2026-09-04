@@ -134,7 +134,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | Operational logs | stdout / the operator's aggregator | `PERSONAL_TECHNICAL` | Debugging | 7–30 days (the operator) | The operator |
 | Metrics | Prometheus | `NON_PERSONAL` | Operations | The operator | The operator |
 | Traces | The OTel backend | `PERSONAL_TECHNICAL` (masked) | Debugging | 7 days recommended | The operator |
-| Backups | The operator's infrastructure | Every class | Recoverability | A documented period (P-5) | Expiry of the cycle |
+| Backups | The operator's infrastructure | Every class | Recoverability | **35 days** for the system backups and the point-in-time window (P-5, `data-protection.md` §12); a tenant's own archive backups keep what that tenant's plan says | Expiry of the cycle |
 | Backup targets (kind, configuration, encrypted credentials) | `backup_target` | `SECRET` (the credentials) + `NON_PERSONAL` | Where a backup goes (ADR-0019) | Until deleted | `CASCADE` |
 | Backup and restore runs (status, manifest, sizes, who asked) | `backup_schedule`, `backup_run`, `restore_run` | `PERSONAL_TECHNICAL` (the actor references) | Evidence that a backup happened and a restore was approved | With the archive's retention | `RETENTION` |
 | Retention runs (what matched, what was blocked) | `retention_run` | `PERSONAL_TECHNICAL` (counts and reasons, no content) | Evidence of storage limitation | 400 days, like the audit period | `RETENTION` |
