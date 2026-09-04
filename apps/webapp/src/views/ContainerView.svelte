@@ -32,7 +32,8 @@
   import EntryList from '../lib/entries/EntryList.svelte';
 
   import { containers } from '../lib/data/containers.svelte.ts';
-  import { archivalOf, siblingBefore } from '../lib/data/containers.ts';
+  import { archivalOf } from '../lib/data/containers.ts';
+  import { anchorFor } from '../lib/data/rank.ts';
   import type { TransportError } from '@hubtask/sync-engine';
 
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -135,7 +136,7 @@
         await containers.move(
           container.id,
           container.parent_id,
-          siblingBefore(siblings, container.id, target),
+          anchorFor(siblings, container.id, target),
           crypto.randomUUID(),
         );
       }

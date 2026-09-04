@@ -6,10 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container } from '@hubtask/sync-engine';
 
-import { archivalOf, siblingBefore } from './containers.ts';
-
-const hub = (id: string, name: string, extra: Partial<Container> = {}): Container =>
-  ({ id, type: 'HUB', name, order_key: 'a0', version: 1, ...extra }) as Container;
+import { archivalOf } from './containers.ts';
 
 const collection = (id: string, name: string, parent: string, extra: Partial<Container> = {}): Container =>
   ({ id, type: 'COLLECTION', name, parent_id: parent, order_key: 'a0', version: 1, ...extra }) as Container;
@@ -41,23 +38,5 @@ test('reading effective_archived alone would offer the wrong control', () => {
   assert.notEqual(archivalOf(own), archivalOf(inherited));
 });
 
-// --- ranking ----------------------------------------------------------------------------------
-
-const siblings = [hub('a', 'A'), hub('b', 'B'), hub('c', 'C')];
-
-test('moving up lands before the sibling at that position', () => {
-  assert.equal(siblingBefore(siblings, 'c', 0), 'a');
-  assert.equal(siblingBefore(siblings, 'c', 1), 'b');
-});
-
-test('moving down past its own position lands before the one after it', () => {
-  // The case that is easy to get wrong. `a` moving to position 1 must land before `c`, not before
-  // `b` — because with `a` taken out of the list, position 1 *is* `c`.
-  assert.equal(siblingBefore(siblings, 'a', 1), 'c');
-});
-
-test('the end of the list appends rather than naming a sibling', () => {
-  // Null is the API's own word for "the end", so there is nothing to invent here.
-  assert.equal(siblingBefore(siblings, 'a', 2), null);
-  assert.equal(siblingBefore(siblings, 'a', 99), null);
-});
+// The ranking tests moved to `rank.test.ts` with `siblingBefore`, which is `anchorFor` now:
+// entries rank the way containers do, and the assertion was always about the arithmetic.
