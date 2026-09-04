@@ -34,9 +34,16 @@ a fifth:
   is continued by asking for that group again, which is a different question and therefore a
   different subscription. A page that fails throws and leaves the pages that arrived in place.
 * **Invalidation that names what changed.** `mutate`'s `invalidates` is a list of path prefixes.
-  Omitting it drops everything, and that is the safe default rather than the lazy one — a stale row
-  is worse than a redundant reload. Naming prefixes is what keeps a drag from reloading four
-  columns that did not change.
+  Omitting it invalidates everything, and that is the safe default rather than the lazy one — a
+  stale row is worse than a redundant reload. Naming prefixes is what keeps a drag from reloading
+  four columns that did not change.
+
+  **What "invalidate" means depends on whether anybody is watching**, and treating the two alike
+  was a defect: an entry with listeners is a screen somebody has open, and *dropping* it takes the
+  listeners with it — so the component that made the write is never told and the change it just
+  performed does not appear. Watched entries are therefore read again, with the request they were
+  loaded with so a query keeps its document; unwatched ones are forgotten, because reloading a
+  cache nobody is looking at is a burst of requests for nothing.
 
 ## What must not happen here
 

@@ -309,7 +309,13 @@ export class SyncEngine {
     const key = this.#keyFor(request);
     let entry = this.#resources.get(key) as ResourceEntry<T> | undefined;
     if (!entry) {
-      entry = { key, path: request.path, state: { status: 'idle' }, listeners: new Set() };
+      entry = {
+        key,
+        path: request.path,
+        request,
+        state: { status: 'idle' },
+        listeners: new Set(),
+      };
       this.#resources.set(key, entry as ResourceEntry<unknown>);
     }
     return entry;
@@ -364,17 +370,30 @@ export class SyncEngine {
   /**
    * Drops what a write made stale. Everything, when the write did not say.
    *
-   * The entries are removed rather than reloaded: a subscriber is told nothing here, and the next
-   * one to ask loads afresh. Reloading every dropped entry on the spot would turn one write into a
-   * burst of requests for screens nobody is looking at.
+   * The two halves of that are not the same, and treating them alike was a defect: an entry with
+   * **listeners** is a screen somebody is looking at, and dropping it takes the listeners with it —
+   * so the component that made the write is never told, and the change it just performed does not
+   * appear. An entry with **no** listeners is a cache nobody is watching, and removing it is right:
+   * reloading it on the spot would turn one write into a burst of requests for screens nobody has
+   * open.
+   *
+   * So: watched entries are read again, unwatched ones are forgotten. The reload is not awaited —
+   * a write returns what the server answered and does not wait for the screens around it to catch
+   * up — and a reload that fails reaches its subscribers as a `failed` state like any other.
    */
   #invalidate(prefixes: readonly string[] | undefined): void {
-    if (prefixes === undefined) {
-      this.#resources.clear();
-      return;
-    }
-    for (const [key, entry] of this.#resources) {
-      if (prefixes.some((prefix) => entry.path.startsWith(prefix))) this.#resources.delete(key);
+    const stale = [...this.#resources].filter(
+      ([, entry]) => prefixes === undefined || prefixes.some((prefix) => entry.path.startsWith(prefix)),
+    );
+
+    for (const [key, entry] of stale) {
+      if (entry.listeners.size === 0) {
+        this.#resources.delete(key);
+        continue;
+      }
+      // Somebody asked to be told about this one, so tell them. The request is the entry's own, so
+      // a query keeps its document and a page keeps its cursor.
+      void this.#load(entry.request, entry);
     }
   }
 }
@@ -404,6 +423,13 @@ interface ResourceEntry<T> {
   readonly key: string;
   /** The path alone, which is what invalidation matches against. */
   readonly path: string;
+  /**
+   * The request it was loaded with, so that a reload repeats the same question.
+   *
+   * A query's document and a paged read's cursor both live here. Without it an invalidation could
+   * only re-fetch a path, which for `POST /items:query` is not a question at all.
+   */
+  readonly request: ResourceRequest;
   state: ResourceState<T>;
   listeners: Set<Listener<T>>;
   /** The tag the last successful read carried, so a write can state the version it saw. */
