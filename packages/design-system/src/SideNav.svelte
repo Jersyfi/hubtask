@@ -18,7 +18,10 @@
   import type { IconName } from './icons/index.ts';
   import { flattenTree, treeIntent, type NavNode as StructureNode } from './structure.ts';
 
-  /** One node. Children make it a branch; no children makes it a leaf, and there is no third case. */
+  /**
+   * One node. Children make it a branch, unless `isBranch` says so on its own — which is what a
+   * level fetched on demand needs, because "has children" is not known until it is opened.
+   */
   export interface NavNode extends StructureNode {
     /** Narrowed from the module's `string`: a component may only name an icon that exists. */
     readonly icon?: IconName;

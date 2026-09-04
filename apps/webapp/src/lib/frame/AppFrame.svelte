@@ -14,8 +14,10 @@
   import { Banner, Button, Inline, Stack } from '@hubtask/design-system/components';
 
   import HealthNotice from './HealthNotice.svelte';
+  import WorkspaceNav from './WorkspaceNav.svelte';
 
   import { actor } from '../data/account.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import { session } from '../session.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -24,10 +26,12 @@
 
   interface Props {
     route: Resolution;
+    /** Where the sidebar sends the reader. The frame does not own the router.  */
+    onnavigate: (path: string) => void;
     children: Snippet;
   }
 
-  const { route, children }: Props = $props();
+  const { route, onnavigate, children }: Props = $props();
 
   // Dismissed for as long as this page is open, and no longer. ADR-0035 §2 asks for a banner that
   // is not in the way; it does not ask the client to remember a decision across visits, and a
@@ -41,6 +45,15 @@
   $effect(() => {
     void session.status;
     return actor.start();
+  });
+
+  // The workspace's structure, read once for the whole application rather than per view: the
+  // sidebar, the breadcrumb and a hub's list of collections are three readers of one page, and
+  // three subscriptions to it would be three requests for the same answer. Started with the
+  // session for the reason the account is — there is nothing to read without a bearer.
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return containers.start();
   });
 
   /**
@@ -115,9 +128,18 @@
     </Stack>
   </div>
 
-  <main>
-    {@render children()}
-  </main>
+  <div class="body">
+    <!-- The sidebar is the frame's, not a view's: it is the same tree on every screen, and a view
+         that rendered it would rebuild it on every navigation. -->
+    {#if session.isSignedIn}
+      <aside class="sidebar">
+        <WorkspaceNav currentId={route.params.id} {onnavigate} />
+      </aside>
+    {/if}
+    <main>
+      {@render children()}
+    </main>
+  </div>
 </div>
 
 <style>
@@ -187,5 +209,41 @@
 
   .who { color: var(--text-subtle); font-size: var(--fs-075); }
 
-  main { flex: 1; }
+  .body { display: flex; flex: 1; gap: var(--sp-300); min-width: 0; }
+
+  .sidebar {
+    flex: none;
+    /* Composed from the space scale rather than a width of its own: three of the largest step is
+       a sidebar, and a number written here would be a value outside tokens.json (rule 15). */
+    inline-size: calc(var(--sp-1000) * 3);
+    max-inline-size: 40%;
+    min-width: 0;
+    border-inline-end: var(--bw-hairline) solid var(--border-subtle);
+    padding-inline-end: var(--sp-200);
+  }
+
+  /* `expanded` is where the sidebar is pinned, and that is the token's own description rather than
+     a width chosen here — `primitive.breakpoint.expanded` says "tablet landscape, sidebar pinned".
+     Below it the tokens ask for the sidebar as an **overlay**, which is what `Drawer` is for; this
+     stacks instead, which is honest and smaller, and the overlay belongs with the platform
+     adaptation §9 still lists as open.
+
+     A media query cannot read a custom property — `@media (max-width: var(--bp-expanded))` is not
+     valid CSS in any engine — so the token's value is written out. It is
+     `primitive.breakpoint.expanded` minus one and nothing else; the token remains the source. */
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px) less one; a media query cannot read a custom property. */
+  @media (max-width: 904px) {
+    .body { flex-direction: column; }
+
+    .sidebar {
+      inline-size: auto;
+      max-inline-size: none;
+      border-inline-end: 0;
+      border-block-end: var(--bw-hairline) solid var(--border-subtle);
+      padding-inline-end: 0;
+      padding-block-end: var(--sp-200);
+    }
+  }
+
+  main { flex: 1; min-width: 0; }
 </style>

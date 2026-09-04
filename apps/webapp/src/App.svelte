@@ -14,13 +14,20 @@
   import { t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { session } from './lib/session.svelte.ts';
+  import ContainerView from './views/ContainerView.svelte';
   import HomeView from './views/HomeView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import SignInView from './views/SignInView.svelte';
 
+  // A hub and a collection each have their own path, so a deep link to either survives a reload —
+  // which is what ADR-0028's `index.html` fallback exists for. Two patterns rather than one
+  // `/containers/:id`, because the two are different things to a reader and the address should say
+  // which they are looking at.
   const router = new Router([
     { name: 'home', pattern: '/' },
     { name: 'installation', pattern: '/installation' },
+    { name: 'hub', pattern: '/hubs/:id' },
+    { name: 'collection', pattern: '/collections/:id' },
   ]);
   let route = $state<Resolution>(router.current);
 
@@ -42,7 +49,7 @@
   });
 </script>
 
-<AppFrame {route}>
+<AppFrame {route} onnavigate={(path) => router.navigate(path)}>
   <!-- Nothing here is usable without a credential, and the token screen is what asks for one. The
        route is left alone while it is shown, so that the address the reader arrived at is still
        the address they land on afterwards. -->
@@ -52,6 +59,13 @@
     <HomeView />
   {:else if route.name === 'installation'}
     <InstallationView />
+  {:else if route.name === 'hub' || route.name === 'collection'}
+    <!-- One view for both: they differ in what they hold, not in what they are. Keyed on the id so
+         that navigating from one collection to another rebuilds rather than reusing the state of
+         the one before — a draft rename would otherwise follow the reader to a different name. -->
+    {#key route.params.id}
+      <ContainerView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
+    {/key}
   {:else}
     <!-- The server's own code for a path that reaches nothing, at the same address. -->
     <p>{t('route.unknown')} <code>{route.path}</code></p>

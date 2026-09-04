@@ -80,3 +80,10 @@ export type HealthReport = components['schemas']['HealthReport'];
 export type Container = components['schemas']['Container'];
 export type WorkItem = components['schemas']['WorkItem'];
 export type Problem = components['schemas']['Problem'];
+
+// The paged envelopes, for the reads that answer a page rather than a document. Re-exported for
+// the same reason the documents are: a consumer that reached into `@hubtask/api-client` for one of
+// these would be a consumer with two packages to keep in step.
+export type ContainerPage = components['schemas']['ContainerPage'];
+export type WorkItemPage = components['schemas']['WorkItemPage'];
+export type ItemQueryResult = components['schemas']['ItemQueryResult'];
