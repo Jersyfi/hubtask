@@ -1224,5 +1224,17 @@
   "app.query.op.CONTAINS_ANY": "has any of",
   "app.query.op.CONTAINS_ALL": "has all of",
   "app.query.op.STARTS_WITH": "starts with",
-  "app.query.op.MATCHES": "matches"
+  "app.query.op.MATCHES": "matches",
+  "app.nav.search": "Search",
+  "app.search.title": "Search",
+  "app.search.label": "Search the entries you can see",
+  "app.search.clear": "Clear the search",
+  "app.search.hint": "Quoted phrases, or between words and a leading minus all work.",
+  "app.search.language": "Language of the words",
+  "app.search.language_mine": "Your own language",
+  "app.search.searching": "Searching",
+  "app.search.found": "Found {count} of your entries.",
+  "app.search.none": "Nothing matches those words.",
+  "app.search.start": "Type to search the entries you can see.",
+  "app.search.partial": "These are the first results. Narrow the words to see the rest."
 }

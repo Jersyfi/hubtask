@@ -104,3 +104,29 @@ test('a validation failure is not the server’s fault', () => {
   const rendered = renderProblem(new TransportError('problem', { status: 422, code: 'validation_failed' }), messages);
   assert.equal(rendered.isServerFault, false);
 });
+
+test('a query the server refuses by name still reads as a sentence', () => {
+  // The other half of F2-13's acceptance. `query.ts` is what stops this client from sending a
+  // field the manifest does not report; this is what happens when a refusal arrives anyway —
+  // a manifest read before the installation changed, an automation that wrote the view, a filter
+  // that came from somewhere this client cannot see. The reader is told which field and why,
+  // rather than being shown "the request contains invalid values".
+  const rendered = renderProblem(
+    new TransportError('problem', {
+      status: 422,
+      code: 'validation_failed',
+      detailCode: 'query.field_unknown',
+      params: { field: 'invented_field' },
+      fieldErrors: [
+        { path: '/filter/field', code: 'query.field_unknown', params: { field: 'invented_field' } },
+      ],
+    }),
+    messages,
+  );
+  assert.equal(rendered.message, 'invented_field is not something you can filter on here.');
+  assert.equal(
+    rendered.fields.get('/filter/field'),
+    'invented_field is not something you can filter on here.',
+  );
+  assert.ok(!rendered.message.includes('{'), 'a placeholder reached the reader');
+});
