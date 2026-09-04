@@ -22,7 +22,8 @@
 import type { Container, ContainerPage, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { siblingBefore } from './containers.ts';
+import { etagFor } from './etag.ts';
+import { anchorFor } from './rank.ts';
 
 /** The hub level: the one anchored to nothing. */
 const HUBS = '/containers?type=HUB&page_size=200';
@@ -175,7 +176,7 @@ class Containers {
     return engine.mutate<Container>(
       'POST',
       `/containers/${id}:reorder`,
-      { before_container_id: siblingBefore(siblings, id, position) },
+      { before_container_id: anchorFor(siblings, id, position) },
       { idempotencyKey, invalidates: TOUCHES },
     );
   }
@@ -204,18 +205,6 @@ class Containers {
       { idempotencyKey, invalidates: TOUCHES },
     );
   }
-}
-
-/**
- * The entity tag for a version.
- *
- * The client holds pages, which carry no tag; every `Container` carries a `version`, and the server
- * forms its `ETag` from exactly that (`etag(version)` in `ContainerController.go`) and reads it back
- * by trimming the quotes. One place, because a second spelling of the same tag is a precondition
- * that never matches.
- */
-export function etagFor(version: number): string {
-  return `"${version}"`;
 }
 
 export const containers = new Containers();

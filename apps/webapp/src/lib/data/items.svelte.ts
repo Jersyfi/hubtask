@@ -16,9 +16,10 @@
  * assembles. F2-03 taught the engine that a `POST` can be a read.
  */
 
-import type { ItemQueryResult, ResourceState, WorkItem } from '@hubtask/sync-engine';
+import type { ItemQueryResult, MoveResult, ResourceState, WorkItem } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { etagFor } from './etag.ts';
 
 const QUERY = '/items:query';
 
@@ -154,7 +155,7 @@ class Items {
     version: number,
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, body, {
-      ifMatch: `"${version}"`,
+      ifMatch: etagFor(version),
       invalidates: TOUCHES,
     });
   }
@@ -169,9 +170,74 @@ class Items {
    */
   async setBucket(id: string, bucketId: string | null, version: number): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, { bucket_id: bucketId }, {
-      ifMatch: `"${version}"`,
+      ifMatch: etagFor(version),
       invalidates: TOUCHES,
     });
+  }
+
+  /**
+   * Ranks an entry within the level it already sits in.
+   *
+   * The position travels as **the sibling to go before**, because the rank is a fractional index
+   * and a fractional index has no index to hand over. That is also what keeps the neighbours
+   * alone: the server writes one key between two others and renumbers nothing, and this client
+   * never sends the level back to be renumbered.
+   *
+   * `ifMatch` although the contract declares no `If-Match` on an action. The server reads the
+   * header anyway and says why (`PlacementController.go`): a rank change against a version the
+   * reader no longer has is a lost race, and losing it silently is what an optimistic lock exists
+   * to prevent. A pointer drag is the case that makes it worth sending — a drag takes seconds, and
+   * seconds are long enough for the row to have moved underneath.
+   */
+  async reorder(
+    id: string,
+    beforeItemId: string | null,
+    version: number,
+    idempotencyKey: string,
+  ): Promise<WorkItem> {
+    return engine.mutate<WorkItem>(
+      'POST',
+      `/items/${id}:reorder`,
+      { before_item_id: beforeItemId },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Moves an entry, and its whole subtree, to another parent or another collection.
+   *
+   * `:move` rather than `:reorder` the moment the parent changes, and it answers a `MoveResult`
+   * rather than the entry: invariant I-W6 says a reference the destination cannot resolve is
+   * **reported** rather than dropped in silence, and `dropped_references` is that report. A caller
+   * that ignored it would turn a designed behaviour into data loss — the labels would simply be
+   * gone, indistinguishable from a rendering fault.
+   *
+   * `target_collection_id` is sent only when the destination names one: an entry's collection is
+   * the one its parent is in, and naming both is how a client says something the server has to
+   * refuse. `target_parent_id` is always sent, because `null` is the top level of a collection and
+   * omitting it means "leave the parent alone" — the value cannot tell the two apart, which is the
+   * same distinction `MoveWorkItem` reads a presence map for on the server side.
+   */
+  async move(
+    id: string,
+    destination: {
+      parentId: string | null;
+      collectionId?: string;
+      beforeItemId?: string | null;
+    },
+    version: number,
+    idempotencyKey: string,
+  ): Promise<MoveResult> {
+    return engine.mutate<MoveResult>(
+      'POST',
+      `/items/${id}:move`,
+      {
+        target_parent_id: destination.parentId,
+        ...(destination.collectionId ? { target_collection_id: destination.collectionId } : {}),
+        before_item_id: destination.beforeItemId ?? null,
+      },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+    );
   }
 
   /**

@@ -2,13 +2,16 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The two questions about a container that are worth answering away from a component.
+ * The question about a container that is worth answering away from a component.
  *
- * It was three. A `groupByHub` lived here as well, on the assumption that `GET /containers`
+ * It was three, then two. A `groupByHub` lived here on the assumption that `GET /containers`
  * answers hubs and collections together — it does not. `ListContainers` reads **one level**: an
  * empty `parent_id` is the hubs, a named one is that hub's collections, and the two ask different
  * permission questions, which is why no read answers both. The store fetches a level at a time and
  * there is no flat list left to group, so the function and its tests went with the assumption.
+ *
+ * `siblingBefore` left for a better reason: entries rank exactly the way containers do, so it is
+ * `rank.ts`'s `anchorFor` now and there is one implementation of it rather than two.
  */
 
 import type { Container } from '@hubtask/sync-engine';
@@ -34,22 +37,4 @@ export type Archival =
 export function archivalOf(container: Container): Archival {
   if (container.archived_at) return 'archived';
   return container.effective_archived ? 'inherited' : 'active';
-}
-
-/**
- * The sibling to place a container *before* in order to land at `position`, or `null` to append.
- *
- * The API takes "the one to go before" rather than an index, because a fractional index has no
- * index to give it. Converting is this function's whole job, and the awkward case is the one that
- * is easy to get wrong: moving a container **down** past its own position, where the sibling to
- * land before is one further on than the target index suggests.
- */
-export function siblingBefore(
-  siblings: readonly Container[],
-  movingId: string,
-  position: number,
-): string | null {
-  const without = siblings.filter((container) => container.id !== movingId);
-  const target = without[position];
-  return target?.id ?? null;
 }

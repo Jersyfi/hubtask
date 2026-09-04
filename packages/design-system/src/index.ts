@@ -80,6 +80,18 @@ export { escapeHandler, focusReturn, focusables, rovingIndex, typeAheadIndex } f
 export { openOverlay, type MenuItem, type OverlayOptions } from './overlay.ts';
 
 export {
+  DRAG_THRESHOLD_PX,
+  boundariesOf,
+  dropIndex,
+  hasLeftTheHandle,
+  rankIntent,
+  rankTarget,
+  type Extent,
+  type RankCommand,
+  type RankKey,
+} from './reorder.ts';
+
+export {
   collapseTrail,
   flattenTree,
   parentRow,

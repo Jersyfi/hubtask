@@ -82,6 +82,16 @@ export type WorkItem = components['schemas']['WorkItem'];
 export type Problem = components['schemas']['Problem'];
 export type Label = components['schemas']['Label'];
 export type Bucket = components['schemas']['Bucket'];
+/**
+ * What a move answered: the entry where it landed, and what the destination could not carry.
+ *
+ * The second half is the point of the type. Invariant I-W6 is that an unresolvable reference is
+ * **reported**, never silently dropped, and a client that read only `item` would turn a designed
+ * behaviour into data loss — the chips would simply be gone, indistinguishable from a rendering
+ * fault.
+ */
+export type MoveResult = components['schemas']['MoveResult'];
+export type DroppedReference = components['schemas']['DroppedReference'];
 
 // The paged envelopes, for the reads that answer a page rather than a document. Re-exported for
 // the same reason the documents are: a consumer that reached into `@hubtask/api-client` for one of
