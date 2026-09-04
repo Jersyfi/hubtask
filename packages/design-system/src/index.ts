@@ -54,6 +54,8 @@ export { default as Table, type Column } from './Table.svelte';
 // Wave 3 - Hubtask's own. CapabilityGate comes first because every screen after it needs one.
 export { default as CapabilityGate, type GateStatus } from './CapabilityGate.svelte';
 export { default as TaskRow, type Expansion } from './TaskRow.svelte';
+export { default as LabelChip } from './LabelChip.svelte';
+export { default as LabelPicker, type PickerLabel } from './LabelPicker.svelte';
 
 export { STATUS_ICON } from './control.ts';
 export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from './control.ts';

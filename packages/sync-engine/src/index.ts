@@ -33,6 +33,7 @@ export type {
   ContainerPage,
   HealthReport,
   ItemQueryResult,
+  Label,
   PendingMutation,
   Problem,
   StoredRecord,
