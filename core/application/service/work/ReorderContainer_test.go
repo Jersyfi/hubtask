@@ -58,7 +58,9 @@ func TestAHubIsRankedAmongTheTenantsHubs(t *testing.T) {
 	if !ranked.ParentID.IsZero() {
 		t.Errorf("parent %s, want none - a hub sits in the tenant (I-C1)", ranked.ParentID)
 	}
-	if len(h.containers.written) != 1 || h.containers.written[0].method != "placement" {
+	// "rank" and not "placement": the placement statement writes a `parent_id`, and a hub has none.
+	// Asserting the method here is what makes this test able to fail the way the defect did.
+	if len(h.containers.written) != 1 || h.containers.written[0].method != "rank" {
 		t.Fatalf("unexpected writes: %+v", h.containers.written)
 	}
 }

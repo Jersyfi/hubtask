@@ -433,6 +433,72 @@ func TestNeighboursReportsTheBoundsAndExcludesTheMover(t *testing.T) {
 	}
 }
 
+// Ranking a **hub**, against a real database, which is the test that was missing.
+//
+// F2-04 shipped `:reorder` calling `SetPlacement`, and every unit test passed: a fake repository
+// records the write and asks no questions of it. The statement behind it writes `parent_id` as a
+// required argument, because it was written for a move and a collection always has one — so
+// reordering a hub failed before it reached the database and answered 500. Nothing but a real
+// write could show that, which is the same lesson `SetPlacement` beside `SetRank` now records in
+// the port.
+func TestRankingAHubWritesTheRankAndLeavesItAHub(t *testing.T) {
+	ctx := context.Background()
+	tenant, author := seedOwnTenant(ctx, t)
+	repo := containerRepo()
+	first, second := freshID(t), freshID(t)
+
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		if err := repo.Insert(ctx, containerIn(tenant, author, first, freshName(t), "a1")); err != nil {
+			return err
+		}
+		return repo.Insert(ctx, containerIn(tenant, author, second, freshName(t), "a3"))
+	}); err != nil {
+		t.Fatalf("seeding the hub level: %v", err)
+	}
+
+	// The rank a reorder would have worked out, written the way the use case writes it.
+	ranked, err := func() (work.Container, error) {
+		stored, err := readContainer(ctx, t, tenant, second)
+		if err != nil {
+			return work.Container{}, err
+		}
+		stored.OrderKey = "a0"
+		return stored, write(ctx, t, tenant, func(ctx context.Context) error {
+			return repo.SetRank(ctx, stored, stored.Version)
+		})
+	}()
+	if err != nil {
+		t.Fatalf("ranking a hub: %v", err)
+	}
+
+	after, err := readContainer(ctx, t, tenant, second)
+	if err != nil {
+		t.Fatalf("reading it back: %v", err)
+	}
+	if after.OrderKey != "a0" {
+		t.Errorf("order key %q, want a0", after.OrderKey)
+	}
+	// Still a hub, still parentless. A statement that wrote a parent would have put something here.
+	if !after.ParentID.IsZero() {
+		t.Errorf("parent %s, want none - a reorder must not write one (I-C1)", after.ParentID)
+	}
+	if after.Version != ranked.Version+1 {
+		t.Errorf("version %d, want %d", after.Version, ranked.Version+1)
+	}
+}
+
+// readContainer is the read every case above does by hand, once.
+func readContainer(ctx context.Context, t *testing.T, tenant, id shared.ID) (work.Container, error) {
+	t.Helper()
+	var found work.Container
+	err := read(ctx, t, tenant, func(ctx context.Context) error {
+		var err error
+		found, err = containerRepo().Find(ctx, id)
+		return err
+	})
+	return found, err
+}
+
 // The hub level, which is the case F2-04 rests on and the reason the query compares the parent with
 // IS NOT DISTINCT FROM rather than with `=`: a null parent has to mean "the hubs" and not "no
 // filter at all". A plain `parent_id = NULL` is never true, so this level would come back empty and
@@ -486,9 +552,13 @@ func seedOwnTenant(ctx context.Context, t *testing.T) (shared.ID, shared.ID) {
 	tenant, author := freshID(t), freshID(t)
 	admin := adminPool(ctx, t)
 
+	// The whole identifier in the slug, not a prefix of it. A UUIDv7 begins with a timestamp, so two
+	// generated in the same millisecond share their first several characters — and `slug` is unique,
+	// so a short prefix makes the second caller collide with the first. It failed exactly that way
+	// once before this comment existed.
 	if _, err := admin.Exec(ctx,
 		`INSERT INTO tenant (id, slug, display_name) VALUES ($1, $2, $2)`,
-		tenant.String(), "own-"+tenant.String()[:8]); err != nil {
+		tenant.String(), "own-"+tenant.String()); err != nil {
 		t.Fatalf("seeding the tenant: %v", err)
 	}
 	if _, err := admin.Exec(ctx,

@@ -116,6 +116,7 @@ func (s *containerStore) RestoreBatch(context.Context, workrepo.ContainerTrash) 
 	return workrepo.Cascade{}, nil
 }
 func (s *containerStore) SetPlacement(context.Context, work.Container, int) error { return nil }
+func (s *containerStore) SetRank(context.Context, work.Container, int) error      { return nil }
 func (s *containerStore) Neighbours(
 	context.Context, shared.ID, shared.ID, shared.ID,
 ) (string, string, error) {

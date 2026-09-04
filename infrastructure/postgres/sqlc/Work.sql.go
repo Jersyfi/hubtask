@@ -1337,6 +1337,44 @@ func (q *Queries) SetContainerPolicies(ctx context.Context, arg SetContainerPoli
 	return result.RowsAffected(), nil
 }
 
+const setContainerRank = `-- name: SetContainerRank :execrows
+UPDATE container SET
+  order_key  = $1,
+  updated_at = $2,
+  version    = version + 1
+WHERE id = $3::uuid AND version = $4
+`
+
+type SetContainerRankParams struct {
+	OrderKey        string
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// The rank alone, which is the whole of what a reorder changes.
+//
+// Beside SetContainerPlacement rather than reusing it, and the difference is not stylistic. That one
+// writes `parent_id` because a move changes it, and it is a required argument because a collection
+// always has one. A **hub** has none: it sits in the tenant and in nothing else (I-C1), so a reorder
+// of a hub through the placement statement passes an identifier that does not exist and fails before
+// it reaches the database.
+//
+// The narrower statement is also the truer one. A reorder does not move anything, so writing the
+// parent at all would be a statement claiming to change something it must not.
+func (q *Queries) SetContainerRank(ctx context.Context, arg SetContainerRankParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setContainerRank,
+		arg.OrderKey,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setWorkItemAssignee = `-- name: SetWorkItemAssignee :execrows
 UPDATE work_item SET
   assignee_id = $1,

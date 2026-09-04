@@ -312,6 +312,32 @@ func (r ContainerRepository) SetPlacement(
 }
 
 // Neighbours returns the ranks either side of a position at one container level.
+// SetRank writes the rank alone, which is what a reorder changes and all it may change.
+//
+// It touches no parent, which is what lets it rank a hub: `SetPlacement` needs one and a hub has
+// none, so the identifier it would pass is the zero value and `uuidOf` refuses it before the
+// statement is reached.
+func (r ContainerRepository) SetRank(
+	ctx context.Context, container work.Container, expectedVersion int,
+) error {
+	queries, id, err := containerWrite(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetContainerRank(ctx, sqlc.SetContainerRankParams{
+		OrderKey:  container.OrderKey,
+		UpdatedAt: timestampOf(container.UpdatedAt),
+		ID:        id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return containerWriteError(err, container, "writing the rank")
+	}
+	return containerConflict(affected, container, expectedVersion)
+}
+
 func (r ContainerRepository) Neighbours(
 	ctx context.Context, parentID, beforeID, movingID shared.ID,
 ) (string, string, error) {
