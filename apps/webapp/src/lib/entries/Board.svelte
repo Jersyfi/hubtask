@@ -32,6 +32,8 @@
   } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
+  import type { ItemsQuery } from '../data/items.svelte.ts';
+
   import { createDrag } from './dragging.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
@@ -45,16 +47,26 @@
   interface Props {
     collectionId: string;
     isReadOnly?: boolean;
+    /**
+     * What the reader has asked of the board: a filter, an order, and the field it groups by.
+     *
+     * The grouping arrives from the caller because the **manifest** decides which fields may be
+     * grouped on. A board grouped by the column an entry is in is what a board is, and that is the
+     * caller's default — but the field travels rather than being written here, and a board of an
+     * installation that groups by something else renders that instead.
+     */
+    query?: ItemsQuery;
   }
 
-  const { collectionId, isReadOnly = false }: Props = $props();
+  const { collectionId, isReadOnly = false, query }: Props = $props();
 
   $effect(() => {
     const wanted = collectionId;
+    const asked = query;
     return untrack(() => {
       const stops = [
         buckets.open(wanted),
-        items.openBoard(wanted),
+        items.openBoard(wanted, asked),
         labels.open(wanted),
       ];
       return () => {
@@ -63,8 +75,32 @@
     });
   });
 
-  const columns = $derived(buckets.of(collectionId));
   const groups = $derived(items.boardGroups(collectionId));
+
+  /**
+   * Whether this board is the bucket board.
+   *
+   * It is, unless the reader has grouped by something else — and then the columns are the values
+   * the query grouped on rather than the collection's buckets, because a `wip_limit` and a done
+   * column are properties of a bucket and mean nothing about a title or a type.
+   */
+  const isBucketBoard = $derived((query?.group?.field ?? 'bucket_id') === 'bucket_id');
+
+  const columns = $derived(
+    isBucketBoard
+      ? buckets.of(collectionId)
+      : // A column per value the result came back grouped by, named by the value itself: the
+        // grouping field is the installation's and this client has no vocabulary for its values.
+        groups
+          .filter((group) => group.key !== null)
+          .map((group) => ({
+            id: group.key as string,
+            name: group.key as string,
+            wip_limit: null,
+            is_done_bucket: false,
+            version: 0,
+          })),
+  );
   const boardState = $derived(items.stateOf(`board:${collectionId}`));
   const failure = $derived(
     boardState?.status === 'failed' ? renderProblem(boardState.error, messages) : undefined,
@@ -198,14 +234,19 @@
         label: t(command.label),
         disabledReason: rankReason(card, cards, command.id),
       })),
-      ...[...columns, null].map((target, index) => ({
-        id: `bucket:${target?.id ?? 'none'}`,
-        label: t('app.board.move_to', {
-          title: card.title,
-          name: target?.name ?? t('app.board.unbucketed'),
-        }),
-        hasSeparatorBefore: index === 0,
-      })),
+      // The columns, but only where a column is a **bucket**. Grouping by something else makes
+      // the columns values rather than places, and "move this entry into `WORK_PACKAGE`" is not an
+      // offer — a type is a property of the entry, not a column it can be put in.
+      ...(isBucketBoard
+        ? [...columns, null].map((target, index) => ({
+            id: `bucket:${target?.id ?? 'none'}`,
+            label: t('app.board.move_to', {
+              title: card.title,
+              name: target?.name ?? t('app.board.unbucketed'),
+            }),
+            hasSeparatorBefore: index === 0,
+          }))
+        : []),
     ];
   }
 
@@ -261,6 +302,13 @@
   }
 
   async function drop(card: WorkItem, from: string, to: string, position: number) {
+    // Across columns is a column change only where a column is a bucket. On any other grouping the
+    // drag ranks within the column it was dropped in and changes nothing else, because the value
+    // it was grouped by is not a place an entry can be put.
+    if (!isBucketBoard) {
+      await rankTo(card, cardsOf(to === 'none' ? null : to), position);
+      return;
+    }
     const bucketId = to === 'none' ? null : to;
     // The destination's cards **as the reader saw them**, taken before anything is written. The
     // board re-reads after a write, and reading it again afterwards would rank the card against a
@@ -332,7 +380,7 @@
     reference={failure.reference}
     referenceLabel={t('app.reference')}
     retryLabel={t('app.retry')}
-    onRetry={() => items.openBoard(collectionId)()}
+    onRetry={() => items.openBoard(collectionId, query)()}
   />
 {:else if columns.length === 0}
   <EmptyState kind="unused" title={t('app.board.no_buckets')} icon="bucket" />
@@ -360,7 +408,10 @@
             doneBucketLabel={t('app.board.done_bucket')}
           >
             {#snippet actions()}
-              {#if bucket}
+              <!-- A column's own actions are a **bucket's**: renaming it, its limit, deleting it.
+                   Grouped by anything else the column is a value rather than a place, and there is
+                   nothing to act on — so the control is absent rather than dead. -->
+              {#if bucket && isBucketBoard}
                 <IconButton
                   icon="ellipsis"
                   label={t('app.board.column_actions', { name: bucket.name })}

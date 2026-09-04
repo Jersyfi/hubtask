@@ -22,7 +22,6 @@
     ListRow,
     Skeleton,
     Stack,
-    Tabs,
     Toolbar,
   } from '@hubtask/design-system/components';
 
@@ -31,6 +30,7 @@
   import Board from '../lib/entries/Board.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
+  import QueryPanel from '../lib/entries/QueryPanel.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
 
@@ -38,6 +38,8 @@
   import { archivalOf } from '../lib/data/containers.ts';
   import { anchorFor } from '../lib/data/rank.ts';
   import type { TransportError } from '@hubtask/sync-engine';
+
+  import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -60,8 +62,18 @@
     return untrack(() => containers.openSingle(wanted));
   });
 
-  /** Which of the two the reader is looking at. Kept on the device; saved views are F3's. */
-  let layout = $state('list');
+  /**
+   * Which layout the reader is looking at, and what they have asked of the entries.
+   *
+   * Kept on the device, in memory. Saved views are F3's, and writing a `SavedView` here would be
+   * building half of that milestone badly — the choice is the reader's for as long as the screen
+   * is open, and no further claim is made about it.
+   */
+  let layout = $state('LIST_COLLAPSED');
+  let query = $state<ItemsQuery>({});
+
+  /** The layouts this client can actually draw. `TIMELINE` needs F3's time work and is not here. */
+  const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN'];
 
   const container = $derived(containers.find(id));
   // The hub above a collection, for the trail. Read on its own for the same reason.
@@ -367,27 +379,29 @@
         </Stack>
       {/if}
     {:else}
-      <!-- Two ways to look at the same entries. `ViewSwitcher` and the layouts the manifest reports
-           are F2-13's; this is the pair F2-11 built, and the choice is kept on the device because
-           saved views are F3's and writing one here would be building half of that milestone
-           badly. -->
-      <Tabs
-        label={t('app.workspace.title')}
-        tabs={[
-          { id: 'list', label: t('app.board.show_list') },
-          { id: 'board', label: t('app.board.show_board') },
-        ]}
-        bind:selected={layout}
-      >
-        {#if layout === 'board'}
-          <Board collectionId={container.id} isReadOnly={isReadOnly} />
-        {:else}
-          <!-- Read-only follows the container: an archived collection's entries are archived with
-               it (I-C3), and the reason travels with the controls rather than the controls
-               disappearing. -->
-          <EntryList collectionId={container.id} isReadOnly={isReadOnly} />
-        {/if}
-      </Tabs>
+      <!-- The layouts the installation reports, and what the reader has asked of the entries. Both
+           come from the manifest: `view_layouts` decides what is offered and `query_fields` decides
+           what can be asked, and neither is a list written here. -->
+      <QueryPanel
+        {layout}
+        drawable={DRAWABLE}
+        onlayout={(id) => (layout = id)}
+        onquery={(asked) => (query = asked)}
+      />
+
+      {#if layout === 'KANBAN'}
+        <Board collectionId={container.id} isReadOnly={isReadOnly} {query} />
+      {:else}
+        <!-- Read-only follows the container: an archived collection's entries are archived with
+             it (I-C3), and the reason travels with the controls rather than the controls
+             disappearing. -->
+        <EntryList
+          collectionId={container.id}
+          isReadOnly={isReadOnly}
+          {query}
+          isExpanded={layout === 'LIST_EXPANDED'}
+        />
+      {/if}
     {/if}
   </Stack>
 {/if}

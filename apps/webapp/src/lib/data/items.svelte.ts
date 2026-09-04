@@ -16,7 +16,13 @@
  * assembles. F2-03 taught the engine that a `POST` can be a read.
  */
 
-import type { ItemQueryResult, MoveResult, ResourceState, WorkItem } from '@hubtask/sync-engine';
+import type {
+  FilterNode,
+  ItemQueryResult,
+  MoveResult,
+  ResourceState,
+  WorkItem,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -26,8 +32,27 @@ const QUERY = '/items:query';
 /** What a write to an entry makes stale. Entries, and nothing about the container tree. */
 const TOUCHES = ['/items'];
 
+/**
+ * What the reader has asked of a level beyond "show it": a filter, an order, a grouping.
+ *
+ * All three are the **manifest's** — built by `query.ts` from `query_fields` and never from a list
+ * written here — and all three are optional, because the ordinary case is a collection shown the
+ * way it was arranged. An absent one is left out of the document rather than sent as a null.
+ */
+export interface ItemsQuery {
+  readonly filter?: FilterNode;
+  readonly sort?: readonly { readonly field: string; readonly dir: 'ASC' | 'DESC' }[];
+  readonly group?: { readonly field: string; readonly limit_per_group: number };
+}
+
+/** The manual order: `order_key ASC`, which is also the query's own default. */
+const MANUAL = [{ field: 'order_key', dir: 'ASC' as const }];
+
 /** The question that reads one level: a collection's own entries, or one entry's children. */
-function level(scope: { container_id?: string; item_id?: string }): {
+function level(
+  scope: { container_id?: string; item_id?: string },
+  query: ItemsQuery = {},
+): {
   path: string;
   body: unknown;
 } {
@@ -35,9 +60,10 @@ function level(scope: { container_id?: string; item_id?: string }): {
     path: QUERY,
     body: {
       scope: { ...scope, include_descendants: false },
-      // The manual order, which is `order_key ASC` and the query's own default. Named rather than
-      // left out, because a list a person can drag has to be in the order they dragged it into.
-      sort: [{ field: 'order_key', dir: 'ASC' }],
+      // The manual order unless the reader asked for another. Named rather than left out, because
+      // a list a person can drag has to be in the order they dragged it into.
+      sort: query.sort ?? MANUAL,
+      ...(query.filter ? { filter: query.filter } : {}),
       expand: ['labels'],
       page: { size: 200 },
     },
@@ -56,13 +82,17 @@ function level(scope: { container_id?: string; item_id?: string }): {
  * no count is a number nobody can act on. It costs a second pass — the contract says so out loud —
  * and this is the one read so far where it is worth it.
  */
-function board(containerId: string): { path: string; body: unknown } {
+function board(containerId: string, query: ItemsQuery): { path: string; body: unknown } {
   return {
     path: QUERY,
     body: {
       scope: { container_id: containerId, include_descendants: false },
-      group_by: { field: 'bucket_id', limit_per_group: 50 },
-      sort: [{ field: 'order_key', dir: 'ASC' }],
+      // The grouping is the caller's, and the caller reads it from the manifest. A board grouped
+      // by the column an entry is in is what a board *is*, but which fields may be grouped on at
+      // all is `groupable` in `query_fields` — so the field travels rather than being written here.
+      ...(query.group ? { group_by: query.group } : {}),
+      sort: query.sort ?? MANUAL,
+      ...(query.filter ? { filter: query.filter } : {}),
       expand: ['labels'],
       count: 'exact',
     },
@@ -95,17 +125,24 @@ class Items {
    * reads it, so an effect that subscribes while tracking that read cancels its own subscription
    * before the answer arrives (F2-08 records the symptom).
    */
-  openCollection(containerId: string): () => void {
-    return this.#open(`container:${containerId}`, level({ container_id: containerId }));
+  openCollection(containerId: string, query: ItemsQuery = {}): () => void {
+    return this.#open(`container:${containerId}`, level({ container_id: containerId }, query));
   }
 
+  /**
+   * A child level is read **unfiltered**, and that is deliberate rather than an omission.
+   *
+   * A filter narrows what the reader is looking for at the level they are looking at; applying it
+   * again to the children of a row that matched would hide the entries *inside* a match, which is
+   * the opposite of what expanding a row asks for.
+   */
   openChildren(itemId: string): () => void {
     return this.#open(`item:${itemId}`, level({ item_id: itemId }));
   }
 
   /** Starts the board. **From `untrack`**, like every other subscription here. */
-  openBoard(containerId: string): () => void {
-    return this.#open(`board:${containerId}`, board(containerId));
+  openBoard(containerId: string, query: ItemsQuery = {}): () => void {
+    return this.#open(`board:${containerId}`, board(containerId, query));
   }
 
   /**

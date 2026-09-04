@@ -93,6 +93,19 @@ export type Bucket = components['schemas']['Bucket'];
 export type MoveResult = components['schemas']['MoveResult'];
 export type DroppedReference = components['schemas']['DroppedReference'];
 
+/**
+ * What `POST /items:query` accepts, as the installation reports it.
+ *
+ * The contract says what it is for in its own words: "a client builds its filter editor from this
+ * rather than from a hard-coded list, because the set grows with the installation's features — a
+ * field whose use case this version does not have is not in it, and filtering on it is refused
+ * rather than silently matching nothing."
+ */
+export type QueryField = components['schemas']['QueryField'];
+/** One node of the filter grammar: a leaf comparison, or a combination of them (ADR-0026). */
+export type FilterNode = components['schemas']['FilterNode'];
+export type ItemSearchQuery = components['schemas']['ItemSearchQuery'];
+
 // The paged envelopes, for the reads that answer a page rather than a document. Re-exported for
 // the same reason the documents are: a consumer that reached into `@hubtask/api-client` for one of
 // these would be a consumer with two packages to keep in step.

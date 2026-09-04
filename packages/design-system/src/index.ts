@@ -58,6 +58,13 @@ export { default as LabelChip } from './LabelChip.svelte';
 export { default as LabelPicker, type PickerLabel } from './LabelPicker.svelte';
 export { default as BucketColumn } from './BucketColumn.svelte';
 export { default as WorkItemCard } from './WorkItemCard.svelte';
+export {
+  default as QueryBuilder,
+  type QueryCondition,
+  type QueryFieldOption,
+  type QueryOperator,
+} from './QueryBuilder.svelte';
+export { default as ViewSwitcher, type View } from './ViewSwitcher.svelte';
 
 export { STATUS_ICON } from './control.ts';
 export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from './control.ts';
