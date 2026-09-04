@@ -212,7 +212,7 @@ structural, not reviewed.
 | `TaskRow` | Four variants for `TASK`, `WORK_PACKAGE`, `ACTIVITY` and the collapsed state. Built: the fourth is not a fourth *type* — `type` says which mark and which indent, `expansion` says whether the row hides anything. A type the manifest reports and the icon set has no mark for still gets a row, because tolerance towards unknown fields is a binding client requirement |
 | `WorkItemCard` | Kanban; with `cover` as colour **or** image |
 | `BucketColumn` | `wipLimit`, `isDoneBucket` |
-| `LabelChip` + `LabelPicker` | Ten `colorToken` values, nothing else |
+| `LabelChip` + `LabelPicker` | Ten `colorToken` values, nothing else. Built: each token is a **pair**, `bg` and `fg`, measured together by F1-02 — which is why a hex cannot serve. The picker is handed one collection's labels and no others (I-W3), and the tick rather than the colour says which are on the entry, because every option is coloured |
 | `AssigneeControl` | `assigneeId` **or** `members[]`, depending on capability |
 | `DueDateControl` | `dueDateOnly` (all-day) vs. timed vs. differing `dueTimeZone` |
 | `RecurrenceEditor` | RRULE, `ON_SCHEDULE` vs. `ON_COMPLETION` |

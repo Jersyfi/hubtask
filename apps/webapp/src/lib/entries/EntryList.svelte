@@ -20,6 +20,9 @@
     ErrorState,
     Inline,
     Input,
+    LabelChip,
+    LabelPicker,
+    Popover,
     Select,
     Skeleton,
     Stack,
@@ -27,8 +30,9 @@
   } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
-  import { childTypes, rootTypes } from '../data/capability.svelte.ts';
+  import { childTypes, rootTypes, supports } from '../data/capability.svelte.ts';
   import { items } from '../data/items.svelte.ts';
+  import { labels } from '../data/labels.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -59,6 +63,32 @@
       };
     });
   });
+
+  // The collection's labels, read once for the whole list: every row picks from the same set,
+  // because a label belongs to a collection (I-W3).
+  $effect(() => {
+    const wanted = collectionId;
+    return untrack(() => labels.open(wanted));
+  });
+
+  const available = $derived(
+    labels.of(collectionId).map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      colorToken: entry.color_token,
+      description: entry.description,
+    })),
+  );
+
+  async function toggleLabel(item: WorkItem, labelId: string) {
+    writeFailure = undefined;
+    try {
+      const isOn = (item.label_ids ?? []).includes(labelId);
+      await labels.setOnItem(item.id, labelId, !isOn, crypto.randomUUID());
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
 
   interface Row {
     readonly item: WorkItem;
@@ -212,9 +242,46 @@
                 : [...expanded, row.item.id])}
           >
             {#snippet trailing()}
-              <!-- Offered only where the manifest permits a child. A type that takes none has no
-                   control here rather than a dead one — and which types those are is read, never
-                   named. -->
+              <!-- The labels this entry carries, and a way to change them — but only for a type
+                   whose profile has LABELS. The manifest answers that; an ACTIVITY has none, and
+                   §2 says a field whose capability is off is refused rather than ignored, so it is
+                   not offered here at all. -->
+              {#if supports(row.item.type, 'LABELS').status === 'permitted'}
+                {#each (row.item.label_ids ?? []) as labelId (labelId)}
+                  {@const entry = available.find((each) => each.id === labelId)}
+                  {#if entry}
+                    <LabelChip
+                      name={entry.name}
+                      colorToken={entry.colorToken}
+                      description={entry.description}
+                      removeLabel={isReadOnly
+                        ? undefined
+                        : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
+                      onRemove={() => toggleLabel(row.item, labelId)}
+                    />
+                  {/if}
+                {/each}
+
+                {#if !isReadOnly}
+                  <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
+                    {#snippet trigger(props)}
+                      <Button size="sm" tone="subtle" icon="tag" {...props}>
+                        {t('app.labels.choose')}
+                      </Button>
+                    {/snippet}
+                    <LabelPicker
+                      label={t('app.labels.on_entry', { title: row.item.title })}
+                      labels={available}
+                      selected={row.item.label_ids ?? []}
+                      filterLabel={t('app.labels.filter')}
+                      emptyLabel={t('app.labels.none_yet')}
+                      noMatchLabel={t('app.labels.no_match')}
+                      onToggle={(labelId) => toggleLabel(row.item, labelId)}
+                    />
+                  </Popover>
+                {/if}
+              {/if}
+
               {#if !isReadOnly && row.takesChildren}
                 <Button
                   size="sm"
