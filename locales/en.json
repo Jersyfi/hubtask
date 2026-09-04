@@ -1074,8 +1074,6 @@
   "app.workspace.no_collections": "No collections in this hub yet. A collection is where entries live.",
   "app.workspace.trail": "Where you are",
   "app.workspace.expand_trail": "Show the levels in between",
-  "app.workspace.move_up": "Move up",
-  "app.workspace.move_down": "Move down",
   "app.entries.title": "Entries",
   "app.entries.none": "No entries in this collection yet.",
   "app.entries.add": "Add an entry",
@@ -1108,8 +1106,6 @@
   "app.entries.collapse": "Hide what is inside {title}",
   "app.entries.read_only": "This collection is archived, so nothing in it can be changed.",
   "app.entries.type_label": "Kind of entry",
-  "app.workspace.already_first": "This is already first in its list.",
-  "app.workspace.already_last": "This is already last in its list.",
   "app.workspace.archive": "Archive",
   "app.workspace.unarchive": "Unarchive",
   "app.workspace.archived": "This is archived, so nothing in it can be changed. Unarchive it to work in it again.",
@@ -1150,5 +1146,13 @@
   "app.something_went_wrong": "Something went wrong. Try again in a moment.",
   "app.error_reference": "Reference {request_id}",
   "app.reference": "Reference",
-  "app.shell.nothing_to_do": "There is nothing to do here yet."
+  "app.shell.nothing_to_do": "There is nothing to do here yet.",
+  "app.rank.actions": "Move {title}",
+  "app.rank.up": "Move up",
+  "app.rank.down": "Move down",
+  "app.rank.top": "Move to the top",
+  "app.rank.bottom": "Move to the bottom",
+  "app.rank.already_first": "This is already first in its list.",
+  "app.rank.already_last": "This is already last in its list.",
+  "app.rank.announced": "{title} is now number {position} of {count}."
 }

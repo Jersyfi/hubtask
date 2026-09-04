@@ -274,17 +274,17 @@
                no stated cause. -->
           <IconButton
             icon="chevron-up"
-            label={t('app.workspace.move_up')}
+            label={t('app.rank.up')}
             size="sm"
             onclick={() => moveBy(-1)}
-            disabledReason={canMoveUp ? undefined : t('app.workspace.already_first')}
+            disabledReason={canMoveUp ? undefined : t('app.rank.already_first')}
           />
           <IconButton
             icon="chevron-down"
-            label={t('app.workspace.move_down')}
+            label={t('app.rank.down')}
             size="sm"
             onclick={() => moveBy(1)}
-            disabledReason={canMoveDown ? undefined : t('app.workspace.already_last')}
+            disabledReason={canMoveDown ? undefined : t('app.rank.already_last')}
           />
         </Toolbar>
       </Stack>

@@ -18,21 +18,28 @@
     Button,
     EmptyState,
     ErrorState,
+    IconButton,
     Inline,
     Input,
     LabelChip,
     LabelPicker,
+    Menu,
     Popover,
     Select,
     Skeleton,
     Stack,
     TaskRow,
+    rankIntent,
+    rankTarget,
+    type RankCommand,
   } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
+  import { announcer } from '../announce.svelte.ts';
   import { childTypes, rootTypes, supports } from '../data/capability.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
+  import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -94,17 +101,33 @@
     readonly item: WorkItem;
     readonly depth: number;
     readonly takesChildren: boolean;
+    /**
+     * The level this row is ranked within, and where it sits in it.
+     *
+     * Carried on the row rather than looked up when a command runs, because the flattened list is
+     * not the level: a row at depth 2 is ranked among its parent's children, and the rows above it
+     * on screen belong to other levels. `:reorder` moves an entry within its own level and nowhere
+     * else, so the level is what a command has to be answered against.
+     */
+    readonly siblings: readonly WorkItem[];
+    readonly index: number;
   }
 
   /** The visible rows, in the order the eye walks them. */
   function flatten(parents: readonly WorkItem[], depth: number): Row[] {
     const rows: Row[] = [];
-    for (const item of parents) {
+    parents.forEach((item, index) => {
       // Whether it *may* hold children is the manifest's answer; whether it *does* is not known
       // until it is opened, which is why the twist appears for any type that takes them.
-      rows.push({ item, depth, takesChildren: childTypes(item.type).length > 0 });
+      rows.push({
+        item,
+        depth,
+        takesChildren: childTypes(item.type).length > 0,
+        siblings: parents,
+        index,
+      });
       if (expanded.includes(item.id)) rows.push(...flatten(items.childrenOf(item.id), depth + 1));
-    }
+    });
     return rows;
   }
 
@@ -170,6 +193,101 @@
     }
   }
 
+  /**
+   * Ranks a row within its level — the whole command path, in one function.
+   *
+   * **Built first, and the pointer path is measured against it.** WCAG 2.2 SC 2.5.7 wants a
+   * single-pointer alternative to every dragging movement, and a rank change is a command before
+   * it is a gesture: a menu item and a key press are this call, and so is a drag. Built the other
+   * way round it would be a retrofit, and the retrofit is what an audit finds.
+   *
+   * The `Idempotency-Key` is minted **per intent**. Pressing "move down" twice is two intents and
+   * moves the entry twice, which is what the reader asked for; one press delivered twice — a proxy
+   * retry, a flaky connection — is one key and the server replays its own answer rather than
+   * moving anything a second time.
+   *
+   * Nothing is inserted into the list by hand. The write invalidates `/items` and the level is
+   * read again, so the order on screen is the server's order rather than this component's guess at
+   * it — which is also what makes a second client's move appear rather than being overwritten.
+   */
+  async function rank(row: Row, command: RankCommand) {
+    const target = rankTarget(command, row.index, row.siblings.length);
+    if (target === null) return;
+
+    writeFailure = undefined;
+    try {
+      await items.reorder(
+        row.item.id,
+        anchorFor(row.siblings, row.item.id, target),
+        row.item.version,
+        crypto.randomUUID(),
+      );
+      // Said out loud, because a rank change is invisible to a screen reader: the focused control
+      // did not change and neither did its name, and the list quietly rearranged itself.
+      announcer.say(
+        t('app.rank.announced', {
+          title: row.item.title,
+          position: target + 1,
+          count: row.siblings.length,
+        }),
+      );
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  /** The reason a command is unavailable, or nothing. There is no `disabled` boolean anywhere. */
+  function rankReason(row: Row, command: RankCommand): string | undefined {
+    if (isReadOnly) return t('app.entries.read_only');
+    if (rankTarget(command, row.index, row.siblings.length) !== null) return undefined;
+    return command === 'up' || command === 'top'
+      ? t('app.rank.already_first')
+      : t('app.rank.already_last');
+  }
+
+  /**
+   * The keyboard shortcuts, on the level rather than on a row.
+   *
+   * Listened for rather than bound in the markup: a `<div>` with an `onkeydown` is a static element
+   * with an interaction, which Svelte warns about and is right to — the handler here belongs to the
+   * *list*, and the events reach it from the row controls that are properly focusable. Attaching it
+   * in an effect also means it is removed when the list is, with nothing for a caller to forget.
+   */
+  let level = $state<HTMLElement | null>(null);
+
+  $effect(() => {
+    const node = level;
+    if (!node) return;
+
+    const onKeydown = (event: KeyboardEvent) => {
+      const id = (event.target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row');
+      const row = rows.find((each) => each.item.id === id);
+      if (!row || isReadOnly) return;
+
+      const target = rankIntent(event, row.index, row.siblings.length);
+      if (target === null) return;
+      // Alt+Down scrolls in some engines. The command is answered, so the scroll is not.
+      event.preventDefault();
+      void rank(row, keyCommand(event));
+    };
+
+    node.addEventListener('keydown', onKeydown);
+    return () => node.removeEventListener('keydown', onKeydown);
+  });
+
+  /** Which command a press was, once `rankIntent` has said it is one at all. */
+  function keyCommand(event: KeyboardEvent): RankCommand {
+    if (event.key === 'ArrowUp') return event.shiftKey ? 'top' : 'up';
+    return event.shiftKey ? 'bottom' : 'down';
+  }
+
+  const RANK_COMMANDS: readonly { readonly id: RankCommand; readonly label: string }[] = [
+    { id: 'up', label: 'app.rank.up' },
+    { id: 'down', label: 'app.rank.down' },
+    { id: 'top', label: 'app.rank.top' },
+    { id: 'bottom', label: 'app.rank.bottom' },
+  ];
+
   async function toggleComplete(item: WorkItem) {
     writeFailure = undefined;
     try {
@@ -214,92 +332,121 @@
         </EmptyState>
       {/if}
     {:else}
-      <Stack gap="050">
+      <!-- The level, and the element the shortcuts are listened for on. `data-row` is what a key
+           press finds its way back from the focused control to the row by; the handler is added in
+           an effect rather than bound here, because a `<div>` with an `onkeydown` is a static
+           element with an interaction and Svelte is right to warn about one. -->
+      <div class="level" bind:this={level}>
         {#each rows as row (row.item.id)}
-          <TaskRow
-            type={row.item.type}
-            title={row.item.title}
-            depth={row.depth}
-            isCompleted={row.item.completion?.is_completed ?? false}
-            expansion={!row.takesChildren
-              ? 'leaf'
-              : expanded.includes(row.item.id)
-                ? 'expanded'
-                : 'collapsed'}
-            completeLabel={t(
-              row.item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete',
-              { title: row.item.title },
-            )}
-            completeDisabledReason={isReadOnly ? t('app.entries.read_only') : undefined}
-            expandLabel={t(
-              expanded.includes(row.item.id) ? 'app.entries.collapse' : 'app.entries.expand',
-              { title: row.item.title },
-            )}
-            onToggleComplete={() => toggleComplete(row.item)}
-            onToggleExpand={() =>
-              (expanded = expanded.includes(row.item.id)
-                ? expanded.filter((id) => id !== row.item.id)
-                : [...expanded, row.item.id])}
-          >
-            {#snippet trailing()}
-              <!-- The labels this entry carries, and a way to change them — but only for a type
-                   whose profile has LABELS. The manifest answers that; an ACTIVITY has none, and
-                   §2 says a field whose capability is off is refused rather than ignored, so it is
-                   not offered here at all. -->
-              {#if supports(row.item.type, 'LABELS').status === 'permitted'}
-                {#each (row.item.label_ids ?? []) as labelId (labelId)}
-                  {@const entry = available.find((each) => each.id === labelId)}
-                  {#if entry}
-                    <LabelChip
-                      name={entry.name}
-                      colorToken={entry.colorToken}
-                      description={entry.description}
-                      removeLabel={isReadOnly
-                        ? undefined
-                        : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
-                      onRemove={() => toggleLabel(row.item, labelId)}
-                    />
+          <div class="row" data-row={row.item.id}>
+            <TaskRow
+              type={row.item.type}
+              title={row.item.title}
+              depth={row.depth}
+              isCompleted={row.item.completion?.is_completed ?? false}
+              expansion={!row.takesChildren
+                ? 'leaf'
+                : expanded.includes(row.item.id)
+                  ? 'expanded'
+                  : 'collapsed'}
+              completeLabel={t(
+                row.item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete',
+                { title: row.item.title },
+              )}
+              completeDisabledReason={isReadOnly ? t('app.entries.read_only') : undefined}
+              expandLabel={t(
+                expanded.includes(row.item.id) ? 'app.entries.collapse' : 'app.entries.expand',
+                { title: row.item.title },
+              )}
+              onToggleComplete={() => toggleComplete(row.item)}
+              onToggleExpand={() =>
+                (expanded = expanded.includes(row.item.id)
+                  ? expanded.filter((id) => id !== row.item.id)
+                  : [...expanded, row.item.id])}
+            >
+              {#snippet trailing()}
+                <!-- The labels this entry carries, and a way to change them — but only for a type
+                     whose profile has LABELS. The manifest answers that; an ACTIVITY has none, and
+                     §2 says a field whose capability is off is refused rather than ignored, so it is
+                     not offered here at all. -->
+                {#if supports(row.item.type, 'LABELS').status === 'permitted'}
+                  {#each (row.item.label_ids ?? []) as labelId (labelId)}
+                    {@const entry = available.find((each) => each.id === labelId)}
+                    {#if entry}
+                      <LabelChip
+                        name={entry.name}
+                        colorToken={entry.colorToken}
+                        description={entry.description}
+                        removeLabel={isReadOnly
+                          ? undefined
+                          : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
+                        onRemove={() => toggleLabel(row.item, labelId)}
+                      />
+                    {/if}
+                  {/each}
+
+                  {#if !isReadOnly}
+                    <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
+                      {#snippet trigger(props)}
+                        <Button size="sm" tone="subtle" icon="tag" {...props}>
+                          {t('app.labels.choose')}
+                        </Button>
+                      {/snippet}
+                      <LabelPicker
+                        label={t('app.labels.on_entry', { title: row.item.title })}
+                        labels={available}
+                        selected={row.item.label_ids ?? []}
+                        filterLabel={t('app.labels.filter')}
+                        emptyLabel={t('app.labels.none_yet')}
+                        noMatchLabel={t('app.labels.no_match')}
+                        onToggle={(labelId) => toggleLabel(row.item, labelId)}
+                      />
+                    </Popover>
                   {/if}
-                {/each}
-
-                {#if !isReadOnly}
-                  <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
-                    {#snippet trigger(props)}
-                      <Button size="sm" tone="subtle" icon="tag" {...props}>
-                        {t('app.labels.choose')}
-                      </Button>
-                    {/snippet}
-                    <LabelPicker
-                      label={t('app.labels.on_entry', { title: row.item.title })}
-                      labels={available}
-                      selected={row.item.label_ids ?? []}
-                      filterLabel={t('app.labels.filter')}
-                      emptyLabel={t('app.labels.none_yet')}
-                      noMatchLabel={t('app.labels.no_match')}
-                      onToggle={(labelId) => toggleLabel(row.item, labelId)}
-                    />
-                  </Popover>
                 {/if}
-              {/if}
 
-              {#if !isReadOnly && row.takesChildren}
-                <Button
-                  size="sm"
-                  tone="subtle"
-                  icon="plus"
-                  onclick={() => startAdding(row.item.id)}
+                {#if !isReadOnly && row.takesChildren}
+                  <Button
+                    size="sm"
+                    tone="subtle"
+                    icon="plus"
+                    onclick={() => startAdding(row.item.id)}
+                  >
+                    {t('app.entries.add')}
+                  </Button>
+                {/if}
+
+                <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
+                     first: every position a drag can reach is an item here, each with the reason it
+                     cannot be used rather than a control that goes grey for no stated cause. -->
+                <Menu
+                  label={t('app.rank.actions', { title: row.item.title })}
+                  items={RANK_COMMANDS.map((command) => ({
+                    id: command.id,
+                    label: t(command.label),
+                    disabledReason: rankReason(row, command.id),
+                  }))}
+                  onselect={(id) => rank(row, id as RankCommand)}
                 >
-                  {t('app.entries.add')}
-                </Button>
-              {/if}
-            {/snippet}
-          </TaskRow>
+                  {#snippet trigger(props)}
+                    <IconButton
+                      icon="ellipsis"
+                      label={t('app.rank.actions', { title: row.item.title })}
+                      size="sm"
+                      {...props}
+                    />
+                  {/snippet}
+                </Menu>
+              {/snippet}
+            </TaskRow>
+
+          </div>
 
           {#if addingUnder === row.item.id}
             {@render addForm()}
           {/if}
         {/each}
-      </Stack>
+      </div>
 
       {#if !isReadOnly && rootTypes().length > 0}
         {#if addingUnder === 'root'}
@@ -350,5 +497,9 @@
 {/snippet}
 
 <style>
+  /* What `Stack gap="050"` was, written here because the level now owns a state of its own: a row
+     being dragged is drawn differently, and a primitive that decorated would stop being one. */
+  .level { display: flex; flex-direction: column; gap: var(--sp-050); }
+
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 </style>
