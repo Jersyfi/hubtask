@@ -744,6 +744,7 @@
               type={row.item.type}
               title={row.item.title}
               depth={row.depth}
+              href={`/items/${row.item.id}`}
               isCompleted={row.item.completion?.is_completed ?? false}
               expansion={!row.takesChildren
                 ? 'leaf'
