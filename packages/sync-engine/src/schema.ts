@@ -81,6 +81,7 @@ export type Container = components['schemas']['Container'];
 export type WorkItem = components['schemas']['WorkItem'];
 export type Problem = components['schemas']['Problem'];
 export type Label = components['schemas']['Label'];
+export type Bucket = components['schemas']['Bucket'];
 
 // The paged envelopes, for the reads that answer a page rather than a document. Re-exported for
 // the same reason the documents are: a consumer that reached into `@hubtask/api-client` for one of

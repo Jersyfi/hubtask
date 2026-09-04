@@ -22,11 +22,13 @@
     ListRow,
     Skeleton,
     Stack,
+    Tabs,
     Toolbar,
   } from '@hubtask/design-system/components';
 
   import { untrack } from 'svelte';
 
+  import Board from '../lib/entries/Board.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
 
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -53,6 +55,9 @@
     const wanted = id;
     return untrack(() => containers.openSingle(wanted));
   });
+
+  /** Which of the two the reader is looking at. Kept on the device; saved views are F3's. */
+  let layout = $state('list');
 
   const container = $derived(containers.find(id));
   // The hub above a collection, for the trail. Read on its own for the same reason.
@@ -295,10 +300,27 @@
         </Stack>
       {/if}
     {:else}
-      <!-- A collection holds entries, and this is where the hierarchy lives. Read-only follows the
-           container: an archived collection's entries are archived with it (I-C3), and the reason
-           travels with the controls rather than the controls disappearing. -->
-      <EntryList collectionId={container.id} isReadOnly={isReadOnly} />
+      <!-- Two ways to look at the same entries. `ViewSwitcher` and the layouts the manifest reports
+           are F2-13's; this is the pair F2-11 built, and the choice is kept on the device because
+           saved views are F3's and writing one here would be building half of that milestone
+           badly. -->
+      <Tabs
+        label={t('app.workspace.title')}
+        tabs={[
+          { id: 'list', label: t('app.board.show_list') },
+          { id: 'board', label: t('app.board.show_board') },
+        ]}
+        bind:selected={layout}
+      >
+        {#if layout === 'board'}
+          <Board collectionId={container.id} isReadOnly={isReadOnly} />
+        {:else}
+          <!-- Read-only follows the container: an archived collection's entries are archived with
+               it (I-C3), and the reason travels with the controls rather than the controls
+               disappearing. -->
+          <EntryList collectionId={container.id} isReadOnly={isReadOnly} />
+        {/if}
+      </Tabs>
     {/if}
   </Stack>
 {/if}

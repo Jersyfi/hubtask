@@ -43,6 +43,31 @@ function level(scope: { container_id?: string; item_id?: string }): {
   };
 }
 
+/**
+ * The board: the same entries, grouped by bucket.
+ *
+ * `group_by` is what turns one read into columns — "one group per distinct value, each with its own
+ * rows and its own cursor", which is the specification's own description and the reason a board is
+ * not five queries. The entries with no bucket come back as the group whose key is null, and the
+ * API puts it last.
+ *
+ * `count: 'exact'` because a column's count is what a WIP limit is read against, and a limit with
+ * no count is a number nobody can act on. It costs a second pass — the contract says so out loud —
+ * and this is the one read so far where it is worth it.
+ */
+function board(containerId: string): { path: string; body: unknown } {
+  return {
+    path: QUERY,
+    body: {
+      scope: { container_id: containerId, include_descendants: false },
+      group_by: { field: 'bucket_id', limit_per_group: 50 },
+      sort: [{ field: 'order_key', dir: 'ASC' }],
+      expand: ['labels'],
+      count: 'exact',
+    },
+  };
+}
+
 const rowsOf = (state: ResourceState<ItemQueryResult> | undefined): readonly WorkItem[] =>
   state?.status === 'ready' ? (state.data.data ?? []) : [];
 
@@ -75,6 +100,20 @@ class Items {
 
   openChildren(itemId: string): () => void {
     return this.#open(`item:${itemId}`, level({ item_id: itemId }));
+  }
+
+  /** Starts the board. **From `untrack`**, like every other subscription here. */
+  openBoard(containerId: string): () => void {
+    return this.#open(`board:${containerId}`, board(containerId));
+  }
+
+  /**
+   * The board's groups, in the order the server returned them — the field's own order, with the
+   * entries that have no bucket last.
+   */
+  boardGroups(containerId: string): readonly NonNullable<ItemQueryResult['groups']>[number][] {
+    const state = this.#levels[`board:${containerId}`];
+    return state?.status === 'ready' ? (state.data.groups ?? []) : [];
   }
 
   #open(key: string, request: { path: string; body: unknown }): () => void {
@@ -115,6 +154,21 @@ class Items {
     version: number,
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, body, {
+      ifMatch: `"${version}"`,
+      invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * Moves an entry into a bucket, or out of every one.
+   *
+   * A `PATCH` rather than an action, because `bucket_id` is a field of the entry. What happens next
+   * may not be only a move: `isDoneBucket` can trigger completion (`domain-model.md` §3.5), and
+   * that is the server's doing — so the answer is re-read rather than predicted, and the card comes
+   * back completed if it was.
+   */
+  async setBucket(id: string, bucketId: string | null, version: number): Promise<WorkItem> {
+    return engine.mutate<WorkItem>('PATCH', `/items/${id}`, { bucket_id: bucketId }, {
       ifMatch: `"${version}"`,
       invalidates: TOUCHES,
     });
