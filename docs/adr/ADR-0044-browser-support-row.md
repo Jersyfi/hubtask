@@ -1,6 +1,6 @@
 # ADR-0044 — Which browsers a Hubtask client is required to work in
 
-* Status: **proposed** — the decision line below is deliberately empty
+* Status: **accepted**
 * Date: 2026-09-04
 * Deciders: the project owner
 * Related: [ADR-0039](./ADR-0039-overlay-positioning.md), [ADR-0030](./ADR-0030-svelte-frontend-framework.md),
@@ -83,18 +83,39 @@ definition of `supported` is reachable. It is the only option under which the ro
 
 ## Decision
 
-*Awaiting the owner.*
+**Option A is accepted: the current and the previous major of each engine** — Chromium (Chrome,
+Edge), Gecko (Firefox), WebKit (Safari).
 
-The row is written into `support-matrix.md` §4 with an explicit `awaiting decision` value rather
-than an invented one, so that the gap is visible where a reader looks for it instead of being
-absent.
+The reasoning is the project's stage rather than the technology. A narrow promise that is true is
+worth more than a wide one nobody checks, and B's extra reach is bought with work that does not
+exist yet: `<dialog>`, `inert` and `:has()` have no fallback, and writing the modal ones is not a
+small job for a project this size. C is honest and unusable — a support promise nobody can check
+their own browser against cannot be used to triage a bug report.
+
+**The status stays `best effort`, and that is not a hedge.** §1 of `support-matrix.md` defines
+`supported` as "a CI job runs the software on it", and no browser job exists. A decides the
+**scope** — which engines the client is *intended* to work in — and nothing about scope can turn
+`best effort` into `supported`. Option D is what does, and it remains open as a separate decision
+with a browser job attached to it; it is now the only thing standing between this row and a real
+`supported`.
+
+What is deliberately not claimed: that the client has been checked in Firefox or Safari. It has
+been driven, by a person, in one Chromium build. The row says where defects will be fixed, not
+where they have been looked for.
 
 ## Consequences
 
 **For ADR-0039.** Its fallback's lifetime is what this row decides, and it said so when it was
-accepted: under A the fallback is dead code and can be deleted; under B it is load-bearing for
-years. The choice of mechanism does not change either way, which is why that ADR was correct to be
-taken without this one.
+accepted: under A the fallback is dead code and can be deleted. Every engine in the row above has
+CSS Anchor Positioning, so `positioning.ts`'s script path is now unreachable by any browser this
+project promises to work in.
+
+It is **not deleted here**, and the reason is the paragraph above rather than caution: the status is
+`best effort`, so nothing proves the row. Seventy-nine lines that keep an overlay in the right place
+in an engine outside the row are cheap insurance while no job checks any engine inside it. Deleting
+them is its own change with its own test to remove, and it is worth doing **once a browser job
+exists** — that is, together with option D. Recorded as an issue so it is a decision somebody takes
+rather than a thing that quietly never happens.
 
 **For F2-12.** Dragging is the interaction with the widest spread in engine behaviour, and it is in
 this milestone. It is built on Pointer Events, which every candidate engine has, and the keyboard
@@ -105,6 +126,6 @@ narrow what its pointer path has to tolerate rather than whether it can exist.
 made *against a set of browsers*. That set is this row. F5 cannot produce an accessibility statement
 without it.
 
-**Whatever is decided**, the honest status for every browser today is `best effort`, because no job
-proves any of them. Option D is the only one that changes that, and it changes it by adding work
-rather than by choosing words.
+**What is still open.** Option D — a browser job, and with it a row that can honestly say
+`supported`. This ADR is not superseded by that; the scope decided here is what such a job would be
+written against.
