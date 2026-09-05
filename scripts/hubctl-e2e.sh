@@ -42,8 +42,19 @@ ACCOUNT_ID="01936f2a-7c1e-7000-8000-00000000e2e1"
 MEMBERSHIP_ID="01936f2a-7c1e-7000-8000-00000000e2e2"
 TOKEN_ROW_ID="01936f2a-7c1e-7000-8000-00000000e2e3"
 
+# The closing act runs against a second stack, because the tenancy mode is read once at start-up
+# and the hour above is spent in single mode (H-16; compose-smoke.sh does the same for H-06).
+# Ports of its own again, distinct from every other stack this repository starts.
+MULTI_PROJECT="hubtask-e2e-multi"
+MULTI_HTTP_PORT=18082
+MULTI_OPS_PORT=19092
+OPERATOR_TENANT="01936f2a-7c1e-7000-8000-00000000e2f0"
+OPERATOR_ACCOUNT="01936f2a-7c1e-7000-8000-00000000e2f1"
+OPERATOR_TOKEN_ROW="01936f2a-7c1e-7000-8000-00000000e2f2"
+
 WORK_DIR="$(mktemp -d)"
 ENV_FILE="$WORK_DIR/env"
+MULTI_ENV_FILE="$WORK_DIR/multi-env"
 # The stack goes at the end, and what it was saying goes with it - so anything but a clean exit
 # prints the server's own account first.
 #
@@ -58,6 +69,11 @@ cleanup() {
 		(cd deploy/docker && $COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 120) 2>&1 || true
 	fi
 	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
+	# The second stack of the closing act, whether or not the run reached it: the file it needs
+	# exists from the moment the act starts, and `down` on a project that was never up is silent.
+	if [ -f "$MULTI_ENV_FILE" ]; then
+		$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
+	fi
 	rm -rf "$WORK_DIR"
 }
 trap cleanup EXIT
@@ -923,6 +939,400 @@ expect_missing "the refusal" "$refusal" 'detail_code'
 expect_contains "the refusal" "$refusal" 'hubctl: '
 # The sentence itself, straight out of locales/en.json.
 expect_contains "the refusal" "$refusal" 'does not exist'
+
+# ============ The milestone's proof (H-16) ============
+# What the whole of 0.6.0 amounts to, in one sequence and against a real stack: a workspace
+# provisioned by a control plane, its owner signing in with a password, a second factor the tenant
+# demands, a third-party app allowed and calling the API with what it was issued, a destructive
+# restore through a real step-up - the round trip refused since 0.4.5 - the workspace exported
+# whole and the archive read against the document that defines it, and a second workspace that is
+# never once visible.
+#
+# It runs against a stack of its own because the tenancy mode is read at start-up and the hour
+# above was spent in single mode. That also means a fresh rate-limit budget: the `curl --retry`
+# discipline below is about the calls this act makes, not about what the session already spent.
+#
+# The order is not arbitrary. Everything the owner's own session can prove happens *before* the
+# destructive restore, because that act does not leave the credential that started it alive - see
+# the section itself.
+
+echo "--- the milestone's proof: a second stack, in multi mode ---"
+MULTI_SECRET="$(head -c 32 /dev/urandom | base64)"
+cat > "$MULTI_ENV_FILE" <<ENV
+POSTGRES_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
+HUBTASK_DB_APP_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
+HUBTASK_SECRET_KEY=$MULTI_SECRET
+HUBTASK_ENCRYPTION_KEYS=k1
+HUBTASK_ENCRYPTION_KEY_K1=$(head -c 32 /dev/urandom | base64)
+HUBTASK_IMAGE=$IMAGE
+HUBTASK_VERSION=$TAG
+HUBTASK_PORT=$MULTI_HTTP_PORT
+HUBTASK_OPS_PORT=$MULTI_OPS_PORT
+HUBTASK_TENANCY_MODE=multi
+HUBTASK_BACKUP_TENANT_TARGETS=true
+HUBTASK_BASE_URL=http://127.0.0.1:$MULTI_HTTP_PORT
+ENV
+
+(
+	cd deploy/docker
+	$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true
+	$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" up -d
+)
+multi_compose() { (cd deploy/docker && $COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" "$@"); }
+multi_psql() {
+	multi_compose exec -T db psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -tAq -c "$1"
+}
+
+multi_started=$SECONDS
+multi_ready=""
+while [ $((SECONDS - multi_started)) -lt $DEADLINE_SECONDS ]; do
+	if curl -fsS -o /dev/null "http://127.0.0.1:$MULTI_OPS_PORT/readyz" 2>/dev/null; then
+		multi_ready="yes"
+		break
+	fi
+	sleep 2
+done
+if [ -z "$multi_ready" ]; then
+	echo "FAILED: the multi-mode stack did not turn ready within ${DEADLINE_SECONDS}s"
+	multi_compose ps
+	multi_compose logs --tail 50
+	exit 1
+fi
+echo "multi mode ready after $((SECONDS - multi_started))s"
+
+MULTI="http://127.0.0.1:$MULTI_HTTP_PORT"
+
+echo "--- the control plane's credential, and two workspaces ---"
+# `admin:tenants` is the one scope no session carries (0.6.0 decision 6), so the control plane is
+# reached with a personal access token minted for exactly this - and there is no first-run path
+# that mints one, so it is seeded the way the bootstrap above is: through the real constructions,
+# short-lived, and used for nothing else.
+read -r ADMIN_TOKEN ADMIN_HASH < <(HUBTASK_SECRET_KEY="$MULTI_SECRET" go run ./test/e2e/mint --tenant "$OPERATOR_TENANT")
+multi_compose exec -T db psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -q <<SQL
+BEGIN;
+INSERT INTO tenant (id, slug, display_name)
+  VALUES ('$OPERATOR_TENANT', 'operator', 'Operator');
+INSERT INTO account (id, tenant_id, kind, display_name, status)
+  VALUES ('$OPERATOR_ACCOUNT', '$OPERATOR_TENANT', 'USER', 'Operator', 'ACTIVE');
+INSERT INTO access_token
+    (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
+  VALUES ('$OPERATOR_TOKEN_ROW', '$OPERATOR_TENANT', '$OPERATOR_ACCOUNT',
+          'the control plane bootstrap', decode('$ADMIN_HASH', 'hex'), 'hbt_pat_',
+          ARRAY['admin:tenants'], now() + interval '30 minutes');
+COMMIT;
+SQL
+
+# Two identities, two profiles. The operator holds a token and the owner holds a session, and the
+# whole point of the act is that they are different credentials with different powers - so they
+# must not share a file.
+ADMIN_PROFILE="$WORK_DIR/operator.json"
+OWNER_PROFILE="$WORK_DIR/owner.json"
+OWNER_PASSWORD='correct horse battery staple'
+REDIRECT_URI='https://app.example/callback'
+
+# The stand-in authenticator, built once. Empty until the enrolment answers a secret, which is
+# what lets `owner` compute a code unconditionally: a code nobody asked for is an unset variable.
+go build -trimpath -o "$WORK_DIR/totp" ./test/e2e/totp
+TOTP_SECRET=""
+totp() {
+	[ -n "$TOTP_SECRET" ] || return 0
+	HUBTASK_TOTP_SECRET="$TOTP_SECRET" "$WORK_DIR/totp"
+}
+# A code verifies once, and never again at or below the step it was accepted at - "a code that
+# worked twice is a code somebody shoulder-read" (H-02, VerifyTotp). A person meets that rule
+# once a minute at most; a session that compresses their afternoon into thirty seconds meets it
+# every time, because its second code falls inside the same window as its first. So a command
+# that will be asked for a code waits for the next window first, which is what a person does by
+# looking at their phone again. It cost this session two green runs to find out.
+next_code_window() { sleep $((31 - $(date -u +%s) % 30)); }
+admin() { HUBTASK_PROFILE="$ADMIN_PROFILE" "$WORK_DIR/hubctl" "$@"; }
+owner() {
+	HUBTASK_PROFILE="$OWNER_PROFILE" HUBTASK_PASSWORD="$OWNER_PASSWORD" \
+		HUBTASK_TOTP="$(totp)" "$WORK_DIR/hubctl" "$@"
+}
+
+printf '%s\n' "$ADMIN_TOKEN" | admin auth login --url "$MULTI"
+
+provisioned="$(admin --json admin tenant create --slug acme --name 'Acme' \
+	--owner-email 'eva@acme.example' --owner-name 'Eva' --locale de --zone Europe/Berlin)"
+ACME_ID="$(json_field id "$provisioned")"
+OWNER_REDEMPTION="$(json_field owner_redemption_token "$provisioned")"
+[ -n "$ACME_ID" ] && [ -n "$OWNER_REDEMPTION" ] ||
+	{ echo "FAILED: provisioning answered '$provisioned'"; exit 1; }
+# The workspace arrives furnished: a hub and an example collection, which is what the owner's
+# first commands - and the backup below - have to work with.
+expect_contains "admin tenant create" "$provisioned" '"default_hub_id"'
+
+# The second workspace exists to be invisible. Nothing below it is about it, which is the point.
+others="$(admin --json admin tenant create --slug others --name 'Others' \
+	--owner-email 'sam@others.example')"
+OTHERS_ID="$(json_field id "$others")"
+[ -n "$OTHERS_ID" ] || { echo "FAILED: the second workspace was not provisioned: $others"; exit 1; }
+
+# The control plane sees its rows - it is the one legitimate tenant enumerator, and this is the
+# only place in the whole product where two workspaces appear in one answer.
+tenants="$(admin admin tenant ls)"
+expect_contains "admin tenant ls" "$tenants" "$ACME_ID"
+expect_contains "admin tenant ls" "$tenants" "$OTHERS_ID"
+
+echo "--- the owner sets a password, under a workspace that demands a second factor ---"
+# Through curl, because the redemption is the one call made before there is anybody to sign in:
+# every sign-in verb the client has starts from a password that already exists. --retry for the
+# discipline the budget taught, even on a stack whose budget is untouched.
+redeemed="$(curl -fsS --retry 5 --retry-delay 2 -X POST -H 'Content-Type: application/json' \
+	-d "{\"token\":\"$OWNER_REDEMPTION\",\"password\":\"$OWNER_PASSWORD\"}" \
+	"$MULTI/api/v1/auth/invitations:redeem")"
+expect_contains "the redemption" "$redeemed" '"access_token"'
+
+# The enforcement switch lives in the tenant's settings document and has no endpoint of its own
+# (multi-tenancy.md §4's home for per-tenant knobs), so it is written the way the bootstrap
+# credential is. What is being proved is the sign-in it produces, not the write.
+multi_psql "UPDATE tenant SET settings = settings || '{\"require_admin_totp\": true}'::jsonb
+            WHERE id = '$ACME_ID'" > /dev/null
+
+# The password is right and the answer is still not a session: an administrator a tenant switch
+# routes into enrolment gets a credential that can do nothing but finish the enrolment.
+challenge="$(owner --json login --url "$MULTI" --email 'eva@acme.example' --tenant "$ACME_ID")"
+expect_contains "login under enforcement" "$challenge" '"ENROLL"'
+PENDING="$(json_field pending_token "$challenge")"
+[ -n "$PENDING" ] || { echo "FAILED: the enforcement sign-in answered no credential: $challenge"; exit 1; }
+expect_contains "auth status after an unfinished sign-in" \
+	"$(owner --json auth status)" '"signed_in": false'
+
+enrolment="$(owner --json mfa enroll --pending "$PENDING")"
+TOTP_SECRET="$(json_field secret "$enrolment")"
+[ -n "$TOTP_SECRET" ] || { echo "FAILED: the enrolment answered no secret: $enrolment"; exit 1; }
+expect_contains "mfa enroll" "$enrolment" '"otpauth_uri"'
+expect_contains "mfa enroll" "$enrolment" '"recovery_codes"'
+
+# And the confirmation is where the sign-in finally lands, because by now both factors are proved.
+owner mfa confirm --pending "$PENDING"
+status="$(owner --json auth status)"
+expect_contains "auth status" "$status" '"token_source": "session"'
+expect_contains "auth status" "$status" '"signed_in": true'
+
+# The session the person is holding, seen from the listing that exists to show it, and the walls
+# the workspace is inside.
+expect_contains "session ls" "$(owner session ls)" "yes"
+expect_contains "quota show" "$(owner quota show)" "items"
+
+echo "--- and the second workspace, invisible ---"
+# Never in a read of the first, and the control plane is not reachable from a session however
+# privileged the person holding it - which is decision 6 seen from the other side.
+expect_missing "container ls" "$(owner --json container ls)" "$OTHERS_ID"
+set +e
+reached="$(owner admin tenant ls 2>&1 >/dev/null)"
+reached_code=$?
+set -e
+if [ "$reached_code" -eq 0 ]; then
+	fail "the owner's session reached the control plane"
+fi
+expect_missing "the refusal" "$reached" "$OTHERS_ID"
+
+echo "--- suspended, and back ---"
+admin admin tenant suspend "$ACME_ID"
+set +e
+suspended="$(owner container ls 2>&1 >/dev/null)"
+set -e
+# The middleware flips on the very next request, and what the person reads is the catalogue's
+# sentence rather than the code.
+expect_contains "a suspended workspace" "$suspended" "suspended"
+expect_missing "a suspended workspace" "$suspended" "{"
+admin admin tenant resume "$ACME_ID"
+expect_contains "the workspace after one write" "$(owner container ls)" "HUB"
+
+echo "--- a third-party app, consented to and calling the API with what it was issued ---"
+# The whole authorization code flow with PKCE, headless (0.6.0 decision 5). A public client, so
+# there is no secret and the verifier is the whole of what the exchange proves - which is why the
+# consent answers both halves and this is three commands rather than a browser.
+registered="$(owner --json oauth client add --name 'the kanban board' --redirect "$REDIRECT_URI")"
+APP_ID="$(json_field id "$registered")"
+[ -n "$APP_ID" ] || { echo "FAILED: the app was not registered: $registered"; exit 1; }
+expect_contains "oauth client ls" "$(owner oauth client ls)" "the kanban board"
+
+consent="$(owner --json oauth authorize --client "$APP_ID" --redirect "$REDIRECT_URI" \
+	--scope items:read,containers:read --state 'the-apps-own-state')"
+APP_CODE="$(json_field code "$consent")"
+APP_VERIFIER="$(json_field code_verifier "$consent")"
+[ -n "$APP_CODE" ] && [ -n "$APP_VERIFIER" ] ||
+	{ echo "FAILED: the consent answered no code: $consent"; exit 1; }
+# The state comes back untouched, which is the app's own CSRF binding.
+expect_contains "oauth authorize" "$consent" 'the-apps-own-state'
+
+exchanged="$(owner --json oauth token --client "$APP_ID" --redirect "$REDIRECT_URI" \
+	--code "$APP_CODE" --verifier "$APP_VERIFIER")"
+APP_ACCESS="$(json_field access_token "$exchanged")"
+[ -n "$APP_ACCESS" ] || { echo "FAILED: the exchange answered no pair: $exchanged"; exit 1; }
+
+# The app's own call, with the app's own credential and nothing of the person's: a profile of its
+# own, so that nothing here can be answered by the session in the owner's file.
+app() {
+	HUBTASK_PROFILE="$WORK_DIR/app.json" HUBTASK_URL="$MULTI" HUBTASK_TENANT="$ACME_ID" \
+		HUBTASK_TOKEN="$APP_ACCESS" "$WORK_DIR/hubctl" "$@"
+}
+expect_contains "the app's own call" "$(app container ls)" "HUB"
+# And bounded by exactly what was consented to: writing was never allowed, so it is refused with
+# the sentence that names the scope it would need.
+set +e
+unallowed="$(app container create --type HUB --name 'not the apps to make' 2>&1 >/dev/null)"
+unallowed_code=$?
+set -e
+if [ "$unallowed_code" -eq 0 ]; then
+	fail "the app wrote with a credential that was only allowed to read"
+fi
+expect_contains "the app's bound" "$unallowed" "scope"
+
+# The person's side of it: what they allowed, and withdrawing it. Immediate, like a revoked
+# session's pair - which is what the grant's pair is.
+grants="$(owner oauth grant ls)"
+expect_contains "oauth grant ls" "$grants" "the kanban board"
+GRANT_ID="$(printf '%s\n' "$grants" | first_id)"
+if [ -n "$GRANT_ID" ]; then
+	owner oauth grant revoke "$GRANT_ID"
+	set +e
+	withdrawn="$(app container ls 2>&1 >/dev/null)"
+	withdrawn_code=$?
+	set -e
+	if [ "$withdrawn_code" -eq 0 ]; then
+		fail "the app still worked after its grant was withdrawn"
+	fi
+fi
+
+echo "--- a place for the workspace to write copies to ---"
+# The target belongs to the workspace, which in provider operation is a decision the operator
+# makes: `HUBTASK_BACKUP_TENANT_TARGETS` is off by default and this stack turns it on. It has to.
+# An installation-wide target is invisible inside a workspace - `backup_target`'s policy is
+# `tenant_id = current_tenant_id()`, and both the backup and the export open the target in the
+# workspace's own scope - so with the switch off a workspace can name no target at all, and can
+# therefore be neither backed up nor exported.
+target="$(owner backup target add --name 'the workspace target' --kind LOCAL --config path=acme)"
+ACME_TARGET="$(printf '%s\n' "$target" | first_id)"
+[ -n "$ACME_TARGET" ] || { echo "FAILED: the workspace's target was not created: $target"; exit 1; }
+
+backup="$(owner backup run --target "$ACME_TARGET" --follow --wait 5m)"
+expect_contains "backup run" "$backup" "SUCCEEDED"
+archives="$(owner backup ls --target "$ACME_TARGET")"
+ACME_ARCHIVE="$(printf '%s\n' "$archives" | awk 'NR==2 {print $1}')"
+[ -n "$ACME_ARCHIVE" ] || { echo "FAILED: nothing is lying at the workspace's target: $archives"; exit 1; }
+
+echo "--- the destructive restore, through a real step-up ---"
+# The round trip that has been refused since 0.4.5, and the last thing the owner's session can do -
+# because the mode does not leave the credential that started it alive. REPLACE_TENANT empties the
+# workspace's tables before it writes the archive's rows back, the accounts go with them, and the
+# sessions and tokens cascade off the accounts; the archive carries no credentials to put back,
+# because an archive never does (tenant-export.md §9). So the client is refused part-way through
+# following its own job, and that refusal is the mode working rather than failing.
+#
+# Which is why the assertions are where they are: the step-up on standard error, and the run's own
+# outcome from the database - the one place still readable once the credential that asked for it
+# has ceased to exist.
+next_code_window
+set +e
+owner --json restore run --target "$ACME_TARGET" --archive "$ACME_ARCHIVE" \
+	--mode REPLACE_TENANT --tenant "$ACME_ID" --confirm 'Acme' --apply --wait 10m \
+	> "$WORK_DIR/restore.out" 2> "$WORK_DIR/restore.err"
+set -e
+
+# Demanded and given: the client was refused for want of a proof, asked the authenticator, and
+# sent the same request again. Without this line the mode would have run without proving anything,
+# and nothing below it would be worth asserting - which is why it decides whether to.
+if ! grep -qF "proved again" "$WORK_DIR/restore.err"; then
+	fail "the step-up was not demanded and given: $(cat "$WORK_DIR/restore.err")"
+else
+	restore_row=""
+	for _ in $(seq 1 90); do
+		restore_row="$(multi_psql "SELECT status || '|' || mode || '|' || dry_run::text || '|' ||
+		    (safety_backup_run_id IS NOT NULL)::text
+		  FROM restore_run WHERE tenant_id = '$ACME_ID' AND mode = 'REPLACE_TENANT'
+		  ORDER BY started_at DESC LIMIT 1")"
+		case "$restore_row" in
+			SUCCEEDED* | FAILED* | CANCELLED*) break ;;
+		esac
+		sleep 2
+	done
+	# Succeeded, in the destructive mode, for real, with the copy §8.3 step 4 takes before it.
+	if [ "$restore_row" != "SUCCEEDED|REPLACE_TENANT|false|true" ]; then
+		fail "the destructive restore ended as '$restore_row', want SUCCEEDED|REPLACE_TENANT|false|true"
+		cat "$WORK_DIR/restore.err"
+	fi
+
+	# And the credential really did go with the workspace it replaced. This is the assertion the
+	# section is named for: a mode that claimed to replace a workspace and left its sessions
+	# standing would not have replaced it.
+	set +e
+	owner container ls > /dev/null 2>&1
+	after_code=$?
+	set -e
+	if [ "$after_code" -eq 0 ]; then
+		fail "the session survived a restore that replaced the workspace it belonged to"
+	fi
+	if [ "$(multi_psql "SELECT count(*) FROM session WHERE tenant_id = '$ACME_ID'")" != "0" ]; then
+		fail "sessions of the replaced workspace are still standing"
+	fi
+fi
+
+echo "--- the workspace, exported whole and read against its format document ---"
+# No `--follow`: the job an export becomes belongs to the workspace, and the credential that asked
+# for it belongs to the operator - so there is nothing here for this caller to poll. What says the
+# archive is finished is the archive: `checksums.txt` is written last and is the commit point
+# (tenant-export.md §8.1), which is what the loop below waits for.
+accepted="$(admin admin tenant export "$ACME_ID" --target "$ACME_TARGET")"
+expect_contains "admin tenant export" "$accepted" "JOB"
+
+ARCHIVE_DIR=""
+for _ in $(seq 1 90); do
+	rm -rf "$WORK_DIR/archives"
+	# Out of the volume and onto the host, because verifying an archive means reading its bytes:
+	# the checksums are over what is stored, and a check made through the API would be the writer
+	# marking its own work.
+	multi_compose cp app:/var/lib/hubtask/backups "$WORK_DIR/archives" > /dev/null 2>&1 || true
+	candidate="$(find "$WORK_DIR/archives" -type d -name "hubtask-export-$ACME_ID-*" | head -1)"
+	if [ -n "$candidate" ] && [ -f "$candidate/checksums.txt" ]; then
+		ARCHIVE_DIR="$candidate"
+		break
+	fi
+	sleep 2
+done
+
+if [ -z "$ARCHIVE_DIR" ]; then
+	fail "no committed export archive is lying at the target"
+	find "$WORK_DIR/archives" -maxdepth 3 -type d 2>/dev/null || true
+	multi_psql "SELECT id, kind, state, last_error FROM job ORDER BY created_at DESC LIMIT 5" || true
+else
+	# tenant-export.md §8, in the order the document gives. Step 2 is what `sha256sum -c` is: the
+	# manifest lists `<sha256>  <path>` with two spaces, which is that tool's own format, and the
+	# document says so rather than this script assuming it.
+	sha_check() {
+		if command -v sha256sum > /dev/null 2>&1; then
+			(cd "$1" && sha256sum -c checksums.txt)
+		else
+			(cd "$1" && shasum -a 256 -c checksums.txt)
+		fi
+	}
+	if ! sha_check "$ARCHIVE_DIR" > "$WORK_DIR/checksums.log" 2>&1; then
+		fail "a member of the archive does not match its digest (§8.2)"
+		cat "$WORK_DIR/checksums.log"
+	else
+		echo "the archive is committed and every member matches its digest"
+	fi
+
+	# Steps 3 to 5, which need arithmetic rather than a substring: the manifest's counts against
+	# the line counts, the media against what is actually there, and the scope the format gives
+	# teeth by omission - no record carries a tenant_id, so the archive has one workspace by
+	# construction.
+	if ! python3 scripts/verify-tenant-export.py "$ARCHIVE_DIR" "$ACME_ID"; then
+		fail "the archive does not read as the format document describes it"
+	fi
+
+	# T-20 from the outside: the other workspace's identifier appears nowhere in the bytes.
+	if grep -rqF "$OTHERS_ID" "$ARCHIVE_DIR"; then
+		fail "the other workspace's identifier is in Acme's archive"
+	fi
+fi
+
+# The stack goes now rather than at exit, so that a run which gets this far frees the ports and
+# the volumes before the summary below decides what the exit code is.
+multi_compose down -v --remove-orphans > /dev/null 2>&1 || true
 
 if [ "$failures" -ne 0 ]; then
 	echo
