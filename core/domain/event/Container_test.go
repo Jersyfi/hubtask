@@ -246,7 +246,7 @@ func TestTheContainerDeletionEventsCarryTheBatchAndTheCascade(t *testing.T) {
 		CompletionPolicy: work.CompletionManual, CreatedBy: eventAuthor, CreatedAt: occurred,
 		UpdatedAt: occurred, Version: 2,
 	}
-	deleted, _, err := trashedHub.Trashed(occurred, batch)
+	deleted, _, err := trashedHub.Trashed(occurred, batch, work.DeletedBy{Kind: shared.ActorUser})
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}

@@ -15,6 +15,14 @@ var (
 	trashedAt = time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
 	batchOne  = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
 	batchTwo  = shared.MustParseID("0192f000-0000-7000-8000-0000000000b2")
+
+	// A person deleting something, which is the ordinary case. The other one - an automation or the
+	// system, which have a kind and no account - is asserted where it matters, in the test below
+	// that walks what the stamp records.
+	byAnna = DeletedBy{
+		Kind: shared.ActorUser,
+		ID:   shared.MustParseID("0192f000-0000-7000-8000-0000000000c1"),
+	}
 )
 
 // The state machine of domain-model.md §3.4, walked edge by edge. Each case starts from a stored
@@ -48,7 +56,7 @@ func TestTheItemLifecycleWalksTheDocumentedEdges(t *testing.T) {
 		},
 		{
 			name:        "active, trashed",
-			apply:       func(i WorkItem) (WorkItem, []FieldChange, error) { return i.Trashed(trashedAt, batchOne) },
+			apply:       func(i WorkItem) (WorkItem, []FieldChange, error) { return i.Trashed(trashedAt, batchOne, byAnna) },
 			wantDeleted: true, wantBatch: batchOne, wantFields: []string{FieldDeletedAt},
 		},
 		{
@@ -56,7 +64,7 @@ func TestTheItemLifecycleWalksTheDocumentedEdges(t *testing.T) {
 			// the item rather than being lifted on the way in.
 			name:         "archived, trashed - and it stays archived",
 			archived:     &archivedEarlier,
-			apply:        func(i WorkItem) (WorkItem, []FieldChange, error) { return i.Trashed(trashedAt, batchOne) },
+			apply:        func(i WorkItem) (WorkItem, []FieldChange, error) { return i.Trashed(trashedAt, batchOne, byAnna) },
 			wantArchived: true, wantDeleted: true, wantBatch: batchOne,
 			wantFields: []string{FieldDeletedAt},
 		},
@@ -129,7 +137,7 @@ func TestTheLifecycleVerbsAreIdempotent(t *testing.T) {
 		apply func(WorkItem) (WorkItem, []FieldChange, error)
 	}{
 		{"archive", func(i WorkItem) (WorkItem, []FieldChange, error) { return i.Archived(trashedAt) }},
-		{"trash", func(i WorkItem) (WorkItem, []FieldChange, error) { return i.Trashed(trashedAt, batchOne) }},
+		{"trash", func(i WorkItem) (WorkItem, []FieldChange, error) { return i.Trashed(trashedAt, batchOne, byAnna) }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			once, _, err := test.apply(updatable(t))
@@ -171,12 +179,12 @@ func TestTheLifecycleVerbsAreIdempotent(t *testing.T) {
 // deletion. Restamping it would fold somebody else's deletion into this batch, and restoring the
 // batch would then bring back something this deletion never took.
 func TestTrashingDoesNotAdoptAnEarlierDeletion(t *testing.T) {
-	first, _, err := updatable(t).Trashed(trashedAt, batchOne)
+	first, _, err := updatable(t).Trashed(trashedAt, batchOne, byAnna)
 	if err != nil {
 		t.Fatalf("the first deletion was refused: %v", err)
 	}
 
-	second, changes, err := first.Trashed(laterOn, batchTwo)
+	second, changes, err := first.Trashed(laterOn, batchTwo, byAnna)
 	if err != nil {
 		t.Fatalf("the second deletion was refused: %v", err)
 	}
@@ -194,7 +202,7 @@ func TestTrashingDoesNotAdoptAnEarlierDeletion(t *testing.T) {
 // Restoring clears the batch as well as the stamp. A row that kept a spent batch identifier would
 // be swept back up by a restore of a deletion it is no longer part of.
 func TestRestoringClearsTheBatch(t *testing.T) {
-	trashed, _, err := updatable(t).Trashed(trashedAt, batchOne)
+	trashed, _, err := updatable(t).Trashed(trashedAt, batchOne, byAnna)
 	if err != nil {
 		t.Fatalf("the deletion was refused: %v", err)
 	}
@@ -212,11 +220,11 @@ func TestRestoringClearsTheBatch(t *testing.T) {
 // (arc42 §8.13). A missing one is this process getting it wrong, not a client - so it is an
 // internal error rather than a validation failure, and it never reaches a client as advice.
 func TestTrashingWithoutABatchIsADefect(t *testing.T) {
-	if _, _, err := updatable(t).Trashed(trashedAt, ""); !errors.Is(err, shared.ErrInternal) {
+	if _, _, err := updatable(t).Trashed(trashedAt, "", byAnna); !errors.Is(err, shared.ErrInternal) {
 		t.Errorf("a missing batch reported %v, want an internal error", err)
 	}
 	container := Container{ID: taskID, TenantID: itemTenant, Type: ContainerHub, Name: "Private"}
-	if _, _, err := container.Trashed(trashedAt, ""); !errors.Is(err, shared.ErrInternal) {
+	if _, _, err := container.Trashed(trashedAt, "", byAnna); !errors.Is(err, shared.ErrInternal) {
 		t.Errorf("a missing batch reported %v, want an internal error", err)
 	}
 }
@@ -231,7 +239,7 @@ func TestTrashingAContainerRespectsTheArchivedSubtree(t *testing.T) {
 		ID: taskID, TenantID: itemTenant, Type: ContainerCollection, ParentID: packageID,
 		Name: "Shopping", ParentArchivedAt: &archivedEarlier,
 	}
-	if _, _, err := inArchivedHub.Trashed(trashedAt, batchOne); !errors.Is(err, shared.ErrConflict) {
+	if _, _, err := inArchivedHub.Trashed(trashedAt, batchOne, byAnna); !errors.Is(err, shared.ErrConflict) {
 		t.Errorf("deleting out of an archived hub reported %v, want a conflict", err)
 	}
 
@@ -239,7 +247,7 @@ func TestTrashingAContainerRespectsTheArchivedSubtree(t *testing.T) {
 		ID: packageID, TenantID: itemTenant, Type: ContainerHub, Name: "Private",
 		ArchivedAt: &archivedEarlier,
 	}
-	trashed, _, err := archivedHub.Trashed(trashedAt, batchOne)
+	trashed, _, err := archivedHub.Trashed(trashedAt, batchOne, byAnna)
 	if err != nil {
 		t.Fatalf("deleting an archived hub was refused: %v", err)
 	}
@@ -257,12 +265,12 @@ func TestTrashingAContainerRespectsTheArchivedSubtree(t *testing.T) {
 func TestTheContainerLifecycleVerbsAreIdempotent(t *testing.T) {
 	hub := Container{ID: packageID, TenantID: itemTenant, Type: ContainerHub, Name: "Private"}
 
-	once, _, err := hub.Trashed(trashedAt, batchOne)
+	once, _, err := hub.Trashed(trashedAt, batchOne, byAnna)
 	if err != nil {
 		t.Fatalf("the first deletion was refused: %v", err)
 	}
 
-	twice, changes, err := once.Trashed(laterOn, batchTwo)
+	twice, changes, err := once.Trashed(laterOn, batchTwo, byAnna)
 	if err != nil {
 		t.Fatalf("the second deletion was refused: %v", err)
 	}
@@ -278,7 +286,7 @@ func TestTheContainerLifecycleVerbsAreIdempotent(t *testing.T) {
 func TestRestoringAContainer(t *testing.T) {
 	hub := Container{ID: packageID, TenantID: itemTenant, Type: ContainerHub, Name: "Private"}
 
-	trashed, _, err := hub.Trashed(trashedAt, batchOne)
+	trashed, _, err := hub.Trashed(trashedAt, batchOne, byAnna)
 	if err != nil {
 		t.Fatalf("the deletion was refused: %v", err)
 	}
@@ -359,5 +367,53 @@ func TestAPathReadsBackAsTheChainItEncodes(t *testing.T) {
 		if got := PathIDs(path); got != nil {
 			t.Errorf("the malformed path %q read back as %v", path, got)
 		}
+	}
+}
+
+// The stamp records who, beside when - and gives it back on the way out. The trash is the one view
+// in the product that has to say "deleted by", and the audit trail that also knows sits behind a
+// permission most members do not hold.
+func TestTheTrashStampRecordsWhoAndTheRestoreClearsThem(t *testing.T) {
+	trashed, _, err := updatable(t).Trashed(trashedAt, batchOne, byAnna)
+	if err != nil {
+		t.Fatalf("trashing: %v", err)
+	}
+	if trashed.DeletedBy != byAnna {
+		t.Errorf("the stamp records %+v, want %+v", trashed.DeletedBy, byAnna)
+	}
+
+	restored, _, err := trashed.Restored(laterOn)
+	if err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+	// Cleared with the stamp, like the batch: an actor left on a live row would say somebody
+	// deleted something that is not deleted.
+	if restored.DeletedBy.IsKnown() {
+		t.Errorf("a restored item still names %+v as having deleted it", restored.DeletedBy)
+	}
+}
+
+// An automation and the system act without an account, so the pair has to carry a kind on its own -
+// an identifier alone could not say what acted, and a kind alone is the whole truth about them.
+func TestAnActorWithoutAnAccountIsStillRecorded(t *testing.T) {
+	automation := DeletedBy{Kind: shared.ActorAutomation}
+
+	trashed, _, err := updatable(t).Trashed(trashedAt, batchOne, automation)
+	if err != nil {
+		t.Fatalf("trashing: %v", err)
+	}
+	if !trashed.DeletedBy.IsKnown() {
+		t.Error("an automation's deletion read as unrecorded, so the trash would say nobody did it")
+	}
+	if !trashed.DeletedBy.ID.IsZero() {
+		t.Errorf("an identifier was invented: %q", trashed.DeletedBy.ID)
+	}
+}
+
+// Nothing deleted before migration 0070 has either column, and the zero value is what says so - not
+// an actor of kind "", which a reader would have to know to disbelieve.
+func TestAnUnrecordedActorIsNotKnown(t *testing.T) {
+	if (DeletedBy{}).IsKnown() {
+		t.Error("the zero value claims to know who deleted something")
 	}
 }

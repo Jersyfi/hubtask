@@ -198,11 +198,22 @@ func trashEntryOutput(entry domain.TrashEntry) usecase.Output {
 		"id":             entry.ID.String(),
 		"trash_batch_id": entry.BatchID.String(),
 		"deleted_at":     entry.DeletedAt,
-		"title":          entry.Title,
-		"subtype":        entry.Subtype,
-		"hub_id":         idOrNil(entry.HubID),
-		"collection_id":  idOrNil(entry.CollectionID),
-		"parent_id":      idOrNil(entry.ParentID),
-		"version":        entry.Version,
+		// Nil where nothing was recorded, so the contract's null travels rather than an actor of
+		// kind "". A row deleted before migration 0070 was never asked who.
+		"deleted_by": func() any {
+			if !entry.DeletedBy.IsKnown() {
+				return nil
+			}
+			return usecase.Output{
+				"type": string(entry.DeletedBy.Kind),
+				"id":   idOrNil(entry.DeletedBy.ID),
+			}
+		}(),
+		"title":         entry.Title,
+		"subtype":       entry.Subtype,
+		"hub_id":        idOrNil(entry.HubID),
+		"collection_id": idOrNil(entry.CollectionID),
+		"parent_id":     idOrNil(entry.ParentID),
+		"version":       entry.Version,
 	}
 }

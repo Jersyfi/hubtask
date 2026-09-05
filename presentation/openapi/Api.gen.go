@@ -180,6 +180,33 @@ func (e ActivityEntryActorType) Valid() bool {
 	}
 }
 
+// Defines values for ActorType.
+const (
+	ActorTypeAIAGENT        ActorType = "AI_AGENT"
+	ActorTypeAUTOMATION     ActorType = "AUTOMATION"
+	ActorTypeSERVICEACCOUNT ActorType = "SERVICE_ACCOUNT"
+	ActorTypeSYSTEM         ActorType = "SYSTEM"
+	ActorTypeUSER           ActorType = "USER"
+)
+
+// Valid indicates whether the value is a known member of the ActorType enum.
+func (e ActorType) Valid() bool {
+	switch e {
+	case ActorTypeAIAGENT:
+		return true
+	case ActorTypeAUTOMATION:
+		return true
+	case ActorTypeSERVICEACCOUNT:
+		return true
+	case ActorTypeSYSTEM:
+		return true
+	case ActorTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminTenantStatus.
 const (
 	AdminTenantStatusACTIVE          AdminTenantStatus = "ACTIVE"
@@ -3029,6 +3056,16 @@ type ActivityPage struct {
 	Page PageInfo        `json:"page"`
 }
 
+// Actor Who did something. The label is not here: the account is one request away (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing they are about, so there is nothing for a copy of somebody's name to outlive.
+// An identifier is absent where an account is: an automation and the system act without one, and the kind is what says so. `ActivityEntry.actor` is the same shape written inline - it keeps its own spelling rather than being pointed here, because changing it would rename a generated type for no behavioural gain.
+type Actor struct {
+	Id   *openapi_types.UUID `json:"id"`
+	Type ActorType           `json:"type"`
+}
+
+// ActorType defines model for Actor.Type.
+type ActorType string
+
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
 	CreatedAt       time.Time          `json:"created_at"`
@@ -5809,6 +5846,9 @@ type TrashEntry struct {
 
 	// DeletedAt When it went in, and the moment the retention period runs from.
 	DeletedAt time.Time `json:"deleted_at"`
+
+	// DeletedBy Who put it there. Null for anything deleted before the columns existed: those rows were never asked who, and answering from the audit trail would be taking a fact out of a source behind a permission most members do not hold - which is the whole reason this field is on the projection rather than left to a client to join.
+	DeletedBy *Actor `json:"deleted_by"`
 
 	// HubId The hub it sits under. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes containers and entries by design, so a field that appeared only for some rows would be one a client could not read unconditionally.
 	HubId *openapi_types.UUID `json:"hub_id"`

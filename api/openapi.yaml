@@ -5974,6 +5974,24 @@ components:
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
 
+    Actor:
+      type: object
+      description: >
+        Who did something. The label is not here: the account is one request away
+        (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing
+        they are about, so there is nothing for a copy of somebody's name to outlive.
+
+        An identifier is absent where an account is: an automation and the system act without one,
+        and the kind is what says so. `ActivityEntry.actor` is the same shape written inline - it
+        keeps its own spelling rather than being pointed here, because changing it would rename a
+        generated type for no behavioural gain.
+      required: [type, id]
+      properties:
+        type:
+          type: string
+          enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM]
+        id: { type: [string, "null"], format: uuid }
+
     AccountSummary:
       type: object
       description: >
@@ -9593,7 +9611,8 @@ components:
         view shows and what restoring it needs, and reading the entry back in full is a second
         request to the object's own endpoint.
       required:
-        [kind, id, trash_batch_id, deleted_at, title, subtype, hub_id, collection_id, parent_id, version]
+        [kind, id, trash_batch_id, deleted_at, deleted_by, title, subtype, hub_id, collection_id,
+         parent_id, version]
       properties:
         kind:
           type: string
@@ -9610,6 +9629,15 @@ components:
           type: string
           format: date-time
           description: When it went in, and the moment the retention period runs from.
+        deleted_by:
+          oneOf:
+            - $ref: "#/components/schemas/Actor"
+            - type: "null"
+          description: >
+            Who put it there. Null for anything deleted before the columns existed: those rows were
+            never asked who, and answering from the audit trail would be taking a fact out of a
+            source behind a permission most members do not hold - which is the whole reason this
+            field is on the projection rather than left to a client to join.
         title:
           type: string
           description: The container's name or the entry's title.

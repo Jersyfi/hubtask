@@ -97,6 +97,31 @@ func (r ItemRepository) RestoreBatch(ctx context.Context, restore repository.Ite
 // moveThroughTheTrash is the two directions in one implementation. They differ in the stamp being
 // written and in what the second statement selects on - a path on the way in, a batch on the way
 // out - and in nothing else, and two copies of the version handling is two places for it to drift.
+// actorColumns is the pair the two trash tables carry, in the driver's nullable shapes. Both are
+// left empty on the way out of the trash, which is what clears them with the stamp.
+type actorColumns struct {
+	kind *string
+	id   pgtype.UUID
+}
+
+// deletedByColumns maps the domain's actor onto them. An unknown actor writes nothing rather than
+// an empty string: "nobody recorded it" and "recorded as nothing" are different, and only the first
+// is true of a row deleted before migration 0070.
+func deletedByColumns(by work.DeletedBy) actorColumns {
+	if !by.IsKnown() {
+		return actorColumns{}
+	}
+	kind := string(by.Kind)
+	columns := actorColumns{kind: &kind}
+	// The identifier is genuinely absent for an automation and for the system, and a parse failure
+	// on an identifier the domain produced would be a defect rather than input - so an unusable one
+	// leaves the column null and the kind still says what acted.
+	if id, err := uuidOf(by.ID); err == nil {
+		columns.id = id
+	}
+	return columns
+}
+
 func (r ItemRepository) moveThroughTheTrash(
 	ctx context.Context, trash repository.ItemTrash, entering bool,
 ) (int, error) {
@@ -115,6 +140,7 @@ func (r ItemRepository) moveThroughTheTrash(
 
 	deletedAt := pgtype.Timestamptz{}
 	batchColumn := pgtype.UUID{}
+	by := actorColumns{}
 	if entering {
 		if trash.Item.DeletedAt == nil {
 			// The domain stamps the row before it gets here. A row without the stamp would clear
@@ -123,11 +149,14 @@ func (r ItemRepository) moveThroughTheTrash(
 		}
 		deletedAt = timestampOf(*trash.Item.DeletedAt)
 		batchColumn = batch
+		by = deletedByColumns(trash.Item.DeletedBy)
 	}
 
 	affected, err := queries.SetWorkItemTrashed(ctx, sqlc.SetWorkItemTrashedParams{
 		DeletedAt:       deletedAt,
 		TrashBatchID:    batchColumn,
+		DeletedByType:   by.kind,
+		DeletedByID:     by.id,
 		UpdatedAt:       timestampOf(trash.Item.UpdatedAt),
 		ID:              id,
 		ExpectedVersion: versionColumn(trash.ExpectedVersion),
@@ -144,11 +173,13 @@ func (r ItemRepository) moveThroughTheTrash(
 	var rest int64
 	if entering {
 		rest, err = queries.TrashWorkItemDescendants(ctx, sqlc.TrashWorkItemDescendantsParams{
-			DeletedAt:    deletedAt,
-			TrashBatchID: batch,
-			UpdatedAt:    timestampOf(trash.Item.UpdatedAt),
-			Prefix:       trash.Prefix,
-			ItemID:       id,
+			DeletedAt:     deletedAt,
+			TrashBatchID:  batch,
+			DeletedByType: by.kind,
+			DeletedByID:   by.id,
+			UpdatedAt:     timestampOf(trash.Item.UpdatedAt),
+			Prefix:        trash.Prefix,
+			ItemID:        id,
 		})
 	} else {
 		rest, err = queries.RestoreWorkItemBatch(ctx, sqlc.RestoreWorkItemBatchParams{
@@ -197,12 +228,14 @@ func (r ContainerRepository) moveThroughTheTrash(
 
 	deletedAt := pgtype.Timestamptz{}
 	batchColumn := pgtype.UUID{}
+	by := actorColumns{}
 	if entering {
 		if trash.Container.DeletedAt == nil {
 			return repository.Cascade{}, shared.ErrInternal.
 				WithDetail("containers.trash_stamp_missing")
 		}
 		deletedAt = timestampOf(*trash.Container.DeletedAt)
+		by = deletedByColumns(trash.Container.DeletedBy)
 		batchColumn = batch
 	}
 	updatedAt := timestampOf(trash.Container.UpdatedAt)
@@ -210,6 +243,8 @@ func (r ContainerRepository) moveThroughTheTrash(
 	affected, err := queries.SetContainerTrashed(ctx, sqlc.SetContainerTrashedParams{
 		DeletedAt:       deletedAt,
 		TrashBatchID:    batchColumn,
+		DeletedByType:   by.kind,
+		DeletedByID:     by.id,
 		UpdatedAt:       updatedAt,
 		ID:              id,
 		ExpectedVersion: versionColumn(trash.ExpectedVersion),
@@ -229,7 +264,8 @@ func (r ContainerRepository) moveThroughTheTrash(
 		covered = []pgtype.UUID{id}
 	case entering:
 		covered, err = queries.TrashCollectionsOfHub(ctx, sqlc.TrashCollectionsOfHubParams{
-			DeletedAt: deletedAt, TrashBatchID: batch, UpdatedAt: updatedAt, HubID: id,
+			DeletedAt: deletedAt, TrashBatchID: batch, DeletedByType: by.kind, DeletedByID: by.id,
+			UpdatedAt: updatedAt, HubID: id,
 		})
 	default:
 		covered, err = queries.RestoreContainerBatch(ctx, sqlc.RestoreContainerBatchParams{
@@ -245,7 +281,8 @@ func (r ContainerRepository) moveThroughTheTrash(
 	var items int64
 	if entering {
 		items, err = queries.TrashItemsOfCollections(ctx, sqlc.TrashItemsOfCollectionsParams{
-			DeletedAt: deletedAt, TrashBatchID: batch, UpdatedAt: updatedAt, CollectionIds: covered,
+			DeletedAt: deletedAt, TrashBatchID: batch, DeletedByType: by.kind, DeletedByID: by.id,
+			UpdatedAt: updatedAt, CollectionIds: covered,
 		})
 	} else {
 		// On the way out the batch is the selector rather than the collections: an item trashed
@@ -436,11 +473,24 @@ func trashEntryFrom(row sqlc.ListTrashRow) (work.TrashEntry, error) {
 		return work.TrashEntry{}, shared.ErrInternal.WithDetail("postgres.row_incoherent")
 	}
 
+	// Absent rather than an error where nothing was recorded: everything trashed before migration
+	// 0070 has neither column, and a projection that refused those rows would empty the trash
+	// screen for the sake of a field the rows never had.
+	deletedBy := work.DeletedBy{}
+	if row.DeletedByType != nil {
+		actorID, err := optionalID(row.DeletedByID)
+		if err != nil {
+			return work.TrashEntry{}, err
+		}
+		deletedBy = work.DeletedBy{Kind: shared.ActorKind(*row.DeletedByType), ID: actorID}
+	}
+
 	return work.TrashEntry{
 		Kind:         work.TrashKind(row.Kind),
 		ID:           id,
 		BatchID:      batch,
 		DeletedAt:    row.DeletedAt.Time,
+		DeletedBy:    deletedBy,
 		Title:        row.Title,
 		Subtype:      row.Subtype,
 		HubID:        hub,

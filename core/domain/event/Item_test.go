@@ -463,7 +463,7 @@ func TestTheLifecyclePayloadsCarryBothStampsAndTheBatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
-	trashed, _, err := archived.Trashed(occurred, batch)
+	trashed, _, err := archived.Trashed(occurred, batch, work.DeletedBy{Kind: shared.ActorUser})
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
@@ -544,7 +544,7 @@ func TestALifecycleEventRefusesAnItemThatContradictsIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
-	trashed, _, err := task().Trashed(occurred, batch)
+	trashed, _, err := task().Trashed(occurred, batch, work.DeletedBy{Kind: shared.ActorUser})
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}

@@ -168,7 +168,7 @@ func (w ContainerWriter) moveThroughTheTrash(
 			batch = w.IDs.NewID()
 		}
 
-		wanted, changes, err := container.Trashed(now, batch)
+		wanted, changes, err := container.Trashed(now, batch, deletedBy(actor))
 		if !verb.entering {
 			wanted, changes, err = container.Restored(now)
 		}

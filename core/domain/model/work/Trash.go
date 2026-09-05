@@ -41,6 +41,14 @@ type TrashEntry struct {
 	// DeletedAt is when it went in, and the anchor the retention period runs from
 	// (data-retention.md §3).
 	DeletedAt time.Time
+	// DeletedBy is who put it there. What the view shows, which is what this projection carries -
+	// the audit trail has the same fact behind a permission most members do not hold, and a trash
+	// screen that had to ask for AUDIT_READ to name a person would name nobody.
+	//
+	// Unknown for everything deleted before migration 0070, permanently: those rows were never
+	// asked who, and reading it out of the audit trail afterwards would be taking a fact from a
+	// source with a different permission.
+	DeletedBy DeletedBy
 	// Title is the container's name or the item's title. User content, so it goes to the client and
 	// never into a log, a metric or an audit entry (rule 10).
 	Title string

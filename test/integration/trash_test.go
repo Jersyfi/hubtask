@@ -28,6 +28,13 @@ import (
 var (
 	deletedAt  = created.Add(2 * time.Hour)
 	restoredAt = created.Add(3 * time.Hour)
+
+	// Who did the deleting, for the stamp migration 0070 added. A person rather than an automation,
+	// because that is the case the trash screen exists to show.
+	deletedByUser = work.DeletedBy{
+		Kind: shared.ActorUser,
+		ID:   shared.MustParseID("0192f000-0000-7000-8000-0000000000e1"),
+	}
 )
 
 func trashRepo() postgres.TrashRepository { return postgres.NewTrashRepository(pageCursors()) }
@@ -74,7 +81,7 @@ func trashItem(
 ) int {
 	t.Helper()
 
-	stamped, _, err := item.Trashed(at, batch)
+	stamped, _, err := item.Trashed(at, batch, deletedByUser)
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
@@ -176,7 +183,7 @@ func TestTrashingAHubTakesItsCollectionsAndTheirEntries(t *testing.T) {
 	batch := freshID(t)
 
 	hub := findContainer(ctx, t, tenantA, hubID)
-	stamped, _, err := hub.Trashed(deletedAt, batch)
+	stamped, _, err := hub.Trashed(deletedAt, batch, deletedByUser)
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
@@ -216,7 +223,7 @@ func TestRestoringAHubBringsBackItsCollectionsAndTheirEntries(t *testing.T) {
 	batch := freshID(t)
 
 	hub := findContainer(ctx, t, tenantA, hubID)
-	stamped, _, err := hub.Trashed(deletedAt, batch)
+	stamped, _, err := hub.Trashed(deletedAt, batch, deletedByUser)
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
@@ -273,7 +280,7 @@ func TestTheTrashListsTheRootOfEachDeletionOnce(t *testing.T) {
 
 	hubBatch := freshID(t)
 	hub := findContainer(ctx, t, tenantA, hubID)
-	stamped, _, err := hub.Trashed(deletedAt, hubBatch)
+	stamped, _, err := hub.Trashed(deletedAt, hubBatch, deletedByUser)
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
@@ -466,12 +473,12 @@ func TestNoTenantsTrashReachesAnother(t *testing.T) {
 	task, _, _ := trashableSubtree(ctx, t, tenantA, authorA, collectionID)
 	batch := freshID(t)
 
-	stampedItem, _, err := task.Trashed(deletedAt, batch)
+	stampedItem, _, err := task.Trashed(deletedAt, batch, deletedByUser)
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
 	hub := findContainer(ctx, t, tenantA, hubID)
-	stampedHub, _, err := hub.Trashed(deletedAt, batch)
+	stampedHub, _, err := hub.Trashed(deletedAt, batch, deletedByUser)
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
