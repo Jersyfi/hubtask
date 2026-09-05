@@ -108,6 +108,51 @@ func (e AccountPreferencesWeekStart) Valid() bool {
 	}
 }
 
+// Defines values for AccountSummaryKind.
+const (
+	AccountSummaryKindSERVICEACCOUNT AccountSummaryKind = "SERVICE_ACCOUNT"
+	AccountSummaryKindUSER           AccountSummaryKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the AccountSummaryKind enum.
+func (e AccountSummaryKind) Valid() bool {
+	switch e {
+	case AccountSummaryKindSERVICEACCOUNT:
+		return true
+	case AccountSummaryKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountSummaryStatus.
+const (
+	AccountSummaryStatusACTIVE     AccountSummaryStatus = "ACTIVE"
+	AccountSummaryStatusANONYMIZED AccountSummaryStatus = "ANONYMIZED"
+	AccountSummaryStatusDISABLED   AccountSummaryStatus = "DISABLED"
+	AccountSummaryStatusINVITED    AccountSummaryStatus = "INVITED"
+	AccountSummaryStatusRESTRICTED AccountSummaryStatus = "RESTRICTED"
+)
+
+// Valid indicates whether the value is a known member of the AccountSummaryStatus enum.
+func (e AccountSummaryStatus) Valid() bool {
+	switch e {
+	case AccountSummaryStatusACTIVE:
+		return true
+	case AccountSummaryStatusANONYMIZED:
+		return true
+	case AccountSummaryStatusDISABLED:
+		return true
+	case AccountSummaryStatusINVITED:
+		return true
+	case AccountSummaryStatusRESTRICTED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ActivityEntryActorType.
 const (
 	ActivityEntryActorTypeAIAGENT        ActivityEntryActorType = "AI_AGENT"
@@ -2941,6 +2986,21 @@ type AccountPreferences struct {
 
 // AccountPreferencesWeekStart defines model for AccountPreferences.WeekStart.
 type AccountPreferencesWeekStart string
+
+// AccountSummary An account as another member of the same tenant may see it: enough to render a name where a record carries an identifier, and nothing else. Deliberately not `Account` - that carries the email and the caller's own preferences, which are a different permission (data-protection.md §9, §3).
+type AccountSummary struct {
+	// DisplayName An erased account carries the marker its erasure wrote here, so a reader sees that somebody acted without learning who they were.
+	DisplayName string               `json:"display_name"`
+	Id          openapi_types.UUID   `json:"id"`
+	Kind        AccountSummaryKind   `json:"kind"`
+	Status      AccountSummaryStatus `json:"status"`
+}
+
+// AccountSummaryKind defines model for AccountSummary.Kind.
+type AccountSummaryKind string
+
+// AccountSummaryStatus defines model for AccountSummary.Status.
+type AccountSummaryStatus string
 
 // ActivityEntry One step of an entry's history. Append-only: nothing edits one, and what removes one is the deletion of the entry it belongs to.
 type ActivityEntry struct {
@@ -7267,6 +7327,9 @@ type ServerInterface interface {
 	// GetOwnAccount The account the caller is signed in as
 	// (GET /accounts/me)
 	GetOwnAccount(w http.ResponseWriter, r *http.Request)
+	// GetAccount The name behind an account identifier
+	// (GET /accounts/{accountId})
+	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -7889,6 +7952,32 @@ func (siw *ServerInterfaceWrapper) GetOwnAccount(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetOwnAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAccount operation middleware
+func (siw *ServerInterfaceWrapper) GetAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAccount(w, r, accountId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15774,6 +15863,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invite", wrapper.InviteAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions", wrapper.RevokeAllSessions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sessions", wrapper.ListSessions)
