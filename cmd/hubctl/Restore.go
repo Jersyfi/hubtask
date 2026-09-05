@@ -31,6 +31,11 @@ func restoreGroup() group {
 				usage:   "--target <id> --archive <path> --mode NEW_TENANT|MERGE|SELECTIVE|REPLACE_TENANT|INSTANCE [--apply]",
 				summary: "restore, as a dry run unless --apply is given; a destructive mode proves you again",
 				run:     restoreRun,
+				// It follows the job it starts, and a restore of a real workspace - with the
+				// safety copy a destructive mode takes first - outlives any sane `--timeout`.
+				// `--wait` is the dial for it, and without this the command's own deadline
+				// silently capped it at thirty seconds.
+				waits: true,
 			},
 			{
 				name:    "show",

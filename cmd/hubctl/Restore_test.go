@@ -213,3 +213,19 @@ func TestARestoreThatFailedFailsTheCommand(t *testing.T) {
 		t.Error("the failure was not reported at all")
 	}
 }
+
+// `--wait` is the dial for a restore, and it has to be the one that decides: the command follows
+// the job it starts, and a restore of a real workspace - with the safety copy a destructive mode
+// takes first - outlives any sane `--timeout`.
+func TestARestoreIsBoundedByItsWaitRatherThanByOneCallsTimeout(t *testing.T) {
+	for _, g := range groups() {
+		if g.name != "restore" {
+			continue
+		}
+		for _, c := range g.commands {
+			if c.name == "run" && !c.waits {
+				t.Error("restore run is capped by --timeout, so --wait cannot extend it")
+			}
+		}
+	}
+}
