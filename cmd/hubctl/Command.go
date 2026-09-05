@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -59,6 +60,11 @@ type CLI struct {
 	ProfilePath string
 	Profile     Profile
 	Catalogue   i18n.Catalogue
+
+	// lines reads standard input a line at a time, for the prompts a sign-in makes. Held on the
+	// invocation because a two-step sign-in asks twice and a fresh reader would lose whatever the
+	// first question buffered past its own line.
+	lines *bufio.Reader
 
 	// JSON switches the output from a table for a person to the API's own payload for a pipe.
 	JSON bool
@@ -117,10 +123,10 @@ var errHelpRequested = errors.New("help requested")
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
 	return []group{
-		authGroup(), tokenGroup(), serviceAccountGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
+		loginGroup(), authGroup(), sessionGroup(), mfaGroup(), stepUpGroup(), tokenGroup(), serviceAccountGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
 		templateGroup(), viewGroup(), calendarGroup(), commentGroup(), fieldGroup(), mediaGroup(),
 		trashGroup(), searchGroup(), watchGroup(), jobGroup(), backupGroup(), restoreGroup(), retentionGroup(), holdGroup(), auditGroup(), dsrGroup(),
-		ruleGroup(), webhookGroup(), jumbleGroup(), eventsGroup(),
+		ruleGroup(), webhookGroup(), jumbleGroup(), eventsGroup(), oauthGroup(), quotaGroup(), adminGroup(),
 	}
 }
 
@@ -161,6 +167,9 @@ func Run(ctx context.Context, args []string, streams Streams, env func(string) s
 	if err := prepare(cli, flagURL); err != nil {
 		return report(streams.Err, err)
 	}
+	// Before the command rather than inside it: the rotation retires the presented refresh token
+	// as it mints the next one, so exactly one renewal may be in flight (see renewSession).
+	cli.renewSession(ctx)
 	if err := dispatch(ctx, cli, rest); err != nil {
 		return report(streams.Err, err)
 	}
@@ -266,7 +275,11 @@ Flags:
 
 Environment:
   HUBTASK_URL        the installation, as --url
-  HUBTASK_TOKEN      the personal access token, overriding the stored one
+  HUBTASK_TOKEN      the personal access token, overriding the stored credential
+  HUBTASK_PASSWORD   the password a sign-in or a step-up asks for, instead of a prompt
+  HUBTASK_TOTP       the authenticator's current code, instead of a prompt
+  HUBTASK_STEP_UP    a proof from 'hubctl step-up', for a command that cannot mint one
+  HUBTASK_TENANT     the workspace, where an installation runs more than one
   HUBTASK_PROFILE    where the profile is stored
 
 Commands:

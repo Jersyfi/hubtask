@@ -73,6 +73,12 @@ services:
       # Backup target: the default is a local volume. Further targets are configured in the
       # application, not here (see docs/architecture/backup-restore.md).
       HUBTASK_BACKUP_LOCAL_PATH: /var/lib/hubtask/backups
+      # Whether a workspace may configure a target of its own in provider operation
+      # (backup-restore.md §2). Off by default, because a target is an egress channel and one a
+      # customer chose is one the operator did not - the same shape as the tenancy mode above,
+      # and passed through here for the same reason: the end-to-end session overrides it, and a
+      # workspace that can name no target can neither back itself up nor be exported.
+      HUBTASK_BACKUP_TENANT_TARGETS: ${HUBTASK_BACKUP_TENANT_TARGETS:-false}
     volumes:
       - media:/var/lib/hubtask/media
       - backups:/var/lib/hubtask/backups

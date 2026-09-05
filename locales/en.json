@@ -1081,6 +1081,8 @@
   "app.entries.add": "Add an entry",
   "app.entries.add_child": "Add something inside {title}",
   "app.entries.new_title": "Title",
+  "app.entries.notes": "Notes",
+  "app.entries.edit": "Edit",
   "app.entries.create": "Create",
   "app.board.title": "Board",
   "app.board.no_buckets": "No columns in this collection yet. A column is a step the entries move through.",

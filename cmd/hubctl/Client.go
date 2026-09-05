@@ -61,6 +61,11 @@ type Client struct {
 	// deliberately does not know about streams (nothing in core consumes one).
 	transport *httpclient.GuardedClient
 	catalogue i18n.Catalogue
+	// tenant is the workspace header, when this shell talks to an installation running more than
+	// one. It confirms the resolution the credential already carries and never overrules it
+	// (multi-tenancy.md §3), which is why sending it on every call is safe - and why a sign-in,
+	// which has no credential yet, cannot resolve a workspace without it.
+	tenant string
 
 	// Notice reports something the user should know that is not the answer - so far, that a call
 	// is waiting out a rate limit. Optional: nil says nothing.
@@ -76,12 +81,32 @@ type Client struct {
 // the server's answer when the problem is on their own machine.
 func NewClient(profile Profile, catalogue i18n.Catalogue, timeout time.Duration) (*Client, error) {
 	if profile.BaseURL == "" {
-		return nil, errors.New("no installation to talk to: run `hubctl auth login --url ...`, or set " + envURL)
+		return nil, errors.New("no installation to talk to: run `hubctl login --url ...`, or set " + envURL)
 	}
-	if profile.Token.IsEmpty() {
-		return nil, errors.New("not signed in: run `hubctl auth login`, or set " + envToken)
+	if profile.Credential().IsEmpty() {
+		return nil, errors.New(
+			"not signed in: run `hubctl login`, or `hubctl auth login` with a personal access token, or set " + envToken)
 	}
 
+	return newClient(profile, catalogue, timeout), nil
+}
+
+// NewAnonymousClient builds the client for the routes that carry no credential: the sign-in, its
+// second step, the refresh, the token exchange.
+//
+// They are public by contract, and a credential presented beside the body would not be ignored -
+// "a credential that was presented is always verified, even on a public route" (presentation/rest,
+// Auth.go). So a refresh whose access token has just run out would be refused by the very
+// expiry it exists to repair, which is precisely the call it has to survive.
+func NewAnonymousClient(profile Profile, catalogue i18n.Catalogue, timeout time.Duration) (*Client, error) {
+	if profile.BaseURL == "" {
+		return nil, errors.New("no installation to talk to: run `hubctl login --url ...`, or set " + envURL)
+	}
+	profile.Token, profile.Session = secret.Secret{}, Session{}
+	return newClient(profile, catalogue, timeout), nil
+}
+
+func newClient(profile Profile, catalogue i18n.Catalogue, timeout time.Duration) *Client {
 	cfg := env.OutboundConfig{
 		Timeout:          timeout,
 		ConnectTimeout:   min(connectTimeout, timeout),
@@ -92,12 +117,30 @@ func NewClient(profile Profile, catalogue i18n.Catalogue, timeout time.Duration)
 	}
 	return &Client{
 		base:      profile.BaseURL + APIPath,
-		token:     profile.Token,
+		token:     profile.Credential(),
+		tenant:    profile.Tenant,
 		transport: httpclient.NewGuardedClient(cfg, httpclient.NewGuard(cfg)),
 		catalogue: catalogue,
 		sleep:     waitOrGiveUp,
-	}, nil
+	}
 }
+
+// identify puts the credential and the workspace on a request. An empty credential sends no
+// header at all, which is what makes the anonymous client anonymous rather than a client with an
+// empty bearer - a header the server would try to verify and refuse.
+func (c *Client) identify(header map[string][]string) {
+	if !c.token.IsEmpty() {
+		header["Authorization"] = []string{"Bearer " + c.token.Reveal()}
+	}
+	if c.tenant != "" {
+		header[restTenantHeader] = []string{c.tenant}
+	}
+}
+
+// restTenantHeader is §3's third source of tenant resolution, spelled here rather than imported:
+// a header name is part of the published contract (api/openapi.yaml, X-Hubtask-Tenant), and this
+// binary reads the contract rather than the server's package.
+const restTenantHeader = "X-Hubtask-Tenant"
 
 // Get calls an operation and decodes its answer into `into`, which may be nil.
 func (c *Client) Get(ctx context.Context, path string, query url.Values, into any) error {
@@ -108,6 +151,14 @@ func (c *Client) Get(ctx context.Context, path string, query url.Values, into an
 // optional request body expect.
 func (c *Client) Post(ctx context.Context, path string, body, into any) error {
 	return c.call(ctx, http.MethodPost, path, nil, body, nil, into)
+}
+
+// PostWithHeader posts with the headers an operation's own parameters declare - so far the
+// step-up proof, which several privileged acts take there rather than in the body.
+func (c *Client) PostWithHeader(
+	ctx context.Context, path string, body any, header map[string][]string, into any,
+) error {
+	return c.call(ctx, http.MethodPost, path, nil, body, header, into)
 }
 
 // Patch moves part of a resource, which is what the cases of this API that have a state machine
@@ -145,11 +196,11 @@ func (c *Client) OpenStream(ctx context.Context, lastEventID string) (httpclient
 		URL:         c.base + streamPath,
 		TargetClass: "hubtask-api",
 		Header: map[string][]string{
-			"Accept":        {"text/event-stream"},
-			"Authorization": {"Bearer " + c.token.Reveal()},
-			"User-Agent":    {"hubctl/" + version},
+			"Accept":     {"text/event-stream"},
+			"User-Agent": {"hubctl/" + version},
 		},
 	}
+	c.identify(request.Header)
 	if lastEventID != "" {
 		request.Header["Last-Event-ID"] = []string{lastEventID}
 	}
@@ -205,6 +256,36 @@ func (c *Client) call(
 	ctx context.Context, method, path string, query url.Values, body any,
 	header map[string][]string, into any,
 ) error {
+	_, answer, err := c.exchange(ctx, method, path, query, body, header)
+	if err != nil {
+		return err
+	}
+	if into == nil || len(answer) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(answer, into); err != nil {
+		return fmt.Errorf("the installation answered with something that is not the documented payload: %w", err)
+	}
+	return nil
+}
+
+// PostStatus posts and hands back the status beside the bytes, for the operations whose two
+// successful answers are two different documents.
+//
+// The sign-in is the reason it exists: `201` is a session and `202` is the second step it owes
+// (H-02), and nothing in either body reliably says which - a client that guessed by looking for a
+// field would be inventing a contract the specification does not make. The status is the
+// contract, so the status is what the caller gets.
+func (c *Client) PostStatus(ctx context.Context, path string, body any) (int, []byte, error) {
+	return c.exchange(ctx, http.MethodPost, path, nil, body, nil)
+}
+
+// exchange makes one call and turns a refusal into an error. What comes back is the status and
+// the bytes; making sense of them is the caller's.
+func (c *Client) exchange(
+	ctx context.Context, method, path string, query url.Values, body any,
+	header map[string][]string,
+) (int, []byte, error) {
 	target := c.base + path
 	if len(query) > 0 {
 		target += "?" + query.Encode()
@@ -215,18 +296,18 @@ func (c *Client) call(
 		URL:         target,
 		TargetClass: "hubtask-api",
 		Header: map[string][]string{
-			"Accept":        {"application/json, application/problem+json"},
-			"Authorization": {"Bearer " + c.token.Reveal()},
-			"User-Agent":    {"hubctl/" + version},
+			"Accept":     {"application/json, application/problem+json"},
+			"User-Agent": {"hubctl/" + version},
 		},
 	}
+	c.identify(request.Header)
 	for name, values := range header {
 		request.Header[name] = values
 	}
 	if body != nil {
 		encoded, err := json.Marshal(body)
 		if err != nil {
-			return fmt.Errorf("building the request: %w", err)
+			return 0, nil, fmt.Errorf("building the request: %w", err)
 		}
 		request.Body = encoded
 		request.Header["Content-Type"] = []string{"application/json"}
@@ -234,18 +315,12 @@ func (c *Client) call(
 
 	response, err := c.send(ctx, request)
 	if err != nil {
-		return err
+		return 0, nil, err
 	}
 	if response.Status >= http.StatusBadRequest {
-		return c.problem(response)
+		return response.Status, nil, c.problem(response)
 	}
-	if into == nil || len(response.Body) == 0 {
-		return nil
-	}
-	if err := json.Unmarshal(response.Body, into); err != nil {
-		return fmt.Errorf("the installation answered with something that is not the documented payload: %w", err)
-	}
-	return nil
+	return response.Status, response.Body, nil
 }
 
 // Download posts a request whose answer is a file rather than a payload, and hands the bytes back
@@ -260,18 +335,20 @@ func (c *Client) Download(ctx context.Context, path string, body any) ([]byte, b
 		return nil, false, fmt.Errorf("building the request: %w", err)
 	}
 
-	response, err := c.send(ctx, port.Request{
+	request := port.Request{
 		Method:      http.MethodPost,
 		URL:         c.base + path,
 		TargetClass: "hubtask-api",
 		Header: map[string][]string{
-			"Accept":        {"text/csv, application/json, text/calendar, application/problem+json"},
-			"Content-Type":  {"application/json"},
-			"Authorization": {"Bearer " + c.token.Reveal()},
-			"User-Agent":    {"hubctl/" + version},
+			"Accept":       {"text/csv, application/json, text/calendar, application/problem+json"},
+			"Content-Type": {"application/json"},
+			"User-Agent":   {"hubctl/" + version},
 		},
 		Body: encoded,
-	})
+	}
+	c.identify(request.Header)
+
+	response, err := c.send(ctx, request)
 	if err != nil {
 		return nil, false, err
 	}
