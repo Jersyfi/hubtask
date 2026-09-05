@@ -47,6 +47,11 @@ func (pending) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+// GetAccount is overridden by RestController, for the reason given at CreateContainer.
+func (pending) GetAccount(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
 func (pending) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)
 }
