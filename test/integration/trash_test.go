@@ -323,6 +323,17 @@ func TestTheTrashListsTheRootOfEachDeletionOnce(t *testing.T) {
 	if page.Entries[0].DeletedAt.Before(page.Entries[1].DeletedAt) {
 		t.Error("the trash is not ordered newest deletion first")
 	}
+
+	// Who, beside when (0070). Asserted here rather than only in the domain, because this is the
+	// only level at which a column that is written and never read - or read and never written -
+	// looks like a working feature everywhere else.
+	entry, listed := roots[hubID]
+	if !listed {
+		t.Fatal("the deleted hub is not in the trash")
+	}
+	if entry.DeletedBy != deletedByUser {
+		t.Errorf("the trash says %+v deleted the hub, want %+v", entry.DeletedBy, deletedByUser)
+	}
 }
 
 // The keyset walks the whole trash exactly once, with no row seen twice and none skipped - the

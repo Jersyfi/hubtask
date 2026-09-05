@@ -23,8 +23,19 @@
 -- Expand only: two nullable columns on two tables. No rewrite, no lock beyond the catalogue
 -- update, and a running instance of the previous version neither writes nor reads them.
 
+-- +goose Up
+
 ALTER TABLE container ADD COLUMN IF NOT EXISTS deleted_by_type text;
 ALTER TABLE container ADD COLUMN IF NOT EXISTS deleted_by_id uuid;
 
 ALTER TABLE work_item ADD COLUMN IF NOT EXISTS deleted_by_type text;
 ALTER TABLE work_item ADD COLUMN IF NOT EXISTS deleted_by_id uuid;
+
+-- +goose Down
+-- +goose StatementBegin
+DO $forward_only$
+BEGIN
+  RAISE EXCEPTION 'migrations are forward-only (CLAUDE.md rule 12); recovery is a restore, not a down migration'
+    USING ERRCODE = 'feature_not_supported';
+END $forward_only$;
+-- +goose StatementEnd
