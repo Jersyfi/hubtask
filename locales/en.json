@@ -1126,7 +1126,6 @@
   "app.sign_out": "Sign out",
   "app.signed_in_as": "Signed in as {name}",
   "app.nav.installation": "This installation",
-  "app.home.empty": "There is nothing here yet. The first views arrive with hubs and collections.",
   "app.maturity.experimental.title": "Hubtask is experimental",
   "app.maturity.experimental.body": "Screens appear, move and disappear without notice, and nothing here is a commitment yet.",
   "app.maturity.preview.title": "Hubtask is a preview",
