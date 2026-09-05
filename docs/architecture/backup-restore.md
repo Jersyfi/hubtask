@@ -298,8 +298,8 @@ Four things E-06 had to decide about the table above:
   because the order within an entity is by change time and a sub-collection can be written before
   its hub.
 * **`INSTANCE` has nothing to restore yet, and is refused rather than approximated.** No archive
-  this build writes has an instance-wide scope — B-2 leaves system backups to the operator until
-  `0.6.0` — so the mode is accepted, the archive's manifest is read, and the scope check refuses it.
+  this build writes has an instance-wide scope — B-2 is answered, and it leaves system backups to the
+  operator (ADR-0046) — so the mode is accepted, the archive's manifest is read, and the scope check refuses it.
   The day an instance-wide archive exists the mode works without anything changing shape.
 
 ### 8.3 The procedure
@@ -443,7 +443,7 @@ encryption, target, manifest, listing, restore.
 | # | Point | Needed by |
 |---|---|---|
 | B-1 | Whether `rclone` goes into the image (size, and its GPL-3.0 licence — check distribution alongside BSL) | `0.5.0` |
-| B-2 | Whether system backups (PITR) are orchestrated by Hubtask or left to the operator | `0.6.0` |
-| B-3 | Retention protection against ransomware (recommend object lock as mandatory?) | `0.6.0` |
+| B-2 | ~~Whether system backups (PITR) are orchestrated by Hubtask or left to the operator~~ — **left to the operator** ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), H-10). An application cannot back up the database it has to be running to reach, and it is least able to precisely when it is most needed. In production that operator is CloudNativePG: continuous WAL archiving from the `Cluster` resource ([`deploy/production/postgres.yaml`](../../deploy/production/postgres.yaml)), with the platform's volume snapshots as a second net for what is not a database. So the `INSTANCE` restore scope stays refused — which is what the code has been doing all along — and Hubtask keeps the tenant-scoped archive backups this document describes, because those are a different promise to a different party | Closed (H-10) |
+| B-3 | ~~Retention protection against ransomware (recommend object lock as mandatory?)~~ — **required** for the system backup target, **recommended** for a tenant's own (ADR-0046, H-10), with the two conditions without which it is theatre. The credential that writes backups must not be able to delete them or shorten their retention: a lock a compromised writer can lift protects against accidents only, which is not what the threat is. And the lock retention **equals** P-5's 35 days: longer and the generation plan's own cleanup fails against the lock, shorter and the promise in [data-protection.md](./data-protection.md) §12 is not kept by the storage that has to keep it. A tenant enabling it on its own target owes itself the same arithmetic, which is why the recommendation carries the numbers rather than the word | Closed (H-10) |
 | B-4 | The scope of the trial restore in the default schedule | `0.9.0` |
 | B-5 | What a restore owes connected devices. It writes rows without change log entries, so a device that was offline through one keeps a cursor that is still valid and will never be told what changed (E-06, [offline-sync.md](./offline-sync.md) §8). The candidates are a change log entry per restored row, or a per-tenant "resynchronise from scratch" marker that a pull turns into a full sync — the second is cheaper and is probably right for an act this rare, and neither should be guessed at inside a backup task | `0.5.0` |
