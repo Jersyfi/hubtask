@@ -15,7 +15,9 @@
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, ErrorState, SideNav, Skeleton } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ErrorState, SideNav, Skeleton, Stack } from '@hubtask/design-system/components';
+
+  import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
 
   import { containers } from '../data/containers.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -28,6 +30,10 @@
   }
 
   const { currentId, onnavigate }: Props = $props();
+
+  // A workspace has to be startable from inside the application, and a hub is where starting one
+  // begins: nothing else can be created until one exists.
+  let isCreatingHub = $state(false);
 
   let expanded = $state<string[]>([]);
 
@@ -93,18 +99,37 @@
   />
 {:else if containers.hasNoHubs}
   <!-- `unused` and not `filtered`: nothing is filtering the sidebar, and voice-and-tone.md §4.2 is
-       about a filter that excluded something. -->
-  <EmptyState kind="unused" title={t('app.workspace.no_hubs')} icon="hub" />
+       about a filter that excluded something. §4.1 is the other half of that rule - say what this
+       place is for, and offer the one action. Before this the empty state was a dead end, and the
+       one action was `hubctl`. -->
+  <EmptyState kind="unused" title={t('app.workspace.no_hubs')} icon="hub">
+    {#snippet action()}
+      <Button icon="plus" onclick={() => (isCreatingHub = true)}>
+        {t('app.workspace.create_hub')}
+      </Button>
+    {/snippet}
+  </EmptyState>
 {:else}
-  <SideNav
-    label={t('app.workspace.title')}
-    {nodes}
-    current={currentId}
-    bind:expanded
-    onnavigate={(id) => {
-      const container = containers.find(id);
-      if (!container) return;
-      onnavigate(container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`);
-    }}
-  />
+  <Stack gap="100">
+    <SideNav
+      label={t('app.workspace.title')}
+      {nodes}
+      current={currentId}
+      bind:expanded
+      onnavigate={(id) => {
+        const container = containers.find(id);
+        if (!container) return;
+        onnavigate(container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`);
+      }}
+    />
+    <Button tone="subtle" size="sm" icon="plus" onclick={() => (isCreatingHub = true)}>
+      {t('app.workspace.create_hub')}
+    </Button>
+  </Stack>
 {/if}
+
+<CreateContainerDialog
+  bind:isOpen={isCreatingHub}
+  type="HUB"
+  oncreated={(id) => onnavigate(`/hubs/${id}`)}
+/>

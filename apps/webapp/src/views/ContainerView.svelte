@@ -33,6 +33,7 @@
   import EntryList from '../lib/entries/EntryList.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
+  import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
 
@@ -248,6 +249,10 @@
 
   // Renaming, and the whole reason it is a form rather than an inline edit: a name collision is a
   // field error on the name (`containers.name_taken`), and a field error needs a field to land on.
+  // Creating a collection in this hub. A hub that holds none is where a workspace is started, and
+  // before this the only way to start one was `hubctl`.
+  let isCreatingCollection = $state(false);
+
   let isRenaming = $state(false);
   let draft = $state('');
   let isSaving = $state(false);
@@ -428,12 +433,35 @@
 
     {#if container.type === 'HUB'}
       {#if collections.length === 0}
-        <EmptyState kind="unused" title={t('app.workspace.no_collections')} icon="collection" />
+        <!-- §4.1: say what this place is for, and offer the one action. An archived hub offers it
+             with the reason rather than not at all, which is what every other control here does. -->
+        <EmptyState kind="unused" title={t('app.workspace.no_collections')} icon="collection">
+          {#snippet action()}
+            <Button
+              icon="plus"
+              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+              onclick={() => (isCreatingCollection = true)}
+            >
+              {t('app.workspace.create_collection')}
+            </Button>
+          {/snippet}
+        </EmptyState>
       {:else}
         <Stack gap="050">
           {#each collections as collection (collection.id)}
             <ListRow href={`/collections/${collection.id}`}>{collection.name}</ListRow>
           {/each}
+          <div>
+            <Button
+              tone="secondary"
+              size="sm"
+              icon="plus"
+              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+              onclick={() => (isCreatingCollection = true)}
+            >
+              {t('app.workspace.create_collection')}
+            </Button>
+          </div>
         </Stack>
       {/if}
     {:else}
@@ -462,6 +490,15 @@
       {/if}
     {/if}
   </Stack>
+{/if}
+
+{#if container?.type === 'HUB'}
+  <CreateContainerDialog
+    bind:isOpen={isCreatingCollection}
+    type="COLLECTION"
+    parentId={container.id}
+    oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
+  />
 {/if}
 
 {#if container?.type === 'COLLECTION'}
