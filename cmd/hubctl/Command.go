@@ -123,7 +123,7 @@ var errHelpRequested = errors.New("help requested")
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
 	return []group{
-		loginGroup(), authGroup(), sessionGroup(), tokenGroup(), serviceAccountGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
+		loginGroup(), authGroup(), sessionGroup(), mfaGroup(), tokenGroup(), serviceAccountGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
 		templateGroup(), viewGroup(), calendarGroup(), commentGroup(), fieldGroup(), mediaGroup(),
 		trashGroup(), searchGroup(), watchGroup(), jobGroup(), backupGroup(), restoreGroup(), retentionGroup(), holdGroup(), auditGroup(), dsrGroup(),
 		ruleGroup(), webhookGroup(), jumbleGroup(), eventsGroup(),

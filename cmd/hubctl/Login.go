@@ -121,7 +121,7 @@ func (cli *CLI) secondStep(
 
 	if !offers(challenge, openapi.MfaChallengeMethodsTOTP) &&
 		!offers(challenge, openapi.MfaChallengeMethodsRECOVERY) {
-		return cli.enrolmentOwed(challenge)
+		return cli.enrolmentOwed(baseURL, tenant, challenge)
 	}
 
 	completion := openapi.SignInCompletion{PendingToken: challenge.PendingToken}
@@ -157,7 +157,15 @@ func (cli *CLI) secondStep(
 // commands finish it. The pending token is a credential and is answered once, so it is printed
 // like every other one this client meets: on standard output, where a script can read it, with
 // the warning beside it on standard error.
-func (cli *CLI) enrolmentOwed(challenge openapi.MfaChallenge) error {
+func (cli *CLI) enrolmentOwed(baseURL, tenant string, challenge openapi.MfaChallenge) error {
+	// The address and the workspace are written even though no credential was: they are what a
+	// profile is for, and the two commands named below have to reach the same installation. The
+	// credential half is what they supply - `hubctl mfa confirm` is where the pair arrives.
+	if err := SaveProfile(cli.ProfilePath, Profile{BaseURL: baseURL, Tenant: tenant}); err != nil {
+		return err
+	}
+	cli.Profile = Profile{BaseURL: baseURL, Tenant: tenant}
+
 	if err := cli.Emit(challenge, Table{
 		Columns: []string{"second step", "pending credential", "expires"},
 		Rows:    [][]string{{"enrolment", challenge.PendingToken, shortTime(&challenge.ExpiresAt)}},
