@@ -17,6 +17,8 @@
 
   import {
     BucketColumn,
+    Button,
+    Dialog,
     EmptyState,
     ErrorState,
     Icon,
@@ -30,10 +32,11 @@
     rankTarget,
     type RankCommand,
   } from '@hubtask/design-system/components';
-  import type { WorkItem } from '@hubtask/sync-engine';
+  import type { Bucket, WorkItem } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
+  import BucketDialog from './BucketDialog.svelte';
   import { createDrag } from './dragging.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
@@ -118,6 +121,50 @@
   const available = $derived(labels.of(collectionId));
 
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+
+  // Managing the columns themselves. `buckets` has had `create`, `update`, `remove` and `reorder`
+  // since F2-11 and no caller, so a collection's board could only be set up outside the
+  // application - including `wip_limit` and `is_done_bucket`, both of which this board reads and
+  // acts on.
+  let editing = $state<Bucket | undefined>(undefined);
+  let isEditingColumn = $state(false);
+  let deleting = $state<Bucket | undefined>(undefined);
+  let isDeletingColumn = $state(false);
+
+  function editColumn(bucket: Bucket | undefined) {
+    editing = bucket;
+    isEditingColumn = true;
+  }
+
+  const COLUMN_ACTIONS = [
+    { id: 'edit', label: 'app.board.edit_column' },
+    { id: 'delete', label: 'app.board.delete_column', isDestructive: true },
+  ];
+
+  // By identifier rather than by the column object: a board grouped by anything but a bucket has
+  // synthesised columns that are not buckets, and looking the real one up here is what makes it
+  // impossible to act on one of those rather than merely unlikely.
+  function choseForColumn(bucketId: string, id: string) {
+    const column = buckets.of(collectionId).find((each) => each.id === bucketId);
+    if (!column) return;
+    if (id === 'edit') {
+      editColumn(column);
+      return;
+    }
+    deleting = column;
+    isDeletingColumn = true;
+  }
+
+  async function deleteColumn() {
+    if (!deleting) return;
+    writeFailure = undefined;
+    try {
+      await buckets.remove(collectionId, deleting.id, deleting.version);
+      isDeletingColumn = false;
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
 
   /**
    * Moves a card, and completes it where the column says so.
@@ -383,7 +430,17 @@
     onRetry={() => items.openBoard(collectionId, query)()}
   />
 {:else if columns.length === 0}
-  <EmptyState kind="unused" title={t('app.board.no_buckets')} icon="bucket" />
+  <!-- §4.1: say what this place is for, and offer the one action. A board with no columns used to
+       explain what a column is and offer no way to make one. -->
+  <EmptyState kind="unused" title={t('app.board.no_buckets')} icon="bucket">
+    {#snippet action()}
+      {#if isBucketBoard && !isReadOnly}
+        <Button icon="plus" onclick={() => editColumn(undefined)}>
+          {t('app.board.create_column')}
+        </Button>
+      {/if}
+    {/snippet}
+  </EmptyState>
 {:else}
   {#if writeFailure}<p class="failure">{writeFailure.message}</p>{/if}
 
@@ -410,13 +467,24 @@
             {#snippet actions()}
               <!-- A column's own actions are a **bucket's**: renaming it, its limit, deleting it.
                    Grouped by anything else the column is a value rather than a place, and there is
-                   nothing to act on — so the control is absent rather than dead. -->
-              {#if bucket && isBucketBoard}
-                <IconButton
-                  icon="ellipsis"
-                  label={t('app.board.column_actions', { name: bucket.name })}
-                  size="sm"
-                />
+                   nothing to act on — so the control is absent rather than dead. It used to be
+                   present and dead, which is the silent ignoring this project has a rule against. -->
+              {#if bucket && isBucketBoard && !isReadOnly}
+                {@const column = bucket}
+                <Menu
+                  label={t('app.board.column_actions', { name: column.name })}
+                  items={COLUMN_ACTIONS.map((action) => ({ ...action, label: t(action.label) }))}
+                  onselect={(id) => choseForColumn(column.id, id)}
+                >
+                  {#snippet trigger(props)}
+                    <IconButton
+                      icon="ellipsis"
+                      label={t('app.board.column_actions', { name: column.name })}
+                      size="sm"
+                      {...props}
+                    />
+                  {/snippet}
+                </Menu>
               {/if}
             {/snippet}
 
@@ -480,10 +548,46 @@
         </div>
       {/if}
     {/each}
+
+    <!-- After the columns rather than above them: a new column is added at the end, and the control
+         sits where the column will appear. -->
+    {#if isBucketBoard && !isReadOnly}
+      <div class="add-column">
+        <Button tone="secondary" size="sm" icon="plus" onclick={() => editColumn(undefined)}>
+          {t('app.board.create_column')}
+        </Button>
+      </div>
+    {/if}
   </div>
 {/if}
 
+<BucketDialog bind:isOpen={isEditingColumn} {collectionId} bucket={editing} />
+
+{#if deleting}
+  {@const column = deleting}
+  <!-- Confirmed, and the confirmation says the one thing a reader would otherwise have to guess:
+       the entries are not deleted with the column. -->
+  <Dialog
+    bind:isOpen={isDeletingColumn}
+    title={t('app.board.delete_column')}
+    dismissLabel={t('app.workspace.cancel')}
+  >
+    <p class="notice">{t('app.board.delete_confirm')}</p>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeletingColumn = false)}>
+        {t('app.workspace.cancel')}
+      </Button>
+      <Button tone="danger" onclick={deleteColumn}>
+        {t('app.board.column_actions', { name: column.name })}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
 <style>
+  .add-column { align-self: start; padding: var(--sp-100); }
+  .notice { margin: 0; color: var(--text-secondary); max-width: 64ch; }
+
   /* The card's wrapper carries what the two paths read — the identity a key press finds, and the
      state a drag draws. The card itself is the design system's. */
   .card { display: flex; align-items: start; gap: var(--sp-050); }
