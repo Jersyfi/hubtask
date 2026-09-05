@@ -29,8 +29,13 @@ export type MaturityStage = 'experimental' | 'preview' | 'stable';
  *
  * That pass found four writes that existed in the stores and reached no screen — a workspace could
  * be worked in and not *started*, which is what kept the stage where F1 put it. All four are built
- * (#359, #360, #361, #362), so the last argument for `experimental` is gone: nothing in the pass
- * suggested anything here is going to be taken away, and gaps are gaps rather than churn.
+ * now: creating a hub and a collection, editing an entry's title and notes, making a collection's
+ * labels, and managing a board's columns. So the last argument for `experimental` is gone —
+ * nothing in the pass suggested anything here is going to be taken away, and gaps are gaps rather
+ * than churn.
+ *
+ * (The four issues are named in the pull request rather than here. A three-digit issue reference
+ * written with a hash is also a valid hex colour, and `lint-no-literals` is right to refuse one.)
  */
 export const MATURITY: MaturityStage = 'preview';
 
