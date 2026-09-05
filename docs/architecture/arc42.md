@@ -755,6 +755,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0043 | The theme is a property of the device, not of the account | accepted |
 | 0044 | Which browsers a Hubtask client is required to work in | accepted |
 | 0045 | The master key stays in the environment | accepted |
+| 0046 | Production runs in a platform namespace, and the platform's operator does PITR | accepted |
 
 ---
 
