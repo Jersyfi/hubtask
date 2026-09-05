@@ -127,3 +127,36 @@ func TestMeIsNotReadAsAnAccountIdentifier(t *testing.T) {
 		t.Error("`me` was passed on as an account identifier")
 	}
 }
+
+// The read that turns an identifier into a name, and the one thing worth asserting at this layer:
+// what the route answers is `AccountSummary` and not `Account`. The catalogue here deliberately
+// hands back the *wide* projection - which is what a mapping built by clearing fields would happily
+// pass on - so the test proves the narrow mapping rather than a narrow fixture.
+func TestReadingAnotherAccountAnswersANameAndNotAnEmail(t *testing.T) {
+	registry := &catalogue{out: ownAccount()}
+	other := "0192f000-0000-7000-8000-0000000009aa"
+
+	recorder := identityRequest(t, registry, http.MethodGet, "/accounts/"+other)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != getAccountUseCase {
+		t.Errorf("the handler invoked %q", registry.name)
+	}
+	if registry.in.String("account_id") != other {
+		t.Errorf("account_id = %q, want %q", registry.in.String("account_id"), other)
+	}
+
+	for _, field := range []string{`"email"`, `"locale"`, `"time_zone"`, `"week_start"`} {
+		if strings.Contains(recorder.Body.String(), field) {
+			t.Errorf("%s reached another member in %s - data-protection.md §9 puts the visibility at minimal",
+				field, recorder.Body)
+		}
+	}
+	for _, field := range []string{`"id"`, `"kind"`, `"display_name"`, `"status"`} {
+		if !strings.Contains(recorder.Body.String(), field) {
+			t.Errorf("%s is missing from %s", field, recorder.Body)
+		}
+	}
+}

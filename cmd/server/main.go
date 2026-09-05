@@ -879,6 +879,7 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		identity.GetOwnAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
