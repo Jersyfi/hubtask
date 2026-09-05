@@ -15,7 +15,10 @@ test('the application says so while it is not stable, and stops when it is', () 
   assert.equal(shouldAnnounce('stable'), false);
 });
 
-test('the stage this client was built at is the one F1 is in', () => {
-  assert.equal(MATURITY, 'experimental');
+test('the stage this client was built at is the one F2 left it in', () => {
+  // Changed with F2 rather than by it: the milestone produced the evidence (R-08) and named the
+  // judgement as the owner's, and the four missing creation surfaces it found were the last thing
+  // standing between "usable for real work" and a tool that needed a command line to open.
+  assert.equal(MATURITY, 'preview');
   assert.equal(shouldAnnounce(), true);
 });
