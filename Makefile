@@ -303,7 +303,7 @@ gate-quick:
 .PHONY: gate-unit
 gate-unit: export CGO_ENABLED = 1
 gate-unit:
-	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/... ./test/load/...,-race -covermode=atomic -coverprofile=coverage.out)
+	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/... ./test/load/... ./test/e2e/...,-race -covermode=atomic -coverprofile=coverage.out)
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/application/... MIN=75
 
