@@ -116,6 +116,50 @@ port is not among them: it stays unrouted, inside the cluster ([observability-re
 
 ---
 
+### 3.2 Where `production` runs
+
+*Decided 2026-09-04 ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), open points
+D-1 and D-2).*
+
+| | |
+|---|---|
+| Cluster | A Kubernetes cluster operated by a platform, not by this project |
+| Namespace | `hubtask` — the only one, and nothing this project deploys is cluster-scoped |
+| Deploy identity | A namespace-bound ServiceAccount, its kubeconfig a GitHub secret; never a `ClusterRole` |
+| Ingress | Traefik, with cert-manager for TLS, both the platform's |
+| Host name | `hubtask.prho.cloud` — one public hostname, and the operations port is not among them |
+| Database | PostgreSQL through the platform's CloudNativePG operator; the `Cluster` resource is ours, in our namespace |
+| System backups | CNPG's continuous WAL archiving to object storage with Object Lock, plus the platform's volume snapshots as a second net |
+| Media | An S3 bucket of its own, separate from the backup bucket |
+| Monitoring | The platform's operator-based Prometheus scrapes our namespace; our `ServiceMonitor` and rules, their stack, their alert routing |
+| Deployed by | The tag `v*`, through the `production` environment's manual approval ([§7](#7-what-happens-during-a-release)) |
+
+**Why a namespace on somebody else's cluster.** The alternative — a second node of our own, shaped
+like `integration` — was the plan until the offer existed, and it answers no question this does not.
+What it would have added is a monthly bill, a bootstrap to maintain, and a second cluster for one
+operator to upgrade. What this costs instead is control: the cluster, the alert routing and the
+bucket policy belong to somebody else, and that is a trade a privately financed project makes
+knowingly rather than a compromise nobody named.
+
+**What we own, and what we must never assume.** Inside the namespace: every application manifest,
+the CNPG `Cluster` and its backup stanza, the migrations, the metrics endpoints and rules, the
+resource requests and limits, and secrets the owner creates and we reference by name. Outside it,
+and outside our RBAC by design: cluster-scoped resources, other namespaces, cluster-admin, any
+public exposure beyond the one hostname — and the platform runs neither our migrations nor our
+application-level restores.
+
+**Two consequences worth stating before they bite.** The restore drill has nowhere to restore *to*
+except our own namespace, as a second CNPG cluster bootstrapped from the object store — so the
+resource quota is the bound on how large the live database may grow, because it has to hold both at
+once. And the restore runbook has to be executable by a person alone: the platform does not do
+app-level restores, and a runbook whose only operator is a session cannot be paged.
+
+**What is still the platform's to state** — the Prometheus selector labels, the authoritative quota,
+the bucket names and paths, the lock retention, and the secret names — is listed as named unknowns
+in [`deploy/production/README.md`](../../deploy/production/README.md) rather than guessed at.
+
+---
+
 ## 4. Push or pull?
 
 **Decision: start push-based, stay GitOps-ready.**
@@ -265,7 +309,7 @@ signature, or without approval.
 
 | # | Point | Needed by |
 |---|---|---|
-| D-1 | Decide the target environment for `production`. `integration` is decided and running ([§3.1](#31-where-integration-runs)); production is deliberately not the same decision, because it is the one coupled to D-2 | `0.6.0` |
-| D-2 | Database: own container, operator, or managed service — affects PITR and the restore drill | `0.6.0` |
+| D-1 | ~~Decide the target environment for `production`~~ — a **namespace on a platform-operated Kubernetes cluster** ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), H-10), described in [§3.2](#32-where-production-runs). Not a second node of our own: that was the plan until the offer existed, and it answers no question this does not while adding a bill and a bootstrap. The cost is control over the cluster, the alert routing and the bucket policy, which is a trade made knowingly | Closed (H-10) |
+| D-2 | ~~Database: own container, operator, or managed service~~ — **PostgreSQL through the platform's CloudNativePG operator** (ADR-0046, H-10). The operator is theirs; the `Cluster` resource is ours, in our namespace, with its backup stanza pointed at the object storage they provide. So it is neither a container we hand-roll nor a service whose recovery we cannot reach: PITR is ours to configure and theirs to host, which is exactly what the restore drill needs in order to be ours to run | Closed (H-10) |
 | D-3 | Evaluate moving to GitOps once there is more than one cluster or more than one operator | `0.9.0` |
 | ~~D-4~~ | ~~Domain, TLS approach, and ingress controller~~ — decided in [§3.1](#31-where-integration-runs): `<service>.<environment>.hubtask.eu`, cert-manager with Let's Encrypt, and Traefik | `0.2.0` |
