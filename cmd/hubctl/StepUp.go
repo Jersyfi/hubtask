@@ -24,6 +24,15 @@ import (
 // line: `X-Hubtask-Step-Up` for the operations that take a header, and the request field for the
 // restore, which has carried one since 0.4.5.
 
+// envStepUp carries a proof that was minted elsewhere.
+//
+// It exists because the two halves of a privileged act need not be the same credential: the proof
+// lands on the account (`StepUps.Consume` asks whether the token is fresh "on a live session of
+// this account"), while the act itself may be made with a personal access token. That is not an
+// oddity, it is the control plane's only shape - `admin:tenants` is a scope no session carries,
+// and ending a workspace still demands proving the person afresh.
+const envStepUp = "HUBTASK_STEP_UP"
+
 const (
 	stepUpPath = "/auth/step-up"
 	// stepUpHeader is where the proof travels for every act but the restore. Spelled here rather
@@ -47,6 +56,13 @@ func stepUpProof(token string) map[string][]string {
 // so a second refusal means the proof was rejected rather than missing, and asking a person for
 // their password again on the same command would be a client arguing with a server.
 func (cli *CLI) proveAgain(ctx context.Context, client *Client, act func(stepUp string) error) error {
+	// A proof minted elsewhere travels on the first attempt rather than after a refusal. It is
+	// single-use and lives minutes, and spending a round trip to discover it was wanted would
+	// waste a good part of that.
+	if carried := strings.TrimSpace(cli.Env(envStepUp)); carried != "" {
+		return act(carried)
+	}
+
 	err := act("")
 	methods, demanded := stepUpDemand(err)
 	if !demanded {
@@ -78,7 +94,8 @@ func (cli *CLI) stepUp(ctx context.Context, client *Client, methods string) (str
 	// rather than retype anything.
 	if cli.Profile.Session.IsEmpty() {
 		message, _ := cli.Catalogue.Message("auth.step_up_session_required", nil)
-		return "", errorString(message)
+		return "", errorString(message + "\n  Mint one where you are signed in - `hubctl step-up` - " +
+			"and pass it to this command in " + envStepUp + ".")
 	}
 
 	request, err := cli.stepUpRequest(methods)
@@ -117,4 +134,44 @@ func (cli *CLI) stepUpRequest(methods string) (openapi.StepUpRequest, error) {
 		return openapi.StepUpRequest{}, err
 	}
 	return openapi.StepUpRequest{Password: &password}, nil
+}
+
+func stepUpGroup() group {
+	return group{
+		name: "step-up",
+		summary: "prove yourself again, and print the proof for a command that cannot ask for it " +
+			"itself",
+		usage: "",
+		run:   mintStepUp,
+	}
+}
+
+// mintStepUp is the proof as its own command, for the act whose credential cannot mint one.
+//
+// Every other privileged call asks for itself: it is refused, this client prompts, and it goes
+// again. The control plane cannot, because it is reached with a personal access token and a token
+// "cannot prove a person afresh" - so the proof is minted here, in the session, and carried to
+// that command in the environment. The account is what ties the two together.
+func mintStepUp(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "step-up", "", "")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	// No methods named, because nothing refused anything here: the demand's own list is what
+	// narrows the choice, and there is no demand to read.
+	token, err := cli.stepUp(ctx, client, "")
+	if err != nil {
+		return err
+	}
+
+	printf(cli.Out, "%s\n", token)
+	printf(cli.Err,
+		"that proof is single-use, lives minutes, and is shown once: pass it in %s to the one "+
+			"command it is for\n", envStepUp)
+	return nil
 }

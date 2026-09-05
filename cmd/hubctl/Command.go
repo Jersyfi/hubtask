@@ -123,7 +123,7 @@ var errHelpRequested = errors.New("help requested")
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
 	return []group{
-		loginGroup(), authGroup(), sessionGroup(), mfaGroup(), tokenGroup(), serviceAccountGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
+		loginGroup(), authGroup(), sessionGroup(), mfaGroup(), stepUpGroup(), tokenGroup(), serviceAccountGroup(), containerGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
 		templateGroup(), viewGroup(), calendarGroup(), commentGroup(), fieldGroup(), mediaGroup(),
 		trashGroup(), searchGroup(), watchGroup(), jobGroup(), backupGroup(), restoreGroup(), retentionGroup(), holdGroup(), auditGroup(), dsrGroup(),
 		ruleGroup(), webhookGroup(), jumbleGroup(), eventsGroup(), oauthGroup(), quotaGroup(), adminGroup(),
@@ -278,6 +278,7 @@ Environment:
   HUBTASK_TOKEN      the personal access token, overriding the stored credential
   HUBTASK_PASSWORD   the password a sign-in or a step-up asks for, instead of a prompt
   HUBTASK_TOTP       the authenticator's current code, instead of a prompt
+  HUBTASK_STEP_UP    a proof from 'hubctl step-up', for a command that cannot mint one
   HUBTASK_TENANT     the workspace, where an installation runs more than one
   HUBTASK_PROFILE    where the profile is stored
 

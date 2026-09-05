@@ -221,3 +221,79 @@ func TestAProofTheInstallationRejectsIsNotAskedForTwice(t *testing.T) {
 		t.Errorf("the person was asked to prove themselves %d times", attempts)
 	}
 }
+
+// The control plane's shape: `admin:tenants` is a scope no session carries, so the act is made
+// with a personal access token - and ending a workspace still demands proving the person afresh.
+// The proof lands on the account, so it can be minted in a session and carried to the token's
+// call.
+func TestAProofFromTheEnvironmentTravelsOnTheFirstAttempt(t *testing.T) {
+	attempts := 0
+	var carried string
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == APIPath+stepUpPath {
+			t.Error("a proof was minted although one was carried in")
+		}
+		attempts++
+		carried = r.Header.Get(stepUpHeader)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"tenant_id":"` + acmeID + `","purge_after":"2026-10-05T09:00:00Z"}`))
+	})
+
+	env := signedIn(stub)
+	env[envStepUp] = stepUpToken
+	code, _, errOut := invokeAgainst(t, stub, env, "",
+		"admin", "tenant", "delete", acmeID, "--confirm", "Acme")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	// One attempt, not a refusal and a retry: the proof is single-use and lives minutes.
+	if attempts != 1 {
+		t.Errorf("%d attempts, want one", attempts)
+	}
+	if carried != stepUpToken {
+		t.Errorf("the carried proof did not travel: %q", carried)
+	}
+}
+
+// And where there is neither a session nor a carried proof, the refusal says where one comes
+// from - otherwise the catalogue's sentence sends an operator to sign in as somebody who could
+// not make the call anyway.
+func TestARefusalWithNothingToProveWithNamesTheWayOut(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		problemJSON(w, http.StatusForbidden, map[string]any{
+			"status": 403, "code": "forbidden", "detail_code": "auth.step_up_required",
+			"params": map[string]any{"methods": "PASSWORD TOTP"},
+		})
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "hunter2\n",
+		"admin", "tenant", "delete", acmeID, "--confirm", "Acme")
+	if code != exitError {
+		t.Fatalf("exit %d, want %d", code, exitError)
+	}
+	if !strings.Contains(errOut, "hubctl step-up") || !strings.Contains(errOut, envStepUp) {
+		t.Errorf("the refusal does not say where a proof comes from: %q", errOut)
+	}
+}
+
+// The proof as its own command: printed once where a script can read it, with the warning beside
+// it.
+func TestMintingAProofPrintsItOnceAndWarnsBesideIt(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, `{"step_up_token":"`+stepUpToken+`",
+	  "expires_at":"2026-09-05T09:05:00Z","method":"TOTP"}`)
+	profile := filepath.Join(t.TempDir(), "profile.json")
+	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
+
+	code, out, errOut := invokeAgainst(t, stub,
+		map[string]string{envProfile: profile, envTotp: "123456"}, "", "step-up")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if strings.TrimSpace(out) != stepUpToken {
+		t.Errorf("the proof is not the whole of standard output: %q", out)
+	}
+	if !strings.Contains(errOut, "shown once") || !strings.Contains(errOut, envStepUp) {
+		t.Errorf("nothing says what to do with it: %q", errOut)
+	}
+}
