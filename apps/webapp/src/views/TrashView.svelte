@@ -39,6 +39,8 @@
   import { isContainer, remainingDays } from '../lib/data/lifecycle.ts';
   import { retention } from '../lib/data/retention.svelte.ts';
   import { trash } from '../lib/data/trash.svelte.ts';
+  import { actor as signedIn } from '../lib/data/account.svelte.ts';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -82,6 +84,40 @@
     if (left === undefined) return t('app.trash.window_unknown');
     return left === 0 ? t('app.trash.window_last') : t('app.trash.window', { days: left });
   }
+
+  /**
+   * Who deleted it, as a sentence — or nothing, which is a real answer here.
+   *
+   * Three states, and they are different things rather than degrees of the same one. A row deleted
+   * before the columns existed carries no actor at all and says nothing extra: inventing "somebody"
+   * for it would be a claim the row cannot support. An actor with an account is named once the
+   * account read has answered, and reads as its kind until then. An automation or the system has no
+   * account by nature, and its kind is the whole truth about it.
+   */
+  function whoDeleted(row: TrashEntry): string | undefined {
+    const who = row.deleted_by;
+    if (!who) return undefined;
+
+    if (who.id && who.id === signedIn.account?.id) return t('app.trash.deleted_by_you');
+
+    const name = accounts.nameOf(who.id);
+    if (name) return t('app.trash.deleted_by', { name });
+
+    const kind = `app.activity.actor_${who.type}`;
+    return t('app.trash.deleted_by', {
+      name: t(messages.has(kind) ? kind : 'app.activity.actor_someone'),
+    });
+  }
+
+  // The names this page needs, asked for once the page has arrived. The same shape `ItemView` uses
+  // for the history, and the same cache — a trash and a history showing the same person ask once.
+  $effect(() => {
+    accounts.resolve(
+      trash.rows
+        .filter((row) => row.deleted_by?.type === 'USER' || row.deleted_by?.type === 'SERVICE_ACCOUNT')
+        .map((row) => row.deleted_by?.id),
+    );
+  });
 
   async function restore(row: TrashEntry) {
     failure = undefined;
@@ -195,6 +231,7 @@
             <span class="title">{row.title}</span>
             <span class="detail">
               {t('app.trash.deleted_at', { when: formatDateTime(row.deleted_at, messages.locale) })}
+              {#if whoDeleted(row)}· {whoDeleted(row)}{/if}
               · {window(row)}
               · {t('app.trash.batch')}
             </span>

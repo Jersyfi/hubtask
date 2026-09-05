@@ -1275,6 +1275,8 @@
   "app.trash.title": "Trash",
   "app.trash.empty": "Nothing has been deleted.",
   "app.trash.deleted_at": "Deleted {when}",
+  "app.trash.deleted_by": "by {name}",
+  "app.trash.deleted_by_you": "by you",
   "app.trash.window": "Days left before it goes for good: {days}.",
   "app.trash.window_last": "It goes for good today.",
   "app.trash.window_unknown": "Your workspace decides how long this is kept.",
