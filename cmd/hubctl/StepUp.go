@@ -24,7 +24,21 @@ import (
 // line: `X-Hubtask-Step-Up` for the operations that take a header, and the request field for the
 // restore, which has carried one since 0.4.5.
 
-const stepUpPath = "/auth/step-up"
+const (
+	stepUpPath = "/auth/step-up"
+	// stepUpHeader is where the proof travels for every act but the restore. Spelled here rather
+	// than imported from the server's package for `restTenantHeader`'s reason: a header name is
+	// part of the published contract, and this binary reads the contract.
+	stepUpHeader = "X-Hubtask-Step-Up"
+)
+
+// stepUpProof is the header carrying a proof, or no header at all where there is none yet.
+func stepUpProof(token string) map[string][]string {
+	if token == "" {
+		return nil
+	}
+	return map[string][]string{stepUpHeader: {token}}
+}
 
 // proveAgain runs an act, and runs it once more with a fresh proof of identity if that is what the
 // act was refused for.

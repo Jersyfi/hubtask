@@ -153,6 +153,14 @@ func (c *Client) Post(ctx context.Context, path string, body, into any) error {
 	return c.call(ctx, http.MethodPost, path, nil, body, nil, into)
 }
 
+// PostWithHeader posts with the headers an operation's own parameters declare - so far the
+// step-up proof, which several privileged acts take there rather than in the body.
+func (c *Client) PostWithHeader(
+	ctx context.Context, path string, body any, header map[string][]string, into any,
+) error {
+	return c.call(ctx, http.MethodPost, path, nil, body, header, into)
+}
+
 // Patch moves part of a resource, which is what the cases of this API that have a state machine
 // take: a data subject request is advanced by naming the field that changes rather than by sending
 // the whole case back (api-guidelines.md).
