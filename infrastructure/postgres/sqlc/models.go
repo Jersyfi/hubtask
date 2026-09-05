@@ -697,23 +697,25 @@ type ConsentRecord struct {
 }
 
 type Container struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	Type         ContainerType
-	ParentID     pgtype.UUID
-	Name         string
-	Description  *string
-	Icon         *string
-	ColorToken   *string
-	OrderKey     string
-	Policies     []byte
-	ArchivedAt   pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	TrashBatchID pgtype.UUID
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Version      int32
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	Type          ContainerType
+	ParentID      pgtype.UUID
+	Name          string
+	Description   *string
+	Icon          *string
+	ColorToken    *string
+	OrderKey      string
+	Policies      []byte
+	ArchivedAt    pgtype.Timestamptz
+	DeletedAt     pgtype.Timestamptz
+	TrashBatchID  pgtype.UUID
+	CreatedBy     pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+	DeletedByType *string
+	DeletedByID   pgtype.UUID
 }
 
 type CustomFieldDefinition struct {
@@ -1349,4 +1351,6 @@ type WorkItem struct {
 	RetentionRuleID       pgtype.UUID
 	RetentionAction       *string
 	RetentionBlockedBy    *string
+	DeletedByType         *string
+	DeletedByID           pgtype.UUID
 }

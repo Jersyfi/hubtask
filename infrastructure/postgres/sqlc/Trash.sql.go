@@ -12,13 +12,16 @@ import (
 )
 
 const listTrash = `-- name: ListTrash :many
-SELECT kind, id, trash_batch_id, deleted_at, title, subtype, hub_id, collection_id, parent_id, version
+SELECT kind, id, trash_batch_id, deleted_at, deleted_by_type, deleted_by_id, title, subtype,
+       hub_id, collection_id, parent_id, version
 FROM (
   SELECT
     'CONTAINER'::text AS kind,
     c.id              AS id,
     c.trash_batch_id  AS trash_batch_id,
     c.deleted_at      AS deleted_at,
+    c.deleted_by_type AS deleted_by_type,
+    c.deleted_by_id   AS deleted_by_id,
     c.name            AS title,
     c.type::text      AS subtype,
     c.parent_id       AS hub_id,
@@ -33,7 +36,8 @@ FROM (
   UNION ALL
 
   SELECT
-    'ITEM'::text, i.id, i.trash_batch_id, i.deleted_at, i.title, i.type::text,
+    'ITEM'::text, i.id, i.trash_batch_id, i.deleted_at, i.deleted_by_type, i.deleted_by_id,
+    i.title, i.type::text,
     col.parent_id, i.collection_id, i.parent_id, i.version
   FROM work_item i
   JOIN container col ON col.id = i.collection_id
@@ -57,16 +61,18 @@ type ListTrashParams struct {
 }
 
 type ListTrashRow struct {
-	Kind         string
-	ID           pgtype.UUID
-	TrashBatchID pgtype.UUID
-	DeletedAt    pgtype.Timestamptz
-	Title        string
-	Subtype      string
-	HubID        pgtype.UUID
-	CollectionID pgtype.UUID
-	ParentID     pgtype.UUID
-	Version      int32
+	Kind          string
+	ID            pgtype.UUID
+	TrashBatchID  pgtype.UUID
+	DeletedAt     pgtype.Timestamptz
+	DeletedByType *string
+	DeletedByID   pgtype.UUID
+	Title         string
+	Subtype       string
+	HubID         pgtype.UUID
+	CollectionID  pgtype.UUID
+	ParentID      pgtype.UUID
+	Version       int32
 }
 
 // What is in the trash, newest deletion first.
@@ -106,6 +112,8 @@ func (q *Queries) ListTrash(ctx context.Context, arg ListTrashParams) ([]ListTra
 			&i.ID,
 			&i.TrashBatchID,
 			&i.DeletedAt,
+			&i.DeletedByType,
+			&i.DeletedByID,
 			&i.Title,
 			&i.Subtype,
 			&i.HubID,
@@ -161,10 +169,12 @@ func (q *Queries) PurgeWorkItems(ctx context.Context, ids []pgtype.UUID) (int64,
 
 const restoreContainerBatch = `-- name: RestoreContainerBatch :many
 UPDATE container SET
-  deleted_at     = NULL,
-  trash_batch_id = NULL,
-  updated_at     = $1,
-  version        = version + 1
+  deleted_at      = NULL,
+  trash_batch_id  = NULL,
+  deleted_by_type = NULL,
+  deleted_by_id   = NULL,
+  updated_at      = $1,
+  version         = version + 1
 WHERE trash_batch_id = $2::uuid
   AND id <> $3::uuid
 RETURNING id
@@ -200,10 +210,12 @@ func (q *Queries) RestoreContainerBatch(ctx context.Context, arg RestoreContaine
 
 const restoreWorkItemBatch = `-- name: RestoreWorkItemBatch :execrows
 UPDATE work_item SET
-  deleted_at     = NULL,
-  trash_batch_id = NULL,
-  updated_at     = $1,
-  version        = version + 1
+  deleted_at      = NULL,
+  trash_batch_id  = NULL,
+  deleted_by_type = NULL,
+  deleted_by_id   = NULL,
+  updated_at      = $1,
+  version         = version + 1
 WHERE trash_batch_id = $2::uuid
   AND id <> $3::uuid
 `
@@ -232,16 +244,22 @@ func (q *Queries) RestoreWorkItemBatch(ctx context.Context, arg RestoreWorkItemB
 
 const setContainerTrashed = `-- name: SetContainerTrashed :execrows
 UPDATE container SET
-  deleted_at     = $1,
-  trash_batch_id = $2,
-  updated_at     = $3,
-  version        = version + 1
-WHERE id = $4::uuid AND version = $5
+  deleted_at      = $1,
+  trash_batch_id  = $2,
+  -- Set and cleared with the stamp, like the batch beside it: an actor without a deletion is a row
+  -- claiming somebody deleted something that is not deleted.
+  deleted_by_type = $3,
+  deleted_by_id   = $4,
+  updated_at      = $5,
+  version         = version + 1
+WHERE id = $6::uuid AND version = $7
 `
 
 type SetContainerTrashedParams struct {
 	DeletedAt       pgtype.Timestamptz
 	TrashBatchID    pgtype.UUID
+	DeletedByType   *string
+	DeletedByID     pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -252,6 +270,8 @@ func (q *Queries) SetContainerTrashed(ctx context.Context, arg SetContainerTrash
 	result, err := q.db.Exec(ctx, setContainerTrashed,
 		arg.DeletedAt,
 		arg.TrashBatchID,
+		arg.DeletedByType,
+		arg.DeletedByID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,
@@ -309,16 +329,22 @@ func (q *Queries) SetWorkItemArchived(ctx context.Context, arg SetWorkItemArchiv
 
 const setWorkItemTrashed = `-- name: SetWorkItemTrashed :execrows
 UPDATE work_item SET
-  deleted_at     = $1,
-  trash_batch_id = $2,
-  updated_at     = $3,
-  version        = version + 1
-WHERE id = $4::uuid AND version = $5
+  deleted_at      = $1,
+  trash_batch_id  = $2,
+  -- Set and cleared with the stamp, like the batch beside it: an actor without a deletion is a row
+  -- claiming somebody deleted something that is not deleted.
+  deleted_by_type = $3,
+  deleted_by_id   = $4,
+  updated_at      = $5,
+  version         = version + 1
+WHERE id = $6::uuid AND version = $7
 `
 
 type SetWorkItemTrashedParams struct {
 	DeletedAt       pgtype.Timestamptz
 	TrashBatchID    pgtype.UUID
+	DeletedByType   *string
+	DeletedByID     pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -336,6 +362,8 @@ func (q *Queries) SetWorkItemTrashed(ctx context.Context, arg SetWorkItemTrashed
 	result, err := q.db.Exec(ctx, setWorkItemTrashed,
 		arg.DeletedAt,
 		arg.TrashBatchID,
+		arg.DeletedByType,
+		arg.DeletedByID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,
@@ -348,20 +376,26 @@ func (q *Queries) SetWorkItemTrashed(ctx context.Context, arg SetWorkItemTrashed
 
 const trashCollectionsOfHub = `-- name: TrashCollectionsOfHub :many
 UPDATE container SET
-  deleted_at     = $1,
-  trash_batch_id = $2::uuid,
-  updated_at     = $3,
-  version        = version + 1
-WHERE parent_id = $4::uuid
+  deleted_at      = $1,
+  trash_batch_id  = $2::uuid,
+  -- The batch's actor, on every row of it: one person deleted one thing, and the subtree that went
+  -- with it was not deleted by somebody else.
+  deleted_by_type = $3,
+  deleted_by_id   = $4,
+  updated_at      = $5,
+  version         = version + 1
+WHERE parent_id = $6::uuid
   AND deleted_at IS NULL
 RETURNING id
 `
 
 type TrashCollectionsOfHubParams struct {
-	DeletedAt    pgtype.Timestamptz
-	TrashBatchID pgtype.UUID
-	UpdatedAt    pgtype.Timestamptz
-	HubID        pgtype.UUID
+	DeletedAt     pgtype.Timestamptz
+	TrashBatchID  pgtype.UUID
+	DeletedByType *string
+	DeletedByID   pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+	HubID         pgtype.UUID
 }
 
 // A hub's collections go into the trash with it, under the same batch (I-C2).
@@ -377,6 +411,8 @@ func (q *Queries) TrashCollectionsOfHub(ctx context.Context, arg TrashCollection
 	rows, err := q.db.Query(ctx, trashCollectionsOfHub,
 		arg.DeletedAt,
 		arg.TrashBatchID,
+		arg.DeletedByType,
+		arg.DeletedByID,
 		arg.UpdatedAt,
 		arg.HubID,
 	)
@@ -400,17 +436,23 @@ func (q *Queries) TrashCollectionsOfHub(ctx context.Context, arg TrashCollection
 
 const trashItemsOfCollections = `-- name: TrashItemsOfCollections :execrows
 UPDATE work_item SET
-  deleted_at     = $1,
-  trash_batch_id = $2::uuid,
-  updated_at     = $3,
-  version        = version + 1
-WHERE collection_id = ANY($4::uuid[])
+  deleted_at      = $1,
+  trash_batch_id  = $2::uuid,
+  -- The batch's actor, on every row of it: one person deleted one thing, and the subtree that went
+  -- with it was not deleted by somebody else.
+  deleted_by_type = $3,
+  deleted_by_id   = $4,
+  updated_at      = $5,
+  version         = version + 1
+WHERE collection_id = ANY($6::uuid[])
   AND deleted_at IS NULL
 `
 
 type TrashItemsOfCollectionsParams struct {
 	DeletedAt     pgtype.Timestamptz
 	TrashBatchID  pgtype.UUID
+	DeletedByType *string
+	DeletedByID   pgtype.UUID
 	UpdatedAt     pgtype.Timestamptz
 	CollectionIds []pgtype.UUID
 }
@@ -424,6 +466,8 @@ func (q *Queries) TrashItemsOfCollections(ctx context.Context, arg TrashItemsOfC
 	result, err := q.db.Exec(ctx, trashItemsOfCollections,
 		arg.DeletedAt,
 		arg.TrashBatchID,
+		arg.DeletedByType,
+		arg.DeletedByID,
 		arg.UpdatedAt,
 		arg.CollectionIds,
 	)
@@ -435,21 +479,27 @@ func (q *Queries) TrashItemsOfCollections(ctx context.Context, arg TrashItemsOfC
 
 const trashWorkItemDescendants = `-- name: TrashWorkItemDescendants :execrows
 UPDATE work_item SET
-  deleted_at     = $1,
-  trash_batch_id = $2::uuid,
-  updated_at     = $3,
-  version        = version + 1
-WHERE path LIKE $4::text || '%'
-  AND id <> $5::uuid
+  deleted_at      = $1,
+  trash_batch_id  = $2::uuid,
+  -- The batch's actor, on every row of it: one person deleted one thing, and the subtree that went
+  -- with it was not deleted by somebody else.
+  deleted_by_type = $3,
+  deleted_by_id   = $4,
+  updated_at      = $5,
+  version         = version + 1
+WHERE path LIKE $6::text || '%'
+  AND id <> $7::uuid
   AND deleted_at IS NULL
 `
 
 type TrashWorkItemDescendantsParams struct {
-	DeletedAt    pgtype.Timestamptz
-	TrashBatchID pgtype.UUID
-	UpdatedAt    pgtype.Timestamptz
-	Prefix       string
-	ItemID       pgtype.UUID
+	DeletedAt     pgtype.Timestamptz
+	TrashBatchID  pgtype.UUID
+	DeletedByType *string
+	DeletedByID   pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+	Prefix        string
+	ItemID        pgtype.UUID
 }
 
 // Everything below one item goes into the trash with it, under the same batch.
@@ -466,6 +516,8 @@ func (q *Queries) TrashWorkItemDescendants(ctx context.Context, arg TrashWorkIte
 	result, err := q.db.Exec(ctx, trashWorkItemDescendants,
 		arg.DeletedAt,
 		arg.TrashBatchID,
+		arg.DeletedByType,
+		arg.DeletedByID,
 		arg.UpdatedAt,
 		arg.Prefix,
 		arg.ItemID,

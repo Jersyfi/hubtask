@@ -32,10 +32,14 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- row the optimistic lock is on, and writing it twice would be an artefact of splitting the work in
 -- two rather than a design.
 UPDATE work_item SET
-  deleted_at     = sqlc.narg('deleted_at'),
-  trash_batch_id = sqlc.narg('trash_batch_id'),
-  updated_at     = sqlc.arg('updated_at'),
-  version        = version + 1
+  deleted_at      = sqlc.narg('deleted_at'),
+  trash_batch_id  = sqlc.narg('trash_batch_id'),
+  -- Set and cleared with the stamp, like the batch beside it: an actor without a deletion is a row
+  -- claiming somebody deleted something that is not deleted.
+  deleted_by_type = sqlc.narg('deleted_by_type'),
+  deleted_by_id   = sqlc.narg('deleted_by_id'),
+  updated_at      = sqlc.arg('updated_at'),
+  version         = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
 -- name: TrashWorkItemDescendants :execrows
@@ -50,10 +54,14 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- restart its retention period and make a restore of this batch bring back something nobody deleted
 -- this time.
 UPDATE work_item SET
-  deleted_at     = sqlc.arg('deleted_at'),
-  trash_batch_id = sqlc.arg('trash_batch_id')::uuid,
-  updated_at     = sqlc.arg('updated_at'),
-  version        = version + 1
+  deleted_at      = sqlc.arg('deleted_at'),
+  trash_batch_id  = sqlc.arg('trash_batch_id')::uuid,
+  -- The batch's actor, on every row of it: one person deleted one thing, and the subtree that went
+  -- with it was not deleted by somebody else.
+  deleted_by_type = sqlc.narg('deleted_by_type'),
+  deleted_by_id   = sqlc.narg('deleted_by_id'),
+  updated_at      = sqlc.arg('updated_at'),
+  version         = version + 1
 WHERE path LIKE sqlc.arg('prefix')::text || '%'
   AND id <> sqlc.arg('item_id')::uuid
   AND deleted_at IS NULL;
@@ -68,20 +76,26 @@ WHERE path LIKE sqlc.arg('prefix')::text || '%'
 -- It serves a container's deletion as well as an item's: the items of a trashed collection carry the
 -- container batch, so this is the statement that gives them back too.
 UPDATE work_item SET
-  deleted_at     = NULL,
-  trash_batch_id = NULL,
-  updated_at     = sqlc.arg('updated_at'),
-  version        = version + 1
+  deleted_at      = NULL,
+  trash_batch_id  = NULL,
+  deleted_by_type = NULL,
+  deleted_by_id   = NULL,
+  updated_at      = sqlc.arg('updated_at'),
+  version         = version + 1
 WHERE trash_batch_id = sqlc.arg('trash_batch_id')::uuid
   AND id <> sqlc.arg('item_id')::uuid;
 
 -- name: SetContainerTrashed :execrows
 -- The deletion stamp on the hub or collection the caller read, set or cleared, with its batch.
 UPDATE container SET
-  deleted_at     = sqlc.narg('deleted_at'),
-  trash_batch_id = sqlc.narg('trash_batch_id'),
-  updated_at     = sqlc.arg('updated_at'),
-  version        = version + 1
+  deleted_at      = sqlc.narg('deleted_at'),
+  trash_batch_id  = sqlc.narg('trash_batch_id'),
+  -- Set and cleared with the stamp, like the batch beside it: an actor without a deletion is a row
+  -- claiming somebody deleted something that is not deleted.
+  deleted_by_type = sqlc.narg('deleted_by_type'),
+  deleted_by_id   = sqlc.narg('deleted_by_id'),
+  updated_at      = sqlc.arg('updated_at'),
+  version         = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
 -- name: TrashCollectionsOfHub :many
@@ -95,10 +109,14 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- `deleted_at IS NULL` for the reason it is on the item statement: a collection already in the trash
 -- keeps its own deletion, and is therefore not in this batch and not in this answer.
 UPDATE container SET
-  deleted_at     = sqlc.arg('deleted_at'),
-  trash_batch_id = sqlc.arg('trash_batch_id')::uuid,
-  updated_at     = sqlc.arg('updated_at'),
-  version        = version + 1
+  deleted_at      = sqlc.arg('deleted_at'),
+  trash_batch_id  = sqlc.arg('trash_batch_id')::uuid,
+  -- The batch's actor, on every row of it: one person deleted one thing, and the subtree that went
+  -- with it was not deleted by somebody else.
+  deleted_by_type = sqlc.narg('deleted_by_type'),
+  deleted_by_id   = sqlc.narg('deleted_by_id'),
+  updated_at      = sqlc.arg('updated_at'),
+  version         = version + 1
 WHERE parent_id = sqlc.arg('hub_id')::uuid
   AND deleted_at IS NULL
 RETURNING id;
@@ -110,10 +128,14 @@ RETURNING id;
 -- onto every row of its subtree (domain-model.md §3.4), so there is no walk to do here - which is
 -- what keeps deleting a hub a fixed number of statements rather than one per level.
 UPDATE work_item SET
-  deleted_at     = sqlc.arg('deleted_at'),
-  trash_batch_id = sqlc.arg('trash_batch_id')::uuid,
-  updated_at     = sqlc.arg('updated_at'),
-  version        = version + 1
+  deleted_at      = sqlc.arg('deleted_at'),
+  trash_batch_id  = sqlc.arg('trash_batch_id')::uuid,
+  -- The batch's actor, on every row of it: one person deleted one thing, and the subtree that went
+  -- with it was not deleted by somebody else.
+  deleted_by_type = sqlc.narg('deleted_by_type'),
+  deleted_by_id   = sqlc.narg('deleted_by_id'),
+  updated_at      = sqlc.arg('updated_at'),
+  version         = version + 1
 WHERE collection_id = ANY(sqlc.arg('collection_ids')::uuid[])
   AND deleted_at IS NULL;
 
@@ -121,10 +143,12 @@ WHERE collection_id = ANY(sqlc.arg('collection_ids')::uuid[])
 -- The containers of one deletion, taken out of the trash together. Returns what came back, for the
 -- same reason the trashing statement does: each one is announced separately.
 UPDATE container SET
-  deleted_at     = NULL,
-  trash_batch_id = NULL,
-  updated_at     = sqlc.arg('updated_at'),
-  version        = version + 1
+  deleted_at      = NULL,
+  trash_batch_id  = NULL,
+  deleted_by_type = NULL,
+  deleted_by_id   = NULL,
+  updated_at      = sqlc.arg('updated_at'),
+  version         = version + 1
 WHERE trash_batch_id = sqlc.arg('trash_batch_id')::uuid
   AND id <> sqlc.arg('container_id')::uuid
 RETURNING id;
@@ -153,13 +177,16 @@ RETURNING id;
 -- The keyset is (deleted_at, id) descending, which is the order the page is in. A UNION of two
 -- tables cannot be walked by an index alone, so the sort is real - bounded by the size of the trash,
 -- which is bounded in turn by the retention period that empties it.
-SELECT kind, id, trash_batch_id, deleted_at, title, subtype, hub_id, collection_id, parent_id, version
+SELECT kind, id, trash_batch_id, deleted_at, deleted_by_type, deleted_by_id, title, subtype,
+       hub_id, collection_id, parent_id, version
 FROM (
   SELECT
     'CONTAINER'::text AS kind,
     c.id              AS id,
     c.trash_batch_id  AS trash_batch_id,
     c.deleted_at      AS deleted_at,
+    c.deleted_by_type AS deleted_by_type,
+    c.deleted_by_id   AS deleted_by_id,
     c.name            AS title,
     c.type::text      AS subtype,
     c.parent_id       AS hub_id,
@@ -174,7 +201,8 @@ FROM (
   UNION ALL
 
   SELECT
-    'ITEM'::text, i.id, i.trash_batch_id, i.deleted_at, i.title, i.type::text,
+    'ITEM'::text, i.id, i.trash_batch_id, i.deleted_at, i.deleted_by_type, i.deleted_by_id,
+    i.title, i.type::text,
     col.parent_id, i.collection_id, i.parent_id, i.version
   FROM work_item i
   JOIN container col ON col.id = i.collection_id
