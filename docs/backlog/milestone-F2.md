@@ -501,8 +501,8 @@ to bucket, move to another parent. Built first, it is a menu and a set of keyboa
 focused row, it works before any pointer code exists, and it is what the pointer path is later
 verified against. Built second, it is a retrofit F5 would have to find.
 
-**Then the pointer path.** Dragging a row within its level, a card between columns, a collection
-between hubs. Pointer Events rather than the HTML drag-and-drop API — F2-02's row is the question of
+**Then the pointer path.** Dragging a row within its level and a card between columns. Pointer
+Events rather than the HTML drag-and-drop API — F2-02's row is the question of
 what may be assumed, and the pull request states what it assumed and why. Motion goes through F2-01's
 roles; `prefers-reduced-motion` reduces the movement to the colour change rule 6 fixes as the floor,
 and a drag that only *looks* like it moved is still a rank change that either happened or did not.
@@ -515,12 +515,26 @@ those kinds with their message codes. Showing that report is part of this task; 
 turn a designed behaviour into data loss.
 
 **Acceptance:** every reordering is performable from the keyboard alone, with the position announced
-after the change; the pointer path performs the same operations and both go through the same call;
+after the change; the pointer path performs the same operations on a list and on a board, and both
+paths go through the same call;
 an `Idempotency-Key` accompanies each, and repeating one intent does not move an entry twice; a
 `:move` that drops references shows what was dropped and why, per kind; the order survives a reload
 and a second client sees it; reduced motion is honoured; a rank change against a stale version
 surfaces the precondition failure; no neighbouring key is rewritten, which the server guarantees and
 the client does not undo by re-sending the whole list.
+
+**Narrowed while the task ran, and the reason kept here rather than in a closed pull request:**
+this originally named a third pointer surface, a collection dragged between hubs in the sidebar. It
+is not built and will not be. WCAG 2.2 SC 2.5.7 asks for a single-pointer alternative to every
+*drag*; it never asks for a drag, so the accessibility obligation is met by the command path alone,
+and adding the gesture would create an obligation rather than discharge one. The placement itself is
+reachable — `Move to another hub…` performs it through `POST /containers/{id}:move`, announced
+through the frame's live region. What it would cost is a component change:
+`packages/design-system/src/SideNav.svelte` is a `role="tree"` with one roving `tabindex`, it would
+need a grip per row, two kinds of drop (*before this row* and *into this hub*) where a list and a
+column each have one, and a story per state. `packages/design-system/CLAUDE.md` rules out a
+component arriving as a side effect of application work, and reorganising a workspace is rare enough
+that the two-click command is not a hardship. Closed as #352.
 
 **Read:** `domain-model.md` §3.4 (I-W2, I-W6); the `:reorder`, `:move` and bucket `:reorder`
 operations; `api-guidelines.md` §3 (idempotency); WCAG 2.2 SC 2.5.7 and 2.1.1; `design-system.md` §6
