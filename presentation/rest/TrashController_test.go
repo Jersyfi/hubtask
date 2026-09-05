@@ -32,10 +32,14 @@ func trashPageOutput() usecase.Output {
 				"deleted_at":     at,
 				"title":          "Private",
 				"subtype":        "HUB",
-				"hub_id":         nil,
-				"collection_id":  nil,
-				"parent_id":      nil,
-				"version":        3,
+				"deleted_by": usecase.Output{
+					"type": "USER",
+					"id":   "0192f000-0000-7000-8000-0000000000d1",
+				},
+				"hub_id":        nil,
+				"collection_id": nil,
+				"parent_id":     nil,
+				"version":       3,
 			},
 			{
 				"kind":           "ITEM",
@@ -229,5 +233,45 @@ func TestAnUnblockedPassStillCarriesAnEmptyReasonMap(t *testing.T) {
 
 	if !strings.Contains(recorder.Body.String(), `"blocked":{}`) {
 		t.Errorf("an unblocked pass renders as %s", recorder.Body)
+	}
+}
+
+// Who deleted it, and the two ways there is nobody to name. The projection carries it because the
+// audit trail's copy sits behind `AUDIT_READ`, which most members do not hold - a trash screen that
+// had to ask for it would name nobody.
+func TestTheTrashSaysWhoDeletedIt(t *testing.T) {
+	recorder := getTrash(t, &catalogue{out: trashPageOutput()}, "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+
+	var body struct {
+		Data []struct {
+			DeletedBy *struct {
+				Type string  `json:"type"`
+				ID   *string `json:"id"`
+			} `json:"deleted_by"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if len(body.Data) != 2 {
+		t.Fatalf("%d entries, want 2", len(body.Data))
+	}
+
+	first := body.Data[0].DeletedBy
+	if first == nil {
+		t.Fatal("the recorded actor did not travel")
+	}
+	if first.Type != "USER" || first.ID == nil {
+		t.Errorf("the actor is %+v, want a USER with an identifier", first)
+	}
+
+	// The second row was never asked who - everything deleted before migration 0070 is in that
+	// state permanently - and travels as an explicit null rather than as an actor of kind "".
+	if body.Data[1].DeletedBy != nil {
+		t.Errorf("an unrecorded actor read as %+v, want null", body.Data[1].DeletedBy)
 	}
 }

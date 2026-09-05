@@ -60,10 +60,27 @@ func trashEntryResponse(out usecase.Output) openapi.TrashEntry {
 		Subtype:      out.String("subtype"),
 		Version:      out.Int("version"),
 	}
+	entry.DeletedBy = trashActorResponse(out["deleted_by"])
 	entry.HubId = optionalUUIDResponse(out.String("hub_id"))
 	entry.CollectionId = optionalUUIDResponse(out.String("collection_id"))
 	entry.ParentId = optionalUUIDResponse(out.String("parent_id"))
 	return entry
+}
+
+// trashActorResponse maps who deleted it, and the two ways there is nobody to name.
+//
+// A nil answer is a row deleted before the columns existed, and travels as the contract's null. An
+// actor with no identifier is an automation or the system, and travels as a kind with a null id -
+// a different statement, and the one that lets a client say "an automation" rather than "somebody".
+func trashActorResponse(value any) *openapi.Actor {
+	actor, ok := value.(usecase.Output)
+	if !ok {
+		return nil
+	}
+	return &openapi.Actor{
+		Id:   optionalUUIDResponse(actor.String("id")),
+		Type: openapi.ActorType(actor.String("type")),
+	}
 }
 
 // optionalUUIDResponse turns the catalogue's "not set" - an absent value, which reads back as the

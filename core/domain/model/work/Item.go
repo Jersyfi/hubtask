@@ -169,8 +169,11 @@ type WorkItem struct {
 	// eventually surprise somebody".
 	Retention *RetentionState
 
-	ArchivedAt   *time.Time
-	DeletedAt    *time.Time
+	ArchivedAt *time.Time
+	DeletedAt  *time.Time
+	// DeletedBy is who put it in the trash, meaningful only while DeletedAt is set. Zero for
+	// everything deleted before migration 0070, permanently.
+	DeletedBy    DeletedBy
 	TrashBatchID shared.ID
 	CreatedBy    shared.ID
 	CreatedAt    time.Time

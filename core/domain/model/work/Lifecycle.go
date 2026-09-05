@@ -66,6 +66,25 @@ func (i WorkItem) Unarchived(at time.Time) (WorkItem, []FieldChange, error) {
 	return i, changes, nil
 }
 
+// DeletedBy is who put something in the trash.
+//
+// The pair `activity.Actor` carries, spelled out here rather than imported: an aggregate under
+// `work` has no business depending on the activity aggregate for a value type, and the vocabulary
+// both use - `shared.ActorKind` - is already shared.
+//
+// The identifier is empty where the kind is not: an automation and the system act without an
+// account, so a kind alone says what acted and an identifier alone could not. A zero value means
+// nobody recorded it, which is the permanent state of everything deleted before the columns
+// existed (migration 0070).
+type DeletedBy struct {
+	Kind shared.ActorKind
+	ID   shared.ID
+}
+
+// IsKnown reports whether anything was recorded. A row trashed before 0070 answers false, and a
+// reader shows the deletion without a name rather than a name it made up.
+func (d DeletedBy) IsKnown() bool { return d.Kind != "" }
+
 // Trashed puts the item into the trash as part of one deletion, named by batch.
 //
 // An item already in the trash comes back untouched - not merely as politeness towards a retry, but
@@ -76,7 +95,9 @@ func (i WorkItem) Unarchived(at time.Time) (WorkItem, []FieldChange, error) {
 //
 // Archived is not an obstacle. Deleting something that was taken out of use is the ordinary case,
 // and the archive stamp survives the trip so that Restored can put it back the way it was.
-func (i WorkItem) Trashed(at time.Time, batch shared.ID) (WorkItem, []FieldChange, error) {
+func (i WorkItem) Trashed(
+	at time.Time, batch shared.ID, by DeletedBy,
+) (WorkItem, []FieldChange, error) {
 	if batch.IsZero() {
 		// A batch identifier the caller did not generate is a defect in this process, not something
 		// a client did: every entry point into the trash goes through the ID generator port.
@@ -89,6 +110,9 @@ func (i WorkItem) Trashed(at time.Time, batch shared.ID) (WorkItem, []FieldChang
 	changes := []FieldChange{{Field: FieldDeletedAt, From: "", To: instant(at)}}
 	i.DeletedAt = &at
 	i.TrashBatchID = batch
+	// Who, beside when. Not a FieldChange: the history already records who did it on every entry,
+	// and repeating it in the change set would say one thing twice in one record.
+	i.DeletedBy = by
 	i.UpdatedAt = at
 	return i, changes, nil
 }
@@ -108,6 +132,9 @@ func (i WorkItem) Restored(at time.Time) (WorkItem, []FieldChange, error) {
 	changes := []FieldChange{{Field: FieldDeletedAt, From: instant(*i.DeletedAt), To: ""}}
 	i.DeletedAt = nil
 	i.TrashBatchID = ""
+	// Cleared with the stamp, like the batch: an actor left on a live row would say somebody
+	// deleted something that is not deleted.
+	i.DeletedBy = DeletedBy{}
 	i.UpdatedAt = at
 	return i, changes, nil
 }
@@ -139,7 +166,9 @@ func (i WorkItem) ensureLifecycleChangeable() error {
 // first, and the answer names it. A hub archived in its own right is not refused: Archived -->
 // Trashed is a documented edge, and the archive stamp survives so that restoring gives back what
 // was deleted rather than something subtly different.
-func (c Container) Trashed(at time.Time, batch shared.ID) (Container, []FieldChange, error) {
+func (c Container) Trashed(
+	at time.Time, batch shared.ID, by DeletedBy,
+) (Container, []FieldChange, error) {
 	if batch.IsZero() {
 		return Container{}, nil, shared.ErrInternal.WithDetail("containers.trash_batch_missing")
 	}
@@ -157,6 +186,7 @@ func (c Container) Trashed(at time.Time, batch shared.ID) (Container, []FieldCha
 	changes := []FieldChange{{Field: FieldDeletedAt, From: "", To: instant(at)}}
 	c.DeletedAt = &at
 	c.TrashBatchID = batch
+	c.DeletedBy = by
 	c.UpdatedAt = at
 	return c, changes, nil
 }
@@ -170,6 +200,7 @@ func (c Container) Restored(at time.Time) (Container, []FieldChange, error) {
 	changes := []FieldChange{{Field: FieldDeletedAt, From: instant(*c.DeletedAt), To: ""}}
 	c.DeletedAt = nil
 	c.TrashBatchID = ""
+	c.DeletedBy = DeletedBy{}
 	c.UpdatedAt = at
 	return c, changes, nil
 }

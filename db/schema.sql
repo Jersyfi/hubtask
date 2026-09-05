@@ -436,6 +436,12 @@ CREATE TABLE container (
   archived_at  timestamptz,
   deleted_at   timestamptz,
   trash_batch_id uuid,
+  -- Who deleted it, in activity_entry's shape: a kind and a nullable identifier, because an
+  -- automation and the system act without an account. Permanently nullable - a row deleted before
+  -- 0070 will never learn who deleted it, and inventing it from the audit trail would be reading a
+  -- fact out of a source with a different permission.
+  deleted_by_type text,
+  deleted_by_id uuid,
   created_by   uuid NOT NULL,
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now(),
@@ -556,6 +562,9 @@ CREATE TABLE work_item (
   archived_at        timestamptz,
   deleted_at         timestamptz,
   trash_batch_id     uuid,
+  -- The same pair the container carries, and for the same reason (0070).
+  deleted_by_type    text,
+  deleted_by_id      uuid,
   created_by         uuid NOT NULL,
   created_at         timestamptz NOT NULL DEFAULT now(),
   updated_at         timestamptz NOT NULL DEFAULT now(),

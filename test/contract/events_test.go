@@ -1307,7 +1307,7 @@ func TestTheTrashAndArchiveEventsMatchTheirSchemas(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
-	trashed, _, err := task.Trashed(at, batch)
+	trashed, _, err := task.Trashed(at, batch, work.DeletedBy{Kind: shared.ActorUser})
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
@@ -1317,7 +1317,7 @@ func TestTheTrashAndArchiveEventsMatchTheirSchemas(t *testing.T) {
 		CompletionPolicy: work.CompletionManual, CreatedBy: actor,
 		CreatedAt: at.Add(-24 * time.Hour), UpdatedAt: at, Version: 2,
 	}
-	deleted, _, err := hub.Trashed(at, batch)
+	deleted, _, err := hub.Trashed(at, batch, work.DeletedBy{Kind: shared.ActorUser})
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
@@ -1421,7 +1421,7 @@ func TestALifecycleEventCannotContradictItsOwnName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}
-	trashed, _, err := task.Trashed(at, shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"))
+	trashed, _, err := task.Trashed(at, shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"), work.DeletedBy{Kind: shared.ActorUser})
 	if err != nil {
 		t.Fatalf("the transition was refused: %v", err)
 	}

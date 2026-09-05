@@ -79,6 +79,8 @@ type Container struct {
 	// restoring then moves no data (domain-model.md §6).
 	ArchivedAt *time.Time
 	DeletedAt  *time.Time
+	// DeletedBy is who put it in the trash, meaningful only while DeletedAt is set (0070).
+	DeletedBy DeletedBy
 	// ParentArchivedAt is the hub's own stamp, read alongside the row rather than stored on it. That
 	// is invariant I-C3's second half: a collection in an archived hub is read-only without being
 	// archived itself, and the two facts stay separate so that unarchiving the hub restores exactly

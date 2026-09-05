@@ -61,6 +61,12 @@ func (h RestoreWorkItem) Execute(
 	return h.Lifecycle.change(ctx, actor, cmd, restoring)
 }
 
+// deletedBy is the acting context as the trash records it: the kind always, and the account where
+// there is one. An automation and the system have none, and a kind alone is what says so.
+func deletedBy(actor appshared.ActorContext) domain.DeletedBy {
+	return domain.DeletedBy{Kind: actor.Kind, ID: actor.AccountID}
+}
+
 var (
 	trashing = itemVerb{
 		action: ItemTrashedAction,
@@ -68,8 +74,10 @@ var (
 		// A fresh identifier per deletion, from the generator port rather than from time or chance
 		// (arc42 §8.13). It is what the whole subtree is stamped with and what a restore is keyed on.
 		batch: func(_ domain.WorkItem, ids clock.IDGenerator) shared.ID { return ids.NewID() },
-		apply: func(item domain.WorkItem, now time.Time, batch shared.ID) (domain.WorkItem, []domain.FieldChange, error) {
-			return item.Trashed(now, batch)
+		apply: func(
+			item domain.WorkItem, now time.Time, batch shared.ID, by domain.DeletedBy,
+		) (domain.WorkItem, []domain.FieldChange, error) {
+			return item.Trashed(now, batch, by)
 		},
 		store: func(ctx context.Context, items repository.Items, trash repository.ItemTrash) (int, error) {
 			return items.TrashSubtree(ctx, trash)
@@ -87,7 +95,9 @@ var (
 		// The batch already on the row, read before the transition clears it. Restoring is an act on
 		// the deletion rather than on the entry, and the deletion is what the batch names.
 		batch: func(item domain.WorkItem, _ clock.IDGenerator) shared.ID { return item.TrashBatchID },
-		apply: func(item domain.WorkItem, now time.Time, _ shared.ID) (domain.WorkItem, []domain.FieldChange, error) {
+		apply: func(
+			item domain.WorkItem, now time.Time, _ shared.ID, _ domain.DeletedBy,
+		) (domain.WorkItem, []domain.FieldChange, error) {
 			return item.Restored(now)
 		},
 		store: func(ctx context.Context, items repository.Items, trash repository.ItemTrash) (int, error) {

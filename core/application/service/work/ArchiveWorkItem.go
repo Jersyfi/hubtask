@@ -119,7 +119,7 @@ type itemVerb struct {
 	batch func(domain.WorkItem, clock.IDGenerator) shared.ID
 	// apply is the domain transition. It reports no changes when the entry already says what the
 	// caller asked it to say, which is what makes every one of these verbs idempotent.
-	apply func(domain.WorkItem, time.Time, shared.ID) (domain.WorkItem, []domain.FieldChange, error)
+	apply func(domain.WorkItem, time.Time, shared.ID, domain.DeletedBy) (domain.WorkItem, []domain.FieldChange, error)
 	// store writes the decided state and reports how many rows it touched. One for a stamp on a
 	// single entry; a subtree's size for the verbs that take one with them.
 	store func(context.Context, repository.Items, repository.ItemTrash) (int, error)
@@ -141,7 +141,9 @@ var (
 	archiving = itemVerb{
 		action: ItemArchivedAction,
 		step:   activity.ItemArchived,
-		apply: func(item domain.WorkItem, now time.Time, _ shared.ID) (domain.WorkItem, []domain.FieldChange, error) {
+		apply: func(
+			item domain.WorkItem, now time.Time, _ shared.ID, _ domain.DeletedBy,
+		) (domain.WorkItem, []domain.FieldChange, error) {
 			return item.Archived(now)
 		},
 		store:    storeArchiveStamp,
@@ -151,7 +153,9 @@ var (
 	unarchiving = itemVerb{
 		action: ItemUnarchivedAction,
 		step:   activity.ItemUnarchived,
-		apply: func(item domain.WorkItem, now time.Time, _ shared.ID) (domain.WorkItem, []domain.FieldChange, error) {
+		apply: func(
+			item domain.WorkItem, now time.Time, _ shared.ID, _ domain.DeletedBy,
+		) (domain.WorkItem, []domain.FieldChange, error) {
 			return item.Unarchived(now)
 		},
 		store:    storeArchiveStamp,
@@ -261,7 +265,7 @@ func (w LifecycleWriter) change(
 			batch = verb.batch(item, w.IDs)
 		}
 
-		wanted, changes, err := verb.apply(item, now, batch)
+		wanted, changes, err := verb.apply(item, now, batch, deletedBy(actor))
 		if err != nil {
 			return err
 		}
