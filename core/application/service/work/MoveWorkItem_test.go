@@ -259,6 +259,68 @@ func TestAnOmittedParentIsNotARequestForTheTopLevel(t *testing.T) {
 	})
 }
 
+// The other half of the distinction the command exists to carry, and the one nobody had asserted: an entry
+// asked to leave its parent for the top level of the collection it is already in. Whether that placement is
+// allowed is the manifest's answer - what neither answer may be is a success that moved nothing.
+func TestAnExplicitNullParentIsActedOnRatherThanIgnored(t *testing.T) {
+	t.Run("a type the manifest roots leaves its parent", func(t *testing.T) {
+		h := newPlacementHarness()
+		h.items.subtreeSize = 2
+		// A manifest in which nothing takes a work package as a child, which is what makes it a root
+		// type and "the top level of this collection" a placement it may have.
+		h.writer.Profiles = &profiles{rows: []domain.CapabilityProfile{
+			{Type: domain.ItemTask, MaxDepth: 3},
+			{
+				Type:              domain.ItemWorkPackage,
+				AllowedChildTypes: []domain.ItemType{domain.ItemActivity},
+				MaxDepth:          2,
+			},
+			{Type: domain.ItemActivity, MaxDepth: 1},
+		}}
+
+		if _, err := (MoveWorkItem{Placement: h.writer}).Execute(t.Context(), placementActor(), MoveWorkItemCommand{
+			ItemID: movedPackID, ParentGiven: true, TargetCollectionID: collectionID,
+		}); err != nil {
+			t.Fatalf("moving out to the top level: %v", err)
+		}
+
+		if len(h.items.moves) != 1 {
+			t.Fatalf("%d subtree moves, want 1 - the entry did not leave its parent", len(h.items.moves))
+		}
+		move := h.items.moves[0]
+
+		if !move.TargetParentID.IsZero() {
+			t.Errorf("the target parent is %s, want none - that is what the top level means", move.TargetParentID)
+		}
+		if want := domain.RootPath(movedPackID); move.NewPrefix != want {
+			t.Errorf("the new prefix is %q, want %q", move.NewPrefix, want)
+		}
+		// Out of a task at depth 1 and up to the root: the subtree rises by one.
+		if move.DepthDelta != -1 {
+			t.Errorf("the depth delta is %d, want -1", move.DepthDelta)
+		}
+	})
+
+	t.Run("a type it does not is refused by name", func(t *testing.T) {
+		h := newPlacementHarness()
+
+		// The system manifest: a work package belongs under a task, so the top level is not a place it
+		// can go. `domain-model.md` §2 - a refusal must never become silent ignoring.
+		_, err := MoveWorkItem{Placement: h.writer}.Execute(t.Context(), placementActor(), MoveWorkItemCommand{
+			ItemID: movedPackID, ParentGiven: true, TargetCollectionID: collectionID,
+		})
+		if !errors.Is(err, shared.ErrValidation) {
+			t.Fatalf("answered %v, want a refusal rather than a success that moved nothing", err)
+		}
+		if got := shared.AsError(err).DetailCode; got != "items.parent_item_required" {
+			t.Errorf("the detail code is %q", got)
+		}
+		if len(h.items.moves) != 0 {
+			t.Error("a refused move wrote a subtree move")
+		}
+	})
+}
+
 // A collection that contradicts the chosen parent is refused rather than one of the two being preferred
 // quietly.
 func TestACollectionContradictingTheParentIsRefused(t *testing.T) {

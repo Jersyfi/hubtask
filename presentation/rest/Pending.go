@@ -653,7 +653,9 @@ func (pending) ReopenWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.
 }
 
 // MoveWorkItem is overridden by RestController, for the reason given at CreateContainer.
-func (pending) MoveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+func (pending) MoveWorkItem(
+	w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.MoveWorkItemParams,
+) {
 	notAvailable(w, r)
 }
 

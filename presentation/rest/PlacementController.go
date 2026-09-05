@@ -24,7 +24,9 @@ const (
 )
 
 // MoveWorkItem answers POST /items/{itemId}:move.
-func (c *RestController) MoveWorkItem(w http.ResponseWriter, r *http.Request, itemID openapi.ItemId) {
+func (c *RestController) MoveWorkItem(
+	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, _ openapi.MoveWorkItemParams,
+) {
 	requestID := correlation.RequestIDFrom(r.Context())
 
 	if c.UseCases == nil {
@@ -43,19 +45,24 @@ func (c *RestController) MoveWorkItem(w http.ResponseWriter, r *http.Request, it
 	// Only the fields the client sent. `target_parent_id` in particular: sending it as null asks for the top
 	// level, and omitting it asks for the parent to stay - a handler that passed nil for both would move items
 	// nobody asked to move, and the value alone cannot tell the two apart.
+	//
+	// Null reaches the catalogue as the empty string rather than as nil, which is what `WorkItemController`
+	// does for the same distinction. `usecase.Input.Present` reports a present-but-nil entry as absent, by
+	// design and with a test on it - so a nil here would spell "the caller said nothing" for a caller who
+	// said null, and the use case would leave the parent exactly where the request asked it not to be.
 	if present["target_parent_id"] {
-		in["target_parent_id"] = optionalUUIDField(body.TargetParentId)
+		in["target_parent_id"] = uuidOrEmpty(body.TargetParentId)
 	}
 	if present["target_collection_id"] {
-		in["target_collection_id"] = optionalUUIDField(body.TargetCollectionId)
+		in["target_collection_id"] = uuidOrEmpty(body.TargetCollectionId)
 	}
 	if present["before_item_id"] {
-		in["before_item_id"] = optionalUUIDField(body.BeforeItemId)
+		in["before_item_id"] = uuidOrEmpty(body.BeforeItemId)
 	}
 	if present["target_bucket_id"] {
-		// Passed on so the catalogue refuses it by name. Buckets arrive with B-09, and a client that moved a
-		// card into one and received a 200 would believe the card is in that bucket.
-		in["target_bucket_id"] = optionalUUIDField(body.TargetBucketId)
+		// The same shape, and the reason the board needs it: null takes the entry off the board and omitting
+		// the field leaves the column where the collection allows.
+		in["target_bucket_id"] = uuidOrEmpty(body.TargetBucketId)
 	}
 	if version, ok := versionFromIfMatch(ifMatchOf(r)); ok {
 		in["expected_version"] = version
