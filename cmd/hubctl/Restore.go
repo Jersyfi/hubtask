@@ -29,7 +29,7 @@ func restoreGroup() group {
 			{
 				name:    "run",
 				usage:   "--target <id> --archive <path> --mode NEW_TENANT|MERGE|SELECTIVE|REPLACE_TENANT|INSTANCE [--apply]",
-				summary: "restore, as a dry run unless --apply is given",
+				summary: "restore, as a dry run unless --apply is given; a destructive mode proves you again",
 				run:     restoreRun,
 			},
 			{
@@ -172,8 +172,16 @@ func (cli *CLI) startRestore(
 	if err != nil {
 		return err
 	}
+	// The step-up travels in the request field rather than in the header, which is the one
+	// difference between this act and every other that demands a proof (api/openapi.yaml,
+	// RestoreRequest.step_up_token, carried since 0.4.5). The asking, the proving and the retry
+	// are the shared ones.
 	var accepted openapi.JobRef
-	if err := client.Post(ctx, restoresPath, request, &accepted); err != nil {
+	err = cli.proveAgain(ctx, client, func(stepUp string) error {
+		request.StepUpToken = optional(stepUp)
+		return client.Post(ctx, restoresPath, request, &accepted)
+	})
+	if err != nil {
 		return err
 	}
 

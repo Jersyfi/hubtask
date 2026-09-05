@@ -29,6 +29,10 @@ type APIError struct {
 	Code       string
 	DetailCode string
 	RequestID  string
+	// Params are the refusal's own parameters. Kept beside the rendered sentence because one
+	// refusal is not only text to print: `auth.step_up_required` names the methods it accepts,
+	// and a client that has to ask the person for one of them needs to know which.
+	Params map[string]string
 
 	message string
 	fields  []string
@@ -67,6 +71,7 @@ func (c *Client) problem(response port.Response) error {
 	}
 
 	params := stringParams(document.Params)
+	failure.Params = params
 	if failure.RequestID != "" {
 		if _, taken := params[requestIDParam]; !taken {
 			params[requestIDParam] = failure.RequestID
