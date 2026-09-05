@@ -23,9 +23,10 @@ import (
 // valid or not - which is exactly the question a sign-in asks.
 const capabilitiesPath = "/meta/capabilities"
 
-// Token sources, as `hubctl auth status` reports them.
+// Credential sources, as `hubctl auth status` reports them.
 const (
 	sourceEnvironment = "environment"
+	sourceSession     = "session"
 	sourceProfile     = "profile"
 	sourceNone        = "none"
 )
@@ -64,7 +65,9 @@ type AuthStatus struct {
 	// SignedIn is whether a credential is available at all. It says nothing about whether the
 	// installation would accept it; only a call can say that.
 	SignedIn bool `json:"signed_in"`
-	// TokenSource is `environment`, `profile` or `none`.
+	// TokenSource is `environment`, `session`, `profile` or `none` - a variable in the shell, the
+	// session `hubctl login` holds, the personal access token `hubctl auth login` stored, or
+	// nothing at all.
 	TokenSource string `json:"token_source"`
 	// ProfilePath is where the stored profile lives, whether or not it exists.
 	ProfilePath string `json:"profile_path"`
@@ -131,13 +134,15 @@ func authStatus(_ context.Context, cli *CLI, args []string) error {
 
 	status := AuthStatus{
 		BaseURL:     cli.Profile.BaseURL,
-		SignedIn:    !cli.Profile.Token.IsEmpty(),
+		SignedIn:    !cli.Profile.Credential().IsEmpty(),
 		TokenSource: sourceNone,
 		ProfilePath: cli.ProfilePath,
 	}
 	switch {
 	case cli.Env(envToken) != "":
 		status.TokenSource = sourceEnvironment
+	case !cli.Profile.Session.IsEmpty():
+		status.TokenSource = sourceSession
 	case !stored.Token.IsEmpty():
 		status.TokenSource = sourceProfile
 	}
@@ -159,6 +164,8 @@ func authLogout(_ context.Context, cli *CLI, args []string) error {
 		return err
 	}
 
+	// Every credential, the session included: the file is the profile, and forgetting half of it
+	// would leave `hubctl auth status` reporting a sign-in nothing can use.
 	if err := ForgetProfile(cli.ProfilePath); err != nil {
 		return err
 	}
