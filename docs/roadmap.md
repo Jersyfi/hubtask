@@ -282,16 +282,33 @@ through the account preference" is a binding requirement above, F1 carried **one
 a requirement that touches both sides, and a reminder that a client milestone may find a gap in
 the contract rather than only build on it.
 
-**F2 is open**, and its backlog is [`backlog/milestone-F2.md`](./backlog/milestone-F2.md) —
+**F2 is done**, and its backlog is [`backlog/milestone-F2.md`](./backlog/milestone-F2.md) —
 sixteen tasks, F2-01…F2-16. Cutting it found the second such gap, and of the same kind: every
 `Container` carries an `order_key`, `POST /containers/{id}:move` ranks a collection by naming the
 hub it is already in, and a hub sits in nothing and so has a rank that nothing can change. F2
-therefore carries **one core task** as well (`POST /containers/{id}:reorder`, additive and
-specification first). Two of the milestone's own gaps are older: `design-system.md` §9's density
-decision and its named motion roles are what F2-01 closes, because the milestone with the long
-lists is the last cheap moment for both. Whether F2 moves the client's maturity stage from
-`experimental` to `preview` is deliberately not in the backlog — F2-16 produces the evidence and
-the decision stays with the owner.
+therefore carried **one core task** as well (`POST /containers/{id}:reorder`, additive and
+specification first). Two of the milestone's own gaps were older: `design-system.md` §9's density
+decision and its named motion roles are what F2-01 closed, because the milestone with the long
+lists was the last cheap moment for both. Whether F2 moved the client's maturity stage from
+`experimental` to `preview` was deliberately not in the backlog — F2-16 produced the evidence
+([`R-08-2026-09-04.md`](./evidence/R-08-2026-09-04.md)), the owner decided, and the client has
+been `preview` since the four creation surfaces that pass found missing were built.
+
+**F3 is open**, and its backlog is [`backlog/milestone-F3.md`](./backlog/milestone-F3.md) —
+twenty tasks, F3-01…F3-20, the longest of the track because it builds the surface for two core
+milestones. Cutting it found **three** gaps of the kind F1 and F2 each found one of, and F3
+therefore carries three core tasks, each additive and specification first: no read lists who
+holds a role at a scope or what a group contains, so an assignee picker has no candidates
+(`api-guidelines.md` §2 has promised `GET /memberships` since phase 0); no route reads or writes
+the notification preferences C-09 stored, although `data-protection.md` §9 calls the title switch
+switchable; and `TrashEntry` names no actor (#354). It also found one thing a client task cannot
+settle alone: under object storage the presigned URLs the media flow hands out are on an origin the
+interface's content security policy does not name, so the browser can neither upload to the bucket
+nor draw a cover from it — F3-09 opens with an ADR amending ADR-0028's policy rather than with code.
+And one product question it records without answering: the roadmap's "notifications" is built as
+the preferences, because the notification record has one channel, `EMAIL`, and an inbox in the
+client would be a new channel rather than a screen. The maturity stage is not a question this
+time — `stable` belongs to convergence.
 
 ### The website: a pre-release site from the `0.4.0` window
 
