@@ -75,10 +75,11 @@ export function changesOf(changeSet: Record<string, unknown> | undefined): reado
  * a kind this client has never heard of falls back to the one sentence that is true of every
  * actor — "somebody" — rather than rendering a key.
  *
- * **"You" is the one name this client can honestly write.** The contract says of the actor that
- * "the label is not here: the account is one request away", and for anyone but the signed-in
- * account that request does not exist — `/accounts/me` is the only account read the contract
- * declares. So the feed distinguishes the reader from everybody else and invents no names.
+ * **These are the fallbacks, not the whole answer.** The contract says of the actor that "the
+ * label is not here: the account is one request away", and `GET /accounts/{accountId}` is that
+ * request — `lib/data/accounts.svelte.ts` makes it and caches what comes back. What this function
+ * answers is what to say when no name was resolved: for the reader, "You"; for anybody else, the
+ * sentence true of their kind. It invents no names, and it never has.
  */
 export function actorCodes(entry: ActivityEntry, selfAccountId: string | undefined): string[] {
   const kind = entry.actor?.type;
