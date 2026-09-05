@@ -12,19 +12,24 @@
   //
   // The **actor** is the one place this screen refuses to guess. The contract says of an activity
   // actor that "the label is not here: the account is one request away" — and for anybody but the
-  // signed-in account, that request does not exist: `/accounts/me` is the only account read
-  // declared. So the reader is "You" and everybody else is named by their kind.
+  // signed-in account, the name is resolved through `GET /accounts/{accountId}` and cached by
+  // `lib/data/accounts.svelte.ts`. The reader is still "You", and an actor whose name did not
+  // resolve is named by its kind.
 
   import { untrack } from 'svelte';
 
   import {
     ActivityFeed,
     Badge,
+    Button,
     EmptyState,
     ErrorState,
+    Inline,
+    Input,
     LoadMore,
     Skeleton,
     Stack,
+    Textarea,
     type ActivityStep,
   } from '@hubtask/design-system/components';
   import type { ActivityEntry, ActivityPage, WorkItem } from '@hubtask/sync-engine';
@@ -32,6 +37,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { actorCodes, changesOf } from '../lib/data/activity.ts';
+  import { items } from '../lib/data/items.svelte.ts';
   import { activityPath, itemPath } from '../lib/data/item.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -120,6 +126,65 @@
   const historyFailure = $derived(
     history.state.status === 'failed' ? renderProblem(history.state.error, messages) : undefined,
   );
+
+  // Editing the title and the notes. `items.update` has carried both since F2-09, with the
+  // `If-Match` and the version conflict handled, and no component called it - so the text that
+  // `POST /search` searches and that the history says somebody changed could not be written here
+  // at all. The dogfooding pass set a note with curl in order to search for a word in it.
+  //
+  // A form rather than an inline edit, for the reason `ContainerView`'s rename gives: a refusal
+  // needs somewhere to land, and a sentence at the top of a screen is one the reader has to carry
+  // back down to the field they were typing in.
+  let isEditing = $state(false);
+  let draftTitle = $state('');
+  let draftNotes = $state('');
+  let isSaving = $state(false);
+  let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  let isTitleFailure = $state(false);
+
+  // An archived entry is not editable, and the control says so rather than disappearing - the same
+  // sentence the list uses for the same state.
+  //
+  // Only the entry's own archival is read here. An entry under an archived collection carries no
+  // mark of its own, so that refusal comes from the server and lands in the sentence above the
+  // buttons; the alternative would be this screen reading the whole trail to predict an answer it
+  // is about to be given.
+  const frozenReason = $derived(item?.archived_at ? t('app.entries.archived') : undefined);
+
+  function startEditing() {
+    if (!item) return;
+    draftTitle = item.title;
+    draftNotes = item.notes ?? '';
+    writeFailure = undefined;
+    isTitleFailure = false;
+    isEditing = true;
+  }
+
+  async function save() {
+    if (!item || draftTitle.trim() === '' || isSaving) return;
+    isSaving = true;
+    writeFailure = undefined;
+    isTitleFailure = false;
+    try {
+      // Empty notes clear them rather than setting them to the empty string: the contract's null
+      // is "there are none", and a note of zero characters is not a note somebody wrote.
+      await items.update(
+        item.id,
+        { title: draftTitle.trim(), notes: draftNotes.trim() === '' ? null : draftNotes },
+        item.version,
+      );
+      // Both the entry and its history come back on their own: the write invalidates `/items`, and
+      // the engine matches by prefix — so `/items/{id}` and `/items/{id}/activity` are re-read
+      // without either being asked for here. A refresh would be a second read of what is arriving.
+      isEditing = false;
+    } catch (error) {
+      const problem = error as { detailCode?: string };
+      writeFailure = renderProblem(error as never, messages);
+      isTitleFailure = writeFailure.fields.has('/title') || problem.detailCode === 'items.title_empty';
+    } finally {
+      isSaving = false;
+    }
+  }
 </script>
 
 {#if entry.state.status === 'loading' || entry.state.status === 'idle'}
@@ -136,19 +201,51 @@
   <EmptyState kind="filtered" title={t('app.item.not_found')} />
 {:else}
   <Stack gap="300">
-    <Stack gap="150">
-      <h1 class="name">{item.title}</h1>
-      <div class="marks">
-        <Badge>{item.type}</Badge>
-        {#if item.archived_at}
-          <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
+    {#if isEditing}
+      <Stack gap="150">
+        <Input
+          label={t('app.entries.new_title')}
+          bind:value={draftTitle}
+          error={isTitleFailure ? writeFailure?.message : undefined}
+        />
+        <Textarea label={t('app.entries.notes')} bind:value={draftNotes} rows={6} />
+        <!-- Everything that is not about the title is a sentence above the buttons: a version
+             conflict is the ordinary case here, and nothing about the title is wrong when the
+             entry moved underneath the reader. -->
+        {#if writeFailure && !isTitleFailure}
+          <p class="failure">{writeFailure.message}</p>
         {/if}
-        {#if item.completion?.is_completed}
-          <Badge tone="success">{t('app.entries.complete', { title: item.title })}</Badge>
-        {/if}
-      </div>
-      {#if item.notes}<p class="notes">{item.notes}</p>{/if}
-    </Stack>
+        <Inline gap="100">
+          <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>
+            {t('app.workspace.save')}
+          </Button>
+          <Button tone="secondary" onclick={() => (isEditing = false)}>
+            {t('app.workspace.cancel')}
+          </Button>
+        </Inline>
+      </Stack>
+    {:else}
+      <Stack gap="150">
+        <h1 class="name">{item.title}</h1>
+        <div class="marks">
+          <Badge>{item.type}</Badge>
+          {#if item.archived_at}
+            <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
+          {/if}
+          {#if item.completion?.is_completed}
+            <Badge tone="success">{t('app.entries.complete', { title: item.title })}</Badge>
+          {/if}
+        </div>
+        {#if item.notes}<p class="notes">{item.notes}</p>{/if}
+        <div>
+          <!-- Offered with its reason rather than hidden when the entry is archived, which is what
+               every other refused control in this application does. -->
+          <Button size="sm" tone="secondary" icon="pencil" disabledReason={frozenReason} onclick={startEditing}>
+            {t('app.entries.edit')}
+          </Button>
+        </div>
+      </Stack>
+    {/if}
 
     <Stack gap="150">
       <h2 class="section">{t('app.activity.title')}</h2>
@@ -204,4 +301,5 @@
   .marks { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 
   .notes { margin: 0; max-width: 64ch; color: var(--text-secondary); white-space: pre-wrap; }
+  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 </style>
