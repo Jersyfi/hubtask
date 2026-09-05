@@ -46,11 +46,12 @@ func (c *RestController) DuplicateWorkItem(
 		// Presence rather than the value, for the reason a move reads it that way: sending
 		// `target_parent_id` as null asks for the top level of a collection and omitting it asks
 		// for the copy to land beside the original, and the difference is invisible in the value.
+		// The empty string rather than nil carries it, for the reason `PlacementController` gives.
 		if present["target_parent_id"] {
-			in["target_parent_id"] = optionalUUIDField(body.TargetParentId)
+			in["target_parent_id"] = uuidOrEmpty(body.TargetParentId)
 		}
 		if present["target_collection_id"] {
-			in["target_collection_id"] = optionalUUIDField(body.TargetCollectionId)
+			in["target_collection_id"] = uuidOrEmpty(body.TargetCollectionId)
 		}
 		if body.Title != nil {
 			in["title"] = *body.Title

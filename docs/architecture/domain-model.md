@@ -460,8 +460,8 @@ there is nothing for MCP or an automation rule to call, and it is served by the 
 `ReadCalendarFeed` the way `MediaContent` serves the content routes.
 
 **Identity & tenancy** `ProvisionTenant`, `UpdateTenantSettings`, `SuspendTenant`, `DeleteTenant`,
-`ExportTenantData`, `InviteAccount`, `GetOwnAccount`, `UpdateAccountPreferences`, `GrantMembership`,
-`RevokeMembership`, `CreateGroup`, `UpdateGroup`, `DeleteGroup`.
+`ExportTenantData`, `InviteAccount`, `GetOwnAccount`, `GetAccount`, `UpdateAccountPreferences`,
+`GrantMembership`, `RevokeMembership`, `CreateGroup`, `UpdateGroup`, `DeleteGroup`.
 
 `GetOwnAccount` is the one read in this group and the only one that takes no input: the actor *is*
 the identifier. It exists because nothing else answered "who am I" — `InviteAccount` creates an
@@ -472,6 +472,30 @@ reading one's own account is not administering anybody, and requiring `MANAGE_ME
 mean a viewer could not discover their own time zone. The token scope still applies, and the tenant
 boundary is the transaction's (ADR-0010). A service account gets the same document rather than a
 refusal — it has an account row like anybody else.
+
+`GetAccount` is the second read, and the one that turns an identifier into a name. Every record that
+says *who* — `ActivityEntry.actor`, an assignee, a member row — carries `{type, id}` and no label,
+for the reason the contract gives: the account is one request away, and a copy of somebody's name
+should not outlive the row it was copied into. That request is this one.
+
+**Who may make it: any member of the tenant.** That is the rule, and it is written here rather than
+decided in a controller. Two things settle it. `data-protection.md` §9 already fixes the visibility
+of profile data to other tenant members at *minimal — display name, avatar*, so the answer is not a
+new disclosure but the one already promised. And a name is what makes a shared workspace legible at
+all: a viewer permitted to read an entry's history but not to learn who wrote it is being shown a
+document with the subject struck out of every sentence. There is also nothing narrower to authorise
+against — the identifiers a client holds arrived inside records it was already allowed to read.
+
+**What it answers is deliberately less than `GetOwnAccount`.** `AccountSummary` carries the id, the
+kind, the display name and the status, and not the email, the locale, the time zone or the first
+day of the week: those are the account holder's own business or an administrator's. It is a separate
+schema rather than `Account` with fields cleared, because a projection built by removing what must
+not travel leaks the next field somebody adds to the wider one.
+
+The tenant boundary is the transaction's (ADR-0010), which is what makes an identifier from another
+tenant fail to *resolve* rather than be *refused* — a refusal would confirm that the account exists
+(`multi-tenancy.md` §2). An erased account answers with the marker its erasure wrote where the name
+was, and `status: ANONYMIZED` beside it is what tells a reader the blank is deliberate.
 
 **Search** `SearchItems` (full text, optionally semantic).
 

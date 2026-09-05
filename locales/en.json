@@ -369,6 +369,7 @@
   "accounts.time_zone_invalid": "{value} is not a time zone. Use an IANA name such as Europe/Berlin.",
   "accounts.week_start_invalid": "A week can start on MONDAY, SUNDAY or SATURDAY.",
   "accounts.not_found": "That person is not in this workspace.",
+  "accounts.account_required": "Say whose account to read.",
   "accounts.self_required": "This call runs as the installation itself, which has no account of its own to report.",
   "groups.name_empty": "A group needs a name.",
   "groups.name_too_long": "The name may be at most {maximum} characters long.",

@@ -30,6 +30,7 @@
   import type { ActivityEntry, ActivityPage, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
   import { actorCodes, changesOf } from '../lib/data/activity.ts';
   import { activityPath, itemPath } from '../lib/data/item.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
@@ -71,11 +72,16 @@
     // The first code the catalogue knows, which for an actor kind this client has never heard of
     // is the sentence true of every actor. The same shape `problem.ts` uses for a problem's codes.
     const who = actorCodes(step, actor.account?.id).find((code) => messages.has(code));
+    // A real name where one was resolved, and the sentence true of every actor where none was.
+    // "You" wins over the reader's own name: somebody reading their own history is not a third
+    // party to it. Reading the cache here rather than copying from it is what makes the sentences
+    // rewrite themselves when the names arrive a moment after the page.
+    const name = who === 'app.activity.actor_you' ? undefined : accounts.nameOf(step.actor?.id);
     return {
       id: step.id,
       // The verb is the server's code and the actor is a parameter of it. An unrecognised verb
       // renders as `humanise` makes of it — readable, never a key and never a blank.
-      sentence: t(step.code, { actor: t(who ?? 'app.activity.actor_someone') }),
+      sentence: t(step.code, { actor: name ?? t(who ?? 'app.activity.actor_someone') }),
       when: formatDateTime(step.occurred_at, messages.locale),
       at: step.occurred_at,
       changes: changesOf(step.change_set as Record<string, unknown>).map((change) => ({
@@ -90,6 +96,24 @@
       ? (history.state.data.data ?? []).map(stepOf)
       : ([] as ActivityStep[]),
   );
+
+  // The names this feed needs, asked for after the page has arrived rather than with it: the
+  // history is one read and the names are a handful more, and a screen that waited for all of them
+  // would show nothing while it could already show the verbs and the times. Only the two kinds that
+  // have an account row — an automation and the system have none, and their sentences name what
+  // they are, which is the whole of what there is to say about them.
+  $effect(() => {
+    if (history.state.status !== 'ready') return;
+    accounts.resolve(
+      (history.state.data.data ?? [])
+        .filter(
+          (step) =>
+            (step.actor?.type === 'USER' || step.actor?.type === 'SERVICE_ACCOUNT') &&
+            step.actor.id !== actor.account?.id,
+        )
+        .map((step) => step.actor?.id),
+    );
+  });
   const hasMore = $derived(
     history.state.status === 'ready' && (history.state.data.page?.has_more ?? false),
   );

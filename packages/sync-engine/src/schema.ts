@@ -73,6 +73,9 @@ export interface SyncCursor {
 // The documents themselves come from the contract rather than being described a second time
 // (ADR-0004). Re-exported so a consumer imports one package rather than two.
 export type Account = components['schemas']['Account'];
+
+/** An account as another member of the same tenant may see it: a name and a kind, and no more. */
+export type AccountSummary = components['schemas']['AccountSummary'];
 /** What the installation says about itself. The frame configures from it and hard-codes nothing. */
 export type Capabilities = components['schemas']['Capabilities'];
 /** The deep report of `/meta/health`, which only an actor with `admin:read` may read. */
