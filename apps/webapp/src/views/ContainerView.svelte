@@ -29,6 +29,7 @@
   import { untrack } from 'svelte';
 
   import Board from '../lib/entries/Board.svelte';
+  import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
@@ -217,6 +218,13 @@
    * two hundred entries and "one deletion" is the thing worth saying before it happens rather than
    * afterwards. The sentence says what goes with it, which is what a person is actually deciding.
    */
+  // The collection's labels. `labels` has had create, update and remove since F2-10 and no
+  // caller, so the set the picker offers could only be made outside the application.
+  //
+  // No subscription of its own: a collection renders either the list or the board, and both open
+  // the level already. A third reader of one list is what the stores exist to avoid.
+  let isManagingLabels = $state(false);
+
   let isTrashing = $state(false);
   let isTrashingNow = $state(false);
 
@@ -382,6 +390,18 @@
           <!-- The placement no position can express. A hub is offered it with the reason it cannot
                be used rather than not at all: it sits in nothing, so there is nowhere to move it
                to, and a control that quietly disappeared would leave the reader wondering. -->
+          <!-- A label belongs to a collection (I-W3), so this is the screen it is managed on. The
+               picker on an entry chooses among what exists; what exists is decided here. -->
+          {#if container.type === 'COLLECTION'}
+            <Button
+              size="sm"
+              tone="secondary"
+              onclick={() => (isManagingLabels = true)}
+              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+            >
+              {t('app.labels.choose')}
+            </Button>
+          {/if}
           <Button
             size="sm"
             tone="danger"
@@ -442,6 +462,10 @@
       {/if}
     {/if}
   </Stack>
+{/if}
+
+{#if container?.type === 'COLLECTION'}
+  <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />
 {/if}
 
 {#if isTrashing && container}
