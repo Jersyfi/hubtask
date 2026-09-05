@@ -6772,6 +6772,12 @@ type MoveWorkItemJSONBody struct {
 	TargetParentId *openapi_types.UUID `json:"target_parent_id,omitempty"`
 }
 
+// MoveWorkItemParams defines parameters for MoveWorkItem.
+type MoveWorkItemParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // PurgeWorkItemParams defines parameters for PurgeWorkItem.
 type PurgeWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -7725,7 +7731,7 @@ type ServerInterface interface {
 	DuplicateWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params DuplicateWorkItemParams)
 
 	// (POST /items/{itemId}:move)
-	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	MoveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params MoveWorkItemParams)
 
 	// (POST /items/{itemId}:purge)
 	PurgeWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params PurgeWorkItemParams)
@@ -13155,8 +13161,32 @@ func (siw *ServerInterfaceWrapper) MoveWorkItem(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MoveWorkItemParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.MoveWorkItem(w, r, itemId)
+		siw.Handler.MoveWorkItem(w, r, itemId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

@@ -139,3 +139,27 @@ func TestACopyPassesOnANullParentAndNotAnAbsentOne(t *testing.T) {
 		t.Errorf("the title was not passed on: %v", omitted.in)
 	}
 }
+
+// The copy carries the same distinction the move does, and lost it the same way: a null
+// `target_parent_id` asks for the top level of a collection, and reaching the catalogue as nil would
+// spell "the caller said nothing" - which puts the copy beside the original instead.
+func TestACopyReadsAnExplicitNullParentAsAnInstruction(t *testing.T) {
+	cat := &catalogue{out: duplicateResult()}
+
+	recorder := postDuplicate(t, cat,
+		`{"target_parent_id":null,"target_collection_id":"0192f000-0000-7000-8000-0000000004aa"}`)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if !cat.in.Present("target_parent_id") {
+		t.Fatal("an explicit null read as absent, so the copy lands beside the original")
+	}
+	parent, err := cat.in.ID("target_parent_id")
+	if err != nil {
+		t.Fatalf("reading the parent: %v", err)
+	}
+	if !parent.IsZero() {
+		t.Errorf("the parent read as %q, want the zero identifier", parent)
+	}
+}
