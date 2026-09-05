@@ -21,6 +21,7 @@ import (
 const (
 	inviteAccountUseCase            = "InviteAccount"
 	getOwnAccountUseCase            = "GetOwnAccount"
+	getAccountUseCase               = "GetAccount"
 	updateAccountPreferencesUseCase = "UpdateAccountPreferences"
 	grantMembershipUseCase          = "GrantMembership"
 	revokeMembershipUseCase         = "RevokeMembership"
@@ -69,6 +70,21 @@ func (c *RestController) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, r, http.StatusOK, accountResponse(out))
+}
+
+// GetAccount answers GET /accounts/{accountId}.
+//
+// The read that turns the identifier in an `ActivityEntry.actor`, an assignee or a member row into
+// a name. It answers `AccountSummary` rather than `Account`: a name and a kind, and none of the
+// four fields that are the account holder's own business (`data-protection.md` §9).
+func (c *RestController) GetAccount(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), getAccountUseCase, actor, usecase.Input{
+			"account_id": accountID.String(),
+		})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, accountSummaryResponse(out))
+	})
 }
 
 // UpdateAccountPreferences answers PATCH /accounts/{accountId}/preferences.
@@ -228,6 +244,18 @@ func (c *RestController) identity(
 		return
 	}
 	respond(out)
+}
+
+// accountSummaryResponse maps the narrower projection. Built from its own four fields rather than
+// from `accountResponse` with members cleared: a mapping that starts from everything and removes
+// what must not travel leaks the next field somebody adds to the wider one.
+func accountSummaryResponse(out usecase.Output) openapi.AccountSummary {
+	return openapi.AccountSummary{
+		Id:          uuidValue(out.String("id")),
+		Kind:        openapi.AccountSummaryKind(out.String("kind")),
+		DisplayName: out.String("display_name"),
+		Status:      openapi.AccountSummaryStatus(out.String("status")),
+	}
 }
 
 func accountResponse(out usecase.Output) openapi.Account {

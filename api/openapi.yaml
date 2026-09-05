@@ -2260,6 +2260,42 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/{accountId}:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    get:
+      tags: [identity]
+      operationId: getAccount
+      summary: The name behind an account identifier
+      description: |
+        Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
+        an identifier and no label, and says why: "the account is one request away and this record
+        is deleted with its entry, so there is nothing for a copy of somebody's name to outlive".
+        This is that request.
+
+        **What comes back is deliberately less than `/accounts/me`.** The display name and the kind,
+        and not the email, the locale, the time zone or the first day of the week. Those are the
+        caller's own business or an administrator's; a name is what a workspace has to show to be
+        readable at all. `data-protection.md` §9 settles the line: the visibility of profile data to
+        other tenant members is *minimal — display name, avatar*, and this is that minimum.
+
+        Any member of the tenant may make it. There is nothing narrower to authorise against: the
+        identifiers a client holds arrived in records it was already allowed to read, and row level
+        security bounds the answer to the caller's own tenant, so an identifier from elsewhere does
+        not resolve here rather than being refused here.
+
+        An erased account answers with the marker its erasure wrote where the name was, because that
+        is what the row holds — the reading is not special-cased, and there is nothing left to leak.
+      responses:
+        "200":
+          description: The account, as another member may see it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountSummary"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/{accountId}/preferences:
     parameters:
       - $ref: "#/components/parameters/AccountId"
@@ -4304,6 +4340,8 @@ paths:
       tags: [items]
       operationId: moveWorkItem
       description: Moves the item and its subtree; checks the capability profile and reference resolution.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -5935,6 +5973,28 @@ components:
         locale: { type: [string, "null"] }
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+
+    AccountSummary:
+      type: object
+      description: >
+        An account as another member of the same tenant may see it: enough to render a name where a
+        record carries an identifier, and nothing else. Deliberately not `Account` - that carries the
+        email and the caller's own preferences, which are a different permission (data-protection.md
+        §9, §3).
+      required: [id, kind, display_name, status]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [USER, SERVICE_ACCOUNT] }
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: >
+            An erased account carries the marker its erasure wrote here, so a reader sees that
+            somebody acted without learning who they were.
+        status:
+          type: string
+          enum: [ACTIVE, INVITED, DISABLED, RESTRICTED, ANONYMIZED]
 
     AccountInvite:
       type: object

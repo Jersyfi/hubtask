@@ -47,6 +47,11 @@ func (pending) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+// GetAccount is overridden by RestController, for the reason given at CreateContainer.
+func (pending) GetAccount(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
 func (pending) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)
 }
@@ -653,7 +658,9 @@ func (pending) ReopenWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.
 }
 
 // MoveWorkItem is overridden by RestController, for the reason given at CreateContainer.
-func (pending) MoveWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+func (pending) MoveWorkItem(
+	w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.MoveWorkItemParams,
+) {
 	notAvailable(w, r)
 }
 
