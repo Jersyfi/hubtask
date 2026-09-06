@@ -17,6 +17,21 @@ Every task is one pull request. The order is binding where dependencies exist.
 Legend: **[L]** = best done locally with Claude Code (you see every step),
 **[G]** = delegable through a GitHub issue.
 
+**A note on the GitHub issues of this milestone, recorded 2026-09-06.** The issues were cut from
+this file with an off-by-one: #258 to #272 each carry the text of the *following* task in their
+body, while their titles are right. H-01's text was therefore filed in no issue and H-16's in two
+(#272 and #273). Every task was nonetheless worked from this document, and the pull request that
+closed each issue names the task its title does — so the ledger by title is intact, and only the
+bodies mislead. The closed issues are deliberately left as they are, because rewriting a closed
+ledger entry after the fact is worse than a known defect in it; #267, the one still open at the
+time, was corrected. Read the task text here, not in the issue.
+
+| Issue | Title | Body holds |
+|---|---|---|
+| #258 – #271 | H-01 – H-14 | the next task, H-02 – H-15 |
+| #272 | H-15 | H-16 |
+| #273 | H-16 | H-16 |
+
 What deliberately is **not** in this milestone: SAML and SCIM (after `1.0.0`, security.md §15);
 shard routing and data residency per region — the growth path multi-tenancy.md §2 describes stays a
 growth path, prepared for by the `tenant_id` model and taken when a tenant demands it; billing,
