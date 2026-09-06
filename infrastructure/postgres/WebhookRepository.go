@@ -453,3 +453,59 @@ func deliveryFrom(row sqlc.WebhookDeliveriesRow) (domain.WebhookDelivery, error)
 	}
 	return delivery, nil
 }
+
+var _ repository.WebhookSealings = WebhookSubscriptionRepository{}
+
+func (r WebhookSubscriptionRepository) SealedNotUnder(
+	ctx context.Context, keyID string,
+) ([]repository.StoredSubscription, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.WebhookSubscriptionsSealedNotUnder(ctx, &keyID)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the subscriptions to re-seal: %w", err))
+	}
+	stored := make([]repository.StoredSubscription, 0, len(rows))
+	for _, row := range rows {
+		subscription, err := storedFrom(sqlc.ListWebhookSubscriptionsRow(row))
+		if err != nil {
+			return nil, err
+		}
+		stored = append(stored, subscription)
+	}
+	return stored, nil
+}
+
+func (r WebhookSubscriptionRepository) Rewrap(
+	ctx context.Context, id shared.ID, secret, previous repository.SealedSecret, expectedVersion int,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	params := sqlc.RewrapWebhookSecretsParams{
+		SecretEnc: secret.Ciphertext, SecretKeyID: optionalText(secret.KeyID),
+		ID: key,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	}
+	if !previous.IsZero() {
+		params.PreviousSecretEnc = previous.Ciphertext
+		params.PreviousSecretKeyID = optionalText(previous.KeyID)
+	}
+	changed, err := queries.RewrapWebhookSecrets(ctx, params)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("re-sealing webhook subscription %s: %w", id, err))
+	}
+	return changed > 0, nil
+}

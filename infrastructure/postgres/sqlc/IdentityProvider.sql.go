@@ -230,6 +230,28 @@ func (q *Queries) LinkAccountExternalSubject(ctx context.Context, arg LinkAccoun
 	return result.RowsAffected(), nil
 }
 
+const rewrapIdentityProviderSecret = `-- name: RewrapIdentityProviderSecret :execrows
+UPDATE identity_provider
+SET client_secret_enc = $1, client_secret_key_id = $2
+WHERE client_secret_key_id = $3
+`
+
+type RewrapIdentityProviderSecretParams struct {
+	ClientSecretEnc   []byte
+	ClientSecretKeyID string
+	ExpectedKeyID     string
+}
+
+// A re-seal (ADR-0045): the wrapping moves, the configuration does not, so the version stays -
+// an operator rotating the installation's keys has not changed anybody's provider.
+func (q *Queries) RewrapIdentityProviderSecret(ctx context.Context, arg RewrapIdentityProviderSecretParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rewrapIdentityProviderSecret, arg.ClientSecretEnc, arg.ClientSecretKeyID, arg.ExpectedKeyID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const upsertIdentityProvider = `-- name: UpsertIdentityProvider :one
 
 INSERT INTO identity_provider

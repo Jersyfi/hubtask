@@ -791,3 +791,67 @@ func (r AutomationInboundRepository) FindByToken(
 	}
 	return automationRuleFrom(sqlc.ListAutomationRulesRow(row))
 }
+
+var _ repository.RuleSealings = AutomationRuleRepository{}
+
+func (r AutomationRuleRepository) SealedNotUnder(
+	ctx context.Context, keyID string,
+) ([]domain.Rule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.AutomationRulesSealedNotUnder(ctx, keyID)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the rules to re-seal: %w", err))
+	}
+	rules := make([]domain.Rule, 0, len(rows))
+	for _, row := range rows {
+		rule, err := automationRuleFrom(sqlc.ListAutomationRulesRow(row))
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
+func (r AutomationRuleRepository) RewrapActions(
+	ctx context.Context, id shared.ID, actions []domain.Action, expectedVersion int,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	documents := make([]actionDocument, 0, len(actions))
+	for _, action := range actions {
+		params := action.Params
+		if params == nil {
+			params = map[string]any{}
+		}
+		documents = append(documents, actionDocument{Kind: action.Kind, Params: params})
+	}
+	encoded, err := json.Marshal(documents)
+	if err != nil {
+		return false, shared.ErrInternal.
+			WithDetail("automation.rule_unserialisable").
+			WithCause(fmt.Errorf("encoding the actions of rule %s: %w", id, err))
+	}
+	changed, err := queries.RewrapAutomationRuleActions(ctx, sqlc.RewrapAutomationRuleActionsParams{
+		Actions: encoded, ID: key,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("re-sealing the actions of rule %s: %w", id, err))
+	}
+	return changed > 0, nil
+}

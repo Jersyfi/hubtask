@@ -254,3 +254,24 @@ func (ExternalAccountRepository) LinkSubject(
 	}
 	return linked > 0, nil
 }
+
+var _ repository.IdentityProviderSealing = IdentityProviderRepository{}
+
+func (IdentityProviderRepository) RewrapSecret(
+	ctx context.Context, sealed crypto.Sealed, expectedKeyID string,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.RewrapIdentityProviderSecret(ctx, sqlc.RewrapIdentityProviderSecretParams{
+		ClientSecretEnc: sealed.Ciphertext, ClientSecretKeyID: sealed.KeyID,
+		ExpectedKeyID: expectedKeyID,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("re-sealing the identity provider's secret: %w", err))
+	}
+	return changed > 0, nil
+}

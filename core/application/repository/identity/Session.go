@@ -338,3 +338,16 @@ type OauthCodes interface {
 	// Consume judges and burns in one statement: unexpired, unconsumed, or nothing.
 	Consume(ctx context.Context, presented identity.Token, now time.Time) (identity.OauthCode, bool, error)
 }
+
+// MfaSealings is the re-seal's view of the enrolments (ADR-0045): the rows sealed under a key
+// other than the current one, and the write that moves one. Its own interface rather than two
+// more methods on MfaEnrollments, because its only caller is the resealer, and nothing that
+// verifies a code should be able to reach a rewrap by accident.
+type MfaSealings interface {
+	// SealedNotUnder answers the enrolments whose secret names a key other than keyID.
+	SealedNotUnder(ctx context.Context, keyID string) ([]MfaEnrollment, error)
+
+	// Rewrap writes the moved wrapping, guarded by the key the row named when it was read. False
+	// means the row changed in between and this rewrap is stale; the next pass reads it again.
+	Rewrap(ctx context.Context, accountID shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
+}

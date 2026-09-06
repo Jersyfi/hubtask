@@ -296,3 +296,56 @@ func momentOrNothing(at time.Time) pgtype.Timestamptz {
 	}
 	return timestampOf(at)
 }
+
+var _ repository.CredentialSealings = BackupTargetRepository{}
+
+func (r BackupTargetRepository) SealedNotUnder(
+	ctx context.Context, keyID string,
+) ([]repository.SealedCredential, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.BackupTargetCredentialsNotUnder(ctx, &keyID)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the credentials to re-seal: %w", err))
+	}
+	credentials := make([]repository.SealedCredential, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		sealed := crypto.Sealed{Ciphertext: row.CredentialEnc}
+		if row.CredentialKeyID != nil {
+			sealed.KeyID = *row.CredentialKeyID
+		}
+		credentials = append(credentials, repository.SealedCredential{TargetID: id, Credential: sealed})
+	}
+	return credentials, nil
+}
+
+func (r BackupTargetRepository) Rewrap(
+	ctx context.Context, id shared.ID, sealed crypto.Sealed, expectedKeyID string,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	targetID, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.RewrapBackupTargetCredential(ctx, sqlc.RewrapBackupTargetCredentialParams{
+		CredentialEnc: sealed.Ciphertext, CredentialKeyID: optionalText(sealed.KeyID),
+		ID: targetID, ExpectedKeyID: &expectedKeyID,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("re-sealing the credential of backup target %s: %w", id, err))
+	}
+	return changed > 0, nil
+}

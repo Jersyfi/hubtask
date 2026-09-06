@@ -11,6 +11,41 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const backupTargetCredentialsNotUnder = `-- name: BackupTargetCredentialsNotUnder :many
+SELECT id, credential_enc, credential_key_id
+FROM backup_target
+WHERE credential_key_id IS NOT NULL AND credential_key_id <> $1
+ORDER BY id
+`
+
+type BackupTargetCredentialsNotUnderRow struct {
+	ID              pgtype.UUID
+	CredentialEnc   []byte
+	CredentialKeyID *string
+}
+
+// The rows a re-seal visits (ADR-0045). Like FindBackupTargetCredential it reads the credential
+// and nothing that is on its way to a response.
+func (q *Queries) BackupTargetCredentialsNotUnder(ctx context.Context, keyID *string) ([]BackupTargetCredentialsNotUnderRow, error) {
+	rows, err := q.db.Query(ctx, backupTargetCredentialsNotUnder, keyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BackupTargetCredentialsNotUnderRow{}
+	for rows.Next() {
+		var i BackupTargetCredentialsNotUnderRow
+		if err := rows.Scan(&i.ID, &i.CredentialEnc, &i.CredentialKeyID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countBackupTargets = `-- name: CountBackupTargets :one
 SELECT
   count(*) AS configured,
@@ -774,6 +809,32 @@ type RecordBackupVerificationParams struct {
 // What `:verify` found, without touching anything else on the row.
 func (q *Queries) RecordBackupVerification(ctx context.Context, arg RecordBackupVerificationParams) (int64, error) {
 	result, err := q.db.Exec(ctx, recordBackupVerification, arg.VerifiedAt, arg.VerifyOk, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const rewrapBackupTargetCredential = `-- name: RewrapBackupTargetCredential :execrows
+UPDATE backup_target
+SET credential_enc = $1, credential_key_id = $2
+WHERE id = $3 AND credential_key_id = $4
+`
+
+type RewrapBackupTargetCredentialParams struct {
+	CredentialEnc   []byte
+	CredentialKeyID *string
+	ID              pgtype.UUID
+	ExpectedKeyID   *string
+}
+
+func (q *Queries) RewrapBackupTargetCredential(ctx context.Context, arg RewrapBackupTargetCredentialParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rewrapBackupTargetCredential,
+		arg.CredentialEnc,
+		arg.CredentialKeyID,
+		arg.ID,
+		arg.ExpectedKeyID,
+	)
 	if err != nil {
 		return 0, err
 	}

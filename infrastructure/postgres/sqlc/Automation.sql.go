@@ -11,6 +11,83 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const automationRulesSealedNotUnder = `-- name: AutomationRulesSealedNotUnder :many
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE deleted_at IS NULL
+  AND jsonb_path_exists(
+        actions, '$.**.secret_header_sealed.key_id ? (@ != $key)',
+        jsonb_build_object('key', $1::text))
+ORDER BY id
+`
+
+type AutomationRulesSealedNotUnderRow struct {
+	ID               pgtype.UUID
+	ScopeType        string
+	ScopeID          pgtype.UUID
+	Name             string
+	Enabled          bool
+	RunAs            pgtype.UUID
+	Trigger          []byte
+	Conditions       []byte
+	Actions          []byte
+	Throttle         []byte
+	OnError          string
+	FailureCount     int32
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	Version          int32
+	NextRunAt        pgtype.Timestamptz
+	InboundRotatedAt pgtype.Timestamptz
+}
+
+// The rows a re-seal visits (ADR-0045): a rule with an HTTP_REQUEST action - at any depth of a
+// branch - whose sealed header secret names a key other than the current one. The path walks the
+// document so that the query does not have to know the action tree's shape.
+func (q *Queries) AutomationRulesSealedNotUnder(ctx context.Context, keyID string) ([]AutomationRulesSealedNotUnderRow, error) {
+	rows, err := q.db.Query(ctx, automationRulesSealedNotUnder, keyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AutomationRulesSealedNotUnderRow{}
+	for rows.Next() {
+		var i AutomationRulesSealedNotUnderRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.Name,
+			&i.Enabled,
+			&i.RunAs,
+			&i.Trigger,
+			&i.Conditions,
+			&i.Actions,
+			&i.Throttle,
+			&i.OnError,
+			&i.FailureCount,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.Version,
+			&i.NextRunAt,
+			&i.InboundRotatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const bumpRuleFailure = `-- name: BumpRuleFailure :one
 UPDATE automation_rule
 SET failure_count = failure_count + 1,
@@ -789,6 +866,29 @@ func (q *Queries) NextDueRuleOccurrence(ctx context.Context) (pgtype.Timestamptz
 	var fire_at pgtype.Timestamptz
 	err := row.Scan(&fire_at)
 	return fire_at, err
+}
+
+const rewrapAutomationRuleActions = `-- name: RewrapAutomationRuleActions :execrows
+UPDATE automation_rule
+SET actions = $1
+WHERE id = $2 AND deleted_at IS NULL AND version = $3
+`
+
+type RewrapAutomationRuleActionsParams struct {
+	Actions         []byte
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Only the actions, guarded by the version and not bumping it: the rule's definition is what it
+// was, and a person editing it at the same moment must not meet a conflict caused by a rotation
+// of the installation's keys.
+func (q *Queries) RewrapAutomationRuleActions(ctx context.Context, arg RewrapAutomationRuleActionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rewrapAutomationRuleActions, arg.Actions, arg.ID, arg.ExpectedVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const rulesByTriggerKind = `-- name: RulesByTriggerKind :many

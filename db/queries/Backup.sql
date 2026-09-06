@@ -50,6 +50,19 @@ SELECT credential_enc, credential_key_id
 FROM backup_target
 WHERE id = sqlc.arg('id');
 
+-- name: BackupTargetCredentialsNotUnder :many
+-- The rows a re-seal visits (ADR-0045). Like FindBackupTargetCredential it reads the credential
+-- and nothing that is on its way to a response.
+SELECT id, credential_enc, credential_key_id
+FROM backup_target
+WHERE credential_key_id IS NOT NULL AND credential_key_id <> sqlc.arg('key_id')
+ORDER BY id;
+
+-- name: RewrapBackupTargetCredential :execrows
+UPDATE backup_target
+SET credential_enc = sqlc.arg('credential_enc'), credential_key_id = sqlc.arg('credential_key_id')
+WHERE id = sqlc.arg('id') AND credential_key_id = sqlc.arg('expected_key_id');
+
 -- What the connection probe leaves behind. The error is a message code, never a driver message:
 -- an FTP or SSH library's message carries the host, the user and sometimes the password (rule 10).
 -- name: RecordBackupTargetTest :execrows

@@ -85,3 +85,10 @@ SET external_subject = sqlc.arg('external_subject'),
     updated_at       = sqlc.arg('now'),
     version          = version + 1
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND external_subject IS NULL;
+
+-- name: RewrapIdentityProviderSecret :execrows
+-- A re-seal (ADR-0045): the wrapping moves, the configuration does not, so the version stays -
+-- an operator rotating the installation's keys has not changed anybody's provider.
+UPDATE identity_provider
+SET client_secret_enc = sqlc.arg('client_secret_enc'), client_secret_key_id = sqlc.arg('client_secret_key_id')
+WHERE client_secret_key_id = sqlc.arg('expected_key_id');

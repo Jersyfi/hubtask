@@ -72,6 +72,28 @@ SET scope_type = sqlc.arg('scope_type'),
     version    = version + 1
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND version = sqlc.arg('expected_version');
 
+-- name: AutomationRulesSealedNotUnder :many
+-- The rows a re-seal visits (ADR-0045): a rule with an HTTP_REQUEST action - at any depth of a
+-- branch - whose sealed header secret names a key other than the current one. The path walks the
+-- document so that the query does not have to know the action tree's shape.
+SELECT id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at
+FROM automation_rule
+WHERE deleted_at IS NULL
+  AND jsonb_path_exists(
+        actions, '$.**.secret_header_sealed.key_id ? (@ != $key)',
+        jsonb_build_object('key', sqlc.arg('key_id')::text))
+ORDER BY id;
+
+-- name: RewrapAutomationRuleActions :execrows
+-- Only the actions, guarded by the version and not bumping it: the rule's definition is what it
+-- was, and a person editing it at the same moment must not meet a conflict caused by a rotation
+-- of the installation's keys.
+UPDATE automation_rule
+SET actions = sqlc.arg('actions')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND version = sqlc.arg('expected_version');
+
 -- name: SetAutomationRuleEnabled :execrows
 -- Switching a rule on or off, and nothing else.
 --

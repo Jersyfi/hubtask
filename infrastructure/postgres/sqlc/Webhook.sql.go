@@ -296,6 +296,42 @@ func (q *Queries) RecordWebhookDeliveryOutcome(ctx context.Context, arg RecordWe
 	return result.RowsAffected(), nil
 }
 
+const rewrapWebhookSecrets = `-- name: RewrapWebhookSecrets :execrows
+UPDATE webhook_subscription SET
+  secret_enc             = $1,
+  secret_key_id          = $2,
+  previous_secret_enc    = $3,
+  previous_secret_key_id = $4
+WHERE id = $5 AND version = $6
+`
+
+type RewrapWebhookSecretsParams struct {
+	SecretEnc           []byte
+	SecretKeyID         *string
+	PreviousSecretEnc   []byte
+	PreviousSecretKeyID *string
+	ID                  pgtype.UUID
+	ExpectedVersion     int32
+}
+
+// Both wrappings in one statement, guarded by the version and deliberately not bumping it: a
+// re-seal is not an edit anybody made, and a rotation of the installation's keys must not turn
+// into a conflict for the person editing their subscription at the same moment.
+func (q *Queries) RewrapWebhookSecrets(ctx context.Context, arg RewrapWebhookSecretsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rewrapWebhookSecrets,
+		arg.SecretEnc,
+		arg.SecretKeyID,
+		arg.PreviousSecretEnc,
+		arg.PreviousSecretKeyID,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const rotateWebhookSecret = `-- name: RotateWebhookSecret :execrows
 UPDATE webhook_subscription SET
   previous_secret_enc    = secret_enc,
@@ -503,6 +539,75 @@ func (q *Queries) WebhookDeliveries(ctx context.Context, arg WebhookDeliveriesPa
 			&i.ErrorCode,
 			&i.NextAttemptAt,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const webhookSubscriptionsSealedNotUnder = `-- name: WebhookSubscriptionsSealedNotUnder :many
+SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+       previous_secret_enc, previous_secret_key_id, previous_secret_until,
+       state, failure_count, last_error, disabled_at, created_by, created_at, version
+FROM webhook_subscription
+WHERE (secret_key_id IS NOT NULL AND secret_key_id <> $1)
+   OR (previous_secret_key_id IS NOT NULL AND previous_secret_key_id <> $1)
+ORDER BY id
+`
+
+type WebhookSubscriptionsSealedNotUnderRow struct {
+	ID                  pgtype.UUID
+	TargetUrl           string
+	EventTypes          []string
+	FilterExpr          *string
+	SecretEnc           []byte
+	SecretKeyID         *string
+	PreviousSecretEnc   []byte
+	PreviousSecretKeyID *string
+	PreviousSecretUntil pgtype.Timestamptz
+	State               string
+	FailureCount        int32
+	LastError           *string
+	DisabledAt          pgtype.Timestamptz
+	CreatedBy           pgtype.UUID
+	CreatedAt           pgtype.Timestamptz
+	Version             int32
+}
+
+// The rows a re-seal visits (ADR-0045): a subscription whose current or previous secret names a
+// key other than the current one. Both, because a grace that outlives a rotation is still a
+// secret the verifier has to open.
+func (q *Queries) WebhookSubscriptionsSealedNotUnder(ctx context.Context, keyID *string) ([]WebhookSubscriptionsSealedNotUnderRow, error) {
+	rows, err := q.db.Query(ctx, webhookSubscriptionsSealedNotUnder, keyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WebhookSubscriptionsSealedNotUnderRow{}
+	for rows.Next() {
+		var i WebhookSubscriptionsSealedNotUnderRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TargetUrl,
+			&i.EventTypes,
+			&i.FilterExpr,
+			&i.SecretEnc,
+			&i.SecretKeyID,
+			&i.PreviousSecretEnc,
+			&i.PreviousSecretKeyID,
+			&i.PreviousSecretUntil,
+			&i.State,
+			&i.FailureCount,
+			&i.LastError,
+			&i.DisabledAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}
