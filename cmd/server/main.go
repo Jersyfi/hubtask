@@ -48,6 +48,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
+	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -1362,6 +1363,17 @@ func run() error {
 			Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
+		// The keyring's census and the re-seal (ADR-0045): the control plane's act, so the
+		// control plane's credential, and each workspace counted or queued in a bounded
+		// transaction of its own.
+		sealingservice.ReadEncryptionStatus{
+			Tenants: postgres.NewAdminTenantRepository(), Census: postgres.NewSealingRepository(),
+			Encryptor: encryptor, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		sealingservice.ResealSecrets{
+			Tenants: postgres.NewAdminTenantRepository(), Jobs: jobs, Encryptor: encryptor,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 	)
 	if err != nil {
 		// A use case registered without its audit declaration or its handler stops the process
@@ -2089,6 +2101,24 @@ func run() error {
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			},
 		},
+		// One workspace's re-sealing round (ADR-0045): each service that owns a sealed value
+		// moves its own rows, and the round composes them inside the tenant's transaction.
+		queueport.KindSecretReseal: worker.SecretReseal{Round: sealingservice.RunReseal{
+			Resealers: []sealingservice.Resealer{
+				identity.MfaResealer{Enrollments: mfaStore, Encryptor: encryptor},
+				identity.IdentityProviderResealer{
+					Providers: postgres.NewIdentityProviderRepository(), Encryptor: encryptor,
+				},
+				integrationservice.WebhookResealer{
+					Subscriptions: postgres.NewWebhookSubscriptionRepository(), Encryptor: encryptor,
+				},
+				backupservice.TargetResealer{Targets: backupTargets, Encryptor: encryptor},
+				automationservice.RuleResealer{
+					Rules: postgres.NewAutomationRuleRepository(cursors), Encryptor: encryptor,
+				},
+			},
+			Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
+		}},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
 		queueport.KindPrivacyDeadlines: worker.PrivacyDeadlines{
 			Watch: privacyservice.WatchDeadlines{

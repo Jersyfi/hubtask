@@ -116,6 +116,7 @@ rule fired, and what did it do? That view is part of the product, not just of op
 | `hubtask_retention_deleted_total` | Counter | `data_kind` | What a deletion run removed for good ([`data-retention.md`](./data-retention.md) §5) |
 | `hubtask_retention_blocked_total` | Counter | `reason` | And what it kept past its period, which is the half an operator has to be able to see |
 | `hubtask_retention_run_duration_seconds` | Histogram | `data_kind` | How long one pass took |
+| `hubtask_secret_reseals_total` | Counter | `store`, `outcome` | What a re-sealing round moved under the current master key, and what it had to leave (ADR-0045). The key identifier is deliberately not a label - it is read from `/admin/encryption` |
 | `hubtask_media_reclaimed_total` | Counter | — | Media objects removed because nothing referenced them |
 | `hubtask_media_reclaim_failed_total` | Counter | — | Orphans a pass could not reclaim. A number that keeps rising is a bucket that will not let go, not a backlog that clears |
 

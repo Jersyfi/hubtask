@@ -4045,6 +4045,28 @@ type DuplicateResult struct {
 	Item              WorkItem           `json:"item"`
 }
 
+// EncryptionKeyUsage defines model for EncryptionKeyUsage.
+type EncryptionKeyUsage struct {
+	// Active Whether new values are sealed under it.
+	Active bool `json:"active"`
+
+	// InRing Whether the installation still holds the key. False with a count above zero is a value nothing can open until the key returns.
+	InRing bool   `json:"in_ring"`
+	KeyId  string `json:"key_id"`
+
+	// SealedValues How many stored values name this key, across every workspace. Zero on a key that is not the active one is what says it may be removed from the ring.
+	SealedValues int64 `json:"sealed_values"`
+}
+
+// EncryptionStatus defines model for EncryptionStatus.
+type EncryptionStatus struct {
+	// ActiveKeyId The key new values are sealed under - the first identifier in `HUBTASK_ENCRYPTION_KEYS`. Empty where the installation encrypts nothing.
+	ActiveKeyId string `json:"active_key_id"`
+
+	// Keys Every key the ring holds, the active one first and then its predecessors - followed by any key a stored value still names although the ring no longer holds it, which is the state an operator has to repair by putting the key back.
+	Keys []EncryptionKeyUsage `json:"keys"`
+}
+
 // ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 // `FULL_DELETE` takes the person's own contributions too. The choice rests with the
 // controller, because tenant data touches third parties' rights (ADR-0018).
@@ -5012,6 +5034,15 @@ type ReminderUpdate struct {
 	Channels   *[]ReminderChannel    `json:"channels,omitempty"`
 	OffsetSpec *string               `json:"offset_spec,omitempty"`
 	Recipients *[]openapi_types.UUID `json:"recipients,omitempty"`
+}
+
+// ResealAccepted defines model for ResealAccepted.
+type ResealAccepted struct {
+	// ActiveKeyId The key the queued work will seal under.
+	ActiveKeyId string `json:"active_key_id"`
+
+	// QueuedTenants How many workspaces were given a re-sealing job.
+	QueuedTenants int `json:"queued_tenants"`
 }
 
 // RestoreReport What a restore did, or - on a dry run - what it would do. The same shape either way, so that the report a caller approved and the report they get back are comparable.
@@ -7379,6 +7410,12 @@ type ServerInterface interface {
 	// InviteAccount Invite a person into this workspace
 	// (POST /accounts:invite)
 	InviteAccount(w http.ResponseWriter, r *http.Request, params InviteAccountParams)
+	// ReadEncryptionStatus The keyring, and what still names each key
+	// (GET /admin/encryption)
+	ReadEncryptionStatus(w http.ResponseWriter, r *http.Request)
+	// ResealSecrets Re-seal what older keys still hold
+	// (POST /admin/encryption:reseal)
+	ResealSecrets(w http.ResponseWriter, r *http.Request)
 	// ListTenants The installation's workspaces
 	// (GET /admin/tenants)
 	ListTenants(w http.ResponseWriter, r *http.Request)
@@ -8111,6 +8148,34 @@ func (siw *ServerInterfaceWrapper) InviteAccount(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InviteAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadEncryptionStatus operation middleware
+func (siw *ServerInterfaceWrapper) ReadEncryptionStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadEncryptionStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResealSecrets operation middleware
+func (siw *ServerInterfaceWrapper) ResealSecrets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResealSecrets(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15929,6 +15994,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/encryption", wrapper.ReadEncryptionStatus)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/encryption:reseal", wrapper.ResealSecrets)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}/quotas", wrapper.UpdateTenantQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-provider", wrapper.RemoveIdentityProvider)

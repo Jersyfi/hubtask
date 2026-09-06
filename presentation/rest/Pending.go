@@ -104,6 +104,11 @@ func (pending) DisableTotp(w http.ResponseWriter, r *http.Request) { notAvailabl
 
 func (pending) StepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The keyring's census and the re-seal (ADR-0045), pending until the sealing service lands.
+func (pending) ReadEncryptionStatus(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ResealSecrets(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The control plane of H-06, pending until each use case lands.
 func (pending) ListTenants(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

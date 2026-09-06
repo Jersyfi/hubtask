@@ -21,6 +21,8 @@ const (
 	resumeTenantUseCase          = "ResumeTenant"
 	requestTenantDeletionUseCase = "RequestTenantDeletion"
 	exportTenantUseCase          = "ExportTenant"
+	readEncryptionStatusUseCase  = "ReadEncryptionStatus"
+	resealSecretsUseCase         = "ResealSecrets"
 )
 
 // ListTenants answers GET /admin/tenants.
@@ -257,4 +259,52 @@ func quotaStandingsResponse(out usecase.Output) []openapi.QuotaStanding {
 		standings = append(standings, standing)
 	}
 	return standings
+}
+
+// ReadEncryptionStatus answers GET /admin/encryption: the keyring and the census over it
+// (ADR-0045, security.md §8.1).
+func (c *RestController) ReadEncryptionStatus(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), readEncryptionStatusUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	rows, _ := out["keys"].([]usecase.Output)
+	keys := make([]openapi.EncryptionKeyUsage, 0, len(rows))
+	for _, row := range rows {
+		active, _ := row["active"].(bool)
+		inRing, _ := row["in_ring"].(bool)
+		count, _ := row["sealed_values"].(int64)
+		keys = append(keys, openapi.EncryptionKeyUsage{
+			KeyId: row.String("key_id"), Active: active, InRing: inRing, SealedValues: count,
+		})
+	}
+	writeJSON(w, r, http.StatusOK, openapi.EncryptionStatus{
+		ActiveKeyId: out.String("active_key_id"), Keys: keys,
+	})
+}
+
+// ResealSecrets answers POST /admin/encryption:reseal with 202: the rounds are queued, and the
+// status route is where their progress is read.
+func (c *RestController) ResealSecrets(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), resealSecretsUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusAccepted, openapi.ResealAccepted{
+		ActiveKeyId: out.String("active_key_id"), QueuedTenants: out.Int("queued_tenants"),
+	})
 }

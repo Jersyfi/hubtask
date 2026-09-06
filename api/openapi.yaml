@@ -3003,6 +3003,55 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/encryption:
+    get:
+      tags: [admin]
+      operationId: readEncryptionStatus
+      summary: The keyring, and what still names each key
+      description: >
+        What a rotation needs before it can end: the master key new values are sealed under, and
+        for every key the ring holds - and every key a stored value still names - how many values
+        name it (ADR-0045, security.md §8.1). Removing a key while a row still names it turns that
+        row into a refusal, so the count is the gate rather than the calendar.
+
+        Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count
+        per key is what an operator needs, and which workspace holds a webhook secret is not.
+      responses:
+        "200":
+          description: The keyring
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EncryptionStatus"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/encryption:reseal:
+    post:
+      tags: [admin]
+      operationId: resealSecrets
+      summary: Re-seal what older keys still hold
+      description: >
+        Rewraps every stored value that names a key other than the current one, so that the older
+        key can finally leave the ring (ADR-0045). The plaintext is untouched: the data key is
+        unwrapped under the key its row names and wrapped again under the current one, and
+        nothing above the port can tell the difference.
+
+        One job per workspace rather than one sweep over the installation - nothing enumerates
+        tenants for its own purposes, and this is an operator asking rather than a schedule
+        (multi-tenancy.md). The call returns once the work is queued; progress is read back from
+        `GET /admin/encryption` until every count but the active key's is zero. Asking twice
+        before the first round has run queues nothing new.
+      responses:
+        "202":
+          description: The re-sealing was queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResealAccepted"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}/quotas:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -6425,6 +6474,56 @@ components:
           type: [string, "null"]
           format: date-time
           description: Set while a deletion request stands - when the grace runs out.
+
+    EncryptionStatus:
+      type: object
+      required: [active_key_id, keys]
+      properties:
+        active_key_id:
+          type: string
+          description: >
+            The key new values are sealed under - the first identifier in
+            `HUBTASK_ENCRYPTION_KEYS`. Empty where the installation encrypts nothing.
+        keys:
+          type: array
+          description: >
+            Every key the ring holds, the active one first and then its predecessors - followed
+            by any key a stored value still names although the ring no longer holds it, which is
+            the state an operator has to repair by putting the key back.
+          items:
+            $ref: "#/components/schemas/EncryptionKeyUsage"
+
+    EncryptionKeyUsage:
+      type: object
+      required: [key_id, active, in_ring, sealed_values]
+      properties:
+        key_id: { type: string }
+        active:
+          type: boolean
+          description: Whether new values are sealed under it.
+        in_ring:
+          type: boolean
+          description: >
+            Whether the installation still holds the key. False with a count above zero is a
+            value nothing can open until the key returns.
+        sealed_values:
+          type: integer
+          format: int64
+          minimum: 0
+          description: >
+            How many stored values name this key, across every workspace. Zero on a key that is
+            not the active one is what says it may be removed from the ring.
+
+    ResealAccepted:
+      type: object
+      required: [active_key_id, queued_tenants]
+      properties:
+        active_key_id:
+          type: string
+          description: The key the queued work will seal under.
+        queued_tenants:
+          type: integer
+          description: How many workspaces were given a re-sealing job.
 
     TenantProvision:
       type: object

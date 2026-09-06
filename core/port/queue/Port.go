@@ -232,6 +232,14 @@ const (
 	// the job), with RunAt at the grace's end. The handler re-reads the two facts the grace
 	// could have changed and deletes nothing if either moved.
 	KindTenantHardDelete Kind = "tenant.hard_delete"
+
+	// KindSecretReseal moves one workspace's sealed values under the current master key
+	// (ADR-0045, security.md §8.1): the half of a rotation that lets a key leave the ring. One
+	// job per tenant, enqueued by the operator's request through the control plane's one
+	// legitimate enumerator - nothing else may enumerate tenants (multi-tenancy.md §2.1), and this
+	// is an operator asking rather than a schedule. Deduplicated per tenant, so asking twice before
+	// the first round has run queues nothing new.
+	KindSecretReseal Kind = "secret.reseal"
 )
 
 func (k Kind) String() string { return string(k) }
