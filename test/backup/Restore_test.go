@@ -625,4 +625,10 @@ func (noCredentials) Open(context.Context, crypto.Sealed, crypto.Purpose) (secre
 
 func (noCredentials) ActiveKeyID() string { return "k1" }
 
+func (noCredentials) KeyIDs() []string { return []string{"k1"} }
+
+func (noCredentials) Rewrap(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{KeyID: "k1", Ciphertext: sealed.Ciphertext}, nil
+}
+
 var _ crypto.Encryptor = noCredentials{}

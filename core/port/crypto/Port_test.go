@@ -27,6 +27,12 @@ func (double) Open(context.Context, Sealed, Purpose) (secret.Secret, error) {
 
 func (double) ActiveKeyID() string { return "" }
 
+func (double) KeyIDs() []string { return nil }
+
+func (double) Rewrap(context.Context, Sealed, Purpose) (Sealed, error) {
+	return Sealed{}, shared.ErrUnavailable.WithDetail(CodeNoEncryptionKey)
+}
+
 func (double) NewDerivation() (Derivation, error) { return Derivation{}, nil }
 
 func (double) Derive(secret.Secret, Derivation) (secret.Bytes, error) {

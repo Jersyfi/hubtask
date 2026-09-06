@@ -93,6 +93,12 @@ func (keyless) Open(context.Context, crypto.Sealed, crypto.Purpose) (secret.Secr
 }
 func (keyless) ActiveKeyID() string { return "" }
 
+func (keyless) KeyIDs() []string { return nil }
+
+func (keyless) Rewrap(context.Context, crypto.Sealed, crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{}, shared.ErrUnavailable.WithDetail(crypto.CodeNoEncryptionKey)
+}
+
 // keyed is an installation that holds one. The "sealing" is a marker rather than a cipher: what
 // this test asks is whether the signature is written and what it says about itself, not whether
 // AES works - that is infrastructure/crypto's own test.
@@ -107,6 +113,12 @@ func (k *keyed) Open(context.Context, crypto.Sealed, crypto.Purpose) (secret.Sec
 	return secret.Secret{}, shared.ErrUnavailable
 }
 func (k *keyed) ActiveKeyID() string { return "key-1" }
+
+func (k *keyed) KeyIDs() []string { return []string{"key-1"} }
+
+func (k *keyed) Rewrap(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{KeyID: "key-1", Ciphertext: sealed.Ciphertext}, nil
+}
 
 func newArchivist(records []repository.Record, store *targetStore, encryptor crypto.Encryptor) Archivist {
 	return Archivist{

@@ -203,6 +203,12 @@ func (e *encryptor) Seal(_ context.Context, plaintext secret.Secret, purpose cry
 
 func (e *encryptor) ActiveKeyID() string { return "k1" }
 
+func (e *encryptor) KeyIDs() []string { return []string{"k1"} }
+
+func (e *encryptor) Rewrap(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{KeyID: "k1", Ciphertext: sealed.Ciphertext}, nil
+}
+
 func (e *encryptor) Open(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (secret.Secret, error) {
 	return secret.New(strings.TrimPrefix(string(sealed.Ciphertext), "sealed:")), nil
 }

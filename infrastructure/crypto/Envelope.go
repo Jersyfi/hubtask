@@ -198,6 +198,69 @@ func (e Envelope) Open(
 	return secret.New(string(plaintext)), nil
 }
 
+// Rewrap re-keys the wrapping and nothing else.
+//
+// The envelope's shape is what makes this cheap and what makes it safe: the master key only ever
+// protected the 32-byte data key at the front of the ciphertext, so moving a value to a new master
+// key means opening that one wrapped key under the old master and sealing it again under the
+// current one. The value's own ciphertext - everything from the data nonce on - is copied over
+// unchanged, and the plaintext is never reconstructed. A fresh wrapping nonce is drawn, because a
+// nonce is only safe once per key and the new key has never seen this one.
+func (e Envelope) Rewrap(
+	_ context.Context, sealed port.Sealed, purpose port.Purpose,
+) (port.Sealed, error) {
+	if sealed.KeyID == "" {
+		return port.Sealed{}, shared.ErrValidation.WithDetail(portCodeCiphertextBroken)
+	}
+	if e.ring.IsEmpty() {
+		return port.Sealed{}, shared.ErrUnavailable.WithDetail(portCodeNoEncryptionKey)
+	}
+	previous, err := e.ring.find(sealed.KeyID)
+	if err != nil {
+		return port.Sealed{}, err
+	}
+	current, err := e.ring.find(e.ring.ActiveKeyID())
+	if err != nil {
+		return port.Sealed{}, err
+	}
+
+	body := sealed.Ciphertext
+	if len(body) < minimumLength || body[0] != envelopeVersion {
+		return port.Sealed{}, shared.ErrValidation.WithDetail(portCodeCiphertextBroken)
+	}
+
+	previousGCM, err := gcm(previous.Reveal())
+	if err != nil {
+		return port.Sealed{}, err
+	}
+	dataKey, err := previousGCM.Open(
+		nil, body[1:wrapOffset], body[wrapOffset:dataKeyEnd], additional(wrapLabel, purpose))
+	if err != nil {
+		return port.Sealed{}, port.NotAuthentic()
+	}
+
+	wrapNonce, err := e.entropy.Bytes(nonceBytes)
+	if err != nil {
+		return port.Sealed{}, shared.ErrUnavailable.
+			WithDetail("crypto.entropy_unavailable").
+			WithCause(fmt.Errorf("drawing the wrapping nonce: %w", err))
+	}
+	currentGCM, err := gcm(current.Reveal())
+	if err != nil {
+		return port.Sealed{}, err
+	}
+
+	rewrapped := make([]byte, 0, len(body))
+	rewrapped = append(rewrapped, envelopeVersion)
+	rewrapped = append(rewrapped, wrapNonce...)
+	rewrapped = currentGCM.Seal(rewrapped, wrapNonce, dataKey, additional(wrapLabel, purpose))
+	rewrapped = append(rewrapped, body[dataKeyEnd:]...)
+	return port.Sealed{KeyID: e.ring.ActiveKeyID(), Ciphertext: rewrapped}, nil
+}
+
+// KeyIDs is the ring's order: current first.
+func (e Envelope) KeyIDs() []string { return e.ring.KeyIDs() }
+
 // gcm is the one place a cipher is constructed, so a wrong key length is one error rather than
 // four.
 func gcm(key []byte) (cipher.AEAD, error) {

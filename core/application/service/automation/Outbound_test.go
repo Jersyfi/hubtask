@@ -30,6 +30,12 @@ func (e *sealer) Seal(_ context.Context, plaintext secret.Secret, purpose crypto
 
 func (e *sealer) ActiveKeyID() string { return "k1" }
 
+func (e *sealer) KeyIDs() []string { return []string{"k1"} }
+
+func (e *sealer) Rewrap(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{KeyID: "k1", Ciphertext: sealed.Ciphertext}, nil
+}
+
 func (e *sealer) Open(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (secret.Secret, error) {
 	return secret.New(strings.TrimPrefix(string(sealed.Ciphertext), "sealed:")), nil
 }
