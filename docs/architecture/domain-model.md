@@ -461,7 +461,14 @@ there is nothing for MCP or an automation rule to call, and it is served by the 
 
 **Identity & tenancy** `ProvisionTenant`, `UpdateTenantSettings`, `SuspendTenant`, `DeleteTenant`,
 `ExportTenantData`, `InviteAccount`, `GetOwnAccount`, `GetAccount`, `UpdateAccountPreferences`,
-`GrantMembership`, `RevokeMembership`, `CreateGroup`, `UpdateGroup`, `DeleteGroup`.
+`GrantMembership`, `RevokeMembership`, `CreateGroup`, `UpdateGroup`, `DeleteGroup`,
+`ReadEncryptionStatus`, `ResealSecrets`.
+
+`ReadEncryptionStatus` and `ResealSecrets` are the control plane's, behind `admin:tenants` like the
+tenant lifecycle (ADR-0045, `security.md` §8.1): the first counts, across every workspace, how many
+stored values still name each master key; the second queues one re-sealing round per workspace so
+that an older key can leave the ring once nothing names it. Neither opens a value - a round moves
+the wrapping of each value's data key and nothing else.
 
 `GetOwnAccount` is the one read in this group and the only one that takes no input: the actor *is*
 the identifier. It exists because nothing else answered "who am I" — `InviteAccount` creates an

@@ -391,3 +391,60 @@ func (r MfaRepository) RequireAdminTotp(ctx context.Context) (bool, error) {
 	}
 	return settings.RequireAdminTotp, nil
 }
+
+var _ repository.MfaSealings = MfaRepository{}
+
+func (r MfaRepository) SealedNotUnder(
+	ctx context.Context, keyID string,
+) ([]repository.MfaEnrollment, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SealedMfaEnrollmentsNotUnder(ctx, keyID)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the enrolments to re-seal: %w", err))
+	}
+	enrollments := make([]repository.MfaEnrollment, 0, len(rows))
+	for _, row := range rows {
+		accountID, err := idFrom(row.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		enrollment := repository.MfaEnrollment{
+			AccountID:   accountID,
+			Secret:      cryptoport.Sealed{KeyID: row.SecretKeyID, Ciphertext: row.SecretEnc},
+			ConfirmedAt: timeFrom(row.ConfirmedAt),
+		}
+		if row.LastStep != nil {
+			enrollment.LastStep = *row.LastStep
+		}
+		enrollments = append(enrollments, enrollment)
+	}
+	return enrollments, nil
+}
+
+func (r MfaRepository) Rewrap(
+	ctx context.Context, accountID shared.ID, sealed cryptoport.Sealed, expectedKeyID string,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.RewrapMfaEnrollment(ctx, sqlc.RewrapMfaEnrollmentParams{
+		SecretEnc: sealed.Ciphertext, SecretKeyID: sealed.KeyID,
+		AccountID: id, ExpectedKeyID: expectedKeyID,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("re-sealing the enrolment: %w", err))
+	}
+	return changed > 0, nil
+}

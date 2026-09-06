@@ -213,3 +213,41 @@ func TestTheQuotaStandingReadsUnlimitedRatherThanNought(t *testing.T) {
 		t.Errorf("the approach is not in the table: %q", out)
 	}
 }
+
+// The rotation's census (ADR-0045): the ring first, then a key nothing holds but rows still name.
+func TestTheEncryptionCensusNamesWhatStillHoldsEachKey(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"active_key_id":"k2","keys":[
+	  {"key_id":"k2","active":true,"in_ring":true,"sealed_values":12},
+	  {"key_id":"k1","active":false,"in_ring":true,"sealed_values":0},
+	  {"key_id":"lost","active":false,"in_ring":false,"sealed_values":1}]}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "encryption", "show")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.URL.Path != APIPath+adminEncryptionPath {
+		t.Errorf("the census called %s", stub.request.URL.Path)
+	}
+	if !strings.Contains(out, "active") || !strings.Contains(out, "NOT IN RING") {
+		t.Errorf("the census is not the table: %q", out)
+	}
+}
+
+// The request answers where to watch, because there is no one job to wait on.
+func TestResealingSaysWhereToWatchTheRounds(t *testing.T) {
+	stub := serveJSON(t, http.StatusAccepted, `{"active_key_id":"k2","queued_tenants":3}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "encryption", "reseal")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.URL.Path != APIPath+adminEncryptionPath+":reseal" || stub.request.Method != http.MethodPost {
+		t.Errorf("the request went to %s %s", stub.request.Method, stub.request.URL.Path)
+	}
+	if !strings.Contains(out, "k2") || !strings.Contains(out, "3") {
+		t.Errorf("the answer is not the table: %q", out)
+	}
+	if !strings.Contains(errOut, "admin encryption show") {
+		t.Errorf("the operator was not told where to watch: %q", errOut)
+	}
+}

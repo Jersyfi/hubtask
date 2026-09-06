@@ -373,3 +373,20 @@ WHERE step_up_token_hash = sqlc.arg('token_hash')
 -- What proved it, for the audit entry - never the credential.
 SELECT step_up_method FROM session
 WHERE step_up_token_hash = sqlc.arg('token_hash') AND account_id = sqlc.arg('account_id');
+
+-- name: SealedMfaEnrollmentsNotUnder :many
+-- The rows a re-seal visits (ADR-0045): every enrolment whose secret names a key other than the
+-- current one. The key is a filter, never a tenant - row level security bounds this like every
+-- other statement in the file.
+SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step
+FROM account_mfa
+WHERE secret_key_id <> sqlc.arg('key_id')
+ORDER BY account_id;
+
+-- name: RewrapMfaEnrollment :execrows
+-- The wrapping moves and nothing else does: no updated_at the person would read as their
+-- enrolment having changed. The guard on the key the row named is what keeps a re-seal from
+-- overwriting an enrolment that was replaced between the read and this write.
+UPDATE account_mfa
+SET secret_enc = sqlc.arg('secret_enc'), secret_key_id = sqlc.arg('secret_key_id')
+WHERE account_id = sqlc.arg('account_id') AND secret_key_id = sqlc.arg('expected_key_id');

@@ -744,3 +744,9 @@ func valueOf(change any) string {
 	value, _ := entry["to"].(string)
 	return value
 }
+
+func (e *encryptor) KeyIDs() []string { return []string{"k1"} }
+
+func (e *encryptor) Rewrap(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{KeyID: "k1", Ciphertext: sealed.Ciphertext}, nil
+}

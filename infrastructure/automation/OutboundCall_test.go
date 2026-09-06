@@ -50,6 +50,12 @@ func (o *opener) Seal(_ context.Context, plaintext secret.Secret, _ crypto.Purpo
 	return crypto.Sealed{KeyID: "k1", Ciphertext: []byte(plaintext.Reveal())}, nil
 }
 func (o *opener) ActiveKeyID() string { return "k1" }
+
+func (o *opener) KeyIDs() []string { return []string{"k1"} }
+
+func (o *opener) Rewrap(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{KeyID: "k1", Ciphertext: sealed.Ciphertext}, nil
+}
 func (o *opener) Open(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (secret.Secret, error) {
 	o.opened++
 	return secret.New(string(sealed.Ciphertext)), nil

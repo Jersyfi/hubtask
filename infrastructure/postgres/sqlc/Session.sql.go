@@ -932,6 +932,35 @@ func (q *Queries) RevokeSession(ctx context.Context, arg RevokeSessionParams) (i
 	return result.RowsAffected(), nil
 }
 
+const rewrapMfaEnrollment = `-- name: RewrapMfaEnrollment :execrows
+UPDATE account_mfa
+SET secret_enc = $1, secret_key_id = $2
+WHERE account_id = $3 AND secret_key_id = $4
+`
+
+type RewrapMfaEnrollmentParams struct {
+	SecretEnc     []byte
+	SecretKeyID   string
+	AccountID     pgtype.UUID
+	ExpectedKeyID string
+}
+
+// The wrapping moves and nothing else does: no updated_at the person would read as their
+// enrolment having changed. The guard on the key the row named is what keeps a re-seal from
+// overwriting an enrolment that was replaced between the read and this write.
+func (q *Queries) RewrapMfaEnrollment(ctx context.Context, arg RewrapMfaEnrollmentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rewrapMfaEnrollment,
+		arg.SecretEnc,
+		arg.SecretKeyID,
+		arg.AccountID,
+		arg.ExpectedKeyID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const rotateRefreshToken = `-- name: RotateRefreshToken :execrows
 UPDATE session_refresh_token SET rotated_at = $1
 WHERE id = $2 AND rotated_at IS NULL
@@ -950,6 +979,50 @@ func (q *Queries) RotateRefreshToken(ctx context.Context, arg RotateRefreshToken
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const sealedMfaEnrollmentsNotUnder = `-- name: SealedMfaEnrollmentsNotUnder :many
+SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step
+FROM account_mfa
+WHERE secret_key_id <> $1
+ORDER BY account_id
+`
+
+type SealedMfaEnrollmentsNotUnderRow struct {
+	AccountID   pgtype.UUID
+	SecretEnc   []byte
+	SecretKeyID string
+	ConfirmedAt pgtype.Timestamptz
+	LastStep    *int64
+}
+
+// The rows a re-seal visits (ADR-0045): every enrolment whose secret names a key other than the
+// current one. The key is a filter, never a tenant - row level security bounds this like every
+// other statement in the file.
+func (q *Queries) SealedMfaEnrollmentsNotUnder(ctx context.Context, keyID string) ([]SealedMfaEnrollmentsNotUnderRow, error) {
+	rows, err := q.db.Query(ctx, sealedMfaEnrollmentsNotUnder, keyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SealedMfaEnrollmentsNotUnderRow{}
+	for rows.Next() {
+		var i SealedMfaEnrollmentsNotUnderRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.SecretEnc,
+			&i.SecretKeyID,
+			&i.ConfirmedAt,
+			&i.LastStep,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const sessionsForAccount = `-- name: SessionsForAccount :many

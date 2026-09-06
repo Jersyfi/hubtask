@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	openapitypes "github.com/oapi-codegen/runtime/types"
@@ -19,7 +20,10 @@ import (
 // 6). So this group is the one place in the client where `hubctl auth login` is the right sign-in
 // and `hubctl login` is not - which is worth knowing before the first refusal says so.
 
-const adminTenantsPath = "/admin/tenants"
+const (
+	adminTenantsPath    = "/admin/tenants"
+	adminEncryptionPath = "/admin/encryption"
+)
 
 func adminGroup() group {
 	return group{
@@ -34,6 +38,12 @@ func adminGroup() group {
 				// The export waits on a job, and `--timeout` bounds one call rather than one
 				// piece of work.
 				waits: true,
+			},
+			{
+				name:    "encryption",
+				usage:   "show|reseal",
+				summary: "the master keyring's census, and the re-seal that lets a key retire",
+				run:     adminEncryption,
 			},
 		},
 	}
@@ -286,3 +296,80 @@ func acceptedTable(accepted openapi.JobRef) Table {
 		Rows:    [][]string{{accepted.JobId.String(), string(accepted.Status)}},
 	}
 }
+
+// adminEncryption is the rotation's two verbs (ADR-0045, security.md §8.1): the census that says
+// whether a key may leave the ring, and the request that moves what an older key still holds.
+func adminEncryption(ctx context.Context, cli *CLI, args []string) error {
+	const verbs = "show, reseal"
+	if len(args) == 0 {
+		return usagef("admin encryption needs a command: %s", verbs)
+	}
+	switch args[0] {
+	case "show":
+		return adminEncryptionShow(ctx, cli, args[1:])
+	case "reseal":
+		return adminEncryptionReseal(ctx, cli, args[1:])
+	default:
+		return usagef("admin encryption has no command %q: %s", args[0], verbs)
+	}
+}
+
+func adminEncryptionShow(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "admin encryption", "show", "")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var status openapi.EncryptionStatus
+	if err := client.Get(ctx, adminEncryptionPath, nil, &status); err != nil {
+		return err
+	}
+	return cli.Emit(status, encryptionTable(status))
+}
+
+// adminEncryptionReseal asks for the rounds and says where to watch them: the census, not a job -
+// there is one job per workspace, and what the operator is waiting for is a count, not a run.
+func adminEncryptionReseal(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "admin encryption", "reseal", "")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var accepted openapi.ResealAccepted
+	if err := client.Post(ctx, adminEncryptionPath+":reseal", nil, &accepted); err != nil {
+		return err
+	}
+	printf(cli.Err, "re-sealing queued for %d workspace(s) under key %s; "+
+		"watch `hubctl admin encryption show` until every other key counts zero\n",
+		accepted.QueuedTenants, accepted.ActiveKeyId)
+	return cli.Emit(accepted, Table{
+		Columns: []string{"active key", "queued workspaces"},
+		Rows:    [][]string{{accepted.ActiveKeyId, itoa(accepted.QueuedTenants)}},
+	})
+}
+
+func encryptionTable(status openapi.EncryptionStatus) Table {
+	rows := make([][]string, 0, len(status.Keys))
+	for _, key := range status.Keys {
+		state := "predecessor"
+		switch {
+		case key.Active:
+			state = "active"
+		case !key.InRing:
+			state = "NOT IN RING"
+		}
+		rows = append(rows, []string{key.KeyId, state, itoa64(key.SealedValues)})
+	}
+	return Table{Columns: []string{"key", "state", "sealed values"}, Rows: rows}
+}
+
+func itoa(value int) string     { return itoa64(int64(value)) }
+func itoa64(value int64) string { return strconv.FormatInt(value, 10) }

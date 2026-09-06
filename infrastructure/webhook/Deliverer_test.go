@@ -153,6 +153,12 @@ func (sealer) Seal(_ context.Context, plaintext secret.Secret, _ crypto.Purpose)
 	return crypto.Sealed{KeyID: "k1", Ciphertext: []byte(plaintext.Reveal())}, nil
 }
 func (sealer) ActiveKeyID() string { return "k1" }
+
+func (sealer) KeyIDs() []string { return []string{"k1"} }
+
+func (sealer) Rewrap(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{KeyID: "k1", Ciphertext: sealed.Ciphertext}, nil
+}
 func (sealer) Open(_ context.Context, sealed crypto.Sealed, _ crypto.Purpose) (secret.Secret, error) {
 	return secret.New(string(sealed.Ciphertext)), nil
 }

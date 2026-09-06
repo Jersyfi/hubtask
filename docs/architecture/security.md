@@ -169,8 +169,10 @@ missing, the process does not start (fail closed, with a clear error message and
 
 ### 8.1 Rotating the master key
 
-*The procedure S-2 owes ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md)). Drilled on
-2026-09-04, [evidence](../evidence/S-2-2026-09-04.md).*
+*The procedure S-2 owes ([ADR-0045](../adr/ADR-0045-master-key-in-the-environment.md)). The
+roll-forward was drilled on 2026-09-04 ([evidence](../evidence/S-2-2026-09-04.md)); the completed
+rotation - the count reaching zero and the old key leaving the ring - on 2026-09-06
+([evidence](../evidence/S-2-2026-09-06.md)).*
 
 `HUBTASK_ENCRYPTION_KEYS` is a ring, current first, and every predecessor in it stays readable.
 That is what makes a rotation a configuration change: nothing is rewritten at the moment the key
@@ -183,24 +185,35 @@ changes, because the master key protects one data key per row rather than the ro
    the moment that rollout completes, new values seal under `k2` and values written under `k1` are
    still opened by it. A rollout that carries the new key but drops the old one is not a rotation;
    it is an outage with a message code.
-3. **Re-seal what the old key still holds.** Not yet automated — see the paragraph below.
-4. **Retire the old key, when nothing names it any more.** Remove `k1` from the ring only once the
-   count of values still sealed under it is zero. Removing it earlier does not lose the data, but it
-   turns every row that names it into `crypto.unknown_key` — a refusal in the middle of somebody's
-   integration rather than at a moment anybody chose.
+3. **Re-seal what the old key still holds.** `POST /admin/encryption:reseal` — or
+   `hubctl admin encryption reseal` — with the control plane's credential. It queues one round per
+   workspace; each round moves every value that names an older key under `k2` by rewrapping the
+   value's data key, and never reconstructs a plaintext. Asking twice before the first round has
+   run queues nothing new.
+4. **Read the census, then retire the old key.** `GET /admin/encryption` — `hubctl admin
+   encryption show` — answers, for every key the ring holds, how many stored values still name it
+   across all workspaces. Remove `k1` from the ring only when its count is zero. Removing it
+   earlier does not lose the data, but it turns every row that names it into `crypto.unknown_key`
+   — a refusal in the middle of somebody's integration rather than at a moment anybody chose — and
+   the census then lists the key with `in_ring: false`, which is the state to repair by putting it
+   back and re-sealing again.
 
-**Until the re-seal exists, the ring only grows.** Step 3 has no implementation and step 4 therefore
-has no safe moment: adding keys is safe, removing one is not, and an installation that has rotated
-twice holds three keys. ADR-0045 decides the shape — a job per tenant, enqueued by an operator
-action rather than by anything enumerating tenants, with retirement gated on a count — and
-[#368](https://github.com/Jersyfi/hubtask/issues/368) is the work. The reason it is written here
-rather than left to be discovered is that a rotation procedure ending at step 2 looks finished.
+**What a round touches, and what it does not.** Five places hold a sealed value — the second
+factor, the identity provider's client secret, a webhook's current and previous signing secret, a
+backup target's credential, and a rule's HTTP header secret at any depth of a branch — and each is
+re-sealed by the service that owns it, under the purpose only that service knows. No version moves
+and no `updated_at` changes: a rotation of the installation's keys is nobody's edit, and the person
+editing their subscription at that moment meets no conflict. A value that names a key the ring no
+longer holds is skipped and counted, never failed on. The round's counts land in
+`hubtask_secret_reseals_total` by store and outcome, and in the workspace's audit trail as
+`encryption.resealed` when anything moved.
 
-**What the drill proved**, and what it deliberately did not: a value sealed under `k1`, stored, and
-read back through the repository opens under a ring whose current key is `k2`, and everything
-written after the rotation names `k2` without a rewrite. Removing `k1` while a row still named it
-answered an unavailability rather than a corrupted read. A completed rotation — the count reaching
-zero — is what #368 will make drillable.
+**What the drills proved.** The roll-forward: a value sealed under `k1`, stored, and read back
+through the repository opens under a ring whose current key is `k2`, and everything written after
+the rotation names `k2` without a rewrite. The completion: values sealed under `k1` in all five
+stores, a round under `[k2 k1]`, the census answering zero for `k1`, and every value opening under
+a ring that holds `k2` alone. Removing `k1` before the round answered an unavailability rather than
+a corrupted read, which is why step 4 counts before it removes.
 
 ---
 

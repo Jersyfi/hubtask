@@ -60,3 +60,12 @@ type ExternalAccounts interface {
 	// than this method, because two sign-ins racing must not both win.
 	LinkSubject(ctx context.Context, accountID shared.ID, subject string, now time.Time) (bool, error)
 }
+
+// IdentityProviderSealing is the re-seal's one write on the provider (ADR-0045). The read is
+// FindWithSecret's, which is already the deliberate way to the sealed value; what a rotation adds
+// is only the way to put a moved wrapping back.
+type IdentityProviderSealing interface {
+	// RewrapSecret writes the moved wrapping, guarded by the key the row named when it was read.
+	// False means there is no provider, or it changed in between.
+	RewrapSecret(ctx context.Context, sealed crypto.Sealed, expectedKeyID string) (bool, error)
+}

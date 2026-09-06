@@ -68,8 +68,24 @@ type Encryptor interface {
 	// any of it is returned.
 	Open(ctx context.Context, sealed Sealed, purpose Purpose) (secret.Secret, error)
 
+	// Rewrap moves a sealed value under the current master key without opening it: the data key
+	// is unwrapped under the key the value names and wrapped again under the current one, and the
+	// value's own ciphertext is carried over byte for byte. It is what makes a rotation finish
+	// (ADR-0045): a key can leave the ring once nothing names it, and this is how a value stops
+	// naming it. The plaintext never exists in this call, which is the difference between a rewrap
+	// and an open followed by a seal.
+	//
+	// The same refusals as Open, for the same reasons - `crypto.unknown_key` for a key the ring no
+	// longer holds, `crypto.not_authentic` for a wrong purpose or a changed byte.
+	Rewrap(ctx context.Context, sealed Sealed, purpose Purpose) (Sealed, error)
+
 	// ActiveKeyID is the key new values are sealed under. Empty when the installation holds none.
 	ActiveKeyID() string
+
+	// KeyIDs is every key the ring holds, the active one first, then its predecessors. What an
+	// operator needs before removing one: the count of values still naming it is read from the
+	// stores, and the ring is what says which keys there are to count for.
+	KeyIDs() []string
 }
 
 // StreamCipher protects something too large to hold: an archive member on its way to a backup

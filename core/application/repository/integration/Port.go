@@ -142,3 +142,16 @@ type DeliveryOutcome struct {
 	// NextAttemptAt is when the retry is due, and zero when there will not be one.
 	NextAttemptAt time.Time
 }
+
+// WebhookSealings is the re-seal's view of the subscriptions (ADR-0045): the rows whose current
+// or previous secret names a key other than the current one, and the write that moves both.
+type WebhookSealings interface {
+	// SealedNotUnder answers the subscriptions holding a secret sealed under a key other than
+	// keyID - the current one, the previous one of a grace still running, or both.
+	SealedNotUnder(ctx context.Context, keyID string) ([]StoredSubscription, error)
+
+	// Rewrap writes the moved wrappings, guarded by the version and deliberately not bumping it:
+	// a rotation of the installation's keys is nobody's edit. A zero previous secret is written as
+	// none. False means the row moved on in between.
+	Rewrap(ctx context.Context, id shared.ID, secret, previous SealedSecret, expectedVersion int) (bool, error)
+}

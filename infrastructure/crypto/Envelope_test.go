@@ -389,3 +389,51 @@ func TestALengthNothingNeedsIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// The half of a rotation that lets it finish (ADR-0045): a value moves under the new key without
+// ever being opened, and everything but the wrapping stays byte for byte what it was.
+func TestARewrapMovesTheWrappingAndNothingElse(t *testing.T) {
+	before := envelope(t, key("a", materialA))
+	sealedUnderA, err := before.Seal(t.Context(), secret.New("older secret"), purpose)
+	if err != nil {
+		t.Fatalf("sealing under a: %v", err)
+	}
+
+	after := envelope(t, key("b", materialB), key("a", materialA))
+	rewrapped, err := after.Rewrap(t.Context(), sealedUnderA, purpose)
+	if err != nil {
+		t.Fatalf("rewrapping: %v", err)
+	}
+	if rewrapped.KeyID != "b" {
+		t.Fatalf("the rewrapped value names %q, want b", rewrapped.KeyID)
+	}
+	if len(rewrapped.Ciphertext) != len(sealedUnderA.Ciphertext) {
+		t.Fatal("a rewrap changed the ciphertext's length")
+	}
+	// Everything from the data nonce on is the original's: only the wrapped key moved. The offset
+	// is the envelope's layout - version, wrapping nonce, wrapped 32-byte key with its tag.
+	const wrappedKeyEnd = 1 + 12 + 32 + 16
+	if !bytes.Equal(rewrapped.Ciphertext[wrappedKeyEnd:], sealedUnderA.Ciphertext[wrappedKeyEnd:]) {
+		t.Fatal("a rewrap touched the value's own ciphertext")
+	}
+
+	// It opens under a ring that holds only the new key - which is the point of the exercise.
+	retired := envelope(t, key("b", materialB))
+	opened, err := retired.Open(t.Context(), rewrapped, purpose)
+	if err != nil {
+		t.Fatalf("a rewrapped value did not open under the new key alone: %v", err)
+	}
+	if opened.Reveal() != "older secret" {
+		t.Fatal("the rewrapped value opened to something else")
+	}
+
+	// The refusals are Open's. A purpose that is not the row's own, and a key the ring no longer
+	// holds, each answer the way an operator can act on.
+	_, err = after.Rewrap(t.Context(), sealedUnderA, port.Purpose("another row"))
+	if code := shared.AsError(err).DetailCode; code != port.CodeNotAuthentic {
+		t.Fatalf("a foreign purpose answered %v, want %s", err, port.CodeNotAuthentic)
+	}
+	if _, err := retired.Rewrap(t.Context(), sealedUnderA, purpose); !errors.Is(err, shared.ErrUnavailable) {
+		t.Fatalf("a retired key answered %v, want an unavailability", err)
+	}
+}

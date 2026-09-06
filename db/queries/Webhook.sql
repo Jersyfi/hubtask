@@ -76,6 +76,29 @@ UPDATE webhook_subscription SET
   version                = version + 1
 WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 
+-- name: WebhookSubscriptionsSealedNotUnder :many
+-- The rows a re-seal visits (ADR-0045): a subscription whose current or previous secret names a
+-- key other than the current one. Both, because a grace that outlives a rotation is still a
+-- secret the verifier has to open.
+SELECT id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+       previous_secret_enc, previous_secret_key_id, previous_secret_until,
+       state, failure_count, last_error, disabled_at, created_by, created_at, version
+FROM webhook_subscription
+WHERE (secret_key_id IS NOT NULL AND secret_key_id <> sqlc.arg('key_id'))
+   OR (previous_secret_key_id IS NOT NULL AND previous_secret_key_id <> sqlc.arg('key_id'))
+ORDER BY id;
+
+-- name: RewrapWebhookSecrets :execrows
+-- Both wrappings in one statement, guarded by the version and deliberately not bumping it: a
+-- re-seal is not an edit anybody made, and a rotation of the installation's keys must not turn
+-- into a conflict for the person editing their subscription at the same moment.
+UPDATE webhook_subscription SET
+  secret_enc             = sqlc.arg('secret_enc'),
+  secret_key_id          = sqlc.narg('secret_key_id'),
+  previous_secret_enc    = sqlc.narg('previous_secret_enc'),
+  previous_secret_key_id = sqlc.narg('previous_secret_key_id')
+WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
+
 -- name: DeleteWebhookSubscription :execrows
 -- The deliveries go with it, by cascade (0001_init): a delivery log for a subscription nobody can
 -- reach any more is a record of attempts against an address the workspace no longer knows.

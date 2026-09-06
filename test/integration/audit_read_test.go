@@ -692,6 +692,12 @@ func (keylessInstallation) Open(context.Context, crypto.Sealed, crypto.Purpose) 
 }
 func (keylessInstallation) ActiveKeyID() string { return "" }
 
+func (keylessInstallation) KeyIDs() []string { return nil }
+
+func (keylessInstallation) Rewrap(context.Context, crypto.Sealed, crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{}, shared.ErrUnavailable.WithDetail(crypto.CodeNoEncryptionKey)
+}
+
 // The `AUDITOR` role, tried against the database (E-09, audit.md §5): the trail and no content.
 //
 // It is asked of the real authorisation service and a real membership row, because the role has

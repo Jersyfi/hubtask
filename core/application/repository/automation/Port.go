@@ -210,3 +210,18 @@ type Matching interface {
 	// transaction has no business being able to write one.
 	ByTriggerKind(ctx context.Context, kind domain.TriggerKind) ([]domain.Rule, error)
 }
+
+// RuleSealings is the re-seal's view of the rules (ADR-0045): the ones whose HTTP_REQUEST actions
+// - at any depth of a branch - carry a header secret sealed under a key other than the current
+// one, and the write that puts the moved wrappings back.
+type RuleSealings interface {
+	// SealedNotUnder answers the rules holding at least one secret sealed under a key other than
+	// keyID. Which of their actions those are is the caller's walk, not this port's.
+	SealedNotUnder(ctx context.Context, keyID string) ([]domain.Rule, error)
+
+	// RewrapActions writes only the actions, guarded by the version and deliberately not bumping
+	// it: the definition is what it was, and a person editing the rule at the same moment must
+	// not meet a conflict caused by a rotation of the installation's keys. False means the row
+	// moved on in between.
+	RewrapActions(ctx context.Context, id shared.ID, actions []domain.Action, expectedVersion int) (bool, error)
+}

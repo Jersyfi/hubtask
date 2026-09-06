@@ -72,6 +72,7 @@ type Metrics struct {
 	ruleDisabled      metric.Int64Counter
 	webhookDeliveries metric.Int64Counter
 	busPublications   metric.Int64Counter
+	secretReseals     metric.Int64Counter
 	webhookBacklog    metric.Int64Gauge
 	tenantLabelActive bool
 }
@@ -316,6 +317,14 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"a subject carries a tenant identifier."),
 	); err != nil {
 		return fmt.Errorf("bus publication counter: %w", err)
+	}
+	if m.secretReseals, err = meter.Int64Counter(
+		namespace+"_secret_reseals_total",
+		metric.WithDescription("Sealed values a re-seal moved under the current master key, or "+
+			"left where they were, by store and outcome (ADR-0045). The key identifier is "+
+			"deliberately not a label: it is the operator's to read from /admin/encryption."),
+	); err != nil {
+		return fmt.Errorf("secret reseal counter: %w", err)
 	}
 	if m.webhookBacklog, err = meter.Int64Gauge(
 		namespace+"_webhook_retry_backlog",
@@ -840,6 +849,18 @@ func (m *Metrics) WebhookDelivery(ctx context.Context, result, statusClass strin
 func (m *Metrics) BusPublished(ctx context.Context, eventType string) {
 	m.busPublications.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("outcome", "published"), attribute.String("event_type", eventType)))
+}
+
+// SecretResealed counts what one re-seal pass did in one store. Both labels are closed sets
+// written by hand: the store is one of the five places a sealed value lives, the outcome is
+// `rewrapped` or `skipped` - the latter a value naming a key the ring no longer holds, which is
+// the state the operator reads from the census rather than from here.
+func (m *Metrics) SecretResealed(ctx context.Context, store, outcome string, count int64) {
+	if count == 0 {
+		return
+	}
+	m.secretReseals.Add(ctx, count, metric.WithAttributes(
+		attribute.String("store", store), attribute.String("outcome", outcome)))
 }
 
 // BusRefused counts one that did not, by reason. The reason is written by hand where it is raised

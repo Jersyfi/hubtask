@@ -23,6 +23,7 @@ is written **before** the code; server interfaces and client SDKs are generated 
 |---|---|---|
 | Capabilities/meta | `/meta/capabilities`, `/meta/health` | `GET` |
 | Tenants (admin) | `/admin/tenants` | `GET`, `POST`, `PATCH`, `DELETE`, `POST :export` |
+| Encryption (admin) | `/admin/encryption` | `GET`, `POST :reseal` — the keyring's census and the re-seal that lets a key retire (ADR-0045) |
 | Accounts | `/accounts`, `/accounts/me` | `GET`, `POST`, `PATCH` |
 | Groups | `/groups` | CRUD |
 | Memberships | `/memberships` | `GET`, `POST`, `DELETE` |

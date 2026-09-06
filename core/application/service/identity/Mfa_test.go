@@ -204,6 +204,12 @@ func (e *encryptorFake) Open(
 
 func (e *encryptorFake) ActiveKeyID() string { return "k1" }
 
+func (e *encryptorFake) KeyIDs() []string { return []string{"k1"} }
+
+func (e *encryptorFake) Rewrap(_ context.Context, sealed cryptoport.Sealed, _ cryptoport.Purpose) (cryptoport.Sealed, error) {
+	return cryptoport.Sealed{KeyID: "k1", Ciphertext: sealed.Ciphertext}, nil
+}
+
 // mfaFixture is the session fixture with the second factor wired.
 func mfaFixture(at time.Time) *sessionFixture {
 	fixture := newSessionFixture(at)

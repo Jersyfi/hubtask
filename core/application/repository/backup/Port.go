@@ -279,3 +279,20 @@ type Runs interface {
 	// reads as 1970 on every dashboard.
 	LastSuccessPerTarget(ctx context.Context) (map[shared.ID]time.Time, error)
 }
+
+// SealedCredential is a target's credential as the re-seal reads it: which row, and the sealed
+// value. Nothing else of the target travels with it, FindBackupTargetCredential's reasoning.
+type SealedCredential struct {
+	TargetID   shared.ID
+	Credential crypto.Sealed
+}
+
+// CredentialSealings is the re-seal's view of the targets (ADR-0045).
+type CredentialSealings interface {
+	// SealedNotUnder answers the credentials sealed under a key other than keyID.
+	SealedNotUnder(ctx context.Context, keyID string) ([]SealedCredential, error)
+
+	// Rewrap writes the moved wrapping, guarded by the key the row named when it was read. False
+	// means the row changed in between.
+	Rewrap(ctx context.Context, id shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
+}
