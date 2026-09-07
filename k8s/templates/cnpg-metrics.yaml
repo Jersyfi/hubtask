@@ -1,0 +1,40 @@
+{{/*
+The database's metrics port, made scrapable the same way the application's is.
+
+A CloudNativePG instance serves Prometheus metrics on port 9187, and the operator can create a
+PodMonitor for them - but whether the installation's Prometheus selects PodMonitors from this
+namespace is the operator's knowledge, and the one thing this chart already knows it selects is a
+ServiceMonitor carrying `serviceMonitor.labels`. So: a headless Service over the instance pods,
+and a ServiceMonitor of the same shape as the application's. A-12's PITR half reads what this
+scrapes (deploy/observability/alerts/prometheus-rules-pitr.yaml).
+*/}}
+{{- if and .Values.database.enabled .Values.serviceMonitor.enabled .Values.database.metrics.serviceMonitor }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "hubtask.fullname" . }}-database-metrics
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "database") | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    cnpg.io/cluster: {{ include "hubtask.databaseName" . }}
+  ports:
+    - name: metrics
+      port: 9187
+      targetPort: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "hubtask.fullname" . }}-database
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "database") | nindent 4 }}
+  {{- with .Values.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels: {{- include "hubtask.selectorLabels" (dict "root" . "role" "database") | nindent 6 }}
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+{{- end }}

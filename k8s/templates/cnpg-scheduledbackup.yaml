@@ -1,0 +1,23 @@
+{{/*
+The base backup the archive is replayed onto. Continuous archiving gives the RPO; this is what
+makes the archive restorable at all, and `immediate: true` is what makes it restorable on the
+first day - the drill (job-restore-drill.yaml) needs a recoverability point to exist before it can
+recover to a moment after it, and a schedule that first fires at half past two would leave a fresh
+installation's first drill with nothing to restore.
+*/}}
+{{- if and .Values.database.enabled .Values.database.backup.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ include "hubtask.databaseName" . }}-daily
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "database") | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+spec:
+  # The operator's six-field cron: seconds first.
+  schedule: {{ .Values.database.backup.schedule | quote }}
+  immediate: true
+  backupOwnerReference: self
+  cluster:
+    name: {{ include "hubtask.databaseName" . }}
+{{- end }}

@@ -478,6 +478,20 @@ gate-chart:
 		--set smtp.existingSecretKey=smtp-password \
 		--set storage.existingSecret=hubtask-storage --set storage.bucket=hubtask-media \
 		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} > /dev/null
+	@# With the database the chart may own (ADR-0046): the Cluster, its backup and its metrics
+	@# route rendered together, and the backup refused without the path it needs.
+	$(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets \
+		--set database.enabled=true \
+		--set database.backup.destinationPath=s3://backups/hubtask \
+		--set database.backup.endpointURL=https://s3.example.com \
+		--set database.backup.existingSecret=hubtask-backup-s3 \
+		--set migration.dsnSecretName=hubtask-db-app --set migration.dsnSecretKey=uri \
+		--set serviceMonitor.enabled=true > /dev/null
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set database.enabled=true > /dev/null 2>&1; then \
+		echo "chart: a database with a backup and no destination path rendered - it must refuse"; exit 1; fi
+	@echo "chart: the database renders, and refuses a backup without a path"
 	@# And once with a tag of nothing but digits, read rather than discarded. `--set` infers a
 	@# type, so such a tag arrives as a number and a `%s` renders it as `%!s(int64=...)` - a
 	@# reference Kubernetes refuses with InvalidImageName. The two renders above would not have

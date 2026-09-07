@@ -64,8 +64,58 @@ config:
 
 # Secrets come from an existing secret, not from values.yaml.
 existingSecret: ""            # expects the keys: db-dsn, secret-key, smtp-password
+
+# The database, when this chart owns it: a CloudNativePG `Cluster` in the release's namespace
+# (deployment.md §3.2, ADR-0046). Off by default - the kind needs the operator's CRDs, and an
+# installation with a database of its own hands the chart a DSN instead. With it on, the
+# migration should read the owner's DSN from the secret the operator generates (see
+# migration.dsnSecretName) and the application connects as hubtask_app through db-dsn.
 database:
   createSecret: false
+  enabled: false
+  # The Cluster's name, and therefore the host names the operator creates: <name>-rw, <name>-ro.
+  # Empty: <release>-db.
+  name: ""
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6
+  databaseName: hubtask
+  owner: hubtask_owner
+  storage:
+    # Sized for the live database *and* the temporary cluster a restore drill bootstraps beside
+    # it from the object store: both have to fit the namespace's quota at once (ADR-0046).
+    size: 8Gi
+    storageClass: ""
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits:   { memory: 2Gi }
+  # Anything under the Cluster's `postgresql` stanza - parameters above all.
+  postgresql: {}
+  # `helm uninstall`, and a pruning sync, must not take the database with the release.
+  keepOnDelete: true
+  metrics:
+    # The chart's own Service + ServiceMonitor over the instance's metrics port, rendered when
+    # serviceMonitor.enabled. The operator's PodMonitor instead, where Prometheus selects those.
+    serviceMonitor: true
+    podMonitor: false
+  backup:
+    # Continuous WAL archiving plus a daily base backup to S3-compatible object storage. This is
+    # what gives the installation its RPO (observability-reliability.md §2), so it is on whenever
+    # the database is - an operator who wants none says so.
+    enabled: true
+    # Must stay >= the bucket's Object Lock retention (or the plan's own cleanup fails against the
+    # lock) and <= the 35 days data-protection.md §12 promises. Both are 35 days by decision.
+    retentionPolicy: "35d"
+    destinationPath: ""       # s3://<bucket>/<path> - set by the operator
+    endpointURL: ""           # the S3-compatible endpoint - set by the operator; empty means AWS
+    # The archive's name inside the path. Empty: the Cluster's name. A restore drill and an
+    # operator's recovery read the archive under this name, so changing it is starting a new
+    # archive.
+    serverName: ""
+    existingSecret: ""        # keys: access-key, secret-key - the name is set by the operator
+    compression: gzip
+    # The base backup, in the operator's six-field cron (seconds first). The first one runs at
+    # creation regardless, so a fresh installation is restorable on its first day.
+    schedule: "0 30 2 * * *"
 
 smtp:
   # The key inside existingSecret that holds the SMTP password. Empty means no SMTP: notifications
@@ -80,6 +130,15 @@ migration:
   # role and give db-dsn the application role (hubtask_app, no BYPASSRLS) - migrations create
   # objects, the application must not be able to (multi-tenancy.md §2.1).
   dsnSecretKey: db-dsn
+  # The Secret that key lives in, when it is not existingSecret. With database.enabled the
+  # operator generates one per Cluster, `<database.name>-app`, whose `uri` key is the owner's
+  # complete DSN - so the owner's credential never has to be copied anywhere by hand.
+  dsnSecretName: ""
+  # How long the migrator keeps trying to reach the database before it gives up. A first sync
+  # creates the Cluster in an earlier wave and the database takes a minute or two to accept
+  # connections; whether the sync waited for it is the platform's knowledge, so the migrator does
+  # not depend on it (deployment.md §2.2). Empty: one attempt, as before.
+  connectWait: 5m
   # The key holding the password for hubtask_app. Set it and the migrator grants that role its
   # login after migrating, so the application never has to connect as the owner (A-11). Leave it
   # empty where the cluster manages database roles itself.

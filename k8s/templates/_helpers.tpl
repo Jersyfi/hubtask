@@ -87,6 +87,22 @@ into values.yaml: a value ends up in the release history, in a git repository, a
 {{- end -}}
 
 {{/*
+databaseName is the CloudNativePG Cluster's name when the chart owns the database, and therefore
+the prefix of the service names the operator creates (<name>-rw, <name>-ro).
+*/}}
+{{- define "hubtask.databaseName" -}}
+{{- .Values.database.name | default (printf "%s-db" (include "hubtask.fullname" .)) -}}
+{{- end -}}
+
+{{/*
+migrationSecretName is where the migration's DSN comes from: a Secret of its own when the
+operator generates one (CloudNativePG's <cluster>-app), otherwise the release's secret.
+*/}}
+{{- define "hubtask.migrationSecretName" -}}
+{{- .Values.migration.dsnSecretName | default (include "hubtask.secretName" .) -}}
+{{- end -}}
+
+{{/*
 The environment of one pod: what every role shares, plus the role itself.
 
 The configuration surface is HUBTASK_* only (arc42 §7.4). What is not a secret comes from the

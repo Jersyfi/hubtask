@@ -22,6 +22,9 @@ helm install hubtask oci://ghcr.io/jersyfi/charts/hubtask --version 0.1.0 \
 | `Ingress` | release | when `ingress.enabled`; needs a host |
 | `NetworkPolicy` | release | on by default |
 | `ServiceMonitor` | release | when `serviceMonitor.enabled` (Prometheus operator) |
+| `Cluster` (CloudNativePG) | release | when `database.enabled`; the chart owns the database, with WAL archiving and a daily base backup to object storage (ADR-0046). Kept on uninstall and never pruned |
+| `ScheduledBackup` | release | with the database: the daily base backup, and one at creation |
+| `Service` + `ServiceMonitor` | database | with the database and `serviceMonitor.enabled`: the instance's metrics port, which A-12's PITR half reads |
 
 ## The one thing that is mandatory
 
