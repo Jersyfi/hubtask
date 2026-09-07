@@ -19,18 +19,19 @@ import (
 // The catalogue names. The routes they are reached through come from the specification; the two
 // are reconciled by the parity test rather than by these constants.
 const (
-	inviteAccountUseCase            = "InviteAccount"
-	getOwnAccountUseCase            = "GetOwnAccount"
-	getAccountUseCase               = "GetAccount"
-	updateAccountPreferencesUseCase = "UpdateAccountPreferences"
-	listMembershipsUseCase          = "ListMemberships"
-	grantMembershipUseCase          = "GrantMembership"
-	revokeMembershipUseCase         = "RevokeMembership"
-	listGroupsUseCase               = "ListGroups"
-	getGroupUseCase                 = "GetGroup"
-	createGroupUseCase              = "CreateGroup"
-	updateGroupUseCase              = "UpdateGroup"
-	deleteGroupUseCase              = "DeleteGroup"
+	inviteAccountUseCase               = "InviteAccount"
+	getOwnAccountUseCase               = "GetOwnAccount"
+	getAccountUseCase                  = "GetAccount"
+	updateAccountPreferencesUseCase    = "UpdateAccountPreferences"
+	listNotificationPreferencesUseCase = "ListNotificationPreferences"
+	listMembershipsUseCase             = "ListMemberships"
+	grantMembershipUseCase             = "GrantMembership"
+	revokeMembershipUseCase            = "RevokeMembership"
+	listGroupsUseCase                  = "ListGroups"
+	getGroupUseCase                    = "GetGroup"
+	createGroupUseCase                 = "CreateGroup"
+	updateGroupUseCase                 = "UpdateGroup"
+	deleteGroupUseCase                 = "DeleteGroup"
 )
 
 // InviteAccount answers POST /accounts:invite.
@@ -109,6 +110,33 @@ func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http
 	}, func(out usecase.Output) {
 		writeJSON(w, r, http.StatusOK, accountResponse(out))
 	})
+}
+
+// ListNotificationPreferences answers GET /accounts/{accountId}/notification-preferences.
+func (c *RestController) ListNotificationPreferences(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
+	out, ok := c.read(w, r, listNotificationPreferencesUseCase, usecase.Input{"account_id": accountID.String()})
+	if !ok {
+		return
+	}
+
+	list := openapi.NotificationPreferenceList{Data: []openapi.NotificationPreference{}}
+	for _, row := range rowsOf(out) {
+		list.Data = append(list.Data, notificationPreferenceResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, list)
+}
+
+// notificationPreferenceResponse maps one row of the settings form. The timestamp is a pointer
+// with no omitempty, so a default carries an explicit null rather than no field at all.
+func notificationPreferenceResponse(out usecase.Output) openapi.NotificationPreference {
+	return openapi.NotificationPreference{
+		Category:     out.String("category"),
+		Channel:      out.String("channel"),
+		Enabled:      boolOf(out["enabled"]),
+		IncludeTitle: boolOf(out["include_title"]),
+		IsDefault:    boolOf(out["is_default"]),
+		UpdatedAt:    timePointer(out["updated_at"]),
+	}
 }
 
 // ListMemberships answers GET /memberships.

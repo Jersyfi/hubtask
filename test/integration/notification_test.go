@@ -398,3 +398,72 @@ func TestNoNotificationMethodReachesIntoAnotherTenant(t *testing.T) {
 		t.Error("Preferences.Save wrote a row for another tenant's account")
 	}
 }
+
+// The read behind the settings form (F3-02): what the account wrote comes back, and nothing
+// about what it did not - the default is the use case's to fill in, not the repository's.
+func TestThePreferencesAnAccountWroteAreListed(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	account := seedAccount(ctx, t, tenantA)
+
+	var before []domain.Preference
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		before, err = preferenceRepo().ListForAccount(ctx, account)
+		return err
+	}); err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if len(before) != 0 {
+		t.Errorf("an account that has said nothing listed %d rows", len(before))
+	}
+
+	off := domain.DefaultPreference(tenantA, account, domain.CategoryComment, domain.ChannelEmail)
+	off.Enabled = false
+	off.UpdatedAt = created
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return preferenceRepo().Save(ctx, off)
+	}); err != nil {
+		t.Fatalf("saving: %v", err)
+	}
+
+	var after []domain.Preference
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		after, err = preferenceRepo().ListForAccount(ctx, account)
+		return err
+	}); err != nil {
+		t.Fatalf("listing again: %v", err)
+	}
+	if len(after) != 1 || after[0].Category != domain.CategoryComment || after[0].Enabled {
+		t.Errorf("listed %+v, want the one row that was written", after)
+	}
+}
+
+// The cross-tenant negative for ListForAccount (gate SG-3): a list is not refused, it is empty -
+// row level security narrows what it reads, and the identifier being known does not help.
+func TestThePreferencesOfAnotherTenantAreNotListed(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	account := seedAccount(ctx, t, tenantA)
+
+	preference := domain.DefaultPreference(tenantA, account, domain.CategoryComment, domain.ChannelEmail)
+	preference.UpdatedAt = created
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return preferenceRepo().Save(ctx, preference)
+	}); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+
+	var foreign []domain.Preference
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		foreign, err = preferenceRepo().ListForAccount(ctx, account)
+		return err
+	}); err != nil {
+		t.Fatalf("listing in the other tenant: %v", err)
+	}
+	if len(foreign) != 0 {
+		t.Errorf("tenant B listed %d of tenant A's preferences", len(foreign))
+	}
+}

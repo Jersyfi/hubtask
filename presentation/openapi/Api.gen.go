@@ -4739,7 +4739,7 @@ type NotificationPreference struct {
 
 	// IsDefault True when nobody has written this pair and the value is the installation's default. "Not stored" and "off" are different facts, and a form that showed the default as a choice somebody made would be lying about who made it.
 	IsDefault bool       `json:"is_default"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at"`
 }
 
 // NotificationPreferenceList defines model for NotificationPreferenceList.

@@ -886,6 +886,10 @@ func run() error {
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.ListNotificationPreferences{
+			Accounts: accounts, Preferences: notificationPreferences, Authorizer: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		identity.ListMemberships{
 			Grants: grants, Containers: containers, Items: items,
 			Authorizer: authorizer, Permits: authorizer, UnitOfWork: unitOfWork,

@@ -6229,7 +6229,7 @@ components:
 
     NotificationPreference:
       type: object
-      required: [category, channel, enabled, include_title, is_default]
+      required: [category, channel, enabled, include_title, is_default, updated_at]
       properties:
         category: { type: string }
         channel: { type: string }
