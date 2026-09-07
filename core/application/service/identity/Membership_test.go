@@ -6,6 +6,8 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -26,6 +28,9 @@ type grantStore struct {
 	byID    map[shared.ID]domain.Grant
 	granted []domain.Grant
 	revoked []shared.ID
+
+	listedAt   domain.Scope
+	listedPage repository.Page
 }
 
 func newGrants(existing ...domain.Grant) *grantStore {
@@ -57,6 +62,20 @@ func (s *grantStore) Find(_ context.Context, id shared.ID) (domain.Grant, error)
 		return domain.Grant{}, shared.ErrNotFound.WithDetail("memberships.not_found")
 	}
 	return grant, nil
+}
+
+// ListAt answers what is granted at exactly the scope asked, newest first by identifier, and
+// remembers what it was asked so that a test can see the scope and the page.
+func (s *grantStore) ListAt(_ context.Context, scope domain.Scope, page repository.Page) (repository.GrantPage, error) {
+	s.listedAt, s.listedPage = scope, page
+	var grants []domain.Grant
+	for _, grant := range s.byID {
+		if grant.Scope == scope {
+			grants = append(grants, grant)
+		}
+	}
+	slices.SortFunc(grants, func(a, b domain.Grant) int { return strings.Compare(string(b.ID), string(a.ID)) })
+	return repository.GrantPage{Grants: grants}, nil
 }
 
 var _ repository.MembershipGrants = (*grantStore)(nil)

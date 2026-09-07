@@ -23,6 +23,7 @@ const (
 	getOwnAccountUseCase            = "GetOwnAccount"
 	getAccountUseCase               = "GetAccount"
 	updateAccountPreferencesUseCase = "UpdateAccountPreferences"
+	listMembershipsUseCase          = "ListMemberships"
 	grantMembershipUseCase          = "GrantMembership"
 	revokeMembershipUseCase         = "RevokeMembership"
 	createGroupUseCase              = "CreateGroup"
@@ -106,6 +107,28 @@ func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http
 	}, func(out usecase.Output) {
 		writeJSON(w, r, http.StatusOK, accountResponse(out))
 	})
+}
+
+// ListMemberships answers GET /memberships.
+//
+// Through the shared read helper rather than the identity one: a list is mapped row by row from
+// the catalogue's page shape, which is what `rowsOf` and `pageResponse` exist for.
+func (c *RestController) ListMemberships(w http.ResponseWriter, r *http.Request, params openapi.ListMembershipsParams) {
+	out, ok := c.read(w, r, listMembershipsUseCase, usecase.Input{
+		"scope_type": string(params.ScopeType),
+		"scope_id":   optionalUUIDField(params.ScopeId),
+		"cursor":     optionalStringField(params.Cursor),
+		"size":       optionalIntField(params.Size),
+	})
+	if !ok {
+		return
+	}
+
+	page := openapi.MembershipPage{Data: []openapi.Membership{}, Page: pageResponse(out)}
+	for _, row := range rowsOf(out) {
+		page.Data = append(page.Data, membershipResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, page)
 }
 
 // GrantMembership answers POST /memberships.

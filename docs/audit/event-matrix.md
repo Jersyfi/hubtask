@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**194 use cases, 171 distinct action codes, 141 of them recorded on every call.** A use case that
+**195 use cases, 172 distinct action codes, 141 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -241,6 +241,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `group.deleted` | DeleteGroup | `group` | NOTICE | Every time |
 | `group.updated` | UpdateGroup | `group` | INFO | Every time |
 | `membership.granted` | GrantMembership | `membership` | NOTICE | Every time |
+| `membership.read` | ListMemberships | `membership` | INFO | When refused |
 | `membership.revoked` | RevokeMembership | `membership` | NOTICE | Every time |
 
 ## Quota

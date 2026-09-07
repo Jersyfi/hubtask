@@ -181,7 +181,35 @@ type Groups interface {
 // MembershipGrants is the write half of Memberships. Separate interface, same table: reading is
 // on the hot path of every request and writing happens when an administrator acts, and a use case
 // that only grants should not be handed the ability to resolve.
+// Page is how a list is walked: the boundary to continue after, empty for the first page, and how
+// many rows the caller wants - already clamped by the use case. An adapter reads one row beyond
+// it to answer HasMore, and does not return that row.
+type Page struct {
+	Cursor string
+	Size   int
+}
+
+// PageInfo is the walk's own state, as the contract's PageInfo schema carries it.
+type PageInfo struct {
+	// NextCursor continues the walk, and is empty when HasMore is false.
+	NextCursor string
+	HasMore    bool
+}
+
+// GrantPage is one page of memberships granted at a scope.
+type GrantPage struct {
+	Grants []identity.Grant
+	Info   PageInfo
+}
+
 type MembershipGrants interface {
+	// ListAt answers the memberships granted at exactly this scope - an account or a group, a
+	// role - and none granted elsewhere, newest first (F3-01). What is *in force* at the scope is
+	// this plus what the scopes above grant, and the caller composes that path itself: an
+	// effective listing that walked it here is deliberately not built until a second caller
+	// wants one. The tenant boundary is the transaction's (ADR-0010).
+	ListAt(ctx context.Context, scope identity.Scope, page Page) (GrantPage, error)
+
 	// Grant records the membership, or does nothing when the same grant already exists. The
 	// identifier is the caller's, so that the audit entry and the row agree.
 	//

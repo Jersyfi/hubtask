@@ -584,6 +584,69 @@ func (q *Queries) InsertGroup(ctx context.Context, arg InsertGroupParams) error 
 	return err
 }
 
+const listMembershipsAtScope = `-- name: ListMembershipsAtScope :many
+SELECT id, account_id, group_id, scope_type, scope_id, role
+FROM membership
+WHERE scope_type = $1
+  AND scope_id IS NOT DISTINCT FROM $2::uuid
+  AND ($3::uuid IS NULL OR id < $3::uuid)
+ORDER BY id DESC
+LIMIT $4
+`
+
+type ListMembershipsAtScopeParams struct {
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	After     pgtype.UUID
+	PageSize  int32
+}
+
+type ListMembershipsAtScopeRow struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+	GroupID   pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	Role      MembershipRole
+}
+
+// What is granted at one scope and nothing granted elsewhere (F3-01). The tenant scope carries no
+// identifier and is matched by its type alone; every other scope by type and identifier, which is
+// what IS NOT DISTINCT FROM does for the NULL. Newest first by identifier: UUIDv7 is time-ordered,
+// so the primary key is the grant order and the keyset needs no second column. One row more than
+// the page is read, and the caller reports has_more from it.
+func (q *Queries) ListMembershipsAtScope(ctx context.Context, arg ListMembershipsAtScopeParams) ([]ListMembershipsAtScopeRow, error) {
+	rows, err := q.db.Query(ctx, listMembershipsAtScope,
+		arg.ScopeType,
+		arg.ScopeID,
+		arg.After,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMembershipsAtScopeRow{}
+	for rows.Next() {
+		var i ListMembershipsAtScopeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.GroupID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const membershipsAlongPath = `-- name: MembershipsAlongPath :many
 SELECT m.scope_type, m.scope_id, m.role
 FROM membership m
