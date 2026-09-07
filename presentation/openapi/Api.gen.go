@@ -4116,6 +4116,21 @@ type GroupCreate struct {
 	Name    string                `json:"name"`
 }
 
+// GroupDetail A group as `GET /groups/{groupId}` answers it: the group, and the accounts in it. The members are identifiers rather than names, for the reason every record that says who is — the name is one request away and a copy of it should not outlive the row.
+type GroupDetail struct {
+	Description *string              `json:"description,omitempty"`
+	Id          openapi_types.UUID   `json:"id"`
+	Members     []openapi_types.UUID `json:"members"`
+	Name        string               `json:"name"`
+	Version     int                  `json:"version"`
+}
+
+// GroupPage defines model for GroupPage.
+type GroupPage struct {
+	Data []Group  `json:"data"`
+	Page PageInfo `json:"page"`
+}
+
 // GroupUpdate defines model for GroupUpdate.
 type GroupUpdate struct {
 	Description *string `json:"description,omitempty"`
@@ -4662,6 +4677,12 @@ type MembershipGrant struct {
 	Role      MembershipRole      `json:"role"`
 	ScopeId   *openapi_types.UUID `json:"scope_id,omitempty"`
 	ScopeType MembershipScope     `json:"scope_type"`
+}
+
+// MembershipPage defines model for MembershipPage.
+type MembershipPage struct {
+	Data []Membership `json:"data"`
+	Page PageInfo     `json:"page"`
 }
 
 // MembershipRole `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
@@ -6570,6 +6591,12 @@ type UpdateCustomFieldParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListGroupsParams defines parameters for ListGroups.
+type ListGroupsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // CreateGroupParams defines parameters for CreateGroup.
 type CreateGroupParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h.
@@ -6982,6 +7009,16 @@ type DownloadMediaContentParams struct {
 type UploadMediaContentParams struct {
 	// Token The capability: a signed, expiring token minted by requestMediaUpload or getMedia. The URL is the credential, exactly as a presigned object-storage URL is - which is why these two operations carry no bearer requirement.
 	Token string `form:"token" json:"token"`
+}
+
+// ListMembershipsParams defines parameters for ListMemberships.
+type ListMembershipsParams struct {
+	ScopeType MembershipScope `form:"scope_type" json:"scope_type"`
+
+	// ScopeId The hub, collection or entry. Omitted for the whole workspace, and only then.
+	ScopeId *openapi_types.UUID `form:"scope_id,omitempty" json:"scope_id,omitempty"`
+	Cursor  *Cursor             `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size    *PageSize           `form:"size,omitempty" json:"size,omitempty"`
 }
 
 // GrantMembershipParams defines parameters for GrantMembership.
@@ -7641,12 +7678,18 @@ type ServerInterface interface {
 
 	// (PATCH /custom-fields/{fieldId})
 	UpdateCustomField(w http.ResponseWriter, r *http.Request, fieldId CustomFieldId, params UpdateCustomFieldParams)
+	// ListGroups The workspace's groups
+	// (GET /groups)
+	ListGroups(w http.ResponseWriter, r *http.Request, params ListGroupsParams)
 	// CreateGroup Create a group
 	// (POST /groups)
 	CreateGroup(w http.ResponseWriter, r *http.Request, params CreateGroupParams)
 	// DeleteGroup Delete a group
 	// (DELETE /groups/{groupId})
 	DeleteGroup(w http.ResponseWriter, r *http.Request, groupId GroupId)
+	// GetGroup One group, with who is in it
+	// (GET /groups/{groupId})
+	GetGroup(w http.ResponseWriter, r *http.Request, groupId GroupId)
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
@@ -7890,6 +7933,9 @@ type ServerInterface interface {
 
 	// (PUT /media/{mediaId}:content)
 	UploadMediaContent(w http.ResponseWriter, r *http.Request, mediaId MediaId, params UploadMediaContentParams)
+	// ListMemberships Who holds a role at a scope
+	// (GET /memberships)
+	ListMemberships(w http.ResponseWriter, r *http.Request, params ListMembershipsParams)
 	// GrantMembership Grant a role at a scope
 	// (POST /memberships)
 	GrantMembership(w http.ResponseWriter, r *http.Request, params GrantMembershipParams)
@@ -10865,6 +10911,52 @@ func (siw *ServerInterfaceWrapper) UpdateCustomField(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ListGroups operation middleware
+func (siw *ServerInterfaceWrapper) ListGroups(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListGroupsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListGroups(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateGroup operation middleware
 func (siw *ServerInterfaceWrapper) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
@@ -10923,6 +11015,32 @@ func (siw *ServerInterfaceWrapper) DeleteGroup(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DeleteGroup(w, r, groupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetGroup operation middleware
+func (siw *ServerInterfaceWrapper) GetGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId GroupId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", r.PathValue("groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetGroup(w, r, groupId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14383,6 +14501,78 @@ func (siw *ServerInterfaceWrapper) UploadMediaContent(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// ListMemberships operation middleware
+func (siw *ServerInterfaceWrapper) ListMemberships(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMembershipsParams
+
+	// ------------- Required query parameter "scope_type" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "scope_type", r.URL.Query(), &params.ScopeType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "scope_type"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scope_type", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "scope_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scope_id", r.URL.Query(), &params.ScopeId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "scope_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scope_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMemberships(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GrantMembership operation middleware
 func (siw *ServerInterfaceWrapper) GrantMembership(w http.ResponseWriter, r *http.Request) {
 
@@ -16013,10 +16203,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/privacy/requests/{requestId}", wrapper.UpdateDataSubjectRequest)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:restrict", wrapper.RestrictProcessing)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:withdraw", wrapper.WithdrawConsent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/memberships", wrapper.ListMemberships)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/memberships", wrapper.GrantMembership)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/memberships/{membershipId}", wrapper.RevokeMembership)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/groups", wrapper.ListGroups)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/groups", wrapper.CreateGroup)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/groups/{groupId}", wrapper.DeleteGroup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/groups/{groupId}", wrapper.GetGroup)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers", wrapper.ListContainers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers", wrapper.CreateContainer)
