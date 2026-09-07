@@ -461,8 +461,8 @@ there is nothing for MCP or an automation rule to call, and it is served by the 
 
 **Identity & tenancy** `ProvisionTenant`, `UpdateTenantSettings`, `SuspendTenant`, `DeleteTenant`,
 `ExportTenantData`, `InviteAccount`, `GetOwnAccount`, `GetAccount`, `UpdateAccountPreferences`,
-`GrantMembership`, `RevokeMembership`, `CreateGroup`, `UpdateGroup`, `DeleteGroup`,
-`ReadEncryptionStatus`, `ResealSecrets`.
+`ListMemberships`, `GrantMembership`, `RevokeMembership`, `ListGroups`, `GetGroup`, `CreateGroup`,
+`UpdateGroup`, `DeleteGroup`, `ReadEncryptionStatus`, `ResealSecrets`.
 
 `ReadEncryptionStatus` and `ResealSecrets` are the control plane's, behind `admin:tenants` like the
 tenant lifecycle (ADR-0045, `security.md` §8.1): the first counts, across every workspace, how many
@@ -470,8 +470,8 @@ stored values still name each master key; the second queues one re-sealing round
 that an older key can leave the ring once nothing names it. Neither opens a value - a round moves
 the wrapping of each value's data key and nothing else.
 
-`GetOwnAccount` is the one read in this group and the only one that takes no input: the actor *is*
-the identifier. It exists because nothing else answered "who am I" — `InviteAccount` creates an
+`GetOwnAccount` is the one read in this group that takes no input: the actor *is* the
+identifier. It exists because nothing else answered "who am I" — `InviteAccount` creates an
 account and `UpdateAccountPreferences` writes to one, and between them a client never learned its
 own id, so the binding requirement that locale and time zone come from the account preference
 (`i18n-l10n.md` §2) had no way to be honoured. It performs no permission check, deliberately:
@@ -503,6 +503,28 @@ The tenant boundary is the transaction's (ADR-0010), which is what makes an iden
 tenant fail to *resolve* rather than be *refused* — a refusal would confirm that the account exists
 (`multi-tenancy.md` §2). An erased account answers with the marker its erasure wrote where the name
 was, and `status: ANONYMIZED` beside it is what tells a reader the blank is deliberate.
+
+`ListMemberships`, `ListGroups` and `GetGroup` are the reads a picker and a members screen hang
+from (F3-01). `ListMemberships` answers what is granted **at** one scope — an account or a group, a
+role, an identifier — and nothing granted elsewhere; what is *in force* at a collection is that
+list plus what its hub and the workspace grant, and the client composes the path itself because it
+knows the path it is on. An `effective` listing that walked it server-side waits for a second
+caller. **Who may read it is `READ` at the scope**: a member of a hub seeing who else is in it is
+what makes a shared workspace legible, `data-protection.md` §9 already limits what a name reveals
+to the minimum, and `AUDITOR` holds no `READ` and is refused by the ordinary rule rather than by a
+special case. A scope the caller holds nothing on is **not found, in the words a missing one
+produces** (T-04): the use case resolves the hub, the collection or the entry to its path, asks
+the unrecorded half of the authorisation service, and answers as the repository would for a row
+that is not there. The workspace is the one scope whose existence is no secret, so a refusal there
+is a refusal, and it is audited.
+
+**`ListGroups` and `GetGroup` are readable by any member of the workspace**, which is the rule
+`GetAccount` records, reached the same way. A membership granted to a group is unreadable until
+the group can be shown as the people it reaches, and a member scoped to one hub holds nothing at
+the workspace that `READ` there could be judged against — requiring it would leave exactly the
+members screen without its groups. What a group discloses is its name and its members'
+identifiers, and the identifiers resolve through the same minimal read. All three ask for the
+`members:read` token scope, and the tenant boundary is the transaction's.
 
 **Search** `SearchItems` (full text, optionally semantic).
 
