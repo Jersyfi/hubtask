@@ -487,7 +487,12 @@ gate-chart:
 		--set database.backup.endpointURL=https://s3.example.com \
 		--set database.backup.existingSecret=hubtask-backup-s3 \
 		--set migration.dsnSecretName=hubtask-db-app --set migration.dsnSecretKey=uri \
+		--set restoreDrill.enabled=true --set restoreDrill.schedule='0 4 * * 1' \
+		--set restoreDrill.evidence.bucket=evidence --set restoreDrill.evidence.existingSecret=hubtask-evidence-s3 \
 		--set serviceMonitor.enabled=true > /dev/null
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set restoreDrill.enabled=true > /dev/null 2>&1; then \
+		echo "chart: the restore drill rendered without a database to restore - it must refuse"; exit 1; fi
 	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
 		--set existingSecret=hubtask-secrets --set database.enabled=true > /dev/null 2>&1; then \
 		echo "chart: a database with a backup and no destination path rendered - it must refuse"; exit 1; fi

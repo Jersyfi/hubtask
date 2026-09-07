@@ -147,6 +147,45 @@ migration:
     requests: { cpu: 100m, memory: 128Mi }
     limits:   { memory: 256Mi }
 
+# RT-9 where the data is (backup-restore.md §8.5, ADR-0046 amended 2026-09-07): after every
+# release, and with a schedule between releases, hubtask-restore-drill writes two markers,
+# restores a temporary cluster from the archive to a moment between them, checks what came back
+# and tears the cluster down. Needs the database this chart owns, with its backup on.
+restoreDrill:
+  enabled: false
+  # A CronJob beside the release hook, five-field cron. Empty: the hook alone.
+  schedule: ""
+  # The application role's DSN, a key in existingSecret: the isolation checks run as that role.
+  appDsnSecretKey: db-dsn
+  # The ConfigMap the result lands in and the gauge is read from. Empty: <release>-restore-drill.
+  recordConfigMap: ""
+  # The temporary cluster's name. Empty: <database name>-drill.
+  temporaryCluster: ""
+  timeout: 45m
+  activeDeadlineSeconds: 3600
+  # Leave a failed drill's temporary cluster behind for somebody to look at. Off, because a
+  # cluster left behind is quota the next drill does not have.
+  keepOnFailure: false
+  # Where the measured RPO and RTO go: an S3-compatible bucket the operator names, treated as
+  # opaque. Empty: the record ConfigMap carries the last run's evidence instead.
+  evidence:
+    bucket: ""              # set by the operator
+    endpoint: ""            # set by the operator; empty means AWS
+    prefix: ""              # set by the operator
+    region: us-east-1
+    existingSecret: ""      # keys: access-key, secret-key - the name is set by the operator
+  serviceAccount:
+    create: true
+    name: ""
+  # The Role and RoleBinding the drill needs (clusters: create/get/list/watch/delete; configmaps:
+  # get/create/update). Off where the deploy identity may not create RBAC objects; the two are
+  # then created once by hand (deploy/production/PLATFORM-INTERFACE.md).
+  rbac:
+    create: true
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { memory: 256Mi }
+
 serviceAccount:
   create: true
   annotations: {}

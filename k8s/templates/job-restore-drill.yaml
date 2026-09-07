@@ -1,0 +1,217 @@
+{{/*
+RT-9, run where the data is (backup-restore.md §8.5, ADR-0046 amended 2026-09-07).
+
+Two objects share one pod: a Job that runs after every release, and - with a schedule - a CronJob
+that runs between them. The program is hubtask-restore-drill from the image (cmd/restore-drill);
+what it does is in its own documentation. What this template decides is when it runs and what it
+may touch.
+
+After the release rather than before it, because the drill proves the archive the *running*
+version writes, and because a drill that fails must not stop a rollout: a release whose PITR
+proof failed is a page (the record stays on the previous success and A-20 keeps counting), not a
+release that did not happen. Under Argo CD the Helm hook is ignored in favour of the PostSync
+annotation, which says the same thing in Argo's words.
+
+The drill is the one thing in this chart that talks to the Kubernetes API: it creates and deletes
+a Cluster and writes a ConfigMap, so it gets a ServiceAccount with a token mounted, a Role naming
+exactly those verbs, and nothing else. Every other pod keeps its token unmounted (ADR-0015).
+*/}}
+{{- define "hubtask.restoreDrillPod" -}}
+{{- $drill := .root.Values.restoreDrill }}
+{{- $db := .root.Values.database }}
+metadata:
+  labels: {{- include "hubtask.labels" (dict "root" .root "role" "restore-drill") | nindent 4 }}
+spec:
+  restartPolicy: Never
+  serviceAccountName: {{ .serviceAccount }}
+  # The one pod in this chart that needs a token: it creates a Cluster and writes a ConfigMap.
+  automountServiceAccountToken: true
+  securityContext: {{- toYaml .root.Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: restore-drill
+      image: {{ include "hubtask.image" .root }}
+      imagePullPolicy: {{ .root.Values.image.pullPolicy }}
+      command: ["/usr/local/bin/hubtask-restore-drill"]
+      env:
+        # The owner's DSN writes the markers; the application role's is what the isolation
+        # checks are about. Both are re-pointed at the temporary cluster by the drill.
+        - name: HUBTASK_DB_DSN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "hubtask.migrationSecretName" .root }}
+              key: {{ .root.Values.migration.dsnSecretKey }}
+        - name: HUBTASK_DRILL_APP_DSN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "hubtask.secretName" .root }}
+              key: {{ $drill.appDsnSecretKey }}
+        - name: HUBTASK_DRILL_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: HUBTASK_DRILL_SOURCE_CLUSTER
+          value: {{ .dbName | quote }}
+        - name: HUBTASK_DRILL_TEMPORARY_CLUSTER
+          value: {{ $drill.temporaryCluster | default (printf "%s-drill" .dbName) | quote }}
+        # The archive, exactly as the Cluster's backup stanza names it (cnpg-cluster.yaml).
+        - name: HUBTASK_DRILL_ARCHIVE_DESTINATION_PATH
+          value: {{ $db.backup.destinationPath | quote }}
+        {{- with $db.backup.endpointURL }}
+        - name: HUBTASK_DRILL_ARCHIVE_ENDPOINT_URL
+          value: {{ . | quote }}
+        {{- end }}
+        - name: HUBTASK_DRILL_ARCHIVE_SERVER_NAME
+          value: {{ $db.backup.serverName | default .dbName | quote }}
+        - name: HUBTASK_DRILL_ARCHIVE_SECRET
+          value: {{ $db.backup.existingSecret | quote }}
+        - name: HUBTASK_DRILL_ARCHIVE_COMPRESSION
+          value: {{ $db.backup.compression | quote }}
+        # The temporary cluster: the live one's engine, storage and resources, so that what is
+        # restored is judged on the same shape - and so that the quota has to hold two of them.
+        - name: HUBTASK_DRILL_IMAGE_NAME
+          value: {{ $db.imageName | quote }}
+        - name: HUBTASK_DRILL_STORAGE_SIZE
+          value: {{ $db.storage.size | quote }}
+        {{- with $db.storage.storageClass }}
+        - name: HUBTASK_DRILL_STORAGE_CLASS
+          value: {{ . | quote }}
+        {{- end }}
+        - name: HUBTASK_DRILL_RESOURCES
+          value: {{ toJson $db.resources | quote }}
+        - name: HUBTASK_DRILL_DATABASE_NAME
+          value: {{ $db.databaseName | quote }}
+        - name: HUBTASK_DRILL_OWNER
+          value: {{ $db.owner | quote }}
+        - name: HUBTASK_DRILL_OWNER_SECRET
+          value: {{ printf "%s-app" .dbName | quote }}
+        - name: HUBTASK_DRILL_RECORD_CONFIGMAP
+          value: {{ .record | quote }}
+        - name: HUBTASK_DRILL_RELEASE
+          value: {{ .root.Values.image.tag | default .root.Chart.AppVersion | toString | quote }}
+        - name: HUBTASK_DRILL_TIMEOUT
+          value: {{ $drill.timeout | quote }}
+        - name: HUBTASK_DRILL_KEEP_ON_FAILURE
+          value: {{ $drill.keepOnFailure | quote }}
+        {{- if $drill.evidence.bucket }}
+        # The operator's location for what the drill measured. Opaque here: a bucket, a prefix.
+        - name: HUBTASK_DRILL_EVIDENCE_BUCKET
+          value: {{ $drill.evidence.bucket | quote }}
+        {{- with $drill.evidence.endpoint }}
+        - name: HUBTASK_DRILL_EVIDENCE_ENDPOINT
+          value: {{ . | quote }}
+        {{- end }}
+        - name: HUBTASK_DRILL_EVIDENCE_PREFIX
+          value: {{ $drill.evidence.prefix | quote }}
+        - name: HUBTASK_DRILL_EVIDENCE_REGION
+          value: {{ $drill.evidence.region | quote }}
+        - name: HUBTASK_DRILL_EVIDENCE_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ required "restoreDrill.evidence.existingSecret is required with a bucket" $drill.evidence.existingSecret }}
+              key: access-key
+        - name: HUBTASK_DRILL_EVIDENCE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ $drill.evidence.existingSecret }}
+              key: secret-key
+        {{- end }}
+      resources: {{- toYaml $drill.resources | nindent 8 }}
+      securityContext: {{- toYaml .root.Values.containerSecurityContext | nindent 8 }}
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: tmp
+      emptyDir: {}
+{{- end }}
+{{- if .Values.restoreDrill.enabled }}
+{{- if not .Values.database.enabled }}
+{{- fail "restoreDrill.enabled needs database.enabled: the drill restores the cluster this chart owns from its archive" }}
+{{- end }}
+{{- if not .Values.database.backup.enabled }}
+{{- fail "restoreDrill.enabled needs database.backup.enabled: there is no archive to restore from without it" }}
+{{- end }}
+{{- $drill := .Values.restoreDrill }}
+{{- $db := .Values.database }}
+{{- $dbName := include "hubtask.databaseName" . }}
+{{- $record := $drill.recordConfigMap | default (printf "%s-restore-drill" (include "hubtask.fullname" .)) }}
+{{- $serviceAccount := $drill.serviceAccount.name | default (printf "%s-restore-drill" (include "hubtask.fullname" .)) }}
+{{- $pod := dict "root" . "dbName" $dbName "record" $record "serviceAccount" $serviceAccount }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "hubtask.fullname" . }}-restore-drill
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "restore-drill") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+    # Argo's words for the same thing. A failed drill is kept until the next sync, for its logs.
+    "argocd.argoproj.io/hook": PostSync
+    "argocd.argoproj.io/hook-delete-policy": BeforeHookCreation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ $drill.activeDeadlineSeconds }}
+  template: {{- include "hubtask.restoreDrillPod" $pod | nindent 4 }}
+{{- if $drill.schedule }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "hubtask.fullname" . }}-restore-drill
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "restore-drill") | nindent 4 }}
+spec:
+  schedule: {{ $drill.schedule | quote }}
+  # Two drills at once would fight over one temporary cluster and twice the quota.
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: {{ $drill.activeDeadlineSeconds }}
+      template: {{- include "hubtask.restoreDrillPod" $pod | nindent 8 }}
+{{- end }}
+{{- if $drill.serviceAccount.create }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $serviceAccount }}
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "restore-drill") | nindent 4 }}
+automountServiceAccountToken: false
+{{- end }}
+{{- if $drill.rbac.create }}
+---
+# Namespaced, and exactly the verbs the drill uses. An installation whose deploy identity may not
+# create RBAC objects (an Argo AppProject that does not admit the kind) switches
+# restoreDrill.rbac.create off and creates these two once by hand - deploy/production/PLATFORM-INTERFACE.md.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "hubtask.fullname" . }}-restore-drill
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "restore-drill") | nindent 4 }}
+rules:
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "hubtask.fullname" . }}-restore-drill
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "restore-drill") | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "hubtask.fullname" . }}-restore-drill
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccount }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}
