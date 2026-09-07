@@ -23,6 +23,9 @@ import (
 const (
 	UpdateAccountPreferencesName = "UpdateAccountPreferences"
 	accountRead                  = "accounts:write"
+	// accountsWrite is the same scope under the name it has in the contract; the notification
+	// preferences read it by this one.
+	accountsWrite = accountRead
 
 	// AccountPreferencesChangedAction is the audit code.
 	AccountPreferencesChangedAction audit.Action = "account.preferences_changed"

@@ -3650,8 +3650,14 @@ type Capabilities struct {
 		// Type Extensible; /meta/capabilities returns the valid values.
 		Type *ItemType `json:"type,omitempty"`
 	} `json:"item_types,omitempty"`
-	Limits         *map[string]interface{} `json:"limits,omitempty"`
-	ProductVersion *string                 `json:"product_version,omitempty"`
+	Limits *map[string]interface{} `json:"limits,omitempty"`
+
+	// NotificationCategories The categories a person can be told about, and the rows a notification-preference form has. A closed set in a check constraint rather than an enum in this document, so that a client reads it here instead of compiling it in; `INVITATION` is in the list and is the one no preference switches off.
+	NotificationCategories *[]string `json:"notification_categories,omitempty"`
+
+	// NotificationChannels The channels this installation delivers on. `EMAIL` today; a client tolerates a value it does not know.
+	NotificationChannels *[]string `json:"notification_channels,omitempty"`
+	ProductVersion       *string   `json:"product_version,omitempty"`
 
 	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
 	QueryFields *[]QueryField `json:"query_fields,omitempty"`
@@ -4720,6 +4726,31 @@ type MoveResult struct {
 	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
 	DroppedReferences []DroppedReference `json:"dropped_references"`
 	Item              WorkItem           `json:"item"`
+}
+
+// NotificationPreference defines model for NotificationPreference.
+type NotificationPreference struct {
+	Category string `json:"category"`
+	Channel  string `json:"channel"`
+	Enabled  bool   `json:"enabled"`
+
+	// IncludeTitle Whether an email of this category names the entry it is about.
+	IncludeTitle bool `json:"include_title"`
+
+	// IsDefault True when nobody has written this pair and the value is the installation's default. "Not stored" and "off" are different facts, and a form that showed the default as a choice somebody made would be lying about who made it.
+	IsDefault bool       `json:"is_default"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// NotificationPreferenceList defines model for NotificationPreferenceList.
+type NotificationPreferenceList struct {
+	Data []NotificationPreference `json:"data"`
+}
+
+// NotificationPreferenceUpdate defines model for NotificationPreferenceUpdate.
+type NotificationPreferenceUpdate struct {
+	Enabled      bool `json:"enabled"`
+	IncludeTitle bool `json:"include_title"`
 }
 
 // OauthAuthorization defines model for OauthAuthorization.
@@ -7157,6 +7188,9 @@ type ShareSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
+type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
+
 // UpdateAccountPreferencesJSONRequestBody defines body for UpdateAccountPreferences for application/json ContentType.
 type UpdateAccountPreferencesJSONRequestBody = AccountPreferences
 
@@ -7438,6 +7472,12 @@ type ServerInterface interface {
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// ListNotificationPreferences What an account wants to be told about
+	// (GET /accounts/{accountId}/notification-preferences)
+	ListNotificationPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// SetNotificationPreference Say what to be told about, and whether the title travels
+	// (PUT /accounts/{accountId}/notification-preferences/{category}/{channel})
+	SetNotificationPreference(w http.ResponseWriter, r *http.Request, accountId AccountId, category string, channel string)
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -8101,6 +8141,76 @@ func (siw *ServerInterfaceWrapper) GetAccount(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAccount(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListNotificationPreferences operation middleware
+func (siw *ServerInterfaceWrapper) ListNotificationPreferences(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNotificationPreferences(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetNotificationPreference operation middleware
+func (siw *ServerInterfaceWrapper) SetNotificationPreference(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "category" -------------
+	var category string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "category", r.PathValue("category"), &category, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "category", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "channel" -------------
+	var channel string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "channel", r.PathValue("channel"), &channel, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channel", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetNotificationPreference(w, r, accountId, category, channel)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16160,6 +16270,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences", wrapper.ListNotificationPreferences)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences/{category}/{channel}", wrapper.SetNotificationPreference)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions", wrapper.RevokeAllSessions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sessions", wrapper.ListSessions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions", wrapper.SignIn)

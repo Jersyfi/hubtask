@@ -84,3 +84,12 @@ ON CONFLICT (tenant_id, account_id, category, channel) DO UPDATE SET
   enabled       = EXCLUDED.enabled,
   include_title = EXCLUDED.include_title,
   updated_at    = EXCLUDED.updated_at;
+
+-- name: ListNotificationPreferences :many
+-- What one account has said, and nothing about what it has not: a pair with no row is the
+-- domain's default (notification.DefaultPreference), and the use case fills it in rather than the
+-- query inventing it. Ordered so that a form renders the same way twice.
+SELECT tenant_id, account_id, category, channel, enabled, include_title, updated_at
+FROM notification_preference
+WHERE account_id = sqlc.arg('account_id')::uuid
+ORDER BY category, channel;

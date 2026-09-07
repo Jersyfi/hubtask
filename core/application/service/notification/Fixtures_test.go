@@ -151,6 +151,16 @@ func (s *preferenceStore) Save(_ context.Context, preference domain.Preference) 
 	return nil
 }
 
+func (s *preferenceStore) ListForAccount(_ context.Context, account shared.ID) ([]domain.Preference, error) {
+	var rows []domain.Preference
+	for _, row := range s.rows {
+		if row.AccountID == account {
+			rows = append(rows, row)
+		}
+	}
+	return rows, nil
+}
+
 // switchOff is the acceptance criterion's setup: somebody who has said they do not want this.
 func (s *preferenceStore) switchOff(account shared.ID, category domain.Category) {
 	preference := domain.DefaultPreference(tenant, account, category, domain.ChannelEmail)

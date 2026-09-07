@@ -2323,6 +2323,70 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/{accountId}/notification-preferences:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    get:
+      tags: [identity]
+      operationId: listNotificationPreferences
+      summary: What an account wants to be told about
+      description: |
+        One row per category and channel this installation knows, with the effective value — a
+        pair nobody has written is answered with the default and `is_default: true`, because "not
+        stored" and "off" are different facts. The categories are `notification_categories` in
+        `/meta/capabilities`; a client renders the form from that list rather than compiling it in.
+
+        The caller's own are read with the token scope alone; somebody else's asks for the member
+        management permission, the reason `PATCH /accounts/{accountId}/preferences` gives.
+      responses:
+        "200":
+          description: The preferences, defaults included and marked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferenceList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/{accountId}/notification-preferences/{category}/{channel}:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+      - name: category
+        in: path
+        required: true
+        schema: { type: string }
+      - name: channel
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [identity]
+      operationId: setNotificationPreference
+      summary: Say what to be told about, and whether the title travels
+      description: |
+        Writes one pair whole: `enabled` and `include_title` both, because a row is a statement
+        about a category rather than two switches that could drift. Switching a category off makes
+        the next notification of that category `SUPPRESSED`, with the record saying why; the
+        invitation is the one category no preference can switch off, and a write against it is
+        stored and never consulted. `include_title: false` produces an email that says something
+        concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+        is refused by name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferenceUpdate"
+      responses:
+        "200":
+          description: The preference as stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreference"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/sessions:
     post:
       tags: [auth]
@@ -6162,6 +6226,40 @@ components:
         locale: { type: [string, "null"] }
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
+
+    NotificationPreference:
+      type: object
+      required: [category, channel, enabled, include_title, is_default, updated_at]
+      properties:
+        category: { type: string }
+        channel: { type: string }
+        enabled: { type: boolean }
+        include_title:
+          type: boolean
+          description: Whether an email of this category names the entry it is about.
+        is_default:
+          type: boolean
+          description: >
+            True when nobody has written this pair and the value is the installation's default.
+            "Not stored" and "off" are different facts, and a form that showed the default as a
+            choice somebody made would be lying about who made it.
+        updated_at: { type: [string, "null"], format: date-time }
+
+    NotificationPreferenceList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationPreference"
+
+    NotificationPreferenceUpdate:
+      type: object
+      required: [enabled, include_title]
+      properties:
+        enabled: { type: boolean }
+        include_title: { type: boolean }
 
     ServiceAccountCreate:
       type: object
@@ -10333,6 +10431,20 @@ components:
               items: { type: string }
         event_types:
           type: array
+          items: { type: string }
+        notification_categories:
+          type: array
+          description: >
+            The categories a person can be told about, and the rows a notification-preference form
+            has. A closed set in a check constraint rather than an enum in this document, so that a
+            client reads it here instead of compiling it in; `INVITATION` is in the list and is the
+            one no preference switches off.
+          items: { type: string }
+        notification_channels:
+          type: array
+          description: >
+            The channels this installation delivers on. `EMAIL` today; a client tolerates a value
+            it does not know.
           items: { type: string }
         roles:
           type: array

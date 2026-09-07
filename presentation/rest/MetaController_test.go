@@ -39,11 +39,13 @@ func manifest() usecase.Capabilities {
 			AllowedChildTypes: []work.ItemType{work.ItemWorkPackage},
 			MaxDepth:          3,
 		}},
-		QueryFields:   view.Fields(),
-		ViewLayouts:   view.Layouts(),
-		TextLanguages: []string{"de", "en"},
-		Limits:        map[string]int64{"max_body_bytes": 1 << 20},
-		Features:      map[string]bool{"mail": false},
+		QueryFields:            view.Fields(),
+		ViewLayouts:            view.Layouts(),
+		TextLanguages:          []string{"de", "en"},
+		NotificationCategories: []string{"ASSIGNMENT", "COMMENT"},
+		NotificationChannels:   []string{"EMAIL"},
+		Limits:                 map[string]int64{"max_body_bytes": 1 << 20},
+		Features:               map[string]bool{"mail": false},
 	}
 }
 
@@ -287,6 +289,43 @@ func TestTheManifestPublishesTheLanguagesThatCanBeIndexed(t *testing.T) {
 			}
 			if len(*body.TextLanguages) != test.want {
 				t.Errorf("%d languages published, want %d", len(*body.TextLanguages), test.want)
+			}
+		})
+	}
+}
+
+// The settings form is built from the manifest: the categories and the channels are published as
+// arrays, and an installation that named none still answers an empty array rather than nothing.
+func TestTheManifestPublishesTheNotificationCategories(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		given []string
+		want  int
+	}{
+		{"what the domain knows", []string{"ASSIGNMENT", "COMMENT"}, 2},
+		{"none", nil, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			answer := manifest()
+			answer.NotificationCategories = test.given
+
+			response := serveCapabilities(t, &capabilities{result: answer})
+			if response.Code != http.StatusOK {
+				t.Fatalf("status %d, body %s", response.Code, response.Body.String())
+			}
+
+			var body struct {
+				Categories *[]string `json:"notification_categories"`
+				Channels   *[]string `json:"notification_channels"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatalf("the manifest is not JSON: %v", err)
+			}
+			if body.Categories == nil || body.Channels == nil {
+				t.Fatal("a field is absent, which says the server knows nothing about notification preferences")
+			}
+			if len(*body.Categories) != test.want {
+				t.Errorf("%d categories published, want %d", len(*body.Categories), test.want)
 			}
 		})
 	}

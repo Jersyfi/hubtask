@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -35,6 +36,13 @@ func identityRequest(
 	t *testing.T, registry UseCaseRegistry, method, path string,
 ) *httptest.ResponseRecorder {
 	t.Helper()
+	return identityRequestWithBody(t, registry, method, path, "")
+}
+
+func identityRequestWithBody(
+	t *testing.T, registry UseCaseRegistry, method, path, body string,
+) *httptest.ResponseRecorder {
+	t.Helper()
 
 	controller := NewRestController()
 	controller.UseCases = registry
@@ -44,7 +52,10 @@ func identityRequest(
 		AccountID: shared.MustParseID(signedInAccount),
 	})
 
-	request := httptest.NewRequestWithContext(ctx, method, APIBasePath+path, strings.NewReader(""))
+	request := httptest.NewRequestWithContext(ctx, method, APIBasePath+path, strings.NewReader(body))
+	if body != "" {
+		request.Header.Set("Content-Type", "application/json")
+	}
 	recorder := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(recorder, request)
 	return recorder
@@ -256,5 +267,66 @@ func TestReadingAGroupAnswersItsMembersAndItsTag(t *testing.T) {
 	}
 	if len(detail.Members) != 1 || detail.Members[0].String() != signedInAccount {
 		t.Errorf("members %v, want the one identifier", detail.Members)
+	}
+}
+
+// The settings form's read: one row per pair, the default marked and carrying no timestamp.
+func TestListingNotificationPreferencesMarksTheDefaults(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{
+		{"category": "COMMENT", "channel": "EMAIL", "enabled": false, "include_title": true,
+			"is_default": false, "updated_at": time.Date(2026, 9, 7, 9, 0, 0, 0, time.UTC)},
+		{"category": "REMINDER", "channel": "EMAIL", "enabled": true, "include_title": true,
+			"is_default": true, "updated_at": nil},
+	}}}
+
+	recorder := identityRequest(t, registry, http.MethodGet, "/accounts/"+signedInAccount+"/notification-preferences")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != listNotificationPreferencesUseCase || registry.in.String("account_id") != signedInAccount {
+		t.Errorf("the handler invoked %q with %v", registry.name, registry.in)
+	}
+	var list openapi.NotificationPreferenceList
+	if err := json.Unmarshal(recorder.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if len(list.Data) != 2 || list.Data[0].Enabled || list.Data[0].UpdatedAt == nil {
+		t.Errorf("the stored row renders as %+v", list.Data)
+	}
+	if !list.Data[1].IsDefault || list.Data[1].UpdatedAt != nil {
+		t.Errorf("the default renders as %+v", list.Data[1])
+	}
+	if !strings.Contains(recorder.Body.String(), `"updated_at":null`) {
+		t.Errorf("a default carries no explicit null: %s", recorder.Body)
+	}
+}
+
+func TestSettingANotificationPreferencePassesThePairAndBothSwitches(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"category": "COMMENT", "channel": "EMAIL", "enabled": false, "include_title": true,
+		"is_default": false, "updated_at": time.Date(2026, 9, 7, 9, 0, 0, 0, time.UTC),
+	}}
+
+	recorder := identityRequestWithBody(t, registry, http.MethodPut,
+		"/accounts/"+signedInAccount+"/notification-preferences/COMMENT/EMAIL",
+		`{"enabled": false, "include_title": true}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != setNotificationPreferenceUseCase {
+		t.Errorf("the handler invoked %q", registry.name)
+	}
+	in := registry.in
+	if in.String("category") != "COMMENT" || in.String("channel") != "EMAIL" || in.Bool("enabled") || !in.Bool("include_title") {
+		t.Errorf("the catalogue was handed %v", in)
+	}
+	var written openapi.NotificationPreference
+	if err := json.Unmarshal(recorder.Body.Bytes(), &written); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if written.Enabled || written.IsDefault || written.UpdatedAt == nil {
+		t.Errorf("answered %+v", written)
 	}
 }

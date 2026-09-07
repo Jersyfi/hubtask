@@ -175,6 +175,44 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 	return result.RowsAffected(), nil
 }
 
+const listNotificationPreferences = `-- name: ListNotificationPreferences :many
+SELECT tenant_id, account_id, category, channel, enabled, include_title, updated_at
+FROM notification_preference
+WHERE account_id = $1::uuid
+ORDER BY category, channel
+`
+
+// What one account has said, and nothing about what it has not: a pair with no row is the
+// domain's default (notification.DefaultPreference), and the use case fills it in rather than the
+// query inventing it. Ordered so that a form renders the same way twice.
+func (q *Queries) ListNotificationPreferences(ctx context.Context, accountID pgtype.UUID) ([]NotificationPreference, error) {
+	rows, err := q.db.Query(ctx, listNotificationPreferences, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []NotificationPreference{}
+	for rows.Next() {
+		var i NotificationPreference
+		if err := rows.Scan(
+			&i.TenantID,
+			&i.AccountID,
+			&i.Category,
+			&i.Channel,
+			&i.Enabled,
+			&i.IncludeTitle,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const saveNotificationOutcome = `-- name: SaveNotificationOutcome :execrows
 UPDATE notification SET
   state    = $1,

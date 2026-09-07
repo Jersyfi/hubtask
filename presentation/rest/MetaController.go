@@ -140,22 +140,35 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		viewLayouts = append(viewLayouts, string(layout))
 	}
 
+	// Always arrays, like the languages: absent would read as "this server does not know about
+	// notification preferences", and a client would hide the form.
+	notificationCategories := source.NotificationCategories
+	if notificationCategories == nil {
+		notificationCategories = []string{}
+	}
+	notificationChannels := source.NotificationChannels
+	if notificationChannels == nil {
+		notificationChannels = []string{}
+	}
+
 	productVersion := source.ProductVersion
 	apiVersion := source.APIVersion
 	tenancy := openapi.CapabilitiesTenancyMode(source.TenancyMode)
 	features := source.Features
 
 	return openapi.Capabilities{
-		ProductVersion: &productVersion,
-		ApiVersion:     &apiVersion,
-		TenancyMode:    &tenancy,
-		ItemTypes:      &itemTypes,
-		QueryFields:    &queryFields,
-		ViewLayouts:    &viewLayouts,
-		TextLanguages:  &textLanguages,
-		Roles:          &roles,
-		Limits:         &limits,
-		Features:       &features,
+		ProductVersion:         &productVersion,
+		ApiVersion:             &apiVersion,
+		TenancyMode:            &tenancy,
+		ItemTypes:              &itemTypes,
+		QueryFields:            &queryFields,
+		ViewLayouts:            &viewLayouts,
+		TextLanguages:          &textLanguages,
+		NotificationCategories: &notificationCategories,
+		NotificationChannels:   &notificationChannels,
+		Roles:                  &roles,
+		Limits:                 &limits,
+		Features:               &features,
 	}
 }
 
