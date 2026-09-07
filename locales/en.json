@@ -385,6 +385,8 @@
   "memberships.scope_invalid": "{value} is not a level a role can be given at.",
   "memberships.identity_incomplete": "This installation is misconfigured and could not record that role.",
   "memberships.identifier_required": "Say which membership.",
+  "memberships.scope_identifier_required": "Say which hub, collection or entry.",
+  "memberships.scope_identifier_unexpected": "The whole workspace has no identifier; leave scope_id out.",
   "memberships.not_found": "That membership does not exist.",
   "events.payload_unserialisable": "This installation could not announce that change.",
   "events.payload_unreadable": "This installation could not read a recorded change and has not delivered it yet.",

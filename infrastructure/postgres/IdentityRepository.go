@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -16,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // isUniqueViolation reports the one driver error this package translates rather than wraps: an
@@ -243,9 +245,13 @@ func accountFrom(
 }
 
 // GroupRepository is the group table and its member links.
-type GroupRepository struct{}
+type GroupRepository struct {
+	cursors security.CursorCodec
+}
 
-func NewGroupRepository() GroupRepository { return GroupRepository{} }
+func NewGroupRepository(cursors security.CursorCodec) GroupRepository {
+	return GroupRepository{cursors: cursors}
+}
 
 var _ repository.Groups = GroupRepository{}
 
@@ -278,6 +284,52 @@ func (r GroupRepository) Find(ctx context.Context, groupID shared.ID) (identity.
 		Name:        row.Name,
 		Description: stringFrom(row.Description),
 		Version:     int(row.Version),
+	}, nil
+}
+
+func (r GroupRepository) List(ctx context.Context, page repository.Page) (repository.GroupPage, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.GroupPage{}, err
+	}
+	from, err := cursorAfter(r.cursors, page.Cursor)
+	if err != nil {
+		return repository.GroupPage{}, err
+	}
+
+	rows, err := queries.ListGroups(ctx, sqlc.ListGroupsParams{
+		CursorName: from.sortKey,
+		CursorID:   from.id,
+		PageSize:   pageProbe(page.Size),
+	})
+	if err != nil {
+		return repository.GroupPage{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the groups: %w", err))
+	}
+
+	groups := make([]identity.Group, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return repository.GroupPage{}, err
+		}
+		groups = append(groups, identity.Group{
+			ID:          id,
+			Name:        row.Name,
+			Description: stringFrom(row.Description),
+			Version:     int(row.Version),
+		})
+	}
+
+	// The boundary carries the name as the query compares it, lower-cased, so that the next page
+	// continues where this one's order left off rather than where a differently cased name would.
+	kept, info := pageOf(groups, page.Size, r.cursors, func(last identity.Group) security.Position {
+		return security.At(strings.ToLower(last.Name), last.ID)
+	})
+	return repository.GroupPage{
+		Groups: kept,
+		Info:   repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore},
 	}, nil
 }
 
@@ -432,10 +484,15 @@ func (r GroupRepository) Members(ctx context.Context, groupID shared.ID) ([]shar
 	return members, nil
 }
 
-// MembershipGrantRepository is the write half of the membership table.
-type MembershipGrantRepository struct{}
+// MembershipGrantRepository is the write half of the membership table, and the one read that
+// lists what was written at a scope (F3-01).
+type MembershipGrantRepository struct {
+	cursors security.CursorCodec
+}
 
-func NewMembershipGrantRepository() MembershipGrantRepository { return MembershipGrantRepository{} }
+func NewMembershipGrantRepository(cursors security.CursorCodec) MembershipGrantRepository {
+	return MembershipGrantRepository{cursors: cursors}
+}
 
 var _ repository.MembershipGrants = MembershipGrantRepository{}
 
@@ -516,6 +573,71 @@ func (r MembershipGrantRepository) Find(ctx context.Context, membershipID shared
 			WithCause(fmt.Errorf("reading membership %s: %w", membershipID, err))
 	}
 
+	return grantFrom(row)
+}
+
+func (r MembershipGrantRepository) ListAt(
+	ctx context.Context, scope identity.Scope, page repository.Page,
+) (repository.GrantPage, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.GrantPage{}, err
+	}
+	scopeID, err := optionalUUID(scope.ID)
+	if err != nil {
+		return repository.GrantPage{}, err
+	}
+	after, err := r.boundary(page.Cursor)
+	if err != nil {
+		return repository.GrantPage{}, err
+	}
+
+	rows, err := queries.ListMembershipsAtScope(ctx, sqlc.ListMembershipsAtScopeParams{
+		ScopeType: sqlc.MembershipScope(scope.Type),
+		ScopeID:   scopeID,
+		After:     after,
+		PageSize:  pageProbe(page.Size),
+	})
+	if err != nil {
+		return repository.GrantPage{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the memberships at a scope: %w", err))
+	}
+
+	grants := make([]identity.Grant, 0, len(rows))
+	for _, row := range rows {
+		grant, err := grantFrom(sqlc.FindMembershipRow(row))
+		if err != nil {
+			return repository.GrantPage{}, err
+		}
+		grants = append(grants, grant)
+	}
+
+	// The walk is by identifier alone - UUIDv7 is time-ordered, so the primary key is the grant
+	// order and the boundary needs no sort key.
+	kept, info := pageOf(grants, page.Size, r.cursors, func(last identity.Grant) security.Position {
+		return security.Position{ID: last.ID}
+	})
+	return repository.GrantPage{
+		Grants: kept,
+		Info:   repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore},
+	}, nil
+}
+
+func (r MembershipGrantRepository) boundary(cursor string) (pgtype.UUID, error) {
+	if cursor == "" {
+		return pgtype.UUID{}, nil
+	}
+	position, err := r.cursors.Decode(cursor)
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	return uuidOf(position.ID)
+}
+
+// grantFrom is one membership row as the domain reads it, shared by Find and ListAt so that the
+// two cannot disagree about a nullable column.
+func grantFrom(row sqlc.FindMembershipRow) (identity.Grant, error) {
 	grantID, err := idFrom(row.ID)
 	if err != nil {
 		return identity.Grant{}, err
@@ -532,7 +654,6 @@ func (r MembershipGrantRepository) Find(ctx context.Context, membershipID shared
 	if err != nil {
 		return identity.Grant{}, err
 	}
-
 	return identity.Grant{
 		ID:        grantID,
 		AccountID: accountID,

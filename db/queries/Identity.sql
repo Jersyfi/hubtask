@@ -247,3 +247,31 @@ SELECT id, kind, email, display_name, status, locale, time_zone, week_start
 FROM account
 WHERE kind = sqlc.arg('kind') AND deleted_at IS NULL
 ORDER BY id DESC;
+
+-- name: ListMembershipsAtScope :many
+-- What is granted at one scope and nothing granted elsewhere (F3-01). The tenant scope carries no
+-- identifier and is matched by its type alone; every other scope by type and identifier, which is
+-- what IS NOT DISTINCT FROM does for the NULL. Newest first by identifier: UUIDv7 is time-ordered,
+-- so the primary key is the grant order and the keyset needs no second column. One row more than
+-- the page is read, and the caller reports has_more from it.
+SELECT id, account_id, group_id, scope_type, scope_id, role
+FROM membership
+WHERE scope_type = sqlc.arg('scope_type')
+  AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid
+  AND (sqlc.narg('after')::uuid IS NULL OR id < sqlc.narg('after')::uuid)
+ORDER BY id DESC
+LIMIT sqlc.arg('page_size');
+
+-- name: ListGroups :many
+-- The workspace's groups by name (F3-01). The keyset is (lower(name), id) rather than an offset,
+-- so that a page boundary survives a concurrent insert (api-guidelines.md §4); `id` is the
+-- tiebreak the guidelines require, and lower() is the order the unique index already keeps. One row
+-- more than the page size is read, and the caller reports has_more from it.
+SELECT id, name, description, version
+FROM account_group
+WHERE (
+    sqlc.narg('cursor_name')::text IS NULL
+    OR (lower(name), id) > (sqlc.narg('cursor_name')::text, sqlc.narg('cursor_id')::uuid)
+  )
+ORDER BY lower(name), id
+LIMIT sqlc.arg('page_size');

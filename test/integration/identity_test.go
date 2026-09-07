@@ -245,7 +245,7 @@ func groupIn(t *testing.T, tenant shared.ID) identity.Group {
 		t.Fatalf("building the group: %v", err)
 	}
 	if err := write(context.Background(), t, tenant, func(ctx context.Context) error {
-		return postgres.NewGroupRepository().Insert(ctx, group)
+		return postgres.NewGroupRepository(pageCursors()).Insert(ctx, group)
 	}); err != nil {
 		t.Fatalf("writing the group: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestAGroupKeepsItsMembersAndItsVersion(t *testing.T) {
 	var members []shared.ID
 	var read identity.Group
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		groups := postgres.NewGroupRepository()
+		groups := postgres.NewGroupRepository(pageCursors())
 		if err := groups.AddMember(ctx, group.ID, member.ID); err != nil {
 			return err
 		}
@@ -299,13 +299,13 @@ func TestAGroupUpdateWithAStaleVersionIsRefused(t *testing.T) {
 	}
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewGroupRepository().Update(ctx, renamed, 1)
+		return postgres.NewGroupRepository(pageCursors()).Update(ctx, renamed, 1)
 	}); err != nil {
 		t.Fatalf("the first update: %v", err)
 	}
 
 	err = write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewGroupRepository().Update(ctx, renamed, 1)
+		return postgres.NewGroupRepository(pageCursors()).Update(ctx, renamed, 1)
 	})
 	if !errors.Is(err, shared.ErrVersionConflict) {
 		t.Fatalf("the second update: %v, want a version conflict", err)
@@ -320,7 +320,7 @@ func TestAGroupOfAnotherTenantIsUnreachable(t *testing.T) {
 	group := groupIn(t, tenantA)
 
 	err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		_, err := postgres.NewGroupRepository().Find(ctx, group.ID)
+		_, err := postgres.NewGroupRepository(pageCursors()).Find(ctx, group.ID)
 		return err
 	})
 	if !errors.Is(err, shared.ErrNotFound) {
@@ -329,14 +329,14 @@ func TestAGroupOfAnotherTenantIsUnreachable(t *testing.T) {
 
 	renamed, _ := group.Rename("taken over")
 	err = write(ctx, t, tenantB, func(ctx context.Context) error {
-		return postgres.NewGroupRepository().Update(ctx, renamed, 1)
+		return postgres.NewGroupRepository(pageCursors()).Update(ctx, renamed, 1)
 	})
 	if !errors.Is(err, shared.ErrVersionConflict) {
 		t.Errorf("writing across tenants: %v, want the update to match nothing", err)
 	}
 
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return postgres.NewGroupRepository().Delete(ctx, group.ID)
+		return postgres.NewGroupRepository(pageCursors()).Delete(ctx, group.ID)
 	}); err != nil {
 		t.Fatalf("deleting across tenants reported an error rather than deleting nothing: %v", err)
 	}
@@ -344,7 +344,7 @@ func TestAGroupOfAnotherTenantIsUnreachable(t *testing.T) {
 	var survived identity.Group
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		var err error
-		survived, err = postgres.NewGroupRepository().Find(ctx, group.ID)
+		survived, err = postgres.NewGroupRepository(pageCursors()).Find(ctx, group.ID)
 		return err
 	}); err != nil {
 		t.Fatalf("the group did not survive tenant B's attempts: %v", err)
@@ -368,7 +368,7 @@ func TestAMembershipIsGrantedFoundAndRevoked(t *testing.T) {
 	var found identity.Grant
 	var removed bool
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		grants := postgres.NewMembershipGrantRepository()
+		grants := postgres.NewMembershipGrantRepository(pageCursors())
 		if err := grants.Grant(ctx, grant); err != nil {
 			return err
 		}
@@ -411,7 +411,7 @@ func TestAGrantTakesEffectAndARevocationEndsIt(t *testing.T) {
 	var before, during, after []identity.Membership
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		memberships := postgres.NewMembershipRepository()
-		grants := postgres.NewMembershipGrantRepository()
+		grants := postgres.NewMembershipGrantRepository(pageCursors())
 
 		var err error
 		if before, err = memberships.Along(ctx, account.ID, path); err != nil {
@@ -459,10 +459,10 @@ func TestARoleHeldThroughAGroupReachesTheAccount(t *testing.T) {
 
 	var held []identity.Membership
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := postgres.NewGroupRepository().AddMember(ctx, group.ID, account.ID); err != nil {
+		if err := postgres.NewGroupRepository(pageCursors()).AddMember(ctx, group.ID, account.ID); err != nil {
 			return err
 		}
-		if err := postgres.NewMembershipGrantRepository().Grant(ctx, grant); err != nil {
+		if err := postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant); err != nil {
 			return err
 		}
 		var err error
@@ -490,13 +490,13 @@ func TestAMembershipOfAnotherTenantIsUnreachable(t *testing.T) {
 		t.Fatalf("building: %v", err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewMembershipGrantRepository().Grant(ctx, grant)
+		return postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
 	}); err != nil {
 		t.Fatalf("granting: %v", err)
 	}
 
 	err = write(ctx, t, tenantB, func(ctx context.Context) error {
-		_, err := postgres.NewMembershipGrantRepository().Find(ctx, grant.ID)
+		_, err := postgres.NewMembershipGrantRepository(pageCursors()).Find(ctx, grant.ID)
 		return err
 	})
 	if !errors.Is(err, shared.ErrNotFound) {
@@ -506,7 +506,7 @@ func TestAMembershipOfAnotherTenantIsUnreachable(t *testing.T) {
 	var removed bool
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
 		var err error
-		removed, err = postgres.NewMembershipGrantRepository().Revoke(ctx, grant.ID)
+		removed, err = postgres.NewMembershipGrantRepository(pageCursors()).Revoke(ctx, grant.ID)
 		return err
 	}); err != nil {
 		t.Fatalf("revoking across tenants: %v", err)
@@ -550,8 +550,8 @@ func TestDeletingAGroupTakesItsMembershipsAndNothingElse(t *testing.T) {
 
 	var held []identity.Membership
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		groups := postgres.NewGroupRepository()
-		grants := postgres.NewMembershipGrantRepository()
+		groups := postgres.NewGroupRepository(pageCursors())
+		grants := postgres.NewMembershipGrantRepository(pageCursors())
 
 		if err := groups.AddMember(ctx, group.ID, account.ID); err != nil {
 			return err
@@ -580,6 +580,6 @@ func TestDeletingAGroupTakesItsMembershipsAndNothingElse(t *testing.T) {
 
 var (
 	_ repository.Accounts         = postgres.NewAccountRepository()
-	_ repository.Groups           = postgres.NewGroupRepository()
-	_ repository.MembershipGrants = postgres.NewMembershipGrantRepository()
+	_ repository.Groups           = postgres.NewGroupRepository(pageCursors())
+	_ repository.MembershipGrants = postgres.NewMembershipGrantRepository(pageCursors())
 )

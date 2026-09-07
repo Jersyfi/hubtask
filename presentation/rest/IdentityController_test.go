@@ -13,6 +13,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 const signedInAccount = "0192f000-0000-7000-8000-0000000000e1"
@@ -158,5 +159,102 @@ func TestReadingAnotherAccountAnswersANameAndNotAnEmail(t *testing.T) {
 		if !strings.Contains(recorder.Body.String(), field) {
 			t.Errorf("%s is missing from %s", field, recorder.Body)
 		}
+	}
+}
+
+// The members screen's read: the scope travels as two query parameters, and a row carries an
+// identifier and no name.
+func TestListingTheMembershipsAtAHubPassesTheScopeAndPagesTheAnswer(t *testing.T) {
+	hub := "0192f000-0000-7000-8000-0000000000b1"
+	registry := &catalogue{out: usecase.Output{
+		"data": []usecase.Output{{
+			"id": "0192f000-0000-7000-8000-0000000000d1", "account_id": signedInAccount,
+			"scope_type": "HUB", "scope_id": hub, "role": "MEMBER",
+		}},
+		"page": map[string]any{"next_cursor": "abc", "has_more": true},
+	}}
+
+	recorder := identityRequest(t, registry, http.MethodGet, "/memberships?scope_type=HUB&scope_id="+hub+"&size=1")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != listMembershipsUseCase {
+		t.Errorf("the handler invoked %q", registry.name)
+	}
+	if registry.in.String("scope_type") != "HUB" || registry.in.String("scope_id") != hub || registry.in.Int("size") != 1 {
+		t.Errorf("the catalogue was handed %v", registry.in)
+	}
+
+	var page openapi.MembershipPage
+	if err := json.Unmarshal(recorder.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if len(page.Data) != 1 || page.Data[0].Role != openapi.MembershipRole("MEMBER") || page.Data[0].AccountId == nil {
+		t.Errorf("answered %+v", page.Data)
+	}
+	if !page.Page.HasMore || page.Page.NextCursor == nil || *page.Page.NextCursor != "abc" {
+		t.Errorf("page %+v, want the cursor and has_more", page.Page)
+	}
+}
+
+// The scope type is required by the contract, and the router refuses its absence before the
+// catalogue is asked.
+func TestListingMembershipsWithoutAScopeTypeIsRefusedByTheContract(t *testing.T) {
+	registry := &catalogue{}
+	recorder := identityRequest(t, registry, http.MethodGet, "/memberships")
+	if recorder.Code != http.StatusBadRequest || registry.invoked {
+		t.Errorf("status %d (invoked %v), want 400 and no invocation", recorder.Code, registry.invoked)
+	}
+}
+
+func TestListingTheGroupsPagesTheAnswer(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"data": []usecase.Output{{"id": "0192f000-0000-7000-8000-0000000000c1", "name": "Leads", "version": 3}},
+		"page": map[string]any{"next_cursor": nil, "has_more": false},
+	}}
+
+	recorder := identityRequest(t, registry, http.MethodGet, "/groups?size=10")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != listGroupsUseCase || registry.in.Int("size") != 10 {
+		t.Errorf("the handler invoked %q with %v", registry.name, registry.in)
+	}
+	var page openapi.GroupPage
+	if err := json.Unmarshal(recorder.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if len(page.Data) != 1 || page.Data[0].Name != "Leads" || page.Page.HasMore || page.Page.NextCursor != nil {
+		t.Errorf("answered %+v", page)
+	}
+}
+
+// The group's read carries its members as identifiers and its version as the tag a PATCH
+// presents.
+func TestReadingAGroupAnswersItsMembersAndItsTag(t *testing.T) {
+	group := "0192f000-0000-7000-8000-0000000000c1"
+	registry := &catalogue{out: usecase.Output{
+		"id": group, "name": "Leads", "version": 3, "members": []string{signedInAccount},
+	}}
+
+	recorder := identityRequest(t, registry, http.MethodGet, "/groups/"+group)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != getGroupUseCase || registry.in.String("group_id") != group {
+		t.Errorf("the handler invoked %q with %v", registry.name, registry.in)
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"3"` {
+		t.Errorf("ETag %q, want the version", tag)
+	}
+	var detail openapi.GroupDetail
+	if err := json.Unmarshal(recorder.Body.Bytes(), &detail); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if len(detail.Members) != 1 || detail.Members[0].String() != signedInAccount {
+		t.Errorf("members %v, want the one identifier", detail.Members)
 	}
 }

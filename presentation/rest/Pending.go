@@ -56,6 +56,20 @@ func (pending) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, 
 	notAvailable(w, r)
 }
 
+// ListMemberships, ListGroups and GetGroup are overridden by RestController, for the reason given
+// at CreateContainer.
+func (pending) ListMemberships(w http.ResponseWriter, r *http.Request, _ openapi.ListMembershipsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListGroups(w http.ResponseWriter, r *http.Request, _ openapi.ListGroupsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetGroup(w http.ResponseWriter, r *http.Request, _ openapi.GroupId) {
+	notAvailable(w, r)
+}
+
 func (pending) GrantMembership(w http.ResponseWriter, r *http.Request, _ openapi.GrantMembershipParams) {
 	notAvailable(w, r)
 }
