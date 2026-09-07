@@ -461,7 +461,7 @@ there is nothing for MCP or an automation rule to call, and it is served by the 
 
 **Identity & tenancy** `ProvisionTenant`, `UpdateTenantSettings`, `SuspendTenant`, `DeleteTenant`,
 `ExportTenantData`, `InviteAccount`, `GetOwnAccount`, `GetAccount`, `UpdateAccountPreferences`,
-`ListMemberships`, `GrantMembership`, `RevokeMembership`, `ListGroups`, `GetGroup`, `CreateGroup`,
+`ListNotificationPreferences`, `SetNotificationPreference`, `ListMemberships`, `GrantMembership`, `RevokeMembership`, `ListGroups`, `GetGroup`, `CreateGroup`,
 `UpdateGroup`, `DeleteGroup`, `ReadEncryptionStatus`, `ResealSecrets`.
 
 `ReadEncryptionStatus` and `ResealSecrets` are the control plane's, behind `admin:tenants` like the
@@ -525,6 +525,22 @@ the workspace that `READ` there could be judged against — requiring it would l
 members screen without its groups. What a group discloses is its name and its members'
 identifiers, and the identifiers resolve through the same minimal read. All three ask for the
 `members:read` token scope, and the tenant boundary is the transaction's.
+
+`ListNotificationPreferences` and `SetNotificationPreference` are what lets a person say what they
+want to be told about (F3-02). C-09 built the row — `(account, category, channel) → enabled,
+include_title` — and the decision that consults it; these are the read and the write that reach it
+from a client. The read answers one row per category and channel the installation knows, the
+default filled in and **marked as the default** where nobody wrote one, because "not stored" and
+"off" are different facts a form has to show apart; the repository reports what was written and
+the use case says what the default is, so that there is one place that does. The write takes one
+pair whole, `enabled` and `include_title` both, and is audited with the value that applied before
+it. Switching a category off makes the next notification of that kind `SUPPRESSED` with the record
+saying why; the invitation is the one category no preference switches off, and a row against it is
+stored like any other and never consulted. Who may read and write is the rule
+`UpdateAccountPreferences` set for a person's own settings, decided once for both: the caller's
+own with the token scope alone, anybody else's with `MANAGE_MEMBERS` at the workspace. The
+categories are published as `notification_categories` in `/meta/capabilities`, so that a client
+renders the form from data rather than from a constant.
 
 **Search** `SearchItems` (full text, optionally semantic).
 
