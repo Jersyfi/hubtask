@@ -36,6 +36,13 @@ func identityRequest(
 	t *testing.T, registry UseCaseRegistry, method, path string,
 ) *httptest.ResponseRecorder {
 	t.Helper()
+	return identityRequestWithBody(t, registry, method, path, "")
+}
+
+func identityRequestWithBody(
+	t *testing.T, registry UseCaseRegistry, method, path, body string,
+) *httptest.ResponseRecorder {
+	t.Helper()
 
 	controller := NewRestController()
 	controller.UseCases = registry
@@ -45,7 +52,10 @@ func identityRequest(
 		AccountID: shared.MustParseID(signedInAccount),
 	})
 
-	request := httptest.NewRequestWithContext(ctx, method, APIBasePath+path, strings.NewReader(""))
+	request := httptest.NewRequestWithContext(ctx, method, APIBasePath+path, strings.NewReader(body))
+	if body != "" {
+		request.Header.Set("Content-Type", "application/json")
+	}
 	recorder := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(recorder, request)
 	return recorder
@@ -289,5 +299,34 @@ func TestListingNotificationPreferencesMarksTheDefaults(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"updated_at":null`) {
 		t.Errorf("a default carries no explicit null: %s", recorder.Body)
+	}
+}
+
+func TestSettingANotificationPreferencePassesThePairAndBothSwitches(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"category": "COMMENT", "channel": "EMAIL", "enabled": false, "include_title": true,
+		"is_default": false, "updated_at": time.Date(2026, 9, 7, 9, 0, 0, 0, time.UTC),
+	}}
+
+	recorder := identityRequestWithBody(t, registry, http.MethodPut,
+		"/accounts/"+signedInAccount+"/notification-preferences/COMMENT/EMAIL",
+		`{"enabled": false, "include_title": true}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != setNotificationPreferenceUseCase {
+		t.Errorf("the handler invoked %q", registry.name)
+	}
+	in := registry.in
+	if in.String("category") != "COMMENT" || in.String("channel") != "EMAIL" || in.Bool("enabled") || !in.Bool("include_title") {
+		t.Errorf("the catalogue was handed %v", in)
+	}
+	var written openapi.NotificationPreference
+	if err := json.Unmarshal(recorder.Body.Bytes(), &written); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if written.Enabled || written.IsDefault || written.UpdatedAt == nil {
+		t.Errorf("answered %+v", written)
 	}
 }

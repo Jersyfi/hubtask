@@ -17,7 +17,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
 const (
@@ -209,4 +211,186 @@ func preferenceOutput(preference EffectivePreference) usecase.Output {
 		out["updated_at"] = preference.UpdatedAt
 	}
 	return out
+}
+
+const (
+	SetNotificationPreferenceName = "SetNotificationPreference"
+
+	NotificationPreferenceChangedAction audit.Action = "account.notification_preference_changed"
+)
+
+// SetNotificationPreferenceCommand is the input, typed. Both switches travel, because a row is a
+// statement about a category rather than two settings that could drift apart.
+type SetNotificationPreferenceCommand struct {
+	AccountID    shared.ID
+	Category     notification.Category
+	Channel      notification.Channel
+	Enabled      bool
+	IncludeTitle bool
+}
+
+// SetNotificationPreference writes what an account wants to be told about, one pair at a time
+// (F3-02).
+//
+// Switching a category off makes the next notification of that category SUPPRESSED with the
+// record saying why - the decision C-09 built reads this row (core/application/service/
+// notification/Decide.go), and this is the write that reaches it from a client. The invitation is
+// the one category no preference switches off: a row against it is stored like any other and
+// never consulted, which is the domain's rule rather than a refusal here. `include_title: false`
+// produces an email that says something concerns you without saying what (data-protection.md
+// §9), proved by a test over the rendered output beside the delivery.
+//
+// Who may write is who may read: the caller's own with the token scope, anybody else's with the
+// member management permission. Every write is audited, because what a person is told about is
+// a setting an access review reads.
+type SetNotificationPreference struct {
+	Accounts    repository.Accounts
+	Preferences notificationrepo.Preferences
+	Authorizer  Authorizer
+	Audit       audit.Sink
+	UnitOfWork  persistence.UnitOfWork
+	Clock       clock.Clock
+}
+
+// Execute writes the pair and returns it as stored.
+func (h SetNotificationPreference) Execute(
+	ctx context.Context, actor appshared.ActorContext, cmd SetNotificationPreferenceCommand,
+) (EffectivePreference, error) {
+	if !cmd.Category.Valid() {
+		return EffectivePreference{}, shared.ErrValidation.
+			WithDetail("notifications.category_unknown").
+			WithParams(map[string]string{"value": string(cmd.Category)}).
+			WithFields(shared.FieldError{Path: "/category", Code: "notifications.category_unknown"})
+	}
+	if !cmd.Channel.Valid() {
+		return EffectivePreference{}, shared.ErrValidation.
+			WithDetail("notifications.channel_unknown").
+			WithParams(map[string]string{"value": string(cmd.Channel)}).
+			WithFields(shared.FieldError{Path: "/channel", Code: "notifications.channel_unknown"})
+	}
+
+	target, err := preferenceSubject(ctx, actor, cmd.AccountID, h.Authorizer, access.Request{
+		Permission: service.PermissionManageMembers,
+		Path:       []domain.Scope{domain.TenantScope()},
+		Action:     NotificationPreferenceChangedAction,
+		TokenScope: accountsWrite,
+		TargetType: accountTarget,
+	})
+	if err != nil {
+		return EffectivePreference{}, err
+	}
+
+	var written notification.Preference
+	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if _, err := findAccount(ctx, h.Accounts, target); err != nil {
+			return err
+		}
+
+		// What applied before the write: the stored row, or the default - which is what the
+		// audit entry's "from" has to say, because a change from "nothing stored" is a change
+		// from the default and not from nothing.
+		before, err := h.Preferences.Find(ctx, target, cmd.Category, cmd.Channel)
+		if errors.Is(err, shared.ErrNotFound) {
+			before = notification.DefaultPreference(actor.TenantID, target, cmd.Category, cmd.Channel)
+		} else if err != nil {
+			return err
+		}
+
+		written = notification.DefaultPreference(actor.TenantID, target, cmd.Category, cmd.Channel)
+		written.Enabled = cmd.Enabled
+		written.IncludeTitle = cmd.IncludeTitle
+		written.UpdatedAt = h.Clock.Now()
+		if err := h.Preferences.Save(ctx, written); err != nil {
+			return err
+		}
+		return h.recordAudit(ctx, actor, before, written)
+	})
+	if err != nil {
+		return EffectivePreference{}, err
+	}
+	return EffectivePreference{Preference: written}, nil
+}
+
+func (h SetNotificationPreference) recordAudit(
+	ctx context.Context, actor appshared.ActorContext, before, after notification.Preference,
+) error {
+	return h.Audit.Append(ctx, audit.Entry{
+		TenantID:   actor.TenantID,
+		OccurredAt: after.UpdatedAt,
+		Action:     NotificationPreferenceChangedAction,
+		Outcome:    audit.OutcomeSuccess,
+		Severity:   audit.SeverityInfo,
+		ActorKind:  actor.Kind,
+		ActorID:    actor.AccountID,
+		ActorLabel: actor.AccountName,
+		TargetType: accountTarget,
+		TargetID:   after.AccountID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		// Codes and booleans throughout - none of it is user content (audit.md §2).
+		Changes: audit.Changes(
+			audit.Change{Field: "category", Classification: audit.Open, To: string(after.Category)},
+			audit.Change{Field: "channel", Classification: audit.Open, To: string(after.Channel)},
+			audit.Change{Field: "enabled", Classification: audit.Open, From: before.Enabled, To: after.Enabled},
+			audit.Change{Field: "include_title", Classification: audit.Open, From: before.IncludeTitle, To: after.IncludeTitle},
+		),
+	})
+}
+
+// Descriptor registers the use case in all three channels.
+func (h SetNotificationPreference) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: SetNotificationPreferenceName,
+		Summary: "Says what an account wants to be told about, one category and channel at a " +
+			"time: whether notifications of that kind are sent, and whether an email names the " +
+			"entry it is about. Switching a category off makes the next notification of that " +
+			"kind SUPPRESSED, with the record saying why; the invitation is the one kind no " +
+			"preference switches off. The caller's own need no permission; anybody else's need " +
+			"the member management permission.",
+		SideEffects: "Writes the preference and an audit entry.",
+		TokenScope:  accountsWrite,
+		Input: []usecase.Field{
+			{
+				Name: "account_id", Kind: usecase.KindID,
+				Description: "Whose preference. Omitted means the caller's own.",
+			},
+			{
+				Name: "category", Kind: usecase.KindString, Required: true,
+				Description: "One of notification_categories in the manifest.",
+			},
+			{
+				Name: "channel", Kind: usecase.KindString, Required: true,
+				Description: "One of notification_channels in the manifest; EMAIL on this installation.",
+			},
+			{Name: "enabled", Kind: usecase.KindBool, Required: true},
+			{
+				Name: "include_title", Kind: usecase.KindBool, Required: true,
+				Description: "Whether an email of this kind names the entry. Off, it says something concerns you and no more.",
+			},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: NotificationPreferenceChangedAction, TargetType: accountTarget,
+			Severity: audit.SeverityInfo, Required: true,
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h SetNotificationPreference) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	accountID, err := in.ID("account_id")
+	if err != nil {
+		return nil, err
+	}
+	written, err := h.Execute(ctx, actor, SetNotificationPreferenceCommand{
+		AccountID:    accountID,
+		Category:     notification.Category(in.String("category")),
+		Channel:      notification.Channel(in.String("channel")),
+		Enabled:      in.Bool("enabled"),
+		IncludeTitle: in.Bool("include_title"),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return preferenceOutput(written), nil
 }

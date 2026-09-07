@@ -24,6 +24,7 @@ const (
 	getAccountUseCase                  = "GetAccount"
 	updateAccountPreferencesUseCase    = "UpdateAccountPreferences"
 	listNotificationPreferencesUseCase = "ListNotificationPreferences"
+	setNotificationPreferenceUseCase   = "SetNotificationPreference"
 	listMembershipsUseCase             = "ListMemberships"
 	grantMembershipUseCase             = "GrantMembership"
 	revokeMembershipUseCase            = "RevokeMembership"
@@ -124,6 +125,27 @@ func (c *RestController) ListNotificationPreferences(w http.ResponseWriter, r *h
 		list.Data = append(list.Data, notificationPreferenceResponse(row))
 	}
 	writeJSON(w, r, http.StatusOK, list)
+}
+
+// SetNotificationPreference answers PUT /accounts/{accountId}/notification-preferences/{category}/{channel}.
+func (c *RestController) SetNotificationPreference(
+	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, category string, channel string,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.NotificationPreferenceUpdate
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+		return c.UseCases.Invoke(r.Context(), setNotificationPreferenceUseCase, actor, usecase.Input{
+			"account_id":    accountID.String(),
+			"category":      category,
+			"channel":       channel,
+			"enabled":       body.Enabled,
+			"include_title": body.IncludeTitle,
+		})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, notificationPreferenceResponse(out))
+	})
 }
 
 // notificationPreferenceResponse maps one row of the settings form. The timestamp is a pointer
