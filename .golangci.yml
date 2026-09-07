@@ -148,6 +148,10 @@ linters:
             - $all
             - "!**/infrastructure/postgres/**"
             - "!**/cmd/migrate/**"
+            # The restore drill judges a restored database under the raw roles, for the same
+            # reason the suites below do: the isolation it checks is the database's, and a
+            # wrapper in front of it would be the thing under test (H-10, RT-9).
+            - "!**/cmd/restore-drill/**"
             # The suites that run against a real database are the deliberate exception: they
             # connect as the raw application role, without the wrapper, because that is how they
             # prove the database enforces the boundary. Restricting them would mean testing the

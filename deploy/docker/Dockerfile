@@ -65,7 +65,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
       -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
       -o /out/hubtask ./cmd/server && \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
-      -trimpath -ldflags "-s -w" -o /out/hubtask-migrate ./cmd/migrate
+      -trimpath -ldflags "-s -w" -o /out/hubtask-migrate ./cmd/migrate && \
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+      -trimpath -ldflags "-s -w" -o /out/hubtask-restore-drill ./cmd/restore-drill
 # The writable state directories, prepared here because the final image has no shell to create
 # them with. See the COPY below for why they must exist in the image at all.
 RUN mkdir -p /out/state/media /out/state/backups
@@ -79,6 +81,9 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=certs /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=build /out/hubtask /usr/local/bin/hubtask
 COPY --from=build /out/hubtask-migrate /usr/local/bin/hubtask-migrate
+# RT-9 as a program in the image: the restore drill a Kubernetes hook and a CronJob run
+# (backup-restore.md §8.5). Nothing starts it in Compose; it is here because one image is the rule.
+COPY --from=build /out/hubtask-restore-drill /usr/local/bin/hubtask-restore-drill
 COPY --from=build /src/locales /app/locales
 # The notices, at the path the container ecosystem looks for them. They are not decoration: this
 # image is published to a registry on every release, which is a distribution to third parties, and

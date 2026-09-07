@@ -163,6 +163,10 @@ func TestDriverStaysInThePostgresAdapter(t *testing.T) {
 	allowed := []string{
 		filepath.Clean("../../infrastructure/postgres"),
 		filepath.Clean("../../cmd/migrate"),
+		// The restore drill connects to the restored instance as the raw owner and application
+		// roles: T-20's checks are about what the database itself enforces, and going through
+		// the wrapper would be testing the wrapper (H-10, RT-9).
+		filepath.Clean("../../cmd/restore-drill"),
 		// The suites that run against a real database connect as the raw application role,
 		// without the wrapper - that is how they prove the database enforces the boundary rather
 		// than the code. Testing the wrapper through the wrapper would prove nothing.
