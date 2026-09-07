@@ -10,6 +10,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -54,6 +55,13 @@ type Capabilities struct {
 	// written in a language that is not in it is stored and searched word by word rather than
 	// refused, which is why this is a manifest entry and not a validation rule.
 	TextLanguages []string
+	// NotificationCategories and NotificationChannels are what a notification-preference form
+	// has rows and columns for (F3-02). The categories are a closed set in a check constraint;
+	// publishing them here is what lets a client render the form from data rather than from a
+	// constant compiled into it, and INVITATION is in the list although no preference switches
+	// it off - the form shows it and the domain ignores the switch.
+	NotificationCategories []string
+	NotificationChannels   []string
 	// Roles is the role matrix as this installation enforces it (domain-model.md §3.2).
 	//
 	// Read from the matrix rather than restated here, for the reason the item types come from the
@@ -142,14 +150,16 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 	}
 
 	return Capabilities{
-		ProductVersion: g.Config.Version,
-		APIVersion:     APIVersion,
-		TenancyMode:    string(g.Config.Tenancy),
-		ItemTypes:      profiles,
-		QueryFields:    view.Fields(),
-		ViewLayouts:    view.Layouts(),
-		TextLanguages:  languages,
-		Roles:          roleMatrix(),
+		ProductVersion:         g.Config.Version,
+		APIVersion:             APIVersion,
+		TenancyMode:            string(g.Config.Tenancy),
+		ItemTypes:              profiles,
+		QueryFields:            view.Fields(),
+		ViewLayouts:            view.Layouts(),
+		TextLanguages:          languages,
+		NotificationCategories: notificationCategories(),
+		NotificationChannels:   notificationChannels(),
+		Roles:                  roleMatrix(),
 		Limits: map[string]int64{
 			"max_body_bytes":            g.Config.Request.MaxBodyBytes,
 			"max_upload_bytes":          g.Config.Request.MaxUploadBytes,
@@ -189,4 +199,22 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			"backup_targets": g.Config.Tenancy != env.TenancyMulti || g.Config.Backup.TenantTargets,
 		},
 	}, nil
+}
+
+func notificationCategories() []string {
+	categories := notification.Categories()
+	names := make([]string, 0, len(categories))
+	for _, category := range categories {
+		names = append(names, string(category))
+	}
+	return names
+}
+
+func notificationChannels() []string {
+	channels := notification.Channels()
+	names := make([]string, 0, len(channels))
+	for _, channel := range channels {
+		names = append(names, string(channel))
+	}
+	return names
 }
