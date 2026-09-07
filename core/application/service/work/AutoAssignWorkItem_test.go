@@ -7,6 +7,7 @@ import (
 	"context"
 	"testing"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	identitymodel "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -36,6 +37,9 @@ func (g *groupStore) Update(context.Context, identitymodel.Group, int) error   {
 func (g *groupStore) Delete(context.Context, shared.ID) error                  { return nil }
 func (g *groupStore) AddMember(context.Context, shared.ID, shared.ID) error    { return nil }
 func (g *groupStore) RemoveMember(context.Context, shared.ID, shared.ID) error { return nil }
+func (g *groupStore) List(context.Context, identityrepo.Page) (identityrepo.GroupPage, error) {
+	return identityrepo.GroupPage{}, nil
+}
 func (g *groupStore) Members(_ context.Context, groupID shared.ID) ([]shared.ID, error) {
 	return g.members[groupID], nil
 }

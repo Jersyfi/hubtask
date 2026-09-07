@@ -261,3 +261,17 @@ WHERE scope_type = sqlc.arg('scope_type')
   AND (sqlc.narg('after')::uuid IS NULL OR id < sqlc.narg('after')::uuid)
 ORDER BY id DESC
 LIMIT sqlc.arg('page_size');
+
+-- name: ListGroups :many
+-- The workspace's groups by name (F3-01). The keyset is (lower(name), id) rather than an offset,
+-- so that a page boundary survives a concurrent insert (api-guidelines.md §4); `id` is the
+-- tiebreak the guidelines require, and lower() is the order the unique index already keeps. One row
+-- more than the page size is read, and the caller reports has_more from it.
+SELECT id, name, description, version
+FROM account_group
+WHERE (
+    sqlc.narg('cursor_name')::text IS NULL
+    OR (lower(name), id) > (sqlc.narg('cursor_name')::text, sqlc.narg('cursor_id')::uuid)
+  )
+ORDER BY lower(name), id
+LIMIT sqlc.arg('page_size');

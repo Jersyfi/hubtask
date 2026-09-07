@@ -153,8 +153,18 @@ type Accounts interface {
 }
 
 // Groups is the store of named sets of accounts.
+// GroupPage is one page of the workspace's groups, by name.
+type GroupPage struct {
+	Groups []identity.Group
+	Info   PageInfo
+}
+
 type Groups interface {
 	Find(ctx context.Context, groupID shared.ID) (identity.Group, error)
+
+	// List answers the workspace's groups by name, paged (F3-01). Members are not in the page:
+	// a list of groups is read to pick one, and the people in it are Members' answer.
+	List(ctx context.Context, page Page) (GroupPage, error)
 
 	// Insert writes a new group, and conflicts when the name is taken within the tenant.
 	Insert(ctx context.Context, group identity.Group) error

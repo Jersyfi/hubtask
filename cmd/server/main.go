@@ -424,7 +424,7 @@ func run() error {
 	cursors := security.NewCursorCodec(cfg.SecretKey)
 
 	accounts := postgres.NewAccountRepository()
-	groups := postgres.NewGroupRepository()
+	groups := postgres.NewGroupRepository(cursors)
 	grants := postgres.NewMembershipGrantRepository(cursors)
 
 	// The webhook subscriptions (G-03). One dependency set for the same reason the credentials
@@ -900,6 +900,8 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
+		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.GetGroup{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,

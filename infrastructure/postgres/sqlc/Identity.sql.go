@@ -584,6 +584,59 @@ func (q *Queries) InsertGroup(ctx context.Context, arg InsertGroupParams) error 
 	return err
 }
 
+const listGroups = `-- name: ListGroups :many
+SELECT id, name, description, version
+FROM account_group
+WHERE (
+    $1::text IS NULL
+    OR (lower(name), id) > ($1::text, $2::uuid)
+  )
+ORDER BY lower(name), id
+LIMIT $3
+`
+
+type ListGroupsParams struct {
+	CursorName *string
+	CursorID   pgtype.UUID
+	PageSize   int32
+}
+
+type ListGroupsRow struct {
+	ID          pgtype.UUID
+	Name        string
+	Description *string
+	Version     int32
+}
+
+// The workspace's groups by name (F3-01). The keyset is (lower(name), id) rather than an offset,
+// so that a page boundary survives a concurrent insert (api-guidelines.md §4); `id` is the
+// tiebreak the guidelines require, and lower() is the order the unique index already keeps. One row
+// more than the page size is read, and the caller reports has_more from it.
+func (q *Queries) ListGroups(ctx context.Context, arg ListGroupsParams) ([]ListGroupsRow, error) {
+	rows, err := q.db.Query(ctx, listGroups, arg.CursorName, arg.CursorID, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGroupsRow{}
+	for rows.Next() {
+		var i ListGroupsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMembershipsAtScope = `-- name: ListMembershipsAtScope :many
 SELECT id, account_id, group_id, scope_type, scope_id, role
 FROM membership

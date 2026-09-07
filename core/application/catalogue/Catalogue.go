@@ -167,6 +167,8 @@ func Descriptors() []usecase.Descriptor {
 		identity.ListMemberships{}.Descriptor(),
 		identity.GrantMembership{}.Descriptor(),
 		identity.RevokeMembership{}.Descriptor(),
+		identity.ListGroups{}.Descriptor(),
+		identity.GetGroup{}.Descriptor(),
 		identity.CreateGroup{}.Descriptor(),
 		identity.UpdateGroup{}.Descriptor(),
 		identity.DeleteGroup{}.Descriptor(),

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -244,9 +245,13 @@ func accountFrom(
 }
 
 // GroupRepository is the group table and its member links.
-type GroupRepository struct{}
+type GroupRepository struct {
+	cursors security.CursorCodec
+}
 
-func NewGroupRepository() GroupRepository { return GroupRepository{} }
+func NewGroupRepository(cursors security.CursorCodec) GroupRepository {
+	return GroupRepository{cursors: cursors}
+}
 
 var _ repository.Groups = GroupRepository{}
 
@@ -279,6 +284,52 @@ func (r GroupRepository) Find(ctx context.Context, groupID shared.ID) (identity.
 		Name:        row.Name,
 		Description: stringFrom(row.Description),
 		Version:     int(row.Version),
+	}, nil
+}
+
+func (r GroupRepository) List(ctx context.Context, page repository.Page) (repository.GroupPage, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.GroupPage{}, err
+	}
+	from, err := cursorAfter(r.cursors, page.Cursor)
+	if err != nil {
+		return repository.GroupPage{}, err
+	}
+
+	rows, err := queries.ListGroups(ctx, sqlc.ListGroupsParams{
+		CursorName: from.sortKey,
+		CursorID:   from.id,
+		PageSize:   pageProbe(page.Size),
+	})
+	if err != nil {
+		return repository.GroupPage{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the groups: %w", err))
+	}
+
+	groups := make([]identity.Group, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return repository.GroupPage{}, err
+		}
+		groups = append(groups, identity.Group{
+			ID:          id,
+			Name:        row.Name,
+			Description: stringFrom(row.Description),
+			Version:     int(row.Version),
+		})
+	}
+
+	// The boundary carries the name as the query compares it, lower-cased, so that the next page
+	// continues where this one's order left off rather than where a differently cased name would.
+	kept, info := pageOf(groups, page.Size, r.cursors, func(last identity.Group) security.Position {
+		return security.At(strings.ToLower(last.Name), last.ID)
+	})
+	return repository.GroupPage{
+		Groups: kept,
+		Info:   repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore},
 	}, nil
 }
 

@@ -207,3 +207,54 @@ func TestListingMembershipsWithoutAScopeTypeIsRefusedByTheContract(t *testing.T)
 		t.Errorf("status %d (invoked %v), want 400 and no invocation", recorder.Code, registry.invoked)
 	}
 }
+
+func TestListingTheGroupsPagesTheAnswer(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"data": []usecase.Output{{"id": "0192f000-0000-7000-8000-0000000000c1", "name": "Leads", "version": 3}},
+		"page": map[string]any{"next_cursor": nil, "has_more": false},
+	}}
+
+	recorder := identityRequest(t, registry, http.MethodGet, "/groups?size=10")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != listGroupsUseCase || registry.in.Int("size") != 10 {
+		t.Errorf("the handler invoked %q with %v", registry.name, registry.in)
+	}
+	var page openapi.GroupPage
+	if err := json.Unmarshal(recorder.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if len(page.Data) != 1 || page.Data[0].Name != "Leads" || page.Page.HasMore || page.Page.NextCursor != nil {
+		t.Errorf("answered %+v", page)
+	}
+}
+
+// The group's read carries its members as identifiers and its version as the tag a PATCH
+// presents.
+func TestReadingAGroupAnswersItsMembersAndItsTag(t *testing.T) {
+	group := "0192f000-0000-7000-8000-0000000000c1"
+	registry := &catalogue{out: usecase.Output{
+		"id": group, "name": "Leads", "version": 3, "members": []string{signedInAccount},
+	}}
+
+	recorder := identityRequest(t, registry, http.MethodGet, "/groups/"+group)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != getGroupUseCase || registry.in.String("group_id") != group {
+		t.Errorf("the handler invoked %q with %v", registry.name, registry.in)
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"3"` {
+		t.Errorf("ETag %q, want the version", tag)
+	}
+	var detail openapi.GroupDetail
+	if err := json.Unmarshal(recorder.Body.Bytes(), &detail); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if len(detail.Members) != 1 || detail.Members[0].String() != signedInAccount {
+		t.Errorf("members %v, want the one identifier", detail.Members)
+	}
+}
