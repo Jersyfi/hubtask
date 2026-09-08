@@ -88,6 +88,7 @@ type Config struct {
 	Backup     BackupConfig
 	Media      MediaConfig
 	Locale     LocaleConfig
+	AI         AIConfig
 	Metrics    MetricsConfig
 	Tracing    TracingConfig
 	UI         UIConfig
@@ -346,6 +347,25 @@ type MailConfig struct {
 	From     string
 	Security MailSecurity
 	Timeout  time.Duration
+}
+
+// AIConfig is the installation's own say over the AI surface (J-02).
+//
+// It carries one field and will carry more as 0.7.0's adapters land. What it deliberately does
+// *not* carry is a provider: which provider a workspace uses, under which models, is that
+// workspace's configuration and lives in its own row - an installation-wide provider would make
+// one operator's choice everybody's.
+type AIConfig struct {
+	// AllowThirdCountryTransfer is HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER, the confirmation
+	// ADR-0018 decision 7 requires before a provider outside the EEA may be configured
+	// (data-protection.md §6).
+	//
+	// It is the *installation's* confirmation and not a workspace's, which is the whole point of
+	// putting it here: the operator signs the processing agreement, names the adequacy decision
+	// or the standard contractual clauses, and owes the transfer impact assessment, and a
+	// workspace administrator cannot take any of that on for them. False by default, which is
+	// what makes it the deliberate friction the ADR asks for rather than a formality.
+	AllowThirdCountryTransfer bool
 }
 
 // RateLimitConfig holds the levels from security.md §9: per IP for anonymous traffic, per token,

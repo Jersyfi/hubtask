@@ -79,6 +79,12 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			Security: env.MailSecurity(strings.ToLower(get("HUBTASK_SMTP_SECURITY", string(env.MailSecurityStartTLS)))),
 			Timeout:  getDuration("HUBTASK_SMTP_TIMEOUT", 10*time.Second),
 		},
+		AI: env.AIConfig{
+			// False unless the operator says otherwise, and said in the environment rather than
+			// in a workspace's settings: the confirmation belongs to whoever signs for the
+			// transfer (ADR-0018 decision 7, data-protection.md §6).
+			AllowThirdCountryTransfer: getBool("HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER", false),
+		},
 		RateLimit: env.RateLimitConfig{
 			AnonymousPerMinute: getInt("HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE", 60),
 			TokenPerMinute:     getInt("HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE", 600),

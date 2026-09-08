@@ -83,13 +83,18 @@ Eleven decisions taken while writing this backlog, so that nobody re-derives the
   fence user content as context that is never followed. Rule 10 runs the other way at the same time
   — a prompt carries content, telemetry carries counts, and no title, note or comment reaches a log,
   a metric, a trace or an audit entry on the way to a provider.
-* **Consent is per tenant, and PG-8 finally has something to refuse.** `ai_processing_allowed` is
-  checked before every call, as `ai-first.md` §2 requires. PG-8 has been a tripwire since E-11
-  because there was no AI provider surface to gate; J-02 gives it one — a provider whose jurisdiction
-  is outside the EEA and which carries no explicit confirmation on the tenant is refused at
-  configuration time, not at call time, and `gate-selftest` proves the gate goes red. P-3 closes in
-  the same task as the document it asks for: the approved providers with their zero-retention
-  evidence and their region, written down rather than assumed.
+* **Two switches, owned by two different people.** `ai_processing_allowed` is the workspace's and
+  is checked before every call, as `ai-first.md` §2 requires. The third-country confirmation is the
+  **installation's** — `data-protection.md` §6 names `HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER` and
+  PG-8's tripwire has been watching `core/port/environment/Port.go` for exactly that — because the
+  operator signs the processing agreement, names the adequacy decision or the standard contractual
+  clauses, and owes the transfer impact assessment, and a workspace administrator cannot take any
+  of that on for them. *(This entry read "an explicit confirmation on the tenant" when the backlog
+  was cut; the documents say otherwise and they are right. Corrected in J-02's pull request.)* PG-8
+  has been a tripwire since E-11 for want of a surface to gate; J-02 gives it one, refusing at
+  configuration time rather than at call time, and `gate-selftest` proves the gate goes red. P-3
+  closes in the same task as the document it asks for: the approved providers with their
+  zero-retention evidence and their region, written down rather than assumed.
 * **The budget is a quota, in the vocabulary quotas already speak.** H-08 built the machinery —
   `tenant.settings.quotas`, the mode defaults, `422 capacity.<quota>` for a ceiling and `429` for a
   rate, `hubtask_tenant_quota_usage_ratio` and alert A-18. An AI budget invented beside it would be
@@ -174,10 +179,11 @@ configured rather than what it is configured with. Single mode has one row like 
 per-tenant setting; multi mode is the same code path with more rows, per `multi-tenancy.md` §1.
 
 Then PG-8, which has been a tripwire since E-11 for the honest reason that there was nothing to
-gate. Now there is. A provider whose jurisdiction is outside the EEA and which carries no explicit
-confirmation on the tenant is **refused when it is configured**, not when it is called — a rejected
-`PATCH` is a decision somebody can reconsider, while a rejected suggestion two weeks later is an
-outage. `gate-selftest` proves the gate goes red against a deliberate violation, which is what
+gate. Now there is. A provider whose jurisdiction is `THIRD_COUNTRY` is **refused when it is
+configured**, not when it is called — a rejected write is a decision somebody can reconsider while
+they are still looking at the form, while a rejected suggestion two weeks later is an outage — and
+what lifts the refusal is the *installation's* confirmation, `HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER`,
+because the operator signs for the transfer and a workspace administrator cannot. `gate-selftest` proves the gate goes red against a deliberate violation, which is what
 distinguishes it from the four documents that have promised it. P-3 closes beside it:
 `docs/privacy/ai-providers.md` records the approved providers with the zero-retention evidence and
 the region the entry asks for, `data-catalog.md` gains the rows for what is transmitted and what is
@@ -187,8 +193,9 @@ stored, and `tom.md` §9's PG-8 bullet stops saying "when one arrives".
 migration is forward-only and expand/contract, `db/schema.sql` mirrors it, and the sealed key has a
 `Resealer` that the sealing round's census counts; the key is returned by no route, appears in no
 log, and a cross-tenant negative test covers every new repository method; configuring a
-third-country provider without the confirmation is refused with a stable code and the field path,
-and PG-8 is proved red by `gate-selftest`; `ai_processing_allowed` defaults to false in both modes;
+third-country provider is refused with a stable code and the field path on an installation whose
+operator has confirmed nothing, and PG-8 is proved red by `gate-selftest`; the confirmation is read
+from the environment and defaults to off; `ai_processing_allowed` defaults to false in both modes;
 `docs/privacy/ai-providers.md` exists with a row per approved provider, `data-catalog.md` carries the
 new fields with their classification, purpose, retention and deletion path, and PG-7 reconciles;
 P-3's row in `data-protection.md` §12 and PG-8's bullet in `tom.md` §9 read as closed.
