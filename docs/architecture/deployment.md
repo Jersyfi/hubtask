@@ -272,6 +272,7 @@ Everything else has a self-hosting default:
 | `HUBTASK_STORAGE_LOCAL_PATH` | `/var/lib/hubtask/media` | Media directory for `local` |
 | `HUBTASK_S3_ENDPOINT`, `_REGION`, `_BUCKET`, `_ACCESS_KEY`, `_SECRET_KEY`, `_USE_PATH_STYLE` | — / `us-east-1` / — / — / — / `true` | S3 or an S3-compatible service; with `kind=s3` the bucket and both keys are mandatory |
 | `HUBTASK_SMTP_HOST`, `_PORT`, `_USER`, `_PASSWORD`, `_FROM`, `_SECURITY`, `_TIMEOUT` | — / `587` / — / — / — / `starttls` / `10s` | Without a host, email degrades (warning). With one, `_FROM` is mandatory |
+| `HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER` | `false` | The operator's confirmation that a workspace may configure an AI provider processing outside the EEA (ADR-0018 decision 7, [data-protection.md](./data-protection.md) §6). Deliberate friction: the operator signs for the transfer, so a workspace administrator cannot set it. Which provider a workspace uses is that workspace's own configuration, not an environment variable |
 | `HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE` | `60` | Per IP, unauthenticated |
 | `HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE` | `600` | Per token |
 | `HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE` | `3000` | Per tenant |

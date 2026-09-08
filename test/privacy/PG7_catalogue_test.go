@@ -47,6 +47,9 @@ var personalColumns = map[string]bool{
 	"password_hash": true, "token_hash": true, "recipients": true,
 	"user_agent": true, "ip_class": true, "subject_hash": true,
 	"redemption_token_hash": true, "secret_enc": true, "code_hash": true,
+	// A sealed API key is not personal content, but it is a SECRET the catalogue has to account
+	// for: the row that holds it says where a workspace's content may be sent (J-02).
+	"api_key_enc": true,
 }
 
 // notADataCategory is what the catalogue deliberately does not have a row for, and why. Rule 6's

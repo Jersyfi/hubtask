@@ -401,6 +401,21 @@ type ActivityEntry struct {
 	CausationID   pgtype.UUID
 }
 
+type AiProvider struct {
+	TenantID          pgtype.UUID
+	Kind              string
+	BaseUrl           string
+	CompletionModel   string
+	EmbeddingModel    string
+	ApiKeyEnc         []byte
+	ApiKeyKeyID       *string
+	Jurisdiction      string
+	ProcessingAllowed bool
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	Version           int32
+}
+
 type AuditAnchor struct {
 	TenantID    pgtype.UUID
 	AnchoredAt  pgtype.Timestamptz

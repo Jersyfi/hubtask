@@ -927,3 +927,17 @@ func (pending) ConfigureIdentityProvider(w http.ResponseWriter, r *http.Request)
 func (pending) RemoveIdentityProvider(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+// The AI provider's configuration (J-02). RestController serves all three; these stand behind
+// them, as they do behind every operation this installation does serve.
+func (pending) ReadAiProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfigureAiProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveAiProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

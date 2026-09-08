@@ -773,11 +773,21 @@ expect_privacy_failure_after() {
 expect_privacy_failure_after "a retention kind without a lower bound" \
 	core/domain/model/lifecycle/Catalogue.go '/KindTrash/ s/MinDays: [0-9]*/MinDays: 0/'
 
-# PG-8 is a tripwire rather than a check, and a tripwire is proved by tripping it: the marker it
-# watches for, in the file it watches.
-expect_privacy_failure_after "an AI provider arriving in the configuration" \
-	core/port/environment/Port.go '$a\
-// AIProvider - the selftest probe for PG-8.'
+# PG-8 was a tripwire until J-02 and is a check now: the AI provider surface it was watching for
+# arrived, so what has to go red is the refusal itself. Two probes, because the gate asserts two
+# different things about the same rule.
+#
+# The first removes the refusal from the application layer - a third-country provider configured
+# with no confirmation from anybody, which is exactly what ADR-0018 decision 7 forbids.
+expect_privacy_failure_after "a third-country transfer nobody confirmed" \
+	core/application/service/integration/AiProviderConfig.go \
+	's/configured.Jurisdiction.NeedsThirdCountryConfirmation() \&\& !w.ThirdCountryConfirmed/false/'
+
+# The second takes the confirmation out of the environment, which is where data-protection.md §6
+# promises operators it lives. A refusal that could only be switched on per workspace would put the
+# decision with somebody who does not sign for the transfer.
+expect_privacy_failure_after "the operator's confirmation leaving the environment" \
+	infrastructure/environment/EnvConfig.go 's/HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER/HUBTASK_AI_SOMETHING_ELSE/'
 
 header "Data protection with a database (make gate-privacy-full)"
 

@@ -112,8 +112,10 @@ notify within them.
 * **A DPA template and a sub-processor list** for provider operation
   ([security.md](../architecture/security.md) §12). Neither is written; both are needed before
   anybody operates this for somebody else.
-* **PG-8** — third-country AI without an explicit confirmation — has nothing to refuse yet. There
-  is no AI provider surface in this build; the gate is a tripwire that fires when one arrives, and
-  the measure belongs to `0.7.0`.
+* ~~**PG-8** — third-country AI without an explicit confirmation — has nothing to refuse yet.~~
+  Closed in J-02: the surface arrived, the tripwire is a check, and a provider a workspace declares
+  `THIRD_COUNTRY` is refused unless the installation's operator has confirmed the transfer in the
+  environment. The approved providers, and the questions an operator answers before configuring
+  one, are in [ai-providers.md](./ai-providers.md).
 * **`privacy_incident`** exists as a table and has no use case. Recording a breach in the product,
   rather than in the operator's own process, is not decided yet.
