@@ -1312,6 +1312,7 @@
   "app.people.title": "People",
   "app.people.nobody_here": "Nobody holds a role here yet.",
   "app.people.a_group": "A group",
+  "app.people.more_members": "Others on this entry: {count}.",
   "app.people.inherited": "From above",
   "app.people.granted_elsewhere": "This role was granted further up. Change it where it was granted.",
   "app.people.revoke": "Revoke",

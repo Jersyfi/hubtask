@@ -52,6 +52,7 @@
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -767,6 +768,11 @@
                   : [...expanded, row.item.id])}
             >
               {#snippet trailing()}
+                <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
+                     already carries: the names come from the accounts cache rather than from an
+                     expansion this server does not serve. -->
+                <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
+
                 <!-- Rule 3: an archived row is not told apart by being dimmer. It says the word, so
                      the state reads in greyscale and to a screen reader — which matters more here
                      than anywhere, because "archived" is why every control beside it is off. -->

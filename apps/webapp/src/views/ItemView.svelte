@@ -36,7 +36,7 @@
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { actorCodes, changesOf } from '../lib/data/activity.ts';
+  import { accountsNamedBy, actorCodes, changesOf, namesPeople } from '../lib/data/activity.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -87,15 +87,33 @@
   );
 
   /** What the history kept about one field, as one phrase. */
+  /**
+   * An identifier that names a person, as their name.
+   *
+   * A UUID in front of somebody asking who took the entry over is no answer, and the name is one
+   * request away — the same one every actor's name comes through. Until it lands, the sentence
+   * that is true of anybody stands in.
+   */
+  function personOf(value: string | undefined, field: string): string | undefined {
+    if (value === undefined) return undefined;
+    if (!namesPeople(field)) return value;
+    return accounts.nameOf(value) ?? t('app.people.unnamed');
+  }
+
   function detailOf(change: ReturnType<typeof changesOf>[number]): string {
     // A field whose values the history does not keep says so and nothing else. A note is the
     // worked example, and looking for its text would be looking for what ADR-0017 kept out.
     if (change.isOpaque) return t('app.activity.changed');
-    if (change.from !== undefined && change.to !== undefined) {
-      return t('app.activity.from_to', { from: change.from, to: change.to });
+    const from = personOf(change.from, change.field);
+    const to = personOf(change.to, change.field);
+    // Handing an entry from one person to another is one step with both sides, which is what the
+    // model says a hand-over is (domain-model.md §3.5) rather than an unassignment and an
+    // assignment that happen to be adjacent.
+    if (from !== undefined && to !== undefined) {
+      return t('app.activity.from_to', { from, to });
     }
-    if (change.to !== undefined) return t('app.activity.set_to', { to: change.to });
-    if (change.from !== undefined) return t('app.activity.cleared_from', { from: change.from });
+    if (to !== undefined) return t('app.activity.set_to', { to });
+    if (from !== undefined) return t('app.activity.cleared_from', { from });
     return t('app.activity.no_detail');
   }
 
@@ -143,6 +161,14 @@
             step.actor.id !== actor.account?.id,
         )
         .map((step) => step.actor?.id),
+    );
+
+    // …and the people the change sets name, which is a different list: the person who took an
+    // entry over is not the person who recorded that they did.
+    accounts.resolve(
+      (history.state.data.data ?? []).flatMap((step) =>
+        accountsNamedBy(changesOf(step.change_set as Record<string, unknown>)),
+      ),
     );
   });
   const hasMore = $derived(

@@ -68,6 +68,34 @@ export function changesOf(changeSet: Record<string, unknown> | undefined): reado
 }
 
 /**
+ * The change-set fields whose values are people rather than text.
+ *
+ * The four verbs C-01 added — `item.assigned`, `item.unassigned`, `item.member_added`,
+ * `item.member_removed` — carry an account identifier where every other change carries a value a
+ * reader can read. Showing the identifier would be showing a UUID to somebody asking who took the
+ * entry over, so the name is looked up and the field list says which ones to look up.
+ *
+ * A list rather than a guess at "anything ending in `_id`": a `bucket_id` is not a person, and a
+ * client that resolved every identifier as an account would ask for accounts that do not exist.
+ */
+const PEOPLE_FIELDS = new Set(['assignee_id', 'member_id', 'owner_id', 'actor_id']);
+
+export function namesPeople(field: string): boolean {
+  return PEOPLE_FIELDS.has(field);
+}
+
+/** Every account identifier a set of changes mentions, each once. What the name lookup is asked. */
+export function accountsNamedBy(changes: readonly Change[]): readonly string[] {
+  const ids = new Set<string>();
+  for (const change of changes) {
+    if (!namesPeople(change.field)) continue;
+    if (change.from) ids.add(change.from);
+    if (change.to) ids.add(change.to);
+  }
+  return [...ids];
+}
+
+/**
  * The message codes that name who did it, most specific first.
  *
  * A list rather than one code, for the reason `problem.ts` keeps one: the actor kinds are an enum

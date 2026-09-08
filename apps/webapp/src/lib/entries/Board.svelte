@@ -45,6 +45,7 @@
   import { labels } from '../data/labels.svelte.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -519,6 +520,8 @@
                 >
                   {#snippet footer()}
                     <Inline gap="050">
+                      <!-- The same two facts the list row carries, in the space a card has. -->
+                      <PeopleMarks assigneeId={card.assignee_id} memberIds={card.member_ids ?? []} />
                       {#each (card.label_ids ?? []) as labelId (labelId)}
                         {@const label = available.find((each) => each.id === labelId)}
                         {#if label}
