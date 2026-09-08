@@ -149,6 +149,12 @@ type BackupConfig struct {
 	// It has no meaning in single-tenant operation, where the tenant's owner *is* the instance
 	// administrator and there is nobody else it could be protecting.
 	TenantTargets bool
+	// RestoreDrillRecordFile is where a restore drill leaves the Unix timestamp of its last
+	// success: one integer in a file, written by the drill (cmd/restore-drill) and mounted into
+	// the process (backup-restore.md §10). The process reads it at every scrape and reports it as
+	// hubtask_restore_drill_last_success_timestamp_seconds - the gauge A-20 watches. Empty means
+	// no drill records anything here, and the series is absent rather than zero.
+	RestoreDrillRecordFile string
 }
 
 // EncryptionKey is one master key as the environment gives it: an identifier that is stored in

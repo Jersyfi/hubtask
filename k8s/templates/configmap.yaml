@@ -41,6 +41,11 @@ data:
   {{- end }}
   {{- end }}
 
+  {{- if .Values.restoreDrill.enabled }}
+  # Where the restore drill's record is mounted (deployment.yaml): the process reads the last
+  # success from it and reports the gauge A-20 watches (backup-restore.md §10).
+  HUBTASK_RESTORE_DRILL_RECORD_FILE: "/var/run/hubtask/restore-drill/last_success_unix"
+  {{- end }}
   {{- if .Values.config.egressAllowedHosts }}
   # The egress allowlist is mandatory in provider operation (T-07); without it /meta/health warns.
   HUBTASK_HTTP_ALLOWED_HOSTS: {{ join "," .Values.config.egressAllowedHosts | quote }}

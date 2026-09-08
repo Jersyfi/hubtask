@@ -7,7 +7,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -114,7 +117,58 @@ func NewMetrics(cfg env.Config) (*Metrics, error) {
 	if err := m.buildInfo(meter, cfg); err != nil {
 		return nil, err
 	}
+	if err := m.restoreDrillRecord(meter, cfg.Backup.RestoreDrillRecordFile); err != nil {
+		return nil, err
+	}
 	return m, nil
+}
+
+// restoreDrillRecord is the gauge A-20 has waited for since 0.4.5: when a restore drill last
+// passed, as a Unix timestamp (backup-restore.md §10).
+//
+// The process does not run the drill and has no way to know; the drill writes one integer into a
+// record, and the record reaches the process as a file - a ConfigMap mounted into the pod, or a
+// file a script wrote beside a Compose stack. Reading it at scrape time rather than at start is
+// what makes a drill that passed an hour ago visible without a restart, and an absent or
+// unreadable file leaves the series absent rather than reporting 1970 (ADR-0046, amended
+// 2026-09-07: the alternatives - a sidecar, a pushgateway, an API call - and why not).
+func (m *Metrics) restoreDrillRecord(meter metric.Meter, path string) error {
+	if path == "" {
+		return nil
+	}
+	gauge, err := meter.Int64ObservableGauge(
+		namespace+"_restore_drill_last_success_timestamp_seconds",
+		metric.WithDescription("When a restore drill last proved the system backup restores, as a Unix timestamp. A-20."),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return fmt.Errorf("restore drill gauge: %w", err)
+	}
+	_, err = meter.RegisterCallback(func(_ context.Context, observer metric.Observer) error {
+		if at, ok := readRestoreDrillRecord(path); ok {
+			observer.ObserveInt64(gauge, at)
+		}
+		return nil
+	}, gauge)
+	if err != nil {
+		return fmt.Errorf("restore drill callback: %w", err)
+	}
+	return nil
+}
+
+// readRestoreDrillRecord reads the one integer the drill writes. Anything that is not a positive
+// integer - an empty file, a mount that is not there yet - is "no drill on record", and the
+// series stays absent.
+func readRestoreDrillRecord(path string) (int64, bool) {
+	content, err := os.ReadFile(path) //nolint:gosec // G304: the path is configuration, and reading it is the point
+	if err != nil {
+		return 0, false
+	}
+	at, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
+	if err != nil || at <= 0 {
+		return 0, false
+	}
+	return at, true
 }
 
 func (m *Metrics) instruments(meter metric.Meter) error {
