@@ -89,27 +89,37 @@ func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.P
 		key = opened
 	}
 
-	adapter := OpenAiCompatible{
-		Client: r.Client, Clock: r.Clock, Meter: r.Meter,
-		BaseURL: configured.BaseURL, APIKey: key,
-		CompletionModel: configured.CompletionModel, EmbeddingModel: configured.EmbeddingModel,
-	}
+	var breaker Breaker
 	if r.Breakers != nil {
-		adapter.Breaker = r.Breakers.For(configured.BaseURL)
+		breaker = r.Breakers.For(configured.BaseURL)
 	}
-	if r.Meter == nil {
-		adapter.Meter = noMeter{}
+	meter := r.Meter
+	if meter == nil {
+		meter = noMeter{}
 	}
 
 	switch configured.Kind {
 	case domain.AiOpenAiCompatible:
-		return adapter, nil
+		return OpenAiCompatible{
+			Client: r.Client, Breaker: breaker, Clock: r.Clock, Meter: meter,
+			BaseURL: configured.BaseURL, APIKey: key,
+			CompletionModel: configured.CompletionModel,
+			EmbeddingModel:  configured.EmbeddingModel,
+		}, nil
 	case domain.AiOllama:
-		// The local adapter is J-04's. Until it lands, a workspace that configured Ollama gets
-		// the provider that refuses rather than an OpenAI-compatible call to an endpoint that
-		// speaks something else - which would be a confusing failure instead of an honest one.
-		return Noop{}, nil
+		// No key: a local endpoint is reached over the installation's own network and Ollama has
+		// no credential of its own. One is not silently passed on to it either - an operator who
+		// put a proxy in front configures the OpenAI-compatible adapter, which is where a key
+		// belongs.
+		return Ollama{
+			Client: r.Client, Breaker: breaker, Clock: r.Clock, Meter: meter,
+			BaseURL:         configured.BaseURL,
+			CompletionModel: configured.CompletionModel,
+			EmbeddingModel:  configured.EmbeddingModel,
+		}, nil
 	default:
+		// A kind the domain accepted and this build has no adapter for. Unreachable while the
+		// closed set and the switch agree, and a refusal rather than a panic if they ever do not.
 		return Noop{}, nil
 	}
 }

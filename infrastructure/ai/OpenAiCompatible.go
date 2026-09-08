@@ -74,6 +74,17 @@ type Meter interface {
 
 var _ port.Provider = OpenAiCompatible{}
 
+func (p OpenAiCompatible) transport() transport {
+	meter := p.Meter
+	if meter == nil {
+		meter = noMeter{}
+	}
+	return transport{
+		client: p.Client, breaker: p.Breaker, meter: meter,
+		kind: OpenAiCompatibleKind, key: p.APIKey,
+	}
+}
+
 // Capabilities answers from configuration rather than by calling anybody: it is read on every
 // health scrape and on every capability manifest.
 func (p OpenAiCompatible) Capabilities() port.ProviderCapabilities {
@@ -144,9 +155,10 @@ func (p OpenAiCompatible) Complete(
 	}
 
 	var answer chatResponse
-	err := p.call(ctx, "complete", "/chat/completions", chatRequest{
-		Model: p.CompletionModel, Messages: messages, MaxTokens: request.MaxOutputTokens,
-	}, &answer)
+	err := p.transport().call(ctx, "complete", endpoint(p.BaseURL, "/chat/completions"),
+		chatRequest{
+			Model: p.CompletionModel, Messages: messages, MaxTokens: request.MaxOutputTokens,
+		}, &answer)
 	if err != nil {
 		return port.CompletionResult{}, err
 	}
@@ -185,9 +197,8 @@ func (p OpenAiCompatible) Embed(
 	}
 
 	var answer embeddingResponse
-	err := p.call(ctx, "embed", "/embeddings", embeddingRequest{
-		Model: p.EmbeddingModel, Input: texts,
-	}, &answer)
+	err := p.transport().call(ctx, "embed", endpoint(p.BaseURL, "/embeddings"),
+		embeddingRequest{Model: p.EmbeddingModel, Input: texts}, &answer)
 	if err != nil {
 		return port.EmbeddingResult{}, err
 	}
@@ -227,39 +238,46 @@ func (p OpenAiCompatible) Embed(
 	}, nil
 }
 
-// call is the one path out, so that the breaker, the metric and the error shape are decided once.
+// transport is what both adapters share: the one path out, so that the breaker, the metric and
+// the error shape are decided once rather than twice with a drift between them.
+type transport struct {
+	client  httpport.Port
+	breaker Breaker
+	meter   Meter
+	kind    string
+	key     secret.Secret
+}
+
+// call posts one JSON document and decodes the answer.
 //
 // Every failure becomes ErrUnavailable with the transport error as its cause. That is the port's
 // contract and it is a security rule as much as an ergonomic one: a raw transport error can carry
-// the URL it failed against, and a URL can carry a key (security.md §9, T-18). The cause is kept
-// for the log, where the redacting logger handles it, and never reaches a caller's answer.
-func (p OpenAiCompatible) call(
-	ctx context.Context, operation, path string, body, into any,
-) error {
+// the URL it failed against (security.md §9, T-18). The provider's own error body is deliberately
+// *not* read into the cause either - an error document is somebody else's text and may quote the
+// request, which is a person's note. It costs the most useful line in a log and is worth it.
+func (t transport) call(ctx context.Context, operation, url string, body, into any) error {
 	encoded, err := json.Marshal(body)
 	if err != nil {
-		p.Meter.AiCall(ctx, OpenAiCompatibleKind, operation, "internal")
+		t.meter.AiCall(ctx, t.kind, operation, "internal")
 		return shared.ErrInternal.WithCause(fmt.Errorf("encoding the %s request: %w", operation, err))
 	}
 
 	header := map[string][]string{"Content-Type": {"application/json"}}
-	if !p.APIKey.IsEmpty() {
+	if !t.key.IsEmpty() {
 		// The credential is a header and never the URL, which is why the domain refuses an
 		// endpoint carrying user info: two places for one secret is one place too many.
-		header["Authorization"] = []string{"Bearer " + p.APIKey.Reveal()}
+		header["Authorization"] = []string{"Bearer " + t.key.Reveal()}
 	}
 
 	run := func(ctx context.Context) error {
-		response, err := p.Client.Do(ctx, httpport.Request{
-			Method: http.MethodPost, URL: strings.TrimSuffix(p.BaseURL, "/") + path,
+		response, err := t.client.Do(ctx, httpport.Request{
+			Method: http.MethodPost, URL: url,
 			Header: header, Body: encoded, TargetClass: targetClass,
 		})
 		if err != nil {
 			return port.ErrUnavailable.WithCause(fmt.Errorf("calling the provider: %w", err))
 		}
 		if response.Status < 200 || response.Status > 299 {
-			// The body is deliberately not read into the error. A provider's error document is
-			// somebody else's text and may quote the request, which is a person's note.
 			return port.ErrUnavailable.
 				WithCause(fmt.Errorf("the provider answered %d", response.Status))
 		}
@@ -270,13 +288,13 @@ func (p OpenAiCompatible) call(
 		return nil
 	}
 
-	if p.Breaker != nil {
-		err = p.Breaker.Do(ctx, run)
+	if t.breaker != nil {
+		err = t.breaker.Do(ctx, run)
 	} else {
 		err = run(ctx)
 	}
 
-	p.Meter.AiCall(ctx, OpenAiCompatibleKind, operation, resultOf(err))
+	t.meter.AiCall(ctx, t.kind, operation, resultOf(err))
 	if err == nil {
 		return nil
 	}
@@ -288,6 +306,9 @@ func (p OpenAiCompatible) call(
 	}
 	return port.ErrUnavailable.WithCause(err)
 }
+
+// endpoint joins the configured base and a path without doubling the separator.
+func endpoint(base, path string) string { return strings.TrimSuffix(base, "/") + path }
 
 // resultOf is the metric's `result` label: `ok`, or the domain error's category in lower case,
 // which is the vocabulary observability-reliability.md §5 fixes for every use case metric.

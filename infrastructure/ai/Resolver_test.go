@@ -66,21 +66,39 @@ func TestOnlyAConfiguredAndConsentingWorkspaceGetsAProvider(t *testing.T) {
 	}
 }
 
-// A workspace that configured Ollama gets the provider that refuses until J-04 builds the local
-// adapter. An OpenAI-compatible call to an endpoint that speaks something else would be a
-// confusing failure where an honest one is available.
-func TestALocalProviderRefusesUntilItsAdapterExists(t *testing.T) {
-	store := &resolverStore{configured: domain.AiProvider{
-		Kind: domain.AiOllama, BaseURL: "http://localhost:11434",
-		CompletionModel: "a-model", ProcessingAllowed: true,
-	}}
+// The kind decides the adapter, and a local provider gets the local one. A key is never passed to
+// it: Ollama has no credential of its own, and an operator who put a proxy in front configures the
+// OpenAI-compatible adapter, which is where a key belongs.
+func TestTheKindDecidesTheAdapter(t *testing.T) {
+	for _, testCase := range []struct {
+		kind domain.AiProviderKind
+		want string
+	}{
+		{domain.AiOpenAiCompatible, ai.OpenAiCompatibleKind},
+		{domain.AiOllama, ai.OllamaKind},
+	} {
+		t.Run(string(testCase.kind), func(t *testing.T) {
+			store := &resolverStore{
+				configured: domain.AiProvider{
+					Kind: testCase.kind, BaseURL: "http://models.internal:11434",
+					CompletionModel: "a-model", ProcessingAllowed: true,
+				},
+				sealed: &cryptoport.Sealed{KeyID: "k1", Ciphertext: []byte("x")},
+			}
 
-	provider, err := resolverFor(store).For(context.Background(), resolverActor())
-	if err != nil {
-		t.Fatalf("resolving: %v", err)
-	}
-	if _, isNoop := provider.(ai.Noop); !isNoop {
-		t.Errorf("got %T, want the provider that refuses", provider)
+			provider, err := resolverFor(store).For(context.Background(), resolverActor())
+			if err != nil {
+				t.Fatalf("resolving: %v", err)
+			}
+			if got := provider.Capabilities().Kind; got != testCase.want {
+				t.Errorf("kind %q, want %q", got, testCase.want)
+			}
+			if local, isLocal := provider.(ai.Ollama); isLocal {
+				if _, holdsKey := any(local).(interface{ APIKey() string }); holdsKey {
+					t.Error("the local adapter has somewhere to keep a key")
+				}
+			}
+		})
 	}
 }
 
