@@ -56,6 +56,7 @@ export { default as CapabilityGate, type GateStatus } from './CapabilityGate.sve
 export { default as TaskRow, type Expansion } from './TaskRow.svelte';
 export { default as LabelChip } from './LabelChip.svelte';
 export { default as LabelPicker, type PickerLabel } from './LabelPicker.svelte';
+export { default as AssigneeControl, type Candidate } from './AssigneeControl.svelte';
 export { default as BucketColumn } from './BucketColumn.svelte';
 export { default as WorkItemCard } from './WorkItemCard.svelte';
 export {
