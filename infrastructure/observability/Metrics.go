@@ -43,6 +43,8 @@ type Metrics struct {
 	degradedMode      metric.Int64Gauge
 	configInvalid     metric.Int64Counter
 	breakerState      metric.Int64Gauge
+	aiCalls           metric.Int64Counter
+	aiTokens          metric.Int64Counter
 	outboundDuration  metric.Float64Histogram
 	rateLimited       metric.Int64Counter
 	jobDuration       metric.Float64Histogram
@@ -246,6 +248,18 @@ func (m *Metrics) instruments(meter metric.Meter) error {
 		metric.WithDescription("0 closed, 1 half-open, 2 open, per guarded dependency."),
 	); err != nil {
 		return fmt.Errorf("breaker gauge: %w", err)
+	}
+	if m.aiCalls, err = meter.Int64Counter(
+		namespace+"_ai_requests_total",
+		metric.WithDescription("AI provider calls by provider kind, operation and result."),
+	); err != nil {
+		return fmt.Errorf("ai request counter: %w", err)
+	}
+	if m.aiTokens, err = meter.Int64Counter(
+		namespace+"_ai_tokens_total",
+		metric.WithDescription("Tokens an AI provider reported consuming, by kind, operation and direction."),
+	); err != nil {
+		return fmt.Errorf("ai token counter: %w", err)
 	}
 	if m.outboundDuration, err = meter.Float64Histogram(
 		namespace+"_outbound_http_duration_seconds",
@@ -785,6 +799,42 @@ func (m *Metrics) DegradedMode(ctx context.Context, feature string, degraded boo
 // adapter: adapters do not know each other (project-structure.md §2).
 func (m *Metrics) CircuitBreakerState(ctx context.Context, dependency string, level int64) {
 	m.breakerState.Record(ctx, level, metric.WithAttributes(attribute.String("dependency", dependency)))
+}
+
+// AiCall counts one finished AI provider call (J-03). Three labels, all closed sets: the provider
+// kind, the operation, and the result as the domain's own error category in lower case. The
+// endpoint is not among them - it is a tenant's configuration, and a label per endpoint would grow
+// a series per customer (§3.2, rule 10).
+//
+// What is deliberately absent is anything a person wrote. The one place in this system where a
+// title reaches something outside it is the call this counts, so the counting is the place the
+// rule is easiest to break.
+func (m *Metrics) AiCall(ctx context.Context, kind, operation, result string) {
+	m.aiCalls.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("provider_kind", kind),
+		attribute.String("operation", operation),
+		attribute.String("result", result),
+	))
+}
+
+// AiTokens records what a call consumed, in the one unit every provider reports. It feeds the
+// tenant's budget (J-15) and an operator's sense of cost, and it is not a price - this project
+// does not have one.
+func (m *Metrics) AiTokens(ctx context.Context, kind, operation string, input, output int) {
+	if input > 0 {
+		m.aiTokens.Add(ctx, int64(input), metric.WithAttributes(
+			attribute.String("provider_kind", kind),
+			attribute.String("operation", operation),
+			attribute.String("direction", "input"),
+		))
+	}
+	if output > 0 {
+		m.aiTokens.Add(ctx, int64(output), metric.WithAttributes(
+			attribute.String("provider_kind", kind),
+			attribute.String("operation", operation),
+			attribute.String("direction", "output"),
+		))
+	}
 }
 
 // OutboundHTTP records the duration of one outbound call. targetClass is a class, never a host:
