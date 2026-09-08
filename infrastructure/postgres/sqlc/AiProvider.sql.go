@@ -25,7 +25,7 @@ func (q *Queries) DeleteAiProvider(ctx context.Context) (int64, error) {
 
 const findAiProvider = `-- name: FindAiProvider :one
 SELECT kind, base_url, completion_model, embedding_model,
-       (api_key_enc IS NOT NULL) AS has_api_key,
+       (api_key_enc IS NOT NULL)::boolean AS has_api_key,
        jurisdiction, processing_allowed, created_at, updated_at, version
 FROM ai_provider
 `
@@ -35,7 +35,7 @@ type FindAiProviderRow struct {
 	BaseUrl           string
 	CompletionModel   string
 	EmbeddingModel    string
-	HasApiKey         interface{}
+	HasApiKey         bool
 	Jurisdiction      string
 	ProcessingAllowed bool
 	CreatedAt         pgtype.Timestamptz
@@ -143,7 +143,7 @@ ON CONFLICT (tenant_id) DO UPDATE SET
   updated_at         = $9,
   version            = ai_provider.version + 1
 RETURNING kind, base_url, completion_model, embedding_model,
-          (api_key_enc IS NOT NULL) AS has_api_key,
+          (api_key_enc IS NOT NULL)::boolean AS has_api_key,
           jurisdiction, processing_allowed, created_at, updated_at, version
 `
 
@@ -164,7 +164,7 @@ type UpsertAiProviderRow struct {
 	BaseUrl           string
 	CompletionModel   string
 	EmbeddingModel    string
-	HasApiKey         interface{}
+	HasApiKey         bool
 	Jurisdiction      string
 	ProcessingAllowed bool
 	CreatedAt         pgtype.Timestamptz
@@ -227,7 +227,7 @@ ON CONFLICT (tenant_id) DO UPDATE SET
   updated_at         = $7,
   version            = ai_provider.version + 1
 RETURNING kind, base_url, completion_model, embedding_model,
-          (api_key_enc IS NOT NULL) AS has_api_key,
+          (api_key_enc IS NOT NULL)::boolean AS has_api_key,
           jurisdiction, processing_allowed, created_at, updated_at, version
 `
 
@@ -246,7 +246,7 @@ type UpsertAiProviderKeepingKeyRow struct {
 	BaseUrl           string
 	CompletionModel   string
 	EmbeddingModel    string
-	HasApiKey         interface{}
+	HasApiKey         bool
 	Jurisdiction      string
 	ProcessingAllowed bool
 	CreatedAt         pgtype.Timestamptz

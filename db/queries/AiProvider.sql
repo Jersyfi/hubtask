@@ -28,7 +28,7 @@ ON CONFLICT (tenant_id) DO UPDATE SET
   updated_at         = sqlc.arg('now'),
   version            = ai_provider.version + 1
 RETURNING kind, base_url, completion_model, embedding_model,
-          (api_key_enc IS NOT NULL) AS has_api_key,
+          (api_key_enc IS NOT NULL)::boolean AS has_api_key,
           jurisdiction, processing_allowed, created_at, updated_at, version;
 
 -- name: UpsertAiProviderKeepingKey :one
@@ -53,7 +53,7 @@ ON CONFLICT (tenant_id) DO UPDATE SET
   updated_at         = sqlc.arg('now'),
   version            = ai_provider.version + 1
 RETURNING kind, base_url, completion_model, embedding_model,
-          (api_key_enc IS NOT NULL) AS has_api_key,
+          (api_key_enc IS NOT NULL)::boolean AS has_api_key,
           jurisdiction, processing_allowed, created_at, updated_at, version;
 
 -- name: FindAiProvider :one
@@ -61,7 +61,7 @@ RETURNING kind, base_url, completion_model, embedding_model,
 -- caller that needs the plaintext asks for it by name below, so a read cannot spill it by
 -- accident.
 SELECT kind, base_url, completion_model, embedding_model,
-       (api_key_enc IS NOT NULL) AS has_api_key,
+       (api_key_enc IS NOT NULL)::boolean AS has_api_key,
        jurisdiction, processing_allowed, created_at, updated_at, version
 FROM ai_provider;
 
