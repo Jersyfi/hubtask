@@ -183,7 +183,10 @@ VALUES (
 ON CONFLICT DO NOTHING;
 
 -- name: FindMembership :one
-SELECT id, account_id, group_id, scope_type, scope_id, role
+-- The tenant is selected although row level security already bounds the statement to it: the
+-- grant this answers is what the revocation writes its audit entry from, and an entry without a
+-- tenant is refused by the port (audit.md §3).
+SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
 FROM membership WHERE id = sqlc.arg('id');
 
 -- name: RevokeMembership :execrows
@@ -254,7 +257,7 @@ ORDER BY id DESC;
 -- what IS NOT DISTINCT FROM does for the NULL. Newest first by identifier: UUIDv7 is time-ordered,
 -- so the primary key is the grant order and the keyset needs no second column. One row more than
 -- the page is read, and the caller reports has_more from it.
-SELECT id, account_id, group_id, scope_type, scope_id, role
+SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
 FROM membership
 WHERE scope_type = sqlc.arg('scope_type')
   AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid

@@ -654,8 +654,13 @@ func grantFrom(row sqlc.FindMembershipRow) (identity.Grant, error) {
 	if err != nil {
 		return identity.Grant{}, err
 	}
+	tenantID, err := idFrom(row.TenantID)
+	if err != nil {
+		return identity.Grant{}, err
+	}
 	return identity.Grant{
 		ID:        grantID,
+		TenantID:  tenantID,
 		AccountID: accountID,
 		GroupID:   groupID,
 		Scope:     identity.Scope{Type: identity.ScopeType(row.ScopeType), ID: scopeID},
