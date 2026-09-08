@@ -280,6 +280,20 @@ func (c *Client) PostStatus(ctx context.Context, path string, body any) (int, []
 	return c.exchange(ctx, http.MethodPost, path, nil, body, nil)
 }
 
+// requestMediaType is what a body is announced as. Every PATCH in this contract is a JSON Merge
+// Patch (RFC 7396, api-guidelines.md §7) - a document whose fields are merged and whose nulls
+// delete - and the contract declares that media type on every one of them. Derived from the method
+// rather than passed in, because in this contract it is a property of the method.
+//
+// The server reads neither: it never looks at the request media type. This is interoperability, and
+// what a stricter proxy in front of an installation would insist on.
+func requestMediaType(method string) string {
+	if method == http.MethodPatch {
+		return "application/merge-patch+json"
+	}
+	return "application/json"
+}
+
 // exchange makes one call and turns a refusal into an error. What comes back is the status and
 // the bytes; making sense of them is the caller's.
 func (c *Client) exchange(
@@ -310,7 +324,7 @@ func (c *Client) exchange(
 			return 0, nil, fmt.Errorf("building the request: %w", err)
 		}
 		request.Body = encoded
-		request.Header["Content-Type"] = []string{"application/json"}
+		request.Header["Content-Type"] = []string{requestMediaType(method)}
 	}
 
 	response, err := c.send(ctx, request)

@@ -376,6 +376,33 @@ CREATE TABLE identity_provider (
 -- presents it back; the verifier and the nonce are kept as they are because one travels to the
 -- provider and the other is compared with a claim - and neither completes a flow without the
 -- sealed client secret.
+-- The workspace's AI provider (J-02, ADR-0012, ADR-0049): which provider it would ask, under
+-- which models, in which jurisdiction, and whether it consents to being asked at all. One row per
+-- workspace. The API key is sealed under E-02's envelope, never hashed - the adapter needs the
+-- plaintext to sign a request - and the two envelope columns are all-or-nothing.
+CREATE TABLE ai_provider (
+  tenant_id        uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  kind             text NOT NULL CHECK (kind IN ('NOOP', 'OPENAI_COMPATIBLE', 'OLLAMA')),
+  base_url         text NOT NULL DEFAULT '' CHECK (length(base_url) <= 2000),
+  completion_model text NOT NULL DEFAULT '' CHECK (length(completion_model) <= 200),
+  embedding_model  text NOT NULL DEFAULT '' CHECK (length(embedding_model) <= 200),
+  api_key_enc      bytea,
+  api_key_key_id   text,
+  -- A declaration rather than something this software can verify; its purpose is that the
+  -- decision is documented rather than made by accident (ADR-0018 decision 7).
+  jurisdiction     text NOT NULL
+    CHECK (jurisdiction IN ('SELF_HOSTED', 'EEA', 'ADEQUACY', 'THIRD_COUNTRY')),
+  -- ai-first.md §2's switch, checked before every call. Consent is given, never inherited.
+  processing_allowed boolean NOT NULL DEFAULT false,
+  created_at       timestamptz NOT NULL,
+  updated_at       timestamptz,
+  version          integer NOT NULL DEFAULT 1,
+  CONSTRAINT ai_provider_key_envelope CHECK (
+    (api_key_enc IS NULL AND api_key_key_id IS NULL) OR
+    (api_key_enc IS NOT NULL AND api_key_key_id IS NOT NULL)
+  )
+);
+
 CREATE TABLE oidc_flow (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1812,7 +1839,7 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
-    'identity_provider','oidc_flow',
+    'identity_provider','oidc_flow','ai_provider',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',

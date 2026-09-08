@@ -1,5 +1,5 @@
 -- The census a rotation ends on (ADR-0045, security.md §8.1): how many stored values still name
--- each master key. Five places hold a sealed value, and a rotation is only finished when none of
+-- each master key. Six places hold a sealed value, and a rotation is only finished when none of
 -- them names the key that is about to leave the ring.
 --
 -- Per tenant, like everything else: row level security bounds every branch of the union to the
@@ -17,6 +17,8 @@ FROM (
   SELECT previous_secret_key_id FROM webhook_subscription WHERE previous_secret_key_id IS NOT NULL
   UNION ALL
   SELECT credential_key_id FROM backup_target WHERE credential_key_id IS NOT NULL
+  UNION ALL
+  SELECT api_key_key_id FROM ai_provider WHERE api_key_key_id IS NOT NULL
   UNION ALL
   SELECT named #>> '{}'
   FROM automation_rule,

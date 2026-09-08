@@ -228,6 +228,51 @@ func (e AdminTenantStatus) Valid() bool {
 	}
 }
 
+// Defines values for AiJurisdiction.
+const (
+	ADEQUACY     AiJurisdiction = "ADEQUACY"
+	EEA          AiJurisdiction = "EEA"
+	SELFHOSTED   AiJurisdiction = "SELF_HOSTED"
+	THIRDCOUNTRY AiJurisdiction = "THIRD_COUNTRY"
+)
+
+// Valid indicates whether the value is a known member of the AiJurisdiction enum.
+func (e AiJurisdiction) Valid() bool {
+	switch e {
+	case ADEQUACY:
+		return true
+	case EEA:
+		return true
+	case SELFHOSTED:
+		return true
+	case THIRDCOUNTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiProviderKind.
+const (
+	NOOP             AiProviderKind = "NOOP"
+	OLLAMA           AiProviderKind = "OLLAMA"
+	OPENAICOMPATIBLE AiProviderKind = "OPENAI_COMPATIBLE"
+)
+
+// Valid indicates whether the value is a known member of the AiProviderKind enum.
+func (e AiProviderKind) Valid() bool {
+	switch e {
+	case NOOP:
+		return true
+	case OLLAMA:
+		return true
+	case OPENAICOMPATIBLE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -1881,6 +1926,7 @@ func (e ReminderChannel) Valid() bool {
 // Defines values for ReminderState.
 const (
 	ReminderStateCANCELLED ReminderState = "CANCELLED"
+	ReminderStateLAPSED    ReminderState = "LAPSED"
 	ReminderStatePENDING   ReminderState = "PENDING"
 	ReminderStateSENT      ReminderState = "SENT"
 )
@@ -1889,6 +1935,8 @@ const (
 func (e ReminderState) Valid() bool {
 	switch e {
 	case ReminderStateCANCELLED:
+		return true
+	case ReminderStateLAPSED:
 		return true
 	case ReminderStatePENDING:
 		return true
@@ -3082,6 +3130,61 @@ type AdminTenant struct {
 
 // AdminTenantStatus defines model for AdminTenant.Status.
 type AdminTenantStatus string
+
+// AiJurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
+// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
+type AiJurisdiction string
+
+// AiProvider How this workspace uses AI, if it does. The API key is not a member: it is sealed at configuration time and opened only by the adapter that makes the call.
+type AiProvider struct {
+	// BaseUrl The endpoint the adapter calls. Absent for `NOOP`. Every call to it goes through the guarded client, so an address inside this installation's own network is refused wherever it was typed (ADR-0015, T-07).
+	BaseUrl *string `json:"base_url,omitempty"`
+
+	// CompletionModel The model a suggestion is asked of. Empty means this provider does not complete.
+	CompletionModel *string   `json:"completion_model,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+
+	// EmbeddingModel The model a vector is asked of. Empty means this provider does not embed.
+	EmbeddingModel *string `json:"embedding_model,omitempty"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind AiProviderKind `json:"kind"`
+
+	// ProcessingAllowed Whether this workspace's content may be sent to the provider at all (`ai_processing_allowed`, ai-first.md §2). Checked before every call, and false by default - configuring a provider is not the same act as consenting to use it.
+	ProcessingAllowed bool       `json:"processing_allowed"`
+	UpdatedAt         *time.Time `json:"updated_at,omitempty"`
+
+	// Version The optimistic lock, as everywhere else.
+	Version int `json:"version"`
+}
+
+// AiProviderConfiguration The provider, set whole. A half-changed provider is one nobody can reason about, and the endpoint, the models and the key have to agree with each other.
+type AiProviderConfiguration struct {
+	// ApiKey Sealed on the way in and answered by nothing afterwards. Omit it on a later write to keep the key already stored; send an empty string to clear it, which is what a local provider that needs none wants.
+	ApiKey *string `json:"api_key,omitempty"`
+
+	// BaseUrl Required for every kind but `NOOP`, which calls nothing.
+	BaseUrl         *string `json:"base_url,omitempty"`
+	CompletionModel *string `json:"completion_model,omitempty"`
+	EmbeddingModel  *string `json:"embedding_model,omitempty"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident (ADR-0018 decision 7).
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation (data-protection.md §6).
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind AiProviderKind `json:"kind"`
+
+	// ProcessingAllowed Defaults to false. Configuring a provider and consenting to send this workspace's content to it are two decisions, and a default that ran them together would make the second one by accident.
+	ProcessingAllowed *bool `json:"processing_allowed,omitempty"`
+}
+
+// AiProviderKind Which adapter answers (ADR-0012, ADR-0049). `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+type AiProviderKind string
 
 // Assignment Who the entry is assigned to.
 type Assignment struct {
@@ -5060,6 +5163,8 @@ type Reminder struct {
 	Recipients []openapi_types.UUID `json:"recipients"`
 
 	// State Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
+	//
+	// LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind (offline-sync.md §8).
 	State     ReminderState `json:"state"`
 	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
 	Version   int           `json:"version"`
@@ -5079,6 +5184,8 @@ type ReminderInput struct {
 }
 
 // ReminderState Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
+//
+// LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind (offline-sync.md §8).
 type ReminderState string
 
 // ReminderUpdate A merge patch. An absent member is not touched; a member that is sent replaces what is stored, lists included - channels and recipients are chosen whole.
@@ -5489,7 +5596,9 @@ type SavedView struct {
 	Name    string             `json:"name"`
 	OwnerId openapi_types.UUID `json:"owner_id"`
 
-	// Query The query document of POST /items:query, stored as sent.
+	// Query The query a view asks, in the shape the use case takes rather than the shape `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or `scope_item_id` - because `presentation/rest` flattens the request body's `scope` object before any use case sees it, and this document is read back as an input.
+	//
+	// It carries an anchor, because `POST /views/{viewId}:export` executes it. A view that stored only the question - a filter and an order, so that it could be asked anywhere - is a view nobody can export.
 	Query map[string]interface{} `json:"query"`
 
 	// ScopeId The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
@@ -5513,7 +5622,9 @@ type SavedViewCreate struct {
 	Grouping *map[string]interface{} `json:"grouping,omitempty"`
 	Layout   string                  `json:"layout"`
 	Name     string                  `json:"name"`
-	Query    map[string]interface{}  `json:"query"`
+
+	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
+	Query map[string]interface{} `json:"query"`
 
 	// ScopeId The container for HUB and COLLECTION. Omitted for TENANT, and for ACCOUNT - an account-scoped view is always the caller's own.
 	ScopeId   *openapi_types.UUID      `json:"scope_id,omitempty"`
@@ -5540,9 +5651,11 @@ type SavedViewShareSharing string
 
 // SavedViewUpdate JSON Merge Patch; a field that is not sent is left alone. The scope and the sharing are not here - where a view lives is decided at creation, and sharing is :share.
 type SavedViewUpdate struct {
-	Grouping      *map[string]interface{} `json:"grouping,omitempty"`
-	Layout        *string                 `json:"layout,omitempty"`
-	Name          *string                 `json:"name,omitempty"`
+	Grouping *map[string]interface{} `json:"grouping,omitempty"`
+	Layout   *string                 `json:"layout,omitempty"`
+	Name     *string                 `json:"name,omitempty"`
+
+	// Query The whole query, replaced. Anchored and in the use case's input shape, as at creation - see `SavedView.query`.
 	Query         *map[string]interface{} `json:"query,omitempty"`
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
 }
@@ -6755,8 +6868,8 @@ type DeleteCommentParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
-// EditCommentJSONBody defines parameters for EditComment.
-type EditCommentJSONBody struct {
+// EditCommentApplicationMergePatchPlusJSONBody defines parameters for EditComment.
+type EditCommentApplicationMergePatchPlusJSONBody struct {
 	Body string `json:"body"`
 }
 
@@ -7191,8 +7304,8 @@ type ShareSavedViewParams struct {
 // SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
 type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
-// UpdateAccountPreferencesJSONRequestBody defines body for UpdateAccountPreferences for application/json ContentType.
-type UpdateAccountPreferencesJSONRequestBody = AccountPreferences
+// UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
+type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
@@ -7203,14 +7316,17 @@ type InviteAccountJSONRequestBody = AccountInvite
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
-// UpdateTenantQuotasJSONRequestBody defines body for UpdateTenantQuotas for application/json ContentType.
-type UpdateTenantQuotasJSONRequestBody = TenantQuotas
+// UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody defines body for UpdateTenantQuotas for application/merge-patch+json ContentType.
+type UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody = TenantQuotas
 
 // RequestTenantDeletionJSONRequestBody defines body for RequestTenantDeletion for application/json ContentType.
 type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 
 // ExportTenantJSONRequestBody defines body for ExportTenant for application/json ContentType.
 type ExportTenantJSONRequestBody = TenantExportRequest
+
+// ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
+type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
 // ExportAuditTrailJSONRequestBody defines body for ExportAuditTrail for application/json ContentType.
 type ExportAuditTrailJSONRequestBody = AuditExport
@@ -7260,8 +7376,8 @@ type StartInboundRunJSONRequestBody StartInboundRunJSONBody
 // CreateRuleJSONRequestBody defines body for CreateRule for application/json ContentType.
 type CreateRuleJSONRequestBody = AutomationRuleCreate
 
-// UpdateRuleJSONRequestBody defines body for UpdateRule for application/json ContentType.
-type UpdateRuleJSONRequestBody = AutomationRuleUpdate
+// UpdateRuleApplicationMergePatchPlusJSONRequestBody defines body for UpdateRule for application/merge-patch+json ContentType.
+type UpdateRuleApplicationMergePatchPlusJSONRequestBody = AutomationRuleUpdate
 
 // TestRuleJSONRequestBody defines body for TestRule for application/json ContentType.
 type TestRuleJSONRequestBody = RuleTest
@@ -7314,8 +7430,8 @@ type UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody = CustomFieldDefi
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
 
-// UpdateGroupJSONRequestBody defines body for UpdateGroup for application/json ContentType.
-type UpdateGroupJSONRequestBody = GroupUpdate
+// UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
+type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 
 // ConfigureIdentityProviderJSONRequestBody defines body for ConfigureIdentityProvider for application/json ContentType.
 type ConfigureIdentityProviderJSONRequestBody = IdentityProviderConfiguration
@@ -7329,8 +7445,8 @@ type HttpRequestJSONRequestBody = HttpRequestCall
 // CreateWebhookSubscriptionJSONRequestBody defines body for CreateWebhookSubscription for application/json ContentType.
 type CreateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionCreate
 
-// UpdateWebhookSubscriptionJSONRequestBody defines body for UpdateWebhookSubscription for application/json ContentType.
-type UpdateWebhookSubscriptionJSONRequestBody = WebhookSubscriptionUpdate
+// UpdateWebhookSubscriptionApplicationMergePatchPlusJSONRequestBody defines body for UpdateWebhookSubscription for application/merge-patch+json ContentType.
+type UpdateWebhookSubscriptionApplicationMergePatchPlusJSONRequestBody = WebhookSubscriptionUpdate
 
 // RotateWebhookSecretJSONRequestBody defines body for RotateWebhookSecret for application/json ContentType.
 type RotateWebhookSecretJSONRequestBody = WebhookSecretRotation
@@ -7347,8 +7463,8 @@ type UpdateWorkItemApplicationMergePatchPlusJSONRequestBody = WorkItemUpdate
 // AddCommentJSONRequestBody defines body for AddComment for application/json ContentType.
 type AddCommentJSONRequestBody AddCommentJSONBody
 
-// EditCommentJSONRequestBody defines body for EditComment for application/json ContentType.
-type EditCommentJSONRequestBody EditCommentJSONBody
+// EditCommentApplicationMergePatchPlusJSONRequestBody defines body for EditComment for application/merge-patch+json ContentType.
+type EditCommentApplicationMergePatchPlusJSONRequestBody EditCommentApplicationMergePatchPlusJSONBody
 
 // SetCoverJSONRequestBody defines body for SetCover for application/json ContentType.
 type SetCoverJSONRequestBody = CoverInput
@@ -7365,8 +7481,8 @@ type SetRecurrenceJSONRequestBody = RecurrenceInput
 // CreateReminderJSONRequestBody defines body for CreateReminder for application/json ContentType.
 type CreateReminderJSONRequestBody = ReminderInput
 
-// UpdateReminderJSONRequestBody defines body for UpdateReminder for application/json ContentType.
-type UpdateReminderJSONRequestBody = ReminderUpdate
+// UpdateReminderApplicationMergePatchPlusJSONRequestBody defines body for UpdateReminder for application/merge-patch+json ContentType.
+type UpdateReminderApplicationMergePatchPlusJSONRequestBody = ReminderUpdate
 
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
@@ -7425,8 +7541,8 @@ type WithdrawConsentJSONRequestBody = ConsentWithdrawal
 // CreateDataSubjectRequestJSONRequestBody defines body for CreateDataSubjectRequest for application/json ContentType.
 type CreateDataSubjectRequestJSONRequestBody = DataSubjectRequestCreate
 
-// UpdateDataSubjectRequestJSONRequestBody defines body for UpdateDataSubjectRequest for application/json ContentType.
-type UpdateDataSubjectRequestJSONRequestBody = DataSubjectRequestUpdate
+// UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody defines body for UpdateDataSubjectRequest for application/merge-patch+json ContentType.
+type UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody = DataSubjectRequestUpdate
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -7446,8 +7562,8 @@ type SyncPushJSONRequestBody = SyncPushRequest
 // CreateTemplateJSONRequestBody defines body for CreateTemplate for application/json ContentType.
 type CreateTemplateJSONRequestBody = TemplateInput
 
-// UpdateTemplateJSONRequestBody defines body for UpdateTemplate for application/json ContentType.
-type UpdateTemplateJSONRequestBody = TemplateUpdate
+// UpdateTemplateApplicationMergePatchPlusJSONRequestBody defines body for UpdateTemplate for application/merge-patch+json ContentType.
+type UpdateTemplateApplicationMergePatchPlusJSONRequestBody = TemplateUpdate
 
 // InstantiateTemplateJSONRequestBody defines body for InstantiateTemplate for application/json ContentType.
 type InstantiateTemplateJSONRequestBody = TemplateInstantiation
@@ -7514,6 +7630,15 @@ type ServerInterface interface {
 	// SuspendTenant Suspend a workspace
 	// (POST /admin/tenants/{tenantId}:suspend)
 	SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// RemoveAiProvider Remove the workspace's AI provider
+	// (DELETE /ai-provider)
+	RemoveAiProvider(w http.ResponseWriter, r *http.Request)
+	// ReadAiProvider The workspace's AI provider, and whether it may be used
+	// (GET /ai-provider)
+	ReadAiProvider(w http.ResponseWriter, r *http.Request)
+	// ConfigureAiProvider Configure the workspace's AI provider
+	// (PUT /ai-provider)
+	ConfigureAiProvider(w http.ResponseWriter, r *http.Request)
 	// ListAuditEntries Query audit entries
 	// (GET /audit)
 	ListAuditEntries(w http.ResponseWriter, r *http.Request, params ListAuditEntriesParams)
@@ -8541,6 +8666,48 @@ func (siw *ServerInterfaceWrapper) SuspendTenant(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SuspendTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAiProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) ReadAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadAiProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureAiProvider(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16303,6 +16470,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/identity-provider", wrapper.RemoveIdentityProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureIdentityProvider)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/ai-provider", wrapper.RemoveAiProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-provider", wrapper.ReadAiProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-provider", wrapper.ConfigureAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)

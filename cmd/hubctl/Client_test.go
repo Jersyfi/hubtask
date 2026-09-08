@@ -289,6 +289,25 @@ func TestABodyIsSentAsJSON(t *testing.T) {
 	}
 }
 
+// A PATCH body is a merge patch, and the header has to say so. Every PATCH in this contract
+// declares `application/merge-patch+json` (api-guidelines.md §7); the server reads no request media
+// type, so this is what a stricter proxy in front of an installation would insist on (issue #430).
+func TestAPatchIsAnnouncedAsAMergePatch(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"name":"Hub"}`))
+	})
+
+	var updated struct{ Name string }
+	if err := clientFor(t, stub).Patch(context.Background(), "/containers/x",
+		map[string]string{"name": "Hub"}, &updated); err != nil {
+		t.Fatalf("patching: %v", err)
+	}
+	if got := stub.request.Header.Get("Content-Type"); got != "application/merge-patch+json" {
+		t.Errorf("Content-Type %q, want application/merge-patch+json", got)
+	}
+}
+
 // The server reports a Retry-After on a refusal so that a well-behaved client can wait rather
 // than hand the refusal to a person. A script doing a dozen things in a second is not abuse, and
 // it should not have to know the burst size of the installation it is talking to.

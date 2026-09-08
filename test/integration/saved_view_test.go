@@ -26,7 +26,8 @@ func savedViewIn(tenant, owner, collection shared.ID, id shared.ID, name string)
 		ScopeType: view.ViewScopeCollection, ScopeID: collection,
 		Name: name, Layout: "KANBAN",
 		Query: map[string]any{
-			"filter": map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P7D"},
+			"scope_container_id": collection.String(),
+			"filter":             map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P7D"},
 		},
 		Sharing: view.SharingPrivate,
 		Now:     created,

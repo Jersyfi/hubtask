@@ -27,6 +27,16 @@ export interface FetchTransportOptions {
   readonly fetch?: typeof globalThis.fetch;
 }
 
+/**
+ * What a request body is sent as. `PATCH` is a merge patch throughout this contract; everything
+ * else is plain JSON. The server reads neither - it never looks at the request media type - so this
+ * is interoperability rather than a fix: a stricter proxy, or a server-side check later, would
+ * refuse a merge patch announced as `application/json`.
+ */
+function mediaTypeFor(method: string): string {
+  return method === 'PATCH' ? 'application/merge-patch+json' : 'application/json';
+}
+
 /** The problem document shape this reads. Only the fields the client acts on. */
 interface ProblemBody {
   readonly code?: string;
@@ -264,7 +274,12 @@ export class FetchTransport implements Transport {
     if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
     if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
     if (options.ifMatch) headers.set('If-Match', options.ifMatch);
-    if (body !== undefined) headers.set('Content-Type', 'application/json');
+    // Derived from the method rather than passed in per call, because in this contract it *is* a
+    // property of the method: every PATCH declares `application/merge-patch+json`, which is what
+    // RFC 7396 calls a document whose fields are merged and whose nulls delete
+    // (`api-guidelines.md` §7). A per-call option would be the same rule written once per call
+    // site, and the call site that got it wrong would be the one nobody reads.
+    if (body !== undefined) headers.set('Content-Type', mediaTypeFor(method));
 
     let answer: globalThis.Response;
     try {

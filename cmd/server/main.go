@@ -67,6 +67,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	dbfiles "github.com/Jersyfi/hubtask/db"
+	aiadapter "github.com/Jersyfi/hubtask/infrastructure/ai"
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
@@ -267,6 +268,14 @@ func run() error {
 	// (C-09). Both are built whatever the roles are, because the pieces are the same; what the
 	// roles decide is which loops run (ADR-0014).
 	mailSender := buildMailSender(cfg, registry, metrics)
+
+	// The AI provider (J-01, ADR-0012). NoopAi until a real adapter exists and a tenant
+	// configures one: the product is complete without it (QS-09), so the default is the provider
+	// that calls nothing and says so. Nothing consumes the port yet - what is wired here is the
+	// health registry's view of it, where it reports `disabled` rather than `down`, because an
+	// installation that configured no AI is not one whose AI is broken. The breaker is nil for
+	// the same reason: a provider that calls nothing can open nothing.
+	registry.Register(aiadapter.NewProbe(aiadapter.Noop{}, nil))
 	renderer, err := i18n.NewRenderer()
 	if err != nil {
 		return fmt.Errorf("message catalogue: %w", err)
@@ -868,6 +877,18 @@ func run() error {
 		RedirectURL: oidcRedirectURL,
 	}
 
+	// The AI provider's configuration (J-02). The third-country confirmation is the
+	// installation's rather than the workspace's: it is the operator who signs the processing
+	// agreement and owes the transfer impact assessment (ADR-0018 decision 7,
+	// data-protection.md §6), so the flag is read here and a workspace administrator cannot set
+	// it for them.
+	aiProviderWriter := integrationservice.AiProviderWriter{
+		Providers: postgres.NewAiProviderRepository(), Authorizer: authorizer,
+		Encryptor: encryptor, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock:                 clockadapter.System{},
+		ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
+	}
+
 	identityProviderWriter := identity.IdentityProviderWriter{
 		Session:    sessionWriter,
 		Providers:  postgres.NewIdentityProviderRepository(),
@@ -944,6 +965,9 @@ func run() error {
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ReadIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.RemoveIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
+		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
+		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
@@ -2129,6 +2153,9 @@ func run() error {
 					Subscriptions: postgres.NewWebhookSubscriptionRepository(), Encryptor: encryptor,
 				},
 				backupservice.TargetResealer{Targets: backupTargets, Encryptor: encryptor},
+				integrationservice.AiProviderResealer{
+					Providers: postgres.NewAiProviderRepository(), Encryptor: encryptor,
+				},
 				automationservice.RuleResealer{
 					Rules: postgres.NewAutomationRuleRepository(cursors), Encryptor: encryptor,
 				},
