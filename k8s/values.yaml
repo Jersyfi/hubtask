@@ -238,6 +238,33 @@ serviceMonitor:
   interval: 30s
   labels: {}         # what the operator's serviceMonitorSelector looks for
 
+# The shipped alert rules, as objects the Prometheus Operator evaluates. Off by default: the kind
+# does not exist without that operator. The files are the ones the gate tests, copied into the
+# chart by `make chart-files` (observability-reliability.md §11).
+prometheusRules:
+  enabled: false
+  # What the operator's ruleSelector matches on - set by the operator.
+  labels: {}
+  sets:
+    # Where doing nothing loses data. A self-hoster loads this one and is never paged by the rest.
+    selfhosting: true
+    # A-18, the capacity signal a provider adds.
+    tenant: false
+    # The rest of the catalogue, with an on-call rota behind it.
+    provider: false
+    # A-12's point-in-time recovery half. Reads the database operator's metrics, so it is rendered
+    # only where this chart owns the database.
+    pitr: true
+
+# The Grafana dashboards, as ConfigMaps a sidecar imports. One per dashboard, so that a change to
+# one does not re-import the others. Never hand-edited in a user interface: the file is the source.
+dashboards:
+  enabled: false
+  # The label the platform's sidecar watches for (e.g. grafana_dashboard: "1") - set by the operator.
+  labels: {}
+  # The folder annotation the sidecar files them under - set by the operator.
+  annotations: {}
+
 storage:
   kind: s3           # s3 | local
   existingSecret: "" # expects the keys: access-key, secret-key

@@ -1,0 +1,44 @@
+{{/*
+The shipped alert rules, as objects the platform's Prometheus Operator evaluates.
+
+Until now the rules were a directory somebody copied: `deploy/integration/bootstrap.sh` builds a
+ConfigMap out of them, and a production cluster we do not operate had no path at all. A pull-based
+deploy has exactly one path into that cluster - this chart (ADR-0046) - so the rules travel in it.
+
+`k8s/files/alerts/` is a copy of `deploy/observability/alerts/`, made by `make chart-files` and
+checked for drift by `make gate-chart`. A copy because a chart may only read files inside itself,
+and a *checked* copy because the alternative - transcribing the rules into a template - is how
+"what runs is what is tested" (observability-reliability.md §13.1) stops being true.
+
+Which sets are loaded is the operator's decision and each is a value: a self-hoster's set, the
+provider's, the tenant one, and the point-in-time recovery file that only means anything where
+this chart owns the database.
+*/}}
+{{- if .Values.prometheusRules.enabled }}
+{{- $sets := dict
+  "prometheus-rules.yaml"          .Values.prometheusRules.sets.selfhosting
+  "prometheus-rules-tenant.yaml"   .Values.prometheusRules.sets.tenant
+  "prometheus-rules-provider.yaml" .Values.prometheusRules.sets.provider
+  "prometheus-rules-pitr.yaml"     (and .Values.prometheusRules.sets.pitr .Values.database.enabled)
+}}
+{{- range $file, $wanted := $sets }}
+{{- if $wanted }}
+{{- $path := printf "files/alerts/%s" $file }}
+{{- $body := $.Files.Get $path }}
+{{- if not $body }}
+{{- fail (printf "%s is missing from the chart - run `make chart-files`" $path) }}
+{{- end }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ printf "%s-%s" (include "hubtask.fullname" $) (trimSuffix ".yaml" (trimPrefix "prometheus-rules-" $file) | replace "prometheus-rules" "selfhosting") }}
+  labels: {{- include "hubtask.labels" (dict "root" $) | nindent 4 }}
+    {{- with $.Values.prometheusRules.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+{{ $body | indent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}

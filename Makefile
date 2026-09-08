@@ -459,10 +459,33 @@ licenses:
 		rm -rf "$$bundled" "$$readme"
 	@echo "THIRD-PARTY-LICENSES.md written"
 
+## chart-files: Copy the shipped rules and dashboards into the chart
+# A chart may only read files inside itself, and the rules and dashboards live where the gate
+# tests them (deploy/observability/). So the chart carries a copy, made here and checked for drift
+# by gate-chart - because the alternative, transcribing them into a template, is how "what runs is
+# what is tested" stops being true (observability-reliability.md §13.1).
+.PHONY: chart-files
+chart-files:
+	@mkdir -p k8s/files/alerts k8s/files/dashboards
+	@rm -f k8s/files/alerts/*.yaml k8s/files/dashboards/*.json
+	@cp deploy/observability/alerts/*.yaml k8s/files/alerts/
+	@cp deploy/observability/dashboards/*.json k8s/files/dashboards/
+	@echo "chart: rules and dashboards copied into k8s/files"
+
 ## gate-chart: helm lint and template, with every optional object switched on
 .PHONY: gate-chart
 gate-chart:
 	$(call require_tool,helm)
+	@# The chart's copy of the rules and dashboards is the one the gate tests, or it is a lie.
+	@# Compared against the state before copying, so an uncommitted work tree can still run this.
+	@before="$$(git status --porcelain k8s/files)"; \
+		$(MAKE) --no-print-directory chart-files >/dev/null; \
+		after="$$(git status --porcelain k8s/files)"; \
+		if [ "$$before" != "$$after" ]; then \
+			echo "chart: k8s/files is out of date - run 'make chart-files' and commit it:"; \
+			diff <(echo "$$before") <(echo "$$after") || true; \
+			exit 1; \
+		fi
 	@# The secret is a name, not a value: the chart refuses to render without one, because a
 	@# secret in values.yaml would end up in the release history (deployment.md §6).
 	$(TOOLS_DIR)/helm lint k8s --set existingSecret=hubtask-secrets
@@ -489,7 +512,28 @@ gate-chart:
 		--set migration.dsnSecretName=hubtask-db-app --set migration.dsnSecretKey=uri \
 		--set restoreDrill.enabled=true --set restoreDrill.schedule='0 4 * * 1' \
 		--set restoreDrill.evidence.bucket=evidence --set restoreDrill.evidence.existingSecret=hubtask-evidence-s3 \
-		--set serviceMonitor.enabled=true > /dev/null
+		--set serviceMonitor.enabled=true \
+		--set prometheusRules.enabled=true --set prometheusRules.sets.provider=true \
+		--set prometheusRules.sets.tenant=true --set dashboards.enabled=true > /dev/null
+	@# Every shipped rule file and every dashboard has to come out of the render, or the chart is
+	@# quietly shipping fewer alerts than the catalogue says it does.
+	@rendered="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set database.enabled=true \
+		--set database.backup.destinationPath=s3://backups/hubtask \
+		--set database.backup.existingSecret=hubtask-backup-s3 \
+		--set prometheusRules.enabled=true --set prometheusRules.sets.provider=true \
+		--set prometheusRules.sets.tenant=true --set dashboards.enabled=true)"; \
+		for id in A-01 A-03 A-12 A-18 A-20; do \
+			printf '%s' "$$rendered" | grep -q "alert_id: $$id" || \
+				{ echo "chart: $$id is in the catalogue and not in the rendered rules"; exit 1; }; \
+		done; \
+		for board in overview pipeline slo tenant; do \
+			printf '%s' "$$rendered" | grep -q "$$board.json" || \
+				{ echo "chart: the $$board dashboard is not in the render"; exit 1; }; \
+		done; \
+		printf '%s' "$$rendered" | grep -q 'datasource' || \
+			{ echo "chart: no dashboard carries a data source variable"; exit 1; }
+	@echo "chart: every rule file and dashboard is in the render"
 	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
 		--set existingSecret=hubtask-secrets --set restoreDrill.enabled=true > /dev/null 2>&1; then \
 		echo "chart: the restore drill rendered without a database to restore - it must refuse"; exit 1; fi

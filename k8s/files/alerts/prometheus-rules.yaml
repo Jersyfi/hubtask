@@ -1,0 +1,166 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# The self-hosting alert set (observability-reliability.md §10).
+#
+# Six rules, not eighteen. The catalogue's full set is written for provider operation with an
+# on-call rota and an error budget; a self-hosted installation has one person, who is asleep, and
+# an alert that fires for a symptom nobody will act on trains that person to ignore the next one.
+# What is left is the set where doing nothing loses data or leaves the installation broken:
+# A-03 (nobody is serving), A-04 (a defect), A-05 (events are stuck), A-07 (work was finally
+# given up on), A-12 (the backup is not happening), and A-08 (D-03), which joins them because a
+# reminder that does not arrive is not a symptom somebody can catch up on afterwards: the moment
+# it was for has passed, and to the person waiting for it the failure is indistinguishable from
+# the reminder never having been set.
+#
+# Every rule carries a `runbook` annotation naming a file under deploy/observability/runbooks/.
+# That is not decoration: §11 says an alert without a runbook does not ship, and the gate in
+# test/observability enforces it in both directions.
+#
+# The thresholds are starting values. An operator raises them in their own copy - which is why
+# this file is a shipped example, not something the application reads.
+groups:
+  - name: hubtask-selfhosting
+    interval: 30s
+    rules:
+      - alert: HubtaskNotReady
+        # A-03. Readiness is per instance; a single-process installation has one, so "more than
+        # 30% of instances" reduces to "it". The condition deliberately reads the scrape rather
+        # than /readyz: an instance that answers nothing at all is the case this must also catch,
+        # and `up == 0` is the only signal that survives the process being gone.
+        expr: |
+          up{job="hubtask"} == 0
+          or hubtask_dependency_up{dependency="postgres"} == 0
+        for: 5m
+        labels:
+          severity: page
+          alert_id: A-03
+        annotations:
+          summary: "Hubtask is not ready to serve"
+          description: "The process is unreachable or its mandatory dependency is down."
+          runbook: RB-A03-not-ready.md
+
+      - alert: HubtaskPanicRecovered
+        # A-04. The target value is permanently zero (ADR-0016): every panic is a program defect,
+        # and the counter is seeded at zero so this expression has a series to read from the
+        # first scrape.
+        expr: increase(hubtask_panics_recovered_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: page
+          alert_id: A-04
+        annotations:
+          summary: "A panic was recovered in {{ $labels.component }}"
+          description: "hubtask_panics_recovered_total must stay at zero; a rise is a defect, not load."
+          runbook: RB-A04-panic.md
+
+      - alert: HubtaskOutboxLagging
+        # A-05. SLO-4 promises a P99 under 30 seconds; the alert waits for a minute of it, so a
+        # burst of writes does not page anybody. Events being stuck means automation, webhooks
+        # and the search index are all silently behind.
+        expr: histogram_quantile(0.99, sum(rate(hubtask_outbox_lag_seconds_bucket[10m])) by (le)) > 60
+        for: 10m
+        labels:
+          severity: page
+          alert_id: A-05
+        annotations:
+          summary: "Events are reaching their consumers late"
+          description: "Outbox lag P99 is above 60s - the dispatcher is behind or not running."
+          runbook: RB-A05-outbox-lag.md
+
+      - alert: HubtaskReminderDelay
+        # A-08. SLO-5 promises 99% of reminders within 60 seconds; the alert waits for a P95 above
+        # twice that over half an hour, so a single late pass after a restart does not raise a
+        # ticket. Nothing is lost when it fires - the reminders are still pending and still fire -
+        # but a deadline reminder that arrives late has lost most of its purpose.
+        expr: histogram_quantile(0.95, sum(rate(hubtask_reminder_delivery_delay_seconds_bucket[30m])) by (le)) > 120
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-08
+        annotations:
+          summary: "Reminders are firing late"
+          description: "Reminder delay P95 is above 120s - the firing pass is behind or not running."
+          runbook: RB-A08-reminder-delay.md
+
+      - alert: HubtaskDeadLetter
+        # A-07. A dead letter is work the system finally gave up on after exhausting its retries.
+        # Nothing else will pick it up; it needs a person, which is the definition of an alert.
+        expr: increase(hubtask_job_dead_letter_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: ticket
+          alert_id: A-07
+        annotations:
+          summary: "A {{ $labels.job_type }} job was given up on"
+          description: "The job used up its attempts. The row carries the code of the last failure."
+          runbook: RB-A07-dead-letter.md
+
+      - alert: HubtaskBackupStale
+        # A-12. The one alert that fires for something that has *not* happened, which is why it
+        # is written as an absence: no successful backup in 24 hours. Without a backup metric the
+        # series is missing entirely, and `absent()` is what turns "nobody configured a backup"
+        # into an alert rather than into silence.
+        #
+        # Per target rather than over the maximum (E-05). The gauge is labelled by target, and a
+        # `max()` across them means one healthy target hides a broken one - which is exactly the
+        # 3-2-1 arrangement backup-restore.md §2 recommends, so it is the normal case rather than
+        # an edge one. Without the aggregation each series alerts for itself and the label says
+        # which target it is.
+        expr: |
+          absent(hubtask_backup_last_success_timestamp_seconds)
+          or (time() - hubtask_backup_last_success_timestamp_seconds) > 86400
+        for: 30m
+        labels:
+          severity: page
+          alert_id: A-12
+        annotations:
+          summary: "No successful backup in the last 24 hours"
+          description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
+          runbook: RB-A12-backup-stale.md
+
+      - alert: HubtaskDataSubjectDeadline
+        # A-19. `data-protection.md` §4 says why it exists in one sentence: "without deadline
+        # monitoring, the right gets violated in practice even though the feature exists".
+        #
+        # It joins the reduced self-hosting set for the reason A-08 did, and it is the same reason.
+        # A statutory deadline is not a symptom somebody can catch up on afterwards: the period
+        # runs out whether or not anybody was watching, and to the person who asked, a late answer
+        # and no answer are the same thing. It loses no data - it loses a right.
+        #
+        # A counter rather than a gauge, and the increase over a window rather than a value. The
+        # deadline watch runs per workspace once a day and reports what it found, so a case that is
+        # near or past its deadline shows up every day it stays that way; a gauge would have needed
+        # a tenant label to be true in provider operation (E-10).
+        expr: |
+          increase(hubtask_dsr_deadline_total{stage="overdue"}[26h]) > 0
+          or increase(hubtask_dsr_deadline_total{stage="approaching"}[26h]) > 0
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-19
+        annotations:
+          summary: "A data subject request is approaching or past its statutory deadline"
+          description: "The period is legal rather than internal. GET /privacy/requests?due_within_days=7 lists what is owed."
+          runbook: RB-A19-dsr-deadline.md
+
+      - alert: HubtaskRestoreDrillStale
+        # A-20. A backup that has never been restored is a hope rather than a backup, and the only
+        # way to know is to have done it. Ninety days is the interval backup-restore.md §10 names.
+        #
+        # Deliberately *without* `absent()`, which is the difference between this and A-12. Nothing
+        # emits this metric yet - the trial restore arrives with the restore side of the milestone -
+        # and an absence rule would page every installation on earth for a feature that does not
+        # exist. So it stays dormant until something records a drill, and is right on the day one
+        # does. A ticket rather than a page: a drill that is overdue is a thing to schedule, not a
+        # thing to wake somebody for.
+        expr: |
+          (time() - hubtask_restore_drill_last_success_timestamp_seconds) > 7776000
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-20
+        annotations:
+          summary: "The last restore drill is more than 90 days old"
+          description: "Nobody has proved that these backups restore. Run a trial restore into a new tenant."
+          runbook: RB-A20-restore-drill-stale.md

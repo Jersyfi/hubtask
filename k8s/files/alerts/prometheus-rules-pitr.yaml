@@ -1,0 +1,147 @@
+# SPDX-License-Identifier: BUSL-1.1
+# Copyright (c) 2026 Jérôme Bastian Winkel
+#
+# A-12's other half: the point-in-time recovery gap (observability-reliability.md §10, H-10).
+#
+# The catalogue's A-12 is one row with two halves - "a replication/PITR gap, or a backup older
+# than 24 h, per target" - and until now only the second half had a series to watch. The first
+# needed something that does continuous archiving, which arrived with the CloudNativePG cluster
+# this chart owns (ADR-0046, deployment.md §3.2).
+#
+# **A fourth file, loaded only where CloudNativePG runs.** The three files beside it are the
+# product's own catalogue and read metrics this application emits; every rule here reads the
+# database operator's, and an installation with a database of its own - the ordinary self-hosted
+# case - has none of these series. Putting them in the self-hosting file would page a self-hoster
+# for a component they never installed, and the pinned set in test/observability exists precisely
+# so that joining it is a decision. The chart ships this file as a PrometheusRule when
+# `database.enabled` and `serviceMonitor.enabled` (k8s/templates/prometheusrule.yaml).
+#
+# **The metric names are the operator's, and they are checked rather than trusted.** A rule
+# reading a series that does not exist is silent, not noisy, which is the failure mode
+# `make gate-selftest` exists for. `scripts/pitr-drill.sh` scrapes a real CloudNativePG instance
+# in CI and fails if any name below is missing from it - so a rename in a future operator version
+# turns a build red rather than turning this file into decoration.
+#
+# What is deliberately *not* alerted on here: the measured RPO and RTO of a drill. Those are
+# numbers, they stay internal (decision 7 of the 0.6.0 backlog), and a threshold in a public
+# repository carrying a production figure would be that figure published. What fires here are gaps
+# and failures - conditions, not measurements. The thresholds are derived from promises the
+# documents already make rather than chosen: RPO <= 5 minutes (observability-reliability.md §2),
+# and a base backup every day (the ScheduledBackup's own schedule).
+groups:
+  - name: hubtask-pitr
+    interval: 30s
+    rules:
+      - alert: HubtaskArchiveGap
+        # WAL segments pile up in pg_wal marked `.ready` when the archiver cannot ship them, and
+        # every segment sitting there is a segment a recovery cannot replay: the recovery window
+        # falls behind the database by exactly as much as this queue holds. Five minutes at the
+        # threshold rather than an instant page, because a segment or two in flight is the normal
+        # state of a busy database and only a queue that does not drain is a gap.
+        #
+        # Deliberately without `absent()`, unlike A-12's backup half. This file is loaded where the
+        # operator runs, and a database pod that is restarting stops publishing for a minute; the
+        # scrape failing is what the platform's own target monitoring is for.
+        expr: |
+          max by (namespace, pod) (cnpg_collector_pg_wal_archive_status{value="ready"}) > 20
+        for: 5m
+        labels:
+          severity: page
+          alert_id: A-12
+        annotations:
+          summary: "WAL segments are queueing up unarchived"
+          description: >
+            The archiver is not keeping up, so the point-in-time recovery window is falling behind
+            the database. Every queued segment is data a recovery would not replay.
+          runbook: RB-A12-backup-stale.md
+
+      - alert: HubtaskArchiveFailing
+        # The same gap seen from the other side: the archiver reporting failures. It can fail
+        # without a queue building - credentials that expired, a bucket policy that changed - and
+        # then the ready-count above stays low while nothing is being archived at all.
+        expr: |
+          increase(cnpg_pg_stat_archiver_failed_count[15m]) > 0
+        for: 15m
+        labels:
+          severity: page
+          alert_id: A-12
+        annotations:
+          summary: "The WAL archiver is failing"
+          description: >
+            Archiving to the object store is returning errors. The backup target, its credentials
+            or its policy is the place to look; until it works, the recovery window stands still.
+          runbook: RB-A12-backup-stale.md
+
+      - alert: HubtaskBaseBackupStale
+        # The base backup the archive is replayed onto. Without one no amount of WAL is
+        # restorable, and the ScheduledBackup runs daily - so 48 hours is a missed run plus a
+        # day's grace, not a threshold anybody has to tune.
+        expr: |
+          (time() - max by (namespace) (cnpg_collector_last_available_backup_timestamp)) > 172800
+        for: 1h
+        labels:
+          severity: page
+          alert_id: A-12
+        annotations:
+          summary: "The newest base backup is more than 48 hours old"
+          description: >
+            The daily base backup has not succeeded for two days. WAL archiving alone restores
+            nothing: a recovery replays the archive onto a base copy, and this is that copy.
+          runbook: RB-A12-backup-stale.md
+
+      - alert: HubtaskNoRecoverabilityPoint
+        # An installation that has never had a base backup. Written as a value of zero rather than
+        # as an absence, because the operator publishes this series at zero until the first backup
+        # completes - and "the archive can restore to nothing" is the one state in which a database
+        # with backups configured is no better off than one without.
+        expr: |
+          max by (namespace) (cnpg_collector_first_recoverability_point) == 0
+        for: 1h
+        labels:
+          severity: page
+          alert_id: A-12
+        annotations:
+          summary: "The archive has no point it can recover to"
+          description: >
+            No base backup has ever completed, so there is nothing to recover to and the restore
+            drill has nothing to prove. Check the backup stanza's credentials and its destination.
+          runbook: RB-A12-backup-stale.md
+
+      - alert: HubtaskReplicationLag
+        # A-12's replication half, for an installation that runs a replica. One instance is the
+        # decided shape (ADR-0046: what protects this installation is the archive, not a standby),
+        # so this rule has no series there and stays silent - it exists for the day a second
+        # instance is added, because an alert written then is an alert written after the incident.
+        expr: |
+          max by (namespace, pod) (cnpg_pg_replication_lag) > 300
+        for: 10m
+        labels:
+          severity: page
+          alert_id: A-12
+        annotations:
+          summary: "A replica is more than five minutes behind"
+          description: >
+            Replication is lagging past the recovery point objective §2 names. A failover now would
+            lose everything written in that window.
+          runbook: RB-A12-backup-stale.md
+
+      - alert: HubtaskRestoreDrillNeverRan
+        # A-20's companion, and deliberately in a separate breath from A-20 itself. A-20 asks "is
+        # the last drill older than 90 days" and cannot fire where no drill has ever run, because
+        # the metric is absent rather than zero (backup-restore.md §10). This file is loaded only
+        # where the chart owns the database and the drill is therefore meant to run, which is the
+        # one context in which "nothing has ever recorded a drill" is a finding rather than a
+        # feature nobody installed.
+        expr: |
+          absent(hubtask_restore_drill_last_success_timestamp_seconds)
+        for: 24h
+        labels:
+          severity: ticket
+          alert_id: A-20
+        annotations:
+          summary: "No restore drill has ever recorded a success"
+          description: >
+            The drill runs after every release and on its schedule, and none has yet written a
+            record. Either it has never run or every run has failed - both mean this installation's
+            point-in-time recovery is untested.
+          runbook: RB-A20-restore-drill-stale.md
