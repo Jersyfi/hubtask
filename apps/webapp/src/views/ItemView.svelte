@@ -41,6 +41,7 @@
   import { items } from '../lib/data/items.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
+  import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { activityPath, itemPath } from '../lib/data/item.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -60,6 +61,8 @@
   const history = resource<ActivityPage>(untrack(() => activityPath(id)));
 
   const item = $derived(entry.state.status === 'ready' ? entry.state.data : undefined);
+
+  let isSharing = $state(false);
 
   /**
    * The path this entry sits on, which is what the memberships are composed along.
@@ -272,6 +275,13 @@
     <Stack gap="150">
       <h2 class="section">{t('app.people.title')}</h2>
       <AssigneePanel {item} path={peoplePath} />
+      <div>
+        <!-- Sharing an entry is the same operation at `ITEM` scope, which is why it needs no
+             separate mechanism: a role granted at an entry reaches that entry and nothing else. -->
+        <Button size="sm" tone="secondary" onclick={() => (isSharing = true)}>
+          {t('app.people.share')}
+        </Button>
+      </div>
     </Stack>
 
     <Stack gap="150">
@@ -306,6 +316,15 @@
       {/if}
     </Stack>
   </Stack>
+{/if}
+
+{#if item}
+  <MembersDialog
+    bind:isOpen={isSharing}
+    title={t('app.people.share_title')}
+    scope={{ scopeType: 'ITEM', scopeId: item.id }}
+    path={peoplePath}
+  />
 {/if}
 
 <style>

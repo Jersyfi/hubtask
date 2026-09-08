@@ -33,6 +33,7 @@
   import EntryList from '../lib/entries/EntryList.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
+  import MembersDialog from '../lib/people/MembersDialog.svelte';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -225,6 +226,7 @@
   // No subscription of its own: a collection renders either the list or the board, and both open
   // the level already. A third reader of one list is what the stores exist to avoid.
   let isManagingLabels = $state(false);
+  let isManagingMembers = $state(false);
 
   let isTrashing = $state(false);
   let isTrashingNow = $state(false);
@@ -407,6 +409,11 @@
               {t('app.labels.choose')}
             </Button>
           {/if}
+          <!-- Who holds which role here. Offered on both a hub and a collection, because a
+               membership applies downwards from wherever it was granted and both are scopes. -->
+          <Button size="sm" tone="secondary" onclick={() => (isManagingMembers = true)}>
+            {t('app.people.title')}
+          </Button>
           <Button
             size="sm"
             tone="danger"
@@ -503,6 +510,21 @@
 
 {#if container?.type === 'COLLECTION'}
   <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />
+{/if}
+
+{#if container}
+  <!-- The path is the container's own: a collection composes the workspace, its hub and itself,
+       and a hub composes the workspace and itself. -->
+  <MembersDialog
+    bind:isOpen={isManagingMembers}
+    title={t('app.people.title')}
+    scope={container.type === 'HUB'
+      ? { scopeType: 'HUB', scopeId: container.id }
+      : { scopeType: 'COLLECTION', scopeId: container.id }}
+    path={container.type === 'HUB'
+      ? { hubId: container.id }
+      : { hubId: container.parent_id ?? undefined, collectionId: container.id }}
+  />
 {/if}
 
 {#if isTrashing && container}
