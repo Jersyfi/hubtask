@@ -31,6 +31,7 @@
   import Board from '../lib/entries/Board.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
+  import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
   import TimelineView from '../lib/entries/TimelineView.svelte';
   import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
   import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
@@ -40,6 +41,7 @@
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
+  import { templates } from '../lib/data/templates.svelte.ts';
   import { queryFieldsFor } from '../lib/data/customfields.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { selection } from '../lib/data/selection.svelte.ts';
@@ -145,6 +147,13 @@
       selection.clear();
       lastResults = new Map();
     };
+  });
+
+  // The templates that apply here, read once for the dialog.
+  $effect(() => {
+    if (container?.type !== 'COLLECTION') return;
+    const wanted = container.id;
+    return untrack(() => templates.open(wanted));
   });
 
   // The definitions in force here, read once for the dialog and for the filter editor below.
@@ -300,6 +309,7 @@
   // the level already. A third reader of one list is what the stores exist to avoid.
   let isManagingLabels = $state(false);
   let isManagingFields = $state(false);
+  let isUsingTemplates = $state(false);
   let isManagingMembers = $state(false);
 
   let isTrashing = $state(false);
@@ -482,6 +492,16 @@
             >
               {t('app.labels.choose')}
             </Button>
+            <!-- The templates that apply here, for the same reason: a collection's own, its hub's
+                 and the workspace-wide ones are one question asked from one screen. -->
+            <Button
+              size="sm"
+              tone="secondary"
+              onclick={() => (isUsingTemplates = true)}
+              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+            >
+              {t('app.templates.title')}
+            </Button>
             <!-- A custom field belongs to a collection or to the workspace, and what applies here
                  is one question — so this is the screen it is answered on, beside the labels. -->
             <Button
@@ -632,6 +652,16 @@
     bind:isOpen={isManagingFields}
     collectionId={container.id}
     role={structureRole}
+  />
+  <TemplatesDialog
+    bind:isOpen={isUsingTemplates}
+    collectionId={container.id}
+    path={containerPath}
+    role={structureRole}
+    onopened={(itemId) => {
+      isUsingTemplates = false;
+      onnavigate(`/items/${itemId}`);
+    }}
   />
 {/if}
 
