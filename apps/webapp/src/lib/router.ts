@@ -14,11 +14,27 @@
  * `node --test`, and a component binds the subscription to `$state` in one line.
  */
 
+/**
+ * Which of ADR-0032's three areas a route belongs to.
+ *
+ * Declared here rather than worked out later, because the mobile shell's one restriction is by
+ * area: it ships the end-user features and profile configuration in full, and reaches
+ * administration through the web app. A route that carried no area would be a route somebody has
+ * to classify by reading it, and ADR-0032's own backlog impact asks for the tagging to exist
+ * before the shell needs it.
+ *
+ * `end-user` is the default because it is the overwhelming majority, and a default that is wrong
+ * for a new administrative screen is caught by the person adding one rather than by the shell.
+ */
+export type Area = 'end-user' | 'profile' | 'administration';
+
 export interface Route {
   /** A stable name the shell switches on — never display text. */
   readonly name: string;
   /** A path pattern; `:segment` captures one path segment as a parameter. */
   readonly pattern: string;
+  /** ADR-0032's area. Absent means `end-user`, which is what most screens are. */
+  readonly area?: Area;
 }
 
 export interface Resolution {
@@ -27,6 +43,8 @@ export interface Resolution {
   readonly params: Readonly<Record<string, string>>;
   /** The path that was resolved, normalised, without query or fragment. */
   readonly path: string;
+  /** The area the matched route declared. `end-user` for a route that declared none. */
+  readonly area: Area;
 }
 
 /** Strip query and fragment, collapse a trailing slash: `/hubs/` and `/hubs` are one route. */
@@ -62,9 +80,9 @@ export function resolve(routes: readonly Route[], input: string): Resolution {
   const path = normalisePath(input);
   for (const route of routes) {
     const params = matchPattern(route.pattern, path);
-    if (params) return { name: route.name, params, path };
+    if (params) return { name: route.name, params, path, area: route.area ?? 'end-user' };
   }
-  return { name: null, params: {}, path };
+  return { name: null, params: {}, path, area: 'end-user' };
 }
 
 export type Unsubscribe = () => void;

@@ -46,6 +46,7 @@ export type {
 
 export type {
   Account,
+  AccountPreferences,
   AccountSummary,
   ActivityEntry,
   ActivityPage,
@@ -94,6 +95,9 @@ export type {
   MediaTransfer,
   MediaUploadRequest,
   MoveResult,
+  NotificationPreference,
+  NotificationPreferenceList,
+  NotificationPreferenceUpdate,
   PendingMutation,
   Problem,
   PurgeSummary,
