@@ -8647,7 +8647,26 @@ components:
         custom_fields:
           type: object
           additionalProperties: true
-        recurrence_rule_id: { type: [string, "null"], format: uuid }
+        recurrence_rule_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The series this entry belongs to, and null for an entry that repeats never. It is set
+            on the template *and* on every occurrence, so it says that a series is involved rather
+            than which end of one this is - `recurrence_source_id` says that.
+        recurrence_source_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The entry this one was copied from as an occurrence, and null on the template and on
+            everything that is not an occurrence. It is what an occurrence links up to:
+            `GET /items/{id}/recurrence` resolves a rule by the entry it belongs to, so an
+            occurrence asking for its own series answers 404 and has to ask its source instead.
+
+
+            Provenance, set once by the materialisation and never cleared - a copy does not stop
+            having come from somewhere when the entry it came from is deleted. Server-owned: a
+            client that sent one would be claiming an occurrence it did not produce.
         origin_jumble_id:
           type: [string, "null"]
           format: uuid

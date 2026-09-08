@@ -373,7 +373,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.origin_jumble_id,
+  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
   -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
   -- because §6's point is that the object itself says what is coming.
@@ -411,6 +411,7 @@ type FindWorkItemRow struct {
 	CustomFields          []byte
 	ContentLanguage       *string
 	RecurrenceRuleID      pgtype.UUID
+	RecurrenceSourceID    pgtype.UUID
 	OriginJumbleID        pgtype.UUID
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
@@ -456,6 +457,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.CustomFields,
 		&i.ContentLanguage,
 		&i.RecurrenceRuleID,
+		&i.RecurrenceSourceID,
 		&i.OriginJumbleID,
 		&i.RetentionPendingUntil,
 		&i.RetentionRuleID,
@@ -656,6 +658,10 @@ type InsertWorkItemCopyParams struct {
 // gives somebody a task like it, not a second template producing the same occurrences. The
 // materialisation writes the pointer itself, through the statement that owns it, precisely because
 // an occurrence is the one copy that does belong to a series.
+//
+// recurrence_source_id is absent for the same reason and one more: it says which entry this one was
+// copied from *as an occurrence*, and somebody duplicating an occurrence gets a task like it rather
+// than a second occurrence of a series they did not touch.
 func (q *Queries) InsertWorkItemCopy(ctx context.Context, arg InsertWorkItemCopyParams) error {
 	_, err := q.db.Exec(ctx, insertWorkItemCopy,
 		arg.ID,
@@ -880,7 +886,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.origin_jumble_id,
+  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -941,6 +947,7 @@ type ListWorkItemsRow struct {
 	CustomFields          []byte
 	ContentLanguage       *string
 	RecurrenceRuleID      pgtype.UUID
+	RecurrenceSourceID    pgtype.UUID
 	OriginJumbleID        pgtype.UUID
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
@@ -1009,6 +1016,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.CustomFields,
 			&i.ContentLanguage,
 			&i.RecurrenceRuleID,
+			&i.RecurrenceSourceID,
 			&i.OriginJumbleID,
 			&i.RetentionPendingUntil,
 			&i.RetentionRuleID,
@@ -1765,7 +1773,7 @@ SELECT
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
          AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
     ))::jsonb AS custom_fields,
-  wi.content_language, wi.recurrence_rule_id, wi.origin_jumble_id,
+  wi.content_language, wi.recurrence_rule_id, wi.recurrence_source_id, wi.origin_jumble_id,
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
@@ -1810,6 +1818,7 @@ type SubtreeOfWorkItemRow struct {
 	CustomFields          []byte
 	ContentLanguage       *string
 	RecurrenceRuleID      pgtype.UUID
+	RecurrenceSourceID    pgtype.UUID
 	OriginJumbleID        pgtype.UUID
 	RetentionPendingUntil pgtype.Timestamptz
 	RetentionRuleID       pgtype.UUID
@@ -1880,6 +1889,7 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.CustomFields,
 			&i.ContentLanguage,
 			&i.RecurrenceRuleID,
+			&i.RecurrenceSourceID,
 			&i.OriginJumbleID,
 			&i.RetentionPendingUntil,
 			&i.RetentionRuleID,

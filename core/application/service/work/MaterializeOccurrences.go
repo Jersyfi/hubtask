@@ -318,20 +318,24 @@ func (h MaterializeOccurrences) createOccurrence(
 			ParentGiven:        true,
 			TargetCollectionID: source.CollectionID,
 		},
-		dueOverride: due,
-		series:      rule.ID,
-		createdBy:   source.CreatedBy,
+		dueOverride:  due,
+		series:       rule.ID,
+		seriesSource: source.ID,
+		createdBy:    source.CreatedBy,
 	}, now)
 	if err != nil {
 		return err
 	}
 
-	// The pointer is written through the statement that owns the column: the copy deliberately
-	// carries no series, and this is the one copy that belongs to one (db/queries/Work.sql).
-	if err := h.Recurrences.Attach(ctx, result.Item.ID, rule.ID); err != nil {
+	// The pointers are written through the statement that owns the columns: the copy deliberately
+	// carries neither, and this is the one copy that belongs to a series (db/queries/Work.sql).
+	// Both, because the rule identifier is on the template too - the source is what lets an
+	// occurrence reach the entry it repeats from (issue #428).
+	if err := h.Recurrences.AttachOccurrence(ctx, result.Item.ID, rule.ID, source.ID); err != nil {
 		return err
 	}
 	result.Item.RecurrenceRuleID = rule.ID
+	result.Item.RecurrenceSourceID = source.ID
 
 	announcement, err := event.NewOccurrenceCreated(
 		h.IDs.NewID(), result.Item, source.ID, moment, now, event.Cause{})

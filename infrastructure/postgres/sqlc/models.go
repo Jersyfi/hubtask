@@ -1374,4 +1374,5 @@ type WorkItem struct {
 	RetentionBlockedBy    *string
 	DeletedByType         *string
 	DeletedByID           pgtype.UUID
+	RecurrenceSourceID    pgtype.UUID
 }

@@ -262,6 +262,36 @@ func (q *Queries) LatestOccurrenceCompletion(ctx context.Context, recurrenceRule
 	return completed_at, err
 }
 
+const setOccurrenceSeries = `-- name: SetOccurrenceSeries :execrows
+UPDATE work_item SET
+  recurrence_rule_id   = $1,
+  recurrence_source_id = $2
+WHERE id = $3::uuid
+`
+
+type SetOccurrenceSeriesParams struct {
+	RecurrenceRuleID   pgtype.UUID
+	RecurrenceSourceID pgtype.UUID
+	ID                 pgtype.UUID
+}
+
+// An occurrence's two pointers, written together: which series it belongs to, and which entry it
+// was copied from.
+//
+// Both, because one without the other is what issue #428 was: every occurrence carried the rule
+// identifier the template carries, so the column distinguished neither and nothing on an occurrence
+// named the entry it repeats from.
+//
+// No version and no stamp, for SetWorkItemRecurrence's reasons: neither column is one a client
+// owns, and what serialises two writers is the rule's own lock, in whose transaction this runs.
+func (q *Queries) SetOccurrenceSeries(ctx context.Context, arg SetOccurrenceSeriesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setOccurrenceSeries, arg.RecurrenceRuleID, arg.RecurrenceSourceID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setWorkItemRecurrence = `-- name: SetWorkItemRecurrence :execrows
 UPDATE work_item SET recurrence_rule_id = $1
 WHERE id = $2::uuid

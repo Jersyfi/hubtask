@@ -33,7 +33,7 @@
   import { actor } from '../data/account.svelte.ts';
   import { supports } from '../data/capability.svelte.ts';
   import { series } from '../data/reminders.svelte.ts';
-  import { belongsToSeries, splitEnd, withEnd } from '../data/reminders.ts';
+  import { belongsToSeries, occurrenceSourceOf, splitEnd, withEnd } from '../data/reminders.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -52,14 +52,22 @@
   const readFailure = $derived(series.failureOf(item.id));
 
   /**
+   * The entry this one repeats from, from the row itself.
+   *
+   * `recurrence_source_id` is written only on a copy the materialisation made, so it says both
+   * that this is an occurrence and which entry to link to — where the `404` from
+   * `/items/{id}/recurrence` said only the first half, and left nothing to link to.
+   */
+  const source = $derived(occurrenceSourceOf(item));
+
+  /**
    * An occurrence: it belongs to a series and is not the entry the series belongs to.
    *
-   * The `404` is what says the second half — the rule is found by `source_item_id`, so an entry
-   * that has one answers 200 and an occurrence answers 404. What this cannot do is link to the
-   * entry it repeats from: the occurrence carries `recurrence_rule_id` and there is no route that
-   * resolves a rule by its identifier, so there is nothing to link to. Reported on the issue.
+   * The source alone would answer it. The `404` is kept in the condition for an entry restored
+   * from an archive taken before the source column existed: it belongs to a series, has no rule of
+   * its own, and is an occurrence with nothing to link to.
    */
-  const isOccurrence = $derived(hasNone && belongsToSeries(item));
+  const isOccurrence = $derived(Boolean(source) || (hasNone && belongsToSeries(item)));
 
   /** The zone the rule is read in. The entry's due zone where it has one, the reader's otherwise. */
   const zone = $derived(rule?.time_zone ?? item.due_time_zone ?? actor.zone);
@@ -159,6 +167,11 @@
       <p class="failure">{renderProblem(readFailure, messages).message}</p>
     {:else if isOccurrence}
       <p class="quiet">{t('app.recurrence.occurrence')}</p>
+      {#if source}
+        <div>
+          <a href={`/items/${source}`}>{t('app.recurrence.open_source')}</a>
+        </div>
+      {/if}
     {:else if hasNone && !isEditing}
       <p class="quiet">{t('app.recurrence.none')}</p>
       <div>

@@ -28,7 +28,7 @@ type recurrences struct {
 	updates   []domain.RecurrenceRule
 	deleted   []domain.RecurrenceRule
 	advanced  []domain.RecurrenceRule
-	attached  []shared.ID
+	attached  []attachment
 	open      map[shared.ID]int
 	completed map[shared.ID]*time.Time
 }
@@ -121,9 +121,15 @@ func (r *recurrences) Advance(
 	return true, nil
 }
 
-func (r *recurrences) Attach(_ context.Context, itemID, ruleID shared.ID) error {
-	r.attached = append(r.attached, itemID)
+func (r *recurrences) AttachOccurrence(_ context.Context, occurrenceID, ruleID, sourceID shared.ID) error {
+	r.attached = append(r.attached, attachment{Occurrence: occurrenceID, Rule: ruleID, Source: sourceID})
 	return nil
+}
+
+// attachment is what the materialisation pointed at what: an occurrence, its series, and the entry
+// it was copied from. All three, because the defect issue #428 names is a pair written by halves.
+type attachment struct {
+	Occurrence, Rule, Source shared.ID
 }
 
 func (r *recurrences) OpenOccurrences(_ context.Context, ruleID shared.ID) (int, error) {

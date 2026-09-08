@@ -167,6 +167,27 @@ func TestAScheduledSeriesFillsItsWindow(t *testing.T) {
 		}
 	}
 
+	// Both pointers, on every copy. The rule identifier alone is what the template carries too,
+	// so an occurrence that had only that could not reach the entry it repeats from - and
+	// `GET /items/{id}/recurrence` answers 404 for an occurrence by design (issue #428).
+	if len(h.recurrences.attached) != 3 {
+		t.Fatalf("%d occurrences were pointed at their series", len(h.recurrences.attached))
+	}
+	for index, pointed := range h.recurrences.attached {
+		if pointed.Rule != rule.ID || pointed.Source != template.ID {
+			t.Errorf("occurrence %d points at %+v", index, pointed)
+		}
+	}
+	for index, occurrence := range occurrences {
+		if occurrence.RecurrenceRuleID != rule.ID || occurrence.RecurrenceSourceID != template.ID {
+			t.Errorf("occurrence %d reads back as %s / %s",
+				index, occurrence.RecurrenceRuleID, occurrence.RecurrenceSourceID)
+		}
+	}
+	if template.RecurrenceSourceID != "" {
+		t.Errorf("the template names %s as the entry it was copied from", template.RecurrenceSourceID)
+	}
+
 	// Each one is announced twice, deliberately: as an entry that came into being, and as an
 	// occurrence of a series.
 	created, announced := 0, 0

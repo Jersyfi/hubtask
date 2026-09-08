@@ -731,6 +731,16 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		// true, because most items were never in the jumble at all.
 		out["origin_jumble_id"] = item.OriginJumbleID.String()
 	}
+	if !item.RecurrenceRuleID.IsZero() {
+		// Which series the entry belongs to (D-04) - the template and every occurrence alike, so
+		// it says that a series is involved and not which end.
+		out["recurrence_rule_id"] = item.RecurrenceRuleID.String()
+	}
+	if !item.RecurrenceSourceID.IsZero() {
+		// Which end: only an occurrence carries the entry it was copied from, so a row can mark
+		// the two differently and an occurrence can link up to its template (issue #428).
+		out["recurrence_source_id"] = item.RecurrenceSourceID.String()
+	}
 	if item.Retention != nil {
 		// §6: an entry in a running retention period says what is coming, when, and under which
 		// rule - and whether it can be taken out, which is what a client puts a button behind.

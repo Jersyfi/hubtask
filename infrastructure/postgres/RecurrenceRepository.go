@@ -162,8 +162,36 @@ func (r RecurrenceRepository) Delete(
 }
 
 // Attach points an entry at a series - the materialisation's one write outside the rule itself.
-func (r RecurrenceRepository) Attach(ctx context.Context, itemID, ruleID shared.ID) error {
-	return r.point(ctx, itemID, ruleID)
+func (r RecurrenceRepository) AttachOccurrence(
+	ctx context.Context, occurrenceID, ruleID, sourceID shared.ID,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(occurrenceID)
+	if err != nil {
+		return err
+	}
+	rule, err := uuidOf(ruleID)
+	if err != nil {
+		return err
+	}
+	source, err := uuidOf(sourceID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := queries.SetOccurrenceSeries(ctx, sqlc.SetOccurrenceSeriesParams{
+		RecurrenceRuleID:   rule,
+		RecurrenceSourceID: source,
+		ID:                 id,
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("pointing occurrence %s at series %s: %w", occurrenceID, ruleID, err))
+	}
+	return nil
 }
 
 // point writes the entry's pointer at its series, or clears it. The foreign key would not catch a

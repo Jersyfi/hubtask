@@ -851,10 +851,15 @@ type Recurrences interface {
 	// completed yet: where an ON_COMPLETION series counts its next occurrence from.
 	LatestCompletion(ctx context.Context, ruleID shared.ID) (*time.Time, error)
 
-	// Attach points an entry at a series. The copy statement deliberately does not carry the
-	// pointer - a copy belongs to no series - so the one copy that does is pointed at it here,
-	// through the statement that owns the column (D-05).
-	Attach(ctx context.Context, itemID, ruleID shared.ID) error
+	// AttachOccurrence points a copy at the series it belongs to and at the entry it was copied
+	// from. The copy statement deliberately carries neither - a copy belongs to no series - so the
+	// one copy that does is pointed at both here, through the statement that owns the columns
+	// (D-05).
+	//
+	// Both, because the rule identifier alone says which series without saying which end of it:
+	// the template carries the same value, and an occurrence that carried only that had no way to
+	// reach the entry it repeats from (issue #428).
+	AttachOccurrence(ctx context.Context, occurrenceID, ruleID, sourceID shared.ID) error
 }
 
 // Templates stores the trees somebody wrote down to stamp out again (D-06).

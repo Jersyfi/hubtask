@@ -321,6 +321,10 @@ var entities = []Entity{
 			// recurrence rule's identity, and a duplicate that kept the original's would make two
 			// items claim one series.
 			{Field: "recurrence_rule_id", Table: "recurrence_rule"},
+			// A work item's identity, with no foreign key either, and the same reason to remap it:
+			// a duplicate whose occurrences kept the original's source would name entries in the
+			// workspace they were copied out of (issue #428).
+			{Field: "recurrence_source_id", Table: "work_item"},
 			{Field: "origin_jumble_id", Table: "jumble_entry"},
 		},
 	},
