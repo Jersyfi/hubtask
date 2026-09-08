@@ -69,6 +69,7 @@ export type {
   HealthReport,
   ItemQueryResult,
   ItemSearchQuery,
+  ItemAttachments,
   ItemMembers,
   Label,
   Membership,
