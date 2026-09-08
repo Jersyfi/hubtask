@@ -1881,6 +1881,7 @@ func (e ReminderChannel) Valid() bool {
 // Defines values for ReminderState.
 const (
 	ReminderStateCANCELLED ReminderState = "CANCELLED"
+	ReminderStateLAPSED    ReminderState = "LAPSED"
 	ReminderStatePENDING   ReminderState = "PENDING"
 	ReminderStateSENT      ReminderState = "SENT"
 )
@@ -1889,6 +1890,8 @@ const (
 func (e ReminderState) Valid() bool {
 	switch e {
 	case ReminderStateCANCELLED:
+		return true
+	case ReminderStateLAPSED:
 		return true
 	case ReminderStatePENDING:
 		return true
@@ -5060,6 +5063,8 @@ type Reminder struct {
 	Recipients []openapi_types.UUID `json:"recipients"`
 
 	// State Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
+	//
+	// LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind (offline-sync.md §8).
 	State     ReminderState `json:"state"`
 	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
 	Version   int           `json:"version"`
@@ -5079,6 +5084,8 @@ type ReminderInput struct {
 }
 
 // ReminderState Where the reminder stands, written by the server and never by a client: PENDING until it fires, SENT once it has, CANCELLED when it never will. Deleting a reminder removes it rather than cancelling it.
+//
+// LAPSED is the fourth, and only a restore produces it (backup-restore.md §8.4): a reminder whose moment passed while the data sat in an archive. Not CANCELLED, which would leave an auditor reading hundreds of cancellations nobody made, and not PENDING, which would have the scheduler send every one of them at once. To a device it means what a cancellation means - do not remind (offline-sync.md §8).
 type ReminderState string
 
 // ReminderUpdate A merge patch. An absent member is not touched; a member that is sent replaces what is stored, lists included - channels and recipients are chosen whole.
