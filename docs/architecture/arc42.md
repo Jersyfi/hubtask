@@ -802,7 +802,7 @@ Quality
 | QS-06 | An automation rule produces an event that triggers the same rule | Abort at causality depth 5, `RuleRun = ABORTED_LOOP`, the user sees a comprehensible message |
 | QS-07 | A user in São Paulo creates a daily recurrence, and a DST change occurs | The due time stays 09:00 local; test cases for every DST transition |
 | QS-08 | A new language (Arabic, for example) is added | Only translation resources plus enabling the locale; no code change; the RTL flag in the manifest |
-| QS-09 | The AI provider fails or is disabled | All core features stay available; AI endpoints respond `503` with problem details `ai_unavailable` |
+| QS-09 | The AI provider fails or is disabled | All core features stay available; AI endpoints respond `503` with the problem document's detail code `ai.unavailable` — the catalogue's dotted form, and one code for every reason a provider is out of reach (ADR-0049) |
 | QS-10 | 200 concurrent bulk imports of 5,000 items each | Backpressure through rate limits and the queue; no OOM; progress queryable through the job status |
 | QS-11 | Object storage (MinIO) is unreachable for 2 h | No process exit, the core write path unaffected; `media` reported as a `degraded_feature` with a reason and timestamp in `/meta/health`; automatic recovery without a restart (test RT-1) |
 | QS-12 | A pod is killed hard mid-job (`SIGKILL`) | The job lease expires, another instance resumes it, and thanks to idempotency it takes effect exactly once; no data loss (test RT-3) |

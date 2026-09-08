@@ -60,14 +60,25 @@ Behind `core/port/ai/Port.go`:
 
 ```go
 type Provider interface {
-    Complete(ctx context.Context, req CompletionRequest) (CompletionResult, error)
-    Embed(ctx context.Context, texts []string) ([][]float32, error)
+    Complete(ctx context.Context, request CompletionRequest) (CompletionResult, error)
+    Embed(ctx context.Context, texts []string) (EmbeddingResult, error)
     Capabilities() ProviderCapabilities
 }
 ```
 
+`Embed` answers a result rather than a bare `[][]float32` because a vector is only comparable with
+others from the same model: an installation whose embedding model changes otherwise holds an index
+with two geometries in it and a hybrid search that ranks the mixture by nothing. The model, the
+dimensions and the moment travel with the batch, which is what lets the search notice and re-embed
+([ADR-0049](../adr/ADR-0049-ai-provider-surface.md) decision 4).
+
 Adapters: `OpenAiCompatible` (covers OpenAI, Azure, Mistral, vLLM, LiteLLM), `Ollama` (local),
 `NoopAi` (the default). Configured per tenant, so that a provider can give its customers a choice.
+Every adapter reaches its endpoint through `infrastructure/httpclient.GuardedClient` and none of
+them brings a dependency — the wire is two JSON endpoints wide, and the timeout, the retry policy
+and the SSRF refusal are the guarded client's (ADR-0049 decision 1). A refusal is always
+`ErrUnavailable` with the detail code `ai.unavailable`, never an empty result: "the model said
+nothing" and "there is no model" must not be the same value.
 
 | Use case | Description | Result form |
 |---|---|---|
