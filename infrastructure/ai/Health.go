@@ -22,18 +22,26 @@ import (
 // decision and an operator who has an outage, and reporting the first as the second is how an alert
 // catalogue teaches people to ignore it.
 //
-// The provider answers the question rather than a separate `configured` flag, unlike the mail
-// probe's: a provider's abilities are its models', so "configured" and "can actually do something"
-// are one question here and asking it twice would let the two answers drift.
+// It asks the *pool* rather than one breaker, because a provider is per tenant (ai-first.md §2) and
+// there is no single endpoint to watch. What it reports is the installation's view - "some
+// configured provider is cut off" - which is what an operator reading /meta/health is asking, and
+// which endpoint it was is deliberately not in the answer: an endpoint is a tenant's configuration
+// and naming one here would put a customer into a health report (rule 10).
+//
+// What it reads is whether this process has *called* a provider, which is the pool being non-empty.
+// It is deliberately not "has any workspace configured one": that question is a read across
+// tenants, and nothing in this system enumerates tenants (multi-tenancy.md §2.1) - a health probe
+// is not where that rule would be worth breaking. So a freshly started process reports `disabled`
+// until the first call, which is a true statement about what it is doing rather than a guess about
+// what its workspaces have configured, and the degradation table's concern - "AI suggestions
+// disappear" - is about calls that fail rather than about calls nobody has made.
 type Probe struct {
-	provider port.Provider
-	breaker  *resilience.Breaker
+	pool *BreakerPool
 }
 
-// NewProbe takes the configured provider and the breaker its adapter trips. The breaker may be nil
-// where the provider trips none - Noop calls nothing, so it can open nothing.
-func NewProbe(provider port.Provider, breaker *resilience.Breaker) Probe {
-	return Probe{provider: provider, breaker: breaker}
+// NewProbe takes the pool of endpoint breakers. Nil is an installation with no AI surface running.
+func NewProbe(pool *BreakerPool) Probe {
+	return Probe{pool: pool}
 }
 
 var _ health.Probe = Probe{}
@@ -42,25 +50,26 @@ func (p Probe) Name() string   { return port.Dependency }
 func (p Probe) Required() bool { return false }
 
 func (p Probe) Check(context.Context) health.Result {
-	if p.provider == nil || !p.provider.Capabilities().Enabled() {
+	if p.pool == nil || p.pool.Size() == 0 {
 		// Disabled is a configuration, not a fault: the registry leaves it out of the degradation
-		// entirely and reports the dependency as up in the metrics.
+		// entirely and reports the dependency as up in the metrics. An installation that never
+		// wanted AI must not report itself degraded for ever.
 		return health.Result{Status: health.StatusDisabled}
 	}
-	if p.breaker == nil {
-		return health.Result{Status: health.StatusOK}
-	}
 
-	state := p.breaker.State()
-	result := health.Result{
-		Status:       health.StatusOK,
-		Since:        p.breaker.Since(),
-		CircuitState: state.String(),
+	open := p.pool.Open(func(breaker Breaker) bool {
+		stateful, holds := breaker.(interface {
+			State() resilience.BreakerState
+		})
+		return holds && stateful.State() != resilience.BreakerClosed
+	})
+	if open == 0 {
+		return health.Result{Status: health.StatusOK, CircuitState: "closed"}
 	}
-	if state != resilience.BreakerClosed {
-		result.Status = health.StatusDown
-		result.ErrorCode = "dependency.unavailable"
-		result.Impact = []string{port.Feature}
+	return health.Result{
+		Status:       health.StatusDown,
+		CircuitState: "open",
+		ErrorCode:    "dependency.unavailable",
+		Impact:       []string{port.Feature},
 	}
-	return result
 }
