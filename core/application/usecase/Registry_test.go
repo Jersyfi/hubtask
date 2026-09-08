@@ -29,6 +29,7 @@ func descriptor(name string, calls *int) Descriptor {
 			{Name: "type", Kind: KindString, Required: true, Enum: []string{"HUB", "COLLECTION"}},
 			{Name: "name", Kind: KindString, Required: true},
 			{Name: "parent_id", Kind: KindID},
+			{Name: "color_token", Kind: KindString, Enum: []string{"blue", "green"}},
 			{Name: "pinned", Kind: KindBool},
 			{Name: "position", Kind: KindInt},
 			{Name: "labels", Kind: KindList},
@@ -187,10 +188,17 @@ func TestTheInputIsCheckedAgainstTheDeclaration(t *testing.T) {
 		code  string
 		valid bool
 	}{
-		"complete":                            {in: Input{"type": "HUB", "name": "Private"}, valid: true},
-		"a missing required field":            {in: Input{"type": "HUB"}, path: "/name", code: "usecase.field_required"},
-		"an empty required field":             {in: Input{"type": "HUB", "name": "  "}, path: "/name", code: "usecase.field_required"},
-		"a value outside the enum":            {in: Input{"type": "PROJECT", "name": "x"}, path: "/type", code: "usecase.field_not_in_enum"},
+		"complete":                 {in: Input{"type": "HUB", "name": "Private"}, valid: true},
+		"a missing required field": {in: Input{"type": "HUB"}, path: "/name", code: "usecase.field_required"},
+		"an empty required field":  {in: Input{"type": "HUB", "name": "  "}, path: "/name", code: "usecase.field_required"},
+		"a value outside the enum": {in: Input{"type": "PROJECT", "name": "x"}, path: "/type", code: "usecase.field_not_in_enum"},
+		// An optional field sent empty is a clearing, which the enum does not judge - the whole
+		// point of sending it is that it names no value (issue #427). A required one still has to
+		// name one, and says so as a missing field rather than as an enum miss.
+		"an empty optional enum field":        {in: Input{"type": "HUB", "name": "x", "color_token": ""}, valid: true},
+		"a blank optional enum field":         {in: Input{"type": "HUB", "name": "x", "color_token": "  "}, valid: true},
+		"an unknown optional enum value":      {in: Input{"type": "HUB", "name": "x", "color_token": "mauve"}, path: "/color_token", code: "usecase.field_not_in_enum"},
+		"an empty required enum field":        {in: Input{"type": "  ", "name": "x"}, path: "/type", code: "usecase.field_required"},
 		"a misspelled field":                  {in: Input{"type": "HUB", "name": "x", "parentid": "y"}, path: "/parentid", code: "usecase.field_unknown"},
 		"a string where a boolean belongs":    {in: Input{"type": "HUB", "name": "x", "pinned": "yes"}, path: "/pinned", code: "usecase.field_type_invalid"},
 		"a fraction where an integer belongs": {in: Input{"type": "HUB", "name": "x", "position": 1.5}, path: "/position", code: "usecase.field_type_invalid"},
