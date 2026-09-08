@@ -758,6 +758,7 @@ The full list with context, options, and consequences: [../adr/README.md](../adr
 | 0046 | Production runs in a platform namespace, and the platform's operator does PITR | accepted |
 | 0047 | The interface's policy names the installation's media origin | proposed |
 | 0048 | The browser job's driver: Playwright, pinned, in one workflow job | proposed |
+| 0049 | The AI provider surface: two adapters, no dependency, prompts as files | proposed |
 
 ---
 
