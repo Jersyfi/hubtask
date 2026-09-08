@@ -52,6 +52,8 @@
   import { people } from '../lib/data/people.svelte.ts';
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DuePanel from '../lib/entries/DuePanel.svelte';
+  import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
+  import ReminderPanel from '../lib/entries/ReminderPanel.svelte';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
   import CoverPanel from '../lib/media/CoverPanel.svelte';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
@@ -380,6 +382,16 @@
     <Stack gap="150">
       <h2 class="section">{t('app.due.title')}</h2>
       <DuePanel {item} disabledReason={frozenReason} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.reminders.title')}</h2>
+      <ReminderPanel {item} path={peoplePath} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.recurrence.title')}</h2>
+      <RecurrencePanel {item} />
     </Stack>
 
     <Stack gap="150">

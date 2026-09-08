@@ -19,6 +19,7 @@
 
   import { actor } from '../data/account.svelte.ts';
   import { isDueSoon, isOverdue } from '../data/due.ts';
+  import { belongsToSeries } from '../data/reminders.ts';
   import { formatDue, formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -46,6 +47,13 @@
   );
   const relative = $derived(item.due_at ? formatRelative(item.due_at, messages.locale, now) : '');
 </script>
+
+{#if belongsToSeries(item)}
+  <!-- One mark, because `recurrence_rule_id` is on the template and on every occurrence alike and
+       says nothing about which end. Which end it is takes reading the rule, which is a request per
+       row — so the entry screen says that, and a row says this. -->
+  <Badge icon="repeat">{t('app.recurrence.repeats')}</Badge>
+{/if}
 
 {#if date}
   {#if overdue}
