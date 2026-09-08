@@ -139,6 +139,21 @@ their own ADR rather than in passing — a third, an IMAP client, was declined b
 | `0.8.5` | Offline synchronisation complete: `:pull`/`:push`, per-field merging, OR-sets, fractional indices, HLC bounding, device management, conflict preservation, the SSE stream, `hubctl sync-conformance` as the reference client check |
 | `0.9.0` | Ecosystem: an official n8n node and Zapier app (generated), client SDKs (TypeScript, Go, Python), CalDAV, import from Trello/Microsoft To Do/Google Tasks, public API documentation |
 
+The backlog (`docs/backlog/milestone-0.7.0.md`) scopes `0.7.0` in seventeen tasks, `J-01`…`J-17`
+(the letter after H; I is skipped because it is unreadable beside `1` and `l` in an issue title).
+Four things it settles that this table could not. **Neither adapter brings a dependency** — an
+OpenAI-compatible provider and Ollama are both JSON over HTTP through the guarded client rule 6
+already mandates, so the milestone's only supply chain decision is the one it does *not* take.
+**pgvector is a detected capability rather than a requirement**: the reference images do not carry
+the extension, and an installation cannot be asked to rebuild its database image in order to keep
+searching, so the migration asks the catalogue the way migration 0019 asks for a text search
+configuration, and a search without the extension is lexical, complete, and honest about itself in
+`/meta/capabilities`. **Two of `ai-first.md` §2's seven use cases move**: translation to `0.8.0`
+with the i18n surface that would show it, template generation to `0.9.0` with the ecosystem work.
+And **the milestone's own acceptance is QS-09** — the product with none of it switched on is the
+product `0.6.0` shipped, proved by a full suite, a scripted session and an evidence file rather than
+by an assertion in an ADR.
+
 ---
 
 ## Requirements that arrive late
