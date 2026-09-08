@@ -91,16 +91,24 @@ export function reminderLimitOf(limits: Record<string, unknown> | undefined): nu
 /**
  * Whether the entry belongs to a series at all — as its template, or as one of its occurrences.
  *
- * **One question, because the contract answers only one.** `recurrence_rule_id` is set on the
- * template *and* on every occurrence (`MaterializeOccurrences.go` writes it onto each copy), so it
- * says "this belongs to a series" and nothing about which end. Telling the two apart takes reading
- * `/items/{id}/recurrence`, which finds the rule by `source_item_id` and therefore answers `404`
- * for an occurrence — a request per row, which a list will not make.
- *
- * So a row carries one mark. The entry screen, which does read the rule, can say which end it is.
+ * `recurrence_rule_id` is set on the template *and* on every occurrence, so it says "this belongs
+ * to a series" and nothing about which end. `occurrenceSourceOf` answers that, without a request.
  */
 export function belongsToSeries(item: WorkItem): boolean {
   return Boolean((item as { recurrence_rule_id?: string | null }).recurrence_rule_id);
+}
+
+/**
+ * The entry an occurrence repeats from, or undefined for anything that is not an occurrence.
+ *
+ * `recurrence_source_id` is written only on a copy the materialisation made, so it tells the two
+ * ends of a series apart from the row itself — no request, which is what lets a list mark a
+ * template and an occurrence differently. It is also the only thing an occurrence can link *to*:
+ * `/items/{id}/recurrence` finds the rule by the entry it belongs to and answers `404` for an
+ * occurrence, and no route resolves a rule by its own identifier.
+ */
+export function occurrenceSourceOf(item: WorkItem): string | undefined {
+  return (item as { recurrence_source_id?: string | null }).recurrence_source_id ?? undefined;
 }
 
 /**

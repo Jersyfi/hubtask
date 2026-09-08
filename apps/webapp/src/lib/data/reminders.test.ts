@@ -8,6 +8,7 @@ import type { Reminder, WorkItem } from '@hubtask/sync-engine';
 
 import {
   belongsToSeries,
+  occurrenceSourceOf,
   endOf,
   isPending,
   isRelative,
@@ -73,6 +74,15 @@ test('belonging to a series is one question, because the contract answers one', 
   // belongs to a series" and nothing about which end. Telling them apart is a request per row.
   assert.equal(belongsToSeries(item({ recurrence_rule_id: 'r-1' } as never)), true);
   assert.equal(belongsToSeries(item()), false);
+
+  // Which end, from the row itself: only a copy the materialisation made carries a source, so a
+  // list can mark a template and an occurrence differently without a request per row.
+  assert.equal(
+    occurrenceSourceOf(item({ recurrence_rule_id: 'r-1', recurrence_source_id: 'i-1' } as never)),
+    'i-1',
+  );
+  assert.equal(occurrenceSourceOf(item({ recurrence_rule_id: 'r-1' } as never)), undefined);
+  assert.equal(occurrenceSourceOf(item()), undefined);
 });
 
 test('a rule states at most one end', () => {
