@@ -75,6 +75,22 @@ export {
 } from './CustomFieldRenderer.svelte';
 export { default as ActivityFeed, type ActivityStep } from './ActivityFeed.svelte';
 export { default as UploadField } from './UploadField.svelte';
+export { default as DueDateControl, type DueDate } from './DueDateControl.svelte';
+export {
+  default as Timeline,
+  type TimelineRow,
+  type TimelineTick,
+} from './Timeline.svelte';
+export {
+  default as RecurrenceEditor,
+  type Frequency,
+  type RecurrenceEnd,
+} from './RecurrenceEditor.svelte';
+export {
+  default as ReminderEditor,
+  type OffsetUnit,
+  type ReminderChannel,
+} from './ReminderEditor.svelte';
 
 export { STATUS_ICON } from './control.ts';
 export type { Busyable, ButtonTone, ControlSize, Disableable, StatusTone } from './control.ts';
