@@ -54,3 +54,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0045](./ADR-0045-master-key-in-the-environment.md) | The master key stays in the environment | accepted | Security, operations, crypto |
 | [0046](./ADR-0046-production-on-a-platform-namespace.md) | Production runs in a platform namespace, and the platform's operator does PITR | accepted | Deployment, operations, backup |
 | [0047](./ADR-0047-media-origin-in-the-interface-policy.md) | The interface's policy names the installation's media origin | proposed | Security, clients, storage |
+| [0048](./ADR-0048-browser-job-driver.md) | The browser job's driver: Playwright, pinned, in one workflow job | proposed | Clients, tooling, supply chain |
