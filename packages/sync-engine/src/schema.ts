@@ -81,10 +81,39 @@ export type Capabilities = components['schemas']['Capabilities'];
 /** The deep report of `/meta/health`, which only an actor with `admin:read` may read. */
 export type HealthReport = components['schemas']['HealthReport'];
 export type Container = components['schemas']['Container'];
+
+/**
+ * Who holds which role at one scope, and the shapes around it.
+ *
+ * A row carries an identifier and no label, which is the contract's decision rather than an
+ * omission: the name is one request away, and a copy of somebody's name stored beside their id is
+ * a copy that outlives the change of it.
+ */
+export type Membership = components['schemas']['Membership'];
+export type MembershipPage = components['schemas']['MembershipPage'];
+export type MembershipGrant = components['schemas']['MembershipGrant'];
+export type MembershipRole = components['schemas']['MembershipRole'];
+export type MembershipScope = components['schemas']['MembershipScope'];
+/** A group and, when read on its own, the accounts in it. */
+export type Group = components['schemas']['Group'];
+export type GroupPage = components['schemas']['GroupPage'];
+export type GroupDetail = components['schemas']['GroupDetail'];
+/** What assigning takes, and what adding or removing a member answers. */
+export type Assignment = components['schemas']['Assignment'];
+export type ItemMembers = components['schemas']['ItemMembers'];
+/** What one run of automatic assignment did, including the reason nobody got the entry. */
+export type AutoAssignOutcome = components['schemas']['AutoAssignOutcome'];
+export type AutoAssignStrategy = components['schemas']['AutoAssignStrategy'];
 export type WorkItem = components['schemas']['WorkItem'];
 export type Problem = components['schemas']['Problem'];
 export type Label = components['schemas']['Label'];
 export type Bucket = components['schemas']['Bucket'];
+/**
+ * One comment, including a removed one: `body` is null exactly when `deleted_at` is set, so a
+ * tombstone still carries who wrote it and when — which is what keeps a reply from dangling.
+ */
+export type Comment = components['schemas']['Comment'];
+export type CommentPage = components['schemas']['CommentPage'];
 /**
  * What a move answered: the entry where it landed, and what the destination could not carry.
  *
@@ -135,3 +164,145 @@ export type ActivityPage = components['schemas']['ActivityPage'];
 export type ContainerPage = components['schemas']['ContainerPage'];
 export type WorkItemPage = components['schemas']['WorkItemPage'];
 export type ItemQueryResult = components['schemas']['ItemQueryResult'];
+
+/**
+ * One change record, as `/stream` sends it and as `:pull` returns it.
+ *
+ * It is a **signal to re-read**, never data to apply: applying `payload` to local state would be a
+ * merge, and merging is the server's (ADR-0021, `offline-sync.md` §4). The engine reads `entity`,
+ * `entity_id`, `container_id` and `op`, hands them to the application's path mapping, and drops
+ * the rest — the stream also carries ordering and audit fields (`seq`, `occurred_at`, `actor_id`)
+ * that no client decision depends on.
+ */
+export type ChangeRecord = components['schemas']['SyncChange'];
+
+/**
+ * A media object: what was staged, what was judged, and where the bytes are.
+ *
+ * `content_type` is a **claim** while `PENDING` and the sniffed judgement once `READY` (T-11), and
+ * `upload`/`download` are the two sides of the byte transfer — a presigned bucket URL, or this
+ * server's token-protected content route. Both expire, and neither is a bearer's business: the URL
+ * is its own credential, which is why `Transport.transfer` sends no token with it.
+ */
+export type MediaObject = components['schemas']['MediaObject'];
+/** One side of the transfer: the URL, the verb, and the moment it stops working. */
+export type MediaTransfer = components['schemas']['MediaTransfer'];
+export type MediaUploadRequest = components['schemas']['MediaUploadRequest'];
+export type MediaPage = components['schemas']['MediaPage'];
+/** The cover as the entry carries it: a colour token, or an image by its media identifier. */
+export type Cover = components['schemas']['Cover'];
+export type CoverInput = components['schemas']['CoverInput'];
+/** What one entry carries, answered by attaching and detaching — never the entry itself. */
+export type ItemAttachments = components['schemas']['ItemAttachments'];
+
+/**
+ * One field an installation added to its entries.
+ *
+ * The `key` is an identifier and never a label — it appears in `custom_fields.<key>` filters — and
+ * neither it nor `kind` changes after definition: a key that moved would orphan every value stored
+ * under it, and a kind that changed would reinterpret them. `collection_id` is `null` for a
+ * workspace-wide definition and absent for nothing, because absent would say this server does not
+ * know about scopes.
+ */
+export type CustomFieldDefinition = components['schemas']['CustomFieldDefinition'];
+export type CustomFieldDefinitionCreate = components['schemas']['CustomFieldDefinitionCreate'];
+export type CustomFieldDefinitionUpdate = components['schemas']['CustomFieldDefinitionUpdate'];
+export type CustomFieldKind = components['schemas']['CustomFieldKind'];
+/** One value for one key. `value` is required and may be null, which clears the key. */
+export type CustomFieldValue = components['schemas']['CustomFieldValue'];
+
+/**
+ * One operation of a bulk: the same operation the route of the same name performs, on one entry.
+ *
+ * What a bulk may do is what a caller may do one entry at a time and never more — each operation
+ * carries its own permission check, its own event and its own history entry, which is why one
+ * bulk of five hundred is five hundred records rather than one.
+ */
+export type BulkOperation = components['schemas']['BulkOperation'];
+/**
+ * What one operation did. `status` is the status it would have answered on its own — and `409`
+ * for an operation of an atomic bulk that never ran because another one failed.
+ */
+export type BulkResult = components['schemas']['BulkResult'];
+/** What a duplicate produced: the copy, what it could not carry over, and how big it was. */
+export type DuplicateResult = components['schemas']['DuplicateResult'];
+
+/**
+ * One reminder on an entry.
+ *
+ * `offset_spec` has two forms and no third: `REL:<duration>` counted from the due date, and
+ * `ABS:<instant>`, a fixed moment. `fire_at` is the server's own answer — the due date plus the
+ * offset, recomputed whenever the date moves, and **null** for a relative reminder whose entry has
+ * lost its date, because the date may come back and nobody asked for the reminder to go.
+ */
+export type Reminder = components['schemas']['Reminder'];
+export type ReminderInput = components['schemas']['ReminderInput'];
+export type ReminderUpdate = components['schemas']['ReminderUpdate'];
+/**
+ * `PENDING`, `SENT`, `CANCELLED` — and a fourth the schema does not name.
+ *
+ * `LAPSED` is a real state (`core/domain/model/work/Reminder.go`, `offline-sync.md` §8): a reminder
+ * whose moment passed while the data sat in an archive. The contract's enum omits it, so this type
+ * is narrower than what a restored workspace can answer, and a client must read the field as the
+ * string it is rather than as this union.
+ */
+export type ReminderState = components['schemas']['ReminderState'];
+export type ReminderChannel = components['schemas']['ReminderChannel'];
+
+/** A series on an entry. The DTSTART is the entry's own due date, never part of the rule. */
+export type Recurrence = components['schemas']['Recurrence'];
+export type RecurrenceInput = components['schemas']['RecurrenceInput'];
+export type RecurrenceMode = components['schemas']['RecurrenceMode'];
+
+/**
+ * A shape the workspace stamps out.
+ *
+ * The tree is nested rather than flat — "each node carries its own children, so the document is the
+ * shape the template stamps out rather than a flat list with parent pointers" — and it travels
+ * whole on an update, because half a shape is a different shape.
+ */
+export type Template = components['schemas']['Template'];
+/** One node of that tree. Its due date is an offset from the anchor, never an absolute date. */
+export type TemplateNode = components['schemas']['TemplateNode'];
+export type TemplateInput = components['schemas']['TemplateInput'];
+export type TemplateUpdate = components['schemas']['TemplateUpdate'];
+export type TemplatePage = components['schemas']['TemplatePage'];
+export type TemplateScope = components['schemas']['TemplateScope'];
+export type TemplateInstantiation = components['schemas']['TemplateInstantiation'];
+/** What one stamping produced: the root, how many entries, and what the destination could not carry. */
+export type TemplateInstance = components['schemas']['TemplateInstance'];
+
+/**
+ * A saved query with the layout it is drawn in.
+ *
+ * The server "interprets neither the layout nor the visible fields — both are the client's
+ * vocabulary, echoed back exactly as stored". So a view is the one place where this client's own
+ * words travel through the API and come back unchanged, and applying one means applying both
+ * halves: the query the server validates, and the layout only a client knows what to do with.
+ */
+export type SavedView = components['schemas']['SavedView'];
+export type SavedViewCreate = components['schemas']['SavedViewCreate'];
+export type SavedViewUpdate = components['schemas']['SavedViewUpdate'];
+/** What `POST /views/{id}:export` renders as JSON. The other two formats are text. */
+export type ViewExportDocument = components['schemas']['ViewExportDocument'];
+export type SavedViewShare = components['schemas']['SavedViewShare'];
+export type ViewExport = components['schemas']['ViewExport'];
+
+/** One subscription: a token its owner holds, over one view, revocable. */
+export type CalendarFeed = components['schemas']['CalendarFeed'];
+export type CalendarFeedCreate = components['schemas']['CalendarFeedCreate'];
+/** The only answer that ever carries the token. It exists here and nowhere else afterwards. */
+export type CalendarFeedSecret = components['schemas']['CalendarFeedSecret'];
+
+/** Locale, time zone and the first day of the week. An empty value clears one. */
+export type AccountPreferences = components['schemas']['AccountPreferences'];
+/**
+ * One row per category and channel, with the effective value.
+ *
+ * `is_default` is the field that matters: a pair nobody has written is answered with the
+ * installation's default and marked, because "not stored" and "off" are different facts and a form
+ * that showed a default as a choice somebody made would be lying about who made it.
+ */
+export type NotificationPreference = components['schemas']['NotificationPreference'];
+export type NotificationPreferenceList = components['schemas']['NotificationPreferenceList'];
+export type NotificationPreferenceUpdate = components['schemas']['NotificationPreferenceUpdate'];

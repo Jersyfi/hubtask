@@ -419,9 +419,14 @@ func run() error {
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
+	// The cursor codec is shared by every list repository rather than derived once each: it is keyed
+	// on the installation secret, and one derivation means one place where that key comes from
+	// (api-guidelines.md §4).
+	cursors := security.NewCursorCodec(cfg.SecretKey)
+
 	accounts := postgres.NewAccountRepository()
-	groups := postgres.NewGroupRepository()
-	grants := postgres.NewMembershipGrantRepository()
+	groups := postgres.NewGroupRepository(cursors)
+	grants := postgres.NewMembershipGrantRepository(cursors)
 
 	// The webhook subscriptions (G-03). One dependency set for the same reason the credentials
 	// have one: the rule that decides who may touch a subscription is a single rule.
@@ -462,10 +467,6 @@ func run() error {
 	// placement is permitted, so what an installation advertises and what it accepts cannot
 	// drift apart (ADR-0006).
 	//
-	// The cursor codec is shared by every list repository rather than derived once each: it is keyed
-	// on the installation secret, and one derivation means one place where that key comes from
-	// (api-guidelines.md §4).
-	cursors := security.NewCursorCodec(cfg.SecretKey)
 	// The automation rules (G-05). One dependency set for the webhook writer's reason: the six use
 	// cases are one aggregate's writers, and the rule that decides who may write one is a single
 	// rule - including the composition half of it, which reads accounts and memberships to answer
@@ -886,6 +887,18 @@ func run() error {
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.ListNotificationPreferences{
+			Accounts: accounts, Preferences: notificationPreferences, Authorizer: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		identity.SetNotificationPreference{
+			Accounts: accounts, Preferences: notificationPreferences, Authorizer: authorizer,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.ListMemberships{
+			Grants: grants, Containers: containers, Items: items,
+			Authorizer: authorizer, Permits: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		identity.GrantMembership{
 			Grants: grants, Accounts: accounts, Groups: groups, Authorizer: authorizer,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -896,6 +909,8 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
+		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.GetGroup{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,

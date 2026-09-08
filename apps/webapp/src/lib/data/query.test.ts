@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import type { Capabilities } from '@hubtask/sync-engine';
 
 import {
+  bothOf,
   fieldNamed,
   filterOf,
   filterableFields,
@@ -26,7 +27,9 @@ import {
   takesList,
   takesValue,
   textLanguages,
+  windowFilter,
 } from './query.ts';
+import { queryFieldsFor } from './customfields.ts';
 
 const field = (
   name: string,
@@ -195,4 +198,65 @@ test('sorting and grouping come from the same place as the filter', () => {
   assert.equal(sortOf(today, 'is_completed', 'ASC'), undefined, 'not sortable, so not sent');
   assert.deepEqual(groupOf(today, 'bucket_id'), { field: 'bucket_id', limit_per_group: 50 });
   assert.equal(groupOf(today, 'title'), undefined, 'not groupable, so not sent');
+});
+
+test('a custom field is a second source of fields, and it filters like any other', () => {
+  // `custom_fields.<key>` is deliberately not in `query_fields` — which keys exist is
+  // `/custom-fields`' answer — so the editor hands the definitions in force alongside the
+  // manifest's own fields rather than expecting the manifest to grow them.
+  const custom = queryFieldsFor([
+    {
+      id: 'f-1', collection_id: 'c-1', key: 'effort', kind: 'NUMBER',
+      options: [], is_required: false, applies_to: ['TASK'], version: 1,
+    } as never,
+  ]);
+
+  assert.equal(fieldNamed(today, 'custom_fields.effort'), undefined);
+  assert.equal(fieldNamed(today, 'custom_fields.effort', custom)?.kind, 'number');
+
+  const condition = { field: 'custom_fields.effort', op: 'EQ', value: '3' };
+  assert.equal(isSendable(today, condition), false, 'sendable without the definitions in hand');
+  assert.equal(isSendable(today, condition, custom), true);
+  // The value goes as a JSON number: a string sent for a NUMBER is a 422 rather than a match.
+  assert.deepEqual(filterOf(today, [condition], custom), {
+    op: 'EQ', field: 'custom_fields.effort', value: 3,
+  });
+});
+
+test('a nullable field states where the absent go, and says what the server already does', () => {
+  // Sorting by due date is the case: the undated are last because "what is coming up" means that,
+  // not because a default happened to agree. A field that cannot be absent says nothing.
+  assert.deepEqual(sortOf(tomorrow, 'due_at', 'ASC'), [{ field: 'due_at', dir: 'ASC', nulls: 'LAST' }]);
+  assert.deepEqual(sortOf(today, 'title', 'ASC'), [{ field: 'title', dir: 'ASC' }]);
+});
+
+test('a window asks for what falls in it and what has no dates at all', () => {
+  // The third branch is the one worth having: an entry with neither date cannot be placed on an
+  // axis, and the layout lists those beside it — so they come back from the same read.
+  const withDates = {
+    query_fields: [
+      field('start_at', 'timestamp', ['BETWEEN', 'IS_NULL'], { nullable: true }),
+      field('due_at', 'timestamp', ['BETWEEN', 'IS_NULL'], { nullable: true }),
+    ],
+  } as unknown as Capabilities;
+
+  const filter = windowFilter(withDates, '2026-07-01T00:00:00Z', '2026-07-31T23:59:59Z');
+  assert.equal(filter?.op, 'OR');
+  assert.equal(filter?.nodes?.length, 3);
+  assert.equal(filter?.nodes?.[2]?.op, 'AND');
+});
+
+test('a window contributes nothing where the installation reports no date fields', () => {
+  // The same rule `filterOf` keeps: never send a filter the server refuses by name. A timeline on
+  // such an installation draws what the level already read rather than nothing at all.
+  assert.equal(windowFilter(today, '2026-07-01T00:00:00Z', '2026-07-31T23:59:59Z'), undefined);
+});
+
+test('the reader’s question and the window’s are both kept', () => {
+  const reader = { op: 'EQ', field: 'is_completed', value: false } as never;
+  const window = { op: 'IS_NULL', field: 'due_at' } as never;
+  assert.deepEqual(bothOf(reader, window), { op: 'AND', nodes: [reader, window] });
+  assert.deepEqual(bothOf(undefined, window), window);
+  assert.deepEqual(bothOf(reader, undefined), reader);
+  assert.equal(bothOf(undefined, undefined), undefined);
 });

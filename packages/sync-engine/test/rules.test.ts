@@ -89,6 +89,30 @@ test('the manifest declares no framework either', () => {
   assert.deepEqual(Object.keys(manifest.dependencies ?? {}), ['@hubtask/api-client']);
 });
 
+// `EventSource` is the obvious way to read a `text/event-stream`, and it is the wrong one here: it
+// cannot carry a header, so it cannot carry a bearer - and the only way to authenticate one is to
+// put the token in the URL, which `security.md` forbids and which access logs, proxies and browser
+// history would then keep. The stream is read from a `fetch` response body instead, which is also
+// what lets the connect and idle deadlines exist at all.
+test('nothing reaches for EventSource', () => {
+  for (const file of ALL) {
+    // A rule has to name what it forbids, and this is the file where it names it - the same
+    // exemption the `fetch` rule makes for the one file allowed to call it.
+    if (file.relative.endsWith('rules.test.ts')) continue;
+    const found = file.text
+      .split('\n')
+      .filter((line) => !/^\s*(?:\/\/|\*|\/\*)/.test(line))
+      .find((line) => /(?<![\w.])EventSource\b/.test(line));
+    assert.equal(
+      found,
+      undefined,
+      `${file.relative} uses EventSource: ${found?.trim()}\n` +
+        'It cannot carry a bearer, and a token in a URL is forbidden (security.md). The stream is ' +
+        'read from the response body of a fetch instead.',
+    );
+  }
+});
+
 // `fetch` in one file is what makes the bearer, the idempotency key and the deadline checkable at
 // all. A second caller is a second place all three can be forgotten.
 test('only the transport calls fetch', () => {

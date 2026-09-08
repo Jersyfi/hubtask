@@ -11,12 +11,13 @@
 
   import type { Snippet } from 'svelte';
 
-  import { Banner, Button, Inline, Stack } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Inline, Stack } from '@hubtask/design-system/components';
 
   import HealthNotice from './HealthNotice.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
 
   import { announcer } from '../announce.svelte.ts';
+  import { live } from '../data/live.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { session } from '../session.svelte.ts';
@@ -78,7 +79,28 @@
     { path: '/search', name: 'search', label: 'app.nav.search' },
     { path: '/trash', name: 'trash', label: 'app.nav.trash' },
     { path: '/installation', name: 'installation', label: 'app.nav.installation' },
+    // Reachable from every screen, because it is where somebody goes when the product is speaking
+    // to them in the wrong language — which is exactly the moment a buried link is no use.
+    { path: '/profile', name: 'profile', label: 'app.nav.profile' },
   ];
+  /**
+   * The two transitions worth hearing, announced through the region that already exists.
+   *
+   * Only on a change, and only these two: a badge that narrated every reconnection attempt would
+   * be a screen reader reading a heartbeat. Becoming live is worth saying because it changes what
+   * the reader can trust; losing it is worth saying for the same reason.
+   */
+  let announced = $state<string | undefined>(undefined);
+  $effect(() => {
+    const state = live.state;
+    if (!session.isSignedIn || state === announced) return;
+    if (announced !== undefined) {
+      if (state === 'live') announcer.say(t('app.live.became_live'));
+      else if (state === 'reconnecting') announcer.say(t('app.live.lost'));
+    }
+    announced = state;
+  });
+
 </script>
 
 <div class="frame">
@@ -128,6 +150,21 @@
       {/if}
       <!-- Nothing at all unless the reader may read the report and it says something is wrong. -->
       <HealthNotice />
+      <!-- Whether what is on screen may be seconds old. A `Badge` rather than a component of its
+           own: `SyncStatus` belongs to F6, with the offline states that give it meaning, and
+           building half of one now would be building the wrong half. It never takes focus — it is
+           a fact about the page, not a control. -->
+      {#if session.isSignedIn}
+        <div class="live" title={live.state === 'off' ? t('app.live.off_reason') : undefined}>
+          {#if live.state === 'live'}
+            <Badge tone="success">{t('app.live.live')}</Badge>
+          {:else if live.state === 'reconnecting'}
+            <Badge icon="loader-circle">{t('app.live.reconnecting')}</Badge>
+          {:else}
+            <Badge>{t('app.live.off')}</Badge>
+          {/if}
+        </div>
+      {/if}
     </Stack>
   </div>
 
@@ -152,6 +189,8 @@
 </div>
 
 <style>
+  .live { display: flex; }
+
   .frame {
     display: flex;
     flex-direction: column;

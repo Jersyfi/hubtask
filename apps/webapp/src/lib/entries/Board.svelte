@@ -18,6 +18,7 @@
   import {
     BucketColumn,
     Button,
+    Checkbox,
     Dialog,
     EmptyState,
     ErrorState,
@@ -32,7 +33,7 @@
     rankTarget,
     type RankCommand,
   } from '@hubtask/design-system/components';
-  import type { Bucket, WorkItem } from '@hubtask/sync-engine';
+  import type { Bucket, BulkResult, WorkItem } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
@@ -43,8 +44,14 @@
   import { buckets } from '../data/buckets.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
+  import { media } from '../data/media.svelte.ts';
+  import { selection } from '../data/selection.svelte.ts';
+  import DueMark from './DueMark.svelte';
+  import { outcomeOf } from '../data/bulk.ts';
+  import { coverImageIdOf } from '../data/media.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -59,9 +66,32 @@
      * installation that groups by something else renders that instead.
      */
     query?: ItemsQuery;
+    /**
+     * What the last bulk did, by entry.
+     *
+     * Handed in rather than read from a store, because the report belongs to the rows: a refusal
+     * is about an entry and the place a reader looks for it is the row it happened to. An entry
+     * that is not in the map was not part of that bulk.
+     */
+    lastResults?: ReadonlyMap<string, BulkResult>;
+    /** Asked to copy a card. Handed up, because a duplicate ends on the copy and that is a route. */
+    onduplicate?: (item: WorkItem) => void;
   }
 
-  const { collectionId, isReadOnly = false, query }: Props = $props();
+  const { collectionId, isReadOnly = false, query, lastResults, onduplicate }: Props = $props();
+
+  /** The sentence one card shows about the last bulk, or nothing where it was not in it. */
+  function bulkNote(itemId: string): string | undefined {
+    const result = lastResults?.get(itemId);
+    if (!result) return undefined;
+    if (outcomeOf(result) === 'applied') return undefined;
+    // The server's own sentence wherever it sent one — including for a rollback, whose problem
+    // names the operation that caused it. The client's own is the fallback for the shape the
+    // schema describes, which carries no problem at all.
+    return result.problem
+      ? renderProblem(result.problem as never, messages).message
+      : t('app.bulk.rolled_back');
+  }
 
   $effect(() => {
     const wanted = collectionId;
@@ -117,6 +147,23 @@
   function countOf(bucketId: string | null): number | null {
     return groups.find((group) => group.key === bucketId)?.count ?? null;
   }
+
+  /**
+   * Every card on the board, column by column and in the order each column draws them.
+   *
+   * A range therefore runs *through the board as it is read* — down a column and on into the next
+   * — rather than through one column alone, which is what somebody shift-clicking across two
+   * columns means. Cards that have left the board leave the selection with them.
+   */
+  const visibleIds = $derived(
+    columns.flatMap((column) => cardsOf(column.id).map((card) => card.id)).concat(
+      cardsOf(null).map((card) => card.id),
+    ),
+  );
+
+  $effect(() => {
+    selection.keepVisible(visibleIds);
+  });
 
   const available = $derived(labels.of(collectionId));
 
@@ -294,10 +341,20 @@
             hasSeparatorBefore: index === 0,
           }))
         : []),
+      {
+        id: 'duplicate',
+        label: t('app.duplicate.title'),
+        disabledReason: isReadOnly ? t('app.entries.read_only') : undefined,
+        hasSeparatorBefore: true,
+      },
     ];
   }
 
   function chose(card: WorkItem, cards: readonly WorkItem[], id: string) {
+    if (id === 'duplicate') {
+      onduplicate?.(card);
+      return;
+    }
     if (!id.startsWith('bucket:')) {
       void rank(card, cards, id as RankCommand);
       return;
@@ -504,6 +561,23 @@
                   : undefined}
                 style:--drag-offset={drag.id === card.id ? drag.offset : undefined}
               >
+                <!-- The same pick the list has, and deliberately the same code behind it: one
+                     selection across both layouts, and shift read from the event rather than from
+                     a mode this component would have to keep. -->
+                <span class="pick">
+                  <Checkbox
+                    label={t('app.bulk.select', { title: card.title })}
+                    isLabelHidden={true}
+                    checked={selection.has(card.id)}
+                    onclick={(event: MouseEvent) =>
+                      selection.pick(visibleIds, card.id, { range: event.shiftKey })}
+                    onkeydown={(event: KeyboardEvent) => {
+                      if (event.key !== ' ' && event.key !== 'Enter') return;
+                      event.preventDefault();
+                      selection.pick(visibleIds, card.id, { range: event.shiftKey });
+                    }}
+                  />
+                </span>
                 <!-- A picture, not a control: the menu on the card is SC 2.5.7's single-pointer
                      alternative, and a second focusable element that does nothing for the keyboard
                      would be noise in the tab order rather than access. -->
@@ -516,9 +590,14 @@
                   isCompleted={card.completion?.is_completed ?? false}
                   coverKind={card.cover?.kind ?? null}
                   coverColorToken={card.cover?.color_token ?? null}
+                  coverImageUrl={media.coverUrl(coverImageIdOf(card.cover), Date.now()) ?? null}
+                  coverAlt=""
                 >
                   {#snippet footer()}
                     <Inline gap="050">
+                      <!-- The same two facts the list row carries, in the space a card has. -->
+                      <PeopleMarks assigneeId={card.assignee_id} memberIds={card.member_ids ?? []} />
+                      <DueMark item={card} />
                       {#each (card.label_ids ?? []) as labelId (labelId)}
                         {@const label = available.find((each) => each.id === labelId)}
                         {#if label}
@@ -542,6 +621,9 @@
                     </Inline>
                   {/snippet}
                 </WorkItemCard>
+                {#if bulkNote(card.id)}
+                  <p class="bulk-note">{bulkNote(card.id)}</p>
+                {/if}
               </div>
             {/each}
           </BucketColumn>
@@ -599,6 +681,10 @@
   /* `touch-action: none` is what makes a drag possible on a touch screen: without it the browser
      claims the gesture for scrolling, and the board scrolls sideways, so it would claim it at
      once. On the grip alone, so the board still scrolls everywhere else. */
+  .pick { display: flex; align-items: center; }
+
+  .bulk-note { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
+
   .grip {
     display: inline-flex;
     flex: none;

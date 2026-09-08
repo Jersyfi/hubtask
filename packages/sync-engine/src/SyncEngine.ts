@@ -17,11 +17,27 @@
 // the reason this package can be exercised headlessly at all (ADR-0033 §2).
 
 import { TransportError } from './errors.ts';
-import type { Clock, RequestOptions, Transport } from './ports.ts';
+import type { ByteTransfer, Clock, RequestOptions, Transport } from './ports.ts';
 import { systemClock } from './ports.ts';
+import type { ChangeRecord } from './schema.ts';
 
 /** How long a read may take before it is abandoned. A number, because "no deadline" is not one. */
 export const DEFAULT_TIMEOUT_MS = 10_000;
+
+/** How long the stream may take to answer with its headers. The body is meant never to end. */
+export const DEFAULT_CONNECT_TIMEOUT_MS = 15_000;
+/**
+ * How long the stream may stay silent before the connection is treated as dead.
+ *
+ * Comfortably longer than the server's heartbeat, so an idle workspace is not a reconnect loop,
+ * and short enough that a proxy which dropped the connection without saying so is noticed in under
+ * a minute rather than never.
+ */
+export const DEFAULT_IDLE_TIMEOUT_MS = 45_000;
+/** The first wait after a failed connection, doubling up to the ceiling. */
+export const RECONNECT_BASE_MS = 1_000;
+/** The longest the engine waits between attempts. A tab left open overnight still comes back. */
+export const RECONNECT_MAX_MS = 30_000;
 
 /**
  * Every state a resource can be in, as one union rather than three booleans.
@@ -120,6 +136,36 @@ export interface MutateOptions {
    * write does not know which questions it changed the answer to.
    */
   readonly invalidates?: readonly string[];
+}
+
+/**
+ * How the change stream is listened to, and what a record means to this application.
+ *
+ * `pathsFor` is the whole reason this is a parameter rather than a table inside the engine: the
+ * engine must not learn what a hub is (ADR-0033 §2). It is handed a record and answers with the
+ * path prefixes that record makes stale — `/items/{id}` for an entry, the container's subtree for
+ * a container, nothing at all for an entity this client does not read.
+ */
+export interface ListenOptions {
+  /** What a record makes stale, as path prefixes. Empty means "this record changes nothing here". */
+  readonly pathsFor: (record: ChangeRecord) => readonly string[];
+  /** The stream's path. The contract's is `/stream`, and there is no reason to name another. */
+  readonly path?: string;
+  readonly connectTimeoutMs?: number;
+  readonly idleTimeoutMs?: number;
+  /**
+   * Every record, before it is acted on. For a client that wants to show "somebody changed this"
+   * rather than only re-read it. It is a notification and not a hook: what it returns is ignored,
+   * because a listener that could veto an invalidation would be a merge rule in another shape.
+   */
+  readonly onRecord?: (record: ChangeRecord) => void;
+  /**
+   * How the engine waits between attempts, injected so a test does not spend the wait.
+   *
+   * The default is a timer that ends early when the listener is stopped — a tab closing must not
+   * be held open by a thirty-second backoff nobody is waiting for any more.
+   */
+  readonly wait?: (ms: number) => Promise<void>;
 }
 
 export interface SyncEngineOptions {
@@ -240,6 +286,43 @@ export class SyncEngine {
   }
 
   /**
+   * transfer sends bytes to a URL the server handed over, and invalidates what they changed.
+   *
+   * It is a pass-through and deliberately little else. The engine has nothing to add to a byte
+   * transfer - there is no cursor in it, no entity to cache, no version to carry - and it is here
+   * only so that an application holds one seam rather than two: `apps/webapp` constructs the
+   * transport once, in one file, and everything after that goes through the engine.
+   *
+   * **No bearer, and no `invalidates` by default.** The URL is its own credential (`ByteTransfer`),
+   * and putting bytes in a bucket changes nothing the client is holding - the object becomes usable
+   * at confirmation, which is an ordinary `mutate`. A caller that does want a re-read after the
+   * bytes may name the prefixes.
+   */
+  async transfer(bytes: ByteTransfer, options: { invalidates?: readonly string[] } = {}): Promise<void> {
+    await this.#transport.transfer(bytes);
+    // Named prefixes only. `#invalidate(undefined)` means "everything", which is the right default
+    // for a write and the wrong one here: the bytes changed nothing the client is holding.
+    if (options.invalidates) this.#invalidate(options.invalidates);
+  }
+
+  /**
+   * document performs a read whose answer is a file rather than data.
+   *
+   * A pass-through like `transfer`, and it invalidates **nothing**: an export is a read, whatever
+   * its verb. It is a `POST` because what a view selects is the caller's content and a query string
+   * travels through access logs — the same reason `/search` is one — and the engine already knows
+   * that a `POST` can be a read.
+   */
+  async document(path: string, body: unknown, options: { timeoutMs?: number; idempotencyKey?: string } = {}) {
+    try {
+      return await this.#transport.document(path, body, this.#options(options));
+    } catch (cause) {
+      this.#noticeRefusal(cause);
+      throw cause;
+    }
+  }
+
+  /**
    * loadMore appends the next page of a paged resource to the one already held.
    *
    * Appending rather than replacing is the whole point: `LoadMore` is a control a person presses
@@ -286,6 +369,108 @@ export class SyncEngine {
       throw error;
     }
     return entry.state;
+  }
+
+  /**
+   * listen opens the change stream and keeps it open, re-reading what a record names.
+   *
+   * One connection per tab, and one for every resource the tab holds: the stream carries
+   * everything the caller may read and has no subscription filter, because what a client wants to
+   * see is a question about its own screen and the authorisation already answers who may see what.
+   *
+   * A record is **a signal to re-read, never data to apply**. Applying `payload` to local state
+   * would be a merge, and merging is the server's (ADR-0021). So what a record does is exactly
+   * what a write does: it invalidates prefixes, watched entries are read again and unwatched ones
+   * are forgotten.
+   *
+   * The stream is an accelerator and not a second source of truth. Every way it can end - the
+   * server closing it, a proxy dropping it, a `503`, a cursor the server will not resume from - is
+   * recovered by reconnecting or by re-reading, and never by replaying anything from memory.
+   *
+   * Returns the stop. Calling it ends the connection and the loop; the engine keeps everything it
+   * has read, because stopping the stream is not signing out.
+   */
+  listen(options: ListenOptions): Unsubscribe {
+    const controller = new AbortController();
+    void this.#listen(options, controller.signal);
+    return () => controller.abort();
+  }
+
+  /**
+   * The connection loop: open, read until it ends, decide what ending it was, come back.
+   *
+   * The four refusals are four different recoveries and that is why they are told apart here
+   * rather than by a component:
+   *
+   * * `401` ends it. The credential is dead, the hook is told, and a loop that kept reconnecting
+   *   with it would hammer a server that has already said no.
+   * * `sync.cursor_too_old` means the gap is wider than the tombstone window, so a delta would be
+   *   silently wrong (`offline-sync.md` §7). Everything held is dropped and the stream restarts
+   *   with no cursor - a full resynchronisation is the only safe answer.
+   * * `sync.cursor_invalid` is a cursor this installation never minted. Start again without one;
+   *   nothing held is known to be wrong.
+   * * `503` carries `Retry-After`, and it is a number the server chose. Waiting less would be
+   *   hammering a server that is already shedding load.
+   */
+  async #listen(options: ListenOptions, signal: AbortSignal): Promise<void> {
+    const wait = options.wait ?? sleeper(signal);
+    const path = options.path ?? '/stream';
+    /** The last `id` seen. In memory for the tab's lifetime - the store that would keep it is F6's. */
+    let cursor: string | undefined;
+    /** The server's own reconnect suggestion, from the `retry:` field it sends on connect. */
+    let suggested: number | undefined;
+    let attempt = 0;
+
+    while (!signal.aborted) {
+      let pause: number;
+      try {
+        const connection = await this.#transport.stream(path, {
+          token: this.#token(),
+          lastEventId: cursor,
+          connectTimeoutMs: options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
+          idleTimeoutMs: options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS,
+          signal,
+        });
+        // The connection was accepted, so whatever went wrong before is over.
+        attempt = 0;
+
+        for await (const event of connection.events) {
+          if (event.retryMs !== undefined) suggested = event.retryMs;
+          // The cursor advances on the frame rather than on the record: an event this client has
+          // no mapping for still moves the position, and a reconnect that asked for it again
+          // would be asking for a record it has already been given.
+          if (event.id) cursor = event.id;
+          const record = recordOf(event.data);
+          if (!record) continue;
+          options.onRecord?.(record);
+          // The empty list is not the absent one: `#invalidate(undefined)` means everything, and
+          // an application that maps a record to no path means the opposite. The list travels as
+          // it is, and a record that names nothing here invalidates nothing.
+          this.#invalidate(options.pathsFor(record));
+        }
+        // The server closed the stream: a deployment, a drain, an idle proxy. Come back when it
+        // asked to be come back to.
+        pause = suggested ?? RECONNECT_BASE_MS;
+      } catch (cause) {
+        const error = cause instanceof TransportError ? cause : new TransportError('offline', { cause });
+        if (error.status === 401) {
+          this.#onUnauthorized();
+          return;
+        }
+        if (error.isCursorTooOld) this.#invalidate(undefined);
+        if ((error.isCursorTooOld || error.isCursorInvalid) && cursor !== undefined) {
+          // A refused cursor is not a busy server. Drop it and reconnect at once - and only once,
+          // because the branch needs a cursor to drop and there is now none.
+          cursor = undefined;
+          continue;
+        }
+        attempt += 1;
+        pause = error.retryAfterMs ?? backoff(attempt - 1);
+      }
+
+      if (signal.aborted) return;
+      if (pause > 0) await wait(pause);
+    }
   }
 
   /** Forgets everything held in memory. Sign-out (`offline-sync.md` §9.6). */
@@ -396,6 +581,46 @@ export class SyncEngine {
       void this.#load(entry.request, entry);
     }
   }
+}
+
+/**
+ * One change record out of the `data` of an event, or nothing.
+ *
+ * A frame this client cannot read is skipped rather than thrown: the stream is an accelerator, the
+ * cursor has already moved past it, and a client that tore down its connection over one unreadable
+ * frame would lose the ninety-nine readable ones behind it. A newer server sending an entity this
+ * client has never heard of is the ordinary case of that, not a defect.
+ */
+function recordOf(data: string): ChangeRecord | undefined {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    return undefined;
+  }
+  if (parsed === null || typeof parsed !== 'object') return undefined;
+  const record = parsed as Partial<ChangeRecord>;
+  if (typeof record.entity !== 'string' || typeof record.entity_id !== 'string') return undefined;
+  return record as ChangeRecord;
+}
+
+/** Doubling, to a ceiling. Deterministic, because a test that cannot predict the wait cannot assert it. */
+function backoff(attempt: number): number {
+  return Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS);
+}
+
+/** The default wait: a timer that ends early when the listener is stopped. */
+function sleeper(signal: AbortSignal): (ms: number) => Promise<void> {
+  return (ms: number) =>
+    new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', done);
+        resolve();
+      };
+      const timer = setTimeout(done, ms);
+      signal.addEventListener('abort', done, { once: true });
+    });
 }
 
 /**

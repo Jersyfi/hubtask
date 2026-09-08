@@ -17,7 +17,12 @@
  */
 
 import type {
+  AutoAssignOutcome,
+  BulkOperation,
+  BulkResult,
+  DuplicateResult,
   FilterNode,
+  ItemMembers,
   ItemQueryResult,
   MoveResult,
   ResourceState,
@@ -151,6 +156,22 @@ class Items {
     return this.#open(`item:${itemId}`, level({ item_id: itemId }));
   }
 
+  /**
+   * The entries of a collection whose dates a timeline can place, plus the ones with none.
+   *
+   * A level read like any other, with the window in the filter and `start_at` as the order — the
+   * timeline is a layout over the same query rather than a second kind of read. Its own key, so
+   * that switching layouts does not make the list and the timeline overwrite each other's answer.
+   */
+  openTimeline(containerId: string, query: ItemsQuery = {}): () => void {
+    return this.#open(`timeline:${containerId}`, level({ container_id: containerId }, query));
+  }
+
+  /** The entries a timeline has read. */
+  onTimeline(containerId: string): readonly WorkItem[] {
+    return rowsOf(this.#levels[`timeline:${containerId}`]);
+  }
+
   /** Starts the board. **From `untrack`**, like every other subscription here. */
   openBoard(containerId: string, query: ItemsQuery = {}): () => void {
     return this.#open(`board:${containerId}`, board(containerId, query));
@@ -199,7 +220,10 @@ class Items {
   /** Retitles or renotes one, against the version the reader had (ADR-0025). */
   async update(
     id: string,
-    body: { title?: string; notes?: string | null },
+    // `start_at` is a plain scalar on the patch, which is D-01's own decision: a start is one
+    // instant with nothing qualifying it, while a due date is three fields that only mean
+    // something together and therefore has a writer of its own.
+    body: { title?: string; notes?: string | null; start_at?: string | null },
     version: number,
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, body, {
@@ -364,6 +388,155 @@ class Items {
       `/items/${id}:${isCompleted ? 'complete' : 'reopen'}`,
       undefined,
       { idempotencyKey, invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Who the entry belongs to. One account, or nobody.
+   *
+   * Two operations rather than a nullable field, because the server has two — and because the
+   * scalar and the member list are written separately on purpose (C-01): an assignee is
+   * last-write-wins and a member list is an OR-set, so they cannot share a request without one of
+   * the two merge rules losing.
+   *
+   * The account is **not checked here**. The server refuses one that cannot see the entry, with
+   * the same answer for an account of another tenant and one that does not exist, and that answer
+   * is a sentence the reader gets. A client that filtered instead would be a second implementation
+   * of an authorisation rule, always one deployment behind (F2-07).
+   */
+  async assign(id: string, accountId: string, version: number, idempotencyKey: string): Promise<WorkItem> {
+    return engine.mutate<WorkItem>(
+      'POST',
+      `/items/${id}:assign`,
+      { assignee_id: accountId },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+    );
+  }
+
+  async unassign(id: string, version: number, idempotencyKey: string): Promise<WorkItem> {
+    return engine.mutate<WorkItem>(
+      'POST',
+      `/items/${id}:unassign`,
+      undefined,
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Lets the collection's policy pick somebody.
+   *
+   * "Nobody was eligible" comes back as a **result** and not as a failure: the answer carries
+   * `assigned: false` and a code, and rendering it as an error would tell a reader something broke
+   * when the truth is that the policy ran and found no one.
+   */
+  async autoAssign(id: string, idempotencyKey: string): Promise<AutoAssignOutcome> {
+    return engine.mutate<AutoAssignOutcome>(
+      'POST',
+      `/items/${id}:auto-assign`,
+      undefined,
+      { idempotencyKey, invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Who else is on the entry. **One member per call**, and that is the contract's shape rather
+   * than a convenience this client declined: the set merges as an OR-set, so adding and removing
+   * are the two operations that commute, and a whole-list `PUT` would be a last-write-wins
+   * replacement wearing a set's clothes.
+   *
+   * The answer is `ItemMembers` rather than the entry, because neither call touches the entry's
+   * own row — an entry whose version moved would be telling a client its title had changed too.
+   */
+  async addMember(id: string, accountId: string, idempotencyKey: string): Promise<ItemMembers> {
+    return engine.mutate<ItemMembers>(
+      'PUT',
+      `/items/${id}/members/${accountId}`,
+      undefined,
+      { idempotencyKey, invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Puts a due date on the entry: the instant, the all-day flag and the zone, together.
+   *
+   * One call rather than three fields on a patch, because "the three describe one date" — and the
+   * same three on the create and update paths dispatch into this writer anyway, so a client that
+   * spread them across a `PATCH` would be taking a longer road to the same place.
+   */
+  async setDue(
+    id: string,
+    due: { due_at: string; due_date_only: boolean; due_time_zone: string },
+    version: number,
+  ): Promise<WorkItem> {
+    return engine.mutate<WorkItem>('PUT', `/items/${id}/due`, due, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /** Takes it off — all three, because none of them means anything alone. */
+  async clearDue(id: string, version: number): Promise<WorkItem> {
+    return engine.mutate<WorkItem>('DELETE', `/items/${id}/due`, undefined, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * One bulk, one request, one idempotency key.
+   *
+   * The key belongs to the intent, which is the whole bulk rather than an operation in it: a retry
+   * of "complete these twelve" is the same intent, and twelve keys would let a retry trash twice.
+   *
+   * `/trash` is invalidated as well as `/items`, because `TRASH_ITEM` is one of the nine — and the
+   * seam matches by prefix, so naming both costs one extra reload of a screen that is usually not
+   * open.
+   */
+  async bulk(
+    operations: readonly BulkOperation[],
+    atomic: boolean,
+    idempotencyKey: string,
+  ): Promise<readonly BulkResult[]> {
+    const answer = await engine.mutate<{ results?: readonly BulkResult[] }>(
+      'POST',
+      '/items:bulk',
+      { atomic, operations },
+      { idempotencyKey, invalidates: ['/items', '/trash'] },
+    );
+    // HTTP 200 says the bulk was carried out, never that every operation in it succeeded. What
+    // happened is in the results, and a caller that read the status would learn nothing.
+    return answer.results ?? [];
+  }
+
+  /**
+   * Copies an entry, and everything below it when asked.
+   *
+   * The title is the caller's: the server copies the original's unchanged, because a server that
+   * invented "Copy of …" would be writing display text (ADR-0011). What the destination could not
+   * resolve comes back in `dropped_references` rather than being lost quietly (I-W6).
+   */
+  async duplicate(
+    id: string,
+    body: {
+      include_subtree?: boolean;
+      target_parent_id?: string | null;
+      target_collection_id?: string;
+      title?: string;
+    },
+    idempotencyKey: string,
+  ): Promise<DuplicateResult> {
+    return engine.mutate<DuplicateResult>('POST', `/items/${id}:duplicate`, body, {
+      idempotencyKey,
+      invalidates: TOUCHES,
+    });
+  }
+
+  async removeMember(id: string, accountId: string): Promise<ItemMembers> {
+    return engine.mutate<ItemMembers>(
+      'DELETE',
+      `/items/${id}/members/${accountId}`,
+      undefined,
+      { invalidates: TOUCHES },
     );
   }
 }

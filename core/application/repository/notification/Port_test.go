@@ -38,6 +38,10 @@ func (preferenceDouble) Find(
 }
 func (preferenceDouble) Save(context.Context, domain.Preference) error { return nil }
 
+func (preferenceDouble) ListForAccount(context.Context, shared.ID) ([]domain.Preference, error) {
+	return nil, nil
+}
+
 var _ Preferences = preferenceDouble{}
 
 // The behavioural promise worth pinning at this level: a missing record is the shared not-found,

@@ -68,6 +68,76 @@ export function changesOf(changeSet: Record<string, unknown> | undefined): reado
 }
 
 /**
+ * The change-set fields whose values are people rather than text.
+ *
+ * The four verbs C-01 added — `item.assigned`, `item.unassigned`, `item.member_added`,
+ * `item.member_removed` — carry an account identifier where every other change carries a value a
+ * reader can read. Showing the identifier would be showing a UUID to somebody asking who took the
+ * entry over, so the name is looked up and the field list says which ones to look up.
+ *
+ * A list rather than a guess at "anything ending in `_id`": a `bucket_id` is not a person, and a
+ * client that resolved every identifier as an account would ask for accounts that do not exist.
+ */
+const PEOPLE_FIELDS = new Set(['assignee_id', 'member_id', 'owner_id', 'actor_id']);
+
+export function namesPeople(field: string): boolean {
+  return PEOPLE_FIELDS.has(field);
+}
+
+/**
+ * The change-set fields whose values are instants.
+ *
+ * `item.due_set` carries both sides of a move and `item.due_cleared` carries the side it lost, and
+ * both arrive as ISO instants — which is the right thing to store and the wrong thing to read. A
+ * history that showed `2026-07-16T07:00:00Z` would be showing the reader the storage format of a
+ * date they set at nine in the morning.
+ */
+const INSTANT_FIELDS = new Set(['due_at', 'start_at', 'completed_at', 'archived_at', 'deleted_at']);
+
+export function namesInstant(field: string): boolean {
+  return INSTANT_FIELDS.has(field);
+}
+
+/**
+ * The change-set fields whose values are files.
+ *
+ * `item.attachment_added` and `item.attachment_removed` carry `media_id`, and a UUID in front of
+ * somebody asking which file was attached is the same non-answer an account identifier is. The
+ * name is one request away — the media record the client already reads for a cover — so the field
+ * list says which values to look up, exactly as it does for people.
+ *
+ * `cover` is deliberately not here: it carries the whole cover object rather than an identifier,
+ * and `textOf` already refuses to print an object at a reader.
+ */
+const MEDIA_FIELDS = new Set(['media_id']);
+
+export function namesMedia(field: string): boolean {
+  return MEDIA_FIELDS.has(field);
+}
+
+/** Every media identifier a set of changes mentions, each once. */
+export function mediaNamedBy(changes: readonly Change[]): readonly string[] {
+  const ids = new Set<string>();
+  for (const change of changes) {
+    if (!namesMedia(change.field)) continue;
+    if (change.from) ids.add(change.from);
+    if (change.to) ids.add(change.to);
+  }
+  return [...ids];
+}
+
+/** Every account identifier a set of changes mentions, each once. What the name lookup is asked. */
+export function accountsNamedBy(changes: readonly Change[]): readonly string[] {
+  const ids = new Set<string>();
+  for (const change of changes) {
+    if (!namesPeople(change.field)) continue;
+    if (change.from) ids.add(change.from);
+    if (change.to) ids.add(change.to);
+  }
+  return [...ids];
+}
+
+/**
  * The message codes that name who did it, most specific first.
  *
  * A list rather than one code, for the reason `problem.ts` keeps one: the actor kinds are an enum

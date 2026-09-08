@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -23,6 +24,8 @@ type groupStore struct {
 	members  map[shared.ID][]shared.ID
 	deleted  []shared.ID
 	versions []int
+
+	listedPage repository.Page
 }
 
 func newGroups(existing ...domain.Group) *groupStore {
@@ -82,6 +85,17 @@ func (s *groupStore) RemoveMember(_ context.Context, groupID, accountID shared.I
 
 func (s *groupStore) Members(_ context.Context, groupID shared.ID) ([]shared.ID, error) {
 	return s.members[groupID], nil
+}
+
+// List answers every group by name, and remembers the page it was asked for.
+func (s *groupStore) List(_ context.Context, page repository.Page) (repository.GroupPage, error) {
+	s.listedPage = page
+	groups := make([]domain.Group, 0, len(s.byID))
+	for _, group := range s.byID {
+		groups = append(groups, group)
+	}
+	slices.SortFunc(groups, func(a, b domain.Group) int { return strings.Compare(a.Name, b.Name) })
+	return repository.GroupPage{Groups: groups}, nil
 }
 
 var _ repository.Groups = (*groupStore)(nil)

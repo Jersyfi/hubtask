@@ -19,15 +19,20 @@ import (
 // The catalogue names. The routes they are reached through come from the specification; the two
 // are reconciled by the parity test rather than by these constants.
 const (
-	inviteAccountUseCase            = "InviteAccount"
-	getOwnAccountUseCase            = "GetOwnAccount"
-	getAccountUseCase               = "GetAccount"
-	updateAccountPreferencesUseCase = "UpdateAccountPreferences"
-	grantMembershipUseCase          = "GrantMembership"
-	revokeMembershipUseCase         = "RevokeMembership"
-	createGroupUseCase              = "CreateGroup"
-	updateGroupUseCase              = "UpdateGroup"
-	deleteGroupUseCase              = "DeleteGroup"
+	inviteAccountUseCase               = "InviteAccount"
+	getOwnAccountUseCase               = "GetOwnAccount"
+	getAccountUseCase                  = "GetAccount"
+	updateAccountPreferencesUseCase    = "UpdateAccountPreferences"
+	listNotificationPreferencesUseCase = "ListNotificationPreferences"
+	setNotificationPreferenceUseCase   = "SetNotificationPreference"
+	listMembershipsUseCase             = "ListMemberships"
+	grantMembershipUseCase             = "GrantMembership"
+	revokeMembershipUseCase            = "RevokeMembership"
+	listGroupsUseCase                  = "ListGroups"
+	getGroupUseCase                    = "GetGroup"
+	createGroupUseCase                 = "CreateGroup"
+	updateGroupUseCase                 = "UpdateGroup"
+	deleteGroupUseCase                 = "DeleteGroup"
 )
 
 // InviteAccount answers POST /accounts:invite.
@@ -108,6 +113,76 @@ func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http
 	})
 }
 
+// ListNotificationPreferences answers GET /accounts/{accountId}/notification-preferences.
+func (c *RestController) ListNotificationPreferences(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
+	out, ok := c.read(w, r, listNotificationPreferencesUseCase, usecase.Input{"account_id": accountID.String()})
+	if !ok {
+		return
+	}
+
+	list := openapi.NotificationPreferenceList{Data: []openapi.NotificationPreference{}}
+	for _, row := range rowsOf(out) {
+		list.Data = append(list.Data, notificationPreferenceResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, list)
+}
+
+// SetNotificationPreference answers PUT /accounts/{accountId}/notification-preferences/{category}/{channel}.
+func (c *RestController) SetNotificationPreference(
+	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, category string, channel string,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.NotificationPreferenceUpdate
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+		return c.UseCases.Invoke(r.Context(), setNotificationPreferenceUseCase, actor, usecase.Input{
+			"account_id":    accountID.String(),
+			"category":      category,
+			"channel":       channel,
+			"enabled":       body.Enabled,
+			"include_title": body.IncludeTitle,
+		})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, notificationPreferenceResponse(out))
+	})
+}
+
+// notificationPreferenceResponse maps one row of the settings form. The timestamp is a pointer
+// with no omitempty, so a default carries an explicit null rather than no field at all.
+func notificationPreferenceResponse(out usecase.Output) openapi.NotificationPreference {
+	return openapi.NotificationPreference{
+		Category:     out.String("category"),
+		Channel:      out.String("channel"),
+		Enabled:      boolOf(out["enabled"]),
+		IncludeTitle: boolOf(out["include_title"]),
+		IsDefault:    boolOf(out["is_default"]),
+		UpdatedAt:    timePointer(out["updated_at"]),
+	}
+}
+
+// ListMemberships answers GET /memberships.
+//
+// Through the shared read helper rather than the identity one: a list is mapped row by row from
+// the catalogue's page shape, which is what `rowsOf` and `pageResponse` exist for.
+func (c *RestController) ListMemberships(w http.ResponseWriter, r *http.Request, params openapi.ListMembershipsParams) {
+	out, ok := c.read(w, r, listMembershipsUseCase, usecase.Input{
+		"scope_type": string(params.ScopeType),
+		"scope_id":   optionalUUIDField(params.ScopeId),
+		"cursor":     optionalStringField(params.Cursor),
+		"size":       optionalIntField(params.Size),
+	})
+	if !ok {
+		return
+	}
+
+	page := openapi.MembershipPage{Data: []openapi.Membership{}, Page: pageResponse(out)}
+	for _, row := range rowsOf(out) {
+		page.Data = append(page.Data, membershipResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, page)
+}
+
 // GrantMembership answers POST /memberships.
 func (c *RestController) GrantMembership(w http.ResponseWriter, r *http.Request, params openapi.GrantMembershipParams) {
 	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
@@ -140,6 +215,42 @@ func (c *RestController) RevokeMembership(w http.ResponseWriter, r *http.Request
 	}, func(usecase.Output) {
 		w.WriteHeader(http.StatusNoContent)
 	})
+}
+
+// ListGroups answers GET /groups.
+func (c *RestController) ListGroups(w http.ResponseWriter, r *http.Request, params openapi.ListGroupsParams) {
+	out, ok := c.read(w, r, listGroupsUseCase, usecase.Input{
+		"cursor": optionalStringField(params.Cursor),
+		"size":   optionalIntField(params.Size),
+	})
+	if !ok {
+		return
+	}
+
+	page := openapi.GroupPage{Data: []openapi.Group{}, Page: pageResponse(out)}
+	for _, row := range rowsOf(out) {
+		page.Data = append(page.Data, groupResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, page)
+}
+
+// GetGroup answers GET /groups/{groupId}.
+func (c *RestController) GetGroup(w http.ResponseWriter, r *http.Request, groupID openapi.GroupId) {
+	out, ok := c.read(w, r, getGroupUseCase, usecase.Input{"group_id": groupID.String()})
+	if !ok {
+		return
+	}
+
+	group := groupResponse(out)
+	detail := openapi.GroupDetail{
+		Id: group.Id, Name: group.Name, Description: group.Description, Version: group.Version,
+		Members: []openapi_types.UUID{},
+	}
+	for _, member := range stringsOf(out["members"]) {
+		detail.Members = append(detail.Members, uuidValue(member))
+	}
+	w.Header().Set("ETag", etag(group.Version))
+	writeJSON(w, r, http.StatusOK, detail)
 }
 
 // CreateGroup answers POST /groups.

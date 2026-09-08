@@ -9,7 +9,15 @@ import assert from 'node:assert/strict';
 
 import type { ActivityEntry } from '@hubtask/sync-engine';
 
-import { actorCodes, changesOf } from './activity.ts';
+import {
+  accountsNamedBy,
+  actorCodes,
+  changesOf,
+  mediaNamedBy,
+  namesInstant,
+  namesMedia,
+  namesPeople,
+} from './activity.ts';
 
 const step = (extra: Partial<ActivityEntry> = {}): ActivityEntry =>
   ({
@@ -119,4 +127,50 @@ test('a kind this client has never heard of falls back rather than rendering a k
     'app.activity.actor_ROBOT',
     'app.activity.actor_someone',
   ]);
+});
+
+test('a change that names a person is told apart from one that names a bucket', () => {
+  // A client that resolved every identifier as an account would ask for accounts that do not
+  // exist, and a `bucket_id` is the case that proves it.
+  assert.equal(namesPeople('assignee_id'), true);
+  assert.equal(namesPeople('member_id'), true);
+  assert.equal(namesPeople('bucket_id'), false);
+  assert.equal(namesPeople('title'), false);
+});
+
+test('handing an entry over names both sides, each once', () => {
+  const changes = changesOf({
+    assignee_id: { from: 'a-1', to: 'a-2' },
+    member_id: { to: 'a-2' },
+    title: { from: 'Old', to: 'New' },
+  });
+
+  // Both sides, because the history renders the hand-over as one step with both of them - and the
+  // person who appears twice is asked for once.
+  assert.deepEqual([...accountsNamedBy(changes)].sort(), ['a-1', 'a-2']);
+});
+
+test('an attachment change names a file, and a cover change names no identifier at all', () => {
+  // `media_id` is an identifier a reader cannot read, and the record that carries the name is one
+  // request away — the same shape the account fields have. `cover` carries the whole cover object,
+  // which `textOf` refuses to print, so it contributes nothing to look up.
+  const changes = changesOf({
+    media_id: { to: 'm-1' },
+    cover: { to: { kind: 'IMAGE', media_id: 'm-2' } },
+  });
+
+  assert.equal(namesMedia('media_id'), true);
+  assert.equal(namesMedia('cover'), false);
+  assert.deepEqual(mediaNamedBy(changes), ['m-1']);
+});
+
+test('a due date in the history is an instant to be drawn, not a string to be printed', () => {
+  // `item.due_set` carries both sides as ISO instants — the right thing to store and the wrong
+  // thing to read. A history showing `2026-07-16T07:00:00Z` shows the storage format of a date
+  // somebody set at nine in the morning.
+  assert.equal(namesInstant('due_at'), true);
+  assert.equal(namesInstant('start_at'), true);
+  // The zone beside it is a string and stays one: it is already the name a reader would say.
+  assert.equal(namesInstant('due_time_zone'), false);
+  assert.equal(namesInstant('title'), false);
 });

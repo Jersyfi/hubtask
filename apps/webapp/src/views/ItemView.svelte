@@ -36,11 +36,33 @@
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { actorCodes, changesOf } from '../lib/data/activity.ts';
+  import {
+    accountsNamedBy,
+    actorCodes,
+    changesOf,
+    mediaNamedBy,
+    namesInstant,
+    namesMedia,
+    namesPeople,
+  } from '../lib/data/activity.ts';
+  import { containers } from '../lib/data/containers.svelte.ts';
+  import { customFields } from '../lib/data/customfields.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
+  import { media } from '../lib/data/media.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
+  import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
+  import DuePanel from '../lib/entries/DuePanel.svelte';
+  import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
+  import ReminderPanel from '../lib/entries/ReminderPanel.svelte';
+  import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
+  import CoverPanel from '../lib/media/CoverPanel.svelte';
+  import AssigneePanel from '../lib/people/AssigneePanel.svelte';
+  import CommentPanel from '../lib/people/CommentPanel.svelte';
+  import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { activityPath, itemPath } from '../lib/data/item.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { actor as signedIn } from '../lib/data/account.svelte.ts';
+  import { formatDateTime, formatDue } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -57,20 +79,101 @@
   const history = resource<ActivityPage>(untrack(() => activityPath(id)));
 
   const item = $derived(entry.state.status === 'ready' ? entry.state.data : undefined);
+
+  let isSharing = $state(false);
+
+  /**
+   * The path this entry sits on, which is what the memberships are composed along.
+   *
+   * The collection is on the entry; the hub is the collection's parent and comes from the
+   * container tree the frame already holds. A hub that has not arrived yet simply contributes no
+   * scope — the picker grows when it does, rather than blocking on a second request.
+   */
+  const peoplePath = $derived({
+    hubId: item ? containers.find(item.collection_id)?.parent_id ?? undefined : undefined,
+    collectionId: item?.collection_id,
+    itemId: item?.id,
+  });
+
+  // The scopes are opened once the entry has told us where it sits. `people.open` is idempotent
+  // per scope, so a re-render adds nothing.
+  $effect(() => {
+    if (item) people.open(peoplePath);
+  });
+
+  // The custom fields in force where this entry sits. Read here rather than passed down, because
+  // the entry is what says which collection that is, and the collection is only known once it has
+  // arrived.
+  $effect(() => {
+    const wanted = item?.collection_id;
+    if (!wanted) return;
+    return untrack(() => customFields.open(wanted));
+  });
   const failure = $derived(
     entry.state.status === 'failed' ? renderProblem(entry.state.error, messages) : undefined,
   );
 
   /** What the history kept about one field, as one phrase. */
-  function detailOf(change: ReturnType<typeof changesOf>[number]): string {
+  /**
+   * An identifier that names a person, as their name.
+   *
+   * A UUID in front of somebody asking who took the entry over is no answer, and the name is one
+   * request away — the same one every actor's name comes through. Until it lands, the sentence
+   * that is true of anybody stands in.
+   */
+  function personOf(value: string | undefined, field: string): string | undefined {
+    if (value === undefined) return undefined;
+    if (!namesPeople(field)) return value;
+    return accounts.nameOf(value) ?? t('app.people.unnamed');
+  }
+
+  /**
+   * An identifier that names a file, as its name.
+   *
+   * The same courtesy `personOf` extends: `item.attachment_added` carries a media identifier, and
+   * a UUID answers nobody asking which file was attached. A record that was refused or is already
+   * gone — a detached object the reconciliation took — falls back to the sentence true of any
+   * unnamed file.
+   */
+  function fileOf(value: string | undefined, field: string): string | undefined {
+    if (value === undefined) return undefined;
+    if (!namesMedia(field)) return value;
+    return media.fileNameOf(value) ?? t('app.media.unnamed');
+  }
+
+  /**
+   * An instant, drawn as the date it is.
+   *
+   * A due date carries its own zone, and the same change set carries it — so a move that crossed
+   * zones reads in the zone it was set in rather than in the reader's, which is the whole point of
+   * storing the three fields together. Everything else is a moment and is read on the reader's own
+   * clock.
+   */
+  function instantOf(value: string | undefined, field: string, zone: string | undefined): string | undefined {
+    if (value === undefined) return undefined;
+    if (!namesInstant(field)) return value;
+    return field === 'due_at'
+      ? formatDue(value, messages.locale, zone ?? signedIn.zone, { showZone: true })
+      : formatDateTime(value, messages.locale);
+  }
+
+  function detailOf(
+    change: ReturnType<typeof changesOf>[number],
+    zone: string | undefined = undefined,
+  ): string {
     // A field whose values the history does not keep says so and nothing else. A note is the
     // worked example, and looking for its text would be looking for what ADR-0017 kept out.
     if (change.isOpaque) return t('app.activity.changed');
-    if (change.from !== undefined && change.to !== undefined) {
-      return t('app.activity.from_to', { from: change.from, to: change.to });
+    const from = instantOf(fileOf(personOf(change.from, change.field), change.field), change.field, zone);
+    const to = instantOf(fileOf(personOf(change.to, change.field), change.field), change.field, zone);
+    // Handing an entry from one person to another is one step with both sides, which is what the
+    // model says a hand-over is (domain-model.md §3.5) rather than an unassignment and an
+    // assignment that happen to be adjacent.
+    if (from !== undefined && to !== undefined) {
+      return t('app.activity.from_to', { from, to });
     }
-    if (change.to !== undefined) return t('app.activity.set_to', { to: change.to });
-    if (change.from !== undefined) return t('app.activity.cleared_from', { from: change.from });
+    if (to !== undefined) return t('app.activity.set_to', { to });
+    if (from !== undefined) return t('app.activity.cleared_from', { from });
     return t('app.activity.no_detail');
   }
 
@@ -90,9 +193,11 @@
       sentence: t(step.code, { actor: name ?? t(who ?? 'app.activity.actor_someone') }),
       when: formatDateTime(step.occurred_at, messages.locale),
       at: step.occurred_at,
-      changes: changesOf(step.change_set as Record<string, unknown>).map((change) => ({
+      changes: changesOf(step.change_set as Record<string, unknown>).map((change, _, all) => ({
         field: change.field,
-        detail: detailOf(change),
+        // The zone the step itself recorded, where it recorded one. A due date that moved from
+        // Berlin to São Paulo says so on both sides, because both sides are in this one step.
+        detail: detailOf(change, all.find((each) => each.field === 'due_time_zone')?.to),
       })),
     };
   }
@@ -118,6 +223,21 @@
             step.actor.id !== actor.account?.id,
         )
         .map((step) => step.actor?.id),
+    );
+
+    // …and the people the change sets name, which is a different list: the person who took an
+    // entry over is not the person who recorded that they did.
+    accounts.resolve(
+      (history.state.data.data ?? []).flatMap((step) =>
+        accountsNamedBy(changesOf(step.change_set as Record<string, unknown>)),
+      ),
+    );
+
+    // …and the files they name, which is the same courtesy for a different kind of identifier.
+    media.resolve(
+      (history.state.data.data ?? []).flatMap((step) =>
+        mediaNamedBy(changesOf(step.change_set as Record<string, unknown>)),
+      ),
     );
   });
   const hasMore = $derived(
@@ -248,6 +368,53 @@
     {/if}
 
     <Stack gap="150">
+      <h2 class="section">{t('app.people.title')}</h2>
+      <AssigneePanel {item} path={peoplePath} />
+      <div>
+        <!-- Sharing an entry is the same operation at `ITEM` scope, which is why it needs no
+             separate mechanism: a role granted at an entry reaches that entry and nothing else. -->
+        <Button size="sm" tone="secondary" onclick={() => (isSharing = true)}>
+          {t('app.people.share')}
+        </Button>
+      </div>
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.due.title')}</h2>
+      <DuePanel {item} disabledReason={frozenReason} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.reminders.title')}</h2>
+      <ReminderPanel {item} path={peoplePath} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.recurrence.title')}</h2>
+      <RecurrencePanel {item} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.fields.title')}</h2>
+      <CustomFieldPanel {item} path={peoplePath} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.media.cover')}</h2>
+      <CoverPanel {item} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.media.attachments')}</h2>
+      <AttachmentPanel {item} />
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.comments.title')}</h2>
+      <CommentPanel {item} path={peoplePath} />
+    </Stack>
+
+    <Stack gap="150">
       <h2 class="section">{t('app.activity.title')}</h2>
 
       {#if historyFailure}
@@ -279,6 +446,15 @@
       {/if}
     </Stack>
   </Stack>
+{/if}
+
+{#if item}
+  <MembersDialog
+    bind:isOpen={isSharing}
+    title={t('app.people.share_title')}
+    scope={{ scopeType: 'ITEM', scopeId: item.id }}
+    path={peoplePath}
+  />
 {/if}
 
 <style>

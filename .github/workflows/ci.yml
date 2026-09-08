@@ -448,7 +448,11 @@ jobs:
   node:
     name: Workspace (${{ matrix.package }})
     needs: changes
-    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
+    # Every filter the matrix below tests, and `sync_engine` was missing from it: a change
+    # confined to `packages/sync-engine/**` skipped the whole lane, so the package's own
+    # tests never ran. It went unnoticed because that package had never changed alone -
+    # every previous change to it came with `api/openapi.yaml`, which set `openapi`.
+    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
     strategy:
       # One package per job, and one failure does not hide the others: a red typecheck in the

@@ -2323,6 +2323,70 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/{accountId}/notification-preferences:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    get:
+      tags: [identity]
+      operationId: listNotificationPreferences
+      summary: What an account wants to be told about
+      description: |
+        One row per category and channel this installation knows, with the effective value — a
+        pair nobody has written is answered with the default and `is_default: true`, because "not
+        stored" and "off" are different facts. The categories are `notification_categories` in
+        `/meta/capabilities`; a client renders the form from that list rather than compiling it in.
+
+        The caller's own are read with the token scope alone; somebody else's asks for the member
+        management permission, the reason `PATCH /accounts/{accountId}/preferences` gives.
+      responses:
+        "200":
+          description: The preferences, defaults included and marked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferenceList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/{accountId}/notification-preferences/{category}/{channel}:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+      - name: category
+        in: path
+        required: true
+        schema: { type: string }
+      - name: channel
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [identity]
+      operationId: setNotificationPreference
+      summary: Say what to be told about, and whether the title travels
+      description: |
+        Writes one pair whole: `enabled` and `include_title` both, because a row is a statement
+        about a category rather than two switches that could drift. Switching a category off makes
+        the next notification of that category `SUPPRESSED`, with the record saying why; the
+        invitation is the one category no preference can switch off, and a write against it is
+        stored and never consulted. `include_title: false` produces an email that says something
+        concerns you without saying what (`data-protection.md` §9). An unknown category or channel
+        is refused by name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferenceUpdate"
+      responses:
+        "200":
+          description: The preference as stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreference"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/sessions:
     post:
       tags: [auth]
@@ -3484,6 +3548,47 @@ paths:
           $ref: "#/components/responses/Problem"
 
   /memberships:
+    get:
+      tags: [identity]
+      operationId: listMemberships
+      summary: Who holds a role at a scope
+      description: |
+        The memberships granted **at** the scope named — an account or a group, a role, an
+        identifier — and none granted elsewhere. A membership applies downwards, so what is in
+        force at a collection is this list plus what its hub and the workspace grant; the client
+        composes that path itself, because it knows the path it is on. An `effective` listing that
+        walked it server-side is deliberately not offered until a second caller wants one.
+
+        A row carries an identifier and no label, for the reason every record that says *who*
+        does: the name is one request away (`GET /accounts/{accountId}`, `GET /groups/{groupId}`).
+
+        Who may read is `READ` at the scope: a member of a hub seeing who else is in it is what
+        makes a shared workspace legible, and `data-protection.md` §9 already limits what a name
+        reveals. A scope the caller holds nothing on is not found, in the words a missing one
+        produces (T-04). The workspace itself (`scope_type: TENANT`) is the one scope whose
+        existence is no secret, so a refusal there is a refusal.
+      parameters:
+        - name: scope_type
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/MembershipScope"
+        - name: scope_id
+          in: query
+          required: false
+          description: The hub, collection or entry. Omitted for the whole workspace, and only then.
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The memberships at that scope, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
     post:
       tags: [identity]
       operationId: grantMembership
@@ -3536,6 +3641,29 @@ paths:
           $ref: "#/components/responses/Problem"
 
   /groups:
+    get:
+      tags: [identity]
+      operationId: listGroups
+      summary: The workspace's groups
+      description: |
+        Every group of the workspace, by name. Any member may read it, for the reason any member
+        may resolve an account identifier to a name: a membership granted to a group is unreadable
+        until the group can be shown as the people it reaches, and a member scoped to one hub holds
+        nothing at the workspace to be judged against. What a group discloses is its name and its
+        members' identifiers, and the identifiers resolve through the same minimal read
+        (`data-protection.md` §9).
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The groups
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
     post:
       tags: [identity]
       operationId: createGroup
@@ -3564,6 +3692,25 @@ paths:
   /groups/{groupId}:
     parameters:
       - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [identity]
+      operationId: getGroup
+      summary: One group, with who is in it
+      description: |
+        The group and the identifiers of its members. Any member of the workspace may read it —
+        see `GET /groups`. The `ETag` is the version a `PATCH` presents in `If-Match`.
+      responses:
+        "200":
+          description: The group and its members
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupDetail"
+        "4XX":
+          $ref: "#/components/responses/Problem"
     patch:
       tags: [identity]
       operationId: updateGroup
@@ -6080,6 +6227,40 @@ components:
         time_zone: { type: [string, "null"] }
         week_start: { type: [string, "null"], enum: [MONDAY, SUNDAY, SATURDAY, null] }
 
+    NotificationPreference:
+      type: object
+      required: [category, channel, enabled, include_title, is_default, updated_at]
+      properties:
+        category: { type: string }
+        channel: { type: string }
+        enabled: { type: boolean }
+        include_title:
+          type: boolean
+          description: Whether an email of this category names the entry it is about.
+        is_default:
+          type: boolean
+          description: >
+            True when nobody has written this pair and the value is the installation's default.
+            "Not stored" and "off" are different facts, and a form that showed the default as a
+            choice somebody made would be lying about who made it.
+        updated_at: { type: [string, "null"], format: date-time }
+
+    NotificationPreferenceList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationPreference"
+
+    NotificationPreferenceUpdate:
+      type: object
+      required: [enabled, include_title]
+      properties:
+        enabled: { type: boolean }
+        include_title: { type: boolean }
+
     ServiceAccountCreate:
       type: object
       required: [display_name]
@@ -6800,6 +6981,31 @@ components:
           description: The complete membership after the change; omitted leaves it as it is.
           items: { type: string, format: uuid }
 
+    GroupDetail:
+      description: >
+        A group as `GET /groups/{groupId}` answers it: the group, and the accounts in it. The
+        members are identifiers rather than names, for the reason every record that says who is —
+        the name is one request away and a copy of it should not outlive the row.
+      allOf:
+        - $ref: "#/components/schemas/Group"
+        - type: object
+          required: [members]
+          properties:
+            members:
+              type: array
+              items: { type: string, format: uuid }
+
+    GroupPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Group"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+
     MembershipScope:
       type: string
       enum: [TENANT, HUB, COLLECTION, ITEM]
@@ -6837,6 +7043,17 @@ components:
         scope_type: { $ref: "#/components/schemas/MembershipScope" }
         scope_id: { type: [string, "null"], format: uuid }
         role: { $ref: "#/components/schemas/MembershipRole" }
+
+    MembershipPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Membership"
+        page:
+          $ref: "#/components/schemas/PageInfo"
 
     Container:
       type: object
@@ -10214,6 +10431,20 @@ components:
               items: { type: string }
         event_types:
           type: array
+          items: { type: string }
+        notification_categories:
+          type: array
+          description: >
+            The categories a person can be told about, and the rows a notification-preference form
+            has. A closed set in a check constraint rather than an enum in this document, so that a
+            client reads it here instead of compiling it in; `INVITATION` is in the list and is the
+            one no preference switches off.
+          items: { type: string }
+        notification_channels:
+          type: array
+          description: >
+            The channels this installation delivers on. `EMAIL` today; a client tolerates a value
+            it does not know.
           items: { type: string }
         roles:
           type: array

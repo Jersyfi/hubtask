@@ -18,6 +18,7 @@
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import type { ItemsQuery } from '../data/items.svelte.ts';
+  import type { FilterField } from '../data/query.ts';
   import {
     filterOf,
     filterableFields,
@@ -38,9 +39,18 @@
     onlayout: (id: string) => void;
     /** The query, rebuilt whenever a control changes. */
     onquery: (query: ItemsQuery) => void;
+    /**
+     * The custom fields in force where these entries live, as fields a condition can name.
+     *
+     * A second source rather than a second editor: `custom_fields.<key>` is deliberately not in
+     * `query_fields` — "which keys exist is `/custom-fields`' answer" — so the caller, which knows
+     * which collection is on screen, reads the definitions and hands them in. Empty is the honest
+     * default: a screen that spans collections has no one set of definitions in force.
+     */
+    custom?: readonly FilterField[];
   }
 
-  const { layout, drawable, onlayout, onquery }: Props = $props();
+  const { layout, drawable, onlayout, onquery, custom = [] }: Props = $props();
 
   /**
    * The layouts, as the installation reports them.
@@ -68,7 +78,7 @@
   let groupField = $state('bucket_id');
 
   const fields = $derived(
-    filterableFields(manifest.value).map((field) => ({
+    filterableFields(manifest.value, custom).map((field) => ({
       // The field's own name, drawn as the installation reports it. There is no code for it and
       // there cannot be: the set grows with the installation, so a catalogue entry per field would
       // be a catalogue that is wrong on the one that has another (the same reasoning the entry
@@ -100,7 +110,7 @@
    */
   function publish() {
     onquery({
-      filter: filterOf(manifest.value, conditions),
+      filter: filterOf(manifest.value, conditions, custom),
       sort: sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir),
       group: layout === 'KANBAN' ? groupOf(manifest.value, groupField) : undefined,
     });

@@ -247,6 +247,36 @@ func (r NotificationPreferenceRepository) Save(
 	return nil
 }
 
+func (r NotificationPreferenceRepository) ListForAccount(
+	ctx context.Context, accountID shared.ID,
+) ([]domain.Preference, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ListNotificationPreferences(ctx, account)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the notification preferences: %w", err))
+	}
+
+	preferences := make([]domain.Preference, 0, len(rows))
+	for _, row := range rows {
+		preference, err := preferenceFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		preferences = append(preferences, preference)
+	}
+	return preferences, nil
+}
+
 func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {

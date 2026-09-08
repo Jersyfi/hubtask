@@ -29,10 +29,28 @@
   import { untrack } from 'svelte';
 
   import Board from '../lib/entries/Board.svelte';
+  import BulkBar from '../lib/entries/BulkBar.svelte';
+  import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
+  import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
+  import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
+  import ExportDialog from '../lib/entries/ExportDialog.svelte';
+  import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
+  import TimelineView from '../lib/entries/TimelineView.svelte';
+  import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
   import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
+  import MembersDialog from '../lib/people/MembersDialog.svelte';
+  import { actor } from '../lib/data/account.svelte.ts';
+  import { customFields } from '../lib/data/customfields.svelte.ts';
+  import { templates } from '../lib/data/templates.svelte.ts';
+  import { feeds, views as savedViews } from '../lib/data/views.svelte.ts';
+  import { queryFieldsFor } from '../lib/data/customfields.ts';
+  import { people } from '../lib/data/people.svelte.ts';
+  import { selection } from '../lib/data/selection.svelte.ts';
+  import { live } from '../lib/data/live.svelte.ts';
+  import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -40,7 +58,13 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { anchorFor } from '../lib/data/rank.ts';
-  import type { TransportError } from '@hubtask/sync-engine';
+  import type {
+    BulkOperation,
+    BulkResult,
+    SavedView,
+    TransportError,
+    WorkItem,
+  } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
@@ -76,9 +100,88 @@
   let query = $state<ItemsQuery>({});
 
   /** The layouts this client can actually draw. `TIMELINE` needs F3's time work and is not here. */
-  const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN'];
+  const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'];
 
   const container = $derived(containers.find(id));
+
+  /**
+   * The path this container sits on, and the role this reader holds along it.
+   *
+   * `STRUCTURE` is what defining a custom field takes, and a role is held at a scope rather than
+   * globally — so it is composed the same way the members dialog composes its own path. Nothing
+   * here decides anything: the gate is a prediction, and the server's refusal is what a reader
+   * meets when it is wrong.
+   */
+  const containerPath = $derived(
+    container?.type === 'HUB'
+      ? { hubId: container.id }
+      : { hubId: container?.parent_id ?? undefined, collectionId: container?.id },
+  );
+
+  $effect(() => {
+    if (!container) return;
+    people.open(containerPath);
+  });
+
+  const structureRole = $derived(
+    people
+      .along(containerPath)
+      .find((membership) => membership.account_id === actor.account?.id)?.role as string | undefined,
+  );
+
+  /**
+   * The definitions in force here, as fields the query editor can offer.
+   *
+   * Only for a collection: a hub's screen lists containers rather than entries, and a definition
+   * belongs to a collection or to the workspace — so there is no one set in force above one.
+   */
+  const customFieldFilters = $derived(
+    container?.type === 'COLLECTION' ? queryFieldsFor(customFields.of(container.id)) : [],
+  );
+
+  /**
+   * What the last bulk did, per entry, until the reader dismisses it.
+   *
+   * Kept here rather than in the bar because it belongs to the rows: a refusal is about an entry,
+   * and the place a reader looks for it is the row it happened to. Cleared when the selection is,
+   * and when the screen changes.
+   */
+  let lastResults = $state<ReadonlyMap<string, BulkResult>>(new Map());
+
+  /** The entry being copied, if one is. The dialog is open exactly while this is set. */
+  let duplicating = $state<WorkItem | undefined>(undefined);
+
+  // A selection is about what is in front of somebody, so it does not survive the screen.
+  $effect(() => {
+    void id;
+    return () => {
+      selection.clear();
+      lastResults = new Map();
+    };
+  });
+
+  // The views that apply here, and this reader's own feeds. Both read once for their dialogs.
+  $effect(() => {
+    if (container?.type !== 'COLLECTION') return;
+    const wanted = container.id;
+    return untrack(() => savedViews.open(wanted));
+  });
+
+  $effect(() => untrack(() => feeds.open()));
+
+  // The templates that apply here, read once for the dialog.
+  $effect(() => {
+    if (container?.type !== 'COLLECTION') return;
+    const wanted = container.id;
+    return untrack(() => templates.open(wanted));
+  });
+
+  // The definitions in force here, read once for the dialog and for the filter editor below.
+  $effect(() => {
+    if (container?.type !== 'COLLECTION') return;
+    const wanted = container.id;
+    return untrack(() => customFields.open(wanted));
+  });
   // The hub above a collection, for the trail. Read on its own for the same reason.
   $effect(() => {
     const parent = container?.type === 'COLLECTION' ? container.parent_id : undefined;
@@ -225,6 +328,14 @@
   // No subscription of its own: a collection renders either the list or the board, and both open
   // the level already. A third reader of one list is what the stores exist to avoid.
   let isManagingLabels = $state(false);
+  let isManagingFields = $state(false);
+  let isUsingTemplates = $state(false);
+  let isManagingViews = $state(false);
+  let isManagingFeeds = $state(false);
+  /** The view an export or a subscription is about, if either is open. */
+  let exporting = $state<SavedView | undefined>(undefined);
+  let subscribing = $state<SavedView | undefined>(undefined);
+  let isManagingMembers = $state(false);
 
   let isTrashing = $state(false);
   let isTrashingNow = $state(false);
@@ -296,7 +407,12 @@
   }
 </script>
 
-{#if !container && !containers.isSettled(id)}
+{#if live.hasLost(id)}
+  <!-- The stream said this reader lost access while they were looking at it. `offline-sync.md` §6
+       binds a client to drop what it holds for a container it lost, and leaving them on a page
+       drawn from that dropped cache would be showing them what they may no longer read. -->
+  <EmptyState kind="filtered" title={t('app.live.access_revoked')} />
+{:else if !container && !containers.isSettled(id)}
   <div aria-busy="true"><Skeleton lines={3} /></div>
 {:else if !container}
   <!-- Not an error state: the read succeeded and this address is simply not in the workspace. §4.4
@@ -406,7 +522,37 @@
             >
               {t('app.labels.choose')}
             </Button>
+            <!-- What F2-13 kept on the device, saved. The button is here rather than in the query
+                 panel because a view is a property of the collection, like its labels. -->
+            <Button size="sm" tone="secondary" onclick={() => (isManagingViews = true)}>
+              {t('app.views.title')}
+            </Button>
+            <!-- The templates that apply here, for the same reason: a collection's own, its hub's
+                 and the workspace-wide ones are one question asked from one screen. -->
+            <Button
+              size="sm"
+              tone="secondary"
+              onclick={() => (isUsingTemplates = true)}
+              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+            >
+              {t('app.templates.title')}
+            </Button>
+            <!-- A custom field belongs to a collection or to the workspace, and what applies here
+                 is one question — so this is the screen it is answered on, beside the labels. -->
+            <Button
+              size="sm"
+              tone="secondary"
+              onclick={() => (isManagingFields = true)}
+              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+            >
+              {t('app.fields.title')}
+            </Button>
           {/if}
+          <!-- Who holds which role here. Offered on both a hub and a collection, because a
+               membership applies downwards from wherever it was granted and both are scopes. -->
+          <Button size="sm" tone="secondary" onclick={() => (isManagingMembers = true)}>
+            {t('app.people.title')}
+          </Button>
           <Button
             size="sm"
             tone="danger"
@@ -473,10 +619,32 @@
         drawable={DRAWABLE}
         onlayout={(id) => (layout = id)}
         onquery={(asked) => (query = asked)}
+        custom={customFieldFilters}
       />
 
-      {#if layout === 'KANBAN'}
-        <Board collectionId={container.id} isReadOnly={isReadOnly} {query} />
+      <!-- Above the entries, because it is about the ones below it. It draws itself only when
+           something is picked, so a reader who never selects anything never sees it. -->
+      <BulkBar
+        collectionId={container.id}
+        path={containerPath}
+        onresults={(operations: readonly BulkOperation[], results: readonly BulkResult[]) =>
+          (lastResults = byItem(operations, results))}
+      />
+
+      {#if layout === 'TIMELINE'}
+        <TimelineView
+          collectionId={container.id}
+          {query}
+          onopen={(itemId) => onnavigate(`/items/${itemId}`)}
+        />
+      {:else if layout === 'KANBAN'}
+        <Board
+          collectionId={container.id}
+          isReadOnly={isReadOnly}
+          {query}
+          {lastResults}
+          onduplicate={(item) => (duplicating = item)}
+        />
       {:else}
         <!-- Read-only follows the container: an archived collection's entries are archived with
              it (I-C3), and the reason travels with the controls rather than the controls
@@ -486,6 +654,8 @@
           isReadOnly={isReadOnly}
           {query}
           isExpanded={layout === 'LIST_EXPANDED'}
+          {lastResults}
+          onduplicate={(item) => (duplicating = item)}
         />
       {/if}
     {/if}
@@ -501,8 +671,73 @@
   />
 {/if}
 
+<DuplicateDialog
+  item={duplicating}
+  hubId={container?.type === 'COLLECTION' ? (container.parent_id ?? undefined) : container?.id}
+  onclose={() => (duplicating = undefined)}
+  onopened={(itemId) => {
+    duplicating = undefined;
+    onnavigate(`/items/${itemId}`);
+  }}
+/>
+
 {#if container?.type === 'COLLECTION'}
   <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />
+  <CustomFieldsDialog
+    bind:isOpen={isManagingFields}
+    collectionId={container.id}
+    role={structureRole}
+  />
+  <ViewsPanel
+    bind:isOpen={isManagingViews}
+    collectionId={container.id}
+    {query}
+    {layout}
+    role={structureRole}
+    onapply={(asked, appliedLayout, name) => {
+      // Both halves: the query the server validated, and the layout only a client knows what to do
+      // with — which is what the `layout` field has been for since it was declared uninterpreted.
+      query = asked;
+      layout = appliedLayout;
+      announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
+    }}
+    onexport={(view) => {
+      isManagingViews = false;
+      exporting = view;
+    }}
+    onsubscribe={(view) => {
+      isManagingViews = false;
+      subscribing = view;
+      isManagingFeeds = true;
+    }}
+  />
+  <ExportDialog view={exporting} onclose={() => (exporting = undefined)} />
+  <FeedsDialog bind:isOpen={isManagingFeeds} view={subscribing} collectionId={container.id} />
+  <TemplatesDialog
+    bind:isOpen={isUsingTemplates}
+    collectionId={container.id}
+    path={containerPath}
+    role={structureRole}
+    onopened={(itemId) => {
+      isUsingTemplates = false;
+      onnavigate(`/items/${itemId}`);
+    }}
+  />
+{/if}
+
+{#if container}
+  <!-- The path is the container's own: a collection composes the workspace, its hub and itself,
+       and a hub composes the workspace and itself. -->
+  <MembersDialog
+    bind:isOpen={isManagingMembers}
+    title={t('app.people.title')}
+    scope={container.type === 'HUB'
+      ? { scopeType: 'HUB', scopeId: container.id }
+      : { scopeType: 'COLLECTION', scopeId: container.id }}
+    path={container.type === 'HUB'
+      ? { hubId: container.id }
+      : { hubId: container.parent_id ?? undefined, collectionId: container.id }}
+  />
 {/if}
 
 {#if isTrashing && container}

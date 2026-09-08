@@ -17,6 +17,8 @@
   import {
     Badge,
     Button,
+    Checkbox,
+    Dialog,
     EmptyState,
     ErrorState,
     IconButton,
@@ -35,7 +37,7 @@
     rankTarget,
     type RankCommand,
   } from '@hubtask/design-system/components';
-  import type { DroppedReference, WorkItem } from '@hubtask/sync-engine';
+  import type { BulkResult, DroppedReference, WorkItem } from '@hubtask/sync-engine';
 
   import type { Archival } from '../data/containers.ts';
 
@@ -49,9 +51,14 @@
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
+  import { selection } from '../data/selection.svelte.ts';
+  import DueMark from './DueMark.svelte';
+  import DuePanel from './DuePanel.svelte';
+  import { outcomeOf } from '../data/bulk.ts';
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -68,9 +75,48 @@
      * rows as they arrive rather than reading a subtree the reader has not asked for.
      */
     isExpanded?: boolean;
+    /**
+     * What the last bulk did, by entry.
+     *
+     * Handed in rather than read from a store, because the report belongs to the rows: a refusal
+     * is about an entry and the place a reader looks for it is the row it happened to. An entry
+     * that is not in the map was not part of that bulk.
+     */
+    lastResults?: ReadonlyMap<string, BulkResult>;
+    /**
+     * Asked to copy an entry.
+     *
+     * Handed up rather than handled here, because a duplicate ends on the copy — and navigation is
+     * the view's, not a list's. The same reason `MoveDialog` is opened from here and the move's
+     * destination comes from the tree the view holds.
+     */
+    onduplicate?: (item: WorkItem) => void;
   }
 
-  const { collectionId, isReadOnly = false, query, isExpanded = false }: Props = $props();
+  const {
+    collectionId,
+    isReadOnly = false,
+    query,
+    isExpanded = false,
+    lastResults,
+    onduplicate,
+  }: Props = $props();
+
+  /** The entry whose dates are being changed from the row, if one is. */
+  let dating = $state<WorkItem | undefined>(undefined);
+
+  /** The sentence one row shows about the last bulk, or nothing where it was not in it. */
+  function bulkNote(itemId: string): string | undefined {
+    const result = lastResults?.get(itemId);
+    if (!result) return undefined;
+    if (outcomeOf(result) === 'applied') return undefined;
+    // The server's own sentence wherever it sent one — including for a rollback, whose problem
+    // names the operation that caused it. The client's own is the fallback for the shape the
+    // schema describes, which carries no problem at all.
+    return result.problem
+      ? renderProblem(result.problem as never, messages).message
+      : t('app.bulk.rolled_back');
+  }
 
   /** The entries whose children are shown. Expanding one is what reads its level. */
   let expanded = $state<string[]>([]);
@@ -201,6 +247,19 @@
   }
 
   const rows = $derived(flatten(items.inCollection(collectionId), 0, null, isReadOnly));
+
+  /**
+   * The entries on screen, in the order they are drawn.
+   *
+   * What a range is measured through and what "select every entry on screen" means. Rows that have
+   * left — filtered away, moved, trashed by somebody else — are dropped from the selection here,
+   * because a bar acting on an entry nobody can see is a bar acting in the dark.
+   */
+  const visibleIds = $derived(rows.map((row) => row.item.id));
+
+  $effect(() => {
+    selection.keepVisible(visibleIds);
+  });
   // Not called `state`: a variable of that name collides with the `$state` rune in what the
   // compiler generates, and the error it produces names a line that looks unrelated.
   const levelState = $derived(items.stateOf(`container:${collectionId}`));
@@ -534,6 +593,21 @@
         hasSeparatorBefore: true,
       },
       {
+        id: 'due',
+        label: t(row.item.due_at ? 'app.due.edit' : 'app.due.set'),
+        disabledReason: frozenReason(row),
+        hasSeparatorBefore: true,
+      },
+      {
+        id: 'duplicate',
+        label: t('app.duplicate.title'),
+        // Offered on an archived entry too: copying one does not write to it, and the copy is a
+        // new entry in an active place. What stops it is a read-only collection, which the copy
+        // would have to be written into.
+        disabledReason: isReadOnly ? t('app.entries.read_only') : undefined,
+        hasSeparatorBefore: true,
+      },
+      {
         id: 'trash',
         label: t('app.entries.trash'),
         // **Archived is not frozen against this one.** §3.4's state machine reads "active *or
@@ -641,6 +715,8 @@
     } else if (id === 'out') moveOut(row);
     else if (id === 'elsewhere') movingRow = row;
     else if (id === 'archive') void setArchived(row, row.archival !== 'archived');
+    else if (id === 'due') dating = row.item;
+    else if (id === 'duplicate') onduplicate?.(row.item);
     else if (id === 'trash') void moveToTrash(row);
     else void rank(row, id as RankCommand);
   }
@@ -733,6 +809,24 @@
               : undefined}
             style:--drag-offset={drag.id === row.item.id ? drag.offset : undefined}
           >
+            <!-- The pick, first in the row and first in the tab order, so a keyboard reaches it
+                 the way a pointer does. Shift is read from the event rather than from a mode: one
+                 code path for the pointer and the keyboard is what keeps the two from drifting
+                 apart, and `selection.pick` is where it lives. -->
+            <span class="pick">
+              <Checkbox
+                label={t('app.bulk.select', { title: row.item.title })}
+                isLabelHidden={true}
+                checked={selection.has(row.item.id)}
+                onclick={(event: MouseEvent) =>
+                  selection.pick(visibleIds, row.item.id, { range: event.shiftKey })}
+                onkeydown={(event: KeyboardEvent) => {
+                  if (event.key !== ' ' && event.key !== 'Enter') return;
+                  event.preventDefault();
+                  selection.pick(visibleIds, row.item.id, { range: event.shiftKey });
+                }}
+              />
+            </span>
             <!-- A picture, not a control. The single-pointer alternative SC 2.5.7 asks for is the
                  menu at the end of the row, and it is a real one — so a second focusable element
                  that does nothing for the keyboard would be noise in the tab order rather than
@@ -767,6 +861,13 @@
                   : [...expanded, row.item.id])}
             >
               {#snippet trailing()}
+                <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
+                     already carries: the names come from the accounts cache rather than from an
+                     expansion this server does not serve. -->
+                <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
+                <!-- When it is wanted, with the word as well as the tone (rule 3). -->
+                <DueMark item={row.item} />
+
                 <!-- Rule 3: an archived row is not told apart by being dimmer. It says the word, so
                      the state reads in greyscale and to a screen reader — which matters more here
                      than anywhere, because "archived" is why every control beside it is off. -->
@@ -850,6 +951,10 @@
 
           </div>
 
+          {#if bulkNote(row.item.id)}
+            <p class="bulk-note">{bulkNote(row.item.id)}</p>
+          {/if}
+
           {#if addingUnder === row.item.id}
             {@render addForm()}
           {/if}
@@ -922,6 +1027,20 @@
   </Stack>
 {/snippet}
 
+{#if dating}
+  <!-- The same panel the entry screen draws, in a dialog: a due date is one thing, so it has one
+       control, and a second implementation of it on the row would be a second set of rules about
+       zones and all-day dates. -->
+  <Dialog
+    isOpen={true}
+    title={t('app.due.title')}
+    dismissLabel={t('app.workspace.cancel')}
+    onClose={() => (dating = undefined)}
+  >
+    <DuePanel item={dating} disabledReason={isReadOnly ? t('app.entries.read_only') : undefined} />
+  </Dialog>
+{/if}
+
 <style>
   /* What `Stack gap="050"` was, written here because the level now owns a state of its own: a row
      being dragged is drawn differently, and a primitive that decorated would stop being one. */
@@ -938,6 +1057,10 @@
   /* `touch-action: none` is what makes a drag possible on a touch screen at all: without it the
      browser claims the gesture for scrolling and the pointer events stop arriving after the first
      few. It is on the grip alone, so the page still scrolls everywhere else. */
+  .pick { display: flex; align-items: center; }
+
+  .bulk-note { margin: 0 0 0 var(--sp-300); color: var(--text-danger); font-size: var(--fs-075); }
+
   .grip {
     display: inline-flex;
     flex: none;

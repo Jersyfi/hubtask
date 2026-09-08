@@ -48,6 +48,39 @@ export interface Platform {
    * (`offline-sync.md` §9.6), because this seam knows about a token and not about a cache.
    */
   releaseBearer(): void;
+
+  /**
+   * Follows a download target the server minted.
+   *
+   * Here rather than in a component for the reason the bearer is: this is exactly what differs
+   * between targets. A browser navigates to the URL and lets `Content-Disposition: attachment` do
+   * the rest; a shell hands the URL to the platform's own downloader, which is what puts a file in
+   * the folder a person expects rather than in a sandbox (ADR-0031).
+   *
+   * The URL is always one the server answered — a presigned bucket URL or this server's content
+   * route — never one composed here, and it expires.
+   */
+  openDownload(url: string): void;
+
+  /**
+   * Puts a file the client already holds in front of the person.
+   *
+   * The export is a `POST` — a view's query is the caller's content and a query string travels
+   * through access logs — so its answer arrives as bytes rather than as a place to navigate to,
+   * and `openDownload` cannot deliver it. A browser makes an object URL and clicks it; a shell
+   * writes to the folder a person picked, which is exactly the difference this seam exists for
+   * (ADR-0031).
+   */
+  saveFile(bytes: Blob, fileName: string): void;
+
+  /**
+   * The languages this reader's device says they read, best first.
+   *
+   * Here rather than read from `navigator` in a view, for the reason every platform difference is:
+   * a shell asks its own operating system. It orders a widened search — a hit in a language
+   * somebody reads is a hit they can act on — and never decides whether one happens.
+   */
+  preferredLanguages(): readonly string[];
 }
 
 export { platform } from './browser.ts';

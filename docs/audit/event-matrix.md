@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**194 use cases, 171 distinct action codes, 141 of them recorded on every call.** A use case that
+**199 use cases, 175 distinct action codes, 142 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -34,6 +34,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
+| `account.notification_preference_changed` | SetNotificationPreference | `account` | INFO | Every time |
+| `account.notification_preferences_read` | ListNotificationPreferences | `account` | INFO | When refused |
 | `account.preferences_changed` | UpdateAccountPreferences | `account` | INFO | Every time |
 | `account.read` | GetAccount | `account` | INFO | When refused |
 | `account.read` | GetOwnAccount | `account` | INFO | When refused |
@@ -239,8 +241,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `group.created` | CreateGroup | `group` | INFO | Every time |
 | `group.deleted` | DeleteGroup | `group` | NOTICE | Every time |
+| `group.read` | GetGroup | `group` | INFO | When refused |
+| `group.read` | ListGroups | `group` | INFO | When refused |
 | `group.updated` | UpdateGroup | `group` | INFO | Every time |
 | `membership.granted` | GrantMembership | `membership` | NOTICE | Every time |
+| `membership.read` | ListMemberships | `membership` | INFO | When refused |
 | `membership.revoked` | RevokeMembership | `membership` | NOTICE | Every time |
 
 ## Quota

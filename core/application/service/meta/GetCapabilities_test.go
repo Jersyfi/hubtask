@@ -6,10 +6,12 @@ package meta
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -180,7 +182,8 @@ func TestTheManifestReportsTheInstallation(t *testing.T) {
 	// The two product-shaped bounds a client needs before it builds an editor: how many reminders
 	// an entry carries, and how large a template's tree may be.
 	if capabilities.Limits["max_reminders_per_item"] != int64(work.MaxRemindersPerItem) ||
-		capabilities.Limits["max_template_nodes"] != int64(work.MaxTemplateNodes) {
+		capabilities.Limits["max_template_nodes"] != int64(work.MaxTemplateNodes) ||
+		capabilities.Limits["max_bulk_operations"] != int64(work.MaxBulkOperations) {
 		t.Errorf("the product's own bounds are missing from %v", capabilities.Limits)
 	}
 	if !capabilities.Features["mail"] {
@@ -344,5 +347,26 @@ func TestTheManifestSaysWhetherABackupTargetCanBeConfigured(t *testing.T) {
 	}).Features
 	if !provider.Features["backup_targets"] {
 		t.Error("the switch is on and the manifest says otherwise")
+	}
+}
+
+// The settings form is data: the categories a person can be told about are the domain's closed
+// set, published rather than compiled into a client, and the one channel this installation sends
+// on is beside them (F3-02).
+func TestTheManifestAnswersTheNotificationCategoriesAndChannels(t *testing.T) {
+	capabilities, err := handler(profiles{list: systemDefaults()}, &unitOfWork{}).
+		Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if len(capabilities.NotificationCategories) != len(notification.Categories()) {
+		t.Errorf("%d categories published, want the domain's %d", len(capabilities.NotificationCategories), len(notification.Categories()))
+	}
+	if !slices.Contains(capabilities.NotificationCategories, "INVITATION") {
+		t.Error("INVITATION is missing: the form shows it even though no preference switches it off")
+	}
+	if len(capabilities.NotificationChannels) != 1 || capabilities.NotificationChannels[0] != "EMAIL" {
+		t.Errorf("channels %v, want EMAIL alone", capabilities.NotificationChannels)
 	}
 }

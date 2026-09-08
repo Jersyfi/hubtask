@@ -17,6 +17,7 @@ import {
   childVerdict,
   permissionVerdict,
   rootTypes as rootTypesOf,
+  typesWith as typesWithOf,
 } from './capability.ts';
 import { manifest } from './capabilities.svelte.ts';
 
@@ -30,6 +31,10 @@ export const acceptsChild = (parentType: string, childType: string, parentDepth 
 
 /** What may be created directly in a collection: the types nothing else claims as a child. */
 export const rootTypes = (): readonly string[] => rootTypesOf(manifest.value);
+
+/** The types this installation gives a capability. What an `applies_to` chooser offers. */
+export const typesWith = (capability: string): readonly string[] =>
+  typesWithOf(manifest.value, capability);
 
 /** The child types the manifest permits under this one. */
 export const childTypes = (type: string): readonly string[] =>

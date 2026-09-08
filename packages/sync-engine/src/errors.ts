@@ -54,6 +54,12 @@ export class TransportError extends Error {
   readonly fieldErrors: readonly FieldProblem[];
   /** The server's correlation id, when it sent one. It is what a support request is answered by. */
   readonly requestId?: string;
+  /**
+   * How long the server asked to be left alone, from `Retry-After`, in milliseconds. A `503` on
+   * the stream carries one; a client that reconnected sooner would be hammering a server that
+   * just said it is shedding load.
+   */
+  readonly retryAfterMs?: number;
 
   constructor(kind: FailureKind, init: {
     status?: number;
@@ -62,6 +68,7 @@ export class TransportError extends Error {
     params?: Readonly<Record<string, string>>;
     fieldErrors?: readonly FieldProblem[];
     requestId?: string;
+    retryAfterMs?: number;
     cause?: unknown;
   } = {}) {
     // The message is for a developer reading a stack trace, never for a person reading a screen -
@@ -77,6 +84,20 @@ export class TransportError extends Error {
     this.params = init.params;
     this.fieldErrors = init.fieldErrors ?? [];
     this.requestId = init.requestId;
+    this.retryAfterMs = init.retryAfterMs;
+  }
+
+  /**
+   * Whether the stream position is older than the tombstone window (`offline-sync.md` §7). The
+   * one safe answer is a full resynchronisation: forget everything and read again.
+   */
+  get isCursorTooOld(): boolean {
+    return this.detailCode === 'sync.cursor_too_old';
+  }
+
+  /** Whether the stream position is one this installation never minted. Start again without one. */
+  get isCursorInvalid(): boolean {
+    return this.detailCode === 'sync.cursor_invalid';
   }
 
   /**

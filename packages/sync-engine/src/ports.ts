@@ -53,6 +53,68 @@ export interface Response<T> {
   readonly etag?: string;
 }
 
+/** One server-sent event, as the stream framed it: the cursor, the entity, and one change record. */
+export interface StreamEvent {
+  /** The `id` field: the cursor after this record. What a reconnect sends back as `Last-Event-ID`. */
+  readonly id?: string;
+  /** The `event` field: the entity the record is about. */
+  readonly event?: string;
+  /** The `data` lines, joined. One change record, as JSON text; parsing it is the engine's. */
+  readonly data: string;
+  /** The `retry` field, when the server suggested a reconnect delay, in milliseconds. */
+  readonly retryMs?: number;
+}
+
+/** How a stream is opened. */
+export interface StreamOptions {
+  readonly token?: string;
+  /** The cursor to resume from, sent as `Last-Event-ID`. Absent means "from now". */
+  readonly lastEventId?: string;
+  /**
+   * How long establishing the connection may take - the headers, not the body. A stream is a
+   * response that does not end, so the deadline every other call has would kill every stream;
+   * what it bounds instead is the wait for the server to answer at all.
+   */
+  readonly connectTimeoutMs: number;
+  /**
+   * How long the body may stay silent before the connection is treated as dead. The server sends
+   * a heartbeat comment well inside this, so silence for longer is a proxy that dropped the
+   * connection without saying so.
+   */
+  readonly idleTimeoutMs: number;
+  /** How the caller ends the stream. */
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * An open stream: the events as they arrive, until the server closes the connection, the caller
+ * aborts, or the idle deadline passes. Ending is not an error; the engine reconnects with the last
+ * cursor it saw.
+ */
+export interface StreamConnection {
+  readonly events: AsyncIterable<StreamEvent>;
+}
+
+/**
+ * The bytes of an upload, and where they go.
+ *
+ * The URL is absolute and is the server's - a presigned bucket URL, or this server's content
+ * route - and this is the one request that may leave for an address the engine did not compose.
+ * It carries **no bearer**: the URL is its own credential, and a bearer sent to a bucket would be
+ * a bearer leaked to a third party.
+ */
+export interface ByteTransfer {
+  readonly url: string;
+  readonly method: 'PUT';
+  readonly body: Blob | ArrayBuffer | Uint8Array;
+  readonly contentType?: string;
+  /** Sized by the bytes rather than by the API's deadline: a large file takes as long as it takes. */
+  readonly timeoutMs: number;
+  readonly signal?: AbortSignal;
+  /** Called as bytes leave, and once more at the end with `sent === total`. */
+  readonly onProgress?: (sent: number, total: number) => void;
+}
+
 /**
  * Transport is the seam between the engine and a server. `@hubtask/api-client` supplies the types
  * it is parameterised with; an in-memory fake supplies it in tests, which is what makes the engine
@@ -69,6 +131,43 @@ export interface Transport {
     body: unknown,
     options: RequestOptions,
   ): Promise<Response<T>>;
+  /**
+   * A response that does not end: `GET /stream` as `text/event-stream`, read from the body as it
+   * arrives. Resolves once the server has accepted the connection; a refusal - `503` with
+   * `Retry-After`, `410 sync.cursor_too_old`, `401` - rejects with a `TransportError` like any
+   * other call, so the engine has one shape to decide on.
+   */
+  stream(path: string, options: StreamOptions): Promise<StreamConnection>;
+  /**
+   * A body that is bytes, to an absolute URL the server handed over. Resolves when the bytes
+   * are stored; rejects with a `TransportError` otherwise.
+   */
+  transfer(transfer: ByteTransfer): Promise<void>;
+  /**
+   * A response that is a **document rather than data**: `POST /views/{id}:export`, which answers
+   * CSV, JSON or an iCalendar file for a person to keep.
+   *
+   * It is a `POST` for the reason `/search` is — what a view selects is the caller's content, and a
+   * query string travels through access logs, proxies and browser history — so it cannot be a
+   * navigation, and a navigation is what a browser downloads by. Hence a request that carries a
+   * bearer like every other and hands back bytes.
+   *
+   * The headers come back with them because one of them is the answer: `Export-Truncated` says the
+   * file is the first page of a larger result, and a client that dropped it would hand somebody a
+   * file that looks complete. They are handed over as a map rather than interpreted here — what
+   * `Export-Truncated` means is the application's business, not the transport's.
+   */
+  document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument>;
+}
+
+/** Bytes, what they are, what they should be called, and what the answer said about them. */
+export interface TransportDocument {
+  readonly body: Blob;
+  readonly contentType?: string;
+  /** From `Content-Disposition`, where the server named one. */
+  readonly fileName?: string;
+  /** Lower-cased header names to values, for the few a caller has to read. */
+  readonly headers: ReadonlyMap<string, string>;
 }
 
 /**
