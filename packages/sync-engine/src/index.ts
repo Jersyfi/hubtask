@@ -55,6 +55,8 @@ export type {
   Capabilities,
   ChangeRecord,
   Collection,
+  Comment,
+  CommentPage,
   Container,
   ContainerPage,
   DroppedReference,
