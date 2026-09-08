@@ -407,12 +407,13 @@ func (q *Queries) FindGroup(ctx context.Context, id pgtype.UUID) (FindGroupRow, 
 }
 
 const findMembership = `-- name: FindMembership :one
-SELECT id, account_id, group_id, scope_type, scope_id, role
+SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
 FROM membership WHERE id = $1
 `
 
 type FindMembershipRow struct {
 	ID        pgtype.UUID
+	TenantID  pgtype.UUID
 	AccountID pgtype.UUID
 	GroupID   pgtype.UUID
 	ScopeType MembershipScope
@@ -420,11 +421,15 @@ type FindMembershipRow struct {
 	Role      MembershipRole
 }
 
+// The tenant is selected although row level security already bounds the statement to it: the
+// grant this answers is what the revocation writes its audit entry from, and an entry without a
+// tenant is refused by the port (audit.md §3).
 func (q *Queries) FindMembership(ctx context.Context, id pgtype.UUID) (FindMembershipRow, error) {
 	row := q.db.QueryRow(ctx, findMembership, id)
 	var i FindMembershipRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.AccountID,
 		&i.GroupID,
 		&i.ScopeType,
@@ -638,7 +643,7 @@ func (q *Queries) ListGroups(ctx context.Context, arg ListGroupsParams) ([]ListG
 }
 
 const listMembershipsAtScope = `-- name: ListMembershipsAtScope :many
-SELECT id, account_id, group_id, scope_type, scope_id, role
+SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
 FROM membership
 WHERE scope_type = $1
   AND scope_id IS NOT DISTINCT FROM $2::uuid
@@ -656,6 +661,7 @@ type ListMembershipsAtScopeParams struct {
 
 type ListMembershipsAtScopeRow struct {
 	ID        pgtype.UUID
+	TenantID  pgtype.UUID
 	AccountID pgtype.UUID
 	GroupID   pgtype.UUID
 	ScopeType MembershipScope
@@ -684,6 +690,7 @@ func (q *Queries) ListMembershipsAtScope(ctx context.Context, arg ListMembership
 		var i ListMembershipsAtScopeRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.AccountID,
 			&i.GroupID,
 			&i.ScopeType,
