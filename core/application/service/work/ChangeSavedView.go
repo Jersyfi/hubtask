@@ -414,8 +414,10 @@ func (h ShareSavedView) Descriptor() usecase.Descriptor {
 		Input: append([]usecase.Field{
 			{
 				Name: "sharing", Kind: usecase.KindString, Required: true,
-				Enum:        []string{"PRIVATE", "SCOPE"},
-				Description: "Who sees the view.",
+				// PUBLIC_LINK is declared here for the reason it is declared on creation: the
+				// value the contract offers has to reach the rule written for it (issue #427).
+				Enum:        []string{"PRIVATE", "SCOPE", "PUBLIC_LINK"},
+				Description: "Who sees the view. PUBLIC_LINK is refused by name.",
 			},
 		}, savedViewInput("The view whose sharing is decided.")...),
 		Audit: usecase.AuditDeclaration{

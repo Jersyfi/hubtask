@@ -41,7 +41,7 @@ Staggered by runtime: whatever fails fastest runs first.
 | `build` | `go build ./...` for linux/amd64 and linux/arm64 | Buildability |
 | `unit` | Domain and application tests, coverage thresholds (85% / 75%) | Unit gate |
 | `integration` | Service container PostgreSQL 16, `goose up`, repository and use case tests; object storage and the other backup targets come from Testcontainers | Integration |
-| `contract` | Responses against `openapi.yaml`, events against JSON schemas, OpenAPI diff against the last tag | Compatibility |
+| `contract` | Responses against `openapi.yaml`, events against JSON schemas, the closed sets a descriptor and the contract each declare, OpenAPI diff against the last tag | Compatibility |
 | `architecture` | Import/layer rules, the `go` ban outside `SafeGo`, mandatory authorisation, use case parity across REST/MCP/automation, observability completeness (RT-12), audit declarations (SG-13) | Structure |
 | `selftest` | One deliberate violation per configured rule, each expected to turn the build red (`make gate-selftest`) | The gates themselves |
 | `security` | `govulncheck`, `gosec`, cross-tenant suite (SG-3), RLS/`BYPASSRLS` test (SG-4), SSRF suite (SG-6), secret scan (SG-7), upload matrix (SG-12), auth negative tests (SG-11) | SG gates |

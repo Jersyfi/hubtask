@@ -8,6 +8,7 @@ package contract
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -813,5 +814,34 @@ func TestTheItemLabelResponseMatchesTheSchema(t *testing.T) {
 	}
 	for _, problem := range problems {
 		t.Errorf("ItemLabels: %s", problem)
+	}
+}
+
+// A generated type narrower than the wire is a trap for whoever consumes it next. `LAPSED` is a
+// real, server-owned reminder state - a restore produces it (backup-restore.md §8.4) - and the
+// schema declared three, so `@hubtask/api-client` typed the field as a union that a restored
+// workspace can answer outside of (issue #429).
+//
+// Compared against the domain's own closed set rather than against a list written here, so that a
+// fifth state cannot be added on one side alone.
+func TestTheReminderStatesAreTheOnesTheContractDeclares(t *testing.T) {
+	declared, ok := contractSpec(t).Components.Schemas["ReminderState"]
+	if !ok {
+		t.Fatal("the specification declares no ReminderState")
+	}
+
+	inContract := make([]string, 0, len(declared.Enum))
+	for _, value := range declared.Enum {
+		inContract = append(inContract, fmt.Sprint(value))
+	}
+	inDomain := make([]string, 0)
+	for _, state := range work.ReminderStates() {
+		inDomain = append(inDomain, string(state))
+	}
+
+	slices.Sort(inContract)
+	slices.Sort(inDomain)
+	if !slices.Equal(inContract, inDomain) {
+		t.Errorf("the contract declares %v and the server emits %v", inContract, inDomain)
 	}
 }

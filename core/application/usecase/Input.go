@@ -312,7 +312,11 @@ func checkField(field Field, value any) (shared.FieldError, bool) {
 		if field.Required && strings.TrimSpace(text) == "" {
 			return shared.FieldError{Path: "/" + field.Name, Code: "usecase.field_required"}, false
 		}
-		if len(field.Enum) > 0 && !slices.Contains(field.Enum, text) {
+		// An empty optional field is a clearing, not a value: String reads it as absent and
+		// OptionalString reads it as "put the default back". Holding it to the enum as well left
+		// a preference that could be set and never unset - the contract promises an empty value
+		// clears it, and the registry refused the only spelling of one (issue #427).
+		if len(field.Enum) > 0 && strings.TrimSpace(text) != "" && !slices.Contains(field.Enum, text) {
 			return shared.FieldError{
 				Path:   "/" + field.Name,
 				Code:   "usecase.field_not_in_enum",

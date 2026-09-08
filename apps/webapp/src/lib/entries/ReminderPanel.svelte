@@ -11,9 +11,9 @@
   // list means the assignee and the members *at that moment* — so somebody added tomorrow is
   // reached tomorrow, and the panel says that rather than showing an empty list.
   //
-  // **The state is read as a string.** `LAPSED` — a reminder whose moment passed while the data sat
-  // in an archive — is real and is not in the contract's enum, and a state from a newer server
-  // still reads as words because `t` humanises a code it has never met.
+  // **The state is read as a string.** The contract declares four — `LAPSED`, a reminder whose
+  // moment passed while the data sat in an archive, is one of them — and a fifth from a newer
+  // server still reads as words, because `t` humanises a code it has never met.
   //
   // **The bound is the manifest's.** `max_reminders_per_item` turns the add control off with the
   // reason, rather than letting the server refuse the twenty-sixth.
