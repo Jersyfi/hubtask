@@ -5,6 +5,7 @@ package ai
 
 import (
 	"context"
+	"time"
 
 	port "github.com/Jersyfi/hubtask/core/port/ai"
 	health "github.com/Jersyfi/hubtask/core/port/health"
@@ -57,17 +58,24 @@ func (p Probe) Check(context.Context) health.Result {
 		return health.Result{Status: health.StatusDisabled}
 	}
 
-	open := p.pool.Open(func(breaker Breaker) bool {
+	open, since := p.pool.Open(func(breaker Breaker) (bool, time.Time) {
 		stateful, holds := breaker.(interface {
 			State() resilience.BreakerState
+			Since() time.Time
 		})
-		return holds && stateful.State() != resilience.BreakerClosed
+		if !holds {
+			return false, time.Time{}
+		}
+		return stateful.State() != resilience.BreakerClosed, stateful.Since()
 	})
 	if open == 0 {
 		return health.Result{Status: health.StatusOK, CircuitState: "closed"}
 	}
 	return health.Result{
-		Status:       health.StatusDown,
+		Status: health.StatusDown,
+		// Since when the earliest cut-off endpoint has been cut off. A degradation without a
+		// timestamp is one nobody can tell from an old one.
+		Since:        since,
 		CircuitState: "open",
 		ErrorCode:    "dependency.unavailable",
 		Impact:       []string{port.Feature},

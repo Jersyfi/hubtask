@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -178,18 +179,31 @@ func (p *BreakerPool) Size() int {
 	return len(p.breakers)
 }
 
-// Open reports how many endpoints are currently cut off, for the health probe and the gauge. It is
-// a count rather than a list: an endpoint is a tenant's configuration, and a metric labelled by one
-// would grow a series per customer (rule 10).
-func (p *BreakerPool) Open(isOpen func(Breaker) bool) int {
+// Open reports how many endpoints are currently cut off and since when the earliest of them has
+// been.
+//
+// A count and a moment rather than a list: an endpoint is a tenant's configuration, and a health
+// report or a metric that named one would put a customer into an operator's dashboard (rule 10).
+// The moment is the earliest because that is what "since" means to somebody reading a degradation -
+// how long this has been going on - and the newest outage would answer a different question.
+//
+// The state is read through a function so that this package does not import the resilience
+// adapter: adapters do not know each other (project-structure.md §2).
+func (p *BreakerPool) Open(state func(Breaker) (open bool, since time.Time)) (int, time.Time) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	count := 0
+	var earliest time.Time
 	for _, breaker := range p.breakers {
-		if isOpen(breaker) {
-			count++
+		open, since := state(breaker)
+		if !open {
+			continue
+		}
+		count++
+		if earliest.IsZero() || (!since.IsZero() && since.Before(earliest)) {
+			earliest = since
 		}
 	}
-	return count
+	return count, earliest
 }
