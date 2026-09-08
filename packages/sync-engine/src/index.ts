@@ -41,6 +41,7 @@ export type {
   StreamEvent,
   StreamOptions,
   Transport,
+  TransportDocument,
 } from './ports.ts';
 
 export type {
@@ -53,6 +54,9 @@ export type {
   AutoAssignStrategy,
   Bucket,
   BulkOperation,
+  CalendarFeed,
+  CalendarFeedCreate,
+  CalendarFeedSecret,
   BulkResult,
   Capabilities,
   ChangeRecord,
@@ -103,6 +107,10 @@ export type {
   ReminderState,
   ReminderUpdate,
   RetentionPolicy,
+  SavedView,
+  SavedViewCreate,
+  SavedViewShare,
+  SavedViewUpdate,
   StoredRecord,
   SyncCursor,
   Template,
@@ -115,6 +123,8 @@ export type {
   TemplateUpdate,
   TrashEntry,
   TrashPage,
+  ViewExport,
+  ViewExportDocument,
   WorkItem,
   WorkItemPage,
 } from './schema.ts';

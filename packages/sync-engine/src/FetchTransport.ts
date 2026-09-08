@@ -11,6 +11,7 @@
 import { TransportError, type FieldProblem } from './errors.ts';
 import type {
   ByteTransfer,
+  TransportDocument,
   RequestOptions,
   Response,
   StreamConnection,
@@ -180,6 +181,67 @@ export class FetchTransport implements Transport {
       });
     }
     report(total, total);
+  }
+
+  /**
+   * A `POST` whose answer is a file.
+   *
+   * The same request every other call makes — bearer, deadline, same-origin credentials — with two
+   * differences: `Accept` names the three things an export can be, and the answer is read as bytes
+   * rather than parsed. A refusal still arrives as a problem document, so it is read as one: a
+   * caller that handed a person a file containing `{"code":"forbidden"}` would be a caller that
+   * checked nothing.
+   */
+  async document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument> {
+    if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) {
+      throw new TypeError('a request needs a positive timeoutMs; there is no default of "forever"');
+    }
+
+    const deadline = AbortSignal.timeout(options.timeoutMs);
+    const signal = options.signal ? AbortSignal.any([deadline, options.signal]) : deadline;
+
+    const headers = new Headers({ Accept: 'text/csv, application/json, text/calendar' });
+    if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
+    if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
+    headers.set('Content-Type', 'application/json');
+
+    let answer: globalThis.Response;
+    try {
+      answer = await this.#fetch(`${this.#baseUrl}${path}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body ?? {}),
+        signal,
+        credentials: 'same-origin',
+      });
+    } catch (cause) {
+      const aborted = cause instanceof Error && (cause.name === 'TimeoutError' || cause.name === 'AbortError');
+      throw new TransportError(aborted ? 'timeout' : 'offline', { cause });
+    }
+
+    if (!answer.ok) {
+      let problem: ProblemBody = {};
+      try {
+        problem = (JSON.parse(await answer.text()) ?? {}) as ProblemBody;
+      } catch {
+        problem = {};
+      }
+      throw new TransportError('problem', {
+        status: answer.status, code: problem.code, detailCode: problem.detail_code,
+        params: problem.params, fieldErrors: problem.field_errors,
+        requestId: problem.request_id ?? undefined,
+      });
+    }
+
+    const collected = new Map<string, string>();
+    answer.headers.forEach((value, name) => collected.set(name.toLowerCase(), value));
+
+    return {
+      body: await answer.blob(),
+      contentType: answer.headers.get('Content-Type') ?? undefined,
+      fileName: fileNameOf(answer.headers.get('Content-Disposition')),
+      headers: collected,
+    };
   }
 
   async #call<T>(
@@ -395,4 +457,28 @@ function counted(
       controller.enqueue(chunk);
     },
   }));
+}
+
+/**
+ * The name the server gave the file, out of `Content-Disposition`.
+ *
+ * `filename*` first, because that is the one that carries a name with characters outside ASCII in
+ * it — a view called "Überfällig" exports under its own name or under a mangled one, and which of
+ * the two is decided here.
+ */
+function fileNameOf(disposition: string | null): string | undefined {
+  if (!disposition) return undefined;
+
+  const extended = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  if (extended?.[1]) {
+    try {
+      return decodeURIComponent(extended[1]);
+    } catch {
+      // A name this cannot decode is a name the caller composes instead.
+      return undefined;
+    }
+  }
+
+  const plain = /filename="?([^";]+)"?/i.exec(disposition);
+  return plain?.[1];
 }

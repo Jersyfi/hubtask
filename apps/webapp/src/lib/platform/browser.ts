@@ -32,4 +32,18 @@ export const platform: Platform = {
   // from an asynchronous callback is also the shape popup blockers refuse, and minting the target
   // when it is clicked makes the callback asynchronous by definition.
   openDownload: (url) => window.location.assign(url),
+
+  // An object URL and a click, which is the only way a browser saves bytes it already has. The URL
+  // is revoked immediately afterwards: it is a handle to memory, and one left behind keeps the
+  // whole file alive for the life of the document.
+  saveFile: (bytes, fileName) => {
+    const url = URL.createObjectURL(bytes);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
 };

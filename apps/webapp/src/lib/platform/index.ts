@@ -61,6 +61,17 @@ export interface Platform {
    * route — never one composed here, and it expires.
    */
   openDownload(url: string): void;
+
+  /**
+   * Puts a file the client already holds in front of the person.
+   *
+   * The export is a `POST` — a view's query is the caller's content and a query string travels
+   * through access logs — so its answer arrives as bytes rather than as a place to navigate to,
+   * and `openDownload` cannot deliver it. A browser makes an object URL and clicks it; a shell
+   * writes to the folder a person picked, which is exactly the difference this seam exists for
+   * (ADR-0031).
+   */
+  saveFile(bytes: Blob, fileName: string): void;
 }
 
 export { platform } from './browser.ts';

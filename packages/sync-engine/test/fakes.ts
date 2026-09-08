@@ -11,6 +11,7 @@
 import { TransportError } from '../src/errors.ts';
 import type {
   ByteTransfer,
+  TransportDocument,
   Clock,
   RequestOptions,
   Response,
@@ -120,6 +121,31 @@ export class FakeTransport implements Transport {
     if (failure) throw failure;
     const total = transfer.body instanceof Blob ? transfer.body.size : transfer.body.byteLength;
     transfer.onProgress?.(total, total);
+  }
+
+  /** Every document asked for, and what was handed back for it. */
+  readonly documents: { path: string; body: unknown }[] = [];
+  #documentAnswers = new Map<string, TransportDocument>();
+
+  /** Registers what a `document` call answers for a path. */
+  answerDocument(path: string, answer: TransportDocument): this {
+    this.#documentAnswers.set(path, answer);
+    return this;
+  }
+
+  async document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument> {
+    this.documents.push({ path, body });
+    await Promise.resolve();
+    const failure = this.#failures.get(path);
+    if (failure) throw failure;
+    void options;
+    return (
+      this.#documentAnswers.get(path) ?? {
+        body: new Blob(['']),
+        contentType: 'text/csv',
+        headers: new Map<string, string>(),
+      }
+    );
   }
 
   async get<T>(path: string, options: RequestOptions): Promise<Response<T>> {

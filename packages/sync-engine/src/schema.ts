@@ -271,3 +271,25 @@ export type TemplateScope = components['schemas']['TemplateScope'];
 export type TemplateInstantiation = components['schemas']['TemplateInstantiation'];
 /** What one stamping produced: the root, how many entries, and what the destination could not carry. */
 export type TemplateInstance = components['schemas']['TemplateInstance'];
+
+/**
+ * A saved query with the layout it is drawn in.
+ *
+ * The server "interprets neither the layout nor the visible fields — both are the client's
+ * vocabulary, echoed back exactly as stored". So a view is the one place where this client's own
+ * words travel through the API and come back unchanged, and applying one means applying both
+ * halves: the query the server validates, and the layout only a client knows what to do with.
+ */
+export type SavedView = components['schemas']['SavedView'];
+export type SavedViewCreate = components['schemas']['SavedViewCreate'];
+export type SavedViewUpdate = components['schemas']['SavedViewUpdate'];
+/** What `POST /views/{id}:export` renders as JSON. The other two formats are text. */
+export type ViewExportDocument = components['schemas']['ViewExportDocument'];
+export type SavedViewShare = components['schemas']['SavedViewShare'];
+export type ViewExport = components['schemas']['ViewExport'];
+
+/** One subscription: a token its owner holds, over one view, revocable. */
+export type CalendarFeed = components['schemas']['CalendarFeed'];
+export type CalendarFeedCreate = components['schemas']['CalendarFeedCreate'];
+/** The only answer that ever carries the token. It exists here and nowhere else afterwards. */
+export type CalendarFeedSecret = components['schemas']['CalendarFeedSecret'];

@@ -76,6 +76,15 @@ a fifth:
   names — unlike `mutate`, whose omitted `invalidates` means everything, because bytes in a
   bucket change nothing the client is holding until the confirmation says so.
 
+**F3-15 gave it a third.** `Transport.document` is a `POST` whose answer is a **file rather than
+data** — `POST /views/{id}:export`, which renders CSV, JSON or iCalendar. It is a `POST` for the
+reason `/search` is, so it cannot be a navigation, and a navigation is what a browser downloads by;
+hence a request that carries a bearer like every other and hands back bytes. The response headers
+come back with them because one of them is the answer — `Export-Truncated` says the file is the
+first page of a larger result — and they are handed over uninterpreted: what that header *means* is
+the application's business. Like `transfer`, it invalidates nothing, because an export is a read
+whatever its verb.
+
 ## What must not happen here
 
 * **No merging. Ever.** Merging is the server's (ADR-0021, `offline-sync.md` §4). The engine

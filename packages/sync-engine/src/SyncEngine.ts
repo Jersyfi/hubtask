@@ -306,6 +306,23 @@ export class SyncEngine {
   }
 
   /**
+   * document performs a read whose answer is a file rather than data.
+   *
+   * A pass-through like `transfer`, and it invalidates **nothing**: an export is a read, whatever
+   * its verb. It is a `POST` because what a view selects is the caller's content and a query string
+   * travels through access logs — the same reason `/search` is one — and the engine already knows
+   * that a `POST` can be a read.
+   */
+  async document(path: string, body: unknown, options: { timeoutMs?: number; idempotencyKey?: string } = {}) {
+    try {
+      return await this.#transport.document(path, body, this.#options(options));
+    } catch (cause) {
+      this.#noticeRefusal(cause);
+      throw cause;
+    }
+  }
+
+  /**
    * loadMore appends the next page of a paged resource to the one already held.
    *
    * Appending rather than replacing is the whole point: `LoadMore` is a control a person presses
