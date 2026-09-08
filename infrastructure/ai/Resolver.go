@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -89,27 +90,37 @@ func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.P
 		key = opened
 	}
 
-	adapter := OpenAiCompatible{
-		Client: r.Client, Clock: r.Clock, Meter: r.Meter,
-		BaseURL: configured.BaseURL, APIKey: key,
-		CompletionModel: configured.CompletionModel, EmbeddingModel: configured.EmbeddingModel,
-	}
+	var breaker Breaker
 	if r.Breakers != nil {
-		adapter.Breaker = r.Breakers.For(configured.BaseURL)
+		breaker = r.Breakers.For(configured.BaseURL)
 	}
-	if r.Meter == nil {
-		adapter.Meter = noMeter{}
+	meter := r.Meter
+	if meter == nil {
+		meter = noMeter{}
 	}
 
 	switch configured.Kind {
 	case domain.AiOpenAiCompatible:
-		return adapter, nil
+		return OpenAiCompatible{
+			Client: r.Client, Breaker: breaker, Clock: r.Clock, Meter: meter,
+			BaseURL: configured.BaseURL, APIKey: key,
+			CompletionModel: configured.CompletionModel,
+			EmbeddingModel:  configured.EmbeddingModel,
+		}, nil
 	case domain.AiOllama:
-		// The local adapter is J-04's. Until it lands, a workspace that configured Ollama gets
-		// the provider that refuses rather than an OpenAI-compatible call to an endpoint that
-		// speaks something else - which would be a confusing failure instead of an honest one.
-		return Noop{}, nil
+		// No key: a local endpoint is reached over the installation's own network and Ollama has
+		// no credential of its own. One is not silently passed on to it either - an operator who
+		// put a proxy in front configures the OpenAI-compatible adapter, which is where a key
+		// belongs.
+		return Ollama{
+			Client: r.Client, Breaker: breaker, Clock: r.Clock, Meter: meter,
+			BaseURL:         configured.BaseURL,
+			CompletionModel: configured.CompletionModel,
+			EmbeddingModel:  configured.EmbeddingModel,
+		}, nil
 	default:
+		// A kind the domain accepted and this build has no adapter for. Unreachable while the
+		// closed set and the switch agree, and a refusal rather than a panic if they ever do not.
 		return Noop{}, nil
 	}
 }
@@ -168,18 +179,31 @@ func (p *BreakerPool) Size() int {
 	return len(p.breakers)
 }
 
-// Open reports how many endpoints are currently cut off, for the health probe and the gauge. It is
-// a count rather than a list: an endpoint is a tenant's configuration, and a metric labelled by one
-// would grow a series per customer (rule 10).
-func (p *BreakerPool) Open(isOpen func(Breaker) bool) int {
+// Open reports how many endpoints are currently cut off and since when the earliest of them has
+// been.
+//
+// A count and a moment rather than a list: an endpoint is a tenant's configuration, and a health
+// report or a metric that named one would put a customer into an operator's dashboard (rule 10).
+// The moment is the earliest because that is what "since" means to somebody reading a degradation -
+// how long this has been going on - and the newest outage would answer a different question.
+//
+// The state is read through a function so that this package does not import the resilience
+// adapter: adapters do not know each other (project-structure.md §2).
+func (p *BreakerPool) Open(state func(Breaker) (open bool, since time.Time)) (int, time.Time) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	count := 0
+	var earliest time.Time
 	for _, breaker := range p.breakers {
-		if isOpen(breaker) {
-			count++
+		open, since := state(breaker)
+		if !open {
+			continue
+		}
+		count++
+		if earliest.IsZero() || (!since.IsZero() && since.Before(earliest)) {
+			earliest = since
 		}
 	}
-	return count
+	return count, earliest
 }

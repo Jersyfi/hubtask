@@ -23,6 +23,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	clockport "github.com/Jersyfi/hubtask/core/port/clock"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	healthport "github.com/Jersyfi/hubtask/core/port/health"
@@ -32,6 +33,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
+	aiadapter "github.com/Jersyfi/hubtask/infrastructure/ai"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
@@ -57,6 +59,32 @@ func mailpitImage() string {
 	}
 	return "axllent/mailpit:latest"
 }
+
+// aiStubImage is the container that stands in for an AI provider, overridable like the others.
+//
+// **Deliberately not Ollama.** RT-1 asks a resilience question - does a stopped dependency degrade
+// exactly its own feature, and does it recover - and answering it needs a container that serves the
+// provider's wire format, can be stopped, and can be started again. It does not need a model:
+// pulling one would add hundreds of megabytes and minutes to every `gate-resilience` run to prove
+// nothing this test asserts. The *shape* of the wire is proved by the adapters' own suite, which
+// both must pass, and against a real provider by the scripted session (J-16).
+func aiStubImage() string {
+	if image := os.Getenv("HUBTASK_TEST_AI_STUB_IMAGE"); image != "" {
+		return image
+	}
+	return "nginx:alpine"
+}
+
+// aiStubConfig answers any request with one OpenAI-compatible completion. Enough for the adapter
+// to succeed, and nothing more: what is under test is what happens when it stops answering.
+const aiStubConfig = `server {
+  listen 80;
+  location / {
+    default_type application/json;
+    return 200 '{"model":"rt1-stub","choices":[{"message":{"role":"assistant","content":"ok"}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}';
+  }
+}
+`
 
 // rt1WriteKind is the row the core write path writes: a queue entry scheduled far into the
 // future, the same trick RT-3 uses - evidence, not work, and no tenant fixture needed.
@@ -177,6 +205,19 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 		).WithDeadline(2 * time.Minute),
 	})
 
+	aiPort := freeLoopbackPort(ctx, t)
+	aiStub := startDependency(t, testcontainers.ContainerRequest{
+		Image:        aiStubImage(),
+		ExposedPorts: []string{"80/tcp"},
+		Files: []testcontainers.ContainerFile{{
+			Reader:            strings.NewReader(aiStubConfig),
+			ContainerFilePath: "/etc/nginx/conf.d/default.conf",
+			FileMode:          0o644,
+		}},
+		HostConfigModifier: fixedHostPorts(map[string]int{"80/tcp": aiPort}),
+		WaitingFor:         wait.ForListeningPort("80/tcp").WithStartupTimeout(2 * time.Minute),
+	})
+
 	// --- The composition, as main.go builds it ---------------------------------------------
 	c := newClock()
 
@@ -228,9 +269,30 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 		Timeout:  5 * time.Second,
 	}), mailBreaker, res.NewBulkhead(res.BulkheadConfig{Name: mailadapter.Dependency, Capacity: 4}))
 
+	// The AI provider is composed differently from the other two, and the difference is the
+	// point: a provider is per tenant, so main.go wires a *pool* of breakers keyed by endpoint
+	// and a resolver that picks one. Here the endpoint is fixed, so the adapter is built directly
+	// - the resolver's own behaviour is unit-tested, and what this test is about is the breaker,
+	// the probe and the report around a real socket that stops answering.
+	aiBreakers := &aiadapter.BreakerPool{New: func(string) aiadapter.Breaker {
+		return res.NewBreaker(res.BreakerConfig{
+			Dependency: aiprovider.Dependency, FailureThreshold: 2, SuccessThreshold: 1,
+			OpenFor: 30 * time.Second, Now: c.Now, OnStateChange: onStateChange,
+		})
+	}}
+	aiEndpoint := fmt.Sprintf("http://127.0.0.1:%d/v1", aiPort)
+	aiProvider := aiadapter.OpenAiCompatible{
+		Client:  outboundClient(),
+		Breaker: aiBreakers.For(aiEndpoint),
+		Clock:   clockadapter.System{},
+		Meter:   metrics,
+		BaseURL: aiEndpoint, CompletionModel: "rt1-model",
+	}
+
 	registry := healthadapter.NewRegistry("test", []string{"api"})
 	registry.Register(storageadapter.NewProbe(storageBreaker))
 	registry.Register(mailadapter.NewProbe(mailBreaker, true))
+	registry.Register(aiadapter.NewProbe(aiBreakers))
 	registry.SetSignals(metrics)
 	registry.MarkStarted()
 
@@ -259,6 +321,11 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 		return sender.Send(ctx, mailport.Message{
 			To: "operator@rt1.test", Subject: "RT-1", Body: "the dependency under test says hello",
 		})
+	}
+	askAI := func() error {
+		prompt := aiprovider.Prompt{ID: "rt1", Version: "v1", Instruction: "describe what follows"}
+		_, err := aiProvider.Complete(ctx, prompt.Ask("an entry the test made up"))
+		return err
 	}
 
 	// --- Everything up ---------------------------------------------------------------------
@@ -417,20 +484,125 @@ func TestRT1AStoppedContainerDegradesExactlyItsOwnFeature(t *testing.T) {
 		t.Errorf("degraded features = %v after both recoveries, want none", report.DegradedFeatures)
 	}
 
+	// --- The AI provider goes down ---------------------------------------------------------
+	//
+	// The row observability-reliability.md §7 has carried since it was written and nothing has
+	// ever asserted: "AI suggestions disappear, every manual route remains". The stand-in in
+	// rt1_optional_dependency_test.go held this place with an in-process server and a comment
+	// naming 0.7.0; J-03 built the adapter, so the place is filled.
+	if err := askAI(); err != nil {
+		t.Fatalf("the AI path failed while everything was up: %v", err)
+	}
+
+	stopContainer(t, aiStub)
+	for range 3 {
+		if err := askAI(); err == nil {
+			t.Error("the AI path succeeded although the provider is stopped")
+		}
+	}
+
+	// The write path is untouched, and so is everything a person can do by hand. That is the
+	// whole content of the §7 row: what disappears is the suggestion, not the task.
+	for range 20 {
+		if err := writeTask(); err != nil {
+			t.Fatalf("the write path was blocked by the AI outage: %v", err)
+		}
+	}
+	if written := tasksWritten(); written != 60 {
+		t.Errorf("writes = %d after three outages, want 60", written)
+	}
+	if err := storeMedia("media/during-the-ai-outage"); err != nil {
+		t.Errorf("the media path failed during the AI outage: %v", err)
+	}
+	if err := sendMail(); err != nil {
+		t.Errorf("the mail path failed during the AI outage: %v", err)
+	}
+	waitForDelivered(t, mailAPIPort, 4)
+
+	report = registry.Report(ctx)
+	if report.Status != healthport.StatusDegraded {
+		t.Errorf("status = %s during the AI outage, want degraded", report.Status)
+	}
+	assertDegradedExactly(t, report, aiprovider.Feature)
+	if ready, reason := registry.Ready(ctx); !ready {
+		t.Errorf("the process reported itself unready over an optional dependency: %s", reason)
+	}
+
+	body = scrape(t, metrics)
+	for _, want := range []string{
+		`hubtask_circuit_breaker_state{dependency="ai_provider"} 2`,
+		`hubtask_dependency_up{dependency="ai_provider"} 0`,
+		`hubtask_dependency_up{dependency="object_storage"} 1`,
+		`hubtask_dependency_up{dependency="smtp"} 1`,
+		`hubtask_degraded_mode{feature="ai_suggestions"} 1`,
+		`hubtask_degraded_mode{feature="media"} 0`,
+		`hubtask_degraded_mode{feature="notifications"} 0`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the AI outage is missing from the metrics: %s", want)
+		}
+	}
+
+	// --- The AI provider returns -----------------------------------------------------------
+	startAgain(t, aiStub)
+	waitForRecovery(t, c, aiprovider.Dependency, askAI)
+	if cut, _ := aiBreakers.Open(aiCutOff); cut != 0 {
+		t.Fatalf("%d AI endpoints still cut off after recovery, want none", cut)
+	}
+
+	report = registry.Report(ctx)
+	if report.Status != healthport.StatusOK {
+		t.Errorf("status = %s after all three recoveries, want ok", report.Status)
+	}
+	if len(report.DegradedFeatures) != 0 {
+		t.Errorf("degraded features = %v after all three recoveries, want none", report.DegradedFeatures)
+	}
+
 	// A gauge that only ever goes up keeps showing an outage that ended hours ago.
 	body = scrape(t, metrics)
 	for _, want := range []string{
 		`hubtask_circuit_breaker_state{dependency="object_storage"} 0`,
 		`hubtask_circuit_breaker_state{dependency="smtp"} 0`,
+		`hubtask_circuit_breaker_state{dependency="ai_provider"} 0`,
 		`hubtask_dependency_up{dependency="object_storage"} 1`,
 		`hubtask_dependency_up{dependency="smtp"} 1`,
+		`hubtask_dependency_up{dependency="ai_provider"} 1`,
 		`hubtask_degraded_mode{feature="media"} 0`,
 		`hubtask_degraded_mode{feature="notifications"} 0`,
+		`hubtask_degraded_mode{feature="ai_suggestions"} 0`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the recovery is missing from the metrics: %s", want)
 		}
 	}
+}
+
+// aiCutOff reports whether one endpoint's breaker is not closed. A function rather than a method,
+// because the pool holds the adapter's own narrow Breaker interface and this test knows the
+// concrete type behind it (project-structure.md §2: the adapter does not import the resilience
+// adapter; a test may).
+func aiCutOff(breaker aiadapter.Breaker) (bool, time.Time) {
+	stateful, holds := breaker.(interface {
+		State() res.BreakerState
+		Since() time.Time
+	})
+	if !holds {
+		return false, time.Time{}
+	}
+	return stateful.State() != res.BreakerClosed, stateful.Since()
+}
+
+// outboundClient is the one way out of the process (rule 6), configured for loopback because the
+// dependency under test is a container on it.
+func outboundClient() *httpclient.GuardedClient {
+	cfg := envport.OutboundConfig{
+		Timeout:              5 * time.Second,
+		ConnectTimeout:       2 * time.Second,
+		MaxResponseBytes:     1 << 20,
+		MaxRedirects:         1,
+		AllowPrivateNetworks: true,
+	}
+	return httpclient.NewGuardedClient(cfg, httpclient.NewGuard(cfg))
 }
 
 // assertDegradedExactly holds the report against one row of the degradation table: the one
