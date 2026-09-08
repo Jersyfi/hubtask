@@ -29,11 +29,15 @@
   import { untrack } from 'svelte';
 
   import Board from '../lib/entries/Board.svelte';
+  import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
   import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
+  import { actor } from '../lib/data/account.svelte.ts';
+  import { customFields } from '../lib/data/customfields.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -80,6 +84,38 @@
   const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN'];
 
   const container = $derived(containers.find(id));
+
+  /**
+   * The path this container sits on, and the role this reader holds along it.
+   *
+   * `STRUCTURE` is what defining a custom field takes, and a role is held at a scope rather than
+   * globally — so it is composed the same way the members dialog composes its own path. Nothing
+   * here decides anything: the gate is a prediction, and the server's refusal is what a reader
+   * meets when it is wrong.
+   */
+  const containerPath = $derived(
+    container?.type === 'HUB'
+      ? { hubId: container.id }
+      : { hubId: container?.parent_id ?? undefined, collectionId: container?.id },
+  );
+
+  $effect(() => {
+    if (!container) return;
+    people.open(containerPath);
+  });
+
+  const structureRole = $derived(
+    people
+      .along(containerPath)
+      .find((membership) => membership.account_id === actor.account?.id)?.role as string | undefined,
+  );
+
+  // The definitions in force here, read once for the dialog and for the filter editor below.
+  $effect(() => {
+    if (container?.type !== 'COLLECTION') return;
+    const wanted = container.id;
+    return untrack(() => customFields.open(wanted));
+  });
   // The hub above a collection, for the trail. Read on its own for the same reason.
   $effect(() => {
     const parent = container?.type === 'COLLECTION' ? container.parent_id : undefined;
@@ -226,6 +262,7 @@
   // No subscription of its own: a collection renders either the list or the board, and both open
   // the level already. A third reader of one list is what the stores exist to avoid.
   let isManagingLabels = $state(false);
+  let isManagingFields = $state(false);
   let isManagingMembers = $state(false);
 
   let isTrashing = $state(false);
@@ -408,6 +445,16 @@
             >
               {t('app.labels.choose')}
             </Button>
+            <!-- A custom field belongs to a collection or to the workspace, and what applies here
+                 is one question — so this is the screen it is answered on, beside the labels. -->
+            <Button
+              size="sm"
+              tone="secondary"
+              onclick={() => (isManagingFields = true)}
+              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+            >
+              {t('app.fields.title')}
+            </Button>
           {/if}
           <!-- Who holds which role here. Offered on both a hub and a collection, because a
                membership applies downwards from wherever it was granted and both are scopes. -->
@@ -510,6 +557,11 @@
 
 {#if container?.type === 'COLLECTION'}
   <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />
+  <CustomFieldsDialog
+    bind:isOpen={isManagingFields}
+    collectionId={container.id}
+    role={structureRole}
+  />
 {/if}
 
 {#if container}

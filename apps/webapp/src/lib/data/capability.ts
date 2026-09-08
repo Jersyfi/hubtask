@@ -102,6 +102,24 @@ export function rootTypes(manifest: Capabilities | undefined): readonly ItemType
     .filter((type): type is string => type !== undefined && !claimed.has(type));
 }
 
+/**
+ * The types that carry a capability, in the order the manifest reports them.
+ *
+ * What a definition's `applies_to` may name, and what a chooser for it offers: the contract bounds
+ * that list by the `CUSTOM_FIELDS` capability, so an activity is not offered rather than offered
+ * and refused. Derived, never named — a fourth type with the capability is offered by an
+ * installation that has one, without this file knowing it exists.
+ */
+export function typesWith(
+  manifest: Capabilities | undefined,
+  capability: string,
+): readonly ItemType[] {
+  return (manifest?.item_types ?? [])
+    .filter((entry) => entry.capabilities?.includes(capability))
+    .map((entry) => entry.type as string | undefined)
+    .filter((type): type is string => type !== undefined);
+}
+
 /** The types this one may hold. Empty for a type that holds nothing, and for one nobody declared. */
 export function allowedChildTypes(
   manifest: Capabilities | undefined,
