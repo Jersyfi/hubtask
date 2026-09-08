@@ -41,6 +41,7 @@
   import { items } from '../lib/data/items.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
+  import CommentPanel from '../lib/people/CommentPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import { activityPath, itemPath } from '../lib/data/item.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
@@ -308,6 +309,11 @@
           {t('app.people.share')}
         </Button>
       </div>
+    </Stack>
+
+    <Stack gap="150">
+      <h2 class="section">{t('app.comments.title')}</h2>
+      <CommentPanel {item} path={peoplePath} />
     </Stack>
 
     <Stack gap="150">
