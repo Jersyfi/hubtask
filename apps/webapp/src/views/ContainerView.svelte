@@ -49,6 +49,7 @@
   import { queryFieldsFor } from '../lib/data/customfields.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { selection } from '../lib/data/selection.svelte.ts';
+  import { live } from '../lib/data/live.svelte.ts';
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
 
@@ -406,7 +407,12 @@
   }
 </script>
 
-{#if !container && !containers.isSettled(id)}
+{#if live.hasLost(id)}
+  <!-- The stream said this reader lost access while they were looking at it. `offline-sync.md` §6
+       binds a client to drop what it holds for a container it lost, and leaving them on a page
+       drawn from that dropped cache would be showing them what they may no longer read. -->
+  <EmptyState kind="filtered" title={t('app.live.access_revoked')} />
+{:else if !container && !containers.isSettled(id)}
   <div aria-busy="true"><Skeleton lines={3} /></div>
 {:else if !container}
   <!-- Not an error state: the read succeeded and this address is simply not in the workspace. §4.4

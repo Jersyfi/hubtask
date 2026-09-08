@@ -13,6 +13,7 @@
   import AppFrame from './lib/frame/AppFrame.svelte';
   import { t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
+  import { live } from './lib/data/live.svelte.ts';
   import { session } from './lib/session.svelte.ts';
   import ContainerView from './views/ContainerView.svelte';
   import HomeView from './views/HomeView.svelte';
@@ -57,6 +58,20 @@
     if (!session.isSignedIn) return;
     const intended = session.takeIntendedPath();
     if (intended && intended !== route.path) router.navigate(intended);
+  });
+
+  /**
+   * The one stream this tab keeps, opened once there is a credential to open it with.
+   *
+   * Here rather than in a view, because it belongs to the session rather than to a screen: a
+   * reader who navigates from a board to an entry does not want the connection torn down and made
+   * again. `live.stop()` is called by the sign-out itself, so the teardown here is only for a tab
+   * that closes.
+   */
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    live.start();
+    return () => live.stop();
   });
 </script>
 

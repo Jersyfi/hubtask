@@ -1687,5 +1687,14 @@
   "app.feeds.revoke": "Revoke",
   "app.feeds.revoke_title": "Revoke this subscription?",
   "app.feeds.revoke_explains": "Every calendar subscribed to this address stops updating, at once and without warning them. The address cannot be brought back; a new subscription is a new address.",
-  "app.feeds.unknown_view": "A view that is no longer here"
+  "app.feeds.unknown_view": "A view that is no longer here",
+  "app.live.live": "Live",
+  "app.live.reconnecting": "Reconnecting…",
+  "app.live.off": "Not live",
+  "app.live.off_reason": "This tab is not receiving changes as they happen. What you see is what was there when it last loaded, and it refreshes whenever you change something.",
+  "app.live.became_live": "Now showing changes as they happen.",
+  "app.live.lost": "Not receiving changes at the moment. Trying again.",
+  "app.live.reloaded": "Reloading everything: this tab was away too long to catch up.",
+  "app.live.access_revoked": "You no longer have access to this. Somebody changed who may read it.",
+  "app.live.access_revoked_short": "Access removed"
 }

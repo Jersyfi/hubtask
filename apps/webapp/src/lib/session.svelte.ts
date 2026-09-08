@@ -21,6 +21,7 @@
 import type { Account } from '@hubtask/sync-engine';
 
 import { engine, whenCredentialRefused } from './data/engine.ts';
+import { live } from './data/live.svelte.ts';
 import { messages } from './i18n/i18n.svelte.ts';
 import { platform } from './platform/index.ts';
 import { renderProblem, type RenderedProblem } from './problem.ts';
@@ -127,8 +128,15 @@ class Session {
     return path;
   }
 
-  /** The token and everything read with it, in that order. */
+  /**
+   * The token and everything read with it, in that order.
+   *
+   * The stream goes first. A connection left open over a cleared cache would deliver records into
+   * nothing and hold a credential the reader has just given up — and the per-credential cap counts
+   * connections, not intentions.
+   */
   #discard(): void {
+    live.stop();
     platform.releaseBearer();
     engine.reset();
     this.#status = 'signed-out';
