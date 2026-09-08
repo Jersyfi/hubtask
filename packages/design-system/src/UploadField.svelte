@@ -72,6 +72,10 @@
   let input = $state<HTMLInputElement | null>(null);
   let isOver = $state(false);
 
+  // The input needs an id of its own: a `<label for>` pointing at nothing leaves a file input
+  // announced as "button", which is the exact failure this component's comment warns about and
+  // the workbench's keyboard-order panel is what caught it.
+  const inputId = `upload-${Math.random().toString(36).slice(2, 9)}`;
   const unavailable = $derived(disabledReason !== undefined);
   const reasonId = $derived(unavailable ? `reason-${Math.random().toString(36).slice(2, 9)}` : undefined);
   const hintId = $derived(hint ? `hint-${Math.random().toString(36).slice(2, 9)}` : undefined);
@@ -85,7 +89,7 @@
 </script>
 
 <div class="field">
-  <label class="label" for={input?.id}>{label}</label>
+  <label class="label" for={inputId}>{label}</label>
   {#if hint}<p class="hint" id={hintId}>{hint}</p>{/if}
 
   <!-- The drop target wraps the button and the input rather than replacing them. `dragover` has
@@ -110,6 +114,7 @@
   >
     <input
       class="native"
+      id={inputId}
       type="file"
       {accept}
       bind:this={input}
@@ -127,8 +132,11 @@
 
   {#if file}
     <p class="chosen">
-      <span class="name">{file.name}</span>
-      {#if sizeLabel}<span class="size">{sizeLabel}</span>{/if}
+      <!-- Each is isolated: a Latin file name and a Latin size sentence inside a right-to-left
+           paragraph are reordered by the bidi algorithm otherwise, and "2.4 MB of 25 MB" comes
+           out as "MB of 25 MB 2.4". `dir="auto"` lets each string state its own direction. -->
+      <span class="name" dir="auto">{file.name}</span>
+      {#if sizeLabel}<span class="size" dir="auto">{sizeLabel}</span>{/if}
     </p>
     {#if overLimitLabel}
       <!-- Rule 3: a sentence, not a red border. And it is a report rather than a refusal — what
@@ -195,7 +203,9 @@
 
   .chosen { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin: 0; min-width: 0; }
 
-  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: isolate; }
+
+  .size { unicode-bidi: isolate; }
 
   .size,
   .hint,
