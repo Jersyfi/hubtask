@@ -182,7 +182,8 @@ func TestTheManifestReportsTheInstallation(t *testing.T) {
 	// The two product-shaped bounds a client needs before it builds an editor: how many reminders
 	// an entry carries, and how large a template's tree may be.
 	if capabilities.Limits["max_reminders_per_item"] != int64(work.MaxRemindersPerItem) ||
-		capabilities.Limits["max_template_nodes"] != int64(work.MaxTemplateNodes) {
+		capabilities.Limits["max_template_nodes"] != int64(work.MaxTemplateNodes) ||
+		capabilities.Limits["max_bulk_operations"] != int64(work.MaxBulkOperations) {
 		t.Errorf("the product's own bounds are missing from %v", capabilities.Limits)
 	}
 	if !capabilities.Features["mail"] {

@@ -173,6 +173,10 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// writes (D-06). A client that lets somebody build a template reads it here rather
 			// than letting them build a tree of six hundred nodes and refusing it at the end.
 			"max_template_nodes": int64(work.MaxTemplateNodes),
+			// How many operations one bulk may carry (C-11, api-guidelines.md §5). A client that
+			// offers a selection reads it here rather than letting somebody select six hundred
+			// entries and refusing the request at the end.
+			"max_bulk_operations": int64(work.MaxBulkOperations),
 			// What one :export answers at most (D-08). A client that offers "download this view"
 			// reads it here rather than discovering the bound from a truncated file.
 			"max_export_rows": int64(view.MaxExportRows),

@@ -13,6 +13,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -31,8 +32,10 @@ const (
 	// no per-entry record shows.
 	ItemBulkAppliedAction audit.Action = "item.bulk_applied"
 
-	// maxBulkOperations is the cap api-guidelines.md §5 states.
-	maxBulkOperations = 500
+	// maxBulkOperations is the cap api-guidelines.md §5 states. The number lives in the domain,
+	// beside the other bounds /meta/capabilities publishes, so that this use case and the manifest
+	// cannot state two different ones.
+	maxBulkOperations = domain.MaxBulkOperations
 )
 
 // bulkOperations maps the contract's operation names onto the use cases that perform them

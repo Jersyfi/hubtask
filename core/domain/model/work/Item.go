@@ -35,6 +35,16 @@ func (t ItemType) Valid() bool {
 // MaxContainerNameLength: a limit in bytes draws a line a user cannot see (I-W7).
 const MaxItemTitleLength = 500
 
+// MaxBulkOperations is how many single-entry operations one bulk may carry, the cap
+// api-guidelines.md §5 states.
+//
+// Here rather than beside the use case that enforces it, for the reason MaxTemplateNodes is in
+// Template.go: it is a shape of the product, and /meta/capabilities publishes it so that a client
+// knows the number rather than discovering it from a refusal. A selection bar that let somebody
+// pick six hundred entries and told them at the end is exactly what publishing it prevents, and
+// core/application/service/meta may not import another service package to read it.
+const MaxBulkOperations = 500
+
 // PathSeparator separates the identifiers of a materialised path.
 const PathSeparator = "/"
 
