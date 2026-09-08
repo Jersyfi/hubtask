@@ -103,10 +103,13 @@
   function bulkNote(itemId: string): string | undefined {
     const result = lastResults?.get(itemId);
     if (!result) return undefined;
-    const outcome = outcomeOf(result);
-    if (outcome === 'applied') return undefined;
-    if (outcome === 'not_applied') return t('app.bulk.rolled_back');
-    return renderProblem(result.problem as never, messages).message;
+    if (outcomeOf(result) === 'applied') return undefined;
+    // The server's own sentence wherever it sent one — including for a rollback, whose problem
+    // names the operation that caused it. The client's own is the fallback for the shape the
+    // schema describes, which carries no problem at all.
+    return result.problem
+      ? renderProblem(result.problem as never, messages).message
+      : t('app.bulk.rolled_back');
   }
 
   /** The entries whose children are shown. Expanding one is what reads its level. */

@@ -86,12 +86,21 @@ export type Outcome = 'applied' | 'refused' | 'not_applied';
 /**
  * Which of the three a result is.
  *
- * A rolled-back operation carries neither an item nor a problem — that is the contract's own
- * distinction, and reading the `409` alone would call a genuine version conflict a rollback.
+ * **Two shapes of "not applied", because the contract and the server describe it differently.**
+ * The schema says a rolled-back operation "carries neither and says so by its status"; the server
+ * sends `409` *with* a problem whose detail code is `bulk.rolled_back` — and that one is the better
+ * answer, because it names the operation that failed. Both are recognised here rather than one:
+ * reading the status alone would call a genuine version conflict a rollback, and reading only the
+ * contract's shape would call every rollback a refusal.
  */
+const ROLLED_BACK = 'bulk.rolled_back';
+
 export function outcomeOf(result: BulkResult): Outcome {
   const status = result.status ?? 0;
   if (status >= 200 && status < 300) return 'applied';
+  if ((result.problem as { detail_code?: string } | undefined)?.detail_code === ROLLED_BACK) {
+    return 'not_applied';
+  }
   if (!result.problem && !result.item && status === 409) return 'not_applied';
   return 'refused';
 }

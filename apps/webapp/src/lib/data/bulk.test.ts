@@ -57,6 +57,12 @@ test('a rolled-back operation is told from a refusal by what it does not carry',
   assert.equal(outcomeOf(result({ status: 200, item: {} as never })), 'applied');
   assert.equal(outcomeOf(result({ status: 201, item: {} as never })), 'applied');
   assert.equal(outcomeOf(result({ status: 409 })), 'not_applied');
+  // …and the shape this server actually sends: a 409 that does carry a problem, whose detail code
+  // names the rollback. Found by walking a real atomic bulk; the schema describes only the first.
+  assert.equal(
+    outcomeOf(result({ status: 409, problem: { detail_code: 'bulk.rolled_back' } as never })),
+    'not_applied',
+  );
   assert.equal(outcomeOf(result({ status: 409, problem: { code: 'version_conflict' } as never })), 'refused');
   assert.equal(outcomeOf(result({ status: 403, problem: {} as never })), 'refused');
 });
