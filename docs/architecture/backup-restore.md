@@ -346,6 +346,66 @@ last month's entries into the middle of a live chain is not a restore but a rewr
 cannot be rewritten" is the property the whole audit surface rests on. `include_audit` still puts it
 in the archive, which is what it was for — the evidence is readable where it was written down.
 
+### 8.5 The operator procedure: point-in-time recovery
+
+*Everything above is a **tenant's** restore, from an archive this application wrote. This section is
+the other kind: the **operator's** recovery of the whole installation from the database's own
+continuous archive (§1's system backup, [ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md)).
+It is the procedure the `INSTANCE` refusal points at.*
+
+**Hubtask does not perform this restore, and that is B-2's answer rather than a gap.** An
+application cannot restore the database it has to be running to reach, and it is least able to
+precisely when it is most needed. What performs it is CloudNativePG, from the WAL archive the
+`Cluster` writes continuously; what Hubtask contributes is the drill that proves the archive works,
+and the checks that say what came back is sound.
+
+**The runbook is executable by a person alone.** Not by this project's automation, and not by the
+platform's — the platform does not do application-level restores, and a runbook whose only operator
+is an AI session is a runbook with a single point of failure that cannot be paged.
+
+#### The procedure
+
+1. **Decide the moment.** A recovery target is a point in time, and choosing it is the only step
+   nobody can automate: everything after the target is discarded. Read the audit trail or the
+   incident's own timeline for the moment before the damage.
+2. **Stop writing.** Scale the workloads to zero. A restore that races the application it is
+   restoring for produces a database with two histories in it.
+3. **Bootstrap a new cluster from the archive**, with `bootstrap.recovery` naming the external
+   cluster and `recoveryTarget.targetTime` the moment from step 1. Into a *new* cluster, never over
+   the live one: the archive is the only copy of the history being replayed, and a cluster
+   recovering over itself can archive over what it is reading.
+4. **Check what came back before admitting traffic.** The drill's own checks are the list, and the
+   drill is the way to run them — `hubtask-restore-drill` against a target time is the same code
+   path (`cmd/restore-drill`). The markers, the schema version, index and constraint validity, row
+   level security forced on every tenant table, the application role still unable to bypass it.
+5. **Re-apply the erasures the rewind undid.** This is the step §7 flags and the one most easily
+   forgotten: a recovery that rewinds past a completed erasure rewinds the *record* of it too, so
+   the erasures completed after the recovery point are read from the audit export at the backup
+   target — outside the database being rewound — and re-run before traffic is admitted.
+6. **Point the application at the recovered cluster** and scale back up. The migration runs on the
+   way in as always; a recovered database is at the schema version its moment had, and forward-only
+   migrations take it the rest of the way.
+7. **Write down what happened.** The measured recovery is evidence, and it is internal (decision 7
+   of [milestone 0.6.0](../backlog/milestone-0.6.0.md)) — the incident record, not this repository.
+
+#### What proves it in advance
+
+**RT-9, per release and weekly**: `hubtask-restore-drill` writes two marker rows with a recorded
+moment between them, recovers a temporary cluster to that moment, and expects the first marker and
+not the second. Then it runs step 4's checks against what came back, measures how far the archive
+was behind (the RPO) and how long the recovery took (the RTO), and removes the temporary cluster
+whatever happened. It is a hook of every release and a `CronJob` between releases; a pass moves the
+record that feeds `hubtask_restore_drill_last_success_timestamp_seconds`, which is what A-20
+watches (§10).
+
+A drill that fails does **not** fail the release. The record keeps the previous success, so the
+alert keeps counting from the last real proof rather than from the last attempt.
+
+**And in CI, where production does not exist yet**: `make gate-pitr` runs exactly this on a kind
+cluster with the CloudNativePG operator and MinIO — a real archive, a real recovery to a point
+between two writes, the wrong marker's survival failing the build. What it cannot prove is the size
+of the numbers, because a CI runner is not the target; what it proves is the path.
+
 ---
 
 ## 9. Import and export of existing systems
@@ -443,7 +503,7 @@ encryption, target, manifest, listing, restore.
 | # | Point | Needed by |
 |---|---|---|
 | B-1 | Whether `rclone` goes into the image (size, and its GPL-3.0 licence — check distribution alongside BSL) | `0.5.0` |
-| B-2 | ~~Whether system backups (PITR) are orchestrated by Hubtask or left to the operator~~ — **left to the operator** ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), H-10). An application cannot back up the database it has to be running to reach, and it is least able to precisely when it is most needed. In production that operator is CloudNativePG: continuous WAL archiving from the `Cluster` resource ([`deploy/production/postgres.yaml`](../../deploy/production/postgres.yaml)), with the platform's volume snapshots as a second net for what is not a database. So the `INSTANCE` restore scope stays refused — which is what the code has been doing all along — and Hubtask keeps the tenant-scoped archive backups this document describes, because those are a different promise to a different party | Closed (H-10) |
+| B-2 | ~~Whether system backups (PITR) are orchestrated by Hubtask or left to the operator~~ — **left to the operator** ([ADR-0046](../adr/ADR-0046-production-on-a-platform-namespace.md), H-10). An application cannot back up the database it has to be running to reach, and it is least able to precisely when it is most needed. In production that operator is CloudNativePG: continuous WAL archiving from the `Cluster` resource the chart renders ([`k8s/templates/cnpg-cluster.yaml`](../../k8s/templates/cnpg-cluster.yaml), `database.enabled`), with the platform's volume snapshots as a second net for what is not a database. So the `INSTANCE` restore scope stays refused — which is what the code has been doing all along — and Hubtask keeps the tenant-scoped archive backups this document describes, because those are a different promise to a different party | Closed (H-10) |
 | B-3 | ~~Retention protection against ransomware (recommend object lock as mandatory?)~~ — **required** for the system backup target, **recommended** for a tenant's own (ADR-0046, H-10), with the two conditions without which it is theatre. The credential that writes backups must not be able to delete them or shorten their retention: a lock a compromised writer can lift protects against accidents only, which is not what the threat is. And the lock retention **equals** P-5's 35 days: longer and the generation plan's own cleanup fails against the lock, shorter and the promise in [data-protection.md](./data-protection.md) §12 is not kept by the storage that has to keep it. A tenant enabling it on its own target owes itself the same arithmetic, which is why the recommendation carries the numbers rather than the word | Closed (H-10) |
 | B-4 | The scope of the trial restore in the default schedule | `0.9.0` |
 | B-5 | What a restore owes connected devices. It writes rows without change log entries, so a device that was offline through one keeps a cursor that is still valid and will never be told what changed (E-06, [offline-sync.md](./offline-sync.md) §8). The candidates are a change log entry per restored row, or a per-tenant "resynchronise from scratch" marker that a pull turns into a full sync — the second is cheaper and is probably right for an act this rare, and neither should be guessed at inside a backup task | `0.5.0` |
