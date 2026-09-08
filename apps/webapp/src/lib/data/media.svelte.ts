@@ -58,6 +58,25 @@ class Media {
     return mediaId ? this.#records[mediaId] : undefined;
   }
 
+  /** The name the file arrived under, when the record has been read. */
+  fileNameOf(mediaId: string | null | undefined): string | undefined {
+    return mediaId ? (this.#records[mediaId]?.file_name ?? undefined) : undefined;
+  }
+
+  /**
+   * Asks for the records a screen names and has not got.
+   *
+   * Safe on every render, like the account cache it mirrors: an identifier already held, already
+   * being asked for, or already refused is skipped. A history of twenty steps about three files is
+   * three reads, once.
+   */
+  resolve(ids: readonly (string | null | undefined)[]): void {
+    for (const id of ids) {
+      if (!id || id in this.#records || this.#asking.has(id) || this.#unknown.has(id)) continue;
+      void this.#read(id);
+    }
+  }
+
   /**
    * Where to draw a cover from, asking for the record if there is none or if its target expired.
    *

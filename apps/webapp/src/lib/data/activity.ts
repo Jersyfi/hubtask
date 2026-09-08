@@ -84,6 +84,34 @@ export function namesPeople(field: string): boolean {
   return PEOPLE_FIELDS.has(field);
 }
 
+/**
+ * The change-set fields whose values are files.
+ *
+ * `item.attachment_added` and `item.attachment_removed` carry `media_id`, and a UUID in front of
+ * somebody asking which file was attached is the same non-answer an account identifier is. The
+ * name is one request away — the media record the client already reads for a cover — so the field
+ * list says which values to look up, exactly as it does for people.
+ *
+ * `cover` is deliberately not here: it carries the whole cover object rather than an identifier,
+ * and `textOf` already refuses to print an object at a reader.
+ */
+const MEDIA_FIELDS = new Set(['media_id']);
+
+export function namesMedia(field: string): boolean {
+  return MEDIA_FIELDS.has(field);
+}
+
+/** Every media identifier a set of changes mentions, each once. */
+export function mediaNamedBy(changes: readonly Change[]): readonly string[] {
+  const ids = new Set<string>();
+  for (const change of changes) {
+    if (!namesMedia(change.field)) continue;
+    if (change.from) ids.add(change.from);
+    if (change.to) ids.add(change.to);
+  }
+  return [...ids];
+}
+
 /** Every account identifier a set of changes mentions, each once. What the name lookup is asked. */
 export function accountsNamedBy(changes: readonly Change[]): readonly string[] {
   const ids = new Set<string>();
