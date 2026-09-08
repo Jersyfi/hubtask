@@ -1495,7 +1495,7 @@
   "app.due.all_day": "All day",
   "app.due.clear": "Clear the due date",
   "app.due.none": "No due date",
-  "app.due.zone_note": "{time} where it was set, {readerTime} for you.",
+  "app.due.zone_note": "{time} where it was set, {reader_time} for you.",
   "app.due.start": "Starts",
   "app.due.start_clear": "Clear the start",
   "app.due.overdue": "Overdue",

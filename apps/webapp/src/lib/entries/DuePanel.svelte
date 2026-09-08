@@ -48,7 +48,7 @@
     if (!item.due_at || !due?.zone || item.due_date_only) return undefined;
     return t('app.due.zone_note', {
       time: formatDue(item.due_at, messages.locale, due.zone, { showZone: true }),
-      readerTime: formatDue(item.due_at, messages.locale, zone, { showZone: true }),
+      reader_time: formatDue(item.due_at, messages.locale, zone, { showZone: true }),
     });
   });
 
