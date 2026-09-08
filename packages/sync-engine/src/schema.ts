@@ -194,3 +194,19 @@ export type Cover = components['schemas']['Cover'];
 export type CoverInput = components['schemas']['CoverInput'];
 /** What one entry carries, answered by attaching and detaching — never the entry itself. */
 export type ItemAttachments = components['schemas']['ItemAttachments'];
+
+/**
+ * One field an installation added to its entries.
+ *
+ * The `key` is an identifier and never a label — it appears in `custom_fields.<key>` filters — and
+ * neither it nor `kind` changes after definition: a key that moved would orphan every value stored
+ * under it, and a kind that changed would reinterpret them. `collection_id` is `null` for a
+ * workspace-wide definition and absent for nothing, because absent would say this server does not
+ * know about scopes.
+ */
+export type CustomFieldDefinition = components['schemas']['CustomFieldDefinition'];
+export type CustomFieldDefinitionCreate = components['schemas']['CustomFieldDefinitionCreate'];
+export type CustomFieldDefinitionUpdate = components['schemas']['CustomFieldDefinitionUpdate'];
+export type CustomFieldKind = components['schemas']['CustomFieldKind'];
+/** One value for one key. `value` is required and may be null, which clears the key. */
+export type CustomFieldValue = components['schemas']['CustomFieldValue'];
