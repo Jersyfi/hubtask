@@ -81,6 +81,29 @@ export type Capabilities = components['schemas']['Capabilities'];
 /** The deep report of `/meta/health`, which only an actor with `admin:read` may read. */
 export type HealthReport = components['schemas']['HealthReport'];
 export type Container = components['schemas']['Container'];
+
+/**
+ * Who holds which role at one scope, and the shapes around it.
+ *
+ * A row carries an identifier and no label, which is the contract's decision rather than an
+ * omission: the name is one request away, and a copy of somebody's name stored beside their id is
+ * a copy that outlives the change of it.
+ */
+export type Membership = components['schemas']['Membership'];
+export type MembershipPage = components['schemas']['MembershipPage'];
+export type MembershipGrant = components['schemas']['MembershipGrant'];
+export type MembershipRole = components['schemas']['MembershipRole'];
+export type MembershipScope = components['schemas']['MembershipScope'];
+/** A group and, when read on its own, the accounts in it. */
+export type Group = components['schemas']['Group'];
+export type GroupPage = components['schemas']['GroupPage'];
+export type GroupDetail = components['schemas']['GroupDetail'];
+/** What assigning takes, and what adding or removing a member answers. */
+export type Assignment = components['schemas']['Assignment'];
+export type ItemMembers = components['schemas']['ItemMembers'];
+/** What one run of automatic assignment did, including the reason nobody got the entry. */
+export type AutoAssignOutcome = components['schemas']['AutoAssignOutcome'];
+export type AutoAssignStrategy = components['schemas']['AutoAssignStrategy'];
 export type WorkItem = components['schemas']['WorkItem'];
 export type Problem = components['schemas']['Problem'];
 export type Label = components['schemas']['Label'];

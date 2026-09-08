@@ -17,7 +17,9 @@
  */
 
 import type {
+  AutoAssignOutcome,
   FilterNode,
+  ItemMembers,
   ItemQueryResult,
   MoveResult,
   ResourceState,
@@ -364,6 +366,80 @@ class Items {
       `/items/${id}:${isCompleted ? 'complete' : 'reopen'}`,
       undefined,
       { idempotencyKey, invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Who the entry belongs to. One account, or nobody.
+   *
+   * Two operations rather than a nullable field, because the server has two — and because the
+   * scalar and the member list are written separately on purpose (C-01): an assignee is
+   * last-write-wins and a member list is an OR-set, so they cannot share a request without one of
+   * the two merge rules losing.
+   *
+   * The account is **not checked here**. The server refuses one that cannot see the entry, with
+   * the same answer for an account of another tenant and one that does not exist, and that answer
+   * is a sentence the reader gets. A client that filtered instead would be a second implementation
+   * of an authorisation rule, always one deployment behind (F2-07).
+   */
+  async assign(id: string, accountId: string, version: number, idempotencyKey: string): Promise<WorkItem> {
+    return engine.mutate<WorkItem>(
+      'POST',
+      `/items/${id}:assign`,
+      { assignee_id: accountId },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+    );
+  }
+
+  async unassign(id: string, version: number, idempotencyKey: string): Promise<WorkItem> {
+    return engine.mutate<WorkItem>(
+      'POST',
+      `/items/${id}:unassign`,
+      undefined,
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Lets the collection's policy pick somebody.
+   *
+   * "Nobody was eligible" comes back as a **result** and not as a failure: the answer carries
+   * `assigned: false` and a code, and rendering it as an error would tell a reader something broke
+   * when the truth is that the policy ran and found no one.
+   */
+  async autoAssign(id: string, idempotencyKey: string): Promise<AutoAssignOutcome> {
+    return engine.mutate<AutoAssignOutcome>(
+      'POST',
+      `/items/${id}:auto-assign`,
+      undefined,
+      { idempotencyKey, invalidates: TOUCHES },
+    );
+  }
+
+  /**
+   * Who else is on the entry. **One member per call**, and that is the contract's shape rather
+   * than a convenience this client declined: the set merges as an OR-set, so adding and removing
+   * are the two operations that commute, and a whole-list `PUT` would be a last-write-wins
+   * replacement wearing a set's clothes.
+   *
+   * The answer is `ItemMembers` rather than the entry, because neither call touches the entry's
+   * own row — an entry whose version moved would be telling a client its title had changed too.
+   */
+  async addMember(id: string, accountId: string, idempotencyKey: string): Promise<ItemMembers> {
+    return engine.mutate<ItemMembers>(
+      'PUT',
+      `/items/${id}/members/${accountId}`,
+      undefined,
+      { idempotencyKey, invalidates: TOUCHES },
+    );
+  }
+
+  async removeMember(id: string, accountId: string): Promise<ItemMembers> {
+    return engine.mutate<ItemMembers>(
+      'DELETE',
+      `/items/${id}/members/${accountId}`,
+      undefined,
+      { invalidates: TOUCHES },
     );
   }
 }

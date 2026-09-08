@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 
 import type { ActivityEntry } from '@hubtask/sync-engine';
 
-import { actorCodes, changesOf } from './activity.ts';
+import { accountsNamedBy, actorCodes, changesOf, namesPeople } from './activity.ts';
 
 const step = (extra: Partial<ActivityEntry> = {}): ActivityEntry =>
   ({
@@ -119,4 +119,25 @@ test('a kind this client has never heard of falls back rather than rendering a k
     'app.activity.actor_ROBOT',
     'app.activity.actor_someone',
   ]);
+});
+
+test('a change that names a person is told apart from one that names a bucket', () => {
+  // A client that resolved every identifier as an account would ask for accounts that do not
+  // exist, and a `bucket_id` is the case that proves it.
+  assert.equal(namesPeople('assignee_id'), true);
+  assert.equal(namesPeople('member_id'), true);
+  assert.equal(namesPeople('bucket_id'), false);
+  assert.equal(namesPeople('title'), false);
+});
+
+test('handing an entry over names both sides, each once', () => {
+  const changes = changesOf({
+    assignee_id: { from: 'a-1', to: 'a-2' },
+    member_id: { to: 'a-2' },
+    title: { from: 'Old', to: 'New' },
+  });
+
+  // Both sides, because the history renders the hand-over as one step with both of them - and the
+  // person who appears twice is asked for once.
+  assert.deepEqual([...accountsNamedBy(changes)].sort(), ['a-1', 'a-2']);
 });
