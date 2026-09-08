@@ -7417,7 +7417,20 @@ components:
         query:
           type: object
           additionalProperties: true
-          description: The query document of POST /items:query, stored as sent.
+          description: >
+            The query a view asks, in the shape the use case takes rather than the shape
+            `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or
+            `scope_item_id` - because `presentation/rest` flattens the request body's `scope`
+            object before any use case sees it, and this document is read back as an input.
+
+
+            It carries an anchor, because `POST /views/{viewId}:export` executes it. A view that
+            stored only the question - a filter and an order, so that it could be asked anywhere -
+            is a view nobody can export.
+          example:
+            scope_container_id: "0192f000-0000-7000-8000-0000000000c0"
+            filter: { field: due_at, op: LTE, value: "@today+P7D" }
+            sort: [{ field: due_at, direction: ASC }]
         grouping:
           type: object
           additionalProperties: true
@@ -7448,6 +7461,13 @@ components:
         query:
           type: object
           additionalProperties: true
+          description: >
+            The query, anchored, in the use case's input shape - `scope_container_id`, not a nested
+            `scope` object. See `SavedView.query`; both shapes are refused here rather than at the
+            first export.
+          example:
+            scope_container_id: "0192f000-0000-7000-8000-0000000000c0"
+            filter: { field: due_at, op: LTE, value: "@today+P7D" }
         grouping:
           type: object
           additionalProperties: true
@@ -7473,6 +7493,9 @@ components:
         query:
           type: object
           additionalProperties: true
+          description: >
+            The whole query, replaced. Anchored and in the use case's input shape, as at creation -
+            see `SavedView.query`.
         grouping:
           type: object
           additionalProperties: true

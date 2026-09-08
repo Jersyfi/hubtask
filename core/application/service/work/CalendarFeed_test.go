@@ -138,7 +138,8 @@ func (h *feedHarness) withView(owner shared.ID, sharing view.Sharing) view.Saved
 		ScopeType: view.ViewScopeCollection, ScopeID: collectionID,
 		Name: "Due this week", Layout: "KANBAN",
 		Query: map[string]any{
-			"filter": map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P7D"},
+			"scope_container_id": collectionID.String(),
+			"filter":             map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P7D"},
 		},
 		Sharing: view.SharingPrivate,
 		Now:     now,
