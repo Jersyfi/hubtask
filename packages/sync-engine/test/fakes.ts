@@ -8,7 +8,17 @@
 // when F6 brings the protocol, and a fake that only one test file can reach is a fake that gets
 // rewritten.
 
-import type { Clock, RequestOptions, Response, Transport } from '../src/ports.ts';
+import { TransportError } from '../src/errors.ts';
+import type {
+  ByteTransfer,
+  Clock,
+  RequestOptions,
+  Response,
+  StreamConnection,
+  StreamEvent,
+  StreamOptions,
+  Transport,
+} from '../src/ports.ts';
 
 /** One call, as it was made. What a test asserts the headers and the deadline on. */
 export interface Call {
@@ -25,12 +35,28 @@ export interface Call {
  * synchronously hides every ordering bug a real network would expose, and the `loading` state
  * would never be observed by a test.
  */
+/**
+ * One scripted stream connection: either a refusal, or the events the server sends before it
+ * closes the connection. `open` keeps the connection up after the last event until the engine
+ * aborts it, which is what a live stream looks like between changes.
+ */
+export interface StreamSession {
+  readonly refuse?: TransportError;
+  readonly events?: readonly StreamEvent[];
+  readonly open?: boolean;
+}
+
 export class FakeTransport implements Transport {
   readonly calls: Call[] = [];
+  /** Every stream opened, with the cursor it was opened with - what a reconnect test asserts. */
+  readonly streams: { readonly lastEventId?: string; readonly token?: string }[] = [];
+  /** Every byte transfer, as it was asked for. */
+  readonly transfers: ByteTransfer[] = [];
   #answers = new Map<string, unknown>();
   #etags = new Map<string, string>();
   #sequences = new Map<string, unknown[]>();
   #failures = new Map<string, Error>();
+  #sessions: StreamSession[] = [];
 
   /** Sets what a path answers with, and the `ETag` it answers with where one matters. */
   answer(path: string, body: unknown, etag?: string): this {
@@ -55,6 +81,45 @@ export class FakeTransport implements Transport {
   fail(path: string, error: Error): this {
     this.#failures.set(path, error);
     return this;
+  }
+
+  /** Scripts the stream connections, consumed one per open. The last one repeats. */
+  streamSessions(...sessions: StreamSession[]): this {
+    this.#sessions = [...sessions];
+    return this;
+  }
+
+  async stream(_path: string, options: StreamOptions): Promise<StreamConnection> {
+    this.streams.push({ lastEventId: options.lastEventId, token: options.token });
+    await Promise.resolve();
+
+    const session = this.#sessions.length > 1 ? this.#sessions.shift() : this.#sessions[0];
+    if (!session) throw new TransportError('offline');
+    if (session.refuse) throw session.refuse;
+
+    const events = session.events ?? [];
+    const signal = options.signal;
+    return {
+      events: (async function* () {
+        for (const event of events) {
+          if (signal?.aborted) return;
+          await Promise.resolve();
+          yield event;
+        }
+        if (session.open && signal && !signal.aborted) {
+          await new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve(), { once: true }));
+        }
+      })(),
+    };
+  }
+
+  async transfer(transfer: ByteTransfer): Promise<void> {
+    this.transfers.push(transfer);
+    await Promise.resolve();
+    const failure = this.#failures.get(transfer.url);
+    if (failure) throw failure;
+    const total = transfer.body instanceof Blob ? transfer.body.size : transfer.body.byteLength;
+    transfer.onProgress?.(total, total);
   }
 
   async get<T>(path: string, options: RequestOptions): Promise<Response<T>> {
