@@ -46,6 +46,12 @@ The operations port is published on loopback only (`127.0.0.1:9090`). It carries
 the health report — `curl localhost:9090/readyz` after an update, and a Prometheus on the same
 host — and neither belongs on the network (observability-reliability.md §3.2).
 
+**The system backup is the self-hoster's own.** Two containers have no operator to do continuous
+archiving, so what this stack gives is a documented `pg_dump` and the tenant archives beside it —
+and [backup-restore.md §8.6](./backup-restore.md#86-the-minimal-path-a-dump-and-what-it-does-not-give)
+says plainly which four guarantees that does not carry, rather than leaving the difference to be
+discovered on the day it matters.
+
 Updating:
 
 ```bash
@@ -245,7 +251,7 @@ Everything else has a self-hosting default:
 |---|---|---|
 | `HUBTASK_ROLES` | `api,worker,scheduler,automation` | Which roles this process starts (ADR-0014) |
 | `HUBTASK_BACKUP_LOCAL_PATH` | `/var/lib/hubtask/backups` | The volume a `local` backup target writes inside. A target's own path is relative to it and cannot leave it, which is what keeps "write my backups to /etc" out of reach of somebody who administers the instance but not the machine. Empty means this installation serves no local targets |
-| `HUBTASK_RESTORE_DRILL_RECORD_FILE` | — | A file holding the Unix timestamp of the last restore drill that passed, written by `hubtask-restore-drill` (backup-restore.md §8.5) and read at every scrape as `hubtask_restore_drill_last_success_timestamp_seconds`, the gauge A-20 watches. The chart mounts the drill's record ConfigMap here; a Compose stack's script writes the file. Empty leaves the series absent rather than at zero |
+| `HUBTASK_RESTORE_DRILL_RECORD_FILE` | — | A file holding the Unix timestamp of the last restore drill that passed, written by `hubtask-restore-drill` (backup-restore.md §8.5) and read at every scrape as `hubtask_restore_drill_last_success_timestamp_seconds`, the gauge A-20 watches. The chart mounts the drill's record ConfigMap here; in a Compose stack there is no drill and the operator writes the file after a restore they checked ([backup-restore.md §8.6](./backup-restore.md#86-the-minimal-path-a-dump-and-what-it-does-not-give)). Empty leaves the series absent rather than at zero |
 | `HUBTASK_BACKUP_TENANT_TARGETS` | `false` | Lets a tenant configure its own backup target in provider operation (`backup-restore.md` §2). A backup target is an egress channel, and one a tenant chose is an egress channel the operator did not. It has no meaning in single-tenant operation, where the tenant's owner *is* the instance administrator. A target on a private network additionally needs `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS` |
 | `HUBTASK_ENCRYPTION_KEYS` | — | The master keyring for envelope encryption, as key identifiers separated by commas, **current first** (E-02). Lower-case letters, digits and underscores. Empty means this installation encrypts nothing: it starts, and refuses to store anything that would have to be sealed rather than storing it in the clear |
 | `HUBTASK_ENCRYPTION_KEY_<ID>` (`_FILE`) | — | The material of one key named above, at least 32 characters, one variable per key so that each can be its own mounted secret. A key named and not supplied fails startup — a ring quietly missing a key is a value nobody notices until an old archive will not open |

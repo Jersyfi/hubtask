@@ -411,6 +411,61 @@ cluster with the CloudNativePG operator and MinIO — a real archive, a real rec
 between two writes, the wrong marker's survival failing the build. What it cannot prove is the size
 of the numbers, because a CI runner is not the target; what it proves is the path.
 
+### 8.6 The minimal path: a dump, and what it does not give
+
+§8.5 describes a recovery a Kubernetes operator performs from a continuous archive. A self-hoster
+running the two-container Compose stack has no operator, and §1's table has always said the system
+backup is *recommended* there rather than provided. This is what "recommended" means concretely, so
+that the honest version is written down rather than left as an exercise.
+
+```bash
+# The dump. Custom format, so pg_restore can be selective and parallel later.
+docker compose exec -T db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
+  > "hubtask-$(date -u +%Y%m%dT%H%M%SZ).dump"
+
+# The media beside it: the database references objects it does not contain.
+docker compose cp app:/var/lib/hubtask/media ./media-backup
+
+# Putting it back, into a database that is empty.
+docker compose exec -T db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists \
+  < hubtask-20260907T020000Z.dump
+```
+
+**What this gives you.** A consistent snapshot of the whole installation at the moment the dump
+started, restorable onto the same PostgreSQL major version, from a stack anybody can run.
+
+**And what it does not — four things, each of which the operator path in §8.5 does give:**
+
+* **No point in time except the ones you took.** A dump is a photograph, so the worst case is
+  everything written since the last one. Nightly means a day. The RPO of ≤ 5 minutes
+  [observability-reliability.md §2](./observability-reliability.md#2-service-level-objectives)
+  names is a property of continuous WAL archiving, and nothing about a dump schedule approaches it.
+* **No protection against a deletion you copy.** A dump written over the previous one by a cron
+  job is one command away from being a backup of the damage. Object Lock is what makes that
+  impossible (B-3), and it is a property of the target rather than of the dump.
+* **Nothing has restored it.** The drill of §8.5 is what turns a backup into a restorable backup,
+  and `hubtask_restore_drill_last_success_timestamp_seconds` stays absent here — so **A-20 never
+  fires and never reassures**, which is the honest state rather than a silent pass. A self-hoster
+  who wants the alert to mean something can write the record themselves after a restore they
+  performed, which is the whole of the mechanism:
+
+  ```bash
+  # After a restore you checked: one integer, in the file the process reads at every scrape.
+  date -u +%s > /var/lib/hubtask/restore-drill/last_success_unix
+  # and in compose.yaml, so the process knows where to look:
+  #   HUBTASK_RESTORE_DRILL_RECORD_FILE: /var/lib/hubtask/restore-drill/last_success_unix
+  ```
+
+* **The tenant archives are a different promise.** Everything else in this document — targets,
+  schedules, encryption, retention, the `NEW_TENANT` trial restore — works in the Compose stack and
+  is the backup a *tenant* is entitled to (§1). It is not a substitute for the system backup: it
+  holds one workspace's content, not the installation's database.
+
+**Which is why the recommendation is what it is.** For one person's own installation, a nightly
+dump to a second machine plus the tenant archives is a defensible arrangement, and it is a great
+deal better than nothing. It is not what the operator path promises, and the difference is a day
+of writes and an untested archive rather than a matter of degree.
+
 ---
 
 ## 9. Import and export of existing systems
