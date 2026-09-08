@@ -70,13 +70,54 @@ spec:
   postgresql: {{- toYaml . | nindent 4 }}
   {{- end }}
 
+  {{- if $db.appRole.enabled }}
+  # The application's role, created by the operator because the migration may not.
+  #
+  # `db/migrations/0001_init.sql` creates both roles and catches the refusal a managed PostgreSQL
+  # answers with, leaving a notice and carrying on - and every grant after that would then apply to
+  # a role that does not exist. This is the other half it describes: "the operator creates the two
+  # roles beforehand". The owner above is the second one, which is why it is `hubtask_migrator`.
+  #
+  # No login credential is written here. The Secret is the owner's, created outside this chart and
+  # named in values, and it is the same password `db-dsn` carries.
+  managed:
+    roles:
+      - name: {{ $db.appRole.name }}
+        ensure: present
+        login: true
+        # The boundary, stated rather than defaulted: row level security is the last one, and it
+        # only is one for a role that cannot step over it (multi-tenancy.md §2.1).
+        superuser: false
+        bypassrls: false
+        createdb: false
+        createrole: false
+        passwordSecret:
+          name: {{ required "database.appRole.passwordSecret is required: a basic-auth Secret with username and password for the application role (set by the operator)" $db.appRole.passwordSecret }}
+  {{- end }}
+
   bootstrap:
     initdb:
       database: {{ $db.databaseName }}
-      # The owner runs the migrations. The application role hubtask_app is created by the first
-      # migration without a login and granted one by the migrator (multi-tenancy.md §2.1), so the
-      # application never connects as the owner.
+      # The owner runs the migrations, and it is `hubtask_migrator` because that is the role the
+      # schema names: migration 0001's `ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator` has to
+      # apply to whoever actually owns the objects. The application connects as a different role
+      # (managed.roles above), never as this one (multi-tenancy.md §2.1).
       owner: {{ $db.owner }}
+      postInitSQL:
+        # The one attribute a managed database has to be told to give the migrator, and the reason
+        # is in the schema rather than here.
+        #
+        # `item_capability_profile` holds the system defaults as rows with `tenant_id IS NULL`, and
+        # its policy deliberately lets everyone *read* them while its `WITH CHECK` lets nobody
+        # *write* them - "never write to the system defaults" (0001_init.sql). Migration 0002 seeds
+        # exactly those rows. Everywhere else the migrator is the PostgreSQL superuser and bypasses
+        # row level security implicitly; here it is an ordinary owner, and `FORCE ROW LEVEL
+        # SECURITY` applies to owners too, so the seed is refused and the migration stops.
+        #
+        # So the migrator gets `BYPASSRLS` explicitly - strictly less than the superuser every
+        # other environment hands it, and pointedly not given to the application role, which is the
+        # one the boundary exists for.
+        - ALTER ROLE {{ $db.owner }} BYPASSRLS
 
   {{- if $db.metrics.podMonitor }}
   # The operator's own PodMonitor. Only where the installation's Prometheus selects PodMonitors

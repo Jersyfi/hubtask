@@ -515,6 +515,7 @@ gate-chart:
 		--set database.backup.destinationPath=s3://backups/hubtask \
 		--set database.backup.endpointURL=https://s3.example.com \
 		--set database.backup.existingSecret=hubtask-backup-s3 \
+		--set database.appRole.passwordSecret=hubtask-app-role \
 		--set migration.dsnSecretName=hubtask-db-app --set migration.dsnSecretKey=uri \
 		--set restoreDrill.enabled=true --set restoreDrill.schedule='0 4 * * 1' \
 		--set restoreDrill.evidence.bucket=evidence --set restoreDrill.evidence.existingSecret=hubtask-evidence-s3 \
@@ -527,6 +528,7 @@ gate-chart:
 		--set existingSecret=hubtask-secrets --set database.enabled=true \
 		--set database.backup.destinationPath=s3://backups/hubtask \
 		--set database.backup.existingSecret=hubtask-backup-s3 \
+		--set database.appRole.passwordSecret=hubtask-app-role \
 		--set prometheusRules.enabled=true --set prometheusRules.sets.provider=true \
 		--set prometheusRules.sets.tenant=true --set dashboards.enabled=true)"; \
 		for id in A-01 A-03 A-12 A-18 A-20; do \
@@ -544,9 +546,16 @@ gate-chart:
 		--set existingSecret=hubtask-secrets --set restoreDrill.enabled=true > /dev/null 2>&1; then \
 		echo "chart: the restore drill rendered without a database to restore - it must refuse"; exit 1; fi
 	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
-		--set existingSecret=hubtask-secrets --set database.enabled=true > /dev/null 2>&1; then \
+		--set existingSecret=hubtask-secrets --set database.enabled=true \
+		--set database.appRole.passwordSecret=hubtask-app-role > /dev/null 2>&1; then \
 		echo "chart: a database with a backup and no destination path rendered - it must refuse"; exit 1; fi
-	@echo "chart: the database renders, and refuses a backup without a path"
+	@# And the application role's Secret is as mandatory: without it the migration's grants land on
+	@# a role a managed PostgreSQL would not let it create (db/migrations/0001_init.sql).
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set database.enabled=true \
+		--set database.backup.enabled=false > /dev/null 2>&1; then \
+		echo "chart: a database rendered without the application role's secret - it must refuse"; exit 1; fi
+	@echo "chart: the database renders, and refuses a backup or an application role without its secret"
 	@# And once with a tag of nothing but digits, read rather than discarded. `--set` infers a
 	@# type, so such a tag arrives as a number and a `%s` renders it as `%!s(int64=...)` - a
 	@# reference Kubernetes refuses with InvalidImageName. The two renders above would not have

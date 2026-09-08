@@ -27,6 +27,7 @@ Created once, by the owner, in the namespace. The chart reads them by the name i
 |---|---|---|
 | `existingSecret` | The application's own secrets | `db-dsn` (the application role), `secret-key`, and `smtp-password` when SMTP is configured |
 | `migration.dsnSecretName` | The owner role's DSN, for the migration | the key named in `migration.dsnSecretKey` |
+| `database.appRole.passwordSecret` | The **application role**'s password, read by the database operator to create the role. Type `kubernetes.io/basic-auth`, and the password must be the same one `db-dsn` above carries — two names for one credential | `username`, `password` |
 | `storage.existingSecret` | The media bucket's credentials | `access-key`, `secret-key` |
 | `database.backup.existingSecret` | The **backup** bucket's credentials | `access-key`, `secret-key` |
 | `restoreDrill.evidence.existingSecret` | The evidence location's credentials | `access-key`, `secret-key` |
@@ -35,6 +36,14 @@ Created once, by the owner, in the namespace. The chart reads them by the name i
 **Where CloudNativePG generates the DSN itself,** `migration.dsnSecretName` is the operator's own
 `<cluster>-app` Secret and `migration.dsnSecretKey` is `uri`, so the owner's credential is never
 copied anywhere by hand.
+
+**Why the application's role needs a Secret of its own.** The first migration creates both database
+roles and catches the refusal a *managed* PostgreSQL answers with — CloudNativePG is one, and its
+owner may not `CREATE ROLE`. The migration says so and carries on, and every grant after it would
+then land on a role that does not exist. So the database resource declares `hubtask_app` itself
+(`managed.roles`, no `SUPERUSER`, no `BYPASSRLS`), and the owner of the database is
+`hubtask_migrator` — the role migration 0001 was written for, which is what makes its
+`ALTER DEFAULT PRIVILEGES` apply to the role that actually owns the objects.
 
 **The backup credential has a condition, and it is the whole of B-3**
 ([ADR-0046](../../docs/adr/ADR-0046-production-on-a-platform-namespace.md)): the identity that
@@ -102,6 +111,13 @@ drill failing is the alert saying this installation cannot prove it can recover.
 3. The first sync creates the CloudNativePG `Cluster` in sync wave −10, the migration runs as a
    `Sync` hook in wave −5, the workloads follow in wave 0, and the restore drill runs as a
    `PostSync` hook once everything is up.
+
+   **This ordering is Argo CD's, and it is the reason a first sync works in one step.** Helm has no
+   equivalent: a `pre-install` hook runs before *every* resource of the release, including the
+   database, so a first install driven by `helm install` is two steps — create the database with
+   `migration.enabled=false`, wait for it, then `helm upgrade` with the migration on. `helm
+   rollback` and `helm uninstall` are likewise not the operator's path here; the Application's tag
+   is.
 4. That first drill has nothing to restore until the first base backup exists. The
    `ScheduledBackup` takes one immediately on creation, and the drill waits for it
    (`HUBTASK_DRILL_BACKUP_WAIT`, 15 minutes by default) before it gives up.

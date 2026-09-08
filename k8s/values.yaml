@@ -79,7 +79,27 @@ database:
   instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:17.6
   databaseName: hubtask
-  owner: hubtask_owner
+  # The database's owner, and deliberately the role the schema was written for: migration 0001
+  # creates objects, sets `ALTER DEFAULT PRIVILEGES FOR ROLE hubtask_migrator`, and grants the
+  # application role its rights. Under a managed PostgreSQL the migration cannot create roles at
+  # all - 0001 says so and carries on - so the owner has to *be* hubtask_migrator, or those grants
+  # apply to a role nobody is.
+  owner: hubtask_migrator
+  # The application's role, which the operator creates because the migration may not. This is the
+  # "operator creates the two roles beforehand" path db/migrations/0001_init.sql describes: with a
+  # managed database, CREATE ROLE is refused, the migration notices and continues, and every grant
+  # after it would then land on a role that does not exist.
+  #
+  # No BYPASSRLS and no SUPERUSER, stated rather than defaulted: this is the role row level
+  # security is the last boundary for (multi-tenancy.md §2.1), and it is worth being explicit
+  # about in the one place somebody might loosen it.
+  appRole:
+    enabled: true
+    name: hubtask_app
+    # A Secret of type kubernetes.io/basic-auth with `username` and `password`, created by the
+    # owner. The same password has to be the one in `db-dsn`, because that is the credential the
+    # application connects with.
+    passwordSecret: ""   # set by the operator
   storage:
     # Sized for the live database *and* the temporary cluster a restore drill bootstraps beside
     # it from the object store: both have to fit the namespace's quota at once (ADR-0046).
@@ -89,7 +109,20 @@ database:
     requests: { cpu: 500m, memory: 1Gi }
     limits:   { memory: 2Gi }
   # Anything under the Cluster's `postgresql` stanza - parameters above all.
-  postgresql: {}
+  postgresql:
+    parameters:
+      # What actually bounds the recovery point objective, and the setting most easily left out.
+      #
+      # A WAL segment is archived when it fills. On a busy database that is often; on a quiet one
+      # it may be hours, and until it happens everything in that segment is unrecoverable - so an
+      # installation can archive continuously, watch every metric stay green, and still lose an
+      # afternoon. archive_timeout closes the segment after this long *if there was activity*, so
+      # an idle database still produces nothing and a slow one is bounded.
+      #
+      # Five minutes is the RPO observability-reliability.md §2 promises, which is where the number
+      # comes from rather than from taste. Lowering it trades archive volume for a tighter window:
+      # each switch writes a whole segment, mostly empty, and the archive is compressed.
+      archive_timeout: "5min"
   # `helm uninstall`, and a pruning sync, must not take the database with the release.
   keepOnDelete: true
   metrics:

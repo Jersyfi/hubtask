@@ -192,8 +192,11 @@ func sleep(ctx context.Context, wait time.Duration) error {
 // pruneMarkers keeps the marker table small: rows older than the retention go, and nothing else
 // ever deletes from it.
 func (d *drill) pruneMarkers(ctx context.Context, live *pgx.Conn) error {
-	_, err := live.Exec(ctx, `DELETE FROM restore_drill_marker WHERE written_at < now() - $1::interval`,
-		d.cfg.MarkerRetention.String())
+	// make_interval rather than a cast: a Go duration renders as `840h0m0s`, which is not an
+	// interval literal PostgreSQL parses, and the failure would be a refused DELETE rather than a
+	// wrong one - loud, but only on the day somebody read the log.
+	_, err := live.Exec(ctx, `DELETE FROM restore_drill_marker WHERE written_at < now() - make_interval(secs => $1)`,
+		d.cfg.MarkerRetention.Seconds())
 	if err != nil {
 		return fmt.Errorf("pruning old markers: %w", err)
 	}
@@ -288,9 +291,16 @@ func (d *drill) waitForArchive(ctx context.Context, log *slog.Logger, live *pgx.
 	if !walSegmentName.MatchString(segment) {
 		return fmt.Errorf("pg_walfile_name answered %q, which is not a segment name", segment)
 	}
+	// Best effort, and never fatal. `pg_switch_wal()` is restricted to superusers unless somebody
+	// granted it, and the role this drill connects as is an ordinary owner - the operator does not
+	// hand out a superuser and should not. Where it is refused the segment closes on its own at
+	// `archive_timeout`, which is the setting that bounds the RPO in the first place
+	// (k8s/values.yaml, database.postgresql.parameters). So the switch makes the drill quick where
+	// it is allowed, and the wait below is what makes it correct where it is not.
 	switched := d.now()
 	if _, err := live.Exec(ctx, `SELECT pg_switch_wal()`); err != nil {
-		return fmt.Errorf("switching the WAL segment: %w", err)
+		log.Info("the WAL segment was not switched by hand - waiting for archive_timeout instead",
+			slog.String("error_code", "restore_drill.wal_switch_refused"))
 	}
 
 	deadline := switched.Add(d.cfg.Timeouts.ArchiveWait)

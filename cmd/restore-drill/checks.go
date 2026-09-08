@@ -126,9 +126,22 @@ func constraintsValidated(ctx context.Context, owner *pgx.Conn) check {
 	return check{Name: name, OK: pending == 0, Detail: fmt.Sprintf("unvalidated constraints: %d", pending)}
 }
 
+// rlsExceptions are the tables that carry a tenant column and deliberately have no row level
+// security. The list is `test/integration/tenant_boundary_test.go`'s, and it is a copy on purpose:
+// that test states the boundary against a freshly migrated database, this one states it against a
+// restored one, and a restore that quietly widened the boundary is exactly what T-20 is about. Two
+// lists that disagree would be a finding in themselves - which is why each entry here carries the
+// same reason as its twin rather than only the name.
+var rlsExceptions = map[string]string{
+	"job":              "system jobs are partly tenant-less; access is restricted by privileges (db/schema.sql)",
+	"goose_db_version": "the migration ledger; the application role has no access at all",
+	"instance_event":   "the installation's own evidence journal (H-06): its rows outlive the tenants they name",
+}
+
 // rowLevelSecurityForced is T-20's structural half: every table carrying a tenant column has row
 // level security enabled and forced, so that not even its owner reads across tenants. Judged by
-// the column rather than by a list of names, so that a table added since needs no entry here.
+// the column rather than by a list of names, so that a table added since needs no entry here -
+// except the documented handful above.
 func rowLevelSecurityForced(ctx context.Context, owner *pgx.Conn) check {
 	const name = "row_level_security_forced_on_tenant_tables"
 	ctx, cancel := context.WithTimeout(ctx, checkTimeout)
@@ -150,6 +163,9 @@ func rowLevelSecurityForced(ctx context.Context, owner *pgx.Conn) check {
 		var table string
 		if err := rows.Scan(&table); err != nil {
 			return failed(name, err)
+		}
+		if _, documented := rlsExceptions[table]; documented {
+			continue
 		}
 		unprotected = append(unprotected, table)
 	}

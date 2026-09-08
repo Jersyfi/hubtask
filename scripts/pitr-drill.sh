@@ -27,6 +27,7 @@ NAMESPACE="${PITR_NAMESPACE:-hubtask-pitr}"
 CLUSTER="hubtask-db"
 DRILL_CLUSTER="hubtask-db-drill"
 BUCKET="hubtask-backups"
+MEDIA_BUCKET="hubtask-media"
 # The manifest is pinned by version *and* by checksum, like every other tool this project
 # downloads: an unpinned install is a supply chain decision made by whoever is on the network
 # (ADR-0015). CNPG_VERSION and CNPG_SHA256 come from the Makefile so there is one place to change.
@@ -37,16 +38,19 @@ HELM="${HELM:-.tools/helm}"
 # Drawn rather than written down, for the reason the other smoke scripts give: a literal here would
 # be a credential in the repository even though it protects nothing that outlives this job (SG-7).
 SECRET_KEY="$(head -c 32 /dev/urandom | base64)"
+APP_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -d '/+=')"
 S3_ACCESS_KEY="$(head -c 12 /dev/urandom | base64 | tr -d '/+=')"
 S3_SECRET_KEY="$(head -c 24 /dev/urandom | base64 | tr -d '/+=')"
 
-# scrape reads a metrics endpoint from the runner rather than from inside a container.
+# fetch reads one path from a pod, from the runner rather than from inside a container.
 #
 # `kubectl exec ... curl` is the shorter spelling and it does not work here: the application's
 # image is distroless and has neither a shell nor a fetcher, and the operator's PostgreSQL image is
 # not required to carry one either. Port-forwarding asks nothing of the image.
-scrape() {
-	local target="$1" port="$2" out
+#
+# `curl -s` without `-f`: a 404 is an answer, and one of the callers below wants exactly that.
+fetch() {
+	local target="$1" port="$2" path="$3" out
 	out="$(mktemp)"
 	kubectl -n "$NAMESPACE" port-forward "$target" ":$port" >"$out" 2>&1 &
 	local forward=$!
@@ -60,7 +64,7 @@ scrape() {
 		kill "$forward" 2>/dev/null || true
 		return 1
 	fi
-	curl -sf --max-time 30 "http://127.0.0.1:$local_port/metrics"
+	curl -s --max-time 30 "http://127.0.0.1:$local_port$path"
 	local status=$?
 	kill "$forward" 2>/dev/null || true
 	wait "$forward" 2>/dev/null || true
@@ -89,6 +93,16 @@ fi
 kubectl apply --server-side -f "$manifest"
 kubectl -n cnpg-system rollout status deployment/cnpg-controller-manager --timeout=300s
 
+# A namespace left over from an earlier run may still be terminating, and creating objects inside
+# one that is being finalised has them swept out from under the run - which reads as a rollout that
+# never finishes rather than as a namespace that was not there. CI starts from a fresh cluster and
+# never sees this; a laptop running the drill twice does.
+for _ in $(seq 1 60); do
+	phase="$(kubectl get namespace "$NAMESPACE" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+	[ "$phase" = "Terminating" ] || break
+	echo "  waiting for the previous namespace to finish terminating"
+	sleep 5
+done
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
 echo "--- the image this commit produces, inside the cluster ---"
@@ -163,6 +177,7 @@ spec:
             - |
               mc alias set store http://minio:9000 "\$ACCESS_KEY" "\$SECRET_KEY" &&
               mc mb --ignore-existing store/$BUCKET &&
+              mc mb --ignore-existing store/$MEDIA_BUCKET &&
               mc ls store
           env:
             - name: ACCESS_KEY
@@ -173,16 +188,36 @@ MANIFEST
 kubectl -n "$NAMESPACE" wait --for=condition=complete job/create-bucket --timeout=180s || fail "the bucket was not created"
 
 echo "--- the release, with the database the chart owns ---"
+# Two DSNs, the arrangement A-11 asks of Kubernetes (multi-tenancy.md §2.1): the migration runs as
+# the owner - out of the Secret CloudNativePG generates, so that credential is never copied - and
+# the application connects as hubtask_app, whose login the migrator grants from this password.
+# The drill uses both: the owner writes the markers, and hubtask_app is the role whose bounds the
+# isolation checks are about.
 kubectl -n "$NAMESPACE" create secret generic hubtask-secrets \
 	--from-literal=secret-key="$SECRET_KEY" \
-	--from-literal=db-dsn="placeholder" \
+	--from-literal=db-dsn="postgres://hubtask_app:$APP_PASSWORD@$CLUSTER-rw:5432/hubtask?sslmode=require" \
 	--dry-run=client -o yaml | kubectl apply -f -
 
-# The chart renders the Cluster, its ScheduledBackup and the migration hook. The drill is switched
-# *off* for this install and switched on by the upgrade below: its hook runs at the end of a
-# release, and at the end of this one there is not yet a base backup to recover to. Turning it on
-# afterwards runs the same hook, the same pod and the same program - one release later, which is
-# exactly the position every release after the first is in.
+# The application role itself, which the operator creates because the migration may not: a
+# basic-auth Secret the CloudNativePG Cluster's `managed.roles` reads. The password is the one in
+# db-dsn above - two names for one credential, which is why they are drawn together here.
+kubectl -n "$NAMESPACE" create secret generic hubtask-app-role \
+	--type=kubernetes.io/basic-auth \
+	--from-literal=username=hubtask_app \
+	--from-literal=password="$APP_PASSWORD" \
+	--dry-run=client -o yaml | kubectl apply -f -
+
+# Two steps, and the reason is Helm's hook model rather than a preference.
+#
+# The migration is a `pre-install` hook, and a pre-install hook runs before *every* regular
+# resource in the release - including the CloudNativePG Cluster this chart now renders. So on a
+# first install with `database.enabled` there is nothing to migrate yet, and the hook fails looking
+# for a Secret the operator has not generated. Argo CD does not have this problem: sync waves order
+# a hook against resources, and the Cluster sits in an earlier wave (deployment.md §2.2). Helm has
+# no equivalent, so a Helm-driven first install is: create the database, then migrate into it.
+#
+# Step one, therefore, is the database and the workloads with the migration switched off. The pods
+# will not be ready yet - there is no schema - so this one does not wait for them.
 "$HELM" install hubtask k8s \
 	--namespace "$NAMESPACE" \
 	--set image.repository="$IMAGE" \
@@ -197,14 +232,35 @@ kubectl -n "$NAMESPACE" create secret generic hubtask-secrets \
 	--set database.backup.destinationPath="s3://$BUCKET/" \
 	--set database.backup.endpointURL=http://minio:9000 \
 	--set database.backup.existingSecret=minio-credentials \
+	--set 'database.postgresql.parameters.archive_timeout=30s' \
 	--set migration.dsnSecretName="$CLUSTER-app" \
 	--set migration.dsnSecretKey=uri \
+	--set database.appRole.passwordSecret=hubtask-app-role \
+	--set migration.enabled=false \
 	--set restoreDrill.enabled=false \
 	--set roles.api.replicas=1 --set roles.worker.replicas=1 \
 	--set roles.scheduler.replicas=1 --set roles.automation.replicas=1 \
 	--set config.tenancyMode=single \
-	--set storage.kind=local \
+	--set storage.kind=s3 \
+	--set storage.existingSecret=minio-credentials \
+	--set storage.bucket="$MEDIA_BUCKET" \
+	--set storage.endpoint=http://minio:9000 \
 	--set networkPolicy.enabled=false \
+	|| fail "the release could not be installed"
+
+echo "--- the database, before anything tries to migrate it ---"
+for _ in $(seq 1 60); do
+	ready="$(kubectl -n "$NAMESPACE" get cluster "$CLUSTER" -o jsonpath='{.status.readyInstances}' 2>/dev/null || true)"
+	[ "${ready:-0}" -ge 1 ] && break
+	sleep 10
+done
+[ "${ready:-0}" -ge 1 ] || fail "the CloudNativePG cluster never reported a ready instance"
+
+echo "--- step two: the migration, into a database that exists ---"
+"$HELM" upgrade hubtask k8s \
+	--namespace "$NAMESPACE" \
+	--reuse-values \
+	--set migration.enabled=true \
 	--wait --timeout 15m || fail "the release did not become ready"
 
 echo "--- the first base backup, which the drill needs something to recover to ---"
@@ -221,7 +277,7 @@ echo "--- the metric names A-12's rules read, against a real instance ---"
 # The half a promtool test cannot prove: that the operator publishes these series under these
 # names. A rule reading a name nobody emits is silent rather than noisy, so a rename has to turn
 # this build red (observability-reliability.md §11).
-cnpg_metrics="$(scrape "pod/$CLUSTER-1" 9187)" || fail "the database's metrics port did not answer"
+cnpg_metrics="$(fetch "pod/$CLUSTER-1" 9187 /metrics)" || fail "the database's metrics port did not answer"
 missing=0
 for metric in \
 	cnpg_collector_pg_wal_archive_status \
@@ -274,28 +330,71 @@ case "$record" in
 esac
 echo "  the record carries a timestamp"
 
-# 2. The gauge itself, through the mounted record and out of the application's metrics endpoint -
-#    the whole path, not just the file.
-kubectl -n "$NAMESPACE" rollout restart deployment/hubtask-api
+# 2. The gauge itself, through the mounted record and out of the metrics endpoint - the whole
+#    path, not just the file. On two roles, because the claim the chart makes is that the record
+#    reaches *every* role's pod: a mount that only landed in the API would leave A-20 reading a
+#    series that disappears whenever the scrape happens to hit a worker.
+kubectl -n "$NAMESPACE" rollout restart deployment/hubtask-api deployment/hubtask-scheduler
 kubectl -n "$NAMESPACE" rollout status deployment/hubtask-api --timeout=300s
-api="$(kubectl -n "$NAMESPACE" get pod -l app.kubernetes.io/component=api -o jsonpath='{.items[0].metadata.name}')"
-app_metrics="$(scrape "pod/$api" 9090)" || fail "the application's operations port did not answer"
-printf '%s' "$app_metrics" | grep -q "^hubtask_restore_drill_last_success_timestamp_seconds " \
-	|| fail "the drill passed and the gauge A-20 reads is still absent"
-echo "  the gauge reports the drill"
+kubectl -n "$NAMESPACE" rollout status deployment/hubtask-scheduler --timeout=300s
 
-# While the scrape is here: the families a production dashboard and the burn alerts are built on
-# (observability-reliability.md §4). They are emitted by seeding rather than by traffic, so their
-# absence is a wiring defect rather than a quiet cluster - which is exactly what this catches.
-for family in \
-	hubtask_http_requests_total \
-	hubtask_http_request_duration_seconds \
-	hubtask_db_pool_connections \
-	hubtask_job_queue_depth \
-	hubtask_build_info; do
-	printf '%s' "$app_metrics" | grep -q "^# TYPE $family " || fail "$family is not on /metrics"
+# The *newest running* pod of each, not the first one listed. A rolling restart leaves the previous
+# pod terminating for a moment, and that one started before the record ConfigMap existed - so
+# picking arbitrarily is a check that passes or fails on which pod the API server lists first.
+newest_pod() {
+	kubectl -n "$NAMESPACE" get pod -l "app.kubernetes.io/component=$1" \
+		--field-selector=status.phase=Running --sort-by=.metadata.creationTimestamp \
+		-o jsonpath='{.items[-1:].metadata.name}'
+}
+
+for role in api scheduler; do
+	pod="$(newest_pod "$role")"
+	[ -n "$pod" ] || fail "no $role pod is running after the restart"
+	# With a short retry: a ConfigMap projection into a running pod is not instantaneous. A fresh
+	# pod has it at mount time, which is what the restart is for - this is the margin.
+	body=""
+	for _ in $(seq 1 12); do
+		body="$(fetch "pod/$pod" 9090 /metrics)" || fail "the $role operations port did not answer"
+		printf '%s' "$body" | grep -q "^hubtask_restore_drill_last_success_timestamp_seconds " && break
+		sleep 5
+	done
+	printf '%s' "$body" | grep -q "^hubtask_restore_drill_last_success_timestamp_seconds " \
+		|| fail "the drill passed and the gauge A-20 reads is absent on the $role"
 done
-echo "  the RED, pool and queue families are on the endpoint"
+echo "  the gauge reports the drill, on every role the record is mounted into"
+
+# And the families a production dashboard and the burn alerts are built on
+# (observability-reliability.md §4), each asked of the role that owns it. The split is the chart
+# README's: the queue lives in the scheduler and the worker, not in the API, which is why the
+# ServiceMonitor selects a service spanning every role rather than the API's.
+#
+# With patience, because these appear at different moments. The RED families are a counter and a
+# histogram and have no series until something is served - hence the request below. The queue depth
+# is published on the scheduler's first tick after it takes the leader lock, which is seconds after
+# a restart. A check without patience here fails on the clock rather than on the wiring.
+assert_family() {
+	local role="$1" family="$2" pod body
+	pod="$(newest_pod "$role")"
+	[ -n "$pod" ] || fail "no $role pod is running"
+	for _ in $(seq 1 18); do
+		body="$(fetch "pod/$pod" 9090 /metrics)" || fail "the $role operations port did not answer"
+		if printf '%s' "$body" | grep -q "^# TYPE $family "; then
+			return 0
+		fi
+		sleep 5
+	done
+	fail "$family is not on the $role's /metrics"
+}
+
+# Any path does: a 404 is recorded under `route=unmatched`, which is itself the thing being checked.
+fetch "pod/$(newest_pod api)" 8080 /there-is-no-such-path > /dev/null || true
+
+assert_family api hubtask_http_requests_total
+assert_family api hubtask_http_request_duration_seconds
+assert_family api hubtask_db_pool_connections
+assert_family api hubtask_build_info
+assert_family scheduler hubtask_job_queue_depth
+echo "  the RED, pool and queue families are each on the role that owns them"
 
 # 3. The temporary cluster is gone. A drill that leaves one behind is a drill that fails the next
 #    one on quota, and it is the property most easily lost in a refactor of the teardown.
