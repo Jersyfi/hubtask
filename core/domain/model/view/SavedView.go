@@ -339,10 +339,8 @@ func ValidatedViewQuery(raw map[string]any) (map[string]any, error) {
 			WithFields(shared.FieldError{Path: "/query", Code: "views.query_required"})
 	}
 
-	if rawScope, present := raw["scope"]; present {
-		if err := validatedQueryScope(rawScope); err != nil {
-			return nil, err
-		}
+	if err := validatedQueryScope(raw); err != nil {
+		return nil, err
 	}
 	if rawFilter, present := raw["filter"]; present {
 		if _, err := ParseFilter(rawFilter, "/query/filter"); err != nil {
@@ -362,28 +360,34 @@ func ValidatedViewQuery(raw map[string]any) (map[string]any, error) {
 	return raw, nil
 }
 
-// validatedQueryScope checks the document's own anchor: the shape of api-guidelines.md §3, parsed
-// by the same rule the query endpoint applies. Existence is not asked here - the anchor is
-// resolved by whoever executes the view, under their own authorisation.
-func validatedQueryScope(raw any) error {
-	document, isObject := raw.(map[string]any)
-	if !isObject {
-		return shared.ErrValidation.
-			WithDetail("query.node_malformed").
-			WithFields(shared.FieldError{Path: "/query/scope", Code: "query.node_malformed"})
-	}
-
-	containerID, err := scopeIdentifier(document, "container_id")
+// validatedQueryScope checks the document's anchor, parsed by the rule the execution applies.
+//
+// **Flat, and required.** Both halves were traps (issue #431). The document is the *use case's*
+// input rather than the REST body: `presentation/rest` flattens `scope: {container_id}` into
+// `scope_container_id` before any use case sees it, and `:export` hands the stored document back
+// as an input. A nested `scope` therefore anchors nothing, and an unanchored view is refused at
+// every export - `query.scope_required`, naming a field the caller never sent, in an operation a
+// long way from the one where the mistake was made.
+//
+// Existence is not asked here: the anchor is resolved by whoever executes the view, under their
+// own authorisation.
+func validatedQueryScope(document map[string]any) error {
+	containerID, err := scopeIdentifier(document, "scope_container_id")
 	if err != nil {
 		return err
 	}
-	itemID, err := scopeIdentifier(document, "item_id")
+	itemID, err := scopeIdentifier(document, "scope_item_id")
 	if err != nil {
 		return err
 	}
-	include, _ := document["include_descendants"].(bool)
+	// Absent means the whole subtree, as it does at execution: a missing boolean is false, and
+	// false is the other instruction.
+	include := true
+	if raw, present := document["include_descendants"]; present {
+		include, _ = raw.(bool)
+	}
 
-	_, err = ParseScope(containerID, itemID, include, "/query/scope")
+	_, err = ParseScope(containerID, itemID, include, "/query")
 	return err
 }
 
@@ -407,7 +411,7 @@ func scopeIdentifierError(key string) error {
 	return shared.ErrValidation.
 		WithDetail("query.value_type_invalid").
 		WithFields(shared.FieldError{
-			Path: "/query/scope/" + key, Code: "query.value_type_invalid",
+			Path: "/query/" + key, Code: "query.value_type_invalid",
 		})
 }
 

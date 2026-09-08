@@ -94,9 +94,13 @@ func TestASharedViewExecutesUnderTheReadersAuthorisation(t *testing.T) {
 	stored, err := harness.create.Execute(ctx, viewReader(authorA), work.CreateSavedViewCommand{
 		ScopeType: view.ViewScopeCollection, ScopeID: collection,
 		Name: "Due this week", Layout: "KANBAN",
+		// Anchored in the use case's input shape. The nested `scope` this used to send is the
+		// shape `POST /items:query` takes as a *body*, which the controller flattens before any
+		// use case sees it - so the stored document anchored nothing and :export would have
+		// refused it (issue #431).
 		Query: map[string]any{
-			"scope":  map[string]any{"container_id": collection.String()},
-			"filter": map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P3D"},
+			"scope_container_id": collection.String(),
+			"filter":             map[string]any{"field": "due_at", "op": "LTE", "value": "@today+P3D"},
 		},
 		Sharing: view.SharingScope,
 	})
