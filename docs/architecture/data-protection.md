@@ -301,9 +301,13 @@ whole script on the machine that has one.
 Two of them are less than they look, and say so where they run. PG-6 reads the source for addresses
 rather than sandboxing the network: what a build can decide is where a destination could come from,
 and every outbound call this system makes names a target that arrived as configuration or as data
-([ADR-0015](../adr/ADR-0015-security-baseline.md)). PG-8 has nothing to refuse — there is no AI
-provider surface in this build — so it is a tripwire that fires when one arrives, and the measure
-belongs to `0.7.0`.
+([ADR-0015](../adr/ADR-0015-security-baseline.md)). PG-8 was the second, and stopped being so in
+J-02: it had nothing to refuse while no AI provider surface existed, so it was a tripwire that
+would fire when one arrived. One arrived, and it is a check now — a workspace configuring a
+provider it declares `THIRD_COUNTRY` is refused unless this installation's operator has set
+`HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER`, at configuration time rather than at call time, and
+`gate-selftest` proves it goes red both with the refusal removed and with the confirmation taken
+out of the environment.
 
 ---
 
@@ -324,7 +328,7 @@ belongs to `0.7.0`.
 |---|---|---|
 | P-1 | Legal review of the data catalogue, the DPA template, and the privacy policy for the hosted edition | Before commercial operation |
 | P-2 | Data protection impact assessment (Art. 35) for the hosted edition — clarify whether it is required and how far it goes | Before `1.0.0` |
-| P-3 | Selection of approved AI providers including zero-retention evidence and an EEA region | `0.7.0` |
+| P-3 | ~~Selection of approved AI providers including zero-retention evidence and an EEA region~~ — answered in J-02 and written down in [../privacy/ai-providers.md](../privacy/ai-providers.md). The assessment it records is that **no hosted third-party provider is listed**, which is a decision rather than an omission: "provider X is approved" would be this project asserting, on a controller's behalf, that somebody else's current terms satisfy their obligations — neither ours to assert nor stable enough to write down, since a zero-retention promise is a contractual term with a date on it. What is supplied instead is the mechanism (two switches owned by two different people, the jurisdiction as a declared value, PG-8 refusing an unconfirmed third country) and the four questions an operator answers before configuring one. A model the installation runs itself is the one row with nothing to assess, which is the path ADR-0018 decision 7 already called recommended | Closed (J-02) |
 | P-4 | Have legal advice assess CRA applicability to the commercial variant; set the support period per release | 2027 (preparatory work from `1.0.0`) |
 | P-5 | ~~Backup retention vs. the deletion obligation: fix and document the period bindingly~~ — settled at **35 days** (H-13). Thirty is the period a privacy policy can state without qualification; the extra five are the grace that keeps a monthly cycle from making a liar of it. It binds the operator's system backups and the PITR window, **not** a tenant's own archive backups, where the tenant is the controller and its generation plan is its own choice — the two are deliberately different numbers rather than one applied to both. Three consequences follow and are written where they act: the system backup plan keeps no monthly or yearly generation, the object lock retention on the backup target is set to the same 35 days so that the plan's own cleanup can never fail against it (B-3), and a point-in-time restore re-applies the erasures it rewound past before traffic is admitted. With the tenant grace period of 30 days in front of it, a deleted workspace is gone from everything the operator holds within 65 days of the request | Closed (H-13) |
 | P-6 | ~~Decide anonymisation vs. full deletion as the tenant default~~ — settled as **anonymisation** (H-13). A case that names no mode is carried out as `ANONYMIZE`; a controller who owes maximal erasure names `FULL_DELETE` on the case. **The trade-off:** anonymisation preserves authorship, so a task somebody else depends on, a comment in a thread and a decision with a reason behind it all survive the person leaving — the rights in a workspace are not only the asking person's, which is ADR-0018's reason for putting the choice with the controller in the first place. Full deletion is the wider erasure and the wider blast radius, and a default is precisely the setting nobody thinks about, so it is not the default. What used to happen instead was a refusal: a case that could not start because a field nobody filled in was empty, with the statutory deadline running while somebody worked out which of two words to type | Closed (H-13) |
