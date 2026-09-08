@@ -12,9 +12,9 @@
  * server says so, and this predicts it so the control is off with the reason rather than refused
  * after somebody fills it in.
  *
- * **Years and months are refused in a duration**, which is the contract's own rule and worth
- * mirroring: they are calendar arithmetic rather than a length of time, and a reminder that meant
- * two different things in two months would be a promise the offset cannot keep.
+ * **Years and months are refused in a duration** — the contract's own rule, and `duration.ts`'s,
+ * because a template's `due_offset` refuses them for the same reason and one rule written twice is
+ * one rule that will drift.
  *
  * **`LAPSED` is a state the schema does not declare.** It is real — `offline-sync.md` §8, and a
  * restore produces it — so the state is read as a string, and one this client has never met still
@@ -22,6 +22,8 @@
  */
 
 import type { Reminder, WorkItem } from '@hubtask/sync-engine';
+
+import { isPlainDuration } from './duration.ts';
 
 /** The two prefixes, written once. */
 export const RELATIVE = 'REL:';
@@ -42,15 +44,9 @@ export function isWellFormed(spec: string): boolean {
   if (spec.startsWith(ABSOLUTE)) return !Number.isNaN(Date.parse(spec.slice(ABSOLUTE.length)));
   if (!spec.startsWith(RELATIVE)) return false;
 
-  const duration = spec.slice(RELATIVE.length);
-  // A leading minus is what "before the due date" is written as.
-  const body = duration.startsWith('-') ? duration.slice(1) : duration;
-  if (!body.startsWith('P') || body === 'P') return false;
-  // Y and M before the T are years and months. The M *after* it is minutes, which is why this
-  // looks at the date half alone rather than at the whole string.
-  const [datePart] = body.slice(1).split('T');
-  if (/[YM]/.test(datePart ?? '')) return false;
-  return /\d/.test(body);
+  // The duration rule is `duration.ts`, because a template's `due_offset` refuses years and months
+  // for the same reason and one rule written twice is one rule that will drift.
+  return isPlainDuration(spec.slice(RELATIVE.length));
 }
 
 /** The states this client has phrases for. Anything else is a state from a newer server. */
