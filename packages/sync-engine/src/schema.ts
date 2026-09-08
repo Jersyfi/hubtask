@@ -226,3 +226,30 @@ export type BulkOperation = components['schemas']['BulkOperation'];
 export type BulkResult = components['schemas']['BulkResult'];
 /** What a duplicate produced: the copy, what it could not carry over, and how big it was. */
 export type DuplicateResult = components['schemas']['DuplicateResult'];
+
+/**
+ * One reminder on an entry.
+ *
+ * `offset_spec` has two forms and no third: `REL:<duration>` counted from the due date, and
+ * `ABS:<instant>`, a fixed moment. `fire_at` is the server's own answer — the due date plus the
+ * offset, recomputed whenever the date moves, and **null** for a relative reminder whose entry has
+ * lost its date, because the date may come back and nobody asked for the reminder to go.
+ */
+export type Reminder = components['schemas']['Reminder'];
+export type ReminderInput = components['schemas']['ReminderInput'];
+export type ReminderUpdate = components['schemas']['ReminderUpdate'];
+/**
+ * `PENDING`, `SENT`, `CANCELLED` — and a fourth the schema does not name.
+ *
+ * `LAPSED` is a real state (`core/domain/model/work/Reminder.go`, `offline-sync.md` §8): a reminder
+ * whose moment passed while the data sat in an archive. The contract's enum omits it, so this type
+ * is narrower than what a restored workspace can answer, and a client must read the field as the
+ * string it is rather than as this union.
+ */
+export type ReminderState = components['schemas']['ReminderState'];
+export type ReminderChannel = components['schemas']['ReminderChannel'];
+
+/** A series on an entry. The DTSTART is the entry's own due date, never part of the rule. */
+export type Recurrence = components['schemas']['Recurrence'];
+export type RecurrenceInput = components['schemas']['RecurrenceInput'];
+export type RecurrenceMode = components['schemas']['RecurrenceMode'];
